@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, List, Union, TYPE_CHECKING
 
 
 from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseError
 from synapseclient.core.constants import concrete_types
 from synapseclient.api.entity_services import get_upload_destination
 
@@ -363,3 +364,58 @@ async def get_file_handle(
     return await client.rest_get_async(
         f"/fileHandle/{file_handle_id}", endpoint=client.fileHandleEndpoint
     )
+
+
+async def get_file_handle_for_download(
+    file_handle_id: str,
+    synapse_id: str,
+    entity_type: str = None,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, str]:
+    """
+    Gets the URL and the metadata as filehandle object for a filehandle or fileHandleId
+
+    Arguments:
+        file_handle_id:   ID of fileHandle to download
+        synapse_id:       The ID of the object associated with the file e.g. syn234
+        entity_type:     Type of object associated with a file e.g. FileEntity, TableEntity <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+
+    Raises:
+        SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.
+        SynapseError:             If the user does not have the permission to access the fileHandleId.
+
+    Returns:
+        A dictionary with keys: fileHandle, fileHandleId and preSignedURL
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    body = {
+        "includeFileHandles": True,
+        "includePreSignedURLs": True,
+        "requestedFiles": [
+            {
+                "fileHandleId": file_handle_id,
+                "associateObjectId": synapse_id,
+                "associateObjectType": entity_type or "FileEntity",
+            }
+        ],
+    }
+    response = await client.rest_post_async(
+        "/fileHandle/batch", body=json.dumps(body), endpoint=client.fileHandleEndpoint
+    )
+
+    result = response["requestedFiles"][0]
+    failure = result.get("failureCode")
+    if failure == "NOT_FOUND":
+        raise SynapseFileNotFoundError(
+            f"The fileHandleId {file_handle_id} could not be found"
+        )
+    elif failure == "UNAUTHORIZED":
+        raise SynapseError(
+            f"You are not authorized to access fileHandleId {file_handle_id} associated with the Synapse {entity_type}: {synapse_id}"
+        )
+    return result

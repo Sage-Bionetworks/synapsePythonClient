@@ -1,6 +1,5 @@
 """Script to work with Synapse files."""
 
-# pylint: disable=protected-access
 import asyncio
 import dataclasses
 import os

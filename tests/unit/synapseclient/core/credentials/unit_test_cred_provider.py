@@ -1,6 +1,8 @@
+"""Unit tests for synapseclient.core.credentials.credential_provider"""
+
 import os
 import sys
-from unittest.mock import create_autospec, MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import boto3
 import pytest
@@ -13,23 +15,24 @@ from synapseclient.core.credentials.cred_data import (
     UserLoginArgs,
 )
 from synapseclient.core.credentials.credential_provider import (
+    AWSParameterStoreCredentialsProvider,
     ConfigFileCredentialsProvider,
+    EnvironmentVariableCredentialsProvider,
     SynapseCredentialsProvider,
     SynapseCredentialsProviderChain,
     UserArgsCredentialsProvider,
-    AWSParameterStoreCredentialsProvider,
-    EnvironmentVariableCredentialsProvider,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
+from synapseclient import Synapse
 
 
 class TestSynapseApiKeyCredentialsProviderChain(object):
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.cred_provider = create_autospec(SynapseCredentialsProvider)
         self.user_login_args = UserLoginArgs(
             username=None, auth_token=None
@@ -38,7 +41,7 @@ class TestSynapseApiKeyCredentialsProviderChain(object):
             [self.cred_provider]
         )
 
-    def test_get_credentials__provider_not_return_credentials(self):
+    def test_get_credentials__provider_not_return_credentials(self) -> None:
         self.cred_provider.get_synapse_credentials.return_value = None
 
         creds = self.credential_provider_chain.get_credentials(
@@ -50,7 +53,7 @@ class TestSynapseApiKeyCredentialsProviderChain(object):
             self.syn, self.user_login_args
         )
 
-    def test_get_credentials__multiple_providers(self):
+    def test_get_credentials__multiple_providers(self) -> None:
         cred_provider2 = create_autospec(SynapseCredentialsProvider)
         cred_provider3 = create_autospec(SynapseCredentialsProvider)
 
@@ -86,11 +89,11 @@ class TestSynapseApiKeyCredentialsProviderChain(object):
 
 class TestSynapseCredentialProvider(object):
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.username = "username"
         self.auth_token = "auth_token"
         self.user_login_args = UserLoginArgs(
@@ -101,12 +104,12 @@ class TestSynapseCredentialProvider(object):
         # SynapseApiKeyCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
 
         class SynapseCredProviderTester(SynapseCredentialsProvider):
-            def _get_auth_info(self, syn, user_login_args):
+            def _get_auth_info(self, syn, user_login_args) -> None:
                 pass
 
         self.provider = SynapseCredProviderTester()
 
-    def test_get_synapse_credentials(self):
+    def test_get_synapse_credentials(self) -> None:
         auth_info = ("username", "auth_token")
         with patch.object(
             self.provider, "_get_auth_info", return_value=auth_info
@@ -122,7 +125,7 @@ class TestSynapseCredentialProvider(object):
                 self.syn, *auth_info
             )
 
-    def test_create_synapse_credential__username_is_None__auth_is_None(self):
+    def test_create_synapse_credential__username_is_None__auth_is_None(self) -> None:
         # username is required with credentials other than auth token.
         # if neither is provided it shouldn't matter what the other fields are
         cred = self.provider._create_synapse_credential(
@@ -130,7 +133,9 @@ class TestSynapseCredentialProvider(object):
         )
         assert cred is None
 
-    def test_create_synapse_credential_username_is_None_auth_provided(self, mocker):
+    def test_create_synapse_credential_username_is_None_auth_provided(
+        self, mocker
+    ) -> None:
         mock_rest_get = mocker.patch.object(self.syn, "restGET")
         mock_init_auth_creds = mocker.patch.object(
             credential_provider, "SynapseAuthTokenCredentials"
@@ -148,7 +153,7 @@ class TestSynapseCredentialProvider(object):
 
     def test_create_synapse_credential_username_not_None_auth_token_is_not_None(
         self, mocker
-    ):
+    ) -> None:
         """Verify that the auth bearer token is used if provided and the username is not None"""
 
         mock_rest_get = mocker.patch.object(self.syn, "restGET")
@@ -181,7 +186,7 @@ class TestSynapseCredentialProvider(object):
         login_username,
         profile_username,
         profile_emails,
-    ):
+    ) -> None:
         """Verify that if both a username/email and a auth token are provided, the login is successful
         if the token matches either the username or a profile email address."""
 
@@ -197,7 +202,9 @@ class TestSynapseCredentialProvider(object):
         assert cred.secret == self.auth_token
         assert cred.username == profile_username
 
-    def test_create_synapse_credential__username_auth_token_mismatch(self, mocker):
+    def test_create_synapse_credential__username_auth_token_mismatch(
+        self, mocker
+    ) -> None:
         """Verify that if both a username/email and a auth token are provided, and error is raised
         if they do not correspond"""
 
@@ -220,10 +227,10 @@ class TestSynapseCredentialProvider(object):
 
 class TestUserArgsCredentialsProvider(object):
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_get_auth_info(self):
+    def test_get_auth_info(self) -> None:
         user_login_args = UserLoginArgs(
             username="username",
             auth_token="auth_token",
@@ -239,11 +246,11 @@ class TestUserArgsCredentialsProvider(object):
 
 class TestConfigFileCredentialsProvider(object):
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.username = "username"
         self.token = "token123"
         self.expected_return_tuple = (self.username, self.token)
@@ -251,8 +258,9 @@ class TestConfigFileCredentialsProvider(object):
             "username": self.username,
             "authtoken": self.token,
         }
-        self.get_config_authentication__patcher = patch.object(
-            self.syn, "_get_config_authentication", return_value=self.config_dict
+        self.get_config_authentication__patcher = patch(
+            "synapseclient.core.credentials.credential_provider.get_config_authentication",
+            return_value=self.config_dict,
         )
         self.mock_get_config_authentication = (
             self.get_config_authentication__patcher.start()
@@ -260,10 +268,10 @@ class TestConfigFileCredentialsProvider(object):
 
         self.provider = ConfigFileCredentialsProvider()
 
-    def teardown(self):
+    def teardown_method(self):
         self.get_config_authentication__patcher.stop()
 
-    def test_get_auth_info__user_arg_username_is_None(self):
+    def test_get_auth_info__user_arg_username_is_None(self) -> None:
         user_login_args = UserLoginArgs(
             username=None,
             auth_token=None,
@@ -272,9 +280,11 @@ class TestConfigFileCredentialsProvider(object):
         returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
 
         assert self.expected_return_tuple == returned_tuple
-        self.mock_get_config_authentication.assert_called_once_with()
+        self.mock_get_config_authentication.assert_called_once_with(
+            config_path=self.syn.configPath
+        )
 
-    def test_get_auth_info__user_arg_username_matches_config(self):
+    def test_get_auth_info__user_arg_username_matches_config(self) -> None:
         user_login_args = UserLoginArgs(
             username=self.username,
             auth_token=None,
@@ -283,9 +293,11 @@ class TestConfigFileCredentialsProvider(object):
         returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
 
         assert self.expected_return_tuple == returned_tuple
-        self.mock_get_config_authentication.assert_called_once_with()
+        self.mock_get_config_authentication.assert_called_once_with(
+            config_path=self.syn.configPath
+        )
 
-    def test_get_auth_info__user_arg_username_does_not_match_config(self):
+    def test_get_auth_info__user_arg_username_does_not_match_config(self) -> None:
         """Verify that if the username is provided via an arg and it doesn't
         match what's in the config then we don't read any other values from config"""
         user_login_args = UserLoginArgs(
@@ -296,12 +308,14 @@ class TestConfigFileCredentialsProvider(object):
         returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
 
         assert (None, None) == returned_tuple
-        self.mock_get_config_authentication.assert_called_once_with()
+        self.mock_get_config_authentication.assert_called_once_with(
+            config_path=self.syn.configPath
+        )
 
 
 class TestAWSParameterStoreCredentialsProvider(object):
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture()
@@ -323,10 +337,12 @@ class TestAWSParameterStoreCredentialsProvider(object):
         return mock_boto3_client, stubber
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.provider = AWSParameterStoreCredentialsProvider()
 
-    def test_get_auth_info__no_environment_variable(self, mocker: MockerFixture, syn):
+    def test_get_auth_info__no_environment_variable(
+        self, mocker: MockerFixture, syn: Synapse
+    ):
         mocker.patch.dict(os.environ, {}, clear=True)
         mock_boto3_client, stubber = self.stub_ssm(mocker)
 
@@ -345,8 +361,8 @@ class TestAWSParameterStoreCredentialsProvider(object):
         ["UnrecognizedClientException", "AccessDenied", "ParameterNotFound"],
     )
     def test_get_auth_info__get_parameter_error(
-        self, mocker: MockerFixture, syn, environ_with_param_name, error_code
-    ):
+        self, mocker: MockerFixture, syn: Synapse, environ_with_param_name, error_code
+    ) -> None:
         mocker.patch.dict(os.environ, environ_with_param_name)
 
         mock_boto3_client, stubber = self.stub_ssm(mocker)
@@ -363,8 +379,8 @@ class TestAWSParameterStoreCredentialsProvider(object):
             stubber.assert_no_pending_responses()
 
     def test_get_auth_info__parameter_name_exists(
-        self, mocker: MockerFixture, syn, environ_with_param_name
-    ):
+        self, mocker: MockerFixture, syn: Synapse, environ_with_param_name
+    ) -> None:
         mocker.patch.dict(os.environ, environ_with_param_name)
 
         mock_boto3_client, stubber = self.stub_ssm(mocker)
@@ -396,8 +412,8 @@ class TestAWSParameterStoreCredentialsProvider(object):
             stubber.assert_no_pending_responses()
 
     def test_get_auth_info__boto3_ImportError(
-        self, mocker, syn, environ_with_param_name
-    ):
+        self, mocker, syn: Synapse, environ_with_param_name
+    ) -> None:
         mocker.patch.dict(os.environ, environ_with_param_name)
         # simulate import error by "removing" boto3 from sys.modules
         mocker.patch.dict(sys.modules, {"boto3": None})
@@ -412,14 +428,16 @@ class TestAWSParameterStoreCredentialsProvider(object):
 
 class TestEnvironmentVariableCredentialsProvider:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.provider = EnvironmentVariableCredentialsProvider()
 
-    def test_get_auth_info__has_environment_variable(self, mocker: MockerFixture, syn):
+    def test_get_auth_info__has_environment_variable(
+        self, mocker: MockerFixture, syn: Synapse
+    ) -> None:
         token = "aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj1mQzdvVU9VRUVpNA=="
         mocker.patch.dict(os.environ, {"SYNAPSE_AUTH_TOKEN": token})
 
@@ -430,8 +448,8 @@ class TestEnvironmentVariableCredentialsProvider:
         assert (None, token) == self.provider._get_auth_info(syn, user_login_args)
 
     def test_get_auth_info__has_environment_variable_user_args_with_username(
-        self, mocker: MockerFixture, syn
-    ):
+        self, mocker: MockerFixture, syn: Synapse
+    ) -> None:
         token = "aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj1mQzdvVU9VRUVpNA=="
         mocker.patch.dict(os.environ, {"SYNAPSE_AUTH_TOKEN": token})
         username = "foobar"
@@ -441,7 +459,9 @@ class TestEnvironmentVariableCredentialsProvider:
         )
         assert (username, token) == self.provider._get_auth_info(syn, user_login_args)
 
-    def test_get_auth_info__no_environment_variable(self, mocker: MockerFixture, syn):
+    def test_get_auth_info__no_environment_variable(
+        self, mocker: MockerFixture, syn: Synapse
+    ) -> None:
         mocker.patch.dict(os.environ, {}, clear=True)
 
         user_login_args = UserLoginArgs(

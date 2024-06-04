@@ -1,32 +1,27 @@
 """This module handles the various ways that a user can upload a file to Synapse."""
 
-# pylint: disable=protected-access
 import asyncio
 import os
 import urllib.parse as urllib_parse
 import uuid
-from typing import TYPE_CHECKING, Dict, Union, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from opentelemetry import trace
 
 from synapseclient.api import (
+    get_client_authenticated_s3_profile,
+    get_file_handle,
+    get_upload_destination,
+    post_external_filehandle,
     post_external_object_store_filehandle,
     post_external_s3_file_handle,
-    get_file_handle,
-    post_external_filehandle,
-    get_upload_destination,
 )
 from synapseclient.core import sts_transfer, utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
-from synapseclient.core.utils import (
-    as_url,
-    file_url_to_path,
-    id_of,
-    is_url,
-)
+from synapseclient.core.utils import as_url, file_url_to_path, id_of, is_url
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -395,7 +390,9 @@ async def upload_client_auth_s3(
     storage_str: str = None,
 ) -> Dict[str, Union[str, int]]:
     """Use the S3 client to upload a file to an S3 bucket."""
-    profile = syn._get_client_authenticated_s3_profile(endpoint_url, bucket)
+    profile = get_client_authenticated_s3_profile(
+        endpoint=endpoint_url, bucket=bucket, config_path=syn.configPath
+    )
     file_key = key_prefix + "/" + os.path.basename(file_path)
     loop = asyncio.get_event_loop()
 

@@ -23,6 +23,8 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry,
 )
+from synapseclient.api import get_file_handle_for_download
+from synapseclient.core.async_utils import wrap_async_to_sync
 
 # constants
 MAX_QUEUE_SIZE: int = 20
@@ -142,16 +144,21 @@ class PresignedUrlProvider(object):
         Returns:
             PresignedUrlInfo
         """
-        # noinspection PyProtectedMember
-        response = self.client._getFileHandleDownload(
-            self.request.file_handle_id,
-            self.request.object_id,
-            objectType=self.request.object_type,
+        response = wrap_async_to_sync(
+            coroutine=get_file_handle_for_download(
+                file_handle_id=self.request.file_handle_id,
+                synapse_id=self.request.object_id,
+                entity_type=self.request.object_type,
+                synapse_client=self.client,
+            ),
+            syn=self.client,
         )
         file_name = response["fileHandle"]["fileName"]
         pre_signed_url = response["preSignedURL"]
         return PresignedUrlInfo(
-            file_name, pre_signed_url, _pre_signed_url_expiration_time(pre_signed_url)
+            file_name=file_name,
+            url=pre_signed_url,
+            expiration_utc=_pre_signed_url_expiration_time(pre_signed_url),
         )
 
 

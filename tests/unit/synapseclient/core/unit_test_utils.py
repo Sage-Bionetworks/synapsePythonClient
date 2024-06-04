@@ -530,7 +530,7 @@ class TestSpinner:
     """
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.msg = "test_msg"
         self.spinner = utils.Spinner(self.msg)
 

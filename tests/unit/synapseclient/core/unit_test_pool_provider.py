@@ -15,7 +15,7 @@ from synapseclient.core.pool_provider import (
 
 
 class TestSingleThreadPool:
-    def setup(self):
+    def setup_method(self):
         pass
 
     def test_map(self):

@@ -62,7 +62,6 @@ flowchart  TD
 ```
 """
 
-# pylint: disable=protected-access
 import asyncio
 from contextlib import contextmanager
 import gc

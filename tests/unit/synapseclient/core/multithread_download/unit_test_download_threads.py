@@ -24,7 +24,7 @@ from synapseclient.core.retry import DEFAULT_RETRIES
 
 class TestPresignedUrlProvider(object):
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.mock_synapse_client = mock.create_autospec(Synapse)
         self.download_request = DownloadRequest(123, "456", "FileEntity", "/myFakepath")
 
@@ -95,28 +95,32 @@ class TestPresignedUrlProvider(object):
             download_threads,
             "_pre_signed_url_expiration_time",
             return_value=fake_exp_time,
-        ) as mock_pre_signed_url_expiration_time:
+        ) as mock_pre_signed_url_expiration_time, mock.patch(
+            "synapseclient.core.multithread_download.download_threads.get_file_handle_for_download",
+            new_callable=mock.AsyncMock,
+        ) as mock_file_handle_download:
             fake_file_handle_response = {
                 "fileHandle": {"fileName": fake_file_name},
                 "preSignedURL": fake_url,
             }
 
-            self.mock_synapse_client._getFileHandleDownload.return_value = (
-                fake_file_handle_response
-            )
+            mock_file_handle_download.return_value = fake_file_handle_response
 
             presigned_url_provider = PresignedUrlProvider(
                 self.mock_synapse_client, self.download_request
             )
 
-            expected = PresignedUrlInfo(fake_file_name, fake_url, fake_exp_time)
+            expected = PresignedUrlInfo(
+                file_name=fake_file_name, url=fake_url, expiration_utc=fake_exp_time
+            )
             assert expected == presigned_url_provider._get_pre_signed_info()
 
             mock_pre_signed_url_expiration_time.assert_called_with(fake_url)
-            self.mock_synapse_client._getFileHandleDownload.assert_called_with(
-                self.download_request.file_handle_id,
-                self.download_request.object_id,
-                objectType=self.download_request.object_type,
+            mock_file_handle_download.assert_called_with(
+                file_handle_id=self.download_request.file_handle_id,
+                synapse_id=self.download_request.object_id,
+                entity_type=self.download_request.object_type,
+                synapse_client=self.mock_synapse_client,
             )
 
 

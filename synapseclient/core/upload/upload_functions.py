@@ -1,28 +1,27 @@
 """This module handles the various ways that a user can upload a file to Synapse."""
 
-# pylint: disable=protected-access
+import collections.abc
 import numbers
 import os
 import urllib.parse as urllib_parse
 import uuid
-import collections.abc
-
 from typing import TYPE_CHECKING, Dict, Union
+
+from opentelemetry import trace
+
+from synapseclient.api import get_client_authenticated_s3_profile
+from synapseclient.core import cumulative_transfer_progress, sts_transfer, utils
+from synapseclient.core.constants import concrete_types
+from synapseclient.core.exceptions import SynapseMd5MismatchError
+from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
+from synapseclient.core.upload.multipart_upload import multipart_upload_file
 from synapseclient.core.utils import (
-    is_url,
-    md5_for_file,
     as_url,
     file_url_to_path,
     id_of,
+    is_url,
+    md5_for_file,
 )
-from synapseclient.core import cumulative_transfer_progress
-from synapseclient.core.constants import concrete_types
-from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from synapseclient.core import sts_transfer
-from synapseclient.core.upload.multipart_upload import multipart_upload_file
-from synapseclient.core.exceptions import SynapseMd5MismatchError
-from synapseclient.core import utils
-from opentelemetry import trace
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -356,7 +355,9 @@ def upload_client_auth_s3(
     mimetype: str = None,
     md5: str = None,
 ) -> Dict[str, Union[str, int]]:
-    profile = syn._get_client_authenticated_s3_profile(endpoint_url, bucket)
+    profile = get_client_authenticated_s3_profile(
+        endpoint=endpoint_url, bucket=bucket, config_path=syn.configPath
+    )
     file_key = key_prefix + "/" + os.path.basename(file_path)
 
     S3ClientWrapper.upload_file(

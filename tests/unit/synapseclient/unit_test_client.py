@@ -8,7 +8,7 @@ import tempfile
 import urllib.request as urllib_request
 import uuid
 from pathlib import Path
-from unittest.mock import ANY, MagicMock, Mock, call, create_autospec, patch, AsyncMock
+from unittest.mock import ANY, AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
 import pytest
 import requests
@@ -32,6 +32,7 @@ from synapseclient import (
     client,
 )
 from synapseclient.annotations import convert_old_annotation_json
+from synapseclient.api import get_config_file
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
@@ -39,6 +40,7 @@ from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
 from synapseclient.core.credentials.credential_provider import (
     SynapseCredentialsProviderChain,
 )
+from synapseclient.core.download import download_by_file_handle, download_from_url
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
     SynapseError,
@@ -58,11 +60,11 @@ from synapseclient.core.upload import upload_functions
 
 class TestLogout:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.username = "asdf"
         self.credentials = SynapseAuthTokenCredentials(
             token="ghjk", username=self.username
@@ -77,11 +79,11 @@ class TestLogout:
 
 class TestLogin:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.login_args = {"email": "AzureDiamond", "authToken": "hunter2"}
         self.expected_user_args = UserLoginArgs(
             auth_token="hunter2", username="AzureDiamond"
@@ -101,10 +103,10 @@ class TestLogin:
             self.get_default_credential_chain_patcher.start()
         )
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.get_default_credential_chain_patcher.stop()
 
-    def test_login__no_credentials(self):
+    def test_login__no_credentials(self) -> None:
         self.mocked_credential_chain.get_credentials.return_value = None
 
         # method under test
@@ -115,7 +117,7 @@ class TestLogin:
             self.syn, self.expected_user_args
         )
 
-    def test_login__credentials_returned(self):
+    def test_login__credentials_returned(self) -> None:
         # method under test
         self.syn.login(silent=True, **self.login_args)
 
@@ -125,7 +127,7 @@ class TestLogin:
         )
         assert self.synapse_creds == self.syn.credentials
 
-    def test_login__silentIsFalse(self):
+    def test_login__silentIsFalse(self) -> None:
         with patch.object(self.syn, "getUserProfile"), patch.object(
             self.syn, "logger"
         ) as mocked_logger:
@@ -135,16 +137,16 @@ class TestLogin:
             mocked_logger.info.assert_called_once()
 
 
-@patch("synapseclient.Synapse._getFileHandleDownload")
-@patch("synapseclient.Synapse._downloadFileHandle")
+@patch("synapseclient.core.download.download_functions.get_file_handle_for_download")
+@patch("synapseclient.core.download.download_functions.download_by_file_handle")
 class TestPrivateGetWithEntityBundle:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     def test_getWithEntityBundle__no_DOWNLOAD(
         self, download_file_mock, get_file_URL_and_metadata_mock
-    ):
+    ) -> None:
         bundle = {
             "entity": {
                 "id": "syn10101",
@@ -169,7 +171,7 @@ class TestPrivateGetWithEntityBundle:
 
     def test_getWithEntityBundle(
         self, download_file_mock, get_file_URL_and_metadata_mock
-    ):
+    ) -> None:
         # Note: one thing that remains unexplained is why the previous version of
         # this test worked if you had a .cacheMap file of the form:
         # {"/Users/chris/.synapseCache/663/-1337/anonymous": "2014-09-15T22:54:57.000Z",
@@ -208,18 +210,22 @@ class TestPrivateGetWithEntityBundle:
         if os.path.exists(cacheMap):
             os.remove(cacheMap)
 
-        def _downloadFileHandle(fileHandleId, objectId, objectType, path, retries=5):
+        def _downloadFileHandle(
+            file_handle_id, synapse_id, entity_type, destination, retries=5
+        ):
             # touch file at path
-            with open(path, "a"):
-                os.utime(path, None)
-            os.path.split(path)
-            self.syn.cache.add(fileHandle, path)
-            return path
+            with open(destination, "a"):
+                os.utime(destination, None)
+            os.path.split(destination)
+            self.syn.cache.add(file_handle_id=fileHandle, path=destination)
+            return destination
 
-        def _getFileHandleDownload(fileHandleId, objectId, objectType="FileHandle"):
+        def _getFileHandleDownload(
+            file_handle_id, synapse_id, entity_type="FileHandle"
+        ):
             return {
                 "fileHandle": bundle["fileHandles"][0],
-                "fileHandleId": fileHandleId,
+                "fileHandleId": file_handle_id,
                 "preSignedURL": "http://example.com",
             }
 
@@ -294,11 +300,11 @@ class TestDownloadFileHandle:
     # TODO missing tests for the other ways of downloading a file handle should be backfilled...
 
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    @patch.object(client, "sts_transfer")
-    def test_download_file_handle__retry_error(self, mock_sts_transfer):
+    @patch("synapseclient.core.download.download_functions.sts_transfer")
+    async def test_download_file_handle__retry_error(self, mock_sts_transfer) -> None:
         mock_sts_transfer.is_boto_sts_transfer_enabled.return_value = False
 
         file_handle_id = 1234
@@ -313,10 +319,12 @@ class TestDownloadFileHandle:
             (disk_space_error, 1),
             (ValueError("foo"), retries),
         ]:
-            with patch.object(
-                self.syn, "_getFileHandleDownload"
-            ) as mock_get_file_handle_download, patch.object(
-                self.syn, "_download_from_URL"
+            with patch(
+                "synapseclient.core.download.download_functions.get_file_handle_for_download",
+                new_callable=AsyncMock,
+            ) as mock_get_file_handle_download, patch(
+                "synapseclient.core.download.download_functions.download_from_url",
+                new_callable=AsyncMock,
             ) as mock_download_from_URL:
                 mock_get_file_handle_download.return_value = {
                     "fileHandle": {
@@ -330,25 +338,26 @@ class TestDownloadFileHandle:
                 mock_download_from_URL.side_effect = ex
 
                 with pytest.raises(ex.__class__):
-                    self.syn._downloadFileHandle(
-                        file_handle_id,
-                        syn_id,
-                        objectType="FileEntity",
+                    await download_by_file_handle(
+                        file_handle_id=file_handle_id,
+                        synapse_id=syn_id,
+                        entity_type="FileEntity",
                         destination="/tmp/foo",
                         retries=retries,
+                        synapse_client=self.syn,
                     )
 
                 assert mock_download_from_URL.call_count == expected_attempts
 
-    @patch.object(client, "S3ClientWrapper")
-    @patch.object(client, "sts_transfer")
-    @patch.object(client, "os")
-    def test_download_file_handle__sts_boto(
+    @patch("synapseclient.core.download.download_functions.S3ClientWrapper")
+    @patch("synapseclient.core.download.download_functions.sts_transfer")
+    @patch("synapseclient.core.download.download_functions.os")
+    async def test_download_file_handle__sts_boto(
         self,
         mock_os,
         mock_sts_transfer,
         mock_s3_client_wrapper,
-    ):
+    ) -> None:
         """Verify that we download S3 file handles using boto if the configuration specifies
         # it and if the storage location supports STS"""
 
@@ -364,20 +373,23 @@ class TestDownloadFileHandle:
         }
 
         mock_sts_transfer.is_boto_sts_transfer_enabled.return_value = True
-        mock_sts_transfer.is_storage_location_sts_enabled.return_value = True
+        mock_sts_transfer.is_storage_location_sts_enabled_async = AsyncMock(
+            return_value=True
+        )
 
-        def mock_with_boto_sts_credentials(download_fn, syn, objectId, permission):
+        def mock_with_boto_sts_credentials(fn, syn, entity_id, permission):
             assert permission == "read_only"
-            assert entity_id == objectId
-            return download_fn(credentials)
+            assert entity_id == entity_id
+            return fn(credentials)
 
         mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
 
         expected_download_path = "/tmp/fooKey"
         mock_s3_client_wrapper.download_file.return_value = expected_download_path
 
-        with patch.object(
-            self.syn, "_getFileHandleDownload"
+        with patch(
+            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            new_callable=AsyncMock,
         ) as mock_get_file_handle_download, patch.object(self.syn, "cache") as cache:
             mock_get_file_handle_download.return_value = {
                 "fileHandle": {
@@ -394,11 +406,12 @@ class TestDownloadFileHandle:
             multi_threaded = self.syn.multi_threaded
             try:
                 self.syn.multi_threaded = True
-                download_path = self.syn._downloadFileHandle(
-                    fileHandleId=file_handle_id,
-                    objectId=entity_id,
-                    objectType="FileEntity",
+                download_path = await download_by_file_handle(
+                    file_handle_id=file_handle_id,
+                    synapse_id=entity_id,
+                    entity_type="FileEntity",
                     destination=destination,
+                    synapse_client=self.syn,
                 )
                 # restore to whatever it was before
             finally:
@@ -411,16 +424,16 @@ class TestDownloadFileHandle:
 
         assert expected_download_path == download_path
         mock_s3_client_wrapper.download_file.assert_called_once_with(
-            bucket_name,
-            None,
-            key,
-            destination,
+            bucket="fooBucket",
+            endpoint_url=None,
+            remote_file_key="/tmp/fooKey",
+            download_file_path="/tmp",
             credentials=credentials,
             show_progress=True,
             transfer_config_kwargs={"max_concurrency": self.syn.max_threads},
         )
 
-    def test_download_file_ftp_link(self):
+    async def test_download_file_ftp_link(self) -> None:
         """Verify downloading from an FTP Link entity"""
 
         file_handle_id = 1234
@@ -429,8 +442,9 @@ class TestDownloadFileHandle:
         destination = "/tmp"
         expected_destination = os.path.abspath(destination)
 
-        with patch.object(
-            self.syn, "_getFileHandleDownload"
+        with patch(
+            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            new_callable=AsyncMock,
         ) as mock_get_file_handle_download, patch.object(
             self.syn, "cache"
         ), patch.object(
@@ -452,11 +466,12 @@ class TestDownloadFileHandle:
 
             mock_md5_for_file.return_value = Mock(hexdigest=Mock(return_value="abc123"))
 
-            download_path = self.syn._downloadFileHandle(
-                fileHandleId=file_handle_id,
-                objectId=entity_id,
-                objectType="FileEntity",
+            download_path = await download_by_file_handle(
+                file_handle_id=file_handle_id,
+                synapse_id=entity_id,
+                entity_type="FileEntity",
                 destination=destination,
+                synapse_client=self.syn,
             )
 
             mock_url_retrieve.assert_called_once_with(
@@ -464,7 +479,7 @@ class TestDownloadFileHandle:
             )
             assert download_path == expected_destination
 
-    def test_download_from_url__synapse_auth(self, mocker):
+    async def test_download_from_url__synapse_auth(self, mocker) -> None:
         """Verify we pass along Synapse auth headers when downloading from a Synapse repo hosted url"""
 
         uri = f"{self.syn.repoEndpoint}/repo/v1/entity/syn1234567/file"
@@ -474,10 +489,14 @@ class TestDownloadFileHandle:
         response = MagicMock(spec=requests.Response)
         response.status_code = 200
         response.headers = {}
-        mock_get = mocker.patch.object(self.syn._requests_session, "get")
+        mock_get = mocker.patch.object(self.syn, "rest_get_async")
         mock_get.return_value = response
 
-        out_destination = self.syn._download_from_URL(uri, in_destination.name)
+        out_destination = await download_from_url(
+            url=uri,
+            destination=in_destination.name,
+            synapse_client=self.syn,
+        )
         assert mock_get.call_args[1]["auth"] is mock_credentials
         assert os.path.normpath(out_destination) == os.path.normpath(
             in_destination.name
@@ -485,7 +504,7 @@ class TestDownloadFileHandle:
         in_destination.close()
         os.unlink(in_destination.name)
 
-    def test_download_from_url__external(self, mocker):
+    async def test_download_from_url__external(self, mocker) -> None:
         """Verify we do not pass along Synapse auth headers to a file download that is a not Synapse repo hosted"""
 
         uri = "https://not-synapse.org/foo/bar/baz"
@@ -495,10 +514,14 @@ class TestDownloadFileHandle:
         response = MagicMock(spec=requests.Response)
         response.status_code = 200
         response.headers = {}
-        mock_get = mocker.patch.object(self.syn._requests_session, "get")
+        mock_get = mocker.patch.object(self.syn, "rest_get_async")
         mock_get.return_value = response
 
-        out_destination = self.syn._download_from_URL(uri, in_destination.name)
+        out_destination = await download_from_url(
+            url=uri,
+            destination=in_destination.name,
+            synapse_client=self.syn,
+        )
         assert mock_get.call_args[1]["auth"] is None
         assert os.path.normpath(out_destination) == os.path.normpath(
             in_destination.name
@@ -506,14 +529,16 @@ class TestDownloadFileHandle:
         in_destination.close()
         os.unlink(in_destination.name)
 
-    @patch.object(Synapse, "_getFileHandleDownload")
-    def test_downloadFileHandle_preserve_exception_info(
+    @patch(
+        "synapseclient.core.download.download_functions.get_file_handle_for_download"
+    )
+    async def test_downloadFileHandle_preserve_exception_info(
         self, mock_getFileHandleDownload
-    ):
+    ) -> None:
         file_handle_id = 1234
         syn_id = "syn123"
 
-        def getFileHandleDownload_side_effect(*args):
+        def getFileHandleDownload_side_effect(*args, **kwargs):
             raise SynapseError(
                 f"Something wrong when downloading {syn_id} in try block!"
             )
@@ -521,19 +546,23 @@ class TestDownloadFileHandle:
         mock_getFileHandleDownload.side_effect = getFileHandleDownload_side_effect
 
         with pytest.raises(SynapseError) as ex:
-            self.syn._downloadFileHandle(
-                file_handle_id, syn_id, objectType="FileEntity", destination="/tmp/foo"
+            await download_by_file_handle(
+                file_handle_id=file_handle_id,
+                synapse_id=syn_id,
+                entity_type="FileEntity",
+                destination="/tmp/foo",
+                synapse_client=self.syn,
             )
         assert str(ex.value) == "Something wrong when downloading syn123 in try block!"
 
 
 class TestPrivateSubmit:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.etag = "etag"
         self.eval_id = 1
         self.eligibility_hash = 23
@@ -552,23 +581,23 @@ class TestPrivateSubmit:
         )
         self.mock_restPOST = self.patch_restPOST.start()
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.patch_restPOST.stop()
 
-    def test_invalid_submission(self):
+    def test_invalid_submission(self) -> None:
         pytest.raises(ValueError, self.syn._submit, None, self.etag, self.submission)
 
-    def test_invalid_etag(self):
+    def test_invalid_etag(self) -> None:
         pytest.raises(
             ValueError, self.syn._submit, self.submission, None, self.submission
         )
 
-    def test_without_eligibility_hash(self):
+    def test_without_eligibility_hash(self) -> None:
         assert self.submission == self.syn._submit(self.submission, self.etag, None)
         uri = "/evaluation/submission?etag={0}".format(self.etag)
         self.mock_restPOST.assert_called_once_with(uri, json.dumps(self.submission))
 
-    def test_with_eligibitiy_hash(self):
+    def test_with_eligibitiy_hash(self) -> None:
         assert self.submission == self.syn._submit(
             self.submission, self.etag, self.eligibility_hash
         )
@@ -580,11 +609,11 @@ class TestPrivateSubmit:
 
 class TestSubmit:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.eval_id = "9090"
         self.contributors = None
         self.entity = {
@@ -637,14 +666,14 @@ class TestSubmit:
         self.mock_getTeam = self.patch_getTeam.start()
         self.mock_get_contributors = self.patch_get_contributors.start()
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.patch_private_submit.stop()
         self.patch_getEvaluation.stop()
         self.patch_get.stop()
         self.patch_getTeam.stop()
         self.patch_get_contributors.stop()
 
-    def test_min_requirements(self):
+    def test_min_requirements(self) -> None:
         assert self.submission == self.syn.submit(self.eval_id, self.entity)
 
         expected_request_body = self.submission
@@ -660,7 +689,7 @@ class TestSubmit:
         self.mock_getTeam.assert_not_called()
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
 
-    def test_only_entity_id_provided(self):
+    def test_only_entity_id_provided(self) -> None:
         assert self.submission == self.syn.submit(self.eval_id, self.entity["id"])
 
         expected_request_body = self.submission
@@ -676,7 +705,7 @@ class TestSubmit:
         self.mock_getTeam.assert_not_called()
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
 
-    def test_team_is_given(self):
+    def test_team_is_given(self) -> None:
         assert self.submission == self.syn.submit(
             self.eval_id, self.entity, team=self.team["id"]
         )
@@ -692,7 +721,7 @@ class TestSubmit:
         self.mock_getTeam.assert_called_once_with(self.team["id"])
         self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
 
-    def test_team_not_eligible(self):
+    def test_team_not_eligible(self) -> None:
         self.mock_get_contributors.side_effect = SynapseError()
         pytest.raises(
             SynapseError,
@@ -706,7 +735,7 @@ class TestSubmit:
         self.mock_getTeam.assert_called_once_with(self.team["id"])
         self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
 
-    def test_get_docker_digest_default(self):
+    def test_get_docker_digest_default(self) -> None:
         latest_sha = "sha256:eeeeee"
         docker_commits = [{"tag": "latest", "digest": latest_sha}]
 
@@ -717,7 +746,7 @@ class TestSubmit:
             patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
             assert digest == latest_sha
 
-    def test_get_docker_digest_specifytag(self):
+    def test_get_docker_digest_specifytag(self) -> None:
         test_sha = "sha256:ffffff"
         docker_commits = [{"tag": "test", "digest": test_sha}]
         with patch.object(
@@ -727,7 +756,7 @@ class TestSubmit:
             patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
             assert digest == test_sha
 
-    def test_get_docker_digest_specifywrongtag(self):
+    def test_get_docker_digest_specifywrongtag(self) -> None:
         test_sha = "sha256:ffffff"
         docker_commits = [{"tag": "test", "digest": test_sha}]
         with patch.object(
@@ -738,7 +767,7 @@ class TestSubmit:
             )
             patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
 
-    def test_submit_docker_nonetag(self):
+    def test_submit_docker_nonetag(self) -> None:
         docker_entity = DockerRepository("foo", parentId="syn1000001")
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
@@ -747,7 +776,7 @@ class TestSubmit:
             ValueError, self.syn.submit, "9090", docker_entity, "George", dockerTag=None
         )
 
-    def test_submit_docker(self):
+    def test_submit_docker(self) -> None:
         docker_entity = DockerRepository("foo", parentId="syn1000001")
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
@@ -779,11 +808,11 @@ class TestSubmit:
 
 class TestPrivateGetContributor:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.eval_id = 111
         self.team_id = 123
         self.team = Team(name="test", id=self.team_id)
@@ -838,18 +867,18 @@ class TestPrivateGetContributor:
         )
         self.mock_restGET = self.patch_restGET.start()
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.patch_restGET.stop()
 
-    def test_none_team(self):
+    def test_none_team(self) -> None:
         assert (None, None) == self.syn._get_contributors(self.eval_id, None)
         self.mock_restGET.assert_not_called()
 
-    def test_none_eval_id(self):
+    def test_none_eval_id(self) -> None:
         assert (None, None) == self.syn._get_contributors(None, self.team)
         self.mock_restGET.assert_not_called()
 
-    def test_not_registered(self):
+    def test_not_registered(self) -> None:
         self.eligibility["teamEligibility"]["isEligible"] = False
         self.eligibility["teamEligibility"]["isRegistered"] = False
         self.patch_restGET.return_value = self.eligibility
@@ -859,7 +888,7 @@ class TestPrivateGetContributor:
         )
         self.mock_restGET.assert_called_once_with(uri)
 
-    def test_quota_filled(self):
+    def test_quota_filled(self) -> None:
         self.eligibility["teamEligibility"]["isEligible"] = False
         self.eligibility["teamEligibility"]["isQuotaFilled"] = True
         self.patch_restGET.return_value = self.eligibility
@@ -869,7 +898,7 @@ class TestPrivateGetContributor:
         )
         self.mock_restGET.assert_called_once_with(uri)
 
-    def test_empty_members(self):
+    def test_empty_members(self) -> None:
         self.eligibility["membersEligibility"] = []
         self.patch_restGET.return_value = self.eligibility
         assert (
@@ -881,7 +910,7 @@ class TestPrivateGetContributor:
         )
         self.mock_restGET.assert_called_once_with(uri)
 
-    def test_happy_case(self):
+    def test_happy_case(self) -> None:
         contributors = [{"principalId": self.member_eligible["principalId"]}]
         assert (
             contributors,
@@ -893,7 +922,7 @@ class TestPrivateGetContributor:
         self.mock_restGET.assert_called_once_with(uri)
 
 
-def test_send_message(syn):
+def test_send_message(syn: Synapse) -> None:
     messageBody = (
         "In Xanadu did Kubla Khan\n"
         "A stately pleasure-dome decree:\n"
@@ -923,7 +952,7 @@ def test_send_message(syn):
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
 class TestPrivateUploadExternallyStoringProjects:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.mark.parametrize(
@@ -936,7 +965,7 @@ class TestPrivateUploadExternallyStoringProjects:
     )
     def test__uploadExternallyStoringProjects_external_user(
         self, mock_upload_destination, external_type
-    ):
+    ) -> None:
         # setup
         expected_storage_location_id = "1234567"
         expected_path = "~/fake/path/file.txt"
@@ -988,7 +1017,7 @@ class TestPrivateUploadExternallyStoringProjects:
             # test
 
 
-def test_findEntityIdByNameAndParent__None_parent(syn):
+def test_findEntityIdByNameAndParent__None_parent(syn: Synapse) -> None:
     entity_name = "Kappa 123"
     expected_uri = "/entity/child"
     expected_body = json.dumps({"parentId": None, "entityName": entity_name})
@@ -1000,7 +1029,7 @@ def test_findEntityIdByNameAndParent__None_parent(syn):
         assert expected_id == entity_id
 
 
-def test_findEntityIdByNameAndParent__with_parent(syn):
+def test_findEntityIdByNameAndParent__with_parent(syn: Synapse) -> None:
     entity_name = "Kappa 123"
     parentId = "syn42"
     parent_entity = Folder(
@@ -1016,7 +1045,7 @@ def test_findEntityIdByNameAndParent__with_parent(syn):
         assert expected_id == entity_id
 
 
-def test_findEntityIdByNameAndParent__404_error_no_result(syn):
+def test_findEntityIdByNameAndParent__404_error_no_result(syn: Synapse) -> None:
     entity_name = "Kappa 123"
     fake_response = DictObject({"status_code": 404})
     with patch.object(
@@ -1025,7 +1054,7 @@ def test_findEntityIdByNameAndParent__404_error_no_result(syn):
         assert syn.findEntityId(entity_name) is None
 
 
-def test_getChildren__nextPageToken(syn):
+def test_getChildren__nextPageToken(syn: Synapse) -> None:
     # setup
     nextPageToken = "T O K E N"
     parent_project_id_int = 42690
@@ -1093,7 +1122,7 @@ def test_getChildren__nextPageToken(syn):
         )
 
 
-def test_check_entity_restrictions__no_unmet_restriction(syn):
+def test_check_entity_restrictions__no_unmet_restriction(syn: Synapse) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
             "entity": {
@@ -1111,7 +1140,7 @@ def test_check_entity_restrictions__no_unmet_restriction(syn):
 
 def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadFile_is_True(
     syn,
-):
+) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
             "entity": {
@@ -1136,7 +1165,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadF
 
 def test_check_entity_restrictions__unmet_restriction_entity_project_with_downloadFile_is_True(
     syn,
-):
+) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
             "entity": {
@@ -1160,7 +1189,7 @@ def test_check_entity_restrictions__unmet_restriction_entity_project_with_downlo
 
 def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloadFile_is_True(
     syn,
-):
+) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
             "entity": {
@@ -1182,7 +1211,9 @@ def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloa
     )
 
 
-def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(syn):
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(
+    syn: Synapse,
+) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
             "entity": {
@@ -1210,10 +1241,10 @@ def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(syn)
 
 class TestGetColumns(object):
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_input_is_SchemaBase(self):
+    def test_input_is_SchemaBase(self) -> None:
         get_table_colums_results = [Column(name="A"), Column(name="B")]
         with patch.object(
             self.syn, "getTableColumns", return_value=iter(get_table_colums_results)
@@ -1224,18 +1255,18 @@ class TestGetColumns(object):
             mock_get_table_coulmns.assert_called_with(schema)
 
 
-def test_username_property__credentials_is_None(syn):
+def test_username_property__credentials_is_None(syn: Synapse) -> None:
     syn.credentials = None
     assert syn.username is None
 
 
 class TestPrivateGetEntityBundle:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.bundle = {
             "entity": {
                 "id": "syn10101",
@@ -1250,17 +1281,17 @@ class TestPrivateGetEntityBundle:
         )
         self.patch_restPOST.start()
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.patch_restPOST.stop()
 
-    def test__getEntityBundle__with_version_as_number(self):
+    def test__getEntityBundle__with_version_as_number(self) -> None:
         assert self.bundle == self.syn._getEntityBundle("syn10101", 6)
 
-    def test__getEntityBundle__with_version_as_string(self):
+    def test__getEntityBundle__with_version_as_string(self) -> None:
         assert self.bundle == self.syn._getEntityBundle("syn10101", "6")
         pytest.raises(ValueError, self.syn._getEntityBundle, "syn10101", "current")
 
-    def test_access_restrictions(self):
+    def test_access_restrictions(self) -> None:
         with patch.object(
             self.syn,
             "_getEntityBundle",
@@ -1300,7 +1331,7 @@ class TestPrivateGetEntityBundle:
             )
 
 
-def test_move(syn):
+def test_move(syn: Synapse) -> None:
     pytest.raises(SynapseFileNotFoundError, syn.move, "abc", "syn123")
 
     entity = Folder(name="folder", parent="syn456")
@@ -1314,43 +1345,43 @@ def test_move(syn):
         syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
 
 
-def test_delete__bad_attribute(syn):
+def test_delete__bad_attribute(syn: Synapse) -> None:
     pytest.raises(SynapseError, syn.delete, ["foo"])
 
 
-def test_delete__string(syn):
+def test_delete__string(syn: Synapse) -> None:
     with patch.object(syn, "restDELETE") as patch_rest_delete:
         syn.delete("syn1235")
         patch_rest_delete.assert_called_once_with(uri="/entity/syn1235")
 
 
-def test_delete__string_version(syn):
+def test_delete__string_version(syn: Synapse) -> None:
     with patch.object(syn, "restDELETE") as patch_rest_delete:
         syn.delete("syn1235", version=1)
         patch_rest_delete.assert_called_once_with(uri="/entity/syn1235/version/1")
 
 
-def test_delete__has_synapse_delete_attr(syn):
+def test_delete__has_synapse_delete_attr(syn: Synapse) -> None:
     mock_obj = Mock()
     syn.delete(mock_obj)
     mock_obj._synapse_delete.assert_called_once()
 
 
-def test_delete__entity(syn):
+def test_delete__entity(syn: Synapse) -> None:
     entity = Folder(name="folder", parent="syn456", id="syn1111")
     with patch.object(syn, "restDELETE") as patch_rest_delete:
         syn.delete(entity)
         patch_rest_delete.assert_called_once_with("/entity/syn1111")
 
 
-def test_delete__entity_version(syn):
+def test_delete__entity_version(syn: Synapse) -> None:
     entity = File(name="file", parent="syn456", id="syn1111")
     with patch.object(syn, "restDELETE") as patch_rest_delete:
         syn.delete(entity, version=2)
         patch_rest_delete.assert_called_once_with("/entity/syn1111/version/2")
 
 
-def test_setPermissions__default_permissions(syn):
+def test_setPermissions__default_permissions(syn: Synapse) -> None:
     entity = Folder(name="folder", parent="syn456", id="syn1")
     principalId = 123
     acl = {"resourceAccess": []}
@@ -1366,11 +1397,11 @@ def test_setPermissions__default_permissions(syn):
         patch_store_acl.assert_called_once_with(entity, update_acl)
 
 
-def test_get_unsaved_entity(syn):
+def test_get_unsaved_entity(syn: Synapse) -> None:
     pytest.raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
 
 
-def test_get_default_view_columns_nomask(syn):
+def test_get_default_view_columns_nomask(syn: Synapse) -> None:
     """Test no mask passed in"""
     with patch.object(syn, "restGET") as mock_restGET:
         syn._get_default_view_columns("viewtype")
@@ -1379,7 +1410,7 @@ def test_get_default_view_columns_nomask(syn):
         )
 
 
-def test_get_default_view_columns_mask(syn):
+def test_get_default_view_columns_mask(syn: Synapse) -> None:
     """Test mask passed in"""
     mask = 5
     with patch.object(syn, "restGET") as mock_restGET:
@@ -1391,23 +1422,23 @@ def test_get_default_view_columns_mask(syn):
 
 class TestCreateStorageLocationSetting:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.patch_restPOST = patch.object(self.syn, "restPOST")
         self.mock_restPOST = self.patch_restPOST.start()
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.patch_restPOST.stop()
 
-    def test_invalid(self):
+    def test_invalid(self) -> None:
         pytest.raises(
             ValueError, self.syn.createStorageLocationSetting, "new storage type"
         )
 
-    def test_ExternalObjectStorage(self):
+    def test_ExternalObjectStorage(self) -> None:
         self.syn.createStorageLocationSetting("ExternalObjectStorage")
         expected = {
             "concreteType": "org.sagebionetworks.repo.model.project.ExternalObjectStorageLocationSetting",
@@ -1417,7 +1448,7 @@ class TestCreateStorageLocationSetting:
             "/storageLocation", body=json.dumps(expected)
         )
 
-    def test_ProxyStorage(self):
+    def test_ProxyStorage(self) -> None:
         self.syn.createStorageLocationSetting("ProxyStorage")
         expected = {
             "concreteType": "org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings",
@@ -1427,7 +1458,7 @@ class TestCreateStorageLocationSetting:
             "/storageLocation", body=json.dumps(expected)
         )
 
-    def test_ExternalS3Storage(self):
+    def test_ExternalS3Storage(self) -> None:
         self.syn.createStorageLocationSetting("ExternalS3Storage")
         expected = {
             "concreteType": "org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting",
@@ -1437,7 +1468,7 @@ class TestCreateStorageLocationSetting:
             "/storageLocation", body=json.dumps(expected)
         )
 
-    def test_ExternalStorage(self):
+    def test_ExternalStorage(self) -> None:
         self.syn.createStorageLocationSetting("ExternalStorage")
         expected = {
             "concreteType": "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting",
@@ -1450,11 +1481,11 @@ class TestCreateStorageLocationSetting:
 
 class TestSetStorageLocation:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.entity = "syn123"
         self.expected_location = {
             "concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting",
@@ -1471,19 +1502,19 @@ class TestSetStorageLocation:
         self.patch_restPUT = patch.object(self.syn, "restPUT")
         self.mock_restPUT = self.patch_restPUT.start()
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.patch_getProjectSetting.stop()
         self.patch_restPOST.stop()
         self.patch_restPUT.stop()
 
-    def test_default(self):
+    def test_default(self) -> None:
         self.syn.setStorageLocation(self.entity, None)
         self.mock_getProjectSetting.assert_called_once_with(self.entity, "upload")
         self.mock_restPOST.assert_called_once_with(
             "/projectSettings", body=json.dumps(self.expected_location)
         )
 
-    def test_create(self):
+    def test_create(self) -> None:
         storage_location_id = 333
         self.expected_location["locations"] = [storage_location_id]
         self.syn.setStorageLocation(self.entity, storage_location_id)
@@ -1492,7 +1523,7 @@ class TestSetStorageLocation:
             "/projectSettings", body=json.dumps(self.expected_location)
         )
 
-    def test_update(self):
+    def test_update(self) -> None:
         self.mock_getProjectSetting.return_value = self.expected_location
         storage_location_id = 333
         new_location = self.expected_location
@@ -1507,7 +1538,7 @@ class TestSetStorageLocation:
 
 
 @patch("synapseclient.core.sts_transfer.get_sts_credentials")
-def test_get_sts_storage_token(mock_get_sts_credentials, syn):
+def test_get_sts_storage_token(mock_get_sts_credentials, syn: Synapse) -> None:
     """Verify get_sts_storage_token passes through to the underlying function as expected"""
     token = {"key": "val"}
     mock_get_sts_credentials.return_value = token
@@ -1535,22 +1566,24 @@ def test_get_sts_storage_token(mock_get_sts_credentials, syn):
 
 class TestCreateS3StorageLocation:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_folder_and_parent(self):
+    def test_folder_and_parent(self) -> None:
         """Verify we fail as expected if both parent and folder are passed"""
         with pytest.raises(ValueError):
             self.syn.create_s3_storage_location(
                 folder_name="foo", parent=Mock(), folder=Mock()
             )
 
-    def test_folder_or_parent(self):
+    def test_folder_or_parent(self) -> None:
         """Verify we fail as expected if neither parent or folder are passed"""
         with pytest.raises(ValueError):
             self.syn.create_s3_storage_location()
 
-    def _create_storage_location_test(self, expected_post_body, *args, **kwargs):
+    def _create_storage_location_test(
+        self, expected_post_body, *args, **kwargs
+    ) -> None:
         with patch.object(self.syn, "restPOST") as mock_post, patch.object(
             self.syn, "setStorageLocation"
         ) as mock_set_storage_location, patch.object(self.syn, "store") as syn_store:
@@ -1578,7 +1611,7 @@ class TestCreateS3StorageLocation:
             mock_post.assert_called_with("/storageLocation", ANY)
             assert expected_post_body == json.loads(mock_post.call_args[0][1])
 
-    def test_synapse_s3(self):
+    def test_synapse_s3(self) -> None:
         """Verify we create a Synapse S3 storage location if bucket is not passed
         and that we don't create a new folder if a folder is passed."""
         folder = Mock()
@@ -1593,7 +1626,7 @@ class TestCreateS3StorageLocation:
                 expected_post_body, folder=folder, sts_enabled=sts_enabled
             )
 
-    def test_external_s3(self):
+    def test_external_s3(self) -> None:
         """Verify we create an External S3 storage location if bucket details are passed
         and that we create a folder if passed a name and a parent."""
         folder_name = "foo"
@@ -1621,10 +1654,10 @@ class TestCreateS3StorageLocation:
 
 class TestCreateExternalS3FileHandle:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def _s3_file_handle_test(self, **kwargs):
+    def _s3_file_handle_test(self, **kwargs) -> None:
         with patch.object(
             self.syn, "_getDefaultUploadDestination"
         ) as mock_get_upload_dest, patch.object(
@@ -1676,12 +1709,12 @@ class TestCreateExternalS3FileHandle:
             )
             assert expected_post_body == json.loads(mock_post.call_args[0][1])
 
-    def test_with_parent_entity(self):
+    def test_with_parent_entity(self) -> None:
         """If passed a parent entity we should fetch the default upload destination
         of the entity and use that as the storage location of the file handle"""
         self._s3_file_handle_test(parent=Mock())
 
-    def test_with_storage_location_id(self):
+    def test_with_storage_location_id(self) -> None:
         """If passed a storage location id we should use that.
         Also customize mimetype"""
         self._s3_file_handle_test(storage_location_id=123, mimetype="text/html")
@@ -1689,11 +1722,11 @@ class TestCreateExternalS3FileHandle:
 
 class TestMembershipInvitation:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.team = synapseclient.Team(id="222")
         self.userid = "123"
         self.username = "testme_username"
@@ -1703,7 +1736,7 @@ class TestMembershipInvitation:
         self.message = "custom message"
         self.profile = {"ownerId": self.userid}
 
-    def test_get_team_open_invitations__team(self):
+    def test_get_team_open_invitations__team(self) -> None:
         """Get team open invitations when Team is passed in"""
         with patch.object(
             self.syn, "_GET_paginated", return_value=self.response
@@ -1713,7 +1746,7 @@ class TestMembershipInvitation:
             patch_get_paginated.assert_called_once_with(request)
             assert response == self.response
 
-    def test_get_team_open_invitations__teamid(self):
+    def test_get_team_open_invitations__teamid(self) -> None:
         """Get team open invitations when team id is passed in"""
         with patch.object(
             self.syn, "_GET_paginated", return_value=self.response
@@ -1723,7 +1756,7 @@ class TestMembershipInvitation:
             patch_get_paginated.assert_called_once_with(request)
             assert response == self.response
 
-    def test_teamid_get_membership_status__rest_get(self):
+    def test_teamid_get_membership_status__rest_get(self) -> None:
         """Get membership status when team id is passed in"""
         with patch.object(
             self.syn, "restGET", return_value=self.response
@@ -1735,7 +1768,7 @@ class TestMembershipInvitation:
             patch_restget.assert_called_once_with(request)
             assert response == self.response
 
-    def test_delete_membership_invitation__rest_delete(self):
+    def test_delete_membership_invitation__rest_delete(self) -> None:
         """Delete open membership invitation"""
         invitationid = 1111
         with patch.object(self.syn, "restDELETE") as patch_rest_delete:
@@ -1743,7 +1776,7 @@ class TestMembershipInvitation:
             request = "/membershipInvitation/{id}".format(id=invitationid)
             patch_rest_delete.assert_called_once_with(request)
 
-    def test_team_get_membership_status__rest_get(self):
+    def test_team_get_membership_status__rest_get(self) -> None:
         """Get membership status when Team is passed in"""
         with patch.object(self.syn, "restGET") as patch_restget:
             self.syn.get_membership_status(self.userid, self.team)
@@ -1752,7 +1785,7 @@ class TestMembershipInvitation:
             )
             patch_restget.assert_called_once_with(request)
 
-    def test_send_membership_invitation__rest_post(self):
+    def test_send_membership_invitation__rest_post(self) -> None:
         """Test membership invitation post"""
         invite_body = {
             "teamId": self.team.id,
@@ -1773,7 +1806,7 @@ class TestMembershipInvitation:
                 "/membershipInvitation", body=json.dumps(invite_body)
             )
 
-    def test_invite_to_team__bothuseremail_specified(self):
+    def test_invite_to_team__bothuseremail_specified(self) -> None:
         """Raise error when user and email is passed in"""
         pytest.raises(
             ValueError,
@@ -1783,13 +1816,13 @@ class TestMembershipInvitation:
             inviteeEmail=self.email,
         )
 
-    def test_invite_to_team__bothuseremail_notspecified(self):
+    def test_invite_to_team__bothuseremail_notspecified(self) -> None:
         """Raise error when user and email is passed in"""
         pytest.raises(
             ValueError, self.syn.invite_to_team, self.team, user=None, inviteeEmail=None
         )
 
-    def test_invite_to_team__email(self):
+    def test_invite_to_team__email(self) -> None:
         """Invite user to team via their email"""
         invite_body = {
             "message": self.message,
@@ -1811,7 +1844,7 @@ class TestMembershipInvitation:
             patch_get_profile.assert_not_called()
             patch_invitation.assert_called_once_with(self.team.id, **invite_body)
 
-    def test_invite_to_team__user(self):
+    def test_invite_to_team__user(self) -> None:
         """Invite user to team via their Synapse userid"""
         self.member_status["isMember"] = False
         invite_body = {"inviteeId": self.userid, "inviteeEmail": None, "message": None}
@@ -1831,7 +1864,7 @@ class TestMembershipInvitation:
             patch_invitation.assert_called_once_with(self.team.id, **invite_body)
             assert invite == self.response
 
-    def test_invite_to_team__username(self):
+    def test_invite_to_team__username(self) -> None:
         """Invite user to team via their Synapse username"""
         self.member_status["isMember"] = False
         invite_body = {"inviteeId": self.userid, "inviteeEmail": None, "message": None}
@@ -1851,7 +1884,7 @@ class TestMembershipInvitation:
             patch_invitation.assert_called_once_with(self.team.id, **invite_body)
             assert invite == self.response
 
-    def test_invite_to_team__ismember(self):
+    def test_invite_to_team__ismember(self) -> None:
         """None returned when user is already a member"""
         with patch.object(
             self.syn, "get_membership_status", return_value=self.member_status
@@ -1869,7 +1902,7 @@ class TestMembershipInvitation:
             patch_invitation.assert_not_called()
             assert invite is None
 
-    def test_invite_to_team__user_openinvite(self):
+    def test_invite_to_team__user_openinvite(self) -> None:
         """None returned when user already has an invitation"""
         self.member_status["isMember"] = False
         invite_body = {"inviteeId": self.userid}
@@ -1892,7 +1925,7 @@ class TestMembershipInvitation:
             patch_delete.assert_not_called()
             assert invite is None
 
-    def test_invite_to_team__email_openinvite(self):
+    def test_invite_to_team__email_openinvite(self) -> None:
         """None returned when email already has an invitation"""
         invite_body = {"inviteeEmail": self.email}
         with patch.object(
@@ -1909,7 +1942,7 @@ class TestMembershipInvitation:
             assert invite is None
             patch_delete.assert_not_called()
 
-    def test_invite_to_team__none_matching_invitation(self):
+    def test_invite_to_team__none_matching_invitation(self) -> None:
         """Invitation sent when no matching open invitations"""
         invite_body = {"inviteeEmail": self.email + "foo"}
         with patch.object(
@@ -1925,7 +1958,7 @@ class TestMembershipInvitation:
             assert invite == self.response
             patch_invitation.assert_called_once()
 
-    def test_invite_to_team__force_invite(self):
+    def test_invite_to_team__force_invite(self) -> None:
         """Invitation sent when force the invite, make sure open invitation
         is deleted"""
         open_invitations = {"inviteeEmail": self.email, "id": "9938"}
@@ -1947,11 +1980,11 @@ class TestMembershipInvitation:
 
 class TestDownloadListServices:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.patch__waitForAsync = patch.object(self.syn, "_waitForAsync")
         self.mock__waitForAsync = self.patch__waitForAsync.start()
         self.patch_restPOST = patch.object(self.syn, "restPOST")
@@ -1959,16 +1992,16 @@ class TestDownloadListServices:
         self.patch_restDELETE = patch.object(self.syn, "restDELETE")
         self.mock_restDELETE = self.patch_restDELETE.start()
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.patch__waitForAsync.stop()
         self.patch_restPOST.stop()
         self.patch_restDELETE.stop()
 
-    def test_clear_download_list(self):
+    def test_clear_download_list(self) -> None:
         self.syn.clear_download_list()
         self.mock_restDELETE.assert_called_once_with("/download/list")
 
-    def test_remove_from_download_list(self):
+    def test_remove_from_download_list(self) -> None:
         list_of_files = {"fileEntityId": "syn222", "versionNumber": 3}
         self.syn.remove_from_download_list(list_of_files=list_of_files)
         self.mock_restPOST.assert_called_once_with(
@@ -1976,7 +2009,7 @@ class TestDownloadListServices:
             body='{"batchToRemove": {"fileEntityId": "syn222", "versionNumber": 3}}',
         )
 
-    def test_generate_manifest_from_download_list(self):
+    def test_generate_manifest_from_download_list(self) -> None:
         request_body = {
             "concreteType": "org.sagebionetworks.repo.model.download.DownloadListManifestRequest",
             "csvTableDescriptor": {
@@ -2001,11 +2034,11 @@ class TestDownloadListServices:
 
 class TestDownloadList:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.manifest_name = str(uuid.uuid4())
         self.patch_get_dl_manifest = patch.object(
             self.syn, "get_download_list_manifest"
@@ -2016,12 +2049,12 @@ class TestDownloadList:
         self.patch_remove_dl_list = patch.object(self.syn, "remove_from_download_list")
         self.mock_remove_dl_list = self.patch_remove_dl_list.start()
 
-    def teardown(self):
+    def teardown_method(self) -> None:
         self.patch_get_dl_manifest.stop()
         self.patch_remove_dl_list.stop()
         self.patch_get.stop()
 
-    def test_get_download_list_no_removal(self):
+    def test_get_download_list_no_removal(self) -> None:
         """No files should be removed if the download list is empty"""
         with open(self.manifest_name, "w") as temp:
             temp.write("ID,versionNumber")
@@ -2031,7 +2064,7 @@ class TestDownloadList:
         self.mock_remove_dl_list.assert_not_called()
         os.remove(manifest_path)
 
-    def test_get_download_list(self):
+    def test_get_download_list(self) -> None:
         """Test download list"""
         with open(self.manifest_name, "w") as temp:
             temp.write("ID,versionNumber\n")
@@ -2078,7 +2111,7 @@ class TestRestCalls:
     """Verifies the behavior of the rest[METHOD] functions on the synapse client."""
 
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     def _method_test_complete_args(self, method, body_expected):
@@ -2119,7 +2152,7 @@ class TestRestCalls:
 
         return response
 
-    def _method_test_default_args(self, method):
+    def _method_test_default_args(self, method: str):
         """Verify we pass through to the unified _rest_call helper method with default args"""
         uri = "/bar"
 
@@ -2137,19 +2170,19 @@ class TestRestCalls:
 
         return response
 
-    def test_get(self):
+    def test_get(self) -> None:
         self._method_test_complete_args("get", False)
         self._method_test_default_args("get")
 
-    def test_post(self):
+    def test_post(self) -> None:
         self._method_test_complete_args("post", True)
         self._method_test_default_args("post")
 
-    def test_put(self):
+    def test_put(self) -> None:
         self._method_test_complete_args("put", True)
         self._method_test_default_args("put")
 
-    def test_delete(self):
+    def test_delete(self) -> None:
         self._method_test_complete_args("delete", False)
         self._method_test_default_args("delete")
 
@@ -2198,10 +2231,10 @@ class TestRestCalls:
 
         return response
 
-    def test_rest_call__default_session(self):
+    def test_rest_call__default_session(self) -> None:
         self._rest_call_test()
 
-    def test_rest_call__custom_session(self):
+    def test_rest_call__custom_session(self) -> None:
         session = create_autospec(requests.Session)
         self._rest_call_test(session)
 
@@ -2229,11 +2262,11 @@ class TestRestCalls:
         )
         return requests_session.get.call_args_list[0][1]["auth"]
 
-    def test_rest_call__default_auth(self):
+    def test_rest_call__default_auth(self) -> None:
         """Verify that _rest_call will use the Synapse object's credentials unless overridden"""
         assert self._rest_call_auth_test() is self.syn.credentials
 
-    def test_rest_call__passed_auth(self, mocker):
+    def test_rest_call__passed_auth(self, mocker) -> None:
         """Verify that _rest_call will use a custom auth object if passed"""
         auth = MagicMock(
             spec=synapseclient.core.credentials.cred_data.SynapseCredentials
@@ -2243,16 +2276,16 @@ class TestRestCalls:
 
 class TestSetAnnotations:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_not_annotation(self):
+    def test_not_annotation(self) -> None:
         with patch.object(self.syn, "restPUT") as mock_rest_put:
             # pass in non-annotation object
             pytest.raises(TypeError, self.syn.set_annotations, {})
             mock_rest_put.assert_not_called()
 
-    def test_with_annotations(self):
+    def test_with_annotations(self) -> None:
         with patch.object(self.syn, "restPUT") as mock_rest_put:
             mock_rest_put.return_value = {
                 "id": "syn123",
@@ -2274,7 +2307,7 @@ class TestSetAnnotations:
             )
 
 
-def test_get_unparseable_config():
+def test_get_unparseable_config() -> None:
     """Verify that if the synapseConfig is not parseable we fail
     in an expected way and surface the underlying parse error."""
     config_error_msg = "bad config"
@@ -2288,30 +2321,30 @@ def test_get_unparseable_config():
         assert config_error_msg == str(cm.value.__context__)
 
 
-def test_get_config_file_caching():
+def test_get_config_file_caching() -> None:
     """Verify we read a config file once per Synapse and are not
     parsing the file multiple times just on init."""
 
     with patch("configparser.RawConfigParser.read") as read_config:
         read_config.return_value = configparser.ConfigParser()
 
-        syn1 = Synapse(debug=False, skip_checks=True, configPath="/foo")
+        Synapse(debug=False, skip_checks=True, configPath="/foo")
 
         # additional calls shouldn't be returned via a cached value
-        config1a = syn1.getConfigFile("/foo")
-        config1b = syn1.getConfigFile("/foo")
+        config1a = get_config_file("/foo")
+        config1b = get_config_file("/foo")
         assert config1a == config1b
         assert 1 == read_config.call_count
 
-        # however a new instance should not be cached
-        Synapse(debug=False, skip_checks=True, configPath="/foo")
+        # however a new path should not be cached
+        Synapse(debug=False, skip_checks=True, configPath="/foo/bar")
         assert 2 == read_config.call_count
 
-        # but an additional call on that instance should be
+        # but an additional call on that path should be
         assert 2 == read_config.call_count
 
 
-def test_max_threads_bounded(syn):
+def test_max_threads_bounded(syn: Synapse) -> None:
     """Verify we disallow setting max threads higher than our cap."""
     syn.max_threads = client.MAX_THREADS_CAP + 1
     assert syn.max_threads == client.MAX_THREADS_CAP
@@ -2320,8 +2353,8 @@ def test_max_threads_bounded(syn):
     assert syn.max_threads == 1
 
 
-@patch("synapseclient.Synapse._get_config_section_dict")
-def test_get_transfer_config(mock_config_dict):
+@patch("synapseclient.api.configuration_services.get_config_section_dict")
+def test_get_transfer_config(mock_config_dict) -> None:
     """Verify reading transfer.maxThreads from synapseConfig"""
 
     # note that RawConfigParser lower cases its option values so we
@@ -2369,8 +2402,8 @@ def test_get_transfer_config(mock_config_dict):
             Synapse(skip_checks=True)
 
 
-@patch("synapseclient.Synapse._get_config_section_dict")
-def test_transfer_config_values_overridable(mock_config_dict):
+@patch("synapseclient.api.configuration_services.get_config_section_dict")
+def test_transfer_config_values_overridable(mock_config_dict) -> None:
     """Verify we can override the default transfer config values by setting them directly on the Synapse object"""
 
     mock_config_dict.return_value = {"max_threads": 24, "use_boto_sts": False}
@@ -2385,7 +2418,7 @@ def test_transfer_config_values_overridable(mock_config_dict):
     assert syn.use_boto_sts_transfers
 
 
-def test_store__needsUploadFalse__fileHandleId_not_in_local_state(syn):
+def test_store__needsUploadFalse__fileHandleId_not_in_local_state(syn: Synapse) -> None:
     returned_file_handle = {"id": "1234"}
     parent_id = "syn122"
     synapse_id = "syn123"
@@ -2429,7 +2462,7 @@ def test_store__needsUploadFalse__fileHandleId_not_in_local_state(syn):
         # test passes if no KeyError exception is thrown
 
 
-def test_store__existing_processed_as_update(syn):
+def test_store__existing_processed_as_update(syn: Synapse) -> None:
     """Test that storing an entity without its id but that matches an existing
     entity bundle will be processed as an entity update"""
 
@@ -2521,7 +2554,7 @@ def test_store__existing_processed_as_update(syn):
         assert not mock_findEntityId.called
 
 
-def test_store__409_processed_as_update(syn):
+def test_store__409_processed_as_update(syn: Synapse) -> None:
     """Test that if we get a 409 conflict when creating an entity we re-retrieve its
     associated bundle and process it as an entity update instead."""
     file_handle_id = "123412341234"
@@ -2621,7 +2654,7 @@ def test_store__409_processed_as_update(syn):
         mock_findEntityId.assert_called_once_with(file_name, parent_id)
 
 
-def test_store__no_need_to_update_annotation(syn):
+def test_store__no_need_to_update_annotation(syn: Synapse) -> None:
     """
     Verify if the annotations don't change, no need to call set_annotation method
     """
@@ -2689,7 +2722,7 @@ def test_store__no_need_to_update_annotation(syn):
         mock_set_annotations.assert_not_called()
 
 
-def test_store__update_versionComment(syn):
+def test_store__update_versionComment(syn: Synapse) -> None:
     file_handle_id = "123412341234"
     returned_file_handle = {"id": file_handle_id}
 
@@ -2779,7 +2812,7 @@ def test_store__update_versionComment(syn):
         )
 
 
-def test_update_entity_version(syn):
+def test_update_entity_version(syn: Synapse) -> None:
     """Confirm behavior of entity version incrementing/labeling when invoking syn._updateEntity"""
     entity_id = "syn123"
     entity = File(id=entity_id, parent="syn123", properties={"foo": "bar"})
@@ -2814,7 +2847,7 @@ def test_update_entity_version(syn):
         )
 
 
-def test_store__existing_no_update(syn):
+def test_store__existing_no_update(syn: Synapse) -> None:
     """Test that we won't try processing a store as an update if there's an existing
     bundle if createOrUpdate is not specified."""
 
@@ -2871,7 +2904,7 @@ def test_store__existing_no_update(syn):
         assert not mock_updatentity.called
 
 
-def test_store__wrong_activity(syn):
+def test_store__wrong_activity(syn: Synapse) -> None:
     """Test that if function fails if activity object isn't passed in"""
     ent = synapseclient.File("test", parentId="syn123")
     with pytest.raises(ValueError) as ex_cm:
@@ -2879,7 +2912,7 @@ def test_store__wrong_activity(syn):
     assert "activity should be synapseclient.Activity object" == str(ex_cm.value)
 
 
-def test_get_submission_with_annotations(syn):
+def test_get_submission_with_annotations(syn: Synapse) -> None:
     """Verify a getSubmission with annotation entityBundleJSON that
     uses the old style annotations is converted to bundle v2 style
     before being used to retrieve a related entity as part of
@@ -2925,7 +2958,7 @@ def test_get_submission_with_annotations(syn):
 
 
 class TestTableSnapshot:
-    def test__create_table_snapshot(self, syn):
+    def test__create_table_snapshot(self, syn: Synapse) -> None:
         """Testing creating table snapshots"""
         snapshot = {"snapshotVersionNumber": 2}
         with patch.object(syn, "restPOST", return_value=snapshot) as restpost:
@@ -2938,7 +2971,7 @@ class TestTableSnapshot:
                 '"snapshotActivityId": "2"}',
             )
 
-    def test__create_table_snapshot__no_params(self, syn):
+    def test__create_table_snapshot__no_params(self, syn: Synapse) -> None:
         """Testing creating table snapshots when no optional parameters are specified"""
         snapshot = {"snapshotVersionNumber": 2}
         with patch.object(syn, "restPOST", return_value=snapshot) as restpost:
@@ -2947,7 +2980,7 @@ class TestTableSnapshot:
                 "/entity/syn1234/table/snapshot", body="{}"
             )
 
-    def test__create_table_snapshot__with_activity(self, syn):
+    def test__create_table_snapshot__with_activity(self, syn: Synapse) -> None:
         """
         Testing creating table snapshots pass in the activity without ID property
         """
@@ -2971,7 +3004,7 @@ class TestTableSnapshot:
                 body='{"snapshotComment": "foo", "snapshotLabel": "new_label", "snapshotActivityId": 123}',
             )
 
-    def test__async_table_update(self, syn):
+    def test__async_table_update(self, syn: Synapse) -> None:
         """Async table update"""
 
         snapshot = {"snapshotVersionNumber": 2}
@@ -3017,7 +3050,7 @@ class TestTableSnapshot:
             )
             assert async_token == result
 
-    def test_create_snapshot_version_table(self, syn):
+    def test_create_snapshot_version_table(self, syn: Synapse) -> None:
         """Create Table snapshot"""
         table = Mock(Schema)
         snapshot_version = 3
@@ -3040,7 +3073,7 @@ class TestTableSnapshot:
             )
             assert result is None
 
-    def test_create_snapshot_version_entityview(self, syn):
+    def test_create_snapshot_version_entityview(self, syn: Synapse) -> None:
         """Create Entity View snapshot"""
         views = [Mock(EntityViewSchema), Mock(SubmissionViewSchema)]
         for view in views:
@@ -3085,7 +3118,7 @@ class TestTableSnapshot:
                 )
                 assert result is None
 
-    def test_create_snapshot_version_raiseerror(self, syn):
+    def test_create_snapshot_version_raiseerror(self, syn: Synapse) -> None:
         """Raise error if entity view or table not passed in"""
         wrong_type = Mock()
         with patch.object(syn, "get", return_value=wrong_type), pytest.raises(
@@ -3095,7 +3128,7 @@ class TestTableSnapshot:
             syn.create_snapshot_version("syn1234")
 
 
-def test__get_annotation_view_columns(syn):
+def test__get_annotation_view_columns(syn: Synapse) -> None:
     """Test getting a view's columns based on existing annotations"""
     page1 = {"results": [{"id": 5}], "nextPageToken": "a"}
     page2 = {"results": [], "nextPageToken": None}
@@ -3132,7 +3165,7 @@ def test__get_annotation_view_columns(syn):
 
 
 class TestGenerateHeaders:
-    def test_generate_headers(self):
+    def test_generate_headers(self) -> None:
         """Verify expected headers"""
 
         syn = Synapse(skip_checks=True)
@@ -3144,7 +3177,7 @@ class TestGenerateHeaders:
 
         assert expected == headers
 
-    def test_generate_headers__custom_headers(self):
+    def test_generate_headers__custom_headers(self) -> None:
         """Verify that custom headers override default headers"""
 
         custom_headers = {"foo": "bar"}
@@ -3160,7 +3193,7 @@ class TestGenerateHeaders:
 
 
 class TestHandleSynapseHTTPError:
-    def test_handle_synapse_http_error__not_logged_in(self):
+    def test_handle_synapse_http_error__not_logged_in(self) -> None:
         """If you are not LOGGED in a http error with an unauthenticated/forbidden
         status code should raise an SynapseAuthenticationError chained from the
         underlying SynapseHTTPError"""
@@ -3176,7 +3209,7 @@ class TestHandleSynapseHTTPError:
             assert isinstance(cm_ex.value.__cause__, SynapseHTTPError)
             assert status_code == cm_ex.value.__cause__.response.status_code
 
-    def test_handle_synapse_http_error__logged_in(self):
+    def test_handle_synapse_http_error__logged_in(self) -> None:
         """If you are logged in a SynapseHTTPError should be raised directly,
         even if it is an unauthenticated/forbidden error."""
         syn = Synapse(skip_checks=True)
@@ -3190,20 +3223,9 @@ class TestHandleSynapseHTTPError:
             assert status_code == cm_ex.value.response.status_code
 
 
-def test_ensure_download_location_is_directory(syn):
-    downloadLocation = "/foo/bar/baz"
-    with patch.object(client, "os") as mock_os:
-        mock_os.path.isfile.return_value = False
-        syn._ensure_download_location_is_directory(downloadLocation)
-
-        mock_os.path.isfile.return_value = True
-        with pytest.raises(ValueError):
-            syn._ensure_download_location_is_directory(downloadLocation)
-
-
 class TestTableQuery:
     @patch.object(client, "CsvFileTable")
-    def test_table_query__csv(self, mock_csv, syn):
+    def test_table_query__csv(self, mock_csv, syn: Synapse) -> None:
         query = "select id from syn123"
         kwargs = {
             "quoteCharacter": "|",
@@ -3218,7 +3240,7 @@ class TestTableQuery:
         mock_csv.from_table_query.assert_called_once_with(syn, query, **kwargs)
 
     @patch.object(client, "TableQueryResult")
-    def test_table_query__rowset(self, mock_result, syn):
+    def test_table_query__rowset(self, mock_result, syn: Synapse) -> None:
         query = "select id from syn123"
         kwargs = {"isConsistent": "true"}
 
@@ -3229,32 +3251,33 @@ class TestTableQuery:
         assert expected_return == actual_return
         mock_result.assert_called_once_with(syn, query, **kwargs)
 
-    @pytest.mark.parametrize("downloadLocation", [None, "/foo/baz"])
-    def test_query_table_csv(self, downloadLocation, syn):
+    @pytest.mark.parametrize("download_location", [None, "/foo/baz"])
+    def test_query_table_csv(self, download_location: str, syn: Synapse) -> None:
         """Verify the behavior of _queryTableCsv, both with a user specified downloadLocation and without"""
 
         query = "select id from syn123"
-        quoteCharacter = "|"
-        escapeCharacter = "^"
-        lineEnd = "\n"
+        quote_character = "|"
+        escape_character = "^"
+        line_end = "\n"
         separator = "$"
         header = True
-        includeRowIdAndRowVersion = True
+        include_row_id_and_row_version = True
         file_handle_id = 123
         cache_dir = os.path.join("foo", "bar")
 
         expanduser = os.path.expanduser
         expandvars = os.path.expandvars
         os_join = os.path.join
-        with patch.object(syn, "_waitForAsync") as mock_waitForAsync, patch.object(
+        with patch.object(syn, "_waitForAsync") as mock_wait_for_async, patch.object(
             syn, "cache"
-        ) as mock_cache, patch.object(
-            syn, "_downloadFileHandle"
+        ) as mock_cache, patch(
+            "synapseclient.client.download_by_file_handle",
+            new_callable=AsyncMock,
         ) as mock_download_file_handle, patch.object(
             client, "os"
         ) as mock_os:
             mock_download_result = {"resultsFileHandleId": file_handle_id}
-            mock_waitForAsync.return_value = mock_download_result
+            mock_wait_for_async.return_value = mock_download_result
             mock_cache.get.return_value = None
             mock_cache.get_cache_dir.return_value = cache_dir
             mock_os.path.isfile.return_value = False
@@ -3266,9 +3289,9 @@ class TestTableQuery:
 
             kwargs = {}
             expected_dir = cache_dir
-            if downloadLocation:
-                expected_dir = downloadLocation
-                kwargs["downloadLocation"] = downloadLocation
+            if download_location:
+                expected_dir = download_location
+                kwargs["downloadLocation"] = download_location
 
             expected_file_name = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
             expected_path = os_join(expected_dir, expected_file_name)
@@ -3276,21 +3299,21 @@ class TestTableQuery:
 
             actual_result = syn._queryTableCsv(
                 query,
-                quoteCharacter=quoteCharacter,
-                escapeCharacter=escapeCharacter,
-                lineEnd=lineEnd,
+                quoteCharacter=quote_character,
+                escapeCharacter=escape_character,
+                lineEnd=line_end,
                 separator=separator,
                 header=header,
-                includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+                includeRowIdAndRowVersion=include_row_id_and_row_version,
                 **kwargs,
             )
 
             mock_os.makedirs.assert_called_once_with(expected_dir, exist_ok=True)
             mock_download_file_handle.assert_called_once_with(
-                file_handle_id,
-                "syn123",
-                "TableEntity",
-                expected_path,
+                file_handle_id=file_handle_id,
+                synapse_id="syn123",
+                entity_type="TableEntity",
+                destination=expected_path,
             )
 
             assert (mock_download_result, expected_path) == actual_result
@@ -3298,7 +3321,7 @@ class TestTableQuery:
 
 class TestSilentCommandAndLogger:
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         """
         Set up three different synapse objects
         """
@@ -3306,7 +3329,7 @@ class TestSilentCommandAndLogger:
         self.syn_with_silent = Synapse(silent=True, debug=False, skip_checks=True)
         self.syn_with_debug = Synapse(silent=False, debug=True, skip_checks=True)
 
-    def test_syn_silent(self):
+    def test_syn_silent(self) -> None:
         """
         Verify the silent property is set up correctly
         """
@@ -3314,7 +3337,7 @@ class TestSilentCommandAndLogger:
         assert self.syn_with_silent.silent is True
         assert self.syn_with_debug.silent is False
 
-    def test_syn_logger_name(self):
+    def test_syn_logger_name(self) -> None:
         """
         According to the properties silent and debug, logger name should be different
         """
@@ -3323,7 +3346,7 @@ class TestSilentCommandAndLogger:
         assert self.syn_with_debug.logger.name == DEBUG_LOGGER_NAME
 
     @patch.object(client, "cumulative_transfer_progress")
-    def test_print_transfer_progress(self, mock_ctp):
+    def test_print_transfer_progress(self, mock_ctp) -> None:
         """
         Verify the private method print_transfer_progress will run with property self.silent accordingly
         """
@@ -3342,7 +3365,7 @@ class TestSilentCommandAndLogger:
 
 
 @pytest.mark.parametrize("userid", [999, 1456])
-def test__get_certified_passing_record(userid, syn):
+def test__get_certified_passing_record(userid, syn: Synapse) -> None:
     """Test correct rest call"""
     response = {"test": 5}
     with patch.object(syn, "restGET", return_value=response) as patch_get:
@@ -3352,7 +3375,7 @@ def test__get_certified_passing_record(userid, syn):
 
 
 @pytest.mark.parametrize("response", [True, False])
-def test_is_certified(response, syn):
+def test_is_certified(response, syn: Synapse) -> None:
     with patch.object(
         syn, "getUserProfile", return_value={"ownerId": "foobar"}
     ) as patch_get_user, patch.object(
@@ -3364,7 +3387,7 @@ def test_is_certified(response, syn):
         assert is_certified is response
 
 
-def test_is_certified__no_quiz_results(syn):
+def test_is_certified__no_quiz_results(syn: Synapse) -> None:
     """Verify handling of a user that hasn't taken the quiz at all.
     In this case the back end returns a 404 rather than a result."""
     response = MagicMock(requests.Response)
@@ -3382,7 +3405,7 @@ def test_is_certified__no_quiz_results(syn):
     assert is_certified is False
 
 
-def test_is_synapse_id(syn):
+def test_is_synapse_id(syn: Synapse) -> None:
     # Invalid IDs
     assert not syn.is_synapse_id("test")
     assert not syn.is_synapse_id("123")
@@ -3394,7 +3417,7 @@ def test_is_synapse_id(syn):
         assert syn.is_synapse_id("syn28590455")
 
 
-def test_init_change_cache_path():
+def test_init_change_cache_path() -> None:
     """
     Verify that the user can customize the cache path.
     The cache path is set to the default value if cache_root_dir argument is None.
@@ -3425,7 +3448,7 @@ def test_init_change_cache_path():
         )
 
 
-def test__saveActivity__has_id(syn):
+def test__saveActivity__has_id(syn: Synapse) -> None:
     """
     Testing saveActivity method works properly
     """
@@ -3444,7 +3467,7 @@ def test__saveActivity__has_id(syn):
         )
 
 
-def test__saveActivity__without_id(syn):
+def test__saveActivity__without_id(syn: Synapse) -> None:
     """
     Testing saveActivity method pass in the argument activity without ID property
     """
@@ -3458,7 +3481,7 @@ def test__saveActivity__without_id(syn):
 
 
 @patch("synapseclient.Synapse._saveActivity")
-def test__updateActivity__with_id(mock_saveActivity, syn):
+def test__updateActivity__with_id(mock_saveActivity, syn: Synapse) -> None:
     activity = {
         "id": "syn123",
         "name": "test_activity",
@@ -3470,7 +3493,7 @@ def test__updateActivity__with_id(mock_saveActivity, syn):
     )
 
 
-def test__updateActivity__without_id(syn):
+def test__updateActivity__without_id(syn: Synapse) -> None:
     activity = Activity(name="test_activity", description="test_description")
     with pytest.raises(ValueError) as ve:
         syn.updateActivity(activity)
@@ -3479,10 +3502,10 @@ def test__updateActivity__without_id(syn):
 
 class TestPermissionsOnProject:
     @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse):
+    def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_get_permissions_with_defined_set_for_access(self):
+    def test_get_permissions_with_defined_set_for_access(self) -> None:
         # GIVEN the API calls are mocked
         with patch.object(
             self.syn,
@@ -3536,7 +3559,7 @@ class TestPermissionsOnProject:
             ]
             assert set(expected_permissions) == set(permissions)
 
-    def test_get_permissions_with_no_permissions_for_user(self):
+    def test_get_permissions_with_no_permissions_for_user(self) -> None:
         # GIVEN the API calls are mocked
         with patch.object(
             self.syn,
@@ -3581,7 +3604,7 @@ class TestPermissionsOnProject:
             expected_permissions = []
             assert set(expected_permissions) == set(permissions)
 
-    def test_get_permissions_with_permissions_given_through_single_team(self):
+    def test_get_permissions_with_permissions_given_through_single_team(self) -> None:
         # GIVEN the API calls are mocked
         with patch.object(
             self.syn,
@@ -3635,7 +3658,9 @@ class TestPermissionsOnProject:
             ]
             assert set(expected_permissions) == set(permissions)
 
-    def test_get_permissions_with_permissions_given_through_multiple_teams(self):
+    def test_get_permissions_with_permissions_given_through_multiple_teams(
+        self,
+    ) -> None:
         # GIVEN the API calls are mocked
         with patch.object(
             self.syn,
@@ -3698,7 +3723,7 @@ class TestPermissionsOnProject:
             assert set(expected_permissions) == set(permissions)
 
 
-def test_create_team(syn):
+def test_create_team(syn: Synapse) -> None:
     request_body = {
         "name": "python-client-test-team",
         "description": "test description",
@@ -3740,7 +3765,7 @@ def test_create_team(syn):
         assert team.modifiedBy == "1111111"
 
 
-def test_delete_team(syn):
+def test_delete_team(syn: Synapse) -> None:
     with patch.object(syn, "restDELETE") as mock_delete:
         syn.delete_team(1)
         mock_delete.assert_called_once_with("/team/1")

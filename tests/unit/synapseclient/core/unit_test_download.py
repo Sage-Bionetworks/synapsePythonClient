@@ -1,20 +1,19 @@
+"""Unit tests for downloads."""
+
 import hashlib
 import json
 import os
 import shutil
 import tempfile
 
-import unittest
-from unittest.mock import MagicMock, patch, mock_open, call
+from unittest.mock import AsyncMock, MagicMock, patch, mock_open, call
 import pytest
 
 import requests
 
 import synapseclient.core.constants.concrete_types as concrete_types
 import synapseclient.core.multithread_download as multithread_download
-from synapseclient import File, Synapse
-from synapseclient.core import sts_transfer
-from synapseclient import client
+from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
@@ -22,6 +21,12 @@ from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
 )
+from synapseclient.core.download import (
+    download_by_file_handle,
+    download_from_url,
+    download_from_url_multi_threaded,
+)
+from synapseclient.api import get_file_handle_for_download
 
 
 # a callable that mocks the requests.get function
@@ -122,7 +127,7 @@ def mock_generate_headers(self, headers=None):
     return {}
 
 
-def test_mock_download(syn: Synapse):
+async def test_mock_download(syn: Synapse) -> None:
     temp_dir = tempfile.gettempdir()
 
     fileHandleId = "42"
@@ -147,10 +152,13 @@ def test_mock_download(syn: Synapse):
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
-        syn._download_from_URL(
-            url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5
+        await download_from_url(
+            url=url,
+            destination=temp_dir,
+            file_handle_id=12345,
+            expected_md5=contents_md5,
         )
 
     # 2. Multiple redirects
@@ -165,10 +173,13 @@ def test_mock_download(syn: Synapse):
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
-        syn._download_from_URL(
-            url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5
+        await download_from_url(
+            url=url,
+            destination=temp_dir,
+            file_handle_id=12345,
+            expected_md5=contents_md5,
         )
 
     # 3. recover from partial download
@@ -214,18 +225,18 @@ def test_mock_download(syn: Synapse):
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch.object(
-        Synapse,
-        "_getFileHandleDownload",
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    ), patch.object(syn, "_generate_headers", side_effect=mock_generate_headers), patch(
+        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
-    ), patch.object(
-        sts_transfer, "is_storage_location_sts_enabled", return_value=False
     ):
-        syn._downloadFileHandle(
-            fileHandleId, objectId, objectType, destination=temp_dir
+        await download_by_file_handle(
+            file_handle_id=fileHandleId,
+            synapse_id=objectId,
+            entity_type=objectType,
+            destination=temp_dir,
+            synapse_client=syn,
         )
 
     # 4. as long as we're making progress, keep trying
@@ -258,18 +269,19 @@ def test_mock_download(syn: Synapse):
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch.object(
-        Synapse,
-        "_getFileHandleDownload",
+    ), patch(
+        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
-    ), patch.object(
-        sts_transfer, "is_storage_location_sts_enabled", return_value=False
     ):
-        syn._downloadFileHandle(
-            fileHandleId, objectId, objectType, destination=temp_dir
+        await download_by_file_handle(
+            file_handle_id=fileHandleId,
+            synapse_id=objectId,
+            entity_type=objectType,
+            destination=temp_dir,
         )
 
     # 5. don't recover, a partial download that never completes
@@ -303,22 +315,21 @@ def test_mock_download(syn: Synapse):
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch.object(
-        Synapse,
-        "_getFileHandleDownload",
+    ), patch(
+        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
     ):
-        pytest.raises(
-            Exception,
-            syn._downloadFileHandle,
-            fileHandleId,
-            objectId,
-            objectType,
-            destination=temp_dir,
-        )
+        with pytest.raises(Exception):
+            await download_by_file_handle(
+                file_handle_id=fileHandleId,
+                synapse_id=objectId,
+                entity_type=objectType,
+                destination=temp_dir,
+            )
 
     # 6. 206 Range header not supported, respond with 200 and full file
     mock_requests_get = MockRequestGetFunction(
@@ -341,18 +352,19 @@ def test_mock_download(syn: Synapse):
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch.object(
-        Synapse,
-        "_getFileHandleDownload",
+    ), patch(
+        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
-    ), patch.object(
-        sts_transfer, "is_storage_location_sts_enabled", return_value=False
     ):
-        syn._downloadFileHandle(
-            fileHandleId, objectId, objectType, destination=temp_dir
+        await download_by_file_handle(
+            file_handle_id=fileHandleId,
+            synapse_id=objectId,
+            entity_type=objectType,
+            destination=temp_dir,
         )
 
     # 7. Too many redirects
@@ -366,39 +378,38 @@ def test_mock_download(syn: Synapse):
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch.object(
-        Synapse,
-        "_getFileHandleDownload",
+    ), patch(
+        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
-    ), patch.object(
-        sts_transfer, "is_storage_location_sts_enabled", return_value=False
     ):
-        pytest.raises(
-            SynapseHTTPError,
-            syn._downloadFileHandle,
-            fileHandleId,
-            objectId,
-            objectType,
-            destination=temp_dir,
-        )
+        with pytest.raises(SynapseHTTPError):
+            await download_by_file_handle(
+                file_handle_id=fileHandleId,
+                synapse_id=objectId,
+                entity_type=objectType,
+                destination=temp_dir,
+            )
 
 
-class Test__downloadFileHandle(unittest.TestCase):
+class TestDownloadFileHandle:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn: Synapse):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         self.syn.multi_threaded = False
 
-    def test_multithread_true__S3_fileHandle(self):
-        with patch.object(os, "makedirs"), patch.object(
-            self.syn, "_getFileHandleDownload"
-        ) as mock_getFileHandleDownload, patch.object(
-            self.syn, "_download_from_url_multi_threaded"
+    async def test_multithread_true_s3_file_handle(self) -> None:
+        with patch.object(os, "makedirs"), patch(
+            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            new_callable=AsyncMock,
+        ) as mock_getFileHandleDownload, patch(
+            "synapseclient.core.download.download_functions.download_from_url_multi_threaded",
+            new_callable=AsyncMock,
         ) as mock_multi_thread_download, patch.object(
             self.syn, "cache"
         ):
@@ -413,26 +424,31 @@ class Test__downloadFileHandle(unittest.TestCase):
             }
 
             self.syn.multi_threaded = True
-            self.syn._downloadFileHandle(
-                fileHandleId=123,
-                objectId=456,
-                objectType="FileEntity",
+            await download_by_file_handle(
+                file_handle_id=123,
+                synapse_id=456,
+                entity_type="FileEntity",
                 destination="/myfakepath",
             )
 
             mock_multi_thread_download.assert_called_once_with(
-                123, 456, "FileEntity", "/myfakepath", expected_md5="someMD5"
+                file_handle_id=123,
+                object_id=456,
+                object_type="FileEntity",
+                destination="/myfakepath",
+                expected_md5="someMD5",
+                synapse_client=self.syn,
             )
 
-    def _multithread_not_applicable(self, file_handle):
-        with patch.object(os, "makedirs"), patch.object(
-            self.syn, "_getFileHandleDownload"
-        ) as mock_getFileHandleDownload, patch.object(
-            self.syn, "_download_from_URL"
+    async def _multithread_not_applicable(self, file_handle) -> None:
+        with patch.object(os, "makedirs"), patch(
+            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            new_callable=AsyncMock,
+        ) as mock_getFileHandleDownload, patch(
+            "synapseclient.core.download.download_functions.download_from_url",
+            new_callable=AsyncMock,
         ) as mock_download_from_URL, patch.object(
             self.syn, "cache"
-        ), patch.object(
-            sts_transfer, "is_storage_location_sts_enabled", return_value=False
         ):
             mock_getFileHandleDownload.return_value = {
                 "fileHandle": file_handle,
@@ -441,27 +457,31 @@ class Test__downloadFileHandle(unittest.TestCase):
 
             # multi_threaded/max_threads will have effect
             self.syn.multi_threaded = True
-            self.syn._downloadFileHandle(
-                fileHandleId=123,
-                objectId=456,
-                objectType="FileEntity",
+            await download_by_file_handle(
+                file_handle_id=123,
+                synapse_id=456,
+                entity_type="FileEntity",
                 destination="/myfakepath",
             )
 
             mock_download_from_URL.assert_called_once_with(
-                "asdf.com", "/myfakepath", "123", expected_md5="someMD5"
+                url="asdf.com",
+                destination="/myfakepath",
+                file_handle_id="123",
+                expected_md5="someMD5",
+                synapse_client=self.syn,
             )
 
-    def test_multithread_True__other_file_handle_type(self):
+    async def test_multithread_true_other_file_handle_type(self) -> None:
         """Verify that even if multithreaded is enabled we won't use it for unsupported file types"""
         file_handle = {
             "id": "123",
             "concreteType": "someFakeConcreteType",
             "contentMd5": "someMD5",
         }
-        self._multithread_not_applicable(file_handle)
+        await self._multithread_not_applicable(file_handle)
 
-    def test_multithread_false__S3_fileHandle__small_file(self):
+    async def test_multithread_false_s3_file_handle_small_file(self) -> None:
         """Verify that even if multithreaded is enabled we still won't use a multithreaded
         download if the file is not large enough to make it worthwhile"""
         file_handle = {
@@ -470,17 +490,17 @@ class Test__downloadFileHandle(unittest.TestCase):
             "contentMd5": "someMD5",
             "contentSize": multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE - 1,
         }
-        self._multithread_not_applicable(file_handle)
+        await self._multithread_not_applicable(file_handle)
 
-    def test_multithread_false__S3_fileHandle(self):
-        with patch.object(os, "makedirs"), patch.object(
-            self.syn, "_getFileHandleDownload"
-        ) as mock_getFileHandleDownload, patch.object(
-            self.syn, "_download_from_URL"
+    async def test_multithread_false_s3_file_handle(self) -> None:
+        with patch.object(os, "makedirs"), patch(
+            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            new_callable=AsyncMock,
+        ) as mock_getFileHandleDownload, patch(
+            "synapseclient.core.download.download_functions.download_from_url",
+            new_callable=AsyncMock,
         ) as mock_download_from_URL, patch.object(
             self.syn, "cache"
-        ), patch.object(
-            sts_transfer, "is_storage_location_sts_enabled", return_value=False
         ):
             mock_getFileHandleDownload.return_value = {
                 "fileHandle": {
@@ -492,24 +512,28 @@ class Test__downloadFileHandle(unittest.TestCase):
             }
 
             self.syn.multi_threaded = False
-            self.syn._downloadFileHandle(
-                fileHandleId=123,
-                objectId=456,
-                objectType="FileEntity",
+            await download_by_file_handle(
+                file_handle_id=123,
+                synapse_id=456,
+                entity_type="FileEntity",
                 destination="/myfakepath",
             )
 
             mock_download_from_URL.assert_called_once_with(
-                "asdf.com", "/myfakepath", "123", expected_md5="someMD5"
+                url="asdf.com",
+                destination="/myfakepath",
+                file_handle_id="123",
+                expected_md5="someMD5",
+                synapse_client=self.syn,
             )
 
 
 class Test_download_from_url_multi_threaded:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn: Synapse):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_md5_mismatch(self):
+    async def test_md5_mismatch(self) -> None:
         with patch.object(multithread_download, "download_file"), patch.object(
             utils, "md5_for_file"
         ) as mock_md5_for_file, patch.object(
@@ -521,22 +545,22 @@ class Test_download_from_url_multi_threaded:
 
             mock_md5_for_file.return_value.hexdigest.return_value = "unexpetedMd5"
 
-            pytest.raises(
-                SynapseMd5MismatchError,
-                self.syn._download_from_url_multi_threaded,
-                file_handle_id=123,
-                object_id=456,
-                object_type="FileEntity",
-                destination=path,
-                expected_md5="myExpectedMd5",
-            )
+            with pytest.raises(SynapseMd5MismatchError):
+                await download_from_url_multi_threaded(
+                    file_handle_id=123,
+                    object_id=456,
+                    object_type="FileEntity",
+                    destination=path,
+                    expected_md5="myExpectedMd5",
+                    synapse_client=self.syn,
+                )
 
             mock_os_remove.assert_called_once_with(
                 utils.temp_download_filename(path, 123)
             )
             mock_move.assert_not_called()
 
-    def test_md5_match(self):
+    async def test_md5_match(self) -> None:
         with patch.object(multithread_download, "download_file"), patch.object(
             utils, "md5_for_file"
         ) as mock_md5_for_file, patch.object(
@@ -550,12 +574,13 @@ class Test_download_from_url_multi_threaded:
 
             mock_md5_for_file.return_value.hexdigest.return_value = expected_md5
 
-            self.syn._download_from_url_multi_threaded(
+            await download_from_url_multi_threaded(
                 file_handle_id=123,
                 object_id=456,
                 object_type="FileEntity",
                 destination=path,
                 expected_md5=expected_md5,
+                synapse_client=self.syn,
             )
 
             mock_os_remove.assert_not_called()
@@ -564,7 +589,7 @@ class Test_download_from_url_multi_threaded:
             )
 
 
-def test_download_end_early_retry(syn: Synapse):
+async def test_download_end_early_retry(syn: Synapse) -> None:
     """
     -------Test to ensure download retry even if connection ends early--------
     """
@@ -606,13 +631,15 @@ def test_download_end_early_retry(syn: Synapse):
     )
 
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch.object(
         utils, "temp_download_filename", return_value=temp_destination
-    ) as mocked_temp_dest, patch.object(
-        client, "open", new_callable=mock_open(), create=True
+    ) as mocked_temp_dest, patch(
+        "synapseclient.core.download.download_functions.open",
+        new_callable=mock_open(),
+        create=True,
     ) as mocked_open, patch.object(
         os.path, "exists", side_effect=[False, True]
     ) as mocked_exists, patch.object(
@@ -623,10 +650,12 @@ def test_download_end_early_retry(syn: Synapse):
         shutil, "move"
     ) as mocked_move:
         # function under test
-        syn._download_from_URL(url, destination)
+        await download_from_url(url=url, destination=destination)
 
         # assert temp_download_filename() called 2 times with same parameters
-        assert [call(destination, None)] * 2 == mocked_temp_dest.call_args_list
+        assert [
+            call(destination=destination, file_handle_id=None)
+        ] * 2 == mocked_temp_dest.call_args_list
 
         # assert exists called 2 times
         assert [call(temp_destination)] * 2 == mocked_exists.call_args_list
@@ -639,13 +668,13 @@ def test_download_end_early_retry(syn: Synapse):
 
         # assert getsize() called 2 times
         # once because exists()=True and another time because response status code = 206
-        assert [call(temp_destination)] * 2 == mocked_getsize.call_args_list
+        assert [call(filename=temp_destination)] * 2 == mocked_getsize.call_args_list
 
         # assert shutil.move() called 1 time
         mocked_move.assert_called_once_with(temp_destination, destination)
 
 
-def test_download_md5_mismatch__not_local_file(syn: Synapse):
+async def test_download_md5_mismatch__not_local_file(syn: Synapse) -> None:
     """
     --------Test to ensure file gets removed on md5 mismatch--------
     """
@@ -670,13 +699,15 @@ def test_download_md5_mismatch__not_local_file(syn: Synapse):
     )
 
     with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
+        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch.object(
         utils, "temp_download_filename", return_value=temp_destination
-    ) as mocked_temp_dest, patch.object(
-        client, "open", new_callable=mock_open(), create=True
+    ) as mocked_temp_dest, patch(
+        "synapseclient.core.download.download_functions.open",
+        new_callable=mock_open(),
+        create=True,
     ) as mocked_open, patch.object(
         os.path, "exists", side_effect=[False, True]
     ) as mocked_exists, patch.object(
@@ -685,16 +716,15 @@ def test_download_md5_mismatch__not_local_file(syn: Synapse):
         os, "remove"
     ) as mocked_remove:
         # function under test
-        pytest.raises(
-            SynapseMd5MismatchError,
-            syn._download_from_URL,
-            url,
-            destination,
-            expected_md5="fake md5 is fake",
-        )
+        with pytest.raises(SynapseMd5MismatchError):
+            await download_from_url(
+                url=url, destination=destination, expected_md5="fake md5 is fake"
+            )
 
         # assert temp_download_filename() called once
-        mocked_temp_dest.assert_called_once_with(destination, None)
+        mocked_temp_dest.assert_called_once_with(
+            destination=destination, file_handle_id=None
+        )
 
         # assert exists called 2 times
         assert [
@@ -712,7 +742,7 @@ def test_download_md5_mismatch__not_local_file(syn: Synapse):
         mocked_remove.assert_called_once_with(destination)
 
 
-def test_download_md5_mismatch_local_file(syn: Synapse):
+async def test_download_md5_mismatch_local_file() -> None:
     """
     --------Test to ensure file gets removed on md5 mismatch--------
     """
@@ -720,8 +750,6 @@ def test_download_md5_mismatch_local_file(syn: Synapse):
     destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
 
     with patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch.object(
         utils, "file_url_to_path", return_value=destination
     ) as mocked_file_url_to_path, patch.object(
         utils, "md5_for_file", return_value=hashlib.md5()
@@ -729,13 +757,10 @@ def test_download_md5_mismatch_local_file(syn: Synapse):
         "os.remove"
     ) as mocked_remove:
         # function under test
-        pytest.raises(
-            SynapseMd5MismatchError,
-            syn._download_from_URL,
-            url,
-            destination,
-            expected_md5="fake md5 is fake",
-        )
+        with pytest.raises(SynapseMd5MismatchError):
+            await download_from_url(
+                url=url, destination=destination, expected_md5="fake md5 is fake"
+            )
 
         mocked_file_url_to_path.assert_called_once_with(url, verify_exists=True)
         mocked_md5_for_file.assert_called_once_with(destination)
@@ -743,24 +768,7 @@ def test_download_md5_mismatch_local_file(syn: Synapse):
         assert not mocked_remove.called
 
 
-def test_download_file_entity__correct_local_state(syn: Synapse):
-    mock_cache_path = utils.normalize_path("/i/will/show/you/the/path/yi.txt")
-    file_entity = File(parentId="syn123")
-    file_entity.dataFileHandleId = 123
-    with patch.object(syn.cache, "get", return_value=mock_cache_path):
-        syn._download_file_entity(
-            downloadLocation=None,
-            entity=file_entity,
-            ifcollision="overwrite.local",
-            submission=None,
-        )
-        assert mock_cache_path == utils.normalize_path(file_entity.path)
-        assert os.path.dirname(mock_cache_path) == file_entity.cacheDir
-        assert 1 == len(file_entity.files)
-        assert os.path.basename(mock_cache_path) == file_entity.files[0]
-
-
-def test_getFileHandleDownload__error_UNAUTHORIZED(syn: Synapse):
+async def test_getFileHandleDownload__error_UNAUTHORIZED(syn: Synapse) -> None:
     ret_val = {
         "requestedFiles": [
             {
@@ -768,11 +776,17 @@ def test_getFileHandleDownload__error_UNAUTHORIZED(syn: Synapse):
             }
         ]
     }
-    with patch.object(syn, "restPOST", return_value=ret_val):
-        pytest.raises(SynapseError, syn._getFileHandleDownload, "123", "syn456")
+
+    with patch.object(
+        syn, "rest_post_async", new_callable=AsyncMock, return_value=ret_val
+    ):
+        with pytest.raises(SynapseError):
+            await get_file_handle_for_download(
+                file_handle_id="123", synapse_id="syn456", synapse_client=syn
+            )
 
 
-def test_getFileHandleDownload__error_NOT_FOUND(syn: Synapse):
+async def test_getFileHandleDownload__error_NOT_FOUND(syn: Synapse) -> None:
     ret_val = {
         "requestedFiles": [
             {
@@ -780,7 +794,10 @@ def test_getFileHandleDownload__error_NOT_FOUND(syn: Synapse):
             }
         ]
     }
-    with patch.object(syn, "restPOST", return_value=ret_val):
-        pytest.raises(
-            SynapseFileNotFoundError, syn._getFileHandleDownload, "123", "syn456"
-        )
+    with patch.object(
+        syn, "rest_post_async", new_callable=AsyncMock, return_value=ret_val
+    ):
+        with pytest.raises(SynapseFileNotFoundError):
+            await get_file_handle_for_download(
+                file_handle_id="123", synapse_id="syn456", synapse_client=syn
+            )

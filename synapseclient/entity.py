@@ -783,6 +783,8 @@ class File(Entity, Versionable):
                 key == "path"
                 and not self["synapseStore"]
                 and utils.caller_module_name(inspect.currentframe()) != "client"
+                and utils.caller_module_name(inspect.currentframe())
+                != "download_functions"
             ):
                 self["externalURL"] = expand_and_convert_to_URL(value)
                 self["contentMd5"] = None

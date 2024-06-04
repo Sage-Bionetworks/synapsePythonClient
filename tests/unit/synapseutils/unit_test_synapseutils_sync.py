@@ -1,5 +1,4 @@
 """Unit tests for the Sync utility functions"""
-# pylint: disable=protected-access
 import csv
 import datetime
 import math
@@ -1003,7 +1002,7 @@ class TestGetFileEntityProvenanceDict:
     """
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.mock_syn = create_autospec(Synapse)
 
     def test_get_file_entity_provenance_dict__error_is_404(self):
