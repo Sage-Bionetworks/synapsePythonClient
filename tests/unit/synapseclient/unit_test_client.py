@@ -58,6 +58,12 @@ from synapseclient.core.logging_setup import (
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.upload import upload_functions
 
+GET_FILE_HANDLE_FOR_DOWNLOAD = (
+    "synapseclient.core.download.download_functions.get_file_handle_for_download"
+)
+DOWNLOAD_BY_FILE_HANDLE = (
+    "synapseclient.core.download.download_functions.download_by_file_handle"
+)
 DOWNLOAD_FROM_URL = "synapseclient.core.download.download_functions.download_from_url"
 
 
