@@ -26,6 +26,7 @@ from synapseclient.core.retry import (
     DEFAULT_RETRY_STATUS_CODES,
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
+    with_retry,
 )
 
 from synapseclient.core.utils import (
@@ -435,12 +436,25 @@ async def download_from_url(
                 if is_synapse_uri(uri=url, synapse_client=client)
                 else None
             )
-            response = await client.rest_get_async(
-                uri=url,
-                headers=client._generate_headers(range_header),
-                stream=True,
-                allow_redirects=False,
-                auth=auth,
+            # TODO: Some more work is needed for streaming this data:
+            # https://www.python-httpx.org/quickstart/#streaming-responses
+            # response = await client.rest_get_async(
+            #     uri=url,
+            #     headers=client._generate_headers(range_header),
+            #     stream=True,
+            #     allow_redirects=False,
+            #     auth=auth,
+            # )
+            response = with_retry(
+                lambda: client._requests_session.get(
+                    url,
+                    headers=client._generate_headers(range_header),
+                    stream=True,
+                    allow_redirects=False,
+                    auth=auth,
+                ),
+                verbose=client.debug,
+                **STANDARD_RETRY_PARAMS,
             )
             try:
                 exceptions._raise_for_status(response, verbose=client.debug)
