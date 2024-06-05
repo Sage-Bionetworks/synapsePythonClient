@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 import pytest
-from client import Synapse
+from synapseclient import Synapse
 
 test_user_profile = {
     "ownerId": "1234567",
