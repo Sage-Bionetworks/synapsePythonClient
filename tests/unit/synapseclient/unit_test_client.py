@@ -65,6 +65,7 @@ DOWNLOAD_BY_FILE_HANDLE = (
     "synapseclient.core.download.download_functions.download_by_file_handle"
 )
 DOWNLOAD_FROM_URL = "synapseclient.core.download.download_functions.download_from_url"
+FOO_KEY = "/tmp/fooKey"
 
 
 class TestLogout:
@@ -377,7 +378,7 @@ class TestDownloadFileHandle:
         file_handle_id = 1234
         entity_id_value = "syn_5678"
         bucket_name = "fooBucket"
-        key = "/tmp/fooKey"
+        key = FOO_KEY
         destination = "/tmp"
         credentials = {
             "aws_access_key_id": "foo",
@@ -399,7 +400,7 @@ class TestDownloadFileHandle:
 
         mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
 
-        expected_download_path = "/tmp/fooKey"
+        expected_download_path = FOO_KEY
         mock_s3_client_wrapper.download_file.return_value = expected_download_path
 
         with patch(
@@ -441,7 +442,7 @@ class TestDownloadFileHandle:
         mock_s3_client_wrapper.download_file.assert_called_once_with(
             bucket="fooBucket",
             endpoint_url=None,
-            remote_file_key="/tmp/fooKey",
+            remote_file_key=FOO_KEY,
             download_file_path="/tmp",
             credentials=credentials,
             show_progress=True,

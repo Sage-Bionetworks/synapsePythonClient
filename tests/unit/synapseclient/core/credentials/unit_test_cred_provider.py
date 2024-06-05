@@ -105,7 +105,10 @@ class TestSynapseCredentialProvider(object):
         # SynapseApiKeyCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
 
         class SynapseCredProviderTester(SynapseCredentialsProvider):
-            def _get_auth_info(self, syn, user_login_args) -> None:
+            def _get_auth_info(
+                self, syn: Synapse, user_login_args: Dict[str, str]
+            ) -> None:
+                """Empty as this is a stub."""
                 pass
 
         self.provider = SynapseCredProviderTester()
