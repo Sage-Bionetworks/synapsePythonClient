@@ -605,7 +605,7 @@ async def test_synapse_store_flag(
 
 
 async def test_create_or_update_project(
-    syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
+    syn: Synapse, schedule_for_cleanup: Callable[..., None]
 ) -> None:
     name = str(uuid.uuid4())
 

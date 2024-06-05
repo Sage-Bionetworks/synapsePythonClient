@@ -154,8 +154,8 @@ class TestPrivateGetWithEntityBundle:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_getWithEntityBundle__no_DOWNLOAD(
-        self, download_file_mock, get_file_URL_and_metadata_mock
+    def test_get_with_entity_bundle_no_download(
+        self, download_file_mock: MagicMock, get_file_URL_and_metadata_mock: MagicMock
     ) -> None:
         bundle = {
             "entity": {
@@ -179,8 +179,8 @@ class TestPrivateGetWithEntityBundle:
             mocked_warn.assert_called_once()
             assert entity_no_download.path is None
 
-    def test_getWithEntityBundle(
-        self, download_file_mock, get_file_URL_and_metadata_mock
+    def test_get_with_entity_bundle(
+        self, download_file_mock: MagicMock, get_file_url_and_metadata_mock: MagicMock
     ) -> None:
         # Note: one thing that remains unexplained is why the previous version of
         # this test worked if you had a .cacheMap file of the form:
@@ -213,12 +213,12 @@ class TestPrivateGetWithEntityBundle:
             },
         }
 
-        fileHandle = bundle["fileHandles"][0]["id"]
-        cacheDir = self.syn.cache.get_cache_dir(fileHandle)
+        file_handle = bundle["fileHandles"][0]["id"]
+        cache_dir = self.syn.cache.get_cache_dir(file_handle)
         # Make sure the .cacheMap file does not already exist
-        cacheMap = os.path.join(cacheDir, ".cacheMap")
-        if os.path.exists(cacheMap):
-            os.remove(cacheMap)
+        cache_map = os.path.join(cache_dir, ".cacheMap")
+        if os.path.exists(cache_map):
+            os.remove(cache_map)
 
         def _download_file_handle(
             file_handle_id: str,
@@ -231,7 +231,7 @@ class TestPrivateGetWithEntityBundle:
             with open(destination, "a"):
                 os.utime(destination, None)
             os.path.split(destination)
-            self.syn.cache.add(file_handle_id=fileHandle, path=destination)
+            self.syn.cache.add(file_handle_id=file_handle, path=destination)
             return destination
 
         def _get_file_handle_download(
@@ -244,7 +244,7 @@ class TestPrivateGetWithEntityBundle:
             }
 
         download_file_mock.side_effect = _download_file_handle
-        get_file_URL_and_metadata_mock.side_effect = _get_file_handle_download
+        get_file_url_and_metadata_mock.side_effect = _get_file_handle_download
 
         # 1. ----------------------------------------------------------------------
         # download file to an alternate location
@@ -318,7 +318,9 @@ class TestDownloadFileHandle:
         self.syn = syn
 
     @patch("synapseclient.core.download.download_functions.sts_transfer")
-    async def test_download_file_handle__retry_error(self, mock_sts_transfer) -> None:
+    async def test_download_file_handle__retry_error(
+        self, mock_sts_transfer: MagicMock
+    ) -> None:
         mock_sts_transfer.is_boto_sts_transfer_enabled.return_value = False
 
         file_handle_id = 1234
@@ -368,9 +370,9 @@ class TestDownloadFileHandle:
     @patch("synapseclient.core.download.download_functions.os")
     async def test_download_file_handle__sts_boto(
         self,
-        mock_os,
-        mock_sts_transfer,
-        mock_s3_client_wrapper,
+        mock_os: MagicMock,
+        mock_sts_transfer: MagicMock,
+        mock_s3_client_wrapper: MagicMock,
     ) -> None:
         """Verify that we download S3 file handles using boto if the configuration specifies
         # it and if the storage location supports STS"""
@@ -495,7 +497,7 @@ class TestDownloadFileHandle:
             )
             assert download_path == expected_destination
 
-    async def test_download_from_url__synapse_auth(self, mocker) -> None:
+    async def test_download_from_url__synapse_auth(self, mocker: MagicMock) -> None:
         """Verify we pass along Synapse auth headers when downloading from a Synapse repo hosted url"""
 
         uri = f"{self.syn.repoEndpoint}/repo/v1/entity/syn1234567/file"
@@ -553,7 +555,7 @@ class TestDownloadFileHandle:
 
     @patch(GET_FILE_HANDLE_FOR_DOWNLOAD)
     async def test_download_file_handle_preserve_exception_info(
-        self, mock_getFileHandleDownload
+        self, mock_get_file_handle_download: MagicMock
     ) -> None:
         file_handle_id = 1234
         syn_id = "syn123"
@@ -563,7 +565,7 @@ class TestDownloadFileHandle:
                 f"Something wrong when downloading {syn_id} in try block!"
             )
 
-        mock_getFileHandleDownload.side_effect = get_file_handle_download_side_effect
+        mock_get_file_handle_download.side_effect = get_file_handle_download_side_effect
 
         with pytest.raises(SynapseError) as ex:
             await download_by_file_handle(
@@ -984,7 +986,7 @@ class TestPrivateUploadExternallyStoringProjects:
         ],
     )
     def test__uploadExternallyStoringProjects_external_user(
-        self, mock_upload_destination, external_type
+        self, mock_upload_destination: MagicMock, external_type: str
     ) -> None:
         # setup
         expected_storage_location_id = "1234567"
@@ -1008,7 +1010,7 @@ class TestPrivateUploadExternallyStoringProjects:
             self.syn.cache, "add"
         ) as mocked_cache_add, patch.object(
             self.syn, "_get_file_handle_as_creator"
-        ) as mocked_getFileHandle:
+        ) as mocked_get_file_handle:
             upload_functions.upload_file_handle(
                 syn=self.syn,
                 parent_entity=test_file["parentId"],
@@ -1031,7 +1033,7 @@ class TestPrivateUploadExternallyStoringProjects:
                 path=expected_path_expanded,
                 md5="fake_md5",
             )
-            mocked_getFileHandle.assert_called_once_with(
+            mocked_get_file_handle.assert_called_once_with(
                 fileHandle=expected_file_handle_id
             )
             # test
@@ -1558,7 +1560,9 @@ class TestSetStorageLocation:
 
 
 @patch("synapseclient.core.sts_transfer.get_sts_credentials")
-def test_get_sts_storage_token(mock_get_sts_credentials, syn: Synapse) -> None:
+def test_get_sts_storage_token(
+    mock_get_sts_credentials: MagicMock, syn: Synapse
+) -> None:
     """Verify get_sts_storage_token passes through to the underlying function as expected"""
     token = {"key": "val"}
     mock_get_sts_credentials.return_value = token
@@ -2374,7 +2378,7 @@ def test_max_threads_bounded(syn: Synapse) -> None:
 
 
 @patch("synapseclient.api.configuration_services.get_config_section_dict")
-def test_get_transfer_config(mock_config_dict) -> None:
+def test_get_transfer_config(mock_config_dict: MagicMock) -> None:
     """Verify reading transfer.maxThreads from synapseConfig"""
 
     # note that RawConfigParser lower cases its option values so we
@@ -2423,7 +2427,7 @@ def test_get_transfer_config(mock_config_dict) -> None:
 
 
 @patch("synapseclient.api.configuration_services.get_config_section_dict")
-def test_transfer_config_values_overridable(mock_config_dict) -> None:
+def test_transfer_config_values_overridable(mock_config_dict: MagicMock) -> None:
     """Verify we can override the default transfer config values by setting them directly on the Synapse object"""
 
     mock_config_dict.return_value = {"max_threads": 24, "use_boto_sts": False}
@@ -3247,7 +3251,7 @@ class TestHandleSynapseHTTPError:
 
 class TestTableQuery:
     @patch.object(client, "CsvFileTable")
-    def test_table_query__csv(self, mock_csv, syn: Synapse) -> None:
+    def test_table_query__csv(self, mock_csv: MagicMock, syn: Synapse) -> None:
         query = "select id from syn123"
         kwargs = {
             "quoteCharacter": "|",
@@ -3262,7 +3266,7 @@ class TestTableQuery:
         mock_csv.from_table_query.assert_called_once_with(syn, query, **kwargs)
 
     @patch.object(client, "TableQueryResult")
-    def test_table_query__rowset(self, mock_result, syn: Synapse) -> None:
+    def test_table_query__rowset(self, mock_result: MagicMock, syn: Synapse) -> None:
         query = "select id from syn123"
         kwargs = {"isConsistent": "true"}
 
@@ -3368,7 +3372,7 @@ class TestSilentCommandAndLogger:
         assert self.syn_with_debug.logger.name == DEBUG_LOGGER_NAME
 
     @patch.object(client, "cumulative_transfer_progress")
-    def test_print_transfer_progress(self, mock_ctp) -> None:
+    def test_print_transfer_progress(self, mock_ctp: MagicMock) -> None:
         """
         Verify the private method print_transfer_progress will run with property self.silent accordingly
         """
@@ -3503,14 +3507,14 @@ def test_save_activity_without_id(syn: Synapse) -> None:
 
 
 @patch("synapseclient.Synapse._saveActivity")
-def test_update_activity_with_id(mock_saveActivity, syn: Synapse) -> None:
+def test_update_activity_with_id(mock_save_activity: MagicMock, syn: Synapse) -> None:
     activity = {
         "id": "syn123",
         "name": "test_activity",
         "description": "test_description",
     }
     syn.updateActivity(activity)
-    mock_saveActivity.assert_called_once_with(
+    mock_save_activity.assert_called_once_with(
         {"id": "syn123", "name": "test_activity", "description": "test_description"}
     )
 

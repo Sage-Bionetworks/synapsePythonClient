@@ -670,13 +670,13 @@ def resolve_download_path_collisions(
     # resolve collison
     if os.path.exists(path=download_path):
         if if_collision == COLLISION_OVERWRITE_LOCAL:
-            return download_path
+            pass  # Let the download proceed and overwrite the local file.
         elif if_collision == COLLISION_KEEP_LOCAL:
             # Don't want to overwrite the local file.
-            return None
+            download_path = None
         elif if_collision == COLLISION_KEEP_BOTH:
             if download_path != cached_file_path:
-                return utils.unique_filename(download_path)
+                download_path = utils.unique_filename(download_path)
         else:
             raise ValueError(
                 f'Invalid parameter: "{if_collision}" is not a valid value for "ifcollision"'

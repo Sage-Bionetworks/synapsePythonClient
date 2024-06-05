@@ -5,7 +5,7 @@ import os
 import re
 import tempfile
 from shutil import rmtree
-from unittest.mock import Mock, call, mock_open, patch
+from unittest.mock import MagicMock, Mock, call, mock_open, patch
 
 import pytest
 
@@ -399,8 +399,8 @@ def test_temp_download_filename() -> None:
 @patch("os.makedirs")
 @patch("os.path.exists", return_value=False)
 def test_extract_zip_file_to_directory(
-    mocked_path_exists, mocked_makedir, mocked_zipfile
-):
+    mocked_path_exists: MagicMock, mocked_makedir: MagicMock, mocked_zipfile: MagicMock
+) -> None:
     file_base_name = "test.txt"
     file_dir = "some/folders/"
     target_dir = tempfile.mkdtemp()  # TODO rename
@@ -507,7 +507,7 @@ ValueError: error 2
 
 
 @patch.object(utils, "hashlib")
-def test_md5_for_file(mock_hashlib):
+def test_md5_for_file(mock_hashlib: MagicMock) -> None:
     """
     Verify the md5 calculation is correct, and call the callback func if it passed in as argument.
     """
@@ -535,7 +535,7 @@ class TestSpinner:
         self.spinner = utils.Spinner(self.msg)
 
     @patch.object(utils, "sys")
-    def test_print_tick_is_atty(self, mock_sys) -> None:
+    def test_print_tick_is_atty(self, mock_sys: MagicMock) -> None:
         """
         assume the sys.stdin.isatty is True, verify the sys.stdout.write will call once if print_tick is called.
         """
@@ -561,7 +561,7 @@ class TestSpinner:
         mock_sys.stdout.flush.call_count == 4
 
     @patch.object(utils, "sys")
-    def test_print_tick_is_not_atty(self, mock_sys) -> None:
+    def test_print_tick_is_not_atty(self, mock_sys: MagicMock) -> None:
         """
         assume the sys.stdin.isatty is False,
         verify the sys.stdout won't be called.

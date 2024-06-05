@@ -235,7 +235,9 @@ def test_syncFromSynapse__downloadFile_is_false(syn: Synapse) -> None:
 @patch.object(synapseutils.sync, "generateManifest")
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_all(
-    mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
+    mock_get_file_entity_provenance_dict: MagicMock,
+    mock_generate_manifest: MagicMock,
+    syn: Synapse,
 ) -> None:
     """
     Verify manifest argument equal to "all" that pass in to syncFromSynapse, it will create root_manifest and all
@@ -262,7 +264,7 @@ def test_syncFromSynapse__manifest_is_all(
     def syn_get_side_effect(entity, *args, **kwargs):
         return entities[id_of(entity)]
 
-    mock__get_file_entity_provenance_dict.return_value = {}
+    mock_get_file_entity_provenance_dict.return_value = {}
 
     with patch.object(
         syn, "getChildren", side_effect=[[folder, file1], [file2]]
@@ -287,15 +289,15 @@ def test_syncFromSynapse__manifest_is_all(
             ),
         ]
 
-        assert mock_generateManifest.call_count == 2
+        assert mock_generate_manifest.call_count == 2
 
         # child_manifest in folder
-        call_files = mock_generateManifest.call_args_list[0][0][1]
+        call_files = mock_generate_manifest.call_args_list[0][0][1]
         assert len(call_files) == 1
         assert call_files[0].id == "syn789123"
 
         # root_manifest file
-        call_files = mock_generateManifest.call_args_list[1][0][1]
+        call_files = mock_generate_manifest.call_args_list[1][0][1]
         assert len(call_files) == 2
         assert call_files[0].id == "syn456"
         assert call_files[1].id == "syn789123"
@@ -304,7 +306,9 @@ def test_syncFromSynapse__manifest_is_all(
 @patch.object(synapseutils.sync, "generateManifest")
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_root(
-    mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
+    mock_get_file_entity_provenance_dict: MagicMock,
+    mock_generate_manifest: MagicMock,
+    syn: Synapse,
 ) -> None:
     """
     Verify manifest argument equal to "root" that pass in to syncFromSynapse, it will create root_manifest file only.
@@ -330,7 +334,7 @@ def test_syncFromSynapse__manifest_is_root(
     def syn_get_side_effect(entity, *args, **kwargs):
         return entities[id_of(entity)]
 
-    mock__get_file_entity_provenance_dict.return_value = {}
+    mock_get_file_entity_provenance_dict.return_value = {}
 
     with patch.object(
         syn, "getChildren", side_effect=[[folder, file1], [file2]]
@@ -355,9 +359,9 @@ def test_syncFromSynapse__manifest_is_root(
             ),
         ]
 
-        assert mock_generateManifest.call_count == 1
+        assert mock_generate_manifest.call_count == 1
 
-        call_files = mock_generateManifest.call_args_list[0][0][1]
+        call_files = mock_generate_manifest.call_args_list[0][0][1]
         assert len(call_files) == 2
         assert call_files[0].id == "syn456"
         assert call_files[1].id == "syn789123"
@@ -366,7 +370,9 @@ def test_syncFromSynapse__manifest_is_root(
 @patch.object(synapseutils.sync, "generateManifest")
 @patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
 def test_syncFromSynapse__manifest_is_suppress(
-    mock__get_file_entity_provenance_dict, mock_generateManifest, syn: Synapse
+    mock_get_file_entity_provenance_dict: MagicMock,
+    mock_generate_manifest: MagicMock,
+    syn: Synapse,
 ) -> None:
     """
     Verify manifest argument equal to "suppress" that pass in to syncFromSynapse, it won't create any manifest file.
@@ -392,7 +398,7 @@ def test_syncFromSynapse__manifest_is_suppress(
     def syn_get_side_effect(entity, *args, **kwargs):
         return entities[id_of(entity)]
 
-    mock__get_file_entity_provenance_dict.return_value = {}
+    mock_get_file_entity_provenance_dict.return_value = {}
 
     with patch.object(
         syn, "getChildren", side_effect=[[folder, file1], [file2]]
@@ -417,7 +423,7 @@ def test_syncFromSynapse__manifest_is_suppress(
             ),
         ]
 
-        assert mock_generateManifest.call_count == 0
+        assert mock_generate_manifest.call_count == 0
 
 
 def test_syncFromSynapse__manifest_value_is_invalid(syn) -> None:
@@ -769,7 +775,7 @@ async def test_manifest_upload(syn: Synapse) -> None:
 
 class TestSyncUploader:
     @patch("os.path.isfile")
-    def test_order_items(self, mock_isfile, syn: Synapse) -> None:
+    def test_order_items(self, mock_isfile: MagicMock, syn: Synapse) -> None:
         """Verfy that items are properly ordered according to their provenance."""
 
         def isfile(path):
@@ -855,7 +861,7 @@ class TestSyncUploader:
             seen.add(i.entity.path)
 
     @patch("os.path.isfile")
-    def test_order_items__provenance_cycle(self, isfile) -> None:
+    def test_order_items__provenance_cycle(self, isfile: MagicMock) -> None:
         """Verify that if a provenance cycle is detected we raise an error"""
 
         isfile.return_value = True
@@ -883,7 +889,7 @@ class TestSyncUploader:
         assert "cyclic" in str(cm_ex.value)
 
     @patch("os.path.isfile")
-    def test_order_items__provenance_file_not_uploaded(self, isfile) -> None:
+    def test_order_items__provenance_file_not_uploaded(self, isfile: MagicMock) -> None:
         """Verify that if one file depends on another for provenance but that file
         is not included in the upload we raise an error."""
 
@@ -947,7 +953,7 @@ class TestSyncUploader:
             await uploader.upload([item])
 
     @patch("os.path.isfile")
-    async def test_upload(self, mock_os_isfile, syn: Synapse) -> None:
+    async def test_upload(self, mock_os_isfile: MagicMock, syn: Synapse) -> None:
         """Ensure that an upload including multiple items which depend on each other through
         provenance are all uploaded and in the expected order."""
         mock_os_isfile.return_value = True
@@ -1005,7 +1011,7 @@ class TestGetFileEntityProvenanceDict:
     def setup_method(self):
         self.mock_syn = create_autospec(Synapse)
 
-    def test_get_file_entity_provenance_dict__error_is_404(self):
+    def test_get_file_entity_provenance_dict__error_is_404(self) -> None:
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(
             response=Mock(status_code=404)
         )
@@ -1015,7 +1021,7 @@ class TestGetFileEntityProvenanceDict:
         )
         assert {} == result_dict
 
-    def test_get_file_entity_provenance_dict__error_not_404(self):
+    def test_get_file_entity_provenance_dict__error_not_404(self) -> None:
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(
             response=Mock(status_code=400)
         )
@@ -1029,7 +1035,7 @@ class TestGetFileEntityProvenanceDict:
 
 
 @patch.object(sync, "os")
-def test_check_size_each_file(mock_os, syn):
+def test_check_size_each_file(mock_os: MagicMock, syn: Synapse) -> None:
     """
     Verify the check_size_each_file method works correctly
     """
@@ -1076,7 +1082,7 @@ def test_check_size_each_file(mock_os, syn):
 
 
 @patch.object(sync, "os")
-def test_check_size_each_file_raise_error(mock_os, syn):
+def test_check_size_each_file_raise_error(mock_os: MagicMock, syn: Synapse) -> None:
     """
     Verify the check_size_each_file method raises the ValueError when the file is empty.
     """
@@ -1110,7 +1116,7 @@ def test_check_size_each_file_raise_error(mock_os, syn):
 
 
 @patch.object(sync, "os")
-def test_check_file_name(mock_os, syn):
+def test_check_file_name(mock_os: MagicMock, syn: Synapse) -> None:
     """
     Verify the check_file_name method works correctly
     """
@@ -1137,7 +1143,7 @@ def test_check_file_name(mock_os, syn):
 
 
 @patch.object(sync, "os")
-def test_check_file_name_with_illegal_char(mock_os, syn):
+def test_check_file_name_with_illegal_char(mock_os: MagicMock, syn: Synapse) -> None:
     """
     Verify the check_file_name method raises the ValueError when the file name contains illegal char
     """
@@ -1171,7 +1177,7 @@ def test_check_file_name_with_illegal_char(mock_os, syn):
 
 
 @patch.object(sync, "os")
-def test_check_file_name_duplicated(mock_os, syn):
+def test_check_file_name_duplicated(mock_os: MagicMock, syn: Synapse) -> None:
     """
     Verify the check_file_name method raises the ValueError when the file name is duplicated
     """
@@ -1202,7 +1208,9 @@ def test_check_file_name_duplicated(mock_os, syn):
 
 
 @patch.object(sync, "os")
-def test_check_file_name_with_too_long_filename(mock_os, syn):
+def test_check_file_name_with_too_long_filename(
+    mock_os: MagicMock, syn: Synapse
+) -> None:
     """
     Verify the check_file_name method raises the ValueError when the file name is too long
     """
@@ -1240,7 +1248,7 @@ def test_check_file_name_with_too_long_filename(mock_os, syn):
     )
 
 
-def test__create_folder(syn):
+def test__create_folder(syn: Synapse) -> None:
     folder_name = "TestName"
     parent_id = "syn123"
     with patch.object(syn, "store") as patch_syn_store:
@@ -1263,7 +1271,7 @@ def test__create_folder(syn):
 
 
 @patch.object(sync, "os")
-def test__walk_directory_tree(mock_os, syn):
+def test__walk_directory_tree(mock_os: MagicMock, syn: Synapse) -> None:
     folder_name = "TestFolder"
     subfolder_name = "TestSubfolder"
     parent_id = "syn123"
@@ -1282,7 +1290,7 @@ def test__walk_directory_tree(mock_os, syn):
         assert len(rows) == 2
 
 
-def test_generate_sync_manifest(syn):
+def test_generate_sync_manifest(syn: Synapse) -> None:
     folder_name = "TestName"
     parent_id = "syn123"
     manifest_path = "TestFolder"
