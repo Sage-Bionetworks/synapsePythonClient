@@ -378,13 +378,16 @@ async def get_file_handle_for_download(
     Arguments:
         file_handle_id:   ID of fileHandle to download
         synapse_id:       The ID of the object associated with the file e.g. syn234
-        entity_type:     Type of object associated with a file e.g. FileEntity, TableEntity <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
+        entity_type:     Type of object associated with a file e.g. FileEntity,
+            TableEntity
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         synapse_client: If not passed in or None this will use the last client from
             the `.login()` method.
 
     Raises:
         SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.
-        SynapseError:             If the user does not have the permission to access the fileHandleId.
+        SynapseError: If the user does not have the permission to access the
+            fileHandleId.
 
     Returns:
         A dictionary with keys: fileHandle, fileHandleId and preSignedURL
@@ -416,6 +419,7 @@ async def get_file_handle_for_download(
         )
     elif failure == "UNAUTHORIZED":
         raise SynapseError(
-            f"You are not authorized to access fileHandleId {file_handle_id} associated with the Synapse {entity_type}: {synapse_id}"
+            f"You are not authorized to access fileHandleId {file_handle_id} "
+            f"associated with the Synapse {entity_type}: {synapse_id}"
         )
     return result

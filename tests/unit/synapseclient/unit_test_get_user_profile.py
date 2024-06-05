@@ -1,6 +1,9 @@
-import pytest
+"""Unit tests for user profile"""
+
 from unittest.mock import patch
 
+import pytest
+from client import Synapse
 
 test_user_profile = {
     "ownerId": "1234567",
@@ -42,7 +45,7 @@ class TestGetUserProfileByUserName:
     ]
 
     @pytest.fixture(autouse=True, scope="function")
-    def setup_method(self, syn):
+    def setup_method(self, syn: Synapse) -> None:
         self.syn = syn
         self.syn.restGET = patch.object(
             self.syn, "restGET", return_value=test_user_profile
@@ -76,7 +79,7 @@ class TestGetUserProfileByUserName:
 
 class TestGetUserProfileByID:
     @pytest.fixture(autouse=True, scope="function")
-    def setup_method(self, syn):
+    def setup_method(self, syn: Synapse) -> None:
         self.syn = syn
         self.syn.restGET = patch.object(
             self.syn, "restGET", return_value=test_user_profile

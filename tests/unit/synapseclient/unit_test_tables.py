@@ -353,7 +353,7 @@ def test_dataset() -> None:
     assert len(dataset) == 0
 
 
-def test_RowSetTable() -> None:
+def test_row_set_table() -> None:
     row_set_json = {
         "etag": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
         "headers": [
@@ -397,7 +397,7 @@ def test_RowSetTable() -> None:
     assert list(df["name"]) == ["foo", "bar", "foo", "qux"]
 
 
-def test_as_table_columns__with_pandas_DataFrame() -> None:
+def test_as_table_columns_with_pandas_dataframe() -> None:
     df = pd.DataFrame(
         {
             "foobar": ("foo", "bar", "baz", "qux", "asdf"),
@@ -540,7 +540,7 @@ def test_pandas_to_table() -> None:
     "test_df",
     [pd.DataFrame({"str1": ("foo", "bar", "moo"), "str2": ("foo", "bar", None)})],
 )
-def test_pandas_to_table_convert__string_data_type(test_df) -> None:
+def test_pandas_to_table_convert__string_data_type(test_df: pd.DataFrame) -> None:
     schema = Schema(name="Foo", parent="syn12345")
     test_table = Table(schema, test_df)
     for col in test_table.headers:
@@ -824,7 +824,7 @@ def test_aggregate_query_result_to_data_frame() -> None:
     assert list(df["AVG(Hipness)"].values) == [1.1, 2.38, 3.14, 4.38]
 
 
-def test_waitForAsync() -> None:
+def test_wait_for_async() -> None:
     syn = Synapse(debug=True, skip_checks=True)
     syn.table_query_timeout = 0.05
     syn.table_query_max_sleep = 0.001

@@ -670,7 +670,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/api/configuration_services.py::get_config_file",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_config_file",
     )
     @functools.lru_cache()
     def getConfigFile(self, configPath: str) -> configparser.RawConfigParser:
@@ -832,7 +833,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/api/configuration_services.py::get_config_section_dict",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_config_section_dict",
     )
     def _get_config_section_dict(self, section_name: str) -> Dict[str, str]:
         """
@@ -853,7 +855,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/api/configuration_services.py::get_config_authentication",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_config_authentication",
     )
     def _get_config_authentication(self) -> Dict[str, str]:
         """
@@ -869,7 +872,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/api/configuration_services.py::get_client_authenticated_s3_profile",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_client_authenticated_s3_profile",
     )
     def _get_client_authenticated_s3_profile(
         self, endpoint: str, bucket: str
@@ -891,7 +895,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/api/configuration_services.py::get_transfer_config",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_transfer_config",
     )
     def _get_transfer_config(self) -> Dict[str, str]:
         """
@@ -1621,7 +1626,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/core/download/download_functions.py::ensure_download_location_is_directory",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::ensure_download_location_is_directory",
     )
     def _ensure_download_location_is_directory(self, downloadLocation: str) -> str:
         """
@@ -1645,7 +1651,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/core/download/download_functions.py::download_file_entity",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::download_file_entity",
     )
     def _download_file_entity(
         self,
@@ -1741,7 +1748,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/core/download/download_functions.py::resolve_download_path_collisions",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::resolve_download_path_collisions",
     )
     def _resolve_download_path_collisions(
         self,
@@ -3188,7 +3196,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/api/file_services.py::get_file_handle_for_download",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/file_services.py::get_file_handle_for_download",
     )
     def _getFileHandleDownload(
         self, fileHandleId: str, objectId: str, objectType: str = None
@@ -3238,7 +3247,8 @@ class Synapse(object):
     @staticmethod
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/core/download/download_functions.py::is_retryable_download_error",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::is_retryable_download_error",
     )
     def _is_retryable_download_error(ex: Exception) -> bool:
         """
@@ -3259,7 +3269,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/core/download/download_functions.py::download_by_file_handle",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::download_by_file_handle",
     )
     def _downloadFileHandle(
         self,
@@ -3386,7 +3397,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/core/download/download_functions.py::download_from_url_multi_threaded",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::download_from_url_multi_threaded",
     )
     def _download_from_url_multi_threaded(
         self,
@@ -3451,7 +3463,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/core/download/download_functions.py::is_synapse_uri",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::is_synapse_uri",
     )
     def _is_synapse_uri(self, uri: str) -> bool:
         """
@@ -3469,7 +3482,8 @@ class Synapse(object):
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 5.0.0. Moved to synapseclient/core/download/download_functions.py::download_from_url",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::download_from_url",
     )
     def _download_from_URL(
         self,
@@ -3614,7 +3628,7 @@ class Synapse(object):
                     else:
                         mode = "wb"
                         previouslyTransferred = 0
-                        sig = hashlib.new("md5", usedforsecurity=False)
+                        sig = hashlib.new("md5", usedforsecurity=False)  # nosec
 
                     try:
                         with open(temp_destination, mode) as fd:

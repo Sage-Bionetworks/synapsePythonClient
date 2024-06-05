@@ -2,6 +2,7 @@
 
 import os
 import sys
+from typing import Dict
 from unittest.mock import MagicMock, create_autospec, patch
 
 import boto3
@@ -319,7 +320,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
         self.syn = syn
 
     @pytest.fixture()
-    def environ_with_param_name(self):
+    def environ_with_param_name(self) -> Dict[str, str]:
         return {"SYNAPSE_TOKEN_AWS_SSM_PARAMETER_NAME": "/synapse/cred/i-12134312"}
 
     def stub_ssm(self, mocker: MockerFixture):
@@ -361,7 +362,11 @@ class TestAWSParameterStoreCredentialsProvider(object):
         ["UnrecognizedClientException", "AccessDenied", "ParameterNotFound"],
     )
     def test_get_auth_info__get_parameter_error(
-        self, mocker: MockerFixture, syn: Synapse, environ_with_param_name, error_code
+        self,
+        mocker: MockerFixture,
+        syn: Synapse,
+        environ_with_param_name: Dict[str, str],
+        error_code: str,
     ) -> None:
         mocker.patch.dict(os.environ, environ_with_param_name)
 
@@ -379,7 +384,10 @@ class TestAWSParameterStoreCredentialsProvider(object):
             stubber.assert_no_pending_responses()
 
     def test_get_auth_info__parameter_name_exists(
-        self, mocker: MockerFixture, syn: Synapse, environ_with_param_name
+        self,
+        mocker: MockerFixture,
+        syn: Synapse,
+        environ_with_param_name: Dict[str, str],
     ) -> None:
         mocker.patch.dict(os.environ, environ_with_param_name)
 
@@ -412,7 +420,10 @@ class TestAWSParameterStoreCredentialsProvider(object):
             stubber.assert_no_pending_responses()
 
     def test_get_auth_info__boto3_ImportError(
-        self, mocker, syn: Synapse, environ_with_param_name
+        self,
+        mocker: MockerFixture,
+        syn: Synapse,
+        environ_with_param_name: Dict[str, str],
     ) -> None:
         mocker.patch.dict(os.environ, environ_with_param_name)
         # simulate import error by "removing" boto3 from sys.modules

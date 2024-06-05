@@ -8,8 +8,13 @@ import time
 import hashlib
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Dict, Union
 
+from synapseclient.core.constants.method_flags import (
+    COLLISION_OVERWRITE_LOCAL,
+    COLLISION_KEEP_LOCAL,
+    COLLISION_KEEP_BOTH,
+)
 from synapseclient.api import (
     get_client_authenticated_s3_profile,
     get_file_handle_for_download,
@@ -216,7 +221,18 @@ async def download_by_file_handle(
                 and concrete_type == concrete_types.S3_FILE_HANDLE
             ):
                 # TODO: Some work is needed here to run these in a thread executor
-                def download_fn(credentials):
+                def download_fn(
+                    credentials: Dict[str, str],
+                    file_handle: Dict[str, str] = file_handle,
+                ) -> str:
+                    """Use the STS credentials to download the file from S3.
+
+                    Arguments:
+                        credentials: The STS credentials
+
+                    Returns:
+                        The path to the downloaded file
+                    """
                     return S3ClientWrapper.download_file(
                         bucket=file_handle["bucketName"],
                         endpoint_url=None,
@@ -281,7 +297,7 @@ async def download_by_file_handle(
                 # Re-raise exception
                 raise
 
-    raise Exception("should not reach this line")
+    raise RuntimeError("should not reach this line")
 
 
 async def download_from_url_multi_threaded(
@@ -350,7 +366,7 @@ async def download_from_url(
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
     synapse_client: Optional["Synapse"] = None,
-) -> str:
+) -> Union[str, None]:
     """
     Download a file from the given URL to the local file system.
 
@@ -369,7 +385,7 @@ async def download_from_url(
         SynapseMd5MismatchError: If the actual MD5 does not match expected MD5.
 
     Returns:
-        The path to downloaded file
+        The path to downloaded file or None if the download failed
     """
     from synapseclient import Synapse
 
@@ -403,8 +419,24 @@ async def download_from_url(
             transfer_start_time = time.time()
 
             def _ftp_report_hook(
-                block_number: int, read_size: int, total_size: int
+                block_number: int,
+                read_size: int,
+                total_size: int,
+                destination: str = destination,
+                transfer_start_time: float = transfer_start_time,
             ) -> None:
+                """Report hook for urllib.request.urlretrieve to show download progress.
+
+                Arguments:
+                    block_number: The number of blocks transferred so far
+                    read_size: The size of each block
+                    total_size: The total size of the file
+                    destination: The destination file path
+                    transfer_start_time: The time when the transfer started
+
+                Returns:
+                    None
+                """
                 show_progress = not client.silent
                 if show_progress:
                     client._print_transfer_progress(
@@ -446,8 +478,8 @@ async def download_from_url(
             #     auth=auth,
             # )
             response = with_retry(
-                lambda: client._requests_session.get(
-                    url,
+                lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
+                    url=url,
                     headers=client._generate_headers(range_header),
                     stream=True,
                     allow_redirects=False,
@@ -504,7 +536,7 @@ async def download_from_url(
                 else:
                     mode = "wb"
                     previously_transferred = 0
-                    sig = hashlib.new("md5", usedforsecurity=False)
+                    sig = hashlib.new("md5", usedforsecurity=False)  # nosec
 
                 try:
                     with open(temp_destination, mode) as fd:
@@ -594,7 +626,7 @@ def resolve_download_path_collisions(
     synapse_cache_location: str,
     cached_file_path: str,
     synapse_client: Optional["Synapse"] = None,
-) -> str:
+) -> Union[str, None]:
     """
     Resolve file path collisions
 
@@ -611,7 +643,8 @@ def resolve_download_path_collisions(
         ValueError: Invalid ifcollision. Should be "overwrite.local", "keep.local", or "keep.both".
 
     Returns:
-        The download file path with collisions resolved
+        The download file path with collisions resolved or None if the file should
+        not be downloaded
     """
     from synapseclient import Synapse
 
@@ -619,27 +652,29 @@ def resolve_download_path_collisions(
 
     # always overwrite if we are downloading to .synapseCache
     if utils.normalize_path(download_location) == synapse_cache_location:
-        if if_collision is not None and if_collision != "overwrite.local":
+        if if_collision is not None and if_collision != COLLISION_OVERWRITE_LOCAL:
             client.logger.warning(
                 "\n"
                 + "!" * 50
                 + f"\nifcollision={if_collision} "
                 + "is being IGNORED because the download destination is synapse's cache."
-                ' Instead, the behavior is "overwrite.local". \n' + "!" * 50 + "\n"
+                f' Instead, the behavior is "{COLLISION_OVERWRITE_LOCAL}". \n'
+                + "!" * 50
+                + "\n"
             )
-        if_collision = "overwrite.local"
+        if_collision = COLLISION_OVERWRITE_LOCAL
     # if ifcollision not specified, keep.local
-    if_collision = if_collision or "keep.both"
+    if_collision = if_collision or COLLISION_KEEP_BOTH
 
     download_path = utils.normalize_path(os.path.join(download_location, file_name))
     # resolve collison
     if os.path.exists(path=download_path):
-        if if_collision == "overwrite.local":
-            pass
-        elif if_collision == "keep.local":
+        if if_collision == COLLISION_OVERWRITE_LOCAL:
+            return download_path
+        elif if_collision == COLLISION_KEEP_LOCAL:
             # Don't want to overwrite the local file.
             return None
-        elif if_collision == "keep.both":
+        elif if_collision == COLLISION_KEEP_BOTH:
             if download_path != cached_file_path:
                 return utils.unique_filename(download_path)
         else:

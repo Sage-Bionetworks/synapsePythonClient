@@ -116,7 +116,7 @@ def get_transfer_config(
         section_name="transfer", config_path=config_path
     ).items():
         if v:
-            if k == "max_threads" and v:
+            if k == "max_threads":
                 try:
                     transfer_config["max_threads"] = int(v)
                 except ValueError as cause:

@@ -1,3 +1,4 @@
+"""Unit tests for the Synapse client"""
 import configparser
 import datetime
 import errno
@@ -57,6 +58,8 @@ from synapseclient.core.logging_setup import (
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.upload import upload_functions
 
+DOWNLOAD_FROM_URL = "synapseclient.core.download.download_functions.download_from_url"
+
 
 class TestLogout:
     @pytest.fixture(autouse=True, scope="function")
@@ -106,7 +109,7 @@ class TestLogin:
     def teardown_method(self) -> None:
         self.get_default_credential_chain_patcher.stop()
 
-    def test_login__no_credentials(self) -> None:
+    def test_login_no_credentials(self) -> None:
         self.mocked_credential_chain.get_credentials.return_value = None
 
         # method under test
@@ -117,7 +120,7 @@ class TestLogin:
             self.syn, self.expected_user_args
         )
 
-    def test_login__credentials_returned(self) -> None:
+    def test_login_credentials_returned(self) -> None:
         # method under test
         self.syn.login(silent=True, **self.login_args)
 
@@ -127,7 +130,7 @@ class TestLogin:
         )
         assert self.synapse_creds == self.syn.credentials
 
-    def test_login__silentIsFalse(self) -> None:
+    def test_login_silent_is_false(self) -> None:
         with patch.object(self.syn, "getUserProfile"), patch.object(
             self.syn, "logger"
         ) as mocked_logger:
@@ -137,8 +140,8 @@ class TestLogin:
             mocked_logger.info.assert_called_once()
 
 
-@patch("synapseclient.core.download.download_functions.get_file_handle_for_download")
-@patch("synapseclient.core.download.download_functions.download_by_file_handle")
+@patch(GET_FILE_HANDLE_FOR_DOWNLOAD)
+@patch(DOWNLOAD_BY_FILE_HANDLE)
 class TestPrivateGetWithEntityBundle:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -210,8 +213,12 @@ class TestPrivateGetWithEntityBundle:
         if os.path.exists(cacheMap):
             os.remove(cacheMap)
 
-        def _downloadFileHandle(
-            file_handle_id, synapse_id, entity_type, destination, retries=5
+        def _download_file_handle(
+            file_handle_id: str,
+            synapse_id: str,
+            entity_type: str,
+            destination: str,
+            retries: int = 5,
         ):
             # touch file at path
             with open(destination, "a"):
@@ -220,8 +227,8 @@ class TestPrivateGetWithEntityBundle:
             self.syn.cache.add(file_handle_id=fileHandle, path=destination)
             return destination
 
-        def _getFileHandleDownload(
-            file_handle_id, synapse_id, entity_type="FileHandle"
+        def _get_file_handle_download(
+            file_handle_id: str, synapse_id: str, entity_type: str = "FileHandle"
         ):
             return {
                 "fileHandle": bundle["fileHandles"][0],
@@ -229,8 +236,8 @@ class TestPrivateGetWithEntityBundle:
                 "preSignedURL": "http://example.com",
             }
 
-        download_file_mock.side_effect = _downloadFileHandle
-        get_file_URL_and_metadata_mock.side_effect = _getFileHandleDownload
+        download_file_mock.side_effect = _download_file_handle
+        get_file_URL_and_metadata_mock.side_effect = _get_file_handle_download
 
         # 1. ----------------------------------------------------------------------
         # download file to an alternate location
@@ -320,10 +327,10 @@ class TestDownloadFileHandle:
             (ValueError("foo"), retries),
         ]:
             with patch(
-                "synapseclient.core.download.download_functions.get_file_handle_for_download",
+                GET_FILE_HANDLE_FOR_DOWNLOAD,
                 new_callable=AsyncMock,
             ) as mock_get_file_handle_download, patch(
-                "synapseclient.core.download.download_functions.download_from_url",
+                DOWNLOAD_FROM_URL,
                 new_callable=AsyncMock,
             ) as mock_download_from_URL:
                 mock_get_file_handle_download.return_value = {
@@ -362,7 +369,7 @@ class TestDownloadFileHandle:
         # it and if the storage location supports STS"""
 
         file_handle_id = 1234
-        entity_id = "syn_5678"
+        entity_id_value = "syn_5678"
         bucket_name = "fooBucket"
         key = "/tmp/fooKey"
         destination = "/tmp"
@@ -377,9 +384,11 @@ class TestDownloadFileHandle:
             return_value=True
         )
 
-        def mock_with_boto_sts_credentials(fn, syn, entity_id, permission):
+        def mock_with_boto_sts_credentials(
+            fn, syn: Synapse, entity_id: str, permission: str
+        ):
             assert permission == "read_only"
-            assert entity_id == entity_id
+            assert entity_id == entity_id_value
             return fn(credentials)
 
         mock_sts_transfer.with_boto_sts_credentials = mock_with_boto_sts_credentials
@@ -388,7 +397,7 @@ class TestDownloadFileHandle:
         mock_s3_client_wrapper.download_file.return_value = expected_download_path
 
         with patch(
-            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
             new_callable=AsyncMock,
         ) as mock_get_file_handle_download, patch.object(self.syn, "cache") as cache:
             mock_get_file_handle_download.return_value = {
@@ -408,7 +417,7 @@ class TestDownloadFileHandle:
                 self.syn.multi_threaded = True
                 download_path = await download_by_file_handle(
                     file_handle_id=file_handle_id,
-                    synapse_id=entity_id,
+                    synapse_id=entity_id_value,
                     entity_type="FileEntity",
                     destination=destination,
                     synapse_client=self.syn,
@@ -443,7 +452,7 @@ class TestDownloadFileHandle:
         expected_destination = os.path.abspath(destination)
 
         with patch(
-            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
             new_callable=AsyncMock,
         ) as mock_get_file_handle_download, patch.object(
             self.syn, "cache"
@@ -535,21 +544,19 @@ class TestDownloadFileHandle:
         in_destination.close()
         os.unlink(in_destination.name)
 
-    @patch(
-        "synapseclient.core.download.download_functions.get_file_handle_for_download"
-    )
-    async def test_downloadFileHandle_preserve_exception_info(
+    @patch(GET_FILE_HANDLE_FOR_DOWNLOAD)
+    async def test_download_file_handle_preserve_exception_info(
         self, mock_getFileHandleDownload
     ) -> None:
         file_handle_id = 1234
         syn_id = "syn123"
 
-        def getFileHandleDownload_side_effect(*args, **kwargs):
+        def get_file_handle_download_side_effect(*args, **kwargs):
             raise SynapseError(
                 f"Something wrong when downloading {syn_id} in try block!"
             )
 
-        mock_getFileHandleDownload.side_effect = getFileHandleDownload_side_effect
+        mock_getFileHandleDownload.side_effect = get_file_handle_download_side_effect
 
         with pytest.raises(SynapseError) as ex:
             await download_by_file_handle(
@@ -1023,7 +1030,7 @@ class TestPrivateUploadExternallyStoringProjects:
             # test
 
 
-def test_findEntityIdByNameAndParent__None_parent(syn: Synapse) -> None:
+def test_find_entity_id_by_name_and_parent_none_parent(syn: Synapse) -> None:
     entity_name = "Kappa 123"
     expected_uri = "/entity/child"
     expected_body = json.dumps({"parentId": None, "entityName": entity_name})
@@ -1035,7 +1042,7 @@ def test_findEntityIdByNameAndParent__None_parent(syn: Synapse) -> None:
         assert expected_id == entity_id
 
 
-def test_findEntityIdByNameAndParent__with_parent(syn: Synapse) -> None:
+def test_find_entity_id_by_name_and_parent_with_parent(syn: Synapse) -> None:
     entity_name = "Kappa 123"
     parentId = "syn42"
     parent_entity = Folder(
@@ -1051,7 +1058,7 @@ def test_findEntityIdByNameAndParent__with_parent(syn: Synapse) -> None:
         assert expected_id == entity_id
 
 
-def test_findEntityIdByNameAndParent__404_error_no_result(syn: Synapse) -> None:
+def test_find_entity_id_by_name_and_parent_404_error_no_result(syn: Synapse) -> None:
     entity_name = "Kappa 123"
     fake_response = DictObject({"status_code": 404})
     with patch.object(
@@ -1060,7 +1067,7 @@ def test_findEntityIdByNameAndParent__404_error_no_result(syn: Synapse) -> None:
         assert syn.findEntityId(entity_name) is None
 
 
-def test_getChildren__nextPageToken(syn: Synapse) -> None:
+def test_get_children_next_page_token(syn: Synapse) -> None:
     # setup
     nextPageToken = "T O K E N"
     parent_project_id_int = 42690
@@ -1085,7 +1092,7 @@ def test_getChildren__nextPageToken(syn: Synapse) -> None:
         {"page": [second_page], "nextPageToken": None},
     ]
 
-    with patch.object(syn, "restPOST", side_effect=mock_responses) as mocked_POST:
+    with patch.object(syn, "restPOST", side_effect=mock_responses) as mocked_post:
         # method under test
         children_generator = syn.getChildren("syn" + str(parent_project_id_int))
 
@@ -1098,7 +1105,7 @@ def test_getChildren__nextPageToken(syn: Synapse) -> None:
 
         # check that the correct POST requests were sent
         # genrates JSOn for the expected request body
-        def expected_request_JSON(token):
+        def expected_request_json(token) -> str:
             return json.dumps(
                 {
                     "parentId": "syn" + str(parent_project_id_int),
@@ -1119,16 +1126,16 @@ def test_getChildren__nextPageToken(syn: Synapse) -> None:
                 }
             )
 
-        expected_POST_url = "/entity/children"
-        mocked_POST.assert_has_calls(
+        expected_post_url = "/entity/children"
+        mocked_post.assert_has_calls(
             [
-                call(expected_POST_url, body=expected_request_JSON(None)),
-                call(expected_POST_url, body=expected_request_JSON(nextPageToken)),
+                call(expected_post_url, body=expected_request_json(None)),
+                call(expected_post_url, body=expected_request_json(nextPageToken)),
             ]
         )
 
 
-def test_check_entity_restrictions__no_unmet_restriction(syn: Synapse) -> None:
+def test_check_entity_restrictions_no_unmet_restriction(syn: Synapse) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
             "entity": {
@@ -1144,8 +1151,8 @@ def test_check_entity_restrictions__no_unmet_restriction(syn: Synapse) -> None:
         mocked_warn.assert_not_called()
 
 
-def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadFile_is_True(
-    syn,
+def test_check_entity_restrictions_unmet_restriction_entity_file_with_download_file_is_true(
+    syn: Synapse,
 ) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
@@ -1169,8 +1176,8 @@ def test_check_entity_restrictions__unmet_restriction_entity_file_with_downloadF
     mocked_warn.assert_not_called()
 
 
-def test_check_entity_restrictions__unmet_restriction_entity_project_with_downloadFile_is_True(
-    syn,
+def test_check_entity_restrictions_unmet_restriction_entity_project_with_download_file_is_true(
+    syn: Synapse,
 ) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
@@ -1193,8 +1200,8 @@ def test_check_entity_restrictions__unmet_restriction_entity_project_with_downlo
     )
 
 
-def test_check_entity_restrictions__unmet_restriction_entity_folder_with_downloadFile_is_True(
-    syn,
+def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true(
+    syn: Synapse,
 ) -> None:
     with patch("warnings.warn") as mocked_warn:
         bundle = {
@@ -1250,7 +1257,7 @@ class TestGetColumns(object):
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_input_is_SchemaBase(self) -> None:
+    def test_input_is_schema_base(self) -> None:
         get_table_colums_results = [Column(name="A"), Column(name="B")]
         with patch.object(
             self.syn, "getTableColumns", return_value=iter(get_table_colums_results)
@@ -1261,7 +1268,7 @@ class TestGetColumns(object):
             mock_get_table_coulmns.assert_called_with(schema)
 
 
-def test_username_property__credentials_is_None(syn: Synapse) -> None:
+def test_username_property_credentials_is_None(syn: Synapse) -> None:
     syn.credentials = None
     assert syn.username is None
 
@@ -1290,10 +1297,10 @@ class TestPrivateGetEntityBundle:
     def teardown_method(self) -> None:
         self.patch_restPOST.stop()
 
-    def test__getEntityBundle__with_version_as_number(self) -> None:
+    def test_get_entity_bundle_with_version_as_number(self) -> None:
         assert self.bundle == self.syn._getEntityBundle("syn10101", 6)
 
-    def test__getEntityBundle__with_version_as_string(self) -> None:
+    def test_get_entity_bundle_with_version_as_string(self) -> None:
         assert self.bundle == self.syn._getEntityBundle("syn10101", "6")
         pytest.raises(ValueError, self.syn._getEntityBundle, "syn10101", "current")
 
@@ -1351,43 +1358,43 @@ def test_move(syn: Synapse) -> None:
         syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
 
 
-def test_delete__bad_attribute(syn: Synapse) -> None:
+def test_delete_bad_attribute(syn: Synapse) -> None:
     pytest.raises(SynapseError, syn.delete, ["foo"])
 
 
-def test_delete__string(syn: Synapse) -> None:
+def test_delete_string(syn: Synapse) -> None:
     with patch.object(syn, "restDELETE") as patch_rest_delete:
         syn.delete("syn1235")
         patch_rest_delete.assert_called_once_with(uri="/entity/syn1235")
 
 
-def test_delete__string_version(syn: Synapse) -> None:
+def test_delete_string_version(syn: Synapse) -> None:
     with patch.object(syn, "restDELETE") as patch_rest_delete:
         syn.delete("syn1235", version=1)
         patch_rest_delete.assert_called_once_with(uri="/entity/syn1235/version/1")
 
 
-def test_delete__has_synapse_delete_attr(syn: Synapse) -> None:
+def test_delete_has_synapse_delete_attr(syn: Synapse) -> None:
     mock_obj = Mock()
     syn.delete(mock_obj)
     mock_obj._synapse_delete.assert_called_once()
 
 
-def test_delete__entity(syn: Synapse) -> None:
+def test_delete_entity(syn: Synapse) -> None:
     entity = Folder(name="folder", parent="syn456", id="syn1111")
     with patch.object(syn, "restDELETE") as patch_rest_delete:
         syn.delete(entity)
         patch_rest_delete.assert_called_once_with("/entity/syn1111")
 
 
-def test_delete__entity_version(syn: Synapse) -> None:
+def test_delete_entity_version(syn: Synapse) -> None:
     entity = File(name="file", parent="syn456", id="syn1111")
     with patch.object(syn, "restDELETE") as patch_rest_delete:
         syn.delete(entity, version=2)
         patch_rest_delete.assert_called_once_with("/entity/syn1111/version/2")
 
 
-def test_setPermissions__default_permissions(syn: Synapse) -> None:
+def test_set_permissions_default_permissions(syn: Synapse) -> None:
     entity = Folder(name="folder", parent="syn456", id="syn1")
     principalId = 123
     acl = {"resourceAccess": []}
@@ -1444,7 +1451,7 @@ class TestCreateStorageLocationSetting:
             ValueError, self.syn.createStorageLocationSetting, "new storage type"
         )
 
-    def test_ExternalObjectStorage(self) -> None:
+    def test_external_object_storage(self) -> None:
         self.syn.createStorageLocationSetting("ExternalObjectStorage")
         expected = {
             "concreteType": "org.sagebionetworks.repo.model.project.ExternalObjectStorageLocationSetting",
@@ -1454,7 +1461,7 @@ class TestCreateStorageLocationSetting:
             "/storageLocation", body=json.dumps(expected)
         )
 
-    def test_ProxyStorage(self) -> None:
+    def test_proxy_storage(self) -> None:
         self.syn.createStorageLocationSetting("ProxyStorage")
         expected = {
             "concreteType": "org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings",
@@ -1464,7 +1471,7 @@ class TestCreateStorageLocationSetting:
             "/storageLocation", body=json.dumps(expected)
         )
 
-    def test_ExternalS3Storage(self) -> None:
+    def test_external_s3_storage(self) -> None:
         self.syn.createStorageLocationSetting("ExternalS3Storage")
         expected = {
             "concreteType": "org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting",
@@ -1474,7 +1481,7 @@ class TestCreateStorageLocationSetting:
             "/storageLocation", body=json.dumps(expected)
         )
 
-    def test_ExternalStorage(self) -> None:
+    def test_external_storage(self) -> None:
         self.syn.createStorageLocationSetting("ExternalStorage")
         expected = {
             "concreteType": "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting",
@@ -2424,7 +2431,9 @@ def test_transfer_config_values_overridable(mock_config_dict) -> None:
     assert syn.use_boto_sts_transfers
 
 
-def test_store__needsUploadFalse__fileHandleId_not_in_local_state(syn: Synapse) -> None:
+def test_store_needs_upload_false_file_handle_id_not_in_local_state(
+    syn: Synapse,
+) -> None:
     returned_file_handle = {"id": "1234"}
     parent_id = "syn122"
     synapse_id = "syn123"
@@ -2468,7 +2477,7 @@ def test_store__needsUploadFalse__fileHandleId_not_in_local_state(syn: Synapse) 
         # test passes if no KeyError exception is thrown
 
 
-def test_store__existing_processed_as_update(syn: Synapse) -> None:
+def test_store_existing_processed_as_update(syn: Synapse) -> None:
     """Test that storing an entity without its id but that matches an existing
     entity bundle will be processed as an entity update"""
 
@@ -2728,7 +2737,7 @@ def test_store__no_need_to_update_annotation(syn: Synapse) -> None:
         mock_set_annotations.assert_not_called()
 
 
-def test_store__update_versionComment(syn: Synapse) -> None:
+def test_store__update_version_comment(syn: Synapse) -> None:
     file_handle_id = "123412341234"
     returned_file_handle = {"id": file_handle_id}
 
@@ -3454,7 +3463,7 @@ def test_init_change_cache_path() -> None:
         )
 
 
-def test__saveActivity__has_id(syn: Synapse) -> None:
+def test_save_activity_has_id(syn: Synapse) -> None:
     """
     Testing saveActivity method works properly
     """
@@ -3473,7 +3482,7 @@ def test__saveActivity__has_id(syn: Synapse) -> None:
         )
 
 
-def test__saveActivity__without_id(syn: Synapse) -> None:
+def test_save_activity_without_id(syn: Synapse) -> None:
     """
     Testing saveActivity method pass in the argument activity without ID property
     """
@@ -3487,7 +3496,7 @@ def test__saveActivity__without_id(syn: Synapse) -> None:
 
 
 @patch("synapseclient.Synapse._saveActivity")
-def test__updateActivity__with_id(mock_saveActivity, syn: Synapse) -> None:
+def test_update_activity_with_id(mock_saveActivity, syn: Synapse) -> None:
     activity = {
         "id": "syn123",
         "name": "test_activity",
@@ -3499,7 +3508,7 @@ def test__updateActivity__with_id(mock_saveActivity, syn: Synapse) -> None:
     )
 
 
-def test__updateActivity__without_id(syn: Synapse) -> None:
+def test_update_activity_without_id(syn: Synapse) -> None:
     activity = Activity(name="test_activity", description="test_description")
     with pytest.raises(ValueError) as ve:
         syn.updateActivity(activity)

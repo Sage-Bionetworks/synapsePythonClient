@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 
+from typing import Dict
 from unittest.mock import AsyncMock, MagicMock, patch, mock_open, call
 import pytest
 
@@ -27,6 +28,11 @@ from synapseclient.core.download import (
     download_from_url_multi_threaded,
 )
 from synapseclient.api import get_file_handle_for_download
+
+GET_FILE_HANDLE_FOR_DOWNLOAD = (
+    "synapseclient.core.download.download_functions.get_file_handle_for_download"
+)
+DOWNLOAD_FROM_URL = "synapseclient.core.download.download_functions.download_from_url"
 
 
 # a callable that mocks the requests.get function
@@ -241,7 +247,7 @@ async def test_mock_download(syn: Synapse) -> None:
     with patch.object(
         syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(syn, "_generate_headers", side_effect=mock_generate_headers), patch(
-        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
         new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
     ):
@@ -291,7 +297,7 @@ async def test_mock_download(syn: Synapse) -> None:
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch(
-        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
         new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
     ):
@@ -341,7 +347,7 @@ async def test_mock_download(syn: Synapse) -> None:
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch(
-        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
         new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
     ):
@@ -382,7 +388,7 @@ async def test_mock_download(syn: Synapse) -> None:
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch(
-        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
         new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
     ):
@@ -412,7 +418,7 @@ async def test_mock_download(syn: Synapse) -> None:
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch(
-        "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
         new_callable=AsyncMock,
         return_value=_getFileHandleDownload_return_value,
     ):
@@ -435,7 +441,7 @@ class TestDownloadFileHandle:
 
     async def test_multithread_true_s3_file_handle(self) -> None:
         with patch.object(os, "makedirs"), patch(
-            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
             new_callable=AsyncMock,
         ) as mock_getFileHandleDownload, patch(
             "synapseclient.core.download.download_functions.download_from_url_multi_threaded",
@@ -470,12 +476,12 @@ class TestDownloadFileHandle:
                 synapse_client=self.syn,
             )
 
-    async def _multithread_not_applicable(self, file_handle) -> None:
+    async def _multithread_not_applicable(self, file_handle: Dict[str, str]) -> None:
         with patch.object(os, "makedirs"), patch(
-            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
             new_callable=AsyncMock,
         ) as mock_getFileHandleDownload, patch(
-            "synapseclient.core.download.download_functions.download_from_url",
+            DOWNLOAD_FROM_URL,
             new_callable=AsyncMock,
         ) as mock_download_from_URL, patch.object(
             self.syn, "cache"
@@ -524,10 +530,10 @@ class TestDownloadFileHandle:
 
     async def test_multithread_false_s3_file_handle(self) -> None:
         with patch.object(os, "makedirs"), patch(
-            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
             new_callable=AsyncMock,
         ) as mock_getFileHandleDownload, patch(
-            "synapseclient.core.download.download_functions.download_from_url",
+            DOWNLOAD_FROM_URL,
             new_callable=AsyncMock,
         ) as mock_download_from_URL, patch.object(
             self.syn, "cache"
@@ -558,7 +564,7 @@ class TestDownloadFileHandle:
             )
 
 
-class Test_download_from_url_multi_threaded:
+class TestDownloadFromUrlMultiThreaded:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
@@ -807,7 +813,7 @@ async def test_download_md5_mismatch_local_file() -> None:
         assert not mocked_remove.called
 
 
-async def test_getFileHandleDownload__error_UNAUTHORIZED(syn: Synapse) -> None:
+async def test_get_file_handle_download__error_unauthorized(syn: Synapse) -> None:
     ret_val = {
         "requestedFiles": [
             {
@@ -825,7 +831,7 @@ async def test_getFileHandleDownload__error_UNAUTHORIZED(syn: Synapse) -> None:
             )
 
 
-async def test_getFileHandleDownload__error_NOT_FOUND(syn: Synapse) -> None:
+async def test_get_file_handle_download_error_not_found(syn: Synapse) -> None:
     ret_val = {
         "requestedFiles": [
             {

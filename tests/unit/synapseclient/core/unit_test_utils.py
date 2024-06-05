@@ -3,16 +3,16 @@
 import base64
 import os
 import re
-from shutil import rmtree
 import tempfile
+from shutil import rmtree
+from unittest.mock import Mock, call, mock_open, patch
 
 import pytest
-from unittest.mock import patch, mock_open, Mock, call
 
 from synapseclient.core import constants, utils
 
 
-def test_is_url():
+def test_is_url() -> None:
     """test the ability to determine whether a string is a URL"""
     assert utils.is_url("http://mydomain.com/foo/bar/bat?asdf=1234&qewr=ooo")
     assert utils.is_url("http://xkcd.com/1193/")
@@ -26,7 +26,7 @@ def test_is_url():
     assert not utils.is_url("c:/WINDOWS/ugh/ugh.ugh")
 
 
-def test_windows_file_urls():
+def test_windows_file_urls() -> None:
     url = "file:///c:/WINDOWS/clock.avi"
     assert utils.is_url(url)
     assert (
@@ -34,7 +34,7 @@ def test_windows_file_urls():
     ), utils.file_url_to_path(url)
 
 
-def test_is_in_path():
+def test_is_in_path() -> None:
     # Path as returned form syn.restGET('entity/{}/path')
     path = {
         "path": [
@@ -60,7 +60,7 @@ def test_is_in_path():
     assert not utils.is_in_path("syn123", path)
 
 
-def test_humanizeBytes():
+def test_humanize_bytes() -> None:
     for input_bytes, expected_output in [
         (-1, "-1.0bytes"),
         (0, "0.0bytes"),
@@ -75,12 +75,12 @@ def test_humanizeBytes():
         assert utils.humanizeBytes(input_bytes) == expected_output
 
 
-def test_humanizeBytes__None():
+def test_humanize_bytes_none() -> None:
     with pytest.raises(ValueError):
         utils.humanizeBytes(None)
 
 
-def test_id_of():
+def test_id_of() -> None:
     assert utils.id_of(1) == "1"
     assert utils.id_of("syn12345") == "syn12345"
     assert utils.id_of({"foo": 1, "id": 123}) == "123"
@@ -90,7 +90,7 @@ def test_id_of():
     pytest.raises(ValueError, utils.id_of, object())
 
     class Foo:
-        def __init__(self, id_attr_name, id):
+        def __init__(self, id_attr_name: str, id: str) -> None:
             self.properties = {id_attr_name: id}
 
     id_attr_names = ["id", "ownerId", "tableId"]
@@ -104,7 +104,7 @@ def test_id_of():
 # https://sagebionetworks.jira.com/browse/SYNPY-1425
 
 
-def test_get_synid_and_version():
+def test_get_synid_and_version() -> None:
     # Test 1: Ensure that a synID string with no version works
     synid_no_version = "syn123"
     id, version = utils.get_synid_and_version(synid_no_version)
@@ -131,7 +131,7 @@ def test_get_synid_and_version():
     assert not version
 
 
-def test_concrete_type_of():
+def test_concrete_type_of() -> None:
     """Verify behavior of utils#concrete_type_of"""
 
     for invalid_obj in [
@@ -159,7 +159,7 @@ def test_concrete_type_of():
         assert expected_type == utils.concrete_type_of(value)
 
 
-def test_guess_file_name():
+def test_guess_file_name() -> None:
     assert utils.guess_file_name("a/b") == "b"
     assert utils.guess_file_name("file:///a/b") == "b"
     assert utils.guess_file_name("A:/a/b") == "b"
@@ -178,14 +178,14 @@ def test_guess_file_name():
     assert utils.guess_file_name("http://www.a.com/b/?foo=bar&arga=barga") == "b"
 
 
-def test_extract_filename():
+def test_extract_filename() -> None:
     assert utils.extract_filename('attachment; filename="fname.ext"') == "fname.ext"
     assert utils.extract_filename("attachment; filename=fname.ext") == "fname.ext"
     assert utils.extract_filename(None) is None
     assert utils.extract_filename(None, "fname.ext") == "fname.ext"
 
 
-def test_version_check():
+def test_version_check() -> None:
     from synapseclient.core.version_check import _version_tuple
 
     assert _version_tuple("0.5.1.dev200", levels=2) == ("0", "5")
@@ -193,7 +193,7 @@ def test_version_check():
     assert _version_tuple("1.6", levels=3) == ("1", "6", "0")
 
 
-def test_normalize_path():
+def test_normalize_path() -> None:
     # tests should pass on reasonable OSes and also on windows
 
     # resolves relative paths
@@ -209,7 +209,7 @@ def test_normalize_path():
     assert utils.normalize_path(None) is None
 
 
-def test_limit_and_offset():
+def test_limit_and_offset() -> None:
     def query_params(uri):
         """Return the query params as a dict"""
         return dict([kvp.split("=") for kvp in uri.split("?")[1].split("&")])
@@ -241,7 +241,7 @@ def test_limit_and_offset():
     assert len(qp) == 3
 
 
-def test_utils_extract_user_name():
+def test_utils_extract_user_name() -> None:
     profile = {"firstName": "Madonna"}
     assert utils.extract_user_name(profile) == "Madonna"
     profile = {"firstName": "Oscar", "lastName": "the Grouch"}
@@ -258,7 +258,7 @@ def test_utils_extract_user_name():
     assert utils.extract_user_name(profile) == "otg"
 
 
-def test_is_json():
+def test_is_json() -> None:
     assert utils.is_json("application/json")
     assert utils.is_json("application/json;charset=ISO-8859-1")
     assert not utils.is_json("application/flapdoodle;charset=ISO-8859-1")
@@ -266,7 +266,7 @@ def test_is_json():
     assert not utils.is_json("")
 
 
-def test_normalize_whitespace():
+def test_normalize_whitespace() -> None:
     assert "zip tang pow a = 2" == utils.normalize_whitespace(
         "   zip\ttang   pow   \n    a = 2   "
     )
@@ -274,7 +274,7 @@ def test_normalize_whitespace():
     assert "zip tang pow\na = 2\nb = 3" == result
 
 
-def test_query_limit_and_offset():
+def test_query_limit_and_offset() -> None:
     query, limit, offset = utils.query_limit_and_offset(
         "select foo from bar where zap > 2 limit 123 offset 456"
     )
@@ -304,7 +304,7 @@ def test_query_limit_and_offset():
     assert offset == 1
 
 
-def test_as_urls():
+def test_as_urls() -> None:
     assert (
         utils.as_url("C:\\Users\\Administrator\\AppData\\Local\\Temp\\2\\tmpvixuld.txt")
         == "file:///C:/Users/Administrator/AppData/Local/Temp/2/tmpvixuld.txt"
@@ -321,7 +321,7 @@ def test_as_urls():
     )
 
 
-def test_time_manipulation():
+def test_time_manipulation() -> None:
     round_tripped_datetime = utils.datetime_to_iso(
         utils.from_unix_epoch_time_secs(
             utils.to_unix_epoch_time_secs(
@@ -361,7 +361,7 @@ def test_time_manipulation():
     assert "1969-04-28T00:00:00.000Z" == round_tripped_datetime
 
 
-def test_treadsafe_generator():
+def test_treadsafe_generator() -> None:
     @utils.threadsafe_generator
     def generate_letters():
         for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
@@ -370,7 +370,7 @@ def test_treadsafe_generator():
     "".join(letter for letter in generate_letters()) == "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
-def test_extract_synapse_id_from_query():
+def test_extract_synapse_id_from_query() -> None:
     assert (
         utils.extract_synapse_id_from_query("select * from syn1234567") == "syn1234567"
     )
@@ -387,7 +387,7 @@ def test_extract_synapse_id_from_query():
     )
 
 
-def test_temp_download_filename():
+def test_temp_download_filename() -> None:
     temp_destination = utils.temp_download_filename("/foo/bar/bat", 12345)
     assert temp_destination == "/foo/bar/bat.synapse_download_12345", temp_destination
 
@@ -530,12 +530,12 @@ class TestSpinner:
     """
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.msg = "test_msg"
         self.spinner = utils.Spinner(self.msg)
 
     @patch.object(utils, "sys")
-    def test_print_tick_is_atty(self, mock_sys):
+    def test_print_tick_is_atty(self, mock_sys) -> None:
         """
         assume the sys.stdin.isatty is True, verify the sys.stdout.write will call once if print_tick is called.
         """
@@ -561,7 +561,7 @@ class TestSpinner:
         mock_sys.stdout.flush.call_count == 4
 
     @patch.object(utils, "sys")
-    def test_print_tick_is_not_atty(self, mock_sys):
+    def test_print_tick_is_not_atty(self, mock_sys) -> None:
         """
         assume the sys.stdin.isatty is False,
         verify the sys.stdout won't be called.
