@@ -489,7 +489,10 @@ class TestDownloadFileHandle:
         response = MagicMock(spec=requests.Response)
         response.status_code = 200
         response.headers = {}
-        mock_get = mocker.patch.object(self.syn, "rest_get_async")
+        # TODO: When swapping out for the HTTPX client, we will need to update this test
+        # mock_get = mocker.patch.object(self.syn, "rest_get_async")
+        mock_get = mocker.patch.object(self.syn._requests_session, "get")
+
         mock_get.return_value = response
 
         out_destination = await download_from_url(
@@ -514,7 +517,10 @@ class TestDownloadFileHandle:
         response = MagicMock(spec=requests.Response)
         response.status_code = 200
         response.headers = {}
-        mock_get = mocker.patch.object(self.syn, "rest_get_async")
+        # TODO: When swapping out for the HTTPX client, we will need to update this test
+        # mock_get = mocker.patch.object(self.syn, "rest_get_async")
+        mock_get = mocker.patch.object(self.syn._requests_session, "get")
+
         mock_get.return_value = response
 
         out_destination = await download_from_url(

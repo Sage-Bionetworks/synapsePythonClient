@@ -151,8 +151,13 @@ async def test_mock_download(syn: Synapse) -> None:
 
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # ),
+
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
         await download_from_url(
             url=url,
@@ -170,10 +175,14 @@ async def test_mock_download(syn: Synapse) -> None:
         ]
     )
 
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # )
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
         await download_from_url(
             url=url,
@@ -222,10 +231,15 @@ async def test_mock_download(syn: Synapse) -> None:
             "concreteType": concrete_types.S3_FILE_HANDLE,
         },
     }
+
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # )
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(syn, "_generate_headers", side_effect=mock_generate_headers), patch(
         "synapseclient.core.download.download_functions.get_file_handle_for_download",
         new_callable=AsyncMock,
@@ -266,10 +280,14 @@ async def test_mock_download(syn: Synapse) -> None:
         )
     mock_requests_get = MockRequestGetFunction(responses)
 
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # )
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch(
@@ -312,10 +330,14 @@ async def test_mock_download(syn: Synapse) -> None:
         )
     mock_requests_get = MockRequestGetFunction(responses)
 
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # )
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch(
@@ -349,10 +371,14 @@ async def test_mock_download(syn: Synapse) -> None:
         ]
     )
 
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # )
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch(
@@ -375,10 +401,14 @@ async def test_mock_download(syn: Synapse) -> None:
         ]
     )
 
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # )
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch(
@@ -630,8 +660,12 @@ async def test_download_end_early_retry(syn: Synapse) -> None:
         contents[partial_content_break:]
     )
 
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # )
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch.object(
@@ -698,8 +732,13 @@ async def test_download_md5_mismatch__not_local_file(syn: Synapse) -> None:
         ]
     )
 
+    # with patch.object(
+    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+    # )
+
+    # TODO: When swapping out for the HTTPX client, we will need to update this test
     with patch.object(
-        syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(
         Synapse, "_generate_headers", side_effect=mock_generate_headers
     ), patch.object(
