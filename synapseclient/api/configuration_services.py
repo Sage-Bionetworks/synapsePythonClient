@@ -4,6 +4,8 @@ file, environment variables, or other means.
 
 import configparser
 import functools
+import urllib.parse
+
 from typing import Dict
 
 from synapseclient.core.constants import config_file_constants
@@ -70,7 +72,7 @@ def get_client_authenticated_s3_profile(
         The authenticated S3 profile
     """
 
-    config_section = endpoint + "/" + bucket
+    config_section = urllib.parse.urljoin(base=endpoint, url=bucket)
     return get_config_section_dict(
         section_name=config_section, config_path=config_path
     ).get("profile_name", "default")
