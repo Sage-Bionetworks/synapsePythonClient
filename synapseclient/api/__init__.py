@@ -63,7 +63,6 @@ __all__ = [
     "create_access_requirements_if_none",
     "delete_entity_generated_by",
     # configuration_services
-    "get_client_authenticated_s3_profile",
     "get_config_file",
     "get_config_section_dict",
     "get_config_authentication",

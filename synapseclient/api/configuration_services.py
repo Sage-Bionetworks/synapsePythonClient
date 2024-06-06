@@ -42,7 +42,8 @@ def get_config_section_dict(
         config_path:  Path to configuration file on local file system
 
     Returns:
-        A dictionary containing the configuration profile section content
+        A dictionary containing the configuration profile section content. If the
+        section does not exist, an empty dictionary is returned.
     """
     config = get_config_file(config_path)
     try:
@@ -96,7 +97,7 @@ def get_config_authentication(
 def get_transfer_config(
     config_path: str,
 ) -> Dict[str, str]:
-    """section_name=
+    """
     Get the transfer profile from the configuration file.
 
     Arguments:
