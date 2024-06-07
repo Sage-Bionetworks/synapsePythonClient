@@ -26,6 +26,8 @@ CONFIGFILE
 
 htmlcov/
 .coverage
+.coverage.*
+cov.xml
 coverage.xml
 
 .ipynb_checkpoints

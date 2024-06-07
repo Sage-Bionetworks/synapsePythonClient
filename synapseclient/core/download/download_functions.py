@@ -1,30 +1,36 @@
 """This module handles the various ways that a user can download a file to Synapse."""
 
+import asyncio
 import errno
+import hashlib
 import os
 import shutil
 import sys
 import time
-import hashlib
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
-from typing import TYPE_CHECKING, Optional, Dict, Union
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
-from synapseclient.core.constants.method_flags import (
-    COLLISION_OVERWRITE_LOCAL,
-    COLLISION_KEEP_LOCAL,
-    COLLISION_KEEP_BOTH,
-)
 from synapseclient.api import (
     get_client_authenticated_s3_profile,
     get_file_handle_for_download,
 )
-from synapseclient.core import exceptions, multithread_download, sts_transfer, utils
+from synapseclient.core import exceptions, sts_transfer, utils
 from synapseclient.core.constants import concrete_types
+from synapseclient.core.constants.method_flags import (
+    COLLISION_KEEP_BOTH,
+    COLLISION_KEEP_LOCAL,
+    COLLISION_OVERWRITE_LOCAL,
+)
+from synapseclient.core.download import (
+    DownloadRequest,
+    download_file,
+    SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
+)
 from synapseclient.core.exceptions import (
+    SynapseError,
     SynapseHTTPError,
     SynapseMd5MismatchError,
-    SynapseError,
 )
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.retry import (
@@ -33,13 +39,10 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry,
 )
-
-from synapseclient.core.utils import (
-    MB,
-)
+from synapseclient.core.utils import MB
 
 if TYPE_CHECKING:
-    from synapseclient import Synapse, Entity
+    from synapseclient import Entity, Synapse
 
 FILE_BUFFER_SIZE = 2 * MB
 REDIRECT_LIMIT = 5
@@ -159,6 +162,11 @@ async def download_file_entity(
     entity.cacheDir = os.path.dirname(download_path)
 
 
+def _get_aws_credentials() -> None:
+    """This is a stub function and only used for testing purposes."""
+    return None
+
+
 async def download_by_file_handle(
     file_handle_id: str,
     synapse_id: str,
@@ -210,6 +218,7 @@ async def download_by_file_handle(
                     remote_file_key=file_handle["fileKey"],
                     download_file_path=destination,
                     profile_name=profile,
+                    credentials=_get_aws_credentials(),
                     show_progress=not client.silent,
                 )
 
@@ -255,7 +264,7 @@ async def download_by_file_handle(
                 client.multi_threaded
                 and concrete_type == concrete_types.S3_FILE_HANDLE
                 and file_handle.get("contentSize", 0)
-                > multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
+                > SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
             ):
                 # run the download multi threaded if the file supports it, we're configured to do so,
                 # and the file is large enough that it would be broken into parts to take advantage of
@@ -307,6 +316,7 @@ async def download_from_url_multi_threaded(
     destination: str,
     *,
     expected_md5: str = None,
+    content_size: int = 0,
     synapse_client: Optional["Synapse"] = None,
 ) -> str:
     """
@@ -318,6 +328,9 @@ async def download_from_url_multi_threaded(
         object_type:    The type of the Synapse object that uses the FileHandle e.g. "FileEntity"
         destination:    The destination on local file system
         expected_md5:   The expected MD5
+        content_size:   The size of the content
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
     Raises:
         SynapseMd5MismatchError: If the actual MD5 does not match expected MD5.
 
@@ -332,18 +345,27 @@ async def download_from_url_multi_threaded(
         destination=destination, file_handle_id=file_handle_id
     )
 
-    request = multithread_download.DownloadRequest(
+    request = DownloadRequest(
         file_handle_id=int(file_handle_id),
         object_id=object_id,
         object_type=object_type,
         path=temp_destination,
         debug=client.debug,
+        content_size=content_size,
     )
 
-    multithread_download.download_file(client=client, download_request=request)
+    download_file(client=client, download_request=request)
 
     if expected_md5:  # if md5 not set (should be the case for all except http download)
-        actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
+        actual_md5 = await utils.md5_for_file_multiprocessing(
+            filename=temp_destination,
+            process_pool_executor=client._get_process_pool_executor(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ),
+            md5_semaphore=client._get_md5_semaphore(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ),
+        )
         # check md5 if given
         if actual_md5 != expected_md5:
             try:
@@ -377,6 +399,8 @@ async def download_from_url(
                                 handle id which allows resuming partial downloads of the same file from previous
                                 sessions
         expected_md5:  Optional. If given, check that the MD5 of the downloaded file matches the expected MD5
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
 
     Raises:
         IOError:                 If the local file does not exist.
@@ -532,6 +556,9 @@ async def download_from_url(
                     previously_transferred = os.path.getsize(filename=temp_destination)
                     to_be_transferred += previously_transferred
                     transferred += previously_transferred
+                    client.logger.debug(
+                        f"Resuming partial download to {temp_destination}. {previously_transferred}/{to_be_transferred} bytes already transferred."
+                    )
                     sig = utils.md5_for_file(filename=temp_destination)
                 else:
                     mode = "wb"

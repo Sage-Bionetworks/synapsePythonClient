@@ -4082,7 +4082,7 @@ class Synapse(object):
         bucket_name=None,
         base_key=None,
         sts_enabled=False,
-    ):
+    ) -> Tuple[Folder, Dict[str, str], Dict[str, str]]:
         """
         Create a storage location in the given parent, either in the given folder or by creating a new
         folder in that parent with the given name. This will both create a StorageLocationSetting,

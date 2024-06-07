@@ -11,7 +11,7 @@ from requests import Response
 import synapseclient.core.multithread_download.download_threads as download_threads
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
-from synapseclient.core.multithread_download.download_threads import (
+from synapseclient.core.download import (
     DownloadRequest,
     PresignedUrlInfo,
     PresignedUrlProvider,
