@@ -210,8 +210,8 @@ class SynapseCredentialsProviderChain(object):
 
     By default this class uses the following providers in this order:
 
-    1. [ConfigFileCredentialsProvider][synapseclient.core.credentials.credential_provider.ConfigFileCredentialsProvider]
-    2. [UserArgsCredentialsProvider][synapseclient.core.credentials.credential_provider.UserArgsCredentialsProvider]
+    1. [UserArgsCredentialsProvider][synapseclient.core.credentials.credential_provider.UserArgsCredentialsProvider]
+    2. [ConfigFileCredentialsProvider][synapseclient.core.credentials.credential_provider.ConfigFileCredentialsProvider]
     3. [EnvironmentVariableCredentialsProvider][synapseclient.core.credentials.credential_provider.EnvironmentVariableCredentialsProvider]
     4. [AWSParameterStoreCredentialsProvider][synapseclient.core.credentials.credential_provider.AWSParameterStoreCredentialsProvider]
 
@@ -256,8 +256,8 @@ class SynapseCredentialsProviderChain(object):
 
 DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
     cred_providers=[
-        ConfigFileCredentialsProvider(),
         UserArgsCredentialsProvider(),
+        ConfigFileCredentialsProvider(),
         EnvironmentVariableCredentialsProvider(),
         AWSParameterStoreCredentialsProvider(),  # see service catalog issue: SC-260
     ]
