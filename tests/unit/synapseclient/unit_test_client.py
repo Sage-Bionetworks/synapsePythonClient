@@ -468,7 +468,7 @@ class TestDownloadFileHandle:
         ), patch.object(
             urllib_request, "urlretrieve"
         ) as mock_url_retrieve, patch.object(
-            utils, "md5_for_file"
+            utils, "md5_for_file_multiprocessing"
         ) as mock_md5_for_file, patch.object(
             os, "makedirs"
         ):

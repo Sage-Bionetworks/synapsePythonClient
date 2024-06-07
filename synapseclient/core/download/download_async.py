@@ -14,6 +14,7 @@ from http import HTTPStatus
 from typing import Generator, NamedTuple, TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
+from deprecated import deprecated
 from requests import Response, Session
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -41,6 +42,21 @@ BACK_OFF_FACTOR: float = 0.5
 
 
 _thread_local = _threading.local()
+
+
+@contextmanager
+@deprecated(
+    version="4.4.0",
+    reason="To be removed ASAP - Left for testing purposes only",
+)
+def shared_executor(executor):
+    """An outside process that will eventually trigger a download through the this module
+    can configure a shared Executor by running its code within this context manager."""
+    _thread_local.executor = executor
+    try:
+        yield
+    finally:
+        del _thread_local.executor
 
 
 @contextmanager
@@ -76,7 +92,7 @@ class DownloadRequest(NamedTuple):
     object_id: str
     object_type: str
     path: str
-    content_size: int
+    content_size: int = 0
     debug: bool = False
 
 

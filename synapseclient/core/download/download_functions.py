@@ -316,7 +316,6 @@ async def download_from_url_multi_threaded(
     destination: str,
     *,
     expected_md5: str = None,
-    content_size: int = 0,
     synapse_client: Optional["Synapse"] = None,
 ) -> str:
     """
@@ -351,7 +350,6 @@ async def download_from_url_multi_threaded(
         object_type=object_type,
         path=temp_destination,
         debug=client.debug,
-        content_size=content_size,
     )
 
     download_file(client=client, download_request=request)
@@ -615,7 +613,15 @@ async def download_from_url(
     if (
         actual_md5 is None
     ):  # if md5 not set (should be the case for all except http download)
-        actual_md5 = utils.md5_for_file(destination).hexdigest()
+        actual_md5 = await utils.md5_for_file_multiprocessing(
+            filename=destination,
+            process_pool_executor=client._get_process_pool_executor(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ),
+            md5_semaphore=client._get_md5_semaphore(
+                asyncio_event_loop=asyncio.get_running_loop()
+            ),
+        )
 
     # check md5 if given
     if expected_md5 and actual_md5 != expected_md5:

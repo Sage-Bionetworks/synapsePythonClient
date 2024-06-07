@@ -13,7 +13,7 @@ import pytest
 import requests
 
 import synapseclient.core.constants.concrete_types as concrete_types
-import synapseclient.core.multithread_download as multithread_download
+import synapseclient.core.download.download_async as download_async
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import (
@@ -454,7 +454,7 @@ class TestDownloadFileHandle:
                     "id": "123",
                     "concreteType": concrete_types.S3_FILE_HANDLE,
                     "contentMd5": "someMD5",
-                    "contentSize": multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
+                    "contentSize": download_async.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
                     + 1,
                 }
             }
@@ -524,7 +524,7 @@ class TestDownloadFileHandle:
             "id": "123",
             "concreteType": concrete_types.S3_FILE_HANDLE,
             "contentMd5": "someMD5",
-            "contentSize": multithread_download.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE - 1,
+            "contentSize": download_async.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE - 1,
         }
         await self._multithread_not_applicable(file_handle)
 
@@ -570,8 +570,10 @@ class TestDownloadFromUrlMultiThreaded:
         self.syn = syn
 
     async def test_md5_mismatch(self) -> None:
-        with patch.object(multithread_download, "download_file"), patch.object(
-            utils, "md5_for_file"
+        with patch(
+            "synapseclient.core.download.download_functions.download_file"
+        ), patch.object(
+            utils, "md5_for_file_multiprocessing"
         ) as mock_md5_for_file, patch.object(
             os, "remove"
         ) as mock_os_remove, patch.object(
@@ -597,9 +599,14 @@ class TestDownloadFromUrlMultiThreaded:
             mock_move.assert_not_called()
 
     async def test_md5_match(self) -> None:
-        with patch.object(multithread_download, "download_file"), patch.object(
-            utils, "md5_for_file"
-        ) as mock_md5_for_file, patch.object(
+        with patch(
+            "synapseclient.core.download.download_functions.download_file"
+        ), patch.object(
+            utils,
+            "md5_for_file_multiprocessing",
+            new_callable=AsyncMock,
+            return_value="myExpectedMd5",
+        ), patch.object(
             os, "remove"
         ) as mock_os_remove, patch.object(
             shutil, "move"
@@ -607,8 +614,6 @@ class TestDownloadFromUrlMultiThreaded:
             path = os.path.abspath("/myfakepath")
 
             expected_md5 = "myExpectedMd5"
-
-            mock_md5_for_file.return_value.hexdigest.return_value = expected_md5
 
             await download_from_url_multi_threaded(
                 file_handle_id=123,
@@ -797,7 +802,10 @@ async def test_download_md5_mismatch_local_file() -> None:
     with patch.object(
         utils, "file_url_to_path", return_value=destination
     ) as mocked_file_url_to_path, patch.object(
-        utils, "md5_for_file", return_value=hashlib.md5()
+        utils,
+        "md5_for_file_multiprocessing",
+        new_callable=AsyncMock,
+        return_value="Some other incorrect md5",
     ) as mocked_md5_for_file, patch(
         "os.remove"
     ) as mocked_remove:
@@ -808,7 +816,7 @@ async def test_download_md5_mismatch_local_file() -> None:
             )
 
         mocked_file_url_to_path.assert_called_once_with(url, verify_exists=True)
-        mocked_md5_for_file.assert_called_once_with(destination)
+        mocked_md5_for_file.assert_called_once()
         # assert file was NOT removed
         assert not mocked_remove.called
 
