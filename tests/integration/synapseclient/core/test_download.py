@@ -57,7 +57,7 @@ class TestDownloadCollisions:
         ).get_async()
 
         # THEN the file is downloaded replacing the file on disk
-        assert original_file_path == file.path
+        assert utils.equal_paths(original_file_path, file.path)
         assert original_file_md5 == utils.md5_for_file_hex(original_file_path)
 
         # AND download_by_file_handle was called
@@ -96,7 +96,7 @@ class TestDownloadCollisions:
         # THEN the file is not downloaded again, and the file path is the same
         assert os.path.exists(file.path)
         assert os.path.exists(original_file_path)
-        assert file.path == original_file_path
+        assert utils.equal_paths(original_file_path, file.path)
 
         # AND download_by_file_handle was not called
         spy_file_handle.assert_not_called()
@@ -140,7 +140,7 @@ class TestDownloadCaching:
         # THEN the file is not downloaded again, and the file path is the same
         assert os.path.exists(file.path)
         assert os.path.exists(original_file_path)
-        assert file.path == original_file_path
+        assert utils.equal_paths(original_file_path, file.path)
 
         # AND download_by_file_handle was not called
         spy_file_handle.assert_not_called()
@@ -185,7 +185,7 @@ class TestDownloadCaching:
         # THEN the file is not downloaded again, but it copied to the new location
         assert os.path.exists(file.path)
         assert os.path.exists(original_file_path)
-        assert file.path != original_file_path
+        assert not utils.equal_paths(original_file_path, file.path)
 
         # AND download_by_file_handle was not called
         spy_file_handle.assert_not_called()
@@ -291,7 +291,7 @@ class TestDownloadFromUrl:
         ).get_async()
 
         # THEN the file is downloaded to a different location and matches the original
-        assert updated_file_path != file.path
+        assert not utils.equal_paths(updated_file_path, file.path)
         assert filecmp.cmp(updated_file_path, file.path)
 
         # AND download_by_file_handle was called
@@ -330,7 +330,7 @@ class TestDownloadFromUrl:
         file = await File(id=file.id).get_async()
 
         # THEN the file is downloaded to a different location and matches the original
-        assert original_file_path != file.path
+        assert not utils.equal_paths(original_file_path, file.path)
         assert original_file_md5 == file.file_handle.content_md5
         assert os.path.dirname(file.path) == synapse_cache_location
 
@@ -423,7 +423,7 @@ class TestDownloadFromS3:
         ).get_async()
 
         # THEN the file is downloaded to a different location and matches the original
-        assert updated_file_path != file.path
+        assert not utils.equal_paths(updated_file_path, file.path)
         assert filecmp.cmp(updated_file_path, file.path)
 
         # AND download_by_file_handle was called
