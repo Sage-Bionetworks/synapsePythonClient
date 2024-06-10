@@ -323,8 +323,11 @@ async def download_from_url_multi_threaded(
 
     Arguments:
         file_handle_id: The id of the FileHandle to download
-        object_id:      The id of the Synapse object that uses the FileHandle e.g. "syn123"
-        object_type:    The type of the Synapse object that uses the FileHandle e.g. "FileEntity"
+        object_id:      The id of the Synapse object that uses the FileHandle
+            e.g. "syn123"
+        object_type:    The type of the Synapse object that uses the
+            FileHandle e.g. "FileEntity". Any of
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         destination:    The destination on local file system
         expected_md5:   The expected MD5
         content_size:   The size of the content
@@ -473,7 +476,7 @@ async def download_from_url(
                 url=url, filename=destination, reporthook=_ftp_report_hook
             )
             break
-        elif scheme == "http" or scheme == "https":
+        elif scheme in ["http", "https"]:
             # if a partial download exists with the temporary name,
             temp_destination = utils.temp_download_filename(
                 destination=destination, file_handle_id=file_handle_id

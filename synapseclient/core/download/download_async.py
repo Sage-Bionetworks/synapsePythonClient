@@ -80,7 +80,8 @@ class DownloadRequest(NamedTuple):
     Attributes:
         file_handle_id : The file handle ID to download.
         object_id : The Synapse object this file associated to.
-        object_type : The type of the associated Synapse object.
+        object_type : The type of the associated Synapse object. Any of
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         path : The local path to download the file to.
             This path can be either an absolute path or
             a relative path from where the code is executed to the download location.
