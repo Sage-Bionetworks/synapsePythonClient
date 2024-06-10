@@ -353,8 +353,7 @@ class TestExernalStorage:
         )
 
         try:
-            file_contents = str(uuid.uuid4())
-            upload_file = self._make_temp_file(contents=file_contents)
+            upload_file = utils.make_bogus_uuid_file()
 
             # WHEN I upload a file using boto sts transfer
             with mock.patch.object(
@@ -362,19 +361,17 @@ class TestExernalStorage:
                 "use_boto_sts_transfers",
                 new_callable=mock.PropertyMock(return_value=True),
             ):
-                file = await File(
-                    path=upload_file.name, parent_id=folder.id
-                ).store_async()
+                file = await File(path=upload_file, parent_id=folder.id).store_async()
                 assert os.path.exists(file.path)
                 os.remove(file.path)
 
                 # THEN I should be able to donwload the file
                 assert not os.path.exists(file.path)
                 file_copy = await File(
-                    id=file.id, download_location=os.path.dirname(upload_file.name)
+                    id=file.id, download_location=os.path.dirname(upload_file)
                 ).get_async()
                 assert os.path.exists(file_copy.path)
-                assert file_copy.path == upload_file.name
+                assert file_copy.path == upload_file
 
             # AND the file should be accessible via the external storage location
             s3_read_client = boto3.client("s3", **get_aws_env()[1])
@@ -419,12 +416,15 @@ class TestExernalStorage:
         ) = await self._configure_storage_location(external_object_store=True)
 
         try:
-            with mock.patch(
-                "synapseclient.core.upload.upload_functions_async._get_aws_credentials",
-                return_value=get_aws_env()[1],
-            ), mock.patch(
-                "synapseclient.core.download.download_functions._get_aws_credentials",
-                return_value=get_aws_env()[1],
+            with (
+                mock.patch(
+                    "synapseclient.core.upload.upload_functions_async._get_aws_credentials",
+                    return_value=get_aws_env()[1],
+                ),
+                mock.patch(
+                    "synapseclient.core.download.download_functions._get_aws_credentials",
+                    return_value=get_aws_env()[1],
+                ),
             ):
                 # WHEN we save a file to that location
                 upload_file = utils.make_bogus_uuid_file()
