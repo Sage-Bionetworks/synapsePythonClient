@@ -11,6 +11,7 @@ from unittest import mock
 import pytest
 
 from synapseclient import Synapse, Folder as SynFolder
+import synapseclient.core.utils as utils
 from synapseclient.core.retry import with_retry
 from synapseclient.models import File, Project, Folder
 from synapseclient.api import (
@@ -239,13 +240,14 @@ class TestExernalStorage:
 
         try:
             # WHEN we save a file to that location
-            file_contents = "foo"
-            upload_file = self._make_temp_file(contents=file_contents)
+            upload_file = utils.make_bogus_uuid_file()
+            with open(upload_file, "r", encoding="utf-8") as f:
+                file_contents = f.read()
 
-            file = await File(path=upload_file.name, parent_id=folder.id).store_async()
+            file = await File(path=upload_file, parent_id=folder.id).store_async()
 
             # THEN the file should be accessible via the external storage location
-            os.remove(upload_file.name)
+            os.remove(upload_file)
             file = await File(id=file.id).get_async()
             with open(file.path, "r", encoding="utf-8") as f:
                 downloaded_content = f.read()
@@ -425,12 +427,11 @@ class TestExernalStorage:
                 return_value=get_aws_env()[1],
             ):
                 # WHEN we save a file to that location
-                file_contents = "foo"
-                upload_file = self._make_temp_file(contents=file_contents)
+                upload_file = utils.make_bogus_uuid_file()
+                with open(upload_file, "r", encoding="utf-8") as f:
+                    file_contents = f.read()
 
-                file = await File(
-                    path=upload_file.name, parent_id=folder.id
-                ).store_async()
+                file = await File(path=upload_file, parent_id=folder.id).store_async()
 
                 # THEN the file should be accessible via the external storage location
                 os.remove(upload_file.name)

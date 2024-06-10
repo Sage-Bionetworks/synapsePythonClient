@@ -332,7 +332,7 @@ class TestDownloadFromUrl:
         # THEN the file is downloaded to a different location and matches the original
         assert not utils.equal_paths(original_file_path, file.path)
         assert original_file_md5 == file.file_handle.content_md5
-        assert os.path.dirname(file.path) == synapse_cache_location
+        assert utils.equal_paths(os.path.dirname(file.path), synapse_cache_location)
 
         # AND download_by_file_handle was called
         spy.assert_called_once()
