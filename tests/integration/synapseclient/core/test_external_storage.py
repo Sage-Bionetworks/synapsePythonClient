@@ -434,7 +434,7 @@ class TestExernalStorage:
                 file = await File(path=upload_file, parent_id=folder.id).store_async()
 
                 # THEN the file should be accessible via the external storage location
-                os.remove(upload_file.name)
+                os.remove(upload_file)
                 file = await File(id=file.id).get_async()
                 with open(file.path, "r", encoding="utf-8") as f:
                     downloaded_content = f.read()
