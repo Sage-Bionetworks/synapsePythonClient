@@ -371,7 +371,7 @@ class TestExernalStorage:
                     id=file.id, download_location=os.path.dirname(upload_file)
                 ).get_async()
                 assert os.path.exists(file_copy.path)
-                assert file_copy.path == upload_file
+                assert utils.equal_paths(file_copy.path, upload_file)
 
             # AND the file should be accessible via the external storage location
             s3_read_client = boto3.client("s3", **get_aws_env()[1])
