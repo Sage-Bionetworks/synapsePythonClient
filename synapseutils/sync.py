@@ -1,4 +1,5 @@
 """This module is responsible for holding sync to/from synapse utility functions."""
+
 import ast
 import asyncio
 import concurrent.futures
@@ -295,10 +296,10 @@ class _SyncDownloader:
 
     def __init__(
         self,
-        syn,
+        syn: Synapse,
         executor: concurrent.futures.Executor,
-        max_concurrent_file_downloads=None,
-    ):
+        max_concurrent_file_downloads: int = None,
+    ) -> None:
         """
         Arguments:
             syn: A synapse client
@@ -369,8 +370,9 @@ class _SyncDownloader:
             # these context managers ensure that we are using some shared state
             # when conducting that download (shared progress bar, ExecutorService shared
             # by all multi threaded downloads in this sync)
-            with progress.accumulate_progress(), download_shared_executor(
-                self._executor
+            with (
+                progress.accumulate_progress(),
+                download_shared_executor(self._executor),
             ):
                 entity = self._syn.get(
                     entity_id,
@@ -1407,9 +1409,9 @@ async def _manifest_upload(
             row["used"] if "used" in row else [],
             row["executed"] if "executed" in row else [],
             activity_name=row["activityName"] if "activityName" in row else None,
-            activity_description=row["activityDescription"]
-            if "activityDescription" in row
-            else None,
+            activity_description=(
+                row["activityDescription"] if "activityDescription" in row else None
+            ),
         )
         items.append(item)
 

@@ -65,6 +65,11 @@ class SynapseUploadAbortedException(SynapseError):
     aborted and stops further processing."""
 
 
+class SynapseDownloadAbortedException(SynapseError):
+    """Raised when a worker thread detects the download was
+    aborted and stops further processing."""
+
+
 class SynapseUploadFailedException(SynapseError):
     """Raised when an upload failed. Should be chained to a cause Exception"""
 

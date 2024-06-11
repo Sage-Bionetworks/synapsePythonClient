@@ -355,7 +355,7 @@ async def download_from_url_multi_threaded(
         debug=client.debug,
     )
 
-    download_file(client=client, download_request=request)
+    await download_file(client=client, download_request=request)
 
     if expected_md5:  # if md5 not set (should be the case for all except http download)
         actual_md5 = await utils.md5_for_file_multiprocessing(

@@ -7,7 +7,6 @@ from .download_async import (
     shared_progress_bar,
     PresignedUrlInfo,
     PresignedUrlProvider,
-    TransferStatus,
     _MultithreadedDownloader,
 )
 from .download_functions import (
@@ -32,6 +31,5 @@ __all__ = [
     "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
     "PresignedUrlInfo",
     "PresignedUrlProvider",
-    "TransferStatus",
     "_MultithreadedDownloader",
 ]
