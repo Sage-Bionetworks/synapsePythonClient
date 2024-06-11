@@ -11,7 +11,7 @@ import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Generator, NamedTuple, Set, Tuple, Union
+from typing import TYPE_CHECKING, Generator, NamedTuple, Optional, Set, Tuple, Union
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -121,7 +121,7 @@ class PresignedUrlProvider:
     client: "Synapse"
     request: DownloadRequest
     _lock: _threading.Lock = _threading.Lock()
-    _cached_info: PresignedUrlInfo = None
+    _cached_info: Optional[PresignedUrlInfo] = None
 
     # offset parameter used to buffer url expiration checks, time in seconds
     _TIME_BUFFER: datetime.timedelta = datetime.timedelta(seconds=5)
@@ -203,12 +203,10 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     Returns:
         A datetime in UTC of when the url will expire
     """
-    parsed_query: dict = parse_qs(urlparse(url).query)
-    time_made: str = parsed_query["X-Amz-Date"][0]
-    time_made_datetime: datetime.datetime = datetime.datetime.strptime(
-        time_made, ISO_AWS_STR_FORMAT
-    )
-    expires: str = parsed_query["X-Amz-Expires"][0]
+    parsed_query = parse_qs(urlparse(url).query)
+    time_made = parsed_query["X-Amz-Date"][0]
+    time_made_datetime = datetime.datetime.strptime(time_made, ISO_AWS_STR_FORMAT)
+    expires = parsed_query["X-Amz-Expires"][0]
     return_data = time_made_datetime + datetime.timedelta(seconds=int(expires))
     if return_data.tzinfo is None:
         return_data = return_data.replace(tzinfo=datetime.timezone.utc)
@@ -284,7 +282,9 @@ class _MultithreadedDownloader:
         self._aborted = False
         self._download_request = download_request
         self._progress_bar = None
-        self._close_progress_bar = getattr(_thread_local, "progress_bar", None) is None
+        self._should_close_progress_bar = (
+            getattr(_thread_local, "progress_bar", None) is None
+        )
 
     async def download_file(self) -> None:
         """
@@ -350,8 +350,7 @@ class _MultithreadedDownloader:
                     except FileNotFoundError:
                         pass
 
-        if not self._syn.silent and self._progress_bar and self._close_progress_bar:
-            self._progress_bar.close()
+        self._close_progress_bar()
         if cause:
             raise cause
 
@@ -378,6 +377,11 @@ class _MultithreadedDownloader:
                 postfix=os.path.basename(self._download_request.path),
                 smoothing=0,
             )
+
+    def _close_progress_bar(self) -> None:
+        """Handle closing the progress bar."""
+        if not self._syn.silent and self._progress_bar and self._close_progress_bar:
+            self._progress_bar.close()
 
     def _generate_stream_and_write_chunk_tasks(
         self,
@@ -432,7 +436,7 @@ class _MultithreadedDownloader:
     def _stream_and_write_chunk(
         self,
         session: httpx.Client,
-        presigned_url_provider,
+        presigned_url_provider: PresignedUrlProvider,
         start: int,
         end: int,
         otel_context: Union[Context, None],

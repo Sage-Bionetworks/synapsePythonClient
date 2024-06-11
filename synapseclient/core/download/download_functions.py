@@ -558,7 +558,9 @@ async def download_from_url(
                     to_be_transferred += previously_transferred
                     transferred += previously_transferred
                     client.logger.debug(
-                        f"Resuming partial download to {temp_destination}. {previously_transferred}/{to_be_transferred} bytes already transferred."
+                        f"Resuming partial download to {temp_destination}. "
+                        f"{previously_transferred}/{to_be_transferred} bytes already "
+                        "transferred."
                     )
                     sig = utils.md5_for_file(filename=temp_destination)
                 else:
