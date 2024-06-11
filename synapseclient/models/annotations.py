@@ -1,15 +1,14 @@
-import asyncio
+"""The required data for working with annotations in Synapse"""
+
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
-from opentelemetry import context
 
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
-from synapseclient.api import set_annotations
+from synapseclient.api import set_annotations_async
 from synapseclient.core.async_utils import async_to_sync
-from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.annotations_protocol import (
     AnnotationsSynchronousProtocol,
 )
@@ -81,17 +80,9 @@ class Annotations(AnnotationsSynchronousProtocol):
         if self.id is None or self.etag is None:
             raise ValueError("id and etag are required to store annotations.")
 
-        loop = asyncio.get_event_loop()
-        current_context = context.get_current()
-        result = await loop.run_in_executor(
-            None,
-            lambda: run_and_attach_otel_context(
-                lambda: set_annotations(
-                    annotations=self,
-                    synapse_client=synapse_client,
-                ),
-                current_context,
-            ),
+        result = await set_annotations_async(
+            annotations=self,
+            synapse_client=synapse_client,
         )
         self.annotations = Annotations.from_dict(result)
         self.etag = result["etag"]
