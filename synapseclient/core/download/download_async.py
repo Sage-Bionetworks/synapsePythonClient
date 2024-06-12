@@ -335,7 +335,7 @@ class _MultithreadedDownloader:
 
                     # Garbage collect every 100 iterations
                     if loop_iteration % 100 == 0:
-                        gc.collect(generation=0)
+                        gc.collect()
 
                     self._syn.logger.debug(
                         f"Downloaded bytes {start_bytes}-{end_bytes} to {self._download_request.path}"
