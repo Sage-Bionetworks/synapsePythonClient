@@ -489,10 +489,11 @@ class _MultithreadedDownloader:
         Returns:
             None
         """
-        with open(request.path, "rb+") as file_write:
-            file_write.seek(start)
-            file_write.write(chunk)
-            self._update_progress_bar(part_size=length)
+        with self._thread_lock:
+            with open(request.path, "rb+") as file_write:
+                file_write.seek(start)
+                file_write.write(chunk)
+                self._update_progress_bar(part_size=length)
 
 
 def _execute_stream_and_write_chunk(
@@ -521,7 +522,7 @@ def _execute_stream_and_write_chunk(
         method="GET", url=presigned_url_provider.get_info().url, headers=range_header
     ) as response:
         for chunk in response.iter_raw():
-            data_length = len(chunk) - 1
+            data_length = len(chunk)
             request._write_chunk(
                 request=request._download_request,
                 chunk=chunk,
