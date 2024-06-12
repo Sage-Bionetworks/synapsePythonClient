@@ -331,6 +331,7 @@ class _MultithreadedDownloader:
             for completed_task in done_tasks:
                 try:
                     start_bytes, end_bytes = completed_task.result()
+                    loop_iteration += 1
 
                     # Garbage collect every 100 iterations
                     if loop_iteration % 100 == 0:
