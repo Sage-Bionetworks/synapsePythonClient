@@ -1,5 +1,5 @@
 # These are all of the models that are used by the Synapse client.
-from .annotations import set_annotations
+from .annotations import set_annotations, set_annotations_async
 from .configuration_services import (
     get_client_authenticated_s3_profile,
     get_config_authentication,
@@ -38,6 +38,7 @@ from .file_services import (
 __all__ = [
     # annotations
     "set_annotations",
+    "set_annotations_async",
     "get_entity_id_bundle2",
     "get_entity_id_version_bundle2",
     "post_entity_bundle2_create",
