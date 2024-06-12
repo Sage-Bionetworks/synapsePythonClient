@@ -1,60 +1,58 @@
+"""Unit test for synapseclient.table"""
 import csv
-import shutil
 import io
 import math
 import os
+import shutil
 import tempfile
 import time
 from builtins import zip
-import pandas as pd
+from collections import OrderedDict, abc
+from unittest.mock import MagicMock, call, patch
+
 import numpy as np
+import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 
-import pytest
-from unittest.mock import call, MagicMock
-
-from tests.unit.test_utils.unit_utils import StringIOContextManager
-
-from synapseclient import client, Entity, Synapse
-from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
-from synapseclient.entity import split_entity_namespaces
 import synapseclient.table
+from synapseclient import Entity, Synapse, client
+from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
+from synapseclient.core.utils import from_unix_epoch_time
+from synapseclient.entity import split_entity_namespaces
 from synapseclient.table import (
+    MAX_NUM_TABLE_COLUMNS,
     Column,
-    Schema,
     CsvFileTable,
-    TableQueryResult,
-    cast_values,
-    as_table_columns,
-    Table,
-    build_table,
-    RowSet,
-    SelectColumn,
+    Dataset,
     EntityViewSchema,
-    RowSetTable,
-    Row,
+    EntityViewType,
+    MaterializedViewSchema,
     PartialRow,
     PartialRowset,
+    Row,
+    RowSet,
+    RowSetTable,
+    Schema,
     SchemaBase,
-    _get_view_type_mask_for_deprecated_type,
-    EntityViewType,
-    _get_view_type_mask,
-    MAX_NUM_TABLE_COLUMNS,
+    SelectColumn,
     SubmissionViewSchema,
+    Table,
+    TableQueryResult,
+    _convert_df_date_cols_to_datetime,
+    _get_view_type_mask,
+    _get_view_type_mask_for_deprecated_type,
+    as_table_columns,
+    build_table,
+    cast_values,
     escape_column_name,
     join_column_names,
-    MaterializedViewSchema,
-    Dataset,
-    _convert_df_date_cols_to_datetime,
 )
-
-from synapseclient.core.utils import from_unix_epoch_time
-from unittest.mock import patch
-from collections import OrderedDict, abc
+from tests.unit.test_utils.unit_utils import StringIOContextManager
 
 
 @pytest.fixture()
-def sample_df_datetime():
+def sample_df_datetime() -> pd.DataFrame:
     test_df = pd.DataFrame(
         {
             "epoch_time1": [
@@ -71,7 +69,7 @@ def sample_df_datetime():
     return test_df
 
 
-def test_cast_values():
+def test_cast_values() -> None:
     selectColumns = [
         {"id": "353", "name": "name", "columnType": "STRING"},
         {"id": "354", "name": "foo", "columnType": "STRING"},
@@ -102,7 +100,7 @@ def test_cast_values():
     assert cast_values(row, selectColumns) == [True, 211, 1.61803398875, 1421365]
 
 
-def test_cast_values__unknown_column_type():
+def test_cast_values__unknown_column_type() -> None:
     selectColumns = [
         {"id": "353", "name": "name", "columnType": "INTEGER"},
         {"id": "354", "name": "foo", "columnType": "DEFINTELY_NOT_A_EXISTING_TYPE"},
@@ -112,7 +110,7 @@ def test_cast_values__unknown_column_type():
     assert cast_values(row, selectColumns) == [123, "othervalue"]
 
 
-def test_cast_values__list_type():
+def test_cast_values__list_type() -> None:
     selectColumns = [
         {"id": "354", "name": "foo", "columnType": "STRING_LIST"},
         {"id": "356", "name": "n", "columnType": "INTEGER_LIST"},
@@ -140,22 +138,22 @@ def test_cast_values__list_type():
     ]
 
 
-def test_convert_df_date_cols_to_datetime_empty_df():
+def test_convert_df_date_cols_to_datetime_empty_df() -> None:
     test_df = pd.DataFrame()
     date_columns = []
     test_df_output = _convert_df_date_cols_to_datetime(test_df, date_columns)
     assert test_df_output.empty
 
 
-def test_convert_df_date_cols_to_datetime_invalid_epoch_time(sample_df_datetime):
+def test_convert_df_date_cols_to_datetime_invalid_epoch_time(
+    sample_df_datetime,
+) -> None:
     date_columns = ["epoch_time1"]
     with pytest.raises(ValueError):
-        test_df_output = _convert_df_date_cols_to_datetime(
-            sample_df_datetime, date_columns
-        )
+        _convert_df_date_cols_to_datetime(sample_df_datetime, date_columns)
 
 
-def test_convert_df_date_cols_to_datetime_empty_vals(sample_df_datetime):
+def test_convert_df_date_cols_to_datetime_empty_vals(sample_df_datetime) -> None:
     date_columns = ["epoch_time2"]
     test_df_output = _convert_df_date_cols_to_datetime(sample_df_datetime, date_columns)
     test_df_epoch_time2 = test_df_output[["epoch_time2"]]
@@ -173,7 +171,7 @@ def test_convert_df_date_cols_to_datetime_empty_vals(sample_df_datetime):
     assert_frame_equal(test_df_epoch_time2, expected_date_df)
 
 
-def test_convert_df_date_cols_to_datetime_invalid_date_columns():
+def test_convert_df_date_cols_to_datetime_invalid_date_columns() -> None:
     test_df = pd.DataFrame(
         {
             "epoch_time1": [
@@ -187,10 +185,10 @@ def test_convert_df_date_cols_to_datetime_invalid_date_columns():
     )
     date_columns = ["invalid date column"]
     with pytest.raises(ValueError):
-        test_df_output = _convert_df_date_cols_to_datetime(test_df, date_columns)
+        _convert_df_date_cols_to_datetime(test_df, date_columns)
 
 
-def test_convert_df_date_cols_to_datetime():
+def test_convert_df_date_cols_to_datetime() -> None:
     # construct test dataframe and get date columns
     test_df = pd.DataFrame(
         {
@@ -253,7 +251,7 @@ def test_convert_df_date_cols_to_datetime():
     assert_frame_equal(test_df2, expected_date_df)
 
 
-def test_schema():
+def test_schema() -> None:
     schema = Schema(name="My Table", parent="syn1000001")
 
     assert not schema.has_columns()
@@ -291,7 +289,7 @@ def test_schema():
     assert Column(name="Hipness", columnType="DOUBLE") in schema.columns_to_store
 
 
-def test_materialized_view():
+def test_materialized_view() -> None:
     """Test creation of materialized view"""
     mat_view = MaterializedViewSchema(
         name="My Table",
@@ -312,7 +310,7 @@ def test_materialized_view():
     assert mat_view.properties.columnIds == []
 
 
-def test_dataset():
+def test_dataset() -> None:
     dataset = Dataset(
         name="Pokedex",
         parent="syn123",
@@ -355,7 +353,7 @@ def test_dataset():
     assert len(dataset) == 0
 
 
-def test_RowSetTable():
+def test_row_set_table() -> None:
     row_set_json = {
         "etag": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
         "headers": [
@@ -399,7 +397,7 @@ def test_RowSetTable():
     assert list(df["name"]) == ["foo", "bar", "foo", "qux"]
 
 
-def test_as_table_columns__with_pandas_DataFrame():
+def test_as_table_columns_with_pandas_dataframe() -> None:
     df = pd.DataFrame(
         {
             "foobar": ("foo", "bar", "baz", "qux", "asdf"),
@@ -447,11 +445,11 @@ def test_as_table_columns__with_pandas_DataFrame():
     assert expected_columns == cols
 
 
-def test_as_table_columns__with_non_supported_input_type():
+def test_as_table_columns__with_non_supported_input_type() -> None:
     pytest.raises(ValueError, as_table_columns, dict(a=[1, 2, 3], b=["c", "d", "e"]))
 
 
-def test_as_table_columns__with_csv_file():
+def test_as_table_columns__with_csv_file() -> None:
     string_io = StringIOContextManager(
         "ROW_ID,ROW_VERSION,Name,Born,Hipness,Living\n"
         '"1", "1", "John Coltrane", 1926, 8.65, False\n'
@@ -469,7 +467,7 @@ def test_as_table_columns__with_csv_file():
     assert cols[3]["columnType"] == "STRING"
 
 
-def test_dict_to_table():
+def test_dict_to_table() -> None:
     d = dict(a=[1, 2, 3], b=["c", "d", "e"])
     df = pd.DataFrame(d)
     schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
@@ -484,7 +482,7 @@ def test_dict_to_table():
     assert df_agr.equals(df)
 
 
-def test_pandas_to_table():
+def test_pandas_to_table() -> None:
     df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
     schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
 
@@ -542,14 +540,14 @@ def test_pandas_to_table():
     "test_df",
     [pd.DataFrame({"str1": ("foo", "bar", "moo"), "str2": ("foo", "bar", None)})],
 )
-def test_pandas_to_table_convert__string_data_type(test_df):
+def test_pandas_to_table_convert__string_data_type(test_df: pd.DataFrame) -> None:
     schema = Schema(name="Foo", parent="syn12345")
     test_table = Table(schema, test_df)
     for col in test_table.headers:
         assert col.columnType == "STRING"
 
 
-def test_pandas_to_table_convert__float_data_type():
+def test_pandas_to_table_convert__float_data_type() -> None:
     test_df = pd.DataFrame({"float1": (1.0, 2.0, 3.0), "float2": (1.0, 2.0, None)})
     schema = Schema(name="Foo", parent="syn12345")
     test_table = Table(schema, test_df)
@@ -557,7 +555,7 @@ def test_pandas_to_table_convert__float_data_type():
         assert col.columnType == "DOUBLE"
 
 
-def test_pandas_to_table_convert__double_data_type():
+def test_pandas_to_table_convert__double_data_type() -> None:
     test_df = pd.DataFrame(
         {
             "double1": (1.99999999999999, 1.00000000000000001, 3.33333333333333),
@@ -570,7 +568,7 @@ def test_pandas_to_table_convert__double_data_type():
         assert col.columnType == "DOUBLE"
 
 
-def test_pandas_to_table_convert__integer_data_type():
+def test_pandas_to_table_convert__integer_data_type() -> None:
     test_df = pd.DataFrame({"int1": (1, 2, 3), "int2": (1, 3, 5)})
     schema = Schema(name="Foo", parent="syn12345")
     test_table = Table(schema, test_df)
@@ -578,7 +576,7 @@ def test_pandas_to_table_convert__integer_data_type():
         assert col.columnType == "INTEGER"
 
 
-def test_pandas_to_table_convert__mixed_int_float_data_type():
+def test_pandas_to_table_convert__mixed_int_float_data_type() -> None:
     test_df = pd.DataFrame({"int1": [1, 2, 990]})
     schema = Schema(name="Foo", parent="syn12345")
     # Since I can't seem to define the "mixed-integer-float" type, I force `infer_dtype`
@@ -589,7 +587,7 @@ def test_pandas_to_table_convert__mixed_int_float_data_type():
             assert col.columnType == "DOUBLE"
 
 
-def test_pandas_to_table_convert__boolean_data_type():
+def test_pandas_to_table_convert__boolean_data_type() -> None:
     test_df = pd.DataFrame(
         {"bool1": (False, True, False), "bool2": (False, True, None)}
     )
@@ -599,7 +597,7 @@ def test_pandas_to_table_convert__boolean_data_type():
         assert col.columnType == "BOOLEAN"
 
 
-def test_pandas_to_table_convert__date_data_type():
+def test_pandas_to_table_convert__date_data_type() -> None:
     test_df = pd.DataFrame(
         {
             "datetime1": (
@@ -618,7 +616,7 @@ def test_pandas_to_table_convert__date_data_type():
         assert col.columnType == "DATE"
 
 
-def test_csv_table():
+def test_csv_table() -> None:
     # Maybe not truly a unit test, but here because it doesn't do
     # network IO to synapse
     data = [
@@ -700,7 +698,7 @@ def test_csv_table():
         raise
 
 
-def test_list_of_rows_table():
+def test_list_of_rows_table() -> None:
     data = [
         ["John Coltrane", 1926, 8.65, False],
         ["Miles Davis", 1926, 9.87, False],
@@ -741,7 +739,7 @@ def test_list_of_rows_table():
     assert list(df["Name"]) == [r[0] for r in data]
 
 
-def test_aggregate_query_result_to_data_frame():
+def test_aggregate_query_result_to_data_frame() -> None:
     class MockSynapse(object):
         def _queryTable(
             self, query, limit=None, offset=None, isConsistent=True, partMask=None
@@ -826,7 +824,7 @@ def test_aggregate_query_result_to_data_frame():
     assert list(df["AVG(Hipness)"].values) == [1.1, 2.38, 3.14, 4.38]
 
 
-def test_waitForAsync():
+def test_wait_for_async() -> None:
     syn = Synapse(debug=True, skip_checks=True)
     syn.table_query_timeout = 0.05
     syn.table_query_max_sleep = 0.001
@@ -856,7 +854,7 @@ def _insert_dataframe_column_if_not_exist__setup():
     return df, column_name, data
 
 
-def test_insert_dataframe_column_if_not_exist__nonexistent_column():
+def test_insert_dataframe_column_if_not_exist__nonexistent_column() -> None:
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
     # method under test
@@ -866,7 +864,7 @@ def test_insert_dataframe_column_if_not_exist__nonexistent_column():
     assert data == df[column_name].tolist()
 
 
-def test_insert_dataframe_column_if_not_exist__existing_column_matching():
+def test_insert_dataframe_column_if_not_exist__existing_column_matching() -> None:
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
     # add the same data to the DataFrame prior to calling our method
@@ -879,7 +877,7 @@ def test_insert_dataframe_column_if_not_exist__existing_column_matching():
     assert data == df[column_name].tolist()
 
 
-def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
+def test_insert_dataframe_column_if_not_exist__existing_column_not_matching() -> None:
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
     # add different data to the DataFrame prior to calling our method
@@ -893,8 +891,8 @@ def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
         CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
 
-@pytest.mark.parametrize("downloadLocation", [None, "/tmp/download"])
-def test_downloadTableColumns(syn, downloadLocation):
+@pytest.mark.parametrize("download_location", [None, "/tmp/download"])
+def test_downloadTableColumns(syn: Synapse, download_location: str) -> None:
     header = MagicMock()
     header.name = "id"
     table = MagicMock(
@@ -933,10 +931,10 @@ def test_downloadTableColumns(syn, downloadLocation):
 
     with patch.object(syn, "cache") as mock_cache, patch.object(
         syn, "_waitForAsync"
-    ) as mock_async, patch.object(
-        syn, "_ensure_download_location_is_directory"
-    ) as mock_ensure_dir, patch.object(
-        syn, "_downloadFileHandle"
+    ) as mock_async, patch(
+        "synapseclient.client.ensure_download_location_is_directory"
+    ) as mock_ensure_dir, patch(
+        "synapseclient.client.download_by_file_handle"
     ) as mock_download_file_handle, patch.object(
         client, "zipfile"
     ), patch.object(
@@ -951,18 +949,20 @@ def test_downloadTableColumns(syn, downloadLocation):
         mock_extract_zip_file_to_directory.side_effect = zip_entry_file_paths
 
         result = syn.downloadTableColumns(
-            table, ["id"], downloadLocation=downloadLocation
+            table, ["id"], downloadLocation=download_location
         )
 
-        if downloadLocation:
-            mock_ensure_dir.assert_called_once_with(downloadLocation)
+        if download_location:
+            mock_ensure_dir.assert_called_once_with(download_location)
         else:
             assert [call(1), call(3)] == mock_cache.get_cache_dir.call_args_list
 
         assert expected_result == result
 
 
-def test_build_table_download_file_handle_list__repeated_file_handles(syn):
+def test_build_table_download_file_handle_list__repeated_file_handles(
+    syn: Synapse,
+) -> None:
     # patch the cache so we don't look there in case FileHandle ids actually exist there
     patch.object(syn.cache, "get", return_value=None)
 
@@ -994,13 +994,13 @@ def test_build_table_download_file_handle_list__repeated_file_handles(syn):
     assert 0 == len(file_handle_to_path_map)
 
 
-def test_SubmissionViewSchema__default_params():
+def test_SubmissionViewSchema__default_params() -> None:
     submission_view = SubmissionViewSchema(parent="idk")
     assert [] == submission_view.scopeIds
     assert submission_view.addDefaultViewColumns
 
 
-def test_SubmissionViewSchema__before_synapse_store(syn):
+def test_SubmissionViewSchema__before_synapse_store(syn: Synapse) -> None:
     syn = Synapse(debug=True, skip_checks=True)
 
     with patch.object(
@@ -1020,7 +1020,7 @@ def test_SubmissionViewSchema__before_synapse_store(syn):
         )
 
 
-def test_EntityViewSchema__before_synapse_store(syn):
+def test_EntityViewSchema__before_synapse_store(syn: Synapse) -> None:
     syn = Synapse(debug=True, skip_checks=True)
 
     with patch.object(
@@ -1038,21 +1038,21 @@ def test_EntityViewSchema__before_synapse_store(syn):
         )
 
 
-def test_EntityViewSchema__default_params():
+def test_EntityViewSchema__default_params() -> None:
     entity_view = EntityViewSchema(parent="idk")
     assert EntityViewType.FILE.value == entity_view.viewTypeMask
     assert [] == entity_view.scopeIds
     assert entity_view.addDefaultViewColumns is True
 
 
-def test_entityViewSchema__specified_deprecated_type():
+def test_entityViewSchema__specified_deprecated_type() -> None:
     view_type = "project"
     entity_view = EntityViewSchema(parent="idk", type=view_type)
     assert EntityViewType.PROJECT.value == entity_view.viewTypeMask
     assert entity_view.get("type") is None
 
 
-def test_entityViewSchema__specified_deprecated_type_in_properties():
+def test_entityViewSchema__specified_deprecated_type_in_properties() -> None:
     view_type = "project"
     properties = {"type": view_type}
     entity_view = EntityViewSchema(parent="idk", properties=properties)
@@ -1060,7 +1060,7 @@ def test_entityViewSchema__specified_deprecated_type_in_properties():
     assert entity_view.get("type") is None
 
 
-def test_entityViewSchema__specified_viewTypeMask():
+def test_entityViewSchema__specified_viewTypeMask() -> None:
     entity_view = EntityViewSchema(
         parent="idk", includeEntityTypes=[EntityViewType.PROJECT]
     )
@@ -1068,7 +1068,7 @@ def test_entityViewSchema__specified_viewTypeMask():
     assert entity_view.get("type") is None
 
 
-def test_entityViewSchema__specified_both_type_and_viewTypeMask():
+def test_entityViewSchema__specified_both_type_and_viewTypeMask() -> None:
     entity_view = EntityViewSchema(
         parent="idk", type="folder", includeEntityTypes=[EntityViewType.PROJECT]
     )
@@ -1076,18 +1076,18 @@ def test_entityViewSchema__specified_both_type_and_viewTypeMask():
     assert entity_view.get("type") is None
 
 
-def test_entityViewSchema__sepcified_scopeId():
+def test_entityViewSchema__sepcified_scopeId() -> None:
     scopeId = ["123"]
     entity_view = EntityViewSchema(parent="idk", scopeId=scopeId)
     assert scopeId == entity_view.scopeId
 
 
-def test_entityViewSchema__sepcified_add_default_columns():
+def test_entityViewSchema__sepcified_add_default_columns() -> None:
     entity_view = EntityViewSchema(parent="idk", addDefaultViewColumns=False)
     assert not entity_view.addDefaultViewColumns
 
 
-def test_entityViewSchema__add_default_columns_when_from_Synapse():
+def test_entityViewSchema__add_default_columns_when_from_Synapse() -> None:
     properties = {"concreteType": "org.sagebionetworks.repo.model.table.EntityView"}
     entity_view = EntityViewSchema(
         parent="idk", addDefaultViewColumns=True, properties=properties
@@ -1095,7 +1095,7 @@ def test_entityViewSchema__add_default_columns_when_from_Synapse():
     assert not entity_view.addDefaultViewColumns
 
 
-def test_entityViewSchema__add_scope():
+def test_entityViewSchema__add_scope() -> None:
     entity_view = EntityViewSchema(parent="idk")
     entity_view.add_scope(Entity(parent="also idk", id=123))
     entity_view.add_scope(456)
@@ -1103,7 +1103,7 @@ def test_entityViewSchema__add_scope():
     assert [str(x) for x in ["123", "456", "789"]] == entity_view.scopeIds
 
 
-def test_Schema__max_column_check(syn):
+def test_Schema__max_column_check(syn: Synapse) -> None:
     table = Schema(name="someName", parent="idk")
     table.addColumns(
         Column(name="colNum%s" % i, columnType="STRING")
@@ -1112,7 +1112,7 @@ def test_Schema__max_column_check(syn):
     pytest.raises(ValueError, syn.store, table)
 
 
-def test_EntityViewSchema__ignore_column_names_set_info_preserved():
+def test_EntityViewSchema__ignore_column_names_set_info_preserved() -> None:
     """
     tests that ignoredAnnotationColumnNames will be preserved after creating a new EntityViewSchema from properties,
     local_state, and annotations
@@ -1127,7 +1127,7 @@ def test_EntityViewSchema__ignore_column_names_set_info_preserved():
     assert ignored_names == entity_view_copy.ignoredAnnotationColumnNames
 
 
-def test_EntityViewSchema__ignore_annotation_column_names(syn):
+def test_EntityViewSchema__ignore_annotation_column_names(syn: Synapse) -> None:
     syn = Synapse(debug=True, skip_checks=True)
 
     scopeIds = ["123"]
@@ -1164,7 +1164,7 @@ def test_EntityViewSchema__ignore_annotation_column_names(syn):
         ] == entity_view.columns_to_store
 
 
-def test_EntityViewSchema__repeated_columnName_different_type(syn):
+def test_EntityViewSchema__repeated_columnName_different_type(syn: Synapse) -> None:
     syn = Synapse(debug=True, skip_checks=True)
 
     scopeIds = ["123"]
@@ -1183,7 +1183,7 @@ def test_EntityViewSchema__repeated_columnName_different_type(syn):
         assert columns == filtered_results
 
 
-def test_EntityViewSchema__repeated_columnName_same_type(syn):
+def test_EntityViewSchema__repeated_columnName_same_type(syn: Synapse) -> None:
     syn = Synapse(debug=True, skip_checks=True)
 
     entity_view = EntityViewSchema("someName", parent="syn123")
@@ -1201,7 +1201,7 @@ def test_EntityViewSchema__repeated_columnName_same_type(syn):
         assert Column(name="annoName", columnType="INTEGER") == filtered_results[0]
 
 
-def test_rowset_asDataFrame__with_ROW_ETAG_column(syn):
+def test_rowset_asDataFrame__with_ROW_ETAG_column(syn: Synapse) -> None:
     query_result = {
         "concreteType": "org.sagebionetworks.repo.model.table.QueryResultBundle",
         "maxRowsPerPage": 6990,
@@ -1273,7 +1273,7 @@ def test_rowset_asDataFrame__with_ROW_ETAG_column(syn):
         assert expected_indicies == dataframe.index.values.tolist()
 
 
-def test_RowSetTable_len():
+def test_RowSetTable_len() -> None:
     schema = Schema(
         parentId="syn123", id="syn456", columns=[Column(name="column_name", id="123")]
     )
@@ -1282,7 +1282,7 @@ def test_RowSetTable_len():
     assert 2 == len(row_set_table)
 
 
-def test_build_table__with_pandas_DataFrame():
+def test_build_table__with_pandas_DataFrame() -> None:
     df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
     table = build_table("test", "syn123", df)
 
@@ -1297,7 +1297,7 @@ def test_build_table__with_pandas_DataFrame():
     assert headers == table.headers
 
 
-def test_build_table__with_csv():
+def test_build_table__with_csv() -> None:
     string_io = StringIOContextManager("a,b\n" "1,c\n" "2,d\n" "3,e")
     with patch.object(
         synapseclient.table,
@@ -1319,7 +1319,7 @@ def test_build_table__with_csv():
         assert headers == table.headers
 
 
-def test_build_table__with_dict():
+def test_build_table__with_dict() -> None:
     pytest.raises(
         ValueError, build_table, "test", "syn123", dict(a=[1, 2, 3], b=["c", "d", "e"])
     )
@@ -1327,11 +1327,11 @@ def test_build_table__with_dict():
 
 class TestTableQueryResult:
     @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn):
+    def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self) -> None:
         self.rows = [
             {"rowId": 1, "versionNumber": 2, "values": ["first_row"]},
             {"rowId": 5, "versionNumber": 1, "values": ["second_row"]},
@@ -1351,7 +1351,7 @@ class TestTableQueryResult:
 
         self.query_string = "SELECT whatever FROM some_table WHERE sky=blue"
 
-    def test_len(self):
+    def test_len(self) -> None:
         with patch.object(
             self.syn, "_queryTable", return_value=self.query_result_dict
         ) as mocked_table_query:
@@ -1360,7 +1360,7 @@ class TestTableQueryResult:
             assert self.query_string == kwargs["query"]
             assert 2 == len(query_result_table)
 
-    def test_iter_metadata__no_etag(self):
+    def test_iter_metadata__no_etag(self) -> None:
         with patch.object(self.syn, "_queryTable", return_value=self.query_result_dict):
             query_result_table = TableQueryResult(self.syn, self.query_string)
             metadata = [x for x in query_result_table.iter_row_metadata()]
@@ -1368,7 +1368,7 @@ class TestTableQueryResult:
             assert (1, 2, None) == metadata[0]
             assert (5, 1, None) == metadata[1]
 
-    def test_iter_metadata__has_etag(self):
+    def test_iter_metadata__has_etag(self) -> None:
         self.rows[0].update({"etag": "etag1"})
         self.rows[1].update({"etag": "etag2"})
         with patch.object(self.syn, "_queryTable", return_value=self.query_result_dict):
@@ -1384,22 +1384,22 @@ class TestPartialRow:
     Testing PartialRow class
     """
 
-    def test_constructor__value_not_dict(self):
+    def test_constructor__value_not_dict(self) -> None:
         with pytest.raises(ValueError):
             PartialRow([], 123)
 
-    def test_constructor__row_id_string_not_castable_to_int(self):
+    def test_constructor__row_id_string_not_castable_to_int(self) -> None:
         with pytest.raises(ValueError):
             PartialRow({}, "fourty-two")
 
-    def test_constructor__row_id_is_int_castable_string(self):
+    def test_constructor__row_id_is_int_castable_string(self) -> None:
         partial_row = PartialRow({}, "350")
 
         assert [] == partial_row.values
         assert 350 == partial_row.rowId
         assert "etag" not in partial_row
 
-    def test_constructor__values_translation(self):
+    def test_constructor__values_translation(self) -> None:
         values = OrderedDict([("12345", "rowValue"), ("09876", "otherValue")])
         partial_row = PartialRow(values, 711)
 
@@ -1412,13 +1412,13 @@ class TestPartialRow:
         assert 711 == partial_row.rowId
         assert "etag" not in partial_row
 
-    def test_constructor__with_etag(self):
+    def test_constructor__with_etag(self) -> None:
         partial_row = PartialRow({}, 420, "my etag")
         assert [] == partial_row.values
         assert 420 == partial_row.rowId
         assert "my etag" == partial_row.etag
 
-    def test_constructor__name_to_col_id(self):
+    def test_constructor__name_to_col_id(self) -> None:
         values = OrderedDict([("row1", "rowValue"), ("row2", "otherValue")])
         names_to_col_id = {"row1": "12345", "row2": "09876"}
         partial_row = PartialRow(values, 711, nameToColumnId=names_to_col_id)
@@ -1433,19 +1433,19 @@ class TestPartialRow:
 
 
 class TestPartialRowSet:
-    def test_constructor__not_all_rows_of_type_PartialRow(self):
+    def test_constructor__not_all_rows_of_type_PartialRow(self) -> None:
         rows = [PartialRow({}, 123), "some string instead"]
         with pytest.raises(ValueError):
             PartialRowset("syn123", rows)
 
-    def test_constructor__single_PartialRow(self):
+    def test_constructor__single_PartialRow(self) -> None:
         partial_row = PartialRow({}, 123)
         partial_rowset = PartialRowset("syn123", partial_row)
         assert [partial_row] == partial_rowset.rows
 
 
 class TestCsvFileTable:
-    def test_iter_metadata__has_etag(self):
+    def test_iter_metadata__has_etag(self) -> None:
         string_io = StringIOContextManager(
             "ROW_ID,ROW_VERSION,ROW_ETAG,asdf\n"
             '1,2,etag1,"I like trains"\n'
@@ -1458,7 +1458,7 @@ class TestCsvFileTable:
             assert (1, 2, "etag1") == metadata[0]
             assert (5, 1, "etag2") == metadata[1]
 
-    def test_iter_metadata__no_etag(self):
+    def test_iter_metadata__no_etag(self) -> None:
         string_io = StringIOContextManager(
             "ROW_ID,ROW_VERSION,asdf\n" '1,2,"I like trains"\n' '5,1,"weeeeeeeeeeee"\n'
         )
@@ -1470,7 +1470,7 @@ class TestCsvFileTable:
             assert (5, 1, None) == metadata[1]
 
     # test __iter__
-    def test_iter_with_no_headers(self):
+    def test_iter_with_no_headers(self) -> None:
         # self.headers is None
         string_io = StringIOContextManager(
             "ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
@@ -1482,7 +1482,7 @@ class TestCsvFileTable:
             iter = table.__iter__()
             pytest.raises(ValueError, next, iter)
 
-    def test_iter_with_no_headers_in_csv(self):
+    def test_iter_with_no_headers_in_csv(self) -> None:
         # csv file does not have headers
         string_io = StringIOContextManager(
             '1,2,etag1,"I like trains"\n' '5,1,etag2,"weeeeeeeeeeee"\n'
@@ -1492,7 +1492,7 @@ class TestCsvFileTable:
             iter = table.__iter__()
             pytest.raises(ValueError, next, iter)
 
-    def test_iter_row_metadata_mismatch_in_headers(self):
+    def test_iter_row_metadata_mismatch_in_headers(self) -> None:
         # csv file does not contain row metadata, self.headers does
         data = "col1,col2\n" "1,2\n" "2,1\n"
         cols = as_table_columns(StringIOContextManager(data))
@@ -1505,7 +1505,7 @@ class TestCsvFileTable:
             iter = table.__iter__()
             pytest.raises(ValueError, next, iter)
 
-    def test_iter_with_table_row_metadata(self):
+    def test_iter_with_table_row_metadata(self) -> None:
         # csv file has row metadata, self.headers does not
         data = (
             "ROW_ID,ROW_VERSION,col\n" '1,2,"I like trains"\n' '5,1,"weeeeeeeeeeee"\n'
@@ -1518,7 +1518,7 @@ class TestCsvFileTable:
             for expected_row, table_row in zip(expected_rows, table):
                 assert expected_row == table_row
 
-    def test_iter_with_mismatch_row_metadata(self):
+    def test_iter_with_mismatch_row_metadata(self) -> None:
         # self.headers and csv file headers contains mismatch row metadata
         data = (
             "ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
@@ -1535,7 +1535,7 @@ class TestCsvFileTable:
             iter = table.__iter__()
             pytest.raises(ValueError, next, iter)
 
-    def test_iter_no_row_metadata(self):
+    def test_iter_no_row_metadata(self) -> None:
         # both csv headers and self.headers do not contains row metadata
         data = "col1,col2\n" "1,2\n" "2,1\n"
         cols = as_table_columns(StringIOContextManager(data))
@@ -1546,7 +1546,7 @@ class TestCsvFileTable:
             for expected_row, table_row in zip(expected_rows, table):
                 assert expected_row == table_row
 
-    def test_iter_with_file_view_row_metadata(self):
+    def test_iter_with_file_view_row_metadata(self) -> None:
         # csv file and self.headers contain matching row metadata
         data = (
             "ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
@@ -1568,7 +1568,7 @@ class TestCsvFileTable:
             for expected_row, table_row in zip(expected_rows, table):
                 assert expected_row == table_row
 
-    def test_as_data_frame__no_headers(self):
+    def test_as_data_frame__no_headers(self) -> None:
         """Verify we don't assume a schema has defined headers when converting to a Pandas data frame"""
         data = {
             "ROW_ID": ["1", "5"],
@@ -1591,7 +1591,7 @@ class TestCsvFileTable:
 
         pd.testing.assert_frame_equal(expected_df, df)
 
-    def test_as_data_frame__list_columns(self):
+    def test_as_data_frame__list_columns(self) -> None:
         """Verify list columns are represented as expected when converted to a Pandas dataframe"""
 
         data = {
@@ -1640,7 +1640,7 @@ class TestCsvFileTable:
 
         pd.testing.assert_frame_equal(expected_df, df)
 
-    def test_as_data_frame__boolean_like_string_column(self):
+    def test_as_data_frame__boolean_like_string_column(self) -> None:
         # Verify the string type column which store boolean value not convert to Python Boolean type from pandas
         data = [
             ["1", "John Coltrane", False, "FALSE"],
@@ -1697,7 +1697,7 @@ class TestCsvFileTable:
         assert df.shape == (8, 4)
 
 
-def test_Row_forward_compatibility():
+def test_Row_forward_compatibility() -> None:
     row = Row("2, 3, 4", rowId=1, versionNumber=1, etag=None, new_field="new")
     assert "2, 3, 4" == row.get("values")
     assert 1 == row.get("rowId")
@@ -1706,7 +1706,7 @@ def test_Row_forward_compatibility():
     assert "new" == row.get("new_field")
 
 
-def test_SelectColumn_forward_compatibility():
+def test_SelectColumn_forward_compatibility() -> None:
     sc = SelectColumn(id=1, columnType="STRING", name="my_col", columnSQL="new")
     assert 1 == sc.get("id")
     assert "STRING" == sc.get("columnType")
@@ -1714,7 +1714,7 @@ def test_SelectColumn_forward_compatibility():
     assert "new" == sc.get("columnSQL")
 
 
-def test_get_view_type_mask_for_deprecated_type():
+def test_get_view_type_mask_for_deprecated_type() -> None:
     pytest.raises(ValueError, _get_view_type_mask_for_deprecated_type, None)
     pytest.raises(ValueError, _get_view_type_mask_for_deprecated_type, "wiki")
     assert EntityViewType.FILE.value == _get_view_type_mask_for_deprecated_type("file")
@@ -1727,7 +1727,7 @@ def test_get_view_type_mask_for_deprecated_type():
     )
 
 
-def test_get_view_type_mask():
+def test_get_view_type_mask() -> None:
     pytest.raises(ValueError, _get_view_type_mask, None)
     pytest.raises(ValueError, _get_view_type_mask, [])
     pytest.raises(ValueError, _get_view_type_mask, [EntityViewType.DOCKER, "wiki"])
@@ -1762,7 +1762,7 @@ def test_get_view_type_mask():
     )
 
 
-def test_update_existing_view_type_mask():
+def test_update_existing_view_type_mask() -> None:
     properties = {"id": "syn123", "parentId": "syn456", "viewTypeMask": 2}
     view = EntityViewSchema(properties=properties)
     assert view["viewTypeMask"] == 2
@@ -1770,7 +1770,7 @@ def test_update_existing_view_type_mask():
     assert view["viewTypeMask"] == 1
 
 
-def test_set_view_types_invalid_input():
+def test_set_view_types_invalid_input() -> None:
     properties = {"id": "syn123", "parentId": "syn456"}
     view = EntityViewSchema(type="project", properties=properties)
     assert view["viewTypeMask"] == 2
@@ -1788,7 +1788,7 @@ def test_set_view_types_invalid_input():
         ),  # other special characters e.g. spaces are left alone (within the quoted string)
     ),
 )
-def test_escape_column_names(column, expected_name):
+def test_escape_column_names(column, expected_name) -> None:
     """Verify column name escaping"""
     # test as a string
     assert escape_column_name(column) == expected_name
@@ -1797,7 +1797,7 @@ def test_escape_column_names(column, expected_name):
     assert escape_column_name({"name": column}) == expected_name
 
 
-def test_join_column_names():
+def test_join_column_names() -> None:
     """Verify the behavior of join_column_names"""
     column_names = ["foo", 'foo"bar', "foo bar"]
     column_dicts = [{"name": n} for n in column_names]

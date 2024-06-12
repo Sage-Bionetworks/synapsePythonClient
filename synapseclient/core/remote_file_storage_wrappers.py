@@ -4,6 +4,7 @@ import os
 import typing
 import urllib.parse as urllib_parse
 from contextlib import contextmanager
+from typing import Union
 
 from tqdm import tqdm
 
@@ -65,7 +66,7 @@ class S3ClientWrapper:
     @staticmethod
     def download_file(
         bucket: str,
-        endpoint_url: str,
+        endpoint_url: Union[str, None],
         remote_file_key: str,
         download_file_path: str,
         *,

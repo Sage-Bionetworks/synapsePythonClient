@@ -68,7 +68,7 @@ def md5_for_file(
         The MD5 Checksum
     """
     loop_iteration = 0
-    md5 = hashlib.new("md5", usedforsecurity=False)
+    md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     with open(filename, "rb") as f:
         while True:
             loop_iteration += 1
@@ -147,7 +147,7 @@ def md5_fn(part, _) -> str:
     Returns:
         The MD5 Checksum
     """
-    md5 = hashlib.new("md5", usedforsecurity=False)
+    md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     md5.update(part)
     return md5.hexdigest()
 

@@ -1320,7 +1320,7 @@ class TestGet:
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
-        assert file_copy.path == path_for_file
+        assert utils.equal_paths(file_copy.path, path_for_file)
 
     async def test_get_previous_version(
         self, file: File, schedule_for_cleanup: Callable[..., None]

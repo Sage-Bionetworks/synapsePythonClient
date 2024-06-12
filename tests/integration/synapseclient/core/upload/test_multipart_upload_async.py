@@ -12,7 +12,6 @@ from typing import Callable
 from unittest import mock, skip
 
 import httpx
-import pytest
 
 import synapseclient.core.config
 import synapseclient.core.utils as utils
@@ -24,6 +23,7 @@ from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_string_async,
 )
 from synapseclient.models import File, Project
+from synapseclient.core.download import download_by_file_handle
 
 
 async def test_round_trip(
@@ -45,8 +45,11 @@ async def test_round_trip(
         schedule_for_cleanup(tmp_path)
 
         # AND I download the file from Synapse
-        path_from_file_handle = syn._downloadFileHandle(
-            file_handle_id, junk.id, "FileEntity", tmp_path
+        path_from_file_handle = await download_by_file_handle(
+            file_handle_id=file_handle_id,
+            synapse_id=junk.id,
+            entity_type="FileEntity",
+            destination=tmp_path,
         )
 
         # THEN I expect the files to match
@@ -128,8 +131,11 @@ async def test_randomly_failing_parts(
             schedule_for_cleanup(tmp_path)
 
             # AND I download the file from Synapse
-            path_from_file_handle = syn._downloadFileHandle(
-                file_handle_id, junk.id, "FileEntity", tmp_path
+            path_from_file_handle = await download_by_file_handle(
+                file_handle_id=file_handle_id,
+                synapse_id=junk.id,
+                entity_type="FileEntity",
+                destination=tmp_path,
             )
 
             # THEN I expect the files to match
@@ -211,8 +217,11 @@ async def test_multipart_upload_big_string(
     schedule_for_cleanup(tmp_path)
 
     # AND I download the file from Synapse
-    file_handle_path = syn._downloadFileHandle(
-        file_handle_id, junk.id, "FileEntity", tmp_path
+    file_handle_path = await download_by_file_handle(
+        file_handle_id=file_handle_id,
+        synapse_id=junk.id,
+        entity_type="FileEntity",
+        destination=tmp_path,
     )
 
     # THEN I expect the data to match

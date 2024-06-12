@@ -86,7 +86,7 @@ class TestJsonSchemaSchemas:
             },
         }
 
-    def teardown(self):
+    def teardown_method(self):
         self.my_org.delete()
 
     async def test_json_schema_schemas_org_create_schema(self):

@@ -77,13 +77,13 @@ class TestCopyFileHandles:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.patch_private_copy = patch.object(
             synapseutils.copy_functions, "_copy_file_handles_batch"
         )
         self.mock_private_copy = self.patch_private_copy.start()
 
-    def teardown(self):
+    def teardown_method(self):
         self.patch_private_copy.stop()
 
     def test_copy_file_handles__invalid_input_params_branch1(self):
@@ -195,11 +195,11 @@ class TestProtectedCopyFileHandlesBatch:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.patch_restPOST = patch.object(self.syn, "restPOST")
         self.mock_restPOST = self.patch_restPOST.start()
 
-    def teardown(self):
+    def teardown_method(self):
         self.patch_restPOST.stop()
 
     def test__copy_file_handles_batch__two_file_handles(self):
@@ -388,7 +388,7 @@ class TestCopyPermissions:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.project_entity = synapseclient.Project(
             name=str(uuid.uuid4()), id="syn1234"
         )
@@ -427,7 +427,7 @@ class TestCopyAccessRestriction:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.project_entity = synapseclient.Project(
             name=str(uuid.uuid4()), id="syn1234"
         )
@@ -469,7 +469,7 @@ class TestCopy:
         self.syn = syn
 
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self):
+    def setup_method(self):
         self.project_entity = synapseclient.Project(
             name=str(uuid.uuid4()), id="syn1234"
         )

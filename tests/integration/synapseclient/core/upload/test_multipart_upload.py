@@ -21,6 +21,7 @@ from synapseclient.core.upload.multipart_upload import (
     multipart_upload_string,
     multipart_copy,
 )
+from synapseclient.core.download import download_by_file_handle
 
 
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
@@ -36,7 +37,12 @@ async def test_round_trip(syn: Synapse, project: Project, schedule_for_cleanup):
         (tmp_f, tmp_path) = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
 
-        junk["path"] = syn._downloadFileHandle(fhid, junk["id"], "FileEntity", tmp_path)
+        junk["path"] = await download_by_file_handle(
+            file_handle_id=fhid,
+            synapse_id=junk["id"],
+            entity_type="FileEntity",
+            destination=tmp_path,
+        )
         assert filecmp.cmp(filepath, junk.path)
 
     finally:
@@ -102,8 +108,11 @@ async def test_randomly_failing_parts(
             (tmp_f, tmp_path) = tempfile.mkstemp()
             schedule_for_cleanup(tmp_path)
 
-            junk["path"] = syn._downloadFileHandle(
-                fhid, junk["id"], "FileEntity", tmp_path
+            junk["path"] = await download_by_file_handle(
+                file_handle_id=fhid,
+                synapse_id=junk["id"],
+                entity_type="FileEntity",
+                destination=tmp_path,
             )
             assert filecmp.cmp(filepath, junk.path)
 
@@ -172,7 +181,12 @@ async def test_multipart_upload_big_string(
     (tmp_f, tmp_path) = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
 
-    junk["path"] = syn._downloadFileHandle(fhid, junk["id"], "FileEntity", tmp_path)
+    junk["path"] = await download_by_file_handle(
+        file_handle_id=fhid,
+        synapse_id=junk["id"],
+        entity_type="FileEntity",
+        destination=tmp_path,
+    )
 
     with open(junk.path, encoding="utf-8") as f:
         retrieved_text = f.read()

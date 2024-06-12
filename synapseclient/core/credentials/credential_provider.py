@@ -12,6 +12,7 @@ from synapseclient.core.credentials.cred_data import (
     SynapseCredentials,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
+from synapseclient.api import get_config_authentication
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -116,7 +117,7 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     def _get_auth_info(
         self, syn: "Synapse", user_login_args: Dict[str, str]
     ) -> Tuple[Union[str, None], Union[str, None]]:
-        config_dict = syn._get_config_authentication()
+        config_dict = get_config_authentication(config_path=syn.configPath)
         # check to make sure we didn't accidentally provide the wrong user
 
         username = config_dict.get("username")

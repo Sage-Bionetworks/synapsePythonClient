@@ -3,13 +3,10 @@ The `Synapse` object encapsulates a connection to the Synapse service and is use
 retrieving data, and recording provenance of data analysis.
 """
 import asyncio
-import asyncio_atexit
 import collections
 import collections.abc
 import configparser
 import csv
-import numbers
-import threading
 import errno
 import functools
 import getpass
@@ -17,11 +14,12 @@ import hashlib
 import json
 import logging
 import mimetypes
+import numbers
 import os
-import requests
 import shutil
 import sys
 import tempfile
+import threading
 import time
 import typing
 import urllib.parse as urllib_urlparse
@@ -29,109 +27,122 @@ import urllib.request as urllib_request
 import warnings
 import webbrowser
 import zipfile
-import httpx
-
-from deprecated import deprecated
-
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import asyncio_atexit
+import httpx
+import requests
+from deprecated import deprecated
 from loky import get_reusable_executor
+from opentelemetry import trace
+from opentelemetry.trace import SpanKind
 
 import synapseclient
-from .annotations import (
-    from_synapse_annotations,
-    to_synapse_annotations,
-    Annotations,
-    convert_old_annotation_json,
-    check_annotations_changed,
-)
-from .activity import Activity
 import synapseclient.core.multithread_download as multithread_download
-from .entity import (
-    Entity,
-    File,
-    Folder,
-    Versionable,
-    split_entity_namespaces,
-    is_versionable,
-    is_container,
-    is_synapse_entity,
+from synapseclient.api import (
+    get_client_authenticated_s3_profile,
+    get_config_file,
+    get_config_section_dict,
+    get_file_handle_for_download,
+    get_transfer_config,
 )
-from synapseclient.core.models.dict_object import DictObject
-from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import (
-    Schema,
-    SchemaBase,
-    Column,
-    TableQueryResult,
-    CsvFileTable,
-    EntityViewSchema,
-    SubmissionViewSchema,
-    Dataset,
+from synapseclient.core import (
+    cache,
+    cumulative_transfer_progress,
+    exceptions,
+    sts_transfer,
+    utils,
 )
-from .team import UserProfile, Team, TeamMember, UserGroupHeader
-from .wiki import Wiki, WikiAttachment
-from synapseclient.core import cache, exceptions, utils
-from synapseclient.core.constants import config_file_constants
-from synapseclient.core.constants import concrete_types
-from synapseclient.core import cumulative_transfer_progress
-from synapseclient.core.credentials import (
-    get_default_credential_chain,
-    UserLoginArgs,
+from synapseclient.core.async_utils import wrap_async_to_sync
+from synapseclient.core.constants import concrete_types, config_file_constants
+from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
+from synapseclient.core.download import (
+    download_by_file_handle,
+    download_file_entity,
+    ensure_download_location_is_directory,
 )
+from synapseclient.core.dozer import doze
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
     SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
+    SynapseMalformedEntityError,
     SynapseMd5MismatchError,
     SynapseNoCredentialsError,
     SynapseProvenanceError,
     SynapseTimeoutError,
     SynapseUnmetAccessRestrictions,
-    SynapseMalformedEntityError,
 )
 from synapseclient.core.logging_setup import (
-    DEFAULT_LOGGER_NAME,
     DEBUG_LOGGER_NAME,
+    DEFAULT_LOGGER_NAME,
     SILENT_LOGGER_NAME,
 )
-from synapseclient.core.version_check import version_check
+from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.models.permission import Permissions
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS, get_executor
-from synapseclient.core.utils import (
-    id_of,
-    get_properties,
-    MB,
-    is_json,
-    extract_synapse_id_from_query,
-    find_data_file_handle,
-    extract_zip_file_to_directory,
-    is_integer,
-    require_param,
-)
+from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.retry import (
-    with_retry,
-    with_retry_time_based_async,
     DEFAULT_RETRY_STATUS_CODES,
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
+    with_retry,
+    with_retry_time_based_async,
 )
-from synapseclient.core import sts_transfer
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_file_async,
     multipart_upload_string_async,
 )
-from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.upload_functions_async import (
     upload_file_handle as upload_file_handle_async,
-    upload_synapse_s3,
 )
-from synapseclient.core.dozer import doze
-from synapseclient.core.async_utils import wrap_async_to_sync
+from synapseclient.core.upload.upload_functions_async import upload_synapse_s3
+from synapseclient.core.utils import (
+    MB,
+    extract_synapse_id_from_query,
+    extract_zip_file_to_directory,
+    find_data_file_handle,
+    get_properties,
+    id_of,
+    is_integer,
+    is_json,
+    require_param,
+)
+from synapseclient.core.version_check import version_check
 
-from typing import Any, Union, Dict, List, Optional, Tuple
-from synapseclient.core.models.permission import Permissions
-from opentelemetry import trace
-from opentelemetry.trace import SpanKind
+from .activity import Activity
+from .annotations import (
+    Annotations,
+    check_annotations_changed,
+    convert_old_annotation_json,
+    from_synapse_annotations,
+    to_synapse_annotations,
+)
+from .entity import (
+    Entity,
+    File,
+    Folder,
+    Versionable,
+    is_container,
+    is_synapse_entity,
+    is_versionable,
+    split_entity_namespaces,
+)
+from .evaluation import Evaluation, Submission, SubmissionStatus
+from .table import (
+    Column,
+    CsvFileTable,
+    Dataset,
+    EntityViewSchema,
+    Schema,
+    SchemaBase,
+    SubmissionViewSchema,
+    TableQueryResult,
+)
+from .team import Team, TeamMember, UserGroupHeader, UserProfile
+from .wiki import Wiki, WikiAttachment
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -357,7 +368,7 @@ class Synapse(object):
         # Check for a config file
         self.configPath = configPath
         if os.path.isfile(configPath):
-            config = self.getConfigFile(configPath)
+            config = get_config_file(configPath)
             if config.has_option("cache", "location"):
                 cache_root_dir = config.get("cache", "location")
             if config.has_section("debug"):
@@ -394,7 +405,7 @@ class Synapse(object):
         self.table_query_timeout = 600  # in seconds
         self.multi_threaded = True  # if set to True, multi threaded download will be used for http and https URLs
 
-        transfer_config = self._get_transfer_config()
+        transfer_config = get_transfer_config(config_path=self.configPath)
         self.max_threads = transfer_config["max_threads"]
         self._thread_executor = {}
         self._process_executor = {}
@@ -657,6 +668,11 @@ class Synapse(object):
         # for backwards compatability when username was a part of the Synapse object and not in credentials
         return self.credentials.username if self.credentials is not None else None
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_config_file",
+    )
     @functools.lru_cache()
     def getConfigFile(self, configPath: str) -> configparser.RawConfigParser:
         """
@@ -685,7 +701,7 @@ class Synapse(object):
         fileHandleEndpoint: str = None,
         portalEndpoint: str = None,
         skip_checks: bool = False,
-    ):
+    ) -> None:
         """
         Sets the locations for each of the Synapse services (mostly useful for testing).
 
@@ -712,7 +728,7 @@ class Synapse(object):
         }
 
         # For unspecified endpoints, first look in the config file
-        config = self.getConfigFile(self.configPath)
+        config = get_config_file(self.configPath)
         for point in endpoints.keys():
             if endpoints[point] is None and config.has_option("endpoints", point):
                 endpoints[point] = config.get("endpoints", point)
@@ -815,6 +831,11 @@ class Synapse(object):
         if cache_client:
             Synapse.set_client(self)
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_config_section_dict",
+    )
     def _get_config_section_dict(self, section_name: str) -> Dict[str, str]:
         """
         Get a profile section in the configuration file with the section name.
@@ -825,13 +846,18 @@ class Synapse(object):
         Returns:
             A dictionary containing the configuration profile section content
         """
-        config = self.getConfigFile(self.configPath)
+        config = get_config_file(self.configPath)
         try:
             return dict(config.items(section_name))
         except configparser.NoSectionError:
             # section not present
             return {}
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_config_authentication",
+    )
     def _get_config_authentication(self) -> Dict[str, str]:
         """
         Get the authentication section of the configuration file.
@@ -839,10 +865,16 @@ class Synapse(object):
         Returns:
             The authentication section of the configuration file
         """
-        return self._get_config_section_dict(
-            config_file_constants.AUTHENTICATION_SECTION_NAME
+        return get_config_section_dict(
+            section_name=config_file_constants.AUTHENTICATION_SECTION_NAME,
+            config_path=self.configPath,
         )
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_client_authenticated_s3_profile",
+    )
     def _get_client_authenticated_s3_profile(
         self, endpoint: str, bucket: str
     ) -> Dict[str, str]:
@@ -857,10 +889,15 @@ class Synapse(object):
             The authenticated S3 profile
         """
         config_section = endpoint + "/" + bucket
-        return self._get_config_section_dict(config_section).get(
-            "profile_name", "default"
-        )
+        return get_config_section_dict(
+            section_name=config_section, config_path=self.configPath
+        ).get("profile_name", "default")
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/configuration_services.py::get_transfer_config",
+    )
     def _get_transfer_config(self) -> Dict[str, str]:
         """
         Get the transfer profile from the configuration file.
@@ -875,7 +912,9 @@ class Synapse(object):
         # defaults
         transfer_config = {"max_threads": DEFAULT_NUM_THREADS, "use_boto_sts": False}
 
-        for k, v in self._get_config_section_dict("transfer").items():
+        for k, v in get_config_section_dict(
+            section_name="transfer", config_path=self.configPath
+        ).items():
             if v:
                 if k == "max_threads" and v:
                     try:
@@ -1559,11 +1598,15 @@ class Synapse(object):
 
             if downloadFile:
                 if file_handle:
-                    self._download_file_entity(
-                        downloadLocation,
-                        entity,
-                        ifcollision,
-                        submission,
+                    wrap_async_to_sync(
+                        coroutine=download_file_entity(
+                            download_location=downloadLocation,
+                            entity=entity,
+                            if_collision=ifcollision,
+                            submission=submission,
+                            synapse_client=self,
+                        ),
+                        syn=self,
                     )
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = (
@@ -1581,6 +1624,11 @@ class Synapse(object):
                     )
         return entity
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::ensure_download_location_is_directory",
+    )
     def _ensure_download_location_is_directory(self, downloadLocation: str) -> str:
         """
         Check if the download location is a directory
@@ -1601,6 +1649,11 @@ class Synapse(object):
             )
         return download_dir
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::download_file_entity",
+    )
     def _download_file_entity(
         self,
         downloadLocation: str,
@@ -1693,6 +1746,11 @@ class Synapse(object):
         entity.files = [os.path.basename(downloadPath)]
         entity.cacheDir = os.path.dirname(downloadPath)
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::resolve_download_path_collisions",
+    )
     def _resolve_download_path_collisions(
         self,
         downloadLocation: str,
@@ -2422,10 +2480,14 @@ class Synapse(object):
         """
         manifest = self._generate_manifest_from_download_list()
         # Get file handle download link
-        file_result = self._getFileHandleDownload(
-            fileHandleId=manifest["resultFileHandleId"],
-            objectId=manifest["resultFileHandleId"],
-            objectType="FileEntity",
+        file_result = wrap_async_to_sync(
+            coroutine=get_file_handle_for_download(
+                file_handle_id=manifest["resultFileHandleId"],
+                synapse_id=manifest["resultFileHandleId"],
+                entity_type="FileEntity",
+                synapse_client=self,
+            ),
+            syn=self,
         )
         # Download the manifest
         downloaded_path = self._download_from_URL(
@@ -3132,6 +3194,11 @@ class Synapse(object):
     #                File handle service calls                 #
     ############################################################
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/api/file_services.py::get_file_handle_for_download",
+    )
     def _getFileHandleDownload(
         self, fileHandleId: str, objectId: str, objectType: str = None
     ) -> Dict[str, str]:
@@ -3178,6 +3245,11 @@ class Synapse(object):
         return result
 
     @staticmethod
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::is_retryable_download_error",
+    )
     def _is_retryable_download_error(ex: Exception) -> bool:
         """
         Check if the download error is retryable
@@ -3195,6 +3267,11 @@ class Synapse(object):
             or isinstance(ex, SynapseMd5MismatchError)  # out of disk space
         )
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::download_by_file_handle",
+    )
     def _downloadFileHandle(
         self,
         fileHandleId: str,
@@ -3228,8 +3305,10 @@ class Synapse(object):
                 storageLocationId = fileHandle.get("storageLocationId")
 
                 if concreteType == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
-                    profile = self._get_client_authenticated_s3_profile(
-                        fileHandle["endpointUrl"], fileHandle["bucket"]
+                    profile = get_client_authenticated_s3_profile(
+                        endpoint=fileHandle["endpointUrl"],
+                        bucket=fileHandle["bucket"],
+                        config_path=self.configPath,
                     )
                     downloaded_path = S3ClientWrapper.download_file(
                         fileHandle["bucket"],
@@ -3316,6 +3395,11 @@ class Synapse(object):
 
         raise Exception("should not reach this line")
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::download_from_url_multi_threaded",
+    )
     def _download_from_url_multi_threaded(
         self,
         file_handle_id: str,
@@ -3377,6 +3461,11 @@ class Synapse(object):
 
         return destination
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::is_synapse_uri",
+    )
     def _is_synapse_uri(self, uri: str) -> bool:
         """
         Check whether the given uri is hosted at the configured Synapse repo endpoint
@@ -3391,6 +3480,11 @@ class Synapse(object):
         synapse_repo_domain = urllib_urlparse.urlparse(self.repoEndpoint).netloc
         return uri_domain.lower() == synapse_repo_domain.lower()
 
+    @deprecated(
+        version="4.4.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/download/download_functions.py::download_from_url",
+    )
     def _download_from_URL(
         self,
         url: str,
@@ -3534,7 +3628,7 @@ class Synapse(object):
                     else:
                         mode = "wb"
                         previouslyTransferred = 0
-                        sig = hashlib.new("md5", usedforsecurity=False)
+                        sig = hashlib.new("md5", usedforsecurity=False)  # nosec
 
                     try:
                         with open(temp_destination, mode) as fd:
@@ -3793,7 +3887,7 @@ class Synapse(object):
         parsedURL = urllib_urlparse.urlparse(url)
         baseURL = parsedURL.scheme + "://" + parsedURL.hostname
 
-        config = self.getConfigFile(self.configPath)
+        config = get_config_file(self.configPath)
         if username is None and config.has_option(baseURL, "username"):
             username = config.get(baseURL, "username")
         if password is None and config.has_option(baseURL, "password"):
@@ -3988,7 +4082,7 @@ class Synapse(object):
         bucket_name=None,
         base_key=None,
         sts_enabled=False,
-    ):
+    ) -> Tuple[Folder, Dict[str, str], Dict[str, str]]:
         """
         Create a storage location in the given parent, either in the given folder or by creating a new
         folder in that parent with the given name. This will both create a StorageLocationSetting,
@@ -4886,11 +4980,16 @@ class Synapse(object):
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            path = self._downloadFileHandle(
-                wiki["markdownFileHandleId"],
-                wiki["id"],
-                "WikiMarkdown",
-                os.path.join(cache_dir, str(wiki.markdownFileHandleId) + ".md"),
+            path = wrap_async_to_sync(
+                coroutine=download_by_file_handle(
+                    file_handle_id=wiki["markdownFileHandleId"],
+                    synapse_id=wiki["id"],
+                    entity_type="WikiMarkdown",
+                    destination=os.path.join(
+                        cache_dir, str(wiki.markdownFileHandleId) + ".md"
+                    ),
+                ),
+                syn=self,
             )
         try:
             import gzip
@@ -5543,17 +5642,22 @@ class Synapse(object):
             return download_from_table_result, cached_file_path
 
         if downloadLocation:
-            download_dir = self._ensure_download_location_is_directory(downloadLocation)
+            download_dir = ensure_download_location_is_directory(
+                download_location=downloadLocation
+            )
         else:
-            download_dir = self.cache.get_cache_dir(file_handle_id)
+            download_dir = self.cache.get_cache_dir(file_handle_id=file_handle_id)
 
         os.makedirs(download_dir, exist_ok=True)
         filename = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
-        path = self._downloadFileHandle(
-            file_handle_id,
-            extract_synapse_id_from_query(query),
-            "TableEntity",
-            os.path.join(download_dir, filename),
+        path = wrap_async_to_sync(
+            coroutine=download_by_file_handle(
+                file_handle_id=file_handle_id,
+                synapse_id=extract_synapse_id_from_query(query),
+                entity_type="TableEntity",
+                destination=os.path.join(download_dir, filename),
+            ),
+            syn=self,
         )
 
         return download_from_table_result, path
@@ -5696,11 +5800,14 @@ class Synapse(object):
             temp_dir = tempfile.mkdtemp()
             zipfilepath = os.path.join(temp_dir, "table_file_download.zip")
             try:
-                zipfilepath = self._downloadFileHandle(
-                    response["resultZipFileHandleId"],
-                    table.tableId,
-                    "TableEntity",
-                    zipfilepath,
+                zipfilepath = wrap_async_to_sync(
+                    download_by_file_handle(
+                        file_handle_id=response["resultZipFileHandleId"],
+                        synapse_id=table.tableId,
+                        entity_type="TableEntity",
+                        destination=zipfilepath,
+                    ),
+                    syn=self,
                 )
                 # TODO handle case when no zip file is returned
                 # TODO test case when we give it partial or all bad file handles
@@ -5712,7 +5819,7 @@ class Synapse(object):
                 # ------------------------------------------------------------
 
                 if downloadLocation:
-                    download_dir = self._ensure_download_location_is_directory(
+                    download_dir = ensure_download_location_is_directory(
                         downloadLocation
                     )
 

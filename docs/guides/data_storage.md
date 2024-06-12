@@ -269,7 +269,6 @@ Creating new version for file entity syn999
 Completed migration of syn123. 2 files migrated. 0 errors encountered
 Writing csv log to /tmp/migrate.csv
 ```
-.. _sts_storage_locations:
 
 ## STS Storage Locations
 
