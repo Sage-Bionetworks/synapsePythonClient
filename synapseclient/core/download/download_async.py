@@ -174,7 +174,7 @@ class PresignedUrlProvider:
 
 def _generate_chunk_ranges(
     file_size: int,
-) -> Generator[tuple[int, int], None, None]:
+) -> Generator[Tuple[int, int], None, None]:
     """
     Creates a generator which yields byte ranges and meta data required
     to make a range request download of url and write the data to file_name
