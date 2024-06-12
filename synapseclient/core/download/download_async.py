@@ -374,6 +374,7 @@ class _MultithreadedDownloader:
             self._progress_bar = getattr(_thread_local, "progress_bar", None) or tqdm(
                 total=file_size,
                 desc="Downloading",
+                unit="B",
                 unit_scale=True,
                 postfix=os.path.basename(self._download_request.path),
                 smoothing=0,
@@ -520,7 +521,7 @@ def _execute_stream_and_write_chunk(
         method="GET", url=presigned_url_provider.get_info().url, headers=range_header
     ) as response:
         for chunk in response.iter_raw():
-            data_length = len(chunk)
+            data_length = len(chunk) - 1
             request._write_chunk(
                 request=request._download_request,
                 chunk=chunk,
