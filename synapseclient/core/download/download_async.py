@@ -140,7 +140,8 @@ class PresignedUrlProvider:
         """
         with self._lock:
             if (
-                datetime.datetime.now(datetime.UTC) + PresignedUrlProvider._TIME_BUFFER
+                datetime.datetime.now(tz=datetime.timezone.utc)
+                + PresignedUrlProvider._TIME_BUFFER
                 >= self._cached_info.expiration_utc
             ):
                 self._cached_info = self._get_pre_signed_info()
