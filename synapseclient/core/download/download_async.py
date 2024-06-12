@@ -386,7 +386,7 @@ class _MultithreadedDownloader:
     def _generate_stream_and_write_chunk_tasks(
         self,
         url_provider: PresignedUrlProvider,
-        chunk_range_generator: Generator[tuple[int, int], None, None],
+        chunk_range_generator: Generator[Tuple[int, int], None, None],
     ) -> Set[asyncio.Task]:
         download_tasks = set()
         session = self._syn._requests_session_storage
