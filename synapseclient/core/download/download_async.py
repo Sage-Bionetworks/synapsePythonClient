@@ -331,6 +331,7 @@ class _MultithreadedDownloader:
             for completed_task in done_tasks:
                 try:
                     start_bytes, end_bytes = completed_task.result()
+                    del completed_task
                     loop_iteration += 1
 
                     # Garbage collect every 100 iterations
@@ -537,6 +538,6 @@ def _execute_stream_and_write_chunk(
             start=start + additional_offset,
             length=data_length,
         )
-        additional_offset += data_length
-
+        additional_offset = data_length
+    del data
     return start + additional_offset
