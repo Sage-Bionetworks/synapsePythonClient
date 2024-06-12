@@ -1,3 +1,5 @@
+"""Logic required for the actual transferring of files."""
+
 try:
     import threading as _threading
 except ImportError:
@@ -9,7 +11,7 @@ import os
 import time
 from contextlib import contextmanager
 from http import HTTPStatus
-from typing import Generator, NamedTuple
+from typing import Generator, NamedTuple, TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
 from deprecated import deprecated
@@ -17,6 +19,8 @@ from requests import Response, Session
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from synapseclient.api import get_file_handle_for_download
+from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.exceptions import SynapseError, _raise_for_status
 from synapseclient.core.pool_provider import get_executor
 from synapseclient.core.retry import (
@@ -24,8 +28,9 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry,
 )
-from synapseclient.api import get_file_handle_for_download
-from synapseclient.core.async_utils import wrap_async_to_sync
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 # constants
 MAX_QUEUE_SIZE: int = 20
@@ -42,8 +47,7 @@ _thread_local = _threading.local()
 @contextmanager
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
+    reason="To be removed ASAP - Left for testing purposes only",
 )
 def shared_executor(executor):
     """An outside process that will eventually trigger a download through the this module
@@ -55,11 +59,20 @@ def shared_executor(executor):
         del _thread_local.executor
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
+@contextmanager
+def shared_progress_bar(progress_bar):
+    """An outside process that will eventually trigger an upload through this module
+    can configure a shared Progress Bar by running its code within this context manager.
+    """
+    _thread_local.progress_bar = progress_bar
+    try:
+        yield
+    finally:
+        _thread_local.progress_bar.close()
+        _thread_local.progress_bar.refresh()
+        del _thread_local.progress_bar
+
+
 class DownloadRequest(NamedTuple):
     """
     A request to download a file from Synapse
@@ -67,25 +80,23 @@ class DownloadRequest(NamedTuple):
     Attributes:
         file_handle_id : The file handle ID to download.
         object_id : The Synapse object this file associated to.
-        object_type : The type of the associated Synapse object.
+        object_type : The type of the associated Synapse object. Any of
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         path : The local path to download the file to.
             This path can be either an absolute path or
             a relative path from where the code is executed to the download location.
         debug: A boolean to specify if debug mode is on.
+        content_size: The size of the file to download.
     """
 
     file_handle_id: int
     object_id: str
     object_type: str
     path: str
+    content_size: int = 0
     debug: bool = False
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 class TransferStatus(object):
     """
     Transfer progress parameters. Lock should be acquired via `with trasfer_status:` before accessing attributes
@@ -111,11 +122,6 @@ class TransferStatus(object):
         return time.time() - self._t0
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 class PresignedUrlInfo(NamedTuple):
     """
     Information about a retrieved presigned-url
@@ -131,11 +137,6 @@ class PresignedUrlInfo(NamedTuple):
     expiration_utc: datetime.datetime
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 class PresignedUrlProvider(object):
     """
     Provides an un-exipired pre-signed url to download a file
@@ -188,11 +189,6 @@ class PresignedUrlProvider(object):
         )
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 def _generate_chunk_ranges(
     file_size: int,
 ) -> Generator:
@@ -214,11 +210,6 @@ def _generate_chunk_ranges(
         yield start, end
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 def _pre_signed_url_expiration_time(url: str) -> datetime:
     """
     Returns time at which a presigned url will expire
@@ -238,11 +229,6 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     return time_made_datetime + datetime.timedelta(seconds=int(expires))
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 def _get_new_session() -> Session:
     """
     Creates a new requests.Session object with retry defined by CONNECT_FACTOR and BACK_OFF_FACTOR
@@ -258,11 +244,6 @@ def _get_new_session() -> Session:
     return session
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 def _get_file_size(url: str, debug: bool) -> int:
     """
     Gets the size of the file located at url
@@ -280,17 +261,12 @@ def _get_file_size(url: str, debug: bool) -> int:
     return int(res_get.headers["Content-Length"])
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 def download_file(
-    client,
+    client: "Synapse",
     download_request: DownloadRequest,
     *,
     max_concurrent_parts: int = None,
-):
+) -> None:
     """
     Main driver for the multi-threaded download. Users an ExecutorService,
     either set externally onto a thread local by an outside process,
@@ -303,6 +279,14 @@ def download_file(
         max_concurrent_parts: The maximum concurrent number parts to download
                                 at once when downloading this file
     """
+    # progress_bar = getattr(_thread_local, "progress_bar", None) or tqdm(
+    #     total=download_request,
+    #     desc="Downloading",
+    #     unit="B",
+    #     unit_scale=True,
+    #     postfix=download_request.object_id,
+    #     smoothing=0,
+    # )
 
     # we obtain an executor from a thread local if we are in the context of a Synapse sync
     # and wan't to re-use the same threadpool as was created for that
@@ -323,11 +307,6 @@ def download_file(
             executor.shutdown()
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 def _get_thread_session():
     # get a lazily initialized requests.Session from the thread.
     # we want to share a requests.Session over the course of a thread
@@ -341,11 +320,6 @@ def _get_thread_session():
     return session
 
 
-@deprecated(
-    version="4.4.0",
-    reason="To be removed in 5.0.0. "
-    "Moved to synapseclient/core/download/download_async.py",
-)
 class _MultithreadedDownloader:
     """
     An object to manage the downloading of a Synapse file in concurrent chunks
@@ -370,11 +344,6 @@ class _MultithreadedDownloader:
         self._executor = executor
         self._max_concurrent_parts = max_concurrent_parts
 
-    @deprecated(
-        version="4.4.0",
-        reason="To be removed in 5.0.0. "
-        "Moved to synapseclient/core/download/download_async.py",
-    )
     def download_file(self, request: DownloadRequest) -> None:
         """
         Splits up and downloads a file in chunks from a URL.

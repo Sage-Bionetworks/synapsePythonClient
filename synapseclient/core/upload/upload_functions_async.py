@@ -306,6 +306,11 @@ async def upload_synapse_s3(
     return await get_file_handle(file_handle_id=file_handle_id, synapse_client=syn)
 
 
+def _get_aws_credentials() -> None:
+    """This is a stub function and only used for testing purposes."""
+    return None
+
+
 async def upload_synapse_sts_boto_s3(
     syn: "Synapse",
     parent_id: str,
@@ -399,11 +404,12 @@ async def upload_client_auth_s3(
     await loop.run_in_executor(
         syn._get_thread_pool_executor(asyncio_event_loop=loop),
         lambda: S3ClientWrapper.upload_file(
-            bucket,
-            endpoint_url,
-            file_key,
-            file_path,
+            bucket=bucket,
+            endpoint_url=endpoint_url,
+            remote_file_key=file_key,
+            upload_file_path=file_path,
             profile_name=profile,
+            credentials=_get_aws_credentials(),
             storage_str=storage_str,
         ),
     )

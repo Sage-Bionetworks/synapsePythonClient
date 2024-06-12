@@ -602,6 +602,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         self.version_comment = synapse_file.get("versionComment", None)
         self.is_latest_version = synapse_file.get("isLatestVersion", False)
         self.data_file_handle_id = synapse_file.get("dataFileHandleId", None)
+        self.path = synapse_file.get("path", self.path)
         synapse_file_handle = synapse_file.get("_file_handle", None)
         if synapse_file_handle:
             file_handle = self.file_handle or FileHandle()
