@@ -22,9 +22,9 @@ from synapseclient.core.constants.method_flags import (
     COLLISION_OVERWRITE_LOCAL,
 )
 from synapseclient.core.download import (
+    SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
     DownloadRequest,
     download_file,
-    SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
 )
 from synapseclient.core.exceptions import (
     SynapseError,

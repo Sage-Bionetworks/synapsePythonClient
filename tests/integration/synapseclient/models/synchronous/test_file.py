@@ -1,24 +1,16 @@
 """Integration tests for the synapseclient.models.File class."""
 
 import os
-from unittest.mock import patch
 import uuid
-
 from typing import Callable
+from unittest.mock import patch
+
 import pytest
 
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError
-
-from synapseclient.models import (
-    Project,
-    Folder,
-    File,
-    Activity,
-    UsedURL,
-    UsedEntity,
-)
+from synapseclient.models import Activity, File, Folder, Project, UsedEntity, UsedURL
 
 DESCRIPTION = "This is an example file."
 CONTENT_TYPE = "text/plain"

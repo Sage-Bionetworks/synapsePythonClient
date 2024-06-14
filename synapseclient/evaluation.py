@@ -59,17 +59,16 @@ See:
 """
 
 import json
+import urllib.parse as urllib_urlparse
 from typing import Union
 
-import urllib.parse as urllib_urlparse
-
-from synapseclient.core.models.dict_object import DictObject
 from synapseclient.annotations import (
     Annotations,
     from_synapse_annotations,
     is_synapse_annotations,
     to_synapse_annotations,
 )
+from synapseclient.core.models.dict_object import DictObject
 
 
 class Evaluation(DictObject):

@@ -15,12 +15,11 @@ from logging import Logger
 from typing import Any, Coroutine, List, Tuple, Type, Union
 
 import httpx
+from opentelemetry import trace
 
 from synapseclient.core.dozer import doze
 from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.core.utils import is_json
-from opentelemetry import trace
-
 
 tracer = trace.get_tracer("synapseclient")
 

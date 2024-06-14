@@ -2,8 +2,9 @@ import abc
 import base64
 import collections
 import json
-import requests.auth
 import typing
+
+import requests.auth
 
 from synapseclient.core.exceptions import SynapseAuthenticationError
 

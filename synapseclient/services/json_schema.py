@@ -8,16 +8,15 @@ JSON Schema
 """
 
 from __future__ import annotations
-from functools import wraps
-from typing import Sequence, Mapping, Union
 
 import json
+from functools import wraps
+from typing import Mapping, Sequence, Union
 
 from synapseclient.client import Synapse
-from synapseclient.entity import Entity
+from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseHTTPError
 from synapseclient.core.utils import id_of
-from synapseclient.core.exceptions import SynapseHTTPError, SynapseAuthenticationError
-
+from synapseclient.entity import Entity
 
 DEFAULT_ACCESS = ("CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE")
 

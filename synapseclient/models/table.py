@@ -26,7 +26,6 @@ from synapseclient.table import CsvFileTable as Synapse_CsvFileTable
 from synapseclient.table import TableQueryResult as Synaspe_TableQueryResult
 from synapseclient.table import delete_rows
 
-
 # TODO: Have a plug-and-play interface to plugin different dataframes,
 # or perhaps stream a CSV back when querying for data and uploading data
 

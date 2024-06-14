@@ -1,12 +1,14 @@
 """Tests for the Folder class."""
 import uuid
 from unittest.mock import patch
-import pytest
-from synapseclient.models import File, Folder, FailureStrategy
-from synapseclient import Folder as Synapse_Folder, Synapse
-from synapseclient.core.exceptions import SynapseNotFoundError
-from synapseclient.core.constants.concrete_types import FILE_ENTITY
 
+import pytest
+
+from synapseclient import Folder as Synapse_Folder
+from synapseclient import Synapse
+from synapseclient.core.constants.concrete_types import FILE_ENTITY
+from synapseclient.core.exceptions import SynapseNotFoundError
+from synapseclient.models import FailureStrategy, File, Folder
 
 SYN_123 = "syn123"
 SYN_456 = "syn456"

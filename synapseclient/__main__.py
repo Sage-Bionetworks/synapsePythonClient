@@ -7,35 +7,35 @@ https://python-docs.synapse.org/build/html/CommandLineClient.html
 
 import argparse
 import collections.abc
+import csv
+import getpass
+import json
 import logging
 import os
-import sys
-import signal
-import json
-import getpass
-import csv
 import re
 import shutil
+import signal
+import sys
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, ALWAYS_ON, ParentBased
 
 import synapseclient
 import synapseutils
-
 from synapseclient import Activity
-from synapseclient.wiki import Wiki
 from synapseclient.annotations import Annotations
 from synapseclient.core import utils
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
-    SynapseHTTPError,
     SynapseFileNotFoundError,
+    SynapseHTTPError,
     SynapseNoCredentialsError,
 )
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, ALWAYS_ON, ParentBased
+from synapseclient.wiki import Wiki
 
 tracer = trace.get_tracer("synapseclient")
 

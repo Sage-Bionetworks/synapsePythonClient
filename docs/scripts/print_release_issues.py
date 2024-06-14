@@ -12,10 +12,11 @@
 
 
 import argparse
+import base64
 import collections
 import json
-import base64
 import sys
+
 import httpx
 
 JQL_ISSUE_URL = "https://sagebionetworks.jira.com/rest/api/2/search?jql=project={project}%20AND%20fixVersion={version}%20ORDER%20BY%20created%20ASC&startAt={start_at}"  # noqa

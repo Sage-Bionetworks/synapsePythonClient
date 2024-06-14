@@ -1,26 +1,17 @@
 """Functional interface for searching for entities in Synapse."""
 
 import asyncio
-from typing import Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from opentelemetry import context
 
-from typing import Optional, TYPE_CHECKING
-
-
 from synapseclient import Synapse
-from synapseclient.core.utils import (
-    run_and_attach_otel_context,
-)
-from synapseclient.models.services.storable_entity_components import (
-    FailureStrategy,
-)
-from synapseclient.core.exceptions import (
-    SynapseNotFoundError,
-)
+from synapseclient.core.exceptions import SynapseNotFoundError
+from synapseclient.core.utils import run_and_attach_otel_context
+from synapseclient.models.services.storable_entity_components import FailureStrategy
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder, Project, File
+    from synapseclient.models import File, Folder, Project
 
 
 async def get_id(

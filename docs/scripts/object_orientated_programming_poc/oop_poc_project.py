@@ -16,13 +16,10 @@ The following actions are shown in this script:
 
 import os
 import uuid
-from synapseclient.models import (
-    File,
-    Folder,
-    Project,
-)
-import synapseclient
 from datetime import date, datetime, timedelta, timezone
+
+import synapseclient
+from synapseclient.models import File, Folder, Project
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()

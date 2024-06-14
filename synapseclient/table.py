@@ -20,29 +20,28 @@ A [Schema][synapseclient.table.Schema] defines a series of [Column][synapseclien
 
 [Read more information about using Table in synapse in the tutorials section](/tutorials/tables).
 """
+import abc
+import collections
 import collections.abc
+import copy
 import csv
+import enum
 import io
+import itertools
+import json
 import os
 import re
 import tempfile
-import copy
-import itertools
-import collections
-import abc
-import enum
-import json
-
 from builtins import zip
-from typing import List, Dict, TypeVar, Union, Tuple
+from typing import Dict, List, Tuple, TypeVar, Union
 
-from synapseclient.core.utils import id_of, itersubclasses, from_unix_epoch_time
+from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
-from .entity import Entity, entity_type_to_class, Folder, Project
-from .evaluation import Evaluation
-from synapseclient.core.constants import concrete_types
+from synapseclient.core.utils import from_unix_epoch_time, id_of, itersubclasses
 
+from .entity import Entity, Folder, Project, entity_type_to_class
+from .evaluation import Evaluation
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
@@ -375,8 +374,8 @@ def _convert_df_date_cols_to_datetime(
         A dataframe with epoch time converted to date time in UTC timezone
     """
     test_import_pandas()
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
     # find columns that are in date_columns list but not in dataframe
     diff_cols = list(set(date_columns) - set(df.columns))

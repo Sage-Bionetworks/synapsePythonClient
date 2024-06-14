@@ -1,10 +1,12 @@
 """Unit tests for Activity."""
 
 from unittest.mock import patch
+
 import pytest
-from synapseclient.models import Activity, UsedURL, UsedEntity, File
+
 from synapseclient.activity import Activity as Synapse_Activity
 from synapseclient.core.constants.concrete_types import USED_ENTITY, USED_URL
+from synapseclient.models import Activity, File, UsedEntity, UsedURL
 
 ACTIVITY_NAME = "some_name"
 DESCRIPTION = "some_description"

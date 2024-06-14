@@ -1,7 +1,7 @@
 import random
 import time
-from threading import Thread
 from datetime import timedelta
+from threading import Thread
 
 from synapseclient.core.lock import Lock
 

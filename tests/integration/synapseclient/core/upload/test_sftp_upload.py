@@ -1,17 +1,16 @@
-from urllib.parse import urlparse
-
 import filecmp
 import os
-import traceback
-import uuid
-import tempfile
 import shutil
+import tempfile
+import traceback
+import unittest
+import uuid
+from urllib.parse import urlparse
 
 import pytest
-import unittest
 
-from synapseclient import File
 import synapseclient.core.utils as utils
+from synapseclient import File
 from synapseclient.core.remote_file_storage_wrappers import SFTPWrapper
 
 

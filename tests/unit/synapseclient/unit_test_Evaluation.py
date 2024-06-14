@@ -3,10 +3,10 @@ import json
 import pytest
 
 from synapseclient import (
+    Annotations,
     Evaluation,
     Submission,
     SubmissionStatus,
-    Annotations,
     evaluation,
 )
 

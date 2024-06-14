@@ -1,11 +1,14 @@
 """Tests for the synapseclient.models.Project class."""
 import uuid
 from unittest.mock import patch
+
 import pytest
-from synapseclient.models import File, Project, FailureStrategy
-from synapseclient import Project as Synapse_Project, Synapse
-from synapseclient.core.exceptions import SynapseNotFoundError
+
+from synapseclient import Project as Synapse_Project
+from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
+from synapseclient.core.exceptions import SynapseNotFoundError
+from synapseclient.models import FailureStrategy, File, Project
 
 PROJECT_ID = "syn123"
 DERSCRIPTION_PROJECT = "This is an example project."

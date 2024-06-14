@@ -1,9 +1,7 @@
 import threading
-
-from synapseclient.core import cumulative_transfer_progress
-from synapseclient.core import utils
-
 from unittest import mock
+
+from synapseclient.core import cumulative_transfer_progress, utils
 
 
 @mock.patch.object(utils, "printTransferProgress")

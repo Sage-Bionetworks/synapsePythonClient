@@ -3,12 +3,12 @@
 # The Synapse Engineering team is free to change their signatures and implementations anytime.
 # Please use them at your own risk.
 
-from .upload_functions import upload_file_handle, upload_synapse_s3
 from .multipart_upload import (
     multipart_copy,
     multipart_upload_file,
     multipart_upload_string,
 )
+from .upload_functions import upload_file_handle, upload_synapse_s3
 
 __all__ = [
     "multipart_copy",

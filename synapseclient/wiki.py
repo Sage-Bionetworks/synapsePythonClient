@@ -68,8 +68,8 @@ choice for figures with data behind them.
 
 """
 
-import os
 import json
+import os
 
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of

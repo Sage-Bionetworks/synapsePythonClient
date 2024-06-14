@@ -1,7 +1,7 @@
-from contextlib import contextmanager
+import sys
 import threading
 import time
-import sys
+from contextlib import contextmanager
 
 from synapseclient.core import utils
 

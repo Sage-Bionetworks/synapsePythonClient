@@ -71,17 +71,18 @@ See also:
 """
 
 import collections
+import datetime
+import typing
 
-from .entity import Entity
 from synapseclient.core.utils import (
-    to_unix_epoch_time,
     from_unix_epoch_time,
+    id_of,
     is_date,
     to_list,
-    id_of,
+    to_unix_epoch_time,
 )
-import typing
-import datetime
+
+from .entity import Entity
 
 
 def _identity(x):

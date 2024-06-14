@@ -2,10 +2,12 @@
 import os
 from typing import Dict, Union
 from unittest.mock import AsyncMock, patch
+
 import pytest
-from synapseclient.models import Activity, UsedURL, File, Project
+
 from synapseclient import File as Synapse_File
 from synapseclient.core import utils
+from synapseclient.models import Activity, File, Project, UsedURL
 
 SYN_123 = "syn123"
 FILE_NAME = "example_file.txt"

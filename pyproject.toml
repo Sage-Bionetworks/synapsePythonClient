@@ -13,3 +13,6 @@ exclude = [
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B101", "B303", "B608", "B311", "B113", "B310", "B110"]
+
+[tool.isort]
+profile = "black"

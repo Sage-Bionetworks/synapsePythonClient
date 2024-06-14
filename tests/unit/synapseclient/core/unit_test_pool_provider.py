@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import call, MagicMock, patch, PropertyMock
-from multiprocessing.sharedctypes import Synchronized
 from multiprocessing.pool import ThreadPool
+from multiprocessing.sharedctypes import Synchronized
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import synapseclient
 from synapseclient.core.pool_provider import (

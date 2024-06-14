@@ -1,18 +1,20 @@
+import filecmp
 import json
 import logging
-import filecmp
 import os
 import re
-import sys
-import uuid
-import time
-import tempfile
 import shutil
-
-import pytest
+import sys
+import tempfile
+import time
+import uuid
+from io import StringIO
 from unittest.mock import patch
 
-from synapseclient import client
+import pytest
+
+import synapseclient.__main__ as cmdline
+import synapseclient.core.utils as utils
 from synapseclient import (
     Annotations,
     Column,
@@ -24,11 +26,8 @@ from synapseclient import (
     RowSet,
     Schema,
     Synapse,
+    client,
 )
-import synapseclient.__main__ as cmdline
-import synapseclient.core.utils as utils
-
-from io import StringIO
 
 
 @pytest.fixture(scope="function")

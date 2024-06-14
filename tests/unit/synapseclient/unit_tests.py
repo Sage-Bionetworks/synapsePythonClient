@@ -1,10 +1,10 @@
-import sys
 import inspect
+import sys
 
 import pytest
 
-from synapseclient import Activity
 import synapseclient.core.utils as utils
+from synapseclient import Activity
 from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseMalformedEntityError,

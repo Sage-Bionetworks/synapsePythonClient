@@ -1,6 +1,7 @@
 """
 Unit test for synapseclient.client.get_permissions
 """
+from typing import Dict
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +9,6 @@ import pytest
 from synapseclient import Permissions
 from synapseclient.entity import Entity
 from synapseclient.evaluation import Evaluation
-from typing import Dict
 
 return_value = {
     "canEdit": True,

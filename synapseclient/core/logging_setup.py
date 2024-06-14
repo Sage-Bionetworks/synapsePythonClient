@@ -6,7 +6,6 @@
 import logging
 import logging.config as logging_config
 
-
 logging.captureWarnings(True)
 logging.getLogger("requests").setLevel(logging.WARNING)
 

@@ -4,6 +4,7 @@ Here is where you'll find the code for the Annotation tutorial.
 
 # Step 1: Add several annotations to stored files
 import os
+
 import synapseclient
 from synapseclient import File
 

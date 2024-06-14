@@ -15,8 +15,8 @@ from synapseclient.core import utils
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import (
     SynapseError,
-    SynapseMalformedEntityError,
     SynapseFileNotFoundError,
+    SynapseMalformedEntityError,
 )
 from synapseclient.core.upload.upload_functions_async import upload_file_handle
 from synapseclient.core.utils import (

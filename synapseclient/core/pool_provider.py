@@ -9,9 +9,9 @@ To use these wrappers for single thread environment, set the following:
     synapseclient.config.single_threaded = True
 """
 
-from concurrent.futures import Executor, Future, ThreadPoolExecutor
 import multiprocessing
 import multiprocessing.dummy
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
 
 from . import config
 
