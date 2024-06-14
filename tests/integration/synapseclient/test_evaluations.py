@@ -1,12 +1,12 @@
+import random
+import re
 import tempfile
 import time
-import re
 import uuid
-import random
 
 import pytest
 
-from synapseclient import Evaluation, File, SubmissionViewSchema, Synapse, Team, Project
+from synapseclient import Evaluation, File, Project, SubmissionViewSchema, Synapse, Team
 from synapseclient.core.exceptions import SynapseHTTPError
 
 

@@ -6,9 +6,9 @@ from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.api import (
+    create_access_requirements_if_none,
     post_entity,
     put_entity,
-    create_access_requirements_if_none,
 )
 from synapseclient.core.utils import get_properties
 

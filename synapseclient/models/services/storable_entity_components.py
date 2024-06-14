@@ -1,9 +1,10 @@
 import asyncio
 from enum import Enum
-from typing import Union, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
+
 from synapseclient import Synapse
-from synapseclient.models import Annotations
 from synapseclient.core.exceptions import SynapseError
+from synapseclient.models import Annotations
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder, Project, Table

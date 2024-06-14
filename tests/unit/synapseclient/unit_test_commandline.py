@@ -4,18 +4,18 @@
 
 import base64
 import os
+import tempfile
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
-import tempfile
-from unittest.mock import call, MagicMock, Mock, patch
 
 import synapseclient.__main__ as cmdline
+import synapseutils
 from synapseclient.core.exceptions import (
     SynapseAuthenticationError,
     SynapseNoCredentialsError,
 )
 from synapseclient.entity import File
-import synapseutils
 
 
 def test_command_sync(syn):

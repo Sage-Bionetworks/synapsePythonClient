@@ -15,11 +15,11 @@ The following actions are shown in this script:
 """
 
 import os
-
-from synapseclient.models import File, Folder, Activity, UsedEntity, UsedURL
-from synapseclient.core import utils
 from datetime import date, datetime, timedelta, timezone
+
 import synapseclient
+from synapseclient.core import utils
+from synapseclient.models import Activity, File, Folder, UsedEntity, UsedURL
 
 PROJECT_ID = "syn52948289"
 

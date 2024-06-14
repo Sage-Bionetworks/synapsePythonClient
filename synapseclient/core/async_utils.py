@@ -2,7 +2,7 @@
 
 import asyncio
 import functools
-from typing import Any, Callable, Coroutine, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Union
 
 import nest_asyncio
 from opentelemetry import trace

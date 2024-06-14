@@ -9,16 +9,16 @@ The following actions are shown in this script:
 
 import os
 
+import synapseclient
 from synapseclient.models import (
-    File,
     Activity,
-    UsedURL,
-    UsedEntity,
-    Table,
     Column,
     ColumnType,
+    File,
+    Table,
+    UsedEntity,
+    UsedURL,
 )
-import synapseclient
 
 PROJECT_ID = "syn52948289"
 

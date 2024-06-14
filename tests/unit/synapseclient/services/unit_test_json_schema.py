@@ -1,6 +1,7 @@
 """TODO: Add more tests"""
-from synapseclient.services import json_schema
 import pytest
+
+from synapseclient.services import json_schema
 
 
 def test_json_schema_organization():

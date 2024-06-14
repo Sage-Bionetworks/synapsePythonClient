@@ -1,12 +1,13 @@
-import uuid
-import time
-import re
 import json
-from func_timeout import FunctionTimedOut, func_set_timeout
+import re
+import time
+import uuid
 
 import pytest
+from func_timeout import FunctionTimedOut, func_set_timeout
 
-from synapseclient.core.exceptions import SynapseHTTPError
+import synapseclient.core.utils as utils
+import synapseutils
 from synapseclient import (
     Activity,
     Annotations,
@@ -18,11 +19,10 @@ from synapseclient import (
     Row,
     RowSet,
     Schema,
-    Wiki,
     Synapse,
+    Wiki,
 )
-import synapseclient.core.utils as utils
-import synapseutils
+from synapseclient.core.exceptions import SynapseHTTPError
 
 
 # Add Test for UPDATE

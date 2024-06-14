@@ -2,19 +2,14 @@
 
 import os
 import uuid
-
 from typing import Callable
+
 import pytest
 
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
-
-from synapseclient.models import (
-    Project,
-    Folder,
-    File,
-)
+from synapseclient.models import File, Folder, Project
 
 DESCRIPTION_FOLDER = "This is an example folder."
 DESCRIPTION_FILE = "This is an example file."

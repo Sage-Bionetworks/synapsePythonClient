@@ -10,10 +10,11 @@ This tests 3 different methods of downloading files from synapse and S3:
 """
 import os
 import shutil
+import subprocess  # nosec
 from time import perf_counter
+
 import synapseclient
 import synapseutils
-import subprocess  # nosec
 
 S3_BUCKET = "s3://$FILL_ME_IN"
 S3_PROFILE = "$FILL_ME_IN"

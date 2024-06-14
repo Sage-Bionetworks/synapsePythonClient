@@ -4,16 +4,14 @@ annotations that are not cleanly provided by the synapseclient library.
 """
 
 import json
-
 from dataclasses import asdict
-
 from typing import TYPE_CHECKING, Optional
 
 from synapseclient.annotations import _convert_to_annotations_list
 
 if TYPE_CHECKING:
-    from synapseclient.models import Annotations
     from synapseclient import Synapse
+    from synapseclient.models import Annotations
 
 
 def set_annotations(

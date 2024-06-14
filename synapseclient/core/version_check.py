@@ -12,13 +12,13 @@ Print release notes for installed version of client:
 """
 
 import importlib.resources
+import json
 import re
 import sys
 
-import json
 import requests
-import synapseclient
 
+import synapseclient
 
 _VERSION_URL = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/master/synapseclient/synapsePythonClient"  # noqa
 

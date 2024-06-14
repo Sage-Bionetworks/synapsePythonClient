@@ -1,7 +1,7 @@
-import requests
+from unittest.mock import MagicMock
 
 import pytest
-from unittest.mock import MagicMock
+import requests
 
 from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
 from synapseclient.core.exceptions import SynapseAuthenticationError

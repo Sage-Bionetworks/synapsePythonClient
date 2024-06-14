@@ -10,7 +10,6 @@ from requests import Response
 
 import synapseclient.core.download.download_async as download_async
 from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
 from synapseclient.core.download import (
     DownloadRequest,
     PresignedUrlInfo,
@@ -19,6 +18,7 @@ from synapseclient.core.download import (
     _MultithreadedDownloader,
     download_file,
 )
+from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
 from synapseclient.core.retry import DEFAULT_RETRIES
 
 

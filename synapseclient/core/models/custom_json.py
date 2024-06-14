@@ -1,8 +1,8 @@
 """
 When imported, monkey-patches the 'json' module's encoder with a custom json encoding function.
 """
-import json
 import datetime
+import json
 
 from synapseclient.core.utils import datetime_to_iso
 

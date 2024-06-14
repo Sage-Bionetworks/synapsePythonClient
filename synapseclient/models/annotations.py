@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
-
 from synapseclient import Synapse
 from synapseclient.annotations import ANNO_TYPE_TO_FUNC
 from synapseclient.api import set_annotations_async

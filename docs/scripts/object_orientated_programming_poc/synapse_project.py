@@ -11,12 +11,12 @@ The following actions are shown in this script:
 All steps also include setting a number of annotations for the objects.
 """
 import os
+import uuid
+from datetime import datetime, timedelta, timezone
+
 import synapseclient
 import synapseutils
-import uuid
-
-from synapseclient import Project, File, Annotations, Folder
-from datetime import datetime, timedelta, timezone
+from synapseclient import Annotations, File, Folder, Project
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()

@@ -1,23 +1,22 @@
 """Integration tests for ACL on several model."""
 
 import uuid
+from typing import Callable
 
 import pytest
 
 from synapseclient import Synapse
 from synapseclient.core import utils
-
 from synapseclient.models import (
-    Project,
-    UserProfile,
-    Folder,
-    File,
-    ColumnType,
     Column,
+    ColumnType,
+    File,
+    Folder,
+    Project,
     Table,
     Team,
+    UserProfile,
 )
-from typing import Callable
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948

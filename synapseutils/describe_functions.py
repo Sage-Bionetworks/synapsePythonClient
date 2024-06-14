@@ -1,8 +1,8 @@
-from collections import defaultdict
 import json
 import os
 import sys
 import typing
+from collections import defaultdict
 
 import synapseclient
 from synapseclient import table

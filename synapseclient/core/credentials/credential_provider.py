@@ -5,14 +5,14 @@ information (e.g. authToken) from a source (e.g. login args, config file).
 
 import abc
 import os
-from typing import Union, Dict, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Tuple, Union
 
+from synapseclient.api import get_config_authentication
 from synapseclient.core.credentials.cred_data import (
     SynapseAuthTokenCredentials,
     SynapseCredentials,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
-from synapseclient.api import get_config_authentication
 
 if TYPE_CHECKING:
     from synapseclient import Synapse

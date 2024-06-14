@@ -1,5 +1,8 @@
-import boto3
 import datetime
+from unittest import mock
+
+import boto3
+import pytest
 
 from synapseclient import Synapse
 from synapseclient.core import sts_transfer
@@ -8,11 +11,7 @@ from synapseclient.core.sts_transfer import (
     _TokenCache,
     with_boto_sts_credentials,
 )
-
 from synapseclient.core.utils import datetime_to_iso
-
-import pytest
-from unittest import mock
 
 
 class TestGetStsCredentials:

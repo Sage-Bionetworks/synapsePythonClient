@@ -3,7 +3,7 @@ The `Permissions` object encapsulates a list of permissions a user has for a giv
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 
 @dataclass

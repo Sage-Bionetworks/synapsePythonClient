@@ -1,36 +1,35 @@
 import importlib.resources
-
 import json
+
 import requests  # ensure user-agent is set to track Synapse Python client usage
 
 from .activity import Activity
 from .annotations import Annotations
-from .client import PUBLIC, AUTHENTICATED_USERS
 
 # public APIs
-from .client import Synapse, login
+from .client import AUTHENTICATED_USERS, PUBLIC, Synapse, login
+from .core.models.permission import Permissions
 from .core.version_check import check_for_updates, release_notes
-from .entity import Entity, Project, Folder, File, Link, DockerRepository
+from .entity import DockerRepository, Entity, File, Folder, Link, Project
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import (
-    Schema,
-    EntityViewSchema,
     Column,
-    RowSet,
-    Row,
-    as_table_columns,
-    Table,
-    PartialRowset,
-    EntityViewType,
-    build_table,
-    SubmissionViewSchema,
-    MaterializedViewSchema,
     Dataset,
+    EntityViewSchema,
+    EntityViewType,
+    MaterializedViewSchema,
+    PartialRowset,
+    Row,
+    RowSet,
+    Schema,
+    SubmissionViewSchema,
+    Table,
+    as_table_columns,
+    build_table,
     delete_rows,
 )
-from .team import Team, UserProfile, UserGroupHeader, TeamMember
+from .team import Team, TeamMember, UserGroupHeader, UserProfile
 from .wiki import Wiki
-from .core.models.permission import Permissions
 
 # ref = importlib.resources.files(__name__).joinpath("synapsePythonClient")
 # with ref.open("r") as fp:
@@ -93,8 +92,8 @@ USER_AGENT_COMMAND_LINE = {
     % (__version__, requests.utils.default_user_agent())
 }
 
-# patch json
-from .core.models import custom_json  # noqa
-
 # patch logging
 from .core import logging_setup  # noqa
+
+# patch json
+from .core.models import custom_json  # noqa

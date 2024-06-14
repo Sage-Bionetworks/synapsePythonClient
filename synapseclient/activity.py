@@ -55,7 +55,7 @@ For example, when storing a data entity, it's a good idea to record its source:
 import collections.abc
 
 from synapseclient.core.exceptions import SynapseError, SynapseMalformedEntityError
-from synapseclient.core.utils import is_url, is_synapse_id_str, get_synid_and_version
+from synapseclient.core.utils import get_synid_and_version, is_synapse_id_str, is_url
 from synapseclient.entity import is_synapse_entity
 
 
