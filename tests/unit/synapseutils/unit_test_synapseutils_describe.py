@@ -2,12 +2,13 @@ import sys
 import tempfile
 from unittest.mock import Mock, patch
 
-from numpy import array_equal
 import pandas as pd
 import pytest
+from numpy import array_equal
+
 import synapseclient
 from synapseutils import describe_functions
-from synapseutils.describe_functions import _open_entity_as_df, _describe_wrapper
+from synapseutils.describe_functions import _describe_wrapper, _open_entity_as_df
 
 
 class TestOpenEntityAsDf:

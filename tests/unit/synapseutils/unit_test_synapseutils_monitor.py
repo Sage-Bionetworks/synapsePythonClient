@@ -1,4 +1,4 @@
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 import synapseutils
 from synapseutils import notifyMe, with_progress_bar

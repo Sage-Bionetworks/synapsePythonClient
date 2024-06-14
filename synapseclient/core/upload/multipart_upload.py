@@ -21,13 +21,11 @@ from opentelemetry.context import Context
 
 from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.exceptions import (
-    _raise_for_status,
-)  # why is is this a single underscore
-from synapseclient.core.exceptions import (
+from synapseclient.core.exceptions import (  # why is is this a single underscore
     SynapseHTTPError,
     SynapseUploadAbortedException,
     SynapseUploadFailedException,
+    _raise_for_status,
 )
 from synapseclient.core.retry import with_retry
 from synapseclient.core.upload.upload_utils import (

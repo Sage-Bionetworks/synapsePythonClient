@@ -1,13 +1,15 @@
 import json
-import pytest
 import sqlite3
 import tempfile
 import threading
 from unittest import mock, skipIf
 
+import pytest
+
 import synapseclient
-from synapseclient.core.exceptions import SynapseHTTPError
 import synapseclient.core.upload
+import synapseutils
+from synapseclient.core import utils
 from synapseclient.core.constants.concrete_types import (
     FILE_ENTITY,
     FOLDER_ENTITY,
@@ -15,13 +17,14 @@ from synapseclient.core.constants.concrete_types import (
     S3_FILE_HANDLE,
     TABLE_ENTITY,
 )
-from synapseclient.core import utils
-import synapseutils
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseutils import migrate_functions
 from synapseutils.migrate_functions import (
+    DEFAULT_PART_SIZE,
+    MAX_NUMBER_OF_PARTS,
     _check_indexed,
-    _create_new_file_version,
     _confirm_migration,
+    _create_new_file_version,
     _ensure_schema,
     _get_part_size,
     _get_row_dict,
@@ -40,8 +43,6 @@ from synapseutils.migrate_functions import (
     _retrieve_index_settings,
     _verify_index_settings,
     _verify_storage_location_ownership,
-    DEFAULT_PART_SIZE,
-    MAX_NUMBER_OF_PARTS,
     index_files_for_migration,
     migrate_indexed_files,
 )

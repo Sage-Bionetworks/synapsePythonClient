@@ -8,10 +8,10 @@ Entities are dictionary-like objects in which both object and dictionary notatio
 """
 
 import collections.abc
-import itertools
-import io
-import os
 import inspect
+import io
+import itertools
+import os
 import urllib.parse as urllib_parse
 
 from synapseclient.core import utils

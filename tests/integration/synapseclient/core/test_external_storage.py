@@ -5,18 +5,17 @@ import json
 import os
 import tempfile
 import uuid
-from typing import Dict, Tuple, Any
+from typing import Any, Dict, Tuple
 from unittest import mock
 
 import pytest
 
-from synapseclient import Synapse, Folder as SynFolder
 import synapseclient.core.utils as utils
+from synapseclient import Folder as SynFolder
+from synapseclient import Synapse
+from synapseclient.api import get_upload_destination
 from synapseclient.core.retry import with_retry
-from synapseclient.models import File, Project, Folder
-from synapseclient.api import (
-    get_upload_destination,
-)
+from synapseclient.models import File, Folder, Project
 
 try:
     boto3 = importlib.import_module("boto3")

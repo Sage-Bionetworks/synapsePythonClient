@@ -1,13 +1,12 @@
 """Tests for the synapseclient.models.user module."""
 
 from unittest.mock import patch
-import pytest
-from synapseclient.models import UserPreference, UserProfile
-from synapseclient.team import (
-    UserProfile as Synapse_UserProfile,
-)
-from synapseclient import Synapse
 
+import pytest
+
+from synapseclient import Synapse
+from synapseclient.models import UserPreference, UserProfile
+from synapseclient.team import UserProfile as Synapse_UserProfile
 
 FIRST_NAME = "John"
 LAST_NAME = "Doe"

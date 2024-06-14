@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 from opentelemetry import context, trace
 
 from synapseclient import Synapse
-from synapseclient.api import delete_entity_generated_by
 from synapseclient.activity import Activity as Synapse_Activity
+from synapseclient.api import delete_entity_generated_by
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants.concrete_types import USED_ENTITY, USED_URL
 from synapseclient.core.exceptions import SynapseHTTPError

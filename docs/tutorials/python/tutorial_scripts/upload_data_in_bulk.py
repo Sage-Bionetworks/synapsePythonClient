@@ -3,8 +3,9 @@ Here is where you'll find the code for the uploading data in bulk tutorial.
 """
 
 import os
-import synapseutils
+
 import synapseclient
+import synapseutils
 
 syn = synapseclient.Synapse()
 syn.login()

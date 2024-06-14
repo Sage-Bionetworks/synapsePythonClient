@@ -1,14 +1,14 @@
 """Integration tests for Activity."""
 
-from typing import Callable
 import uuid
+from typing import Callable
+
 import pytest
-from synapseclient.models import Activity, UsedURL, UsedEntity, File
-from synapseclient import (
-    Synapse,
-    Project as Synapse_Project,
-)
+
 import synapseclient.core.utils as utils
+from synapseclient import Project as Synapse_Project
+from synapseclient import Synapse
+from synapseclient.models import Activity, File, UsedEntity, UsedURL
 
 BOGUS_URL = "https://www.synapse.org/"
 

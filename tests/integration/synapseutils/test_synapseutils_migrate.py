@@ -1,15 +1,16 @@
 import json
-import pytest
 import sqlite3
 import tempfile
 import uuid
 
+import pytest
+
 import synapseclient
-from synapseclient import Synapse
-from synapseclient.core.constants import concrete_types
 import synapseclient.core.utils as utils
 import synapseutils
-from synapseutils.migrate_functions import _MigrationType, _MigrationStatus
+from synapseclient import Synapse
+from synapseclient.core.constants import concrete_types
+from synapseutils.migrate_functions import _MigrationStatus, _MigrationType
 
 
 @pytest.fixture(scope="module")

@@ -3,11 +3,9 @@ Here is where you'll find the code for the downloading data in bulk tutorial.
 """
 
 import os
-from synapseclient.models import (
-    Folder,
-    Project,
-)
+
 import synapseclient
+from synapseclient.models import Folder, Project
 
 syn = synapseclient.Synapse()
 syn.login()

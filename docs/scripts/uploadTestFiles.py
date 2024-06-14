@@ -4,10 +4,11 @@ for benchmarking downloads.
 """
 import os
 import shutil
-from synapseclient.entity import Project
+import subprocess  # nosec
+
 import synapseclient
 import synapseutils
-import subprocess  # nosec
+from synapseclient.entity import Project
 
 PARENT_PROJECT = "syn$FILL_ME_IN"
 S3_BUCKET = "s3://$FILL_ME_IN"

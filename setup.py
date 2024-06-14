@@ -1,9 +1,9 @@
 # Installation script for Synapse Client for Python
 ############################################################
-import os
-from setuptools import setup
-
 import json
+import os
+
+from setuptools import setup
 
 # make sure not to overwrite existing .synapseConfig with our example one
 data_files = (

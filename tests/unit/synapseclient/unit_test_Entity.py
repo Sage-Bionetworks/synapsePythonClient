@@ -1,11 +1,11 @@
 import collections.abc
-
-import pytest
 from unittest.mock import patch
 
+import pytest
+
 from synapseclient import DockerRepository, Entity, File, Folder, Link, Project, Synapse
-from synapseclient.entity import split_entity_namespaces, is_container, is_versionable
 from synapseclient.core.exceptions import SynapseMalformedEntityError
+from synapseclient.entity import is_container, is_versionable, split_entity_namespaces
 
 
 def test_Entity():

@@ -1,12 +1,12 @@
-import uuid
 import os
-from func_timeout import FunctionTimedOut, func_set_timeout
+import uuid
 
 import pytest
+from func_timeout import FunctionTimedOut, func_set_timeout
 
-from synapseclient import File, Folder, Project
 import synapseclient.core.utils as utils
 import synapseutils
+from synapseclient import File, Folder, Project
 
 
 @pytest.mark.flaky(reruns=3)

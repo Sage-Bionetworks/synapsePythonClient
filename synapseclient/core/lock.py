@@ -1,12 +1,12 @@
+import datetime
 import errno
 import os
 import shutil
 import sys
 import time
-import datetime
 
-from synapseclient.core.exceptions import SynapseFileCacheError
 from synapseclient.core.dozer import doze
+from synapseclient.core.exceptions import SynapseFileCacheError
 
 LOCK_DEFAULT_MAX_AGE = datetime.timedelta(seconds=10)
 DEFAULT_BLOCKING_TIMEOUT = datetime.timedelta(seconds=70)

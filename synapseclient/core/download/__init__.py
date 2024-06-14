@@ -3,12 +3,12 @@
 from .download_async import (
     SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
     DownloadRequest,
-    download_file,
-    shared_progress_bar,
     PresignedUrlInfo,
     PresignedUrlProvider,
     TransferStatus,
     _MultithreadedDownloader,
+    download_file,
+    shared_progress_bar,
 )
 from .download_functions import (
     download_by_file_handle,

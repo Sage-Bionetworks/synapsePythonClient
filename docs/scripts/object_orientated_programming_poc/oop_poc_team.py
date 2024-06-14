@@ -8,10 +8,10 @@ The following actions are shown in this script:
 6. Deleting a Team
 """
 
-from synapseclient.models.team import Team
-import synapseclient
 import time
 
+import synapseclient
+from synapseclient.models.team import Team
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()

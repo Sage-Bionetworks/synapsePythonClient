@@ -3,9 +3,10 @@ import collections.abc
 import datetime
 import importlib
 import os
-import threading
 import platform
+import threading
 from typing import TYPE_CHECKING
+
 from synapseclient.core.utils import iso_to_datetime, snake_case
 
 if TYPE_CHECKING:

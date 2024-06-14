@@ -16,12 +16,10 @@ The following actions are shown in this script:
 """
 
 import os
-from synapseclient.models import (
-    File,
-    Folder,
-)
-import synapseclient
 from datetime import date, datetime, timedelta, timezone
+
+import synapseclient
+from synapseclient.models import File, Folder
 
 PROJECT_ID = "syn52948289"
 

@@ -2,26 +2,26 @@ import filecmp
 import hashlib
 import os
 import random
-import pytest
-import requests
 import string
 import tempfile
 import traceback
 import uuid
 from io import open
-
 from unittest import mock, skip
 
-from synapseclient import File, Project, Synapse
+import pytest
+import requests
+
 import synapseclient.core.config
 import synapseclient.core.utils as utils
+from synapseclient import File, Project, Synapse
+from synapseclient.core.download import download_by_file_handle
 from synapseclient.core.upload.multipart_upload import (
     MIN_PART_SIZE,
+    multipart_copy,
     multipart_upload_file,
     multipart_upload_string,
-    multipart_copy,
 )
-from synapseclient.core.download import download_by_file_handle
 
 
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])

@@ -1,23 +1,22 @@
 import concurrent.futures
 import csv
-from enum import Enum
 import json
 import logging
 import math
 import sys
 import traceback
 import typing
+from enum import Enum
 
 import synapseclient
+from synapseclient.core import pool_provider, utils
 from synapseclient.core.constants import concrete_types
-from synapseclient.core import pool_provider
-from synapseclient.core import utils
-from synapseclient.table import join_column_names
 from synapseclient.core.upload.multipart_upload import (
     MAX_NUMBER_OF_PARTS,
     multipart_copy,
     shared_executor,
 )
+from synapseclient.table import join_column_names
 
 """
 Contains functions for migrating the storage location of Synapse entities.

@@ -10,6 +10,7 @@ import pytest
 from botocore.stub import Stubber
 from pytest_mock import MockerFixture
 
+from synapseclient import Synapse
 from synapseclient.core.credentials import credential_provider
 from synapseclient.core.credentials.cred_data import (
     SynapseAuthTokenCredentials,
@@ -24,7 +25,6 @@ from synapseclient.core.credentials.credential_provider import (
     UserArgsCredentialsProvider,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
-from synapseclient import Synapse
 
 
 class TestSynapseApiKeyCredentialsProviderChain(object):

@@ -1,15 +1,16 @@
 import datetime
 import json
 import math
-import re
 import os
-import pytest
+import random
+import re
 import tempfile
 import time
-import random
-from unittest.mock import patch, call
 from collections import OrderedDict
 from multiprocessing import Process
+from unittest.mock import call, patch
+
+import pytest
 
 import synapseclient.core.cache as cache
 import synapseclient.core.utils as utils

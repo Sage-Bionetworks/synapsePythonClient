@@ -4,35 +4,33 @@ import os
 import random
 import tempfile
 import time
-from typing import Callable
 import uuid
 from datetime import datetime, timezone
+from typing import Callable
 
-from pandas.testing import assert_frame_equal
-import pytest
-
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
+from pandas.testing import assert_frame_equal
 
+import synapseclient.core.utils as utils
 from synapseclient import (
-    as_table_columns,
     Column,
+    Dataset,
     EntityViewSchema,
     EntityViewType,
     File,
     Folder,
     MaterializedViewSchema,
     PartialRowset,
+    Project,
     Row,
     RowSet,
     Schema,
-    Table,
-    Dataset,
-    Project,
     Synapse,
+    Table,
+    as_table_columns,
 )
-import synapseclient.core.utils as utils
-
 from tests.integration import QUERY_TIMEOUT_SEC
 
 

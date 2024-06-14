@@ -11,7 +11,7 @@ import os
 import time
 from contextlib import contextmanager
 from http import HTTPStatus
-from typing import Generator, NamedTuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator, NamedTuple
 from urllib.parse import parse_qs, urlparse
 
 from deprecated import deprecated

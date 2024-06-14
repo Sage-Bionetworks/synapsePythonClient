@@ -19,9 +19,10 @@ import re
 import shutil
 import typing
 
-from synapseclient.core.lock import Lock
-from synapseclient.core import utils
 from opentelemetry import trace
+
+from synapseclient.core import utils
+from synapseclient.core.lock import Lock
 
 tracer = trace.get_tracer("synapseclient")
 

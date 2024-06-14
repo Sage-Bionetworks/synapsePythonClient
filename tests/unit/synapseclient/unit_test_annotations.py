@@ -1,30 +1,30 @@
 # unit tests for python synapse client
 ############################################################
 
-from datetime import datetime as Datetime
 import datetime
-from math import pi
 import time
 import uuid
-
-import pytest
+from datetime import datetime as Datetime
+from math import pi
 from unittest.mock import patch
 
+import pytest
+
+import synapseclient.core.utils as utils
 from synapseclient import annotations
 from synapseclient.annotations import (
     Annotations,
-    to_synapse_annotations,
-    from_synapse_annotations,
-    to_submission_status_annotations,
-    from_submission_status_annotations,
-    convert_old_annotation_json,
+    _convert_to_annotations_list,
     check_annotations_changed,
+    convert_old_annotation_json,
+    from_submission_status_annotations,
+    from_synapse_annotations,
     is_synapse_annotations,
     set_privacy,
-    _convert_to_annotations_list,
+    to_submission_status_annotations,
+    to_synapse_annotations,
 )
 from synapseclient.entity import File
-import synapseclient.core.utils as utils
 
 
 @patch.object(annotations, "_convert_to_annotations_list")

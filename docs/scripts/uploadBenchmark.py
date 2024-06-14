@@ -21,15 +21,17 @@ import asyncio
 import datetime
 import os
 import shutil
-from time import perf_counter
-from synapseclient.entity import File as SynFile, Folder as SynFolder
-from synapseclient.models import File, Folder, Project
-from synapseclient.annotations import Annotations
-import synapseclient
-import synapseutils
 import subprocess  # nosec
+from time import perf_counter
 
 from opentelemetry import trace
+
+import synapseclient
+import synapseutils
+from synapseclient.annotations import Annotations
+from synapseclient.entity import File as SynFile
+from synapseclient.entity import Folder as SynFolder
+from synapseclient.models import File, Folder, Project
 
 # from opentelemetry.sdk.trace import TracerProvider
 # from opentelemetry.sdk.trace.export import BatchSpanProcessor

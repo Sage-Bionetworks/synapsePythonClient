@@ -1,6 +1,6 @@
+import uuid
 from random import randint
 from time import sleep
-import uuid
 
 import pytest
 

@@ -10,6 +10,7 @@ import time
 import uuid
 
 import pytest
+import pytest_asyncio
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import OS_DESCRIPTION, OS_TYPE, SERVICE_NAME, Resource
@@ -20,7 +21,7 @@ from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
 )
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
-import pytest_asyncio
+from pytest_asyncio import is_async_test
 
 from synapseclient import Entity, Project, Synapse
 from synapseclient.core import utils
@@ -28,7 +29,6 @@ from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 from synapseclient.models import Project as Project_Model
 from synapseclient.models import Team
-from pytest_asyncio import is_async_test
 
 tracer = trace.get_tracer("synapseclient")
 

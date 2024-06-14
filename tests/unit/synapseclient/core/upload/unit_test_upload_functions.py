@@ -1,5 +1,4 @@
 import os
-
 from unittest import mock
 
 from synapseclient.core.constants import concrete_types

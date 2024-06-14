@@ -5,29 +5,28 @@ import json
 import os
 import shutil
 import tempfile
-
 from typing import Dict
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open, call
-import pytest
+from unittest.mock import AsyncMock, MagicMock, call, mock_open, patch
 
+import pytest
 import requests
 
 import synapseclient.core.constants.concrete_types as concrete_types
 import synapseclient.core.download.download_async as download_async
 from synapseclient import Synapse
+from synapseclient.api import get_file_handle_for_download
 from synapseclient.core import utils
-from synapseclient.core.exceptions import (
-    SynapseHTTPError,
-    SynapseMd5MismatchError,
-    SynapseError,
-    SynapseFileNotFoundError,
-)
 from synapseclient.core.download import (
     download_by_file_handle,
     download_from_url,
     download_from_url_multi_threaded,
 )
-from synapseclient.api import get_file_handle_for_download
+from synapseclient.core.exceptions import (
+    SynapseError,
+    SynapseFileNotFoundError,
+    SynapseHTTPError,
+    SynapseMd5MismatchError,
+)
 
 GET_FILE_HANDLE_FOR_DOWNLOAD = (
     "synapseclient.core.download.download_functions.get_file_handle_for_download"

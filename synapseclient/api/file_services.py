@@ -2,17 +2,16 @@
 <https://rest-docs.synapse.org/rest/#org.sagebionetworks.repo.web.controller.EntityController>
 """
 
-from dataclasses import dataclass
 import json
 import mimetypes
 import os
-from typing import Any, Dict, Optional, List, Union, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-
-from synapseclient.core import utils
-from synapseclient.core.exceptions import SynapseFileNotFoundError, SynapseError
-from synapseclient.core.constants import concrete_types
 from synapseclient.api.entity_services import get_upload_destination
+from synapseclient.core import utils
+from synapseclient.core.constants import concrete_types
+from synapseclient.core.exceptions import SynapseError, SynapseFileNotFoundError
 
 if TYPE_CHECKING:
     from synapseclient import Synapse

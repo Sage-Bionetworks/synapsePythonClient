@@ -2,15 +2,14 @@
 
 import os
 import uuid
-
 from typing import Callable
+
 import pytest
 
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
-
-from synapseclient.models import Project, File, Folder
+from synapseclient.models import File, Folder, Project
 
 CONTENT_TYPE = "text/plain"
 DESCRIPTION_FILE = "This is an example file."

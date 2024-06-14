@@ -63,11 +63,11 @@ flowchart  TD
 """
 
 import asyncio
-from contextlib import contextmanager
 import gc
 import mimetypes
 import os
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -89,11 +89,11 @@ from opentelemetry.context import Context
 from tqdm import tqdm
 
 from synapseclient.api import (
+    AddPartResponse,
     post_file_multipart,
     post_file_multipart_presigned_urls,
     put_file_multipart_add,
     put_file_multipart_complete,
-    AddPartResponse,
 )
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.constants import concrete_types

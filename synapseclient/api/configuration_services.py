@@ -5,7 +5,6 @@ file, environment variables, or other means.
 import configparser
 import functools
 import urllib.parse
-
 from typing import Dict
 
 from synapseclient.core.constants import config_file_constants

@@ -1,15 +1,15 @@
 import json
 import uuid
+from unittest.mock import call, patch
 
 import pytest
-from unittest.mock import patch, call
 
 import synapseclient
 import synapseutils
 from synapseutils.copy_functions import (
+    _batch_iterator_generator,
     _copy_file_handles_batch,
     _create_batch_file_handle_copy_request,
-    _batch_iterator_generator,
 )
 
 

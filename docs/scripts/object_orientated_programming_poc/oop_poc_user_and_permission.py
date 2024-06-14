@@ -9,11 +9,8 @@ The following actions are shown in this script:
 
 import os
 
-from synapseclient.models import (
-    File,
-    UserProfile,
-)
 import synapseclient
+from synapseclient.models import File, UserProfile
 
 PROJECT_ID = "syn52948289"
 TEST_ACCOUNT_NAME = "bfauble_synapse_test_account"

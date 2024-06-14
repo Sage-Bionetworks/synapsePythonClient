@@ -9,19 +9,14 @@ The following actions are shown in this script:
 7. Deleting a table
 """
 
-import os
 import csv
+import os
 import random
 import string
-from synapseclient.models import (
-    Table,
-    Column,
-    ColumnType,
-    Row,
-    CsvResultFormat,
-)
-import synapseclient
 from datetime import date, datetime, timedelta, timezone
+
+import synapseclient
+from synapseclient.models import Column, ColumnType, CsvResultFormat, Row, Table
 
 PROJECT_ID = "syn52948289"
 

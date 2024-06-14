@@ -1,12 +1,11 @@
 """Integration tests for UserProfile."""
 
-import pytest
-from synapseclient.models import UserProfile
 from typing import Callable
+
 import pytest
-from synapseclient import (
-    Synapse,
-)
+
+from synapseclient import Synapse
+from synapseclient.models import UserProfile
 
 
 class TestUser:

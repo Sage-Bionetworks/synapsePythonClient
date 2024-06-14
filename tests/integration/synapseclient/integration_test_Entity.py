@@ -4,9 +4,9 @@ import datetime
 import filecmp
 import os
 import tempfile
-from typing import Callable
 import uuid
 from datetime import datetime as Datetime
+from typing import Callable
 from unittest.mock import patch
 
 import pytest

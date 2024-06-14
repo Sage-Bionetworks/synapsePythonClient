@@ -16,6 +16,7 @@ import httpx
 import synapseclient.core.config
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
+from synapseclient.core.download import download_by_file_handle
 from synapseclient.core.upload.multipart_upload_async import (
     MIN_PART_SIZE,
     multipart_copy_async,
@@ -23,7 +24,6 @@ from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_string_async,
 )
 from synapseclient.models import File, Project
-from synapseclient.core.download import download_by_file_handle
 
 
 async def test_round_trip(
