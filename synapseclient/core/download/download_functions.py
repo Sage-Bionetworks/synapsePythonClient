@@ -187,6 +187,83 @@ async def download_by_file_handle(
 
     Returns:
         The path to downloaded file
+
+
+    ```mermaid
+    sequenceDiagram
+        title Multi-Threaded Download Process with Retry Mechanism
+
+        actor Client as Client
+        participant download_functions as download_functions
+        participant download_async as download_async
+        participant download_execution as download_execution
+        participant multi_threaded_download as multi_threaded_download
+        participant remote_storage_server as remote_storage_server
+        participant file as file
+
+        activate Client
+        Client ->> download_functions: download_by_file_handle
+        activate download_functions
+
+        loop retryable
+
+            alt Download type = multi_threaded
+                note over download_functions: download_from_url_multi_threaded
+
+                download_functions ->> download_async: download_file
+                activate download_async
+
+                download_async ->> download_async: _generate_stream_and_write_chunk_tasks
+
+
+                loop for each download task
+                    download_async ->> download_execution: _execute_download_tasks
+                    activate download_execution
+
+                    par MULTI-THREADED: Run in thread executor
+                        download_execution ->> multi_threaded_download: _stream_and_write_chunk
+                        activate multi_threaded_download
+
+                        loop stream chunk into memory
+                            multi_threaded_download ->> remote_storage_server: stream chunk from remote server
+                            remote_storage_server -->> multi_threaded_download: Return partial range
+                        end
+
+                        note over multi_threaded_download: Chunk loaded into memory
+
+                        alt obtain thread lock [Failed]
+                            note over multi_threaded_download: Wait to obtain lock
+                        else obtain thread lock [Success]
+                            multi_threaded_download ->> file: write chunk to file
+                            file -->> multi_threaded_download: .
+                            note over multi_threaded_download: Update progress bar
+                            note over multi_threaded_download: Release lock
+                        end
+                        multi_threaded_download -->> download_execution: .
+                    end
+                    download_execution -->> download_async: .
+                    note over download_async: Run garbage collection every 100 iterations
+                    deactivate multi_threaded_download
+                    deactivate download_execution
+                end
+
+                download_async -->> download_functions: .
+                deactivate download_async
+
+                download_functions ->> download_functions: md5_for_file
+                download_functions -->> Client: File downloaded
+                deactivate download_functions
+            else Download type = non multi_threaded
+                note over download_functions: Execute `download_from_url`
+            else Download type = external s3 object store
+                note over download_functions: Execute `S3ClientWrapper.download_file`
+            else Download type = aws s3 sts storage
+                note over download_functions: Execute `S3ClientWrapper.download_file` with with_boto_sts_credentials
+            end
+        end
+
+        deactivate Client
+    ```
     """
     from synapseclient import Synapse
 

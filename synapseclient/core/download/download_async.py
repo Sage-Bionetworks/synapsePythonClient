@@ -379,15 +379,24 @@ class _MultithreadedDownloader:
         Returns:
             None
         """
-        if not self._syn.silent and not self._progress_bar:
-            self._progress_bar = getattr(_thread_local, "progress_bar", None) or tqdm(
-                total=file_size,
-                desc="Downloading",
-                unit="B",
-                unit_scale=True,
-                postfix=os.path.basename(self._download_request.path),
-                smoothing=0,
-            )
+        if not self._syn.silent:
+            # TODO: This still needs to be patched up in the case of the shared progress bar
+            if self._progress_bar:
+                self._progress_bar.total = file_size + (
+                    self._progress_bar.total if self._progress_bar.total > 1 else 0
+                )
+                self._progress_bar.refresh()
+            else:
+                self._progress_bar = getattr(
+                    _thread_local, "progress_bar", None
+                ) or tqdm(
+                    total=file_size,
+                    desc="Downloading",
+                    unit="B",
+                    unit_scale=True,
+                    postfix=os.path.basename(self._download_request.path),
+                    smoothing=0,
+                )
 
     def _close_progress_bar(self) -> None:
         """Handle closing the progress bar."""

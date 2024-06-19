@@ -1,3 +1,5 @@
+"""Integration tests for the CLI."""
+import asyncio
 import filecmp
 import json
 import logging
@@ -598,7 +600,7 @@ async def test_command_get_recursive_and_query(test_state):
 
     # get -r uses syncFromSynapse() which uses getChildren(), which is not immediately consistent,
     # but faster than chunked queries.
-    time.sleep(2)
+    await asyncio.sleep(2)
     # Test recursive get
     run(test_state, "synapse" "--skip-checks", "get", "-r", folder_entity.id)
     # Verify that we downloaded files:
@@ -630,7 +632,7 @@ async def test_command_get_recursive_and_query(test_state):
 
     test_state.syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data1]))
 
-    time.sleep(3)  # get -q are eventually consistent
+    await asyncio.sleep(3)  # get -q are eventually consistent
     # Test Table/View query get
     run(
         test_state,

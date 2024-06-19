@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from opentelemetry import context
 
+from synapseclient import File as SynapseFile
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
@@ -166,6 +167,30 @@ class FileHandle:
         file_handle.external_url = synapse_instance.get("externalURL", None)
 
         return self
+
+    def _convert_into_legacy_file_handle(self) -> Dict[str, Union[str, bool, int]]:
+        """Convert the file handle object into a legacy File Handle object."""
+        return_data = {
+            "id": self.id,
+            "etag": self.etag,
+            "createdBy": self.created_by,
+            "createdOn": self.created_on,
+            "modifiedOn": self.modified_on,
+            "concreteType": self.concrete_type,
+            "contentType": self.content_type,
+            "contentMd5": self.content_md5,
+            "fileName": self.file_name,
+            "storageLocationId": self.storage_location_id,
+            "contentSize": self.content_size,
+            "status": self.status,
+            "bucketName": self.bucket_name,
+            "key": self.key,
+            "previewId": self.preview_id,
+            "isPreview": self.is_preview,
+            "externalURL": self.external_url,
+        }
+        delete_none_keys(return_data)
+        return return_data
 
 
 @dataclass()
@@ -1337,3 +1362,33 @@ class File(FileSynchronousProtocol, AccessControllable):
             self._fill_from_file_handle()
 
         return self
+
+    def _convert_into_legacy_file(self) -> SynapseFile:
+        """Convert the file object into a SynapseFile object."""
+        return_data = SynapseFile(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            etag=self.etag,
+            createdOn=self.created_on,
+            modifiedOn=self.modified_on,
+            createdBy=self.created_by,
+            modifiedBy=self.modified_by,
+            parentId=self.parent_id,
+            versionNumber=self.version_number,
+            versionLabel=self.version_label,
+            versionComment=self.version_comment,
+            dataFileHandleId=self.data_file_handle_id,
+            path=self.path,
+            properties={
+                "isLatestVersion": self.is_latest_version,
+            },
+            _file_handle=(
+                self.file_handle._convert_into_legacy_file_handle()
+                if self.file_handle
+                else None
+            ),
+            annotations=self.annotations,
+        )
+        delete_none_keys(return_data)
+        return return_data
