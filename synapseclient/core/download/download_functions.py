@@ -434,15 +434,6 @@ async def download_from_url_multi_threaded(
     await download_file(client=client, download_request=request)
 
     if expected_md5:  # if md5 not set (should be the case for all except http download)
-        # actual_md5 = await utils.md5_for_file_multiprocessing(
-        #     filename=temp_destination,
-        #     process_pool_executor=client._get_process_pool_executor(
-        #         asyncio_event_loop=asyncio.get_running_loop()
-        #     ),
-        #     md5_semaphore=client._get_md5_semaphore(
-        #         asyncio_event_loop=asyncio.get_running_loop()
-        #     ),
-        # )
         actual_md5 = utils.md5_for_file_hex(filename=temp_destination)
         # check md5 if given
         if actual_md5 != expected_md5:
@@ -695,15 +686,6 @@ async def download_from_url(
     if (
         actual_md5 is None
     ):  # if md5 not set (should be the case for all except http download)
-        # actual_md5 = await utils.md5_for_file_multiprocessing(
-        #     filename=destination,
-        #     process_pool_executor=client._get_process_pool_executor(
-        #         asyncio_event_loop=asyncio.get_running_loop()
-        #     ),
-        #     md5_semaphore=client._get_md5_semaphore(
-        #         asyncio_event_loop=asyncio.get_running_loop()
-        #     ),
-        # )
         actual_md5 = utils.md5_for_file_hex(filename=destination)
 
     # check md5 if given
