@@ -321,7 +321,6 @@ class _MultithreadedDownloader:
         Returns:
             None
         """
-        loop_iteration = 0
         cause = None
         while download_tasks:
             done_tasks, pending_tasks = await asyncio.wait(
@@ -332,10 +331,10 @@ class _MultithreadedDownloader:
                 try:
                     start_bytes, end_bytes = completed_task.result()
                     del completed_task
-                    loop_iteration += 1
+                    self._syn._parts_transfered_counter += 1
 
                     # Garbage collect every 100 iterations
-                    if loop_iteration % 100 == 0:
+                    if self._syn._parts_transfered_counter % 100 == 0:
                         gc.collect()
 
                     self._syn.logger.debug(
