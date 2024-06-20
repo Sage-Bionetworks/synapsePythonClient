@@ -12,6 +12,7 @@ from opentelemetry import context
 
 from synapseclient import File as SynapseFile
 from synapseclient import Synapse
+from synapseclient.api import get_from_entity_factory
 from synapseclient.core import utils
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import (
@@ -660,15 +661,16 @@ class File(FileSynchronousProtocol, AccessControllable):
         """Load the MD5 of the file if it's a local file and we have not already loaded
         it."""
         if not self.content_md5 and self.path and os.path.isfile(self.path):
-            self.content_md5 = await utils.md5_for_file_multiprocessing(
-                filename=self.path,
-                process_pool_executor=syn._get_process_pool_executor(
-                    asyncio_event_loop=asyncio.get_running_loop()
-                ),
-                md5_semaphore=syn._get_md5_semaphore(
-                    asyncio_event_loop=asyncio.get_running_loop()
-                ),
-            )
+            # self.content_md5 = await utils.md5_for_file_multiprocessing(
+            #     filename=self.path,
+            #     process_pool_executor=syn._get_process_pool_executor(
+            #         asyncio_event_loop=asyncio.get_running_loop()
+            #     ),
+            #     md5_semaphore=syn._get_md5_semaphore(
+            #         asyncio_event_loop=asyncio.get_running_loop()
+            #     ),
+            # )
+            self.content_md5 = utils.md5_for_file_hex(filename=self.path)
 
     async def _find_existing_file(
         self, synapse_client: Optional[Synapse] = None
@@ -961,6 +963,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def get_async(
         self,
         include_activity: bool = False,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -1006,27 +1009,18 @@ class File(FileSynchronousProtocol, AccessControllable):
             raise ValueError("The file must have an ID or path to get.")
         syn = Synapse.get_client(synapse_client=synapse_client)
 
-        loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         await self._load_local_md5(syn)
 
-        entity = await loop.run_in_executor(
-            None,
-            lambda: run_and_attach_otel_context(
-                lambda: syn.get(
-                    entity=self.id or self.path,
-                    version=self.version_number,
-                    ifcollision=self.if_collision,
-                    limitSearch=self.synapse_container_limit or self.parent_id,
-                    downloadFile=self.download_file,
-                    downloadLocation=self.download_location,
-                    md5=self.content_md5,
-                ),
-                current_context,
-            ),
+        await get_from_entity_factory(
+            entity_to_update=self,
+            synapse_id_or_path=self.id or self.path,
+            version=self.version_number,
+            if_collision=self.if_collision,
+            limit_search=self.synapse_container_limit or self.parent_id,
+            download_file=self.download_file,
+            download_location=self.download_location,
+            md5=self.content_md5,
         )
-
-        self.fill_from_dict(synapse_file=entity, set_annotations=True)
 
         if (
             not self.path

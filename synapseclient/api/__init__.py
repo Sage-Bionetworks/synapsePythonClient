@@ -13,10 +13,13 @@ from .entity_bundle_services_v2 import (
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
+from .entity_factory import get_from_entity_factory
 from .entity_services import (
     create_access_requirements_if_none,
     delete_entity_generated_by,
+    get_entities_by_md5,
     get_entity,
+    get_entity_path,
     get_upload_destination,
     get_upload_destination_location,
     post_entity,
@@ -63,10 +66,14 @@ __all__ = [
     "get_upload_destination_location",
     "create_access_requirements_if_none",
     "delete_entity_generated_by",
+    "get_entity_path",
+    "get_entities_by_md5",
     # configuration_services
     "get_config_file",
     "get_config_section_dict",
     "get_config_authentication",
     "get_client_authenticated_s3_profile",
     "get_transfer_config",
+    # entity_factory
+    "get_from_entity_factory",
 ]

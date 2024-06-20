@@ -42,6 +42,7 @@ from synapseclient.core.utils import MB
 
 if TYPE_CHECKING:
     from synapseclient import Entity, Synapse
+    from synapseclient.models import File
 
 FILE_BUFFER_SIZE = 2 * MB
 REDIRECT_LIMIT = 5
@@ -159,6 +160,108 @@ async def download_file_entity(
     entity.path = os.path.normpath(download_path)
     entity.files = [os.path.basename(download_path)]
     entity.cacheDir = os.path.dirname(download_path)
+
+
+async def download_file_entity_model(
+    *,
+    download_location: str,
+    file: "File",
+    if_collision: str,
+    submission: str,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Download file entity
+
+    Arguments:
+        download_location: The download location
+        entity:           The File object
+        if_collision:      Determines how to handle file collisions.
+                            May be
+
+            - `overwrite.local`
+            - `keep.local`
+            - `keep.both`
+
+        submission:       Access associated files through a submission rather than through an entity.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    # set the initial local state
+    file.path = None
+    # file.files = []
+    # file.cacheDir = None
+
+    # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
+    # this location could be either in .synapseCache or a user specified location to which the user previously
+    # downloaded the file
+    cached_file_path = client.cache.get(
+        file_handle_id=file.data_file_handle_id, path=download_location
+    )
+
+    # location in .synapseCache where the file would be corresponding to its FileHandleId
+    synapse_cache_location = client.cache.get_cache_dir(
+        file_handle_id=file.data_file_handle_id
+    )
+
+    file_name = (
+        file.file_handle.file_name
+        if cached_file_path is None
+        else os.path.basename(cached_file_path)
+    )
+
+    # Decide the best download location for the file
+    if download_location is not None:
+        # Make sure the specified download location is a fully resolved directory
+        download_location = ensure_download_location_is_directory(download_location)
+    elif cached_file_path is not None:
+        # file already cached so use that as the download location
+        download_location = os.path.dirname(cached_file_path)
+    else:
+        # file not cached and no user-specified location so default to .synapseCache
+        download_location = synapse_cache_location
+
+    # resolve file path collisions by either overwriting, renaming, or not downloading, depending on the
+    # ifcollision value
+    download_path = resolve_download_path_collisions(
+        download_location=download_location,
+        file_name=file_name,
+        if_collision=if_collision,
+        synapse_cache_location=synapse_cache_location,
+        cached_file_path=cached_file_path,
+    )
+    if download_path is None:
+        return
+
+    if cached_file_path is not None:  # copy from cache
+        if download_path != cached_file_path:
+            # create the foider if it does not exist already
+            if not os.path.exists(download_location):
+                os.makedirs(download_location)
+            shutil.copy(cached_file_path, download_path)
+
+    else:  # download the file from URL (could be a local file)
+        object_type = "FileEntity" if submission is None else "SubmissionAttachment"
+        object_id = file.id if submission is None else submission
+
+        # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
+        # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
+        # _downloadFileHandle may also return None to indicate that the download failed
+        download_path = await download_by_file_handle(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=object_id,
+            entity_type=object_type,
+            destination=download_path,
+        )
+
+        if download_path is None or not os.path.exists(download_path):
+            return
+
+    # converts the path format from forward slashes back to backward slashes on Windows
+    file.path = os.path.normpath(download_path)
+    # file.files = [os.path.basename(download_path)]
+    # file.cacheDir = os.path.dirname(download_path)
 
 
 def _get_aws_credentials() -> None:

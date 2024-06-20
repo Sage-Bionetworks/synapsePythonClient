@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Union
 from opentelemetry import context, trace
 
 from synapseclient import Synapse
+from synapseclient.api import get_from_entity_factory
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import (
@@ -365,19 +366,10 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         """
         entity_id = await get_id(entity=self, synapse_client=synapse_client)
 
-        loop = asyncio.get_event_loop()
-        current_context = context.get_current()
-        entity = await loop.run_in_executor(
-            None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                    entity=entity_id,
-                ),
-                current_context,
-            ),
+        await get_from_entity_factory(
+            entity_to_update=self,
+            synapse_id_or_path=entity_id,
         )
-
-        self.fill_from_dict(synapse_project=entity, set_annotations=True)
 
         self._set_last_persistent_instance()
         return self

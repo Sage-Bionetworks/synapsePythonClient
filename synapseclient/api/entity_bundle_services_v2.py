@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 async def get_entity_id_bundle2(
     entity_id: str,
     request: Optional[Dict[str, bool]] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -53,6 +54,7 @@ async def get_entity_id_version_bundle2(
     entity_id: str,
     version: int,
     request: Optional[Dict[str, bool]] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
