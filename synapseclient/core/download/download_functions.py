@@ -11,7 +11,7 @@ import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from synapseclient.api.configuration_services import get_client_authenticated_s3_profile
-from synapseclient.api.file_services import get_file_handle_for_download
+from synapseclient.api.file_services import get_file_handle_for_download_async
 from synapseclient.core import exceptions, sts_transfer, utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.method_flags import (
@@ -373,7 +373,7 @@ async def download_by_file_handle(
 
     while retries > 0:
         try:
-            file_handle_result = await get_file_handle_for_download(
+            file_handle_result = await get_file_handle_for_download_async(
                 file_handle_id=file_handle_id,
                 synapse_id=synapse_id,
                 entity_type=entity_type,
@@ -457,6 +457,7 @@ async def download_by_file_handle(
                 )
 
             else:
+                # TODO: Migrate this function as well. Internally all these calls are blocking
                 downloaded_path = await download_from_url(
                     url=file_handle_result["preSignedURL"],
                     destination=destination,

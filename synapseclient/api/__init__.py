@@ -29,6 +29,7 @@ from .file_services import (
     AddPartResponse,
     get_file_handle,
     get_file_handle_for_download,
+    get_file_handle_for_download_async,
     post_external_filehandle,
     post_external_object_store_filehandle,
     post_external_s3_file_handle,
@@ -57,6 +58,7 @@ __all__ = [
     "post_file_multipart_presigned_urls",
     "put_file_multipart_add",
     "AddPartResponse",
+    "get_file_handle_for_download_async",
     "get_file_handle_for_download",
     # entity_services
     "get_entity",

@@ -20,8 +20,10 @@ from opentelemetry import context
 from opentelemetry.context import Context
 from tqdm import tqdm
 
-from synapseclient.api.file_services import get_file_handle_for_download
-from synapseclient.core.async_utils import wrap_async_to_sync
+from synapseclient.api.file_services import (
+    get_file_handle_for_download,
+    get_file_handle_for_download_async,
+)
 from synapseclient.core.exceptions import (
     SynapseDownloadAbortedException,
     _raise_for_status_httpx,
@@ -127,8 +129,24 @@ class PresignedUrlProvider:
     # offset parameter used to buffer url expiration checks, time in seconds
     _TIME_BUFFER: datetime.timedelta = datetime.timedelta(seconds=5)
 
-    def __post_init__(self) -> None:
-        self._cached_info = self._get_pre_signed_info()
+    async def get_info_async(self) -> PresignedUrlInfo:
+        """
+        Using async, returns the cached info if it's not expired, otherwise
+        retrieves a new pre-signed url and returns that.
+
+        Returns:
+            Information about a retrieved presigned-url from either the cache or a
+            new request
+        """
+        with self._lock:
+            if not self._cached_info or (
+                datetime.datetime.now(tz=datetime.timezone.utc)
+                + PresignedUrlProvider._TIME_BUFFER
+                >= self._cached_info.expiration_utc
+            ):
+                self._cached_info = await self._get_pre_signed_info_async()
+
+            return self._cached_info
 
     def get_info(self) -> PresignedUrlInfo:
         """
@@ -140,7 +158,7 @@ class PresignedUrlProvider:
             new request
         """
         with self._lock:
-            if (
+            if not self._cached_info or (
                 datetime.datetime.now(tz=datetime.timezone.utc)
                 + PresignedUrlProvider._TIME_BUFFER
                 >= self._cached_info.expiration_utc
@@ -156,14 +174,32 @@ class PresignedUrlProvider:
         Returns:
             Information about a retrieved presigned-url from a new request.
         """
-        response = wrap_async_to_sync(
-            coroutine=get_file_handle_for_download(
-                file_handle_id=self.request.file_handle_id,
-                synapse_id=self.request.object_id,
-                entity_type=self.request.object_type,
-                synapse_client=self.client,
-            ),
-            syn=self.client,
+        response = get_file_handle_for_download(
+            file_handle_id=self.request.file_handle_id,
+            synapse_id=self.request.object_id,
+            entity_type=self.request.object_type,
+            synapse_client=self.client,
+        )
+        file_name = response["fileHandle"]["fileName"]
+        pre_signed_url = response["preSignedURL"]
+        return PresignedUrlInfo(
+            file_name=file_name,
+            url=pre_signed_url,
+            expiration_utc=_pre_signed_url_expiration_time(pre_signed_url),
+        )
+
+    def _get_pre_signed_info_async(self) -> PresignedUrlInfo:
+        """
+        Make an HTTP request to get a pre-signed url to download a file.
+
+        Returns:
+            Information about a retrieved presigned-url from a new request.
+        """
+        response = await get_file_handle_for_download_async(
+            file_handle_id=self.request.file_handle_id,
+            synapse_id=self.request.object_id,
+            entity_type=self.request.object_type,
+            synapse_client=self.client,
         )
         file_name = response["fileHandle"]["fileName"]
         pre_signed_url = response["preSignedURL"]
@@ -297,7 +333,7 @@ class _MultithreadedDownloader:
         """
         url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
 
-        url_info = url_provider.get_info()
+        url_info = await url_provider.get_info_async()
         file_size = await _get_file_size_wrapper(
             syn=self._syn, url=url_info.url, debug=self._download_request.debug
         )
