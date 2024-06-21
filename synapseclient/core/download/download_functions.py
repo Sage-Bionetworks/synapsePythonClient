@@ -1,5 +1,6 @@
 """This module handles the various ways that a user can download a file to Synapse."""
 
+import asyncio
 import errno
 import hashlib
 import os
@@ -368,16 +369,18 @@ async def download_by_file_handle(
     """
     from synapseclient import Synapse
 
-    client = Synapse.get_client(synapse_client=synapse_client)
+    syn = Synapse.get_client(synapse_client=synapse_client)
     os.makedirs(os.path.dirname(destination), exist_ok=True)
 
     while retries > 0:
         try:
-            file_handle_result = await get_file_handle_for_download_async(
+            file_handle_result: Dict[
+                str, str
+            ] = await get_file_handle_for_download_async(
                 file_handle_id=file_handle_id,
                 synapse_id=synapse_id,
                 entity_type=entity_type,
-                synapse_client=client,
+                synapse_client=syn,
             )
             file_handle = file_handle_result["fileHandle"]
             concrete_type = file_handle["concreteType"]
@@ -387,26 +390,31 @@ async def download_by_file_handle(
                 profile = get_client_authenticated_s3_profile(
                     endpoint=file_handle["endpointUrl"],
                     bucket=file_handle["bucket"],
-                    config_path=client.configPath,
+                    config_path=syn.configPath,
                 )
-                downloaded_path = S3ClientWrapper.download_file(
-                    bucket=file_handle["bucket"],
-                    endpoint_url=file_handle["endpointUrl"],
-                    remote_file_key=file_handle["fileKey"],
-                    download_file_path=destination,
-                    profile_name=profile,
-                    credentials=_get_aws_credentials(),
-                    show_progress=not client.silent,
+
+                loop = asyncio.get_running_loop()
+                downloaded_path = await loop.run_in_executor(
+                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                    lambda: S3ClientWrapper.download_file(
+                        bucket=file_handle["bucket"],
+                        endpoint_url=file_handle["endpointUrl"],
+                        remote_file_key=file_handle["fileKey"],
+                        download_file_path=destination,
+                        profile_name=profile,
+                        credentials=_get_aws_credentials(),
+                        show_progress=not syn.silent,
+                    ),
                 )
 
             elif (
-                sts_transfer.is_boto_sts_transfer_enabled(syn=client)
+                sts_transfer.is_boto_sts_transfer_enabled(syn=syn)
                 and await sts_transfer.is_storage_location_sts_enabled_async(
-                    syn=client, entity_id=synapse_id, location=storage_location_id
+                    syn=syn, entity_id=synapse_id, location=storage_location_id
                 )
                 and concrete_type == concrete_types.S3_FILE_HANDLE
             ):
-                # TODO: Some work is needed here to run these in a thread executor
+
                 def download_fn(
                     credentials: Dict[str, str],
                     file_handle: Dict[str, str] = file_handle,
@@ -425,20 +433,21 @@ async def download_by_file_handle(
                         remote_file_key=file_handle["key"],
                         download_file_path=destination,
                         credentials=credentials,
-                        show_progress=not client.silent,
+                        show_progress=not syn.silent,
                         # pass through our synapse threading config to boto s3
-                        transfer_config_kwargs={"max_concurrency": client.max_threads},
+                        transfer_config_kwargs={"max_concurrency": syn.max_threads},
                     )
 
-                downloaded_path = sts_transfer.with_boto_sts_credentials(
-                    fn=download_fn,
-                    syn=client,
-                    entity_id=synapse_id,
-                    permission="read_only",
+                loop = asyncio.get_running_loop()
+                downloaded_path = await loop.run_in_executor(
+                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                    lambda: sts_transfer.with_boto_sts_credentials(
+                        download_fn, syn, synapse_id, "read_only"
+                    ),
                 )
 
             elif (
-                client.multi_threaded
+                syn.multi_threaded
                 and concrete_type == concrete_types.S3_FILE_HANDLE
                 and file_handle.get("contentSize", 0)
                 > SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
@@ -453,19 +462,23 @@ async def download_by_file_handle(
                     object_type=entity_type,
                     destination=destination,
                     expected_md5=file_handle.get("contentMd5"),
-                    synapse_client=client,
+                    synapse_client=syn,
                 )
 
             else:
-                # TODO: Migrate this function as well. Internally all these calls are blocking
-                downloaded_path = await download_from_url(
-                    url=file_handle_result["preSignedURL"],
-                    destination=destination,
-                    file_handle_id=file_handle["id"],
-                    expected_md5=file_handle.get("contentMd5"),
-                    synapse_client=client,
+                loop = asyncio.get_running_loop()
+                downloaded_path = await loop.run_in_executor(
+                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                    lambda: download_from_url(
+                        url=file_handle_result["preSignedURL"],
+                        destination=destination,
+                        file_handle_id=file_handle["id"],
+                        expected_md5=file_handle.get("contentMd5"),
+                        synapse_client=syn,
+                    ),
                 )
-            client.cache.add(file_handle["id"], downloaded_path)
+
+            syn.cache.add(file_handle["id"], downloaded_path)
             return downloaded_path
 
         except Exception as ex:
@@ -474,7 +487,7 @@ async def download_by_file_handle(
 
             exc_info = sys.exc_info()
             ex.progress = 0 if not hasattr(ex, "progress") else ex.progress
-            client.logger.debug(
+            syn.logger.debug(
                 f"\nRetrying download on error: [{exc_info[0]}] after progressing {ex.progress} bytes",
                 exc_info=True,
             )  # this will include stack trace
@@ -553,11 +566,12 @@ async def download_from_url_multi_threaded(
     return destination
 
 
-async def download_from_url(
+def download_from_url(
     url: str,
     destination: str,
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
     """

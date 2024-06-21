@@ -657,19 +657,10 @@ class File(FileSynchronousProtocol, AccessControllable):
             )
         )
 
-    async def _load_local_md5(self, syn: "Synapse") -> None:
+    async def _load_local_md5(self) -> None:
         """Load the MD5 of the file if it's a local file and we have not already loaded
         it."""
         if not self.content_md5 and self.path and os.path.isfile(self.path):
-            # self.content_md5 = await utils.md5_for_file_multiprocessing(
-            #     filename=self.path,
-            #     process_pool_executor=syn._get_process_pool_executor(
-            #         asyncio_event_loop=asyncio.get_running_loop()
-            #     ),
-            #     md5_semaphore=syn._get_md5_semaphore(
-            #         asyncio_event_loop=asyncio.get_running_loop()
-            #     ),
-            # )
             self.content_md5 = utils.md5_for_file_hex(filename=self.path)
 
     async def _find_existing_file(
@@ -1009,7 +1000,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             raise ValueError("The file must have an ID or path to get.")
         syn = Synapse.get_client(synapse_client=synapse_client)
 
-        await self._load_local_md5(syn)
+        await self._load_local_md5()
 
         await get_from_entity_factory(
             entity_to_update=self,
@@ -1286,7 +1277,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                     and os.path.isfile(self.path)
                     and md5_stored_in_synapse
                 ):
-                    await self._load_local_md5(syn)
+                    await self._load_local_md5()
                     if md5_stored_in_synapse == (
                         local_file_md5_hex := self.content_md5
                     ):

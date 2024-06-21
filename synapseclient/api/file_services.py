@@ -465,7 +465,7 @@ def get_file_handle_for_download(
             }
         ],
     }
-    # TODO: Convert over to HTTPX client
+
     response = client.restPOST(
         "/fileHandle/batch", body=json.dumps(body), endpoint=client.fileHandleEndpoint
     )
