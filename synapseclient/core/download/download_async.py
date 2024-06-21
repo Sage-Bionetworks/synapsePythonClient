@@ -138,15 +138,14 @@ class PresignedUrlProvider:
             Information about a retrieved presigned-url from either the cache or a
             new request
         """
-        with self._lock:
-            if not self._cached_info or (
-                datetime.datetime.now(tz=datetime.timezone.utc)
-                + PresignedUrlProvider._TIME_BUFFER
-                >= self._cached_info.expiration_utc
-            ):
-                self._cached_info = await self._get_pre_signed_info_async()
+        if not self._cached_info or (
+            datetime.datetime.now(tz=datetime.timezone.utc)
+            + PresignedUrlProvider._TIME_BUFFER
+            >= self._cached_info.expiration_utc
+        ):
+            self._cached_info = await self._get_pre_signed_info_async()
 
-            return self._cached_info
+        return self._cached_info
 
     def get_info(self) -> PresignedUrlInfo:
         """
