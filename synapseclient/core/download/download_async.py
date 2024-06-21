@@ -188,7 +188,7 @@ class PresignedUrlProvider:
             expiration_utc=_pre_signed_url_expiration_time(pre_signed_url),
         )
 
-    def _get_pre_signed_info_async(self) -> PresignedUrlInfo:
+    async def _get_pre_signed_info_async(self) -> PresignedUrlInfo:
         """
         Make an HTTP request to get a pre-signed url to download a file.
 
