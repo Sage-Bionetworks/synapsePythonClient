@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from opentelemetry import trace
 
-from synapseclient.api import (
-    get_entities_by_md5,
+from synapseclient.api.entity_bundle_services_v2 import (
     get_entity_id_bundle2,
     get_entity_id_version_bundle2,
-    get_entity_path,
 )
+from synapseclient.api.entity_services import get_entities_by_md5, get_entity_path
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.download import download_file_entity_model

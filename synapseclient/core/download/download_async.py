@@ -20,7 +20,7 @@ from opentelemetry import context
 from opentelemetry.context import Context
 from tqdm import tqdm
 
-from synapseclient.api import get_file_handle_for_download
+from synapseclient.api.file_services import get_file_handle_for_download
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.exceptions import (
     SynapseDownloadAbortedException,

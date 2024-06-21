@@ -10,10 +10,8 @@ import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
-from synapseclient.api import (
-    get_client_authenticated_s3_profile,
-    get_file_handle_for_download,
-)
+from synapseclient.api.configuration_services import get_client_authenticated_s3_profile
+from synapseclient.api.file_services import get_file_handle_for_download
 from synapseclient.core import exceptions, sts_transfer, utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.method_flags import (
