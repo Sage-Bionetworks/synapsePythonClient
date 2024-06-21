@@ -434,7 +434,11 @@ class _MultithreadedDownloader:
 
     def _close_progress_bar(self) -> None:
         """Handle closing the progress bar."""
-        if not self._syn.silent and self._progress_bar and self._close_progress_bar:
+        if (
+            not self._syn.silent
+            and self._progress_bar
+            and self._should_close_progress_bar
+        ):
             self._progress_bar.close()
 
     def _generate_stream_and_write_chunk_tasks(
