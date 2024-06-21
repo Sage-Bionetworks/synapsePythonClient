@@ -22,13 +22,18 @@ from synapseclient.api import get_entity, get_entity_id_bundle2
 from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.constants import concrete_types
+from synapseclient.core.download.download_async import (
+    shared_progress_bar as download_shared_progress_bar,
+)
 from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
     SynapseProvenanceError,
 )
-from synapseclient.core.upload.multipart_upload_async import shared_progress_bar
+from synapseclient.core.upload.multipart_upload_async import (
+    shared_progress_bar as upload_shared_progress_bar,
+)
 from synapseclient.core.utils import (
     bool_or_none,
     datetime_or_none,
@@ -180,7 +185,7 @@ def syncFromSynapse(
         unit_scale=True,
         smoothing=0,
     )
-    with shared_progress_bar(progress_bar):
+    with download_shared_progress_bar(progress_bar):
         root_entity = wrap_async_to_sync(
             coroutine=_sync(
                 syn=syn,
@@ -1151,7 +1156,7 @@ def syncToSynapse(
         unit_scale=True,
         smoothing=0,
     )
-    with shared_progress_bar(progress_bar):
+    with upload_shared_progress_bar(progress_bar):
         if sendMessages:
             notify_decorator = notify_me_async(
                 syn, "Upload of %s" % manifestFile, retries=retries
