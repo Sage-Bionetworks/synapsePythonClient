@@ -1707,47 +1707,40 @@ class TestSyncFromSynapse:
             assert file in file_entities
 
         # AND the manifest that is created matches the expected values
-        def verify_manifest(path: str) -> None:
-            """Wrapper to verify the manifest file"""
+        manifest_df = pd.read_csv(os.path.join(temp_dir, MANIFEST_FILE), sep="\t")
+        assert manifest_df.shape[0] == 2
+        assert PATH_COLUMN in manifest_df.columns
+        assert PARENT_COLUMN in manifest_df.columns
+        assert USED_COLUMN in manifest_df.columns
+        assert EXECUTED_COLUMN in manifest_df.columns
+        assert ACTIVITY_NAME_COLUMN in manifest_df.columns
+        assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
+        assert CONTENT_TYPE_COLUMN in manifest_df.columns
+        assert ID_COLUMN in manifest_df.columns
+        assert SYNAPSE_STORE_COLUMN in manifest_df.columns
+        assert NAME_COLUMN in manifest_df.columns
+        assert manifest_df.shape[1] == 10
 
-            manifest_df = pd.read_csv(path, sep="\t")
-            assert manifest_df.shape[0] == 2
-            assert PATH_COLUMN in manifest_df.columns
-            assert PARENT_COLUMN in manifest_df.columns
-            assert USED_COLUMN in manifest_df.columns
-            assert EXECUTED_COLUMN in manifest_df.columns
-            assert ACTIVITY_NAME_COLUMN in manifest_df.columns
-            assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
-            assert CONTENT_TYPE_COLUMN in manifest_df.columns
-            assert ID_COLUMN in manifest_df.columns
-            assert SYNAPSE_STORE_COLUMN in manifest_df.columns
-            assert NAME_COLUMN in manifest_df.columns
-            assert manifest_df.shape[1] == 10
+        for file in sync_result:
+            matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
+            assert not matching_row.empty
+            assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
+            assert (
+                matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
+            )
+            assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
+            assert (
+                matching_row[SYNAPSE_STORE_COLUMN].values[0]
+                == file[SYNAPSE_STORE_COLUMN]
+            )
+            assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
 
-            for file in sync_result:
-                matching_row = manifest_df[
-                    manifest_df[PATH_COLUMN] == file[PATH_COLUMN]
-                ]
-                assert not matching_row.empty
-                assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
-                assert (
-                    matching_row[CONTENT_TYPE_COLUMN].values[0]
-                    == file[CONTENT_TYPE_COLUMN]
-                )
-                assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
-                assert (
-                    matching_row[SYNAPSE_STORE_COLUMN].values[0]
-                    == file[SYNAPSE_STORE_COLUMN]
-                )
-                assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
-
-                assert pd.isna(matching_row[USED_COLUMN].values[0])
-                assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
-                assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
-                assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+            assert pd.isna(matching_row[USED_COLUMN].values[0])
+            assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
 
         # AND the default behavior is that a manifest file is created in root, but not the sub folder
-        verify_manifest(path=os.path.join(temp_dir, MANIFEST_FILE))
         sub_directory = os.path.join(temp_dir, sub_folder.name)
         assert not os.path.exists(os.path.join(sub_directory, MANIFEST_FILE))
 
