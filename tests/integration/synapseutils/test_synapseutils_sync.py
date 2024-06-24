@@ -1606,38 +1606,210 @@ class TestSyncFromSynapse:
             assert file in file_entities
 
         # AND the manifest that is created matches the expected values
-        manifest_df = pd.read_csv(os.path.join(temp_dir, MANIFEST_FILE), sep="\t")
-        assert manifest_df.shape[0] == 2
-        assert PATH_COLUMN in manifest_df.columns
-        assert PARENT_COLUMN in manifest_df.columns
-        assert USED_COLUMN in manifest_df.columns
-        assert EXECUTED_COLUMN in manifest_df.columns
-        assert ACTIVITY_NAME_COLUMN in manifest_df.columns
-        assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
-        assert CONTENT_TYPE_COLUMN in manifest_df.columns
-        assert ID_COLUMN in manifest_df.columns
-        assert SYNAPSE_STORE_COLUMN in manifest_df.columns
-        assert NAME_COLUMN in manifest_df.columns
-        assert manifest_df.shape[1] == 10
+        def verify_manifest(path: str) -> None:
+            """Wrapper to verify the manifest file"""
 
+            manifest_df = pd.read_csv(path, sep="\t")
+            assert manifest_df.shape[0] == 2
+            assert PATH_COLUMN in manifest_df.columns
+            assert PARENT_COLUMN in manifest_df.columns
+            assert USED_COLUMN in manifest_df.columns
+            assert EXECUTED_COLUMN in manifest_df.columns
+            assert ACTIVITY_NAME_COLUMN in manifest_df.columns
+            assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
+            assert CONTENT_TYPE_COLUMN in manifest_df.columns
+            assert ID_COLUMN in manifest_df.columns
+            assert SYNAPSE_STORE_COLUMN in manifest_df.columns
+            assert NAME_COLUMN in manifest_df.columns
+            assert manifest_df.shape[1] == 10
+
+            for file in sync_result:
+                matching_row = manifest_df[
+                    manifest_df[PATH_COLUMN] == file[PATH_COLUMN]
+                ]
+                assert not matching_row.empty
+                assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
+                assert (
+                    matching_row[CONTENT_TYPE_COLUMN].values[0]
+                    == file[CONTENT_TYPE_COLUMN]
+                )
+                assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
+                assert (
+                    matching_row[SYNAPSE_STORE_COLUMN].values[0]
+                    == file[SYNAPSE_STORE_COLUMN]
+                )
+                assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
+
+                assert pd.isna(matching_row[USED_COLUMN].values[0])
+                assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
+                assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
+                assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+
+        # AND the default behavior is that a manifest file is created in the directory
+        # we supplied as well as sub directories to that.
+        verify_manifest(path=os.path.join(temp_dir, MANIFEST_FILE))
+        sub_directory = os.path.join(temp_dir, sub_folder.name)
+        verify_manifest(path=os.path.join(sub_directory, MANIFEST_FILE))
+
+    async def test_folder_sync_from_synapse_files_contained_within_sub_folder_root_manifest_only(
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
+    ) -> None:
+        """
+        Testing for this case:
+
+        project_model (root)
+        ├── parent_folder
+        │   └── sub_folder
+        │       ├── file1 (uploaded)
+        │       └── file2 (uploaded)
+
+        Verifies that only the root manifest is created.
+        """
+        # GIVEN a folder
+        parent_folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async()
+        schedule_for_cleanup(parent_folder.id)
+
+        # AND a sub folder to sync from
+        sub_folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=parent_folder.id
+        ).store_async()
+        schedule_for_cleanup(sub_folder.id)
+
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
+
+        # AND each file is uploaded to Synapse into the sub folder
+        file_entities = []
+        for file in temp_files:
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=sub_folder.id))
+            schedule_for_cleanup(file_entity["id"])
+            file_entities.append(file_entity)
+
+        # AND A temp directory to write the manifest file to
+        temp_dir = tempfile.mkdtemp()
+
+        # WHEN I sync the parent folder from Synapse
+        sync_result = synapseutils.syncFromSynapse(
+            syn=syn, entity=parent_folder.id, path=temp_dir, manifest="root"
+        )
+
+        # THEN I expect that the result has all of the files
+        assert len(sync_result) == 2
+
+        # AND each of the files are the ones we uploaded
         for file in sync_result:
-            matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
-            assert not matching_row.empty
-            assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
-            assert (
-                matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
-            )
-            assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
-            assert (
-                matching_row[SYNAPSE_STORE_COLUMN].values[0]
-                == file[SYNAPSE_STORE_COLUMN]
-            )
-            assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
+            assert file in file_entities
 
-            assert pd.isna(matching_row[USED_COLUMN].values[0])
-            assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
-            assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
-            assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+        # AND the manifest that is created matches the expected values
+        def verify_manifest(path: str) -> None:
+            """Wrapper to verify the manifest file"""
+
+            manifest_df = pd.read_csv(path, sep="\t")
+            assert manifest_df.shape[0] == 2
+            assert PATH_COLUMN in manifest_df.columns
+            assert PARENT_COLUMN in manifest_df.columns
+            assert USED_COLUMN in manifest_df.columns
+            assert EXECUTED_COLUMN in manifest_df.columns
+            assert ACTIVITY_NAME_COLUMN in manifest_df.columns
+            assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
+            assert CONTENT_TYPE_COLUMN in manifest_df.columns
+            assert ID_COLUMN in manifest_df.columns
+            assert SYNAPSE_STORE_COLUMN in manifest_df.columns
+            assert NAME_COLUMN in manifest_df.columns
+            assert manifest_df.shape[1] == 10
+
+            for file in sync_result:
+                matching_row = manifest_df[
+                    manifest_df[PATH_COLUMN] == file[PATH_COLUMN]
+                ]
+                assert not matching_row.empty
+                assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
+                assert (
+                    matching_row[CONTENT_TYPE_COLUMN].values[0]
+                    == file[CONTENT_TYPE_COLUMN]
+                )
+                assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
+                assert (
+                    matching_row[SYNAPSE_STORE_COLUMN].values[0]
+                    == file[SYNAPSE_STORE_COLUMN]
+                )
+                assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
+
+                assert pd.isna(matching_row[USED_COLUMN].values[0])
+                assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
+                assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
+                assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+
+        # AND the default behavior is that a manifest file is created in root, but not the sub folder
+        verify_manifest(path=os.path.join(temp_dir, MANIFEST_FILE))
+        sub_directory = os.path.join(temp_dir, sub_folder.name)
+        assert not os.path.exists(os.path.join(sub_directory, MANIFEST_FILE))
+
+    async def test_folder_sync_from_synapse_files_contained_within_sub_folder_suppress_manifest(
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+        project_model: Project,
+    ) -> None:
+        """
+        Testing for this case:
+
+        project_model (root)
+        ├── parent_folder
+        │   └── sub_folder
+        │       ├── file1 (uploaded)
+        │       └── file2 (uploaded)
+
+        Verifies that the manifest is not created at all.
+        """
+        # GIVEN a folder
+        parent_folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=project_model.id
+        ).store_async()
+        schedule_for_cleanup(parent_folder.id)
+
+        # AND a sub folder to sync from
+        sub_folder = await Folder(
+            name=str(uuid.uuid4()), parent_id=parent_folder.id
+        ).store_async()
+        schedule_for_cleanup(sub_folder.id)
+
+        # AND 2 temporary files on disk:
+        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
+
+        # AND each file is uploaded to Synapse into the sub folder
+        file_entities = []
+        for file in temp_files:
+            schedule_for_cleanup(file)
+            file_entity = syn.store(SynapseFile(path=file, parent=sub_folder.id))
+            schedule_for_cleanup(file_entity["id"])
+            file_entities.append(file_entity)
+
+        # AND A temp directory to write the manifest file to
+        temp_dir = tempfile.mkdtemp()
+
+        # WHEN I sync the parent folder from Synapse
+        sync_result = synapseutils.syncFromSynapse(
+            syn=syn, entity=parent_folder.id, path=temp_dir, manifest="suppress"
+        )
+
+        # THEN I expect that the result has all of the files
+        assert len(sync_result) == 2
+
+        # AND each of the files are the ones we uploaded
+        for file in sync_result:
+            assert file in file_entities
+
+        # AND the manifest is not created because it was suppressed
+        sub_directory = os.path.join(temp_dir, sub_folder.name)
+        assert not os.path.exists(os.path.join(temp_dir, MANIFEST_FILE))
+        assert not os.path.exists(os.path.join(sub_directory, MANIFEST_FILE))
 
     async def test_folder_sync_from_synapse_files_spread_across_folders(
         self,
@@ -1705,7 +1877,7 @@ class TestSyncFromSynapse:
         for file in sync_result:
             assert file in file_entities
 
-        # AND the manifest that is created matches the expected values
+        # AND the root manifest contain all entries
         manifest_df = pd.read_csv(os.path.join(temp_dir, MANIFEST_FILE), sep="\t")
         assert manifest_df.shape[0] == 3
         assert PATH_COLUMN in manifest_df.columns
@@ -1719,10 +1891,14 @@ class TestSyncFromSynapse:
         assert SYNAPSE_STORE_COLUMN in manifest_df.columns
         assert NAME_COLUMN in manifest_df.columns
         assert manifest_df.shape[1] == 10
+        found_matching_file = False
 
         for file in sync_result:
             matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
-            assert not matching_row.empty
+            if matching_row.empty:
+                continue
+            else:
+                found_matching_file = True
             assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
             assert (
                 matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
@@ -1738,6 +1914,90 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+        assert found_matching_file
+
+        # AND the sub directory manifests contain only a single entry
+        sub_directory_1 = os.path.join(temp_dir, sub_folder_1.name)
+        sub_directory_2 = os.path.join(temp_dir, sub_folder_2.name)
+        manifest_df = pd.read_csv(
+            os.path.join(sub_directory_1, MANIFEST_FILE), sep="\t"
+        )
+        assert manifest_df.shape[0] == 1
+        assert PATH_COLUMN in manifest_df.columns
+        assert PARENT_COLUMN in manifest_df.columns
+        assert USED_COLUMN in manifest_df.columns
+        assert EXECUTED_COLUMN in manifest_df.columns
+        assert ACTIVITY_NAME_COLUMN in manifest_df.columns
+        assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
+        assert CONTENT_TYPE_COLUMN in manifest_df.columns
+        assert ID_COLUMN in manifest_df.columns
+        assert SYNAPSE_STORE_COLUMN in manifest_df.columns
+        assert NAME_COLUMN in manifest_df.columns
+        assert manifest_df.shape[1] == 10
+        found_matching_file = False
+
+        for file in sync_result:
+            matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
+            if matching_row.empty:
+                continue
+            else:
+                found_matching_file = True
+            assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
+            assert (
+                matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
+            )
+            assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
+            assert (
+                matching_row[SYNAPSE_STORE_COLUMN].values[0]
+                == file[SYNAPSE_STORE_COLUMN]
+            )
+            assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
+
+            assert pd.isna(matching_row[USED_COLUMN].values[0])
+            assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+        assert found_matching_file
+
+        manifest_df = pd.read_csv(
+            os.path.join(sub_directory_2, MANIFEST_FILE), sep="\t"
+        )
+        assert manifest_df.shape[0] == 1
+        assert PATH_COLUMN in manifest_df.columns
+        assert PARENT_COLUMN in manifest_df.columns
+        assert USED_COLUMN in manifest_df.columns
+        assert EXECUTED_COLUMN in manifest_df.columns
+        assert ACTIVITY_NAME_COLUMN in manifest_df.columns
+        assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
+        assert CONTENT_TYPE_COLUMN in manifest_df.columns
+        assert ID_COLUMN in manifest_df.columns
+        assert SYNAPSE_STORE_COLUMN in manifest_df.columns
+        assert NAME_COLUMN in manifest_df.columns
+        assert manifest_df.shape[1] == 10
+        found_matching_file = False
+
+        for file in sync_result:
+            matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
+            if matching_row.empty:
+                continue
+            else:
+                found_matching_file = True
+            assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
+            assert (
+                matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
+            )
+            assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
+            assert (
+                matching_row[SYNAPSE_STORE_COLUMN].values[0]
+                == file[SYNAPSE_STORE_COLUMN]
+            )
+            assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
+
+            assert pd.isna(matching_row[USED_COLUMN].values[0])
+            assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+        assert found_matching_file
 
     async def test_sync_from_synapse_follow_links(
         self,
@@ -1910,10 +2170,14 @@ class TestSyncFromSynapse:
         assert SYNAPSE_STORE_COLUMN in manifest_df.columns
         assert NAME_COLUMN in manifest_df.columns
         assert manifest_df.shape[1] == 10
+        found_matching_file = False
 
         for file in sync_result:
             matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
-            assert not matching_row.empty
+            if matching_row.empty:
+                continue
+            else:
+                found_matching_file = True
             assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
             assert (
                 matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
@@ -1929,6 +2193,91 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+        assert found_matching_file
+
+        # AND The directory for files contains a manifest file
+        sub_directory_for_files = os.path.join(temp_dir, folder_with_files.name)
+        manifest_df = pd.read_csv(
+            os.path.join(sub_directory_for_files, MANIFEST_FILE), sep="\t"
+        )
+        assert manifest_df.shape[0] == 2
+        assert PATH_COLUMN in manifest_df.columns
+        assert PARENT_COLUMN in manifest_df.columns
+        assert USED_COLUMN in manifest_df.columns
+        assert EXECUTED_COLUMN in manifest_df.columns
+        assert ACTIVITY_NAME_COLUMN in manifest_df.columns
+        assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
+        assert CONTENT_TYPE_COLUMN in manifest_df.columns
+        assert ID_COLUMN in manifest_df.columns
+        assert SYNAPSE_STORE_COLUMN in manifest_df.columns
+        assert NAME_COLUMN in manifest_df.columns
+        assert manifest_df.shape[1] == 10
+        found_matching_file = False
+
+        for file in sync_result:
+            matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
+            if matching_row.empty:
+                continue
+            else:
+                found_matching_file = True
+            assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
+            assert (
+                matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
+            )
+            assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
+            assert (
+                matching_row[SYNAPSE_STORE_COLUMN].values[0]
+                == file[SYNAPSE_STORE_COLUMN]
+            )
+            assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
+
+            assert pd.isna(matching_row[USED_COLUMN].values[0])
+            assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+        assert found_matching_file
+
+        # AND The directory for links contains a manifest file
+        sub_directory_for_links = os.path.join(temp_dir, folder_with_links.name)
+        manifest_df = pd.read_csv(
+            os.path.join(sub_directory_for_links, MANIFEST_FILE), sep="\t"
+        )
+        assert manifest_df.shape[0] == 2
+        assert PATH_COLUMN in manifest_df.columns
+        assert PARENT_COLUMN in manifest_df.columns
+        assert USED_COLUMN in manifest_df.columns
+        assert EXECUTED_COLUMN in manifest_df.columns
+        assert ACTIVITY_NAME_COLUMN in manifest_df.columns
+        assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
+        assert CONTENT_TYPE_COLUMN in manifest_df.columns
+        assert ID_COLUMN in manifest_df.columns
+        assert SYNAPSE_STORE_COLUMN in manifest_df.columns
+        assert NAME_COLUMN in manifest_df.columns
+        assert manifest_df.shape[1] == 10
+        found_matching_file = False
+
+        for file in sync_result:
+            matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
+            if matching_row.empty:
+                continue
+            else:
+                found_matching_file = True
+            assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
+            assert (
+                matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
+            )
+            assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
+            assert (
+                matching_row[SYNAPSE_STORE_COLUMN].values[0]
+                == file[SYNAPSE_STORE_COLUMN]
+            )
+            assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
+
+            assert pd.isna(matching_row[USED_COLUMN].values[0])
+            assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
+            assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
+        assert found_matching_file
 
     async def test_sync_from_synapse_dont_follow_links(
         self,

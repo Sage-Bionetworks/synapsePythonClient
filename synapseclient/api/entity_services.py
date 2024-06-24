@@ -3,7 +3,7 @@
 """
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from async_lru import alru_cache
 
@@ -208,12 +208,11 @@ async def delete_entity_generated_by(
     )
 
 
-# TODO: Check the return type of this
 async def get_entity_path(
     entity_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-):
+) -> Dict[str, List[Dict[str, Union[str, int, bool]]]]:
     """
     Implements:
     <https://rest-docs.synapse.org/rest/GET/entity/id/path.html>
@@ -235,12 +234,11 @@ async def get_entity_path(
     )
 
 
-# TODO: Check the return type of this
 async def get_entities_by_md5(
     md5: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-):
+) -> Dict[str, Union[int, List[Dict[str, Any]]]]:
     """
     Implements:
     <https://rest-docs.synapse.org/rest/GET/entity/md5/md5.html>

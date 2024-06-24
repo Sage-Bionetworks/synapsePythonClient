@@ -280,7 +280,7 @@ async def _cast_into_class_type(
     from synapseclient.models import Annotations
 
     annotations = Annotations.from_dict(
-        synapse_annotations=entity_bundle["annotations"]
+        synapse_annotations=entity_bundle.get("annotations", None)
     )
 
     from synapseclient.models import File, Folder, Project
@@ -307,10 +307,10 @@ async def _cast_into_class_type(
         file_handle = next(
             (
                 handle
-                for handle in entity_bundle["fileHandles"]
-                if handle["id"] == entity.data_file_handle_id
+                for handle in entity_bundle.get("fileHandles", [])
+                if handle and handle["id"] == entity.data_file_handle_id
             ),
-            None,
+            {},
         )
         from synapseclient.models import FileHandle
 
@@ -344,7 +344,8 @@ async def _cast_into_class_type(
         raise ValueError(
             f"Attempting to retrieve an unsupported entity type of {entity['concreteType']}."
         )
-    entity.annotations = annotations
+    if annotations:
+        entity.annotations = annotations
 
     return entity
 
@@ -372,8 +373,10 @@ def _check_entity_restrictions(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 
-    restriction_information = bundle["restrictionInformation"]
-    if restriction_information["hasUnmetAccessRequirement"]:
+    restriction_information = bundle.get("restrictionInformation", None)
+    if restriction_information and restriction_information.get(
+        "hasUnmetAccessRequirement", None
+    ):
         warning_message = (
             "\nThis entity has access restrictions. Please visit the web page for this entity "
             f'(syn.onweb("{synapse_id}")). Look for the "Access" label and the lock icon underneath '

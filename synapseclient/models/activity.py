@@ -168,6 +168,8 @@ class Activity(ActivitySynchronousProtocol):
         Returns:
             The Activity object.
         """
+        if not synapse_activity:
+            synapse_activity = {}
         self.id = synapse_activity.get("id", None)
         self.name = synapse_activity.get("name", None)
         self.description = synapse_activity.get("description", None)
@@ -375,7 +377,10 @@ class Activity(ActivitySynchronousProtocol):
                     return None
                 else:
                     raise ex
-            return cls().fill_from_dict(synapse_activity=synapse_activity)
+            if synapse_activity:
+                return cls().fill_from_dict(synapse_activity=synapse_activity)
+            else:
+                return None
 
     @classmethod
     async def delete_async(

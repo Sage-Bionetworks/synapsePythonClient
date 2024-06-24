@@ -204,13 +204,27 @@ def syncFromSynapse(
 
     from synapseclient.models import Folder, Project
 
+    # Handle the creation of a manifest TSV file. The way that this works is that
+    # a manifest is created for each directory level if "all" is specified. If "root"
+    # is specified then only the root directory will have a manifest created.
     if isinstance(root_entity, Project) or isinstance(root_entity, Folder):
         files = root_entity.flatten_file_list()
-
-        generate_manifest(
-            all_files=files,
-            path=path,
-        )
+        if manifest != "suppress":
+            generate_manifest(
+                all_files=files,
+                path=path,
+            )
+        if manifest == "all":
+            for (
+                directory_path,
+                file_entities,
+            ) in root_entity.map_directory_to_all_contained_files(
+                root_path=path
+            ).items():
+                generate_manifest(
+                    all_files=file_entities,
+                    path=directory_path,
+                )
     elif isinstance(root_entity, File):
         # When the root entity is a file we do not create a manifest file. This is
         # to match the behavior present in v4.x.x of the client.
@@ -235,9 +249,9 @@ def syncFromSynapse(
 async def _sync(
     syn: Synapse,
     entity: Union[str, SynapseFile, SynapseProject, SynapseFolder],
-    path: str,
-    if_collision: str,
-    follow_link: bool,
+    path: str = None,
+    if_collision: str = "overwrite.local",
+    follow_link: bool = False,
     download_file: bool = True,
     manifest: str = "all",
 ) -> Union["File", "Folder", "Project"]:
