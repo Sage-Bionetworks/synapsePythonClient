@@ -20,6 +20,7 @@ A [Schema][synapseclient.table.Schema] defines a series of [Column][synapseclien
 
 [Read more information about using Table in synapse in the tutorials section](/tutorials/tables).
 """
+
 import abc
 import collections
 import collections.abc
@@ -261,9 +262,11 @@ def row_labels_from_id_and_version(rows):
 def row_labels_from_rows(rows):
     return row_labels_from_id_and_version(
         [
-            (row["rowId"], row["versionNumber"], row["etag"])
-            if "etag" in row
-            else (row["rowId"], row["versionNumber"])
+            (
+                (row["rowId"], row["versionNumber"], row["etag"])
+                if "etag" in row
+                else (row["rowId"], row["versionNumber"])
+            )
             for row in rows
         ]
     )
@@ -431,7 +434,7 @@ def _csv_to_pandas_df(
     if list_columns:
         for col in list_columns:
             # Fill NA values with empty lists, it must be a string for json.loads to work
-            df[col].fillna("[]", inplace=True)
+            df.fillna({col: "[]"}, inplace=True)
             df[col] = df[col].apply(json.loads)
 
     if (
