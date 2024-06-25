@@ -17,7 +17,6 @@ from requests import Response, Session
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from synapseclient.api import get_file_handle_for_download
 from synapseclient.core.exceptions import SynapseError, _raise_for_status
 from synapseclient.core.pool_provider import get_executor
 from synapseclient.core.retry import (
@@ -169,18 +168,16 @@ class PresignedUrlProvider(object):
         Returns:
             PresignedUrlInfo
         """
-        response = get_file_handle_for_download(
-            file_handle_id=self.request.file_handle_id,
-            synapse_id=self.request.object_id,
-            entity_type=self.request.object_type,
-            synapse_client=self.client,
+        # noinspection PyProtectedMember
+        response = self.client._getFileHandleDownload(
+            self.request.file_handle_id,
+            self.request.object_id,
+            objectType=self.request.object_type,
         )
         file_name = response["fileHandle"]["fileName"]
         pre_signed_url = response["preSignedURL"]
         return PresignedUrlInfo(
-            file_name=file_name,
-            url=pre_signed_url,
-            expiration_utc=_pre_signed_url_expiration_time(pre_signed_url),
+            file_name, pre_signed_url, _pre_signed_url_expiration_time(pre_signed_url)
         )
 
 

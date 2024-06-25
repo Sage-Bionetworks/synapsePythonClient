@@ -244,9 +244,9 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     time_made = parsed_query["X-Amz-Date"][0]
     time_made_datetime = datetime.datetime.strptime(time_made, ISO_AWS_STR_FORMAT)
     expires = parsed_query["X-Amz-Expires"][0]
-    return_data = time_made_datetime + datetime.timedelta(seconds=int(expires))
-    if return_data.tzinfo is None:
-        return_data = return_data.replace(tzinfo=datetime.timezone.utc)
+    return_data = (
+        time_made_datetime + datetime.timedelta(seconds=int(expires))
+    ).replace(tzinfo=datetime.timezone.utc)
     return return_data
 
 
