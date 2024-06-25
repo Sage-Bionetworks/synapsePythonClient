@@ -577,6 +577,7 @@ def _execute_stream_and_write_chunk(
     with session.stream(
         method="GET", url=presigned_url_provider.get_info().url, headers=range_header
     ) as response:
+        _raise_for_status_httpx(response=response, logger=request._syn.logger)
         data = response.read()
         data_length = len(data)
         request._write_chunk(

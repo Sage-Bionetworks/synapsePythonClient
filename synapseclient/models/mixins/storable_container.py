@@ -193,6 +193,8 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                         alt Recursive is True
                             note over sync_from_synapse: Append `folder.sync_from_synapse()` method
                         end
+                    else Child is Link and hops > 0
+                        note over sync_from_synapse: Append task to follow link
                     end
                 end
 
@@ -210,6 +212,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     and `folder.sync_from_synapse_async()`
                         note over sync_from_synapse: This is a recursive call to `sync_from_synapse`
                         sync_from_synapse->>sync_from_synapse: Recursive call to `.sync_from_synapse_async()`
+                    and `_follow_link`
+                        sync_from_synapse ->>client: call `get_entity_id_bundle2` function
+                        client-->sync_from_synapse: .
+                        note over sync_from_synapse: Do nothing if not link
+                        note over sync_from_synapse: call `_create_task_for_child` and execute
                     end
                 end
 

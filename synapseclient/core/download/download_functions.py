@@ -189,8 +189,6 @@ async def download_file_entity_model(
     client = Synapse.get_client(synapse_client=synapse_client)
     # set the initial local state
     file.path = None
-    # file.files = []
-    # file.cacheDir = None
 
     # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
     # this location could be either in .synapseCache or a user specified location to which the user previously
@@ -259,8 +257,6 @@ async def download_file_entity_model(
 
     # converts the path format from forward slashes back to backward slashes on Windows
     file.path = os.path.normpath(download_path)
-    # file.files = [os.path.basename(download_path)]
-    # file.cacheDir = os.path.dirname(download_path)
 
 
 def _get_aws_credentials() -> None:
@@ -273,7 +269,6 @@ async def download_by_file_handle(
     synapse_id: str,
     entity_type: str,
     destination: str,
-    # TODO: Update this retries to be time based to match the upload logic
     retries: int = 5,
     synapse_client: Optional["Synapse"] = None,
 ) -> str:
@@ -647,6 +642,7 @@ def download_from_url(
                     None
                 """
                 show_progress = not client.silent
+                # TODO: Convert progress bar over to shared progress bar for sync
                 if show_progress:
                     client._print_transfer_progress(
                         transferred=block_number * read_size,

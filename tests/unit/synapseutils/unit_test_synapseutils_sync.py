@@ -24,6 +24,7 @@ from synapseclient.core.utils import id_of
 from synapseclient.models import File
 from synapseutils import sync
 from synapseutils.sync import _SyncUploader, _SyncUploadItem
+from tests.test_utils import spy_for_async_function, spy_for_function
 
 SYNAPSE_URL = "http://www.synapse.org"
 GITHUB_URL = "http://www.github.com"
@@ -315,22 +316,6 @@ def test_sync_from_synapse_folder_contains_one_file(syn: Synapse) -> None:
         result = synapseutils.syncFromSynapse(syn, folder)
         assert [file] == result
         patch_syn_get_children.called_with(folder["id"])
-
-
-def spy_for_async_function(
-    original_func: Callable[..., Any]
-) -> Callable[..., Coroutine[Any, Any, Any]]:
-    async def wrapper(*args, **kwargs):
-        return await original_func(*args, **kwargs)  # Call the original function
-
-    return wrapper
-
-
-def spy_for_function(original_func: Callable[..., Any]) -> Callable[..., Any]:
-    def wrapper(*args, **kwargs):
-        return original_func(*args, **kwargs)  # Call the original function
-
-    return wrapper
 
 
 def test_sync_from_synapse_project_contains_empty_folder(syn: Synapse) -> None:
