@@ -59,7 +59,7 @@ from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.upload import upload_functions
 
 GET_FILE_HANDLE_FOR_DOWNLOAD = (
-    "synapseclient.core.download.download_functions.get_file_handle_for_download"
+    "synapseclient.core.download.download_functions.get_file_handle_for_download_async"
 )
 DOWNLOAD_BY_FILE_HANDLE = (
     "synapseclient.core.download.download_functions.download_by_file_handle"
@@ -340,7 +340,6 @@ class TestDownloadFileHandle:
                 new_callable=AsyncMock,
             ) as mock_get_file_handle_download, patch(
                 DOWNLOAD_FROM_URL,
-                new_callable=AsyncMock,
             ) as mock_download_from_URL:
                 mock_get_file_handle_download.return_value = {
                     "fileHandle": {
@@ -468,7 +467,7 @@ class TestDownloadFileHandle:
         ), patch.object(
             urllib_request, "urlretrieve"
         ) as mock_url_retrieve, patch.object(
-            utils, "md5_for_file_multiprocessing"
+            utils, "md5_for_file"
         ) as mock_md5_for_file, patch.object(
             os, "makedirs"
         ):
@@ -513,7 +512,7 @@ class TestDownloadFileHandle:
 
         mock_get.return_value = response
 
-        out_destination = await download_from_url(
+        out_destination = download_from_url(
             url=uri,
             destination=in_destination.name,
             synapse_client=self.syn,
@@ -541,7 +540,7 @@ class TestDownloadFileHandle:
 
         mock_get.return_value = response
 
-        out_destination = await download_from_url(
+        out_destination = download_from_url(
             url=uri,
             destination=in_destination.name,
             synapse_client=self.syn,

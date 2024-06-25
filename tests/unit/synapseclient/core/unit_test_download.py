@@ -14,7 +14,7 @@ import requests
 import synapseclient.core.constants.concrete_types as concrete_types
 import synapseclient.core.download.download_async as download_async
 from synapseclient import Synapse
-from synapseclient.api import get_file_handle_for_download
+from synapseclient.api import get_file_handle_for_download_async
 from synapseclient.core import utils
 from synapseclient.core.download import (
     download_by_file_handle,
@@ -29,7 +29,7 @@ from synapseclient.core.exceptions import (
 )
 
 GET_FILE_HANDLE_FOR_DOWNLOAD = (
-    "synapseclient.core.download.download_functions.get_file_handle_for_download"
+    "synapseclient.core.download.download_functions.get_file_handle_for_download_async"
 )
 DOWNLOAD_FROM_URL = "synapseclient.core.download.download_functions.download_from_url"
 
@@ -154,17 +154,10 @@ async def test_mock_download(syn: Synapse) -> None:
         [create_mock_response(url, "stream", contents=contents, buffer_size=1024)]
     )
 
-    # patch requests.get and also the method that generates signed
-    # headers (to avoid having to be logged in to Synapse)
-    # with patch.object(
-    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
-    # ),
-
-    # TODO: When swapping out for the HTTPX client, we will need to update this test
     with patch.object(
         syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
-        await download_from_url(
+        download_from_url(
             url=url,
             destination=temp_dir,
             file_handle_id=12345,
@@ -180,16 +173,10 @@ async def test_mock_download(syn: Synapse) -> None:
         ]
     )
 
-    # TODO: When swapping out for the HTTPX client, we will need to update this test
-    # patch requests.get and also the method that generates signed
-    # headers (to avoid having to be logged in to Synapse)
-    # with patch.object(
-    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
-    # )
     with patch.object(
         syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
-        await download_from_url(
+        download_from_url(
             url=url,
             destination=temp_dir,
             file_handle_id=12345,
@@ -237,12 +224,6 @@ async def test_mock_download(syn: Synapse) -> None:
         },
     }
 
-    # TODO: When swapping out for the HTTPX client, we will need to update this test
-    # patch requests.get and also the method that generates signed
-    # headers (to avoid having to be logged in to Synapse)
-    # with patch.object(
-    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
-    # )
     with patch.object(
         syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(syn, "_generate_headers", side_effect=mock_generate_headers), patch(
@@ -571,9 +552,7 @@ class TestDownloadFromUrlMultiThreaded:
     async def test_md5_mismatch(self) -> None:
         with patch(
             "synapseclient.core.download.download_functions.download_file"
-        ), patch.object(
-            utils, "md5_for_file_multiprocessing"
-        ) as mock_md5_for_file, patch.object(
+        ), patch.object(utils, "md5_for_file") as mock_md5_for_file, patch.object(
             os, "remove"
         ) as mock_os_remove, patch.object(
             shutil, "move"
@@ -598,21 +577,20 @@ class TestDownloadFromUrlMultiThreaded:
             mock_move.assert_not_called()
 
     async def test_md5_match(self) -> None:
+        expected_md5 = "myExpectedMd5"
+
         with patch(
             "synapseclient.core.download.download_functions.download_file"
         ), patch.object(
             utils,
-            "md5_for_file_multiprocessing",
-            new_callable=AsyncMock,
-            return_value="myExpectedMd5",
+            "md5_for_file_hex",
+            return_value=expected_md5,
         ), patch.object(
             os, "remove"
         ) as mock_os_remove, patch.object(
             shutil, "move"
         ) as mock_move:
             path = os.path.abspath("/myfakepath")
-
-            expected_md5 = "myExpectedMd5"
 
             await download_from_url_multi_threaded(
                 file_handle_id=123,
@@ -694,7 +672,7 @@ async def test_download_end_early_retry(syn: Synapse) -> None:
         shutil, "move"
     ) as mocked_move:
         # function under test
-        await download_from_url(url=url, destination=destination)
+        download_from_url(url=url, destination=destination)
 
         # assert temp_download_filename() called 2 times with same parameters
         assert [
@@ -742,11 +720,6 @@ async def test_download_md5_mismatch__not_local_file(syn: Synapse) -> None:
         ]
     )
 
-    # with patch.object(
-    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
-    # )
-
-    # TODO: When swapping out for the HTTPX client, we will need to update this test
     with patch.object(
         syn._requests_session, "get", side_effect=mock_requests_get
     ), patch.object(
@@ -802,8 +775,7 @@ async def test_download_md5_mismatch_local_file() -> None:
         utils, "file_url_to_path", return_value=destination
     ) as mocked_file_url_to_path, patch.object(
         utils,
-        "md5_for_file_multiprocessing",
-        new_callable=AsyncMock,
+        "md5_for_file_hex",
         return_value="Some other incorrect md5",
     ) as mocked_md5_for_file, patch(
         "os.remove"
@@ -833,7 +805,7 @@ async def test_get_file_handle_download__error_unauthorized(syn: Synapse) -> Non
         syn, "rest_post_async", new_callable=AsyncMock, return_value=ret_val
     ):
         with pytest.raises(SynapseError):
-            await get_file_handle_for_download(
+            await get_file_handle_for_download_async(
                 file_handle_id="123", synapse_id="syn456", synapse_client=syn
             )
 
@@ -850,6 +822,6 @@ async def test_get_file_handle_download_error_not_found(syn: Synapse) -> None:
         syn, "rest_post_async", new_callable=AsyncMock, return_value=ret_val
     ):
         with pytest.raises(SynapseFileNotFoundError):
-            await get_file_handle_for_download(
+            await get_file_handle_for_download_async(
                 file_handle_id="123", synapse_id="syn456", synapse_client=syn
             )

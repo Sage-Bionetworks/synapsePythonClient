@@ -4,9 +4,11 @@ from typing import Dict, Union
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pytest_mock import MockerFixture
 
 from synapseclient import File as Synapse_File
 from synapseclient.core import utils
+from synapseclient.core.constants import concrete_types
 from synapseclient.models import Activity, File, Project, UsedURL
 
 SYN_123 = "syn123"
@@ -91,6 +93,30 @@ class TestFile:
             _file_handle=self.get_example_synapse_file_handle(),
         )
 
+    def get_example_rest_api_file_output(
+        self, path: str = PATH
+    ) -> Dict[str, Union[str, int]]:
+        return {
+            "entity": {
+                "concreteType": concrete_types.FILE_ENTITY,
+                "id": SYN_123,
+                "name": FILE_NAME,
+                "path": path,
+                "description": DESCRIPTION,
+                "etag": ETAG,
+                "createdOn": CREATED_ON,
+                "modifiedOn": MODIFIED_ON,
+                "createdBy": CREATED_BY,
+                "modifiedBy": MODIFIED_BY,
+                "parentId": PARENT_ID,
+                "versionNumber": 1,
+                "versionLabel": VERSION_LABEL,
+                "versionComment": VERSION_COMMENT,
+                "dataFileHandleId": DATA_FILE_HANDLE_ID,
+            },
+            "fileHandles": [self.get_example_synapse_file_handle()],
+        }
+
     def get_example_synapse_file_handle(self) -> Dict[str, Union[str, int, bool]]:
         return {
             "id": FILE_HANDLE_ID,
@@ -157,11 +183,11 @@ class TestFile:
         file = File(id=SYN_123, path=PATH, description=MODIFIED_DESCRIPTION)
 
         # WHEN I store the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_file_output()),
-        ) as mocked_get_call, patch(
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_file_output()),
+        ) as mocked_get_entity_bundle, patch(
             "synapseclient.models.file.upload_file_handle",
             new_callable=AsyncMock,
             return_value=(self.get_example_synapse_file_handle()),
@@ -173,14 +199,8 @@ class TestFile:
             result = await file.store_async()
 
             # THEN we should call the method with this data
-            mocked_get_call.assert_called_once_with(
-                entity=SYN_123,
-                version=None,
-                ifcollision=file.if_collision,
-                limitSearch=None,
-                downloadFile=False,
-                downloadLocation=None,
-                md5=None,
+            mocked_get_entity_bundle.assert_called_once_with(
+                entity_id=SYN_123, synapse_client=None
             )
 
             # AND We should upload the file handle
@@ -242,11 +262,11 @@ class TestFile:
         )
 
         # WHEN I store the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_file_output(path=None)),
-        ) as mocked_get_call, patch(
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_file_output(path=None)),
+        ) as mocked_get_entity_bundle, patch(
             "synapseclient.models.file.upload_file_handle",
             new_callable=AsyncMock,
             return_value=(self.get_example_synapse_file_handle()),
@@ -258,14 +278,8 @@ class TestFile:
             result = await file.store_async()
 
             # THEN we should call the method with this data
-            mocked_get_call.assert_called_once_with(
-                entity=SYN_123,
-                version=None,
-                ifcollision=file.if_collision,
-                limitSearch=None,
-                downloadFile=False,
-                downloadLocation=None,
-                md5=None,
+            mocked_get_entity_bundle.assert_called_once_with(
+                entity_id=SYN_123, synapse_client=None
             )
 
             # AND We should not upload the file handle
@@ -717,23 +731,17 @@ class TestFile:
         )
 
         # WHEN I get the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_file_output(path=bogus_file)),
-        ) as mocked_client_call:
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_file_output(path=bogus_file)),
+        ) as mocked_get_entity_bundle:
             result = await file.get_async()
             os.remove(bogus_file)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                entity=SYN_123,
-                version=None,
-                ifcollision=file.if_collision,
-                limitSearch=file.synapse_container_limit,
-                downloadFile=file.download_file,
-                downloadLocation=file.download_location,
-                md5=None,
+            mocked_get_entity_bundle.assert_called_once_with(
+                entity_id=SYN_123, synapse_client=None
             )
 
             # THEN the file should be retrieved
@@ -777,22 +785,25 @@ class TestFile:
         file = File(path=PATH, description=MODIFIED_DESCRIPTION)
 
         # WHEN I get the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_file_output()),
-        ) as mocked_client_call:
+        with patch(
+            "synapseclient.api.entity_factory._search_for_file_by_md5",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_file_output()),
+        ) as mocked_search_for_file, patch.object(
+            file,
+            "_load_local_md5",
+            return_value=(None),
+        ), patch(
+            "os.path.isfile", return_value=True
+        ):
             result = await file.get_async()
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                entity=PATH,
-                version=None,
-                ifcollision=file.if_collision,
-                limitSearch=file.synapse_container_limit,
-                downloadFile=file.download_file,
-                downloadLocation=file.download_location,
+            mocked_search_for_file.assert_called_once_with(
+                filepath="/asdf/example_file.txt",
+                limit_search=None,
                 md5=None,
+                synapse_client=None,
             )
 
             # THEN the file should be stored
@@ -835,26 +846,22 @@ class TestFile:
         # GIVEN an example path
         path = PATH
 
-        # AND a default File
-        default_file = File()
-
         # WHEN I get the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_file_output()),
-        ) as mocked_client_call:
+        with patch(
+            "synapseclient.api.entity_factory._search_for_file_by_md5",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_file_output()),
+        ) as mocked_search_for_file, patch(
+            "synapseclient.models.file.File._load_local_md5",
+            return_value=(None),
+        ), patch(
+            "os.path.isfile", return_value=True
+        ):
             result = await File.from_path_async(path=path)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                entity=PATH,
-                version=None,
-                ifcollision=default_file.if_collision,
-                limitSearch=default_file.synapse_container_limit,
-                downloadFile=default_file.download_file,
-                downloadLocation=default_file.download_location,
-                md5=None,
+            mocked_search_for_file.assert_called_once_with(
+                filepath=PATH, limit_search=None, md5=None, synapse_client=None
             )
 
             # THEN the file should be retrieved
@@ -910,23 +917,17 @@ class TestFile:
         )
 
         # WHEN I get the example file
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_file_output(path=bogus_file)),
-        ) as mocked_client_call:
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_file_output(path=bogus_file)),
+        ) as mocked_get_entity_bundle:
             result = await File.from_id_async(synapse_id=synapse_id)
             os.remove(bogus_file)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                entity=SYN_123,
-                version=None,
-                ifcollision=default_file.if_collision,
-                limitSearch=default_file.synapse_container_limit,
-                downloadFile=default_file.download_file,
-                downloadLocation=default_file.download_location,
-                md5=None,
+            mocked_get_entity_bundle.assert_called_once_with(
+                entity_id=SYN_123, synapse_client=None
             )
 
             # THEN the file should be retrieved

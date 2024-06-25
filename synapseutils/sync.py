@@ -209,12 +209,7 @@ def syncFromSynapse(
     # is specified then only the root directory will have a manifest created.
     if isinstance(root_entity, Project) or isinstance(root_entity, Folder):
         files = root_entity.flatten_file_list()
-        if manifest != "suppress":
-            generate_manifest(
-                all_files=files,
-                path=path,
-            )
-        if manifest == "all":
+        if manifest == "all" and path:
             for (
                 directory_path,
                 file_entities,
@@ -225,6 +220,11 @@ def syncFromSynapse(
                     all_files=file_entities,
                     path=directory_path,
                 )
+        elif manifest == "root" and path:
+            generate_manifest(
+                all_files=files,
+                path=path,
+            )
     elif isinstance(root_entity, File):
         # When the root entity is a file we do not create a manifest file. This is
         # to match the behavior present in v4.x.x of the client.

@@ -6,24 +6,33 @@ import os
 import random
 import tempfile
 from io import StringIO
+from typing import Any, Callable, Coroutine, Dict
 from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
 import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+import synapseclient
 import synapseutils
 from synapseclient import Activity
 from synapseclient import File as SynapseFile
 from synapseclient import Folder, Project, Schema, Synapse
+from synapseclient.core.constants import concrete_types, method_flags
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import id_of
 from synapseclient.models import File
 from synapseutils import sync
-from synapseutils.sync import _FolderSync, _SyncUploader, _SyncUploadItem
+from synapseutils.sync import _SyncUploader, _SyncUploadItem
 
 SYNAPSE_URL = "http://www.synapse.org"
 GITHUB_URL = "http://www.github.com"
+SYN_123 = "syn123"
+SYN_789 = "syn789"
+PROJECT_NAME = "project_name"
+FOLDER_NAME = "folder_name"
+PARENT_ID = "syn456"
+FILE_NAME = "file_name"
 
 
 class MockedSyncUploader:
@@ -33,13 +42,115 @@ class MockedSyncUploader:
         self.upload = AsyncMock()
 
 
-def test_readManifest__sync_order_with_home_directory(syn: Synapse) -> None:
+def mock_project_dict() -> Dict[str, str]:
+    """Mocking:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
+    """
+    return {
+        "concreteType": concrete_types.PROJECT_ENTITY,
+        "id": SYN_123,
+        "name": FOLDER_NAME,
+        "parentId": PARENT_ID,
+    }
+
+
+def mocked_project_rest_api_dict() -> Dict[str, Dict[str, str]]:
+    """Mocking:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/entitybundle/v2/EntityBundle.html>
+    """
+    return {
+        "entity": {
+            "concreteType": concrete_types.PROJECT_ENTITY,
+            "id": SYN_123,
+            "name": FOLDER_NAME,
+            "parentId": PARENT_ID,
+        }
+    }
+
+
+def mock_folder_dict() -> Dict[str, str]:
+    """Mocking:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
+    """
+    return {
+        "concreteType": concrete_types.FOLDER_ENTITY,
+        "id": SYN_123,
+        "name": FOLDER_NAME,
+        "parentId": PARENT_ID,
+    }
+
+
+def mocked_folder_rest_api_dict() -> Dict[str, Dict[str, str]]:
+    """Mocking:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/entitybundle/v2/EntityBundle.html>
+    """
+    return {
+        "entity": {
+            "concreteType": concrete_types.FOLDER_ENTITY,
+            "id": SYN_123,
+            "name": FOLDER_NAME,
+            "parentId": PARENT_ID,
+        }
+    }
+
+
+def mock_file_dict(syn_id: str = SYN_123) -> Dict[str, str]:
+    """Mocking:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
+    """
+    return {
+        "concreteType": concrete_types.FILE_ENTITY,
+        "id": syn_id,
+        "name": FILE_NAME,
+        "parentId": PARENT_ID,
+        "isLatestVersion": True,
+    }
+
+
+def mocked_file_rest_api_dict(syn_id: str = SYN_123) -> Dict[str, Dict[str, str]]:
+    """Mocking:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/entitybundle/v2/EntityBundle.html>
+    """
+    return {
+        "entity": {
+            "concreteType": concrete_types.FILE_ENTITY,
+            "id": syn_id,
+            "name": FILE_NAME,
+            "parentId": PARENT_ID,
+            "isLatestVersion": True,
+        }
+    }
+
+
+def mocked_file_child(syn_id: str = SYN_123) -> Dict[str, str]:
+    """Mocking:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityHeader.html>
+    """
+    return {
+        "name": FILE_NAME,
+        "id": syn_id,
+        "type": concrete_types.FILE_ENTITY,
+    }
+
+
+def mocked_folder_child() -> Dict[str, str]:
+    """Mocking:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityHeader.html>
+    """
+    return {
+        "name": FOLDER_NAME,
+        "id": SYN_123,
+        "type": concrete_types.FOLDER_ENTITY,
+    }
+
+
+def test_read_manifest_sync_order_with_home_directory(syn: Synapse) -> None:
     """SYNPY-508"""
 
     # row1's file depends on row2's file but is listed first
     file_path1 = "~/file1.txt"
     file_path2 = "~/file2.txt"
-    project_id = "syn123"
+    project_id = SYN_123
     header = "path	parent	used	executed	activityName	synapseStore	foo\n"
     row1 = '%s\t%s\t%s\t""\tprovActivity1\tTrue\tsomeFooAnnotation1\n' % (
         file_path1,
@@ -70,8 +181,8 @@ def test_readManifest__sync_order_with_home_directory(syn: Synapse) -> None:
         )
 
 
-def test_readManifestFile__synapseStore_values_not_set(syn: Synapse) -> None:
-    project_id = "syn123"
+def test_read_manifest_file_synapse_store_values_not_set(syn: Synapse) -> None:
+    project_id = SYN_123
     header = "path\tparent\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
     path2 = SYNAPSE_URL
@@ -96,8 +207,8 @@ def test_readManifestFile__synapseStore_values_not_set(syn: Synapse) -> None:
         assert expected_synapseStore == actual_synapseStore
 
 
-def test_readManifestFile__synapseStore_values_are_set(syn: Synapse) -> None:
-    project_id = "syn123"
+def test_read_manifest_file_synapse_store_values_are_set(syn: Synapse) -> None:
+    project_id = SYN_123
     header = "path\tparent\tsynapseStore\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
     path2 = SYNAPSE_URL
@@ -136,338 +247,239 @@ def test_readManifestFile__synapseStore_values_are_set(syn: Synapse) -> None:
         assert expected_synapseStore == actual_synapseStore
 
 
-def test_syncFromSynapse__non_file_entity(syn: Synapse) -> None:
+def test_sync_from_synapse_non_file_entity(syn: Synapse) -> None:
     table_schema = "syn12345"
     with patch.object(syn, "getChildren", return_value=[]), patch.object(
-        syn, "get", return_value=Schema(name="asssdfa", parent="whatever")
+        syn, "get", return_value=Schema(name="asssdfa", parent=PARENT_ID)
+    ), patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        return_value={"concreteType": concrete_types.TABLE_ENTITY},
     ):
         pytest.raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
 
-def test_syncFromSynapse__empty_folder(syn: Synapse) -> None:
-    folder = Folder(name="the folder", parent="whatever", id="syn123")
-    with patch.object(syn, "getChildren", return_value=[]), patch.object(
-        syn, "get", return_value=Folder(name="asssdfa", parent="whatever")
+def test_sync_from_synapse_empty_folder(syn: Synapse) -> None:
+    with patch.object(syn, "getChildren", return_value=[]), patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        return_value=(mock_folder_dict()),
+    ), patch(
+        "synapseclient.api.entity_factory.get_entity_id_bundle2",
+        new_callable=AsyncMock,
+        return_value=(mocked_folder_rest_api_dict()),
     ):
-        assert list() == synapseutils.syncFromSynapse(syn, folder)
+        assert list() == synapseutils.syncFromSynapse(syn=syn, entity=SYN_123)
 
 
-def test_syncFromSynapse__file_entity(syn: Synapse) -> None:
-    file = SynapseFile(name="a file", parent="some parent", id="syn456")
-    with patch.object(
-        syn, "getChildren", return_value=[file]
-    ) as patch_syn_get_children, patch.object(syn, "get", return_value=file):
-        assert [file] == synapseutils.syncFromSynapse(syn, file)
+def test_sync_from_synapse_file_entity(syn: Synapse) -> None:
+    file = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_123,
+        properties={"isLatestVersion": True},
+    )
+    with patch.object(syn, "getChildren") as patch_syn_get_children, patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        return_value=(mock_file_dict()),
+    ), patch(
+        "synapseclient.api.entity_factory.get_entity_id_bundle2",
+        new_callable=AsyncMock,
+        return_value=(mocked_file_rest_api_dict()),
+    ):
+        result = synapseutils.syncFromSynapse(syn, file)
+        assert [file] == result
         patch_syn_get_children.assert_not_called()
 
 
-def test_syncFromSynapse__folder_contains_one_file(syn: Synapse) -> None:
-    folder = Folder(name="the folder", parent="whatever", id="syn123")
-    file = SynapseFile(name="a file", parent=folder, id="syn456")
+def test_sync_from_synapse_folder_contains_one_file(syn: Synapse) -> None:
+    folder = Folder(name=FOLDER_NAME, parent=PARENT_ID, id=SYN_123)
+    file = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_123,
+        properties={"isLatestVersion": True},
+    )
     with patch.object(
-        syn, "getChildren", return_value=[file]
-    ) as patch_syn_get_children, patch.object(syn, "get", return_value=file):
-        assert [file] == synapseutils.syncFromSynapse(syn, folder)
+        syn, "getChildren", return_value=[mocked_file_child()]
+    ) as patch_syn_get_children, patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        side_effect=[mock_folder_dict(), mock_file_dict()],
+    ), patch(
+        "synapseclient.api.entity_factory.get_entity_id_bundle2",
+        new_callable=AsyncMock,
+        side_effect=[mocked_folder_rest_api_dict(), mocked_file_rest_api_dict()],
+    ):
+        result = synapseutils.syncFromSynapse(syn, folder)
+        assert [file] == result
         patch_syn_get_children.called_with(folder["id"])
 
 
-def test_syncFromSynapse__project_contains_empty_folder(syn: Synapse) -> None:
-    project = Project(name="the project", parent="whatever", id="syn123")
-    file = SynapseFile(name="a file", parent=project, id="syn456")
-    folder = Folder(name="a folder", parent=project, id="syn789")
+def spy_for_async_function(
+    original_func: Callable[..., Any]
+) -> Callable[..., Coroutine[Any, Any, Any]]:
+    async def wrapper(*args, **kwargs):
+        return await original_func(*args, **kwargs)  # Call the original function
 
-    entities = {
-        file.id: file,
-        folder.id: folder,
-    }
+    return wrapper
 
-    def syn_get_side_effect(entity, *args, **kwargs):
-        return entities[id_of(entity)]
+
+def spy_for_function(original_func: Callable[..., Any]) -> Callable[..., Any]:
+    def wrapper(*args, **kwargs):
+        return original_func(*args, **kwargs)  # Call the original function
+
+    return wrapper
+
+
+def test_sync_from_synapse_project_contains_empty_folder(syn: Synapse) -> None:
+    project = Project(name=PROJECT_NAME, parent=PARENT_ID, id=SYN_123)
+    folder = Folder(name=FOLDER_NAME, parent=PARENT_ID, id=SYN_123)
+    file = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_123,
+        properties={"isLatestVersion": True},
+    )
+    file_model = File(
+        parent_id=PARENT_ID, id=SYN_123, name=FILE_NAME, is_latest_version=True
+    )
 
     with patch.object(
-        syn, "getChildren", side_effect=[[folder, file], []]
-    ) as patch_syn_get_children, patch.object(
-        syn, "get", side_effect=syn_get_side_effect
-    ) as patch_syn_get:
-        assert [file] == synapseutils.syncFromSynapse(syn, project)
-        expected_get_children_agrs = [call(project["id"]), call(folder["id"])]
+        syn,
+        "getChildren",
+        side_effect=[[mocked_folder_child()], [mocked_file_child()], []],
+    ) as patch_syn_get_children, patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        side_effect=[mock_project_dict(), mock_folder_dict(), mock_file_dict()],
+    ), patch(
+        "synapseclient.api.entity_factory.get_entity_id_bundle2",
+        new_callable=AsyncMock,
+        side_effect=[
+            mocked_project_rest_api_dict(),
+            mocked_folder_rest_api_dict(),
+            mocked_file_rest_api_dict(),
+        ],
+    ), patch(
+        "synapseclient.models.file.get_from_entity_factory",
+        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
+    ) as patch_get_file_entity:
+        result = synapseutils.syncFromSynapse(syn=syn, entity=project)
+        assert [file] == result
+        expected_get_children_agrs = [
+            call(parent=project["id"], includeTypes=["folder", "file"]),
+            call(parent=folder["id"], includeTypes=["folder", "file"]),
+        ]
+        assert patch_syn_get_children.call_count == 2
         assert expected_get_children_agrs == patch_syn_get_children.call_args_list
-        patch_syn_get.assert_called_once_with(
-            file["id"],
-            downloadLocation=None,
-            ifcollision="overwrite.local",
-            followLink=False,
-            downloadFile=True,
+        patch_get_file_entity.assert_called_once_with(
+            entity_to_update=file_model,
+            synapse_id_or_path=SYN_123,
+            version=None,
+            if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
+            limit_search=None,
+            download_file=True,
+            download_location=None,
+            md5=None,
         )
 
 
-def test_syncFromSynapse__downloadFile_is_false(syn: Synapse) -> None:
+def test_sync_from_synapse_download_file_is_false(syn: Synapse) -> None:
     """
     Verify when passing the argument downloadFile is equal to False,
     syncFromSynapse won't download the file to clients' local end.
     """
-
-    project = Project(name="the project", parent="whatever", id="syn123")
-    file = SynapseFile(name="a file", parent=project, id="syn456")
-    folder = Folder(name="a folder", parent=project, id="syn789")
-
-    entities = {
-        file.id: file,
-        folder.id: folder,
-    }
-
-    def syn_get_side_effect(entity, *args, **kwargs):
-        return entities[id_of(entity)]
+    project = Project(name=PROJECT_NAME, parent=PARENT_ID, id=SYN_123)
+    folder = Folder(name=FOLDER_NAME, parent=PARENT_ID, id=SYN_123)
+    file = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_123,
+        properties={"isLatestVersion": True},
+    )
+    file_model = File(
+        parent_id=PARENT_ID,
+        id=SYN_123,
+        name=FILE_NAME,
+        is_latest_version=True,
+        download_file=False,
+    )
 
     with patch.object(
-        syn, "getChildren", side_effect=[[folder, file], []]
-    ), patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
-        synapseutils.syncFromSynapse(syn, project, downloadFile=False)
-        patch_syn_get.assert_called_once_with(
-            file["id"],
-            downloadLocation=None,
-            ifcollision="overwrite.local",
-            followLink=False,
-            downloadFile=False,
+        syn,
+        "getChildren",
+        side_effect=[[mocked_folder_child(), mocked_file_child()], []],
+    ) as patch_syn_get_children, patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        side_effect=[mock_project_dict(), mock_folder_dict(), mock_file_dict()],
+    ), patch(
+        "synapseclient.api.entity_factory.get_entity_id_bundle2",
+        new_callable=AsyncMock,
+        side_effect=[
+            mocked_project_rest_api_dict(),
+            mocked_folder_rest_api_dict(),
+            mocked_file_rest_api_dict(),
+        ],
+    ), patch(
+        "synapseclient.models.file.get_from_entity_factory",
+        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
+    ) as patch_get_file_entity:
+        result = synapseutils.syncFromSynapse(
+            syn=syn, entity=project, downloadFile=False
+        )
+        assert [file] == result
+        expected_get_children_agrs = [
+            call(parent=project["id"], includeTypes=["folder", "file"]),
+            call(parent=folder["id"], includeTypes=["folder", "file"]),
+        ]
+        assert expected_get_children_agrs == patch_syn_get_children.call_args_list
+        patch_get_file_entity.assert_called_once_with(
+            entity_to_update=file_model,
+            synapse_id_or_path=SYN_123,
+            version=None,
+            if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
+            limit_search=None,
+            download_file=False,
+            download_location=None,
+            md5=None,
         )
 
 
-@patch.object(synapseutils.sync, "generateManifest")
-@patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
-def test_syncFromSynapse__manifest_is_all(
-    mock_get_file_entity_provenance_dict: MagicMock,
-    mock_generate_manifest: MagicMock,
+def test_sync_from_synapse_manifest_is_all(
     syn: Synapse,
 ) -> None:
     """
     Verify manifest argument equal to "all" that pass in to syncFromSynapse, it will create root_manifest and all
     child_manifests for every layers.
     """
-
-    project = Project(name="the project", parent="whatever", id="syn123")
-    file1 = SynapseFile(name="a file", parent=project, id="syn456")
-    folder = Folder(name="a folder", parent=project, id="syn789")
-    file2 = SynapseFile(name="a file2", parent=folder, id="syn789123")
-
-    # Structure of nested project
     # project
     #    |---> file1
     #    |---> folder
     #             |---> file2
-
-    entities = {
-        file1.id: file1,
-        folder.id: folder,
-        file2.id: file2,
-    }
-
-    def syn_get_side_effect(entity, *args, **kwargs):
-        return entities[id_of(entity)]
-
-    mock_get_file_entity_provenance_dict.return_value = {}
-
-    with patch.object(
-        syn, "getChildren", side_effect=[[folder, file1], [file2]]
-    ), patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
-        synapseutils.syncFromSynapse(
-            syn, project, path="./", downloadFile=False, manifest="all"
-        )
-        assert patch_syn_get.call_args_list == [
-            call(
-                file1["id"],
-                downloadLocation="./",
-                ifcollision="overwrite.local",
-                followLink=False,
-                downloadFile=False,
-            ),
-            call(
-                file2["id"],
-                downloadLocation="./a folder",
-                ifcollision="overwrite.local",
-                followLink=False,
-                downloadFile=False,
-            ),
-        ]
-
-        assert mock_generate_manifest.call_count == 2
-
-        # child_manifest in folder
-        call_files = mock_generate_manifest.call_args_list[0][0][1]
-        assert len(call_files) == 1
-        assert call_files[0].id == "syn789123"
-
-        # root_manifest file
-        call_files = mock_generate_manifest.call_args_list[1][0][1]
-        assert len(call_files) == 2
-        assert call_files[0].id == "syn456"
-        assert call_files[1].id == "syn789123"
-
-
-@patch.object(synapseutils.sync, "generateManifest")
-@patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
-def test_syncFromSynapse__manifest_is_root(
-    mock_get_file_entity_provenance_dict: MagicMock,
-    mock_generate_manifest: MagicMock,
-    syn: Synapse,
-) -> None:
-    """
-    Verify manifest argument equal to "root" that pass in to syncFromSynapse, it will create root_manifest file only.
-    """
-
-    project = Project(name="the project", parent="whatever", id="syn123")
-    file1 = SynapseFile(name="a file", parent=project, id="syn456")
-    folder = Folder(name="a folder", parent=project, id="syn789")
-    file2 = SynapseFile(name="a file2", parent=folder, id="syn789123")
-
-    # Structure of nested project
-    # project
-    #    |---> file1
-    #    |---> folder
-    #             |---> file2
-
-    entities = {
-        file1.id: file1,
-        folder.id: folder,
-        file2.id: file2,
-    }
-
-    def syn_get_side_effect(entity, *args, **kwargs):
-        return entities[id_of(entity)]
-
-    mock_get_file_entity_provenance_dict.return_value = {}
-
-    with patch.object(
-        syn, "getChildren", side_effect=[[folder, file1], [file2]]
-    ), patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
-        synapseutils.syncFromSynapse(
-            syn, project, path="./", downloadFile=False, manifest="root"
-        )
-        assert patch_syn_get.call_args_list == [
-            call(
-                file1["id"],
-                downloadLocation="./",
-                ifcollision="overwrite.local",
-                followLink=False,
-                downloadFile=False,
-            ),
-            call(
-                file2["id"],
-                downloadLocation="./a folder",
-                ifcollision="overwrite.local",
-                followLink=False,
-                downloadFile=False,
-            ),
-        ]
-
-        assert mock_generate_manifest.call_count == 1
-
-        call_files = mock_generate_manifest.call_args_list[0][0][1]
-        assert len(call_files) == 2
-        assert call_files[0].id == "syn456"
-        assert call_files[1].id == "syn789123"
-
-
-@patch.object(synapseutils.sync, "generateManifest")
-@patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
-def test_syncFromSynapse__manifest_is_suppress(
-    mock_get_file_entity_provenance_dict: MagicMock,
-    mock_generate_manifest: MagicMock,
-    syn: Synapse,
-) -> None:
-    """
-    Verify manifest argument equal to "suppress" that pass in to syncFromSynapse, it won't create any manifest file.
-    """
-
-    project = Project(name="the project", parent="whatever", id="syn123")
-    file1 = SynapseFile(name="a file", parent=project, id="syn456")
-    folder = Folder(name="a folder", parent=project, id="syn789")
-    file2 = SynapseFile(name="a file2", parent=folder, id="syn789123")
-
-    # Structure of nested project
-    # project
-    #    |---> file1
-    #    |---> folder
-    #             |---> file2
-
-    entities = {
-        file1.id: file1,
-        folder.id: folder,
-        file2.id: file2,
-    }
-
-    def syn_get_side_effect(entity, *args, **kwargs):
-        return entities[id_of(entity)]
-
-    mock_get_file_entity_provenance_dict.return_value = {}
-
-    with patch.object(
-        syn, "getChildren", side_effect=[[folder, file1], [file2]]
-    ), patch.object(syn, "get", side_effect=syn_get_side_effect) as patch_syn_get:
-        synapseutils.syncFromSynapse(
-            syn, project, path="./", downloadFile=False, manifest="suppress"
-        )
-        assert patch_syn_get.call_args_list == [
-            call(
-                file1["id"],
-                downloadLocation="./",
-                ifcollision="overwrite.local",
-                followLink=False,
-                downloadFile=False,
-            ),
-            call(
-                file2["id"],
-                downloadLocation="./a folder",
-                ifcollision="overwrite.local",
-                followLink=False,
-                downloadFile=False,
-            ),
-        ]
-
-        assert mock_generate_manifest.call_count == 0
-
-
-def test_syncFromSynapse__manifest_value_is_invalid(syn) -> None:
-    project = Project(name="the project", parent="whatever", id="syn123")
-    with pytest.raises(ValueError) as ve:
-        synapseutils.syncFromSynapse(
-            syn, project, path="./", downloadFile=False, manifest="invalid_str"
-        )
-    assert (
-        str(ve.value)
-        == 'Value of manifest option should be one of the ("all", "root", "suppress")'
+    temp_directory_path = tempfile.mkdtemp()
+    project = Project(name=PROJECT_NAME, parent=PARENT_ID, id=SYN_123)
+    folder = Folder(name=FOLDER_NAME, parent=PARENT_ID, id=SYN_123)
+    file = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_123,
+        properties={"isLatestVersion": True},
     )
-
-
-def _compareCsv(expected_csv_string, csv_path):
-    # compare our expected csv with the one written to the given path.
-    # compare parsed dictionaries vs just comparing strings to avoid newline differences across platforms
-    expected = [
-        r for r in csv.DictReader(StringIO(expected_csv_string), delimiter="\t")
-    ]
-    with open(csv_path, "r") as csv_file:
-        actual = [r for r in csv.DictReader(csv_file, delimiter="\t")]
-    assert expected == actual
-
-
-def test_syncFromSynase__manifest(syn: Synapse) -> None:
-    """Verify that we generate manifest files when syncing to a location outside of the cache."""
-
-    project = Project(name="the project", parent="whatever", id="syn123")
-    path1 = "/tmp/foo"
-    file1 = SynapseFile(name="file1", parent=project, id="syn456", path=path1)
-    path2 = "/tmp/afolder/bar"
-    file2 = SynapseFile(
-        name="file2", parent=project, id="syn789", parentId="syn098", path=path2
+    file_2 = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_789,
+        properties={"isLatestVersion": True},
     )
-    folder = Folder(name="afolder", parent=project, id="syn098")
-    entities = {
-        file1.id: file1,
-        file2.id: file2,
-        folder.id: folder,
-    }
-
-    def syn_get_side_effect(entity, *args, **kwargs):
-        return entities[id_of(entity)]
+    file_model = File(
+        parent_id=PARENT_ID, id=SYN_123, name=FILE_NAME, is_latest_version=True
+    )
+    file_model_2 = File(
+        parent_id=PARENT_ID, id=SYN_789, name=FILE_NAME, is_latest_version=True
+    )
 
     file_1_provenance = Activity(
         data={
@@ -485,172 +497,377 @@ def test_syncFromSynase__manifest(syn: Synapse) -> None:
     )
 
     provenance = {
-        file1.id: file_1_provenance,
-        file2.id: file_2_provenance,
+        file.id: file_1_provenance,
+        file_2.id: file_2_provenance,
     }
 
-    def getProvenance_side_effect(entity, *args, **kwargs) -> Activity:
+    def get_provenance_side_effect(entity, *args, **kwargs) -> Activity:
         return provenance[id_of(entity)]
 
-    expected_project_manifest = f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-{path1}\tsyn123\tfile1\tsyn456\tTrue\t\t\t\t\t
-{path2}\tsyn098\tfile2\tsyn789\tTrue\t\t\t\tfoo\tbar
-"""
-
-    expected_folder_manifest = f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-{path2}\tsyn098\tfile2\tsyn789\tTrue\t\t\t\tfoo\tbar
-"""
-
-    expected_synced_files = [file2, file1]
-
-    with tempfile.TemporaryDirectory() as sync_dir:
-        with patch.object(
-            syn, "getChildren", side_effect=[[folder, file1], [file2]]
-        ), patch.object(syn, "get", side_effect=syn_get_side_effect), patch.object(
-            syn, "getProvenance"
-        ) as patch_syn_get_provenance:
-            patch_syn_get_provenance.side_effect = getProvenance_side_effect
-
-            synced_files = synapseutils.syncFromSynapse(syn, project, path=sync_dir)
-            assert sorted([id_of(e) for e in expected_synced_files]) == sorted(
-                [id_of(e) for e in synced_files]
-            )
-
-            # we only expect two calls to provenance even though there are three rows of provenance data
-            # in the manifests (two in the outer project, one in the folder)
-            # since one of the files is repeated in both manifests we expect only the single get provenance call
-            assert len(expected_synced_files) == patch_syn_get_provenance.call_count
-
-            # we should have two manifest files, one rooted at the project and one rooted in the sub folder
-
-            _compareCsv(
-                expected_project_manifest,
-                os.path.join(sync_dir, synapseutils.sync.MANIFEST_FILENAME),
-            )
-            _compareCsv(
-                expected_folder_manifest,
-                os.path.join(
-                    sync_dir, folder.name, synapseutils.sync.MANIFEST_FILENAME
-                ),
-            )
-
-
-class TestFolderSync:
-    def test_init(self) -> None:
-        syn = Mock()
-        entity_id = "syn123"
-        path = "/tmp/foo/bar"
-        child_ids = ["syn456", "syn789"]
-
-        parent = _FolderSync(syn, "syn987", "/tmp/foo", [entity_id], None)
-        child = _FolderSync(
-            syn, entity_id, path, child_ids, parent, create_manifest=False
+    with patch.object(
+        syn,
+        "getChildren",
+        side_effect=[
+            [mocked_folder_child(), mocked_file_child(syn_id=SYN_123)],
+            [mocked_file_child(syn_id=SYN_789)],
+        ],
+    ) as patch_syn_get_children, patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        side_effect=[
+            mock_project_dict(),
+            mock_folder_dict(),
+            mock_file_dict(syn_id=SYN_123),
+            mock_file_dict(syn_id=SYN_789),
+        ],
+    ), patch(
+        "synapseclient.api.entity_factory.get_entity_id_bundle2",
+        new_callable=AsyncMock,
+        side_effect=[
+            mocked_project_rest_api_dict(),
+            mocked_folder_rest_api_dict(),
+            mocked_file_rest_api_dict(syn_id=SYN_123),
+            mocked_file_rest_api_dict(syn_id=SYN_789),
+        ],
+    ), patch(
+        "synapseclient.models.file.get_from_entity_factory",
+        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
+    ) as patch_get_file_entity, patch.object(
+        syn, "getProvenance", side_effect=get_provenance_side_effect
+    ) as patch_syn_get_provenance, patch(
+        "synapseutils.sync.generate_manifest",
+        wraps=spy_for_function(synapseutils.sync.generate_manifest),
+    ) as generate_manifest_spy:
+        result = synapseutils.syncFromSynapse(
+            syn=syn, entity=project, path=temp_directory_path, manifest="all"
         )
-        assert syn == child._syn
-        assert entity_id == child._entity_id
-        assert path == child._path
-        assert set(child_ids) == child._pending_ids
-        assert parent == child._parent
-        assert parent._create_manifest
-        assert not child._create_manifest
+        assert [file, file_2] == result
+        expected_get_children_agrs = [
+            call(parent=project["id"], includeTypes=["folder", "file"]),
+            call(parent=folder["id"], includeTypes=["folder", "file"]),
+        ]
+        assert patch_syn_get_children.call_count == 2
+        assert expected_get_children_agrs == patch_syn_get_children.call_args_list
+        assert patch_get_file_entity.call_args_list == [
+            call(
+                entity_to_update=file_model,
+                synapse_id_or_path=SYN_123,
+                version=None,
+                if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
+                limit_search=None,
+                download_file=True,
+                download_location=temp_directory_path,
+                md5=None,
+            ),
+            call(
+                entity_to_update=file_model_2,
+                synapse_id_or_path=SYN_789,
+                version=None,
+                if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
+                limit_search=None,
+                download_file=True,
+                download_location=os.path.join(temp_directory_path, FOLDER_NAME),
+                md5=None,
+            ),
+        ]
 
-    def test_update(self) -> None:
-        syn = Mock()
-        entity_id = "syn123"
-        path = "/tmp/foo/bar"
-        child_ids = ["syn456", "syn789"]
-        folder_sync = _FolderSync(syn, entity_id, path, child_ids, None)
+        assert generate_manifest_spy.call_count == 2
+        assert patch_syn_get_provenance.call_count == 2
 
-        file = Mock()
-        provenance = {"syn456": {"foo": "bar"}}
-
-        folder_sync.update(finished_id="syn456", files=[file], provenance=provenance)
-        assert set(["syn789"]) == folder_sync._pending_ids
-        assert [file] == folder_sync._files
-        assert provenance == folder_sync._provenance
-
-    def _finished_test(self, path, create_manifest=True):
-        syn = Mock()
-        entity_id = "syn123"
-        child_ids = ["syn456"]
-        file = Mock()
-
-        parent = _FolderSync(
-            syn, "syn987", path, [entity_id], None, create_manifest=create_manifest
-        )
-        child = _FolderSync(
-            syn,
-            entity_id,
-            (path + "/bar") if path else None,
-            child_ids,
-            parent,
-            create_manifest=create_manifest,
+        # Top level parent project
+        generate_manifest_spy.call_args_list[0] == call(
+            all_files=[file_model, file_model_2], path=temp_directory_path
         )
 
-        child.update(finished_id="syn456", files=[file])
-        assert child._is_finished()
-        assert parent._is_finished()
-        parent.wait_until_finished()
-        return child
-
-    def test_update__finished(self) -> None:
-        self._finished_test(None)
-
-    def test_update__finish__generate_manifest(self) -> None:
-        with patch.object(
-            synapseutils.sync, "generateManifest"
-        ) as mock_generateManifest:
-            folder_sync = self._finished_test("/tmp/foo")
-
-            manifest_filename = folder_sync._manifest_filename()
-            parent_manifest_filename = folder_sync._parent._manifest_filename()
-
-            mock_generateManifest.call_count == 2
-
-            expected_manifest_calls = [
-                call(
-                    folder_sync._syn,
-                    folder_sync._files,
-                    manifest_filename,
-                    provenance_cache={},
-                ),
-                call(
-                    folder_sync._parent._syn,
-                    folder_sync._parent._files,
-                    parent_manifest_filename,
-                    provenance_cache={},
-                ),
-            ]
-            assert expected_manifest_calls == mock_generateManifest.call_args_list
-
-    def test_update__finish__without_generating_manifest(self) -> None:
-        """
-        Verify the update method won't call generate_manifest if the create_manifest is False
-        """
-        with patch.object(
-            synapseutils.sync, "generateManifest"
-        ) as mock_generateManifest:
-            # create_manifest flag is False then won't call generateManifest
-            self._finished_test("/tmp/foo", False)
-            mock_generateManifest.assert_not_called()
-
-    def test_set_exception(self) -> None:
-        syn = Mock()
-        path = "/tmp/foo"
-        entity_id = "syn123"
-        child_ids = ["syn456"]
-
-        parent = _FolderSync(syn, "syn987", path, [entity_id], None)
-        child = _FolderSync(
-            syn, entity_id, (path + "/bar") if path else None, child_ids, parent
+        expected_manifest = """path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+\tsyn456\tfile_name\tsyn123\tTrue\t\t\t\t\t
+\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
+        _compare_csv(
+            expected_manifest,
+            os.path.join(temp_directory_path, synapseutils.sync.MANIFEST_FILENAME),
         )
 
-        exception = ValueError("failed!")
-        child.set_exception(exception)
-        assert exception is child.get_exception()
-        assert exception is parent.get_exception()
-        assert child._is_finished()
-        assert parent._is_finished()
+        # Sub folder
+        generate_manifest_spy.call_args_list[1] == call(
+            all_files=[file_model_2],
+            path=os.path.join(temp_directory_path, FOLDER_NAME),
+        )
+        expected_manifest = """path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
+        _compare_csv(
+            expected_manifest,
+            os.path.join(
+                os.path.join(temp_directory_path, FOLDER_NAME),
+                synapseutils.sync.MANIFEST_FILENAME,
+            ),
+        )
+
+
+def test_sync_from_synapse_manifest_is_root(
+    syn: Synapse,
+) -> None:
+    """
+    Verify manifest argument equal to "root" that pass in to syncFromSynapse, it
+    will create root_manifest file only.
+    """
+    # project
+    #    |---> file1
+    #    |---> folder
+    #             |---> file2
+    temp_directory_path = tempfile.mkdtemp()
+    project = Project(name=PROJECT_NAME, parent=PARENT_ID, id=SYN_123)
+    folder = Folder(name=FOLDER_NAME, parent=PARENT_ID, id=SYN_123)
+    file = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_123,
+        properties={"isLatestVersion": True},
+    )
+    file_2 = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_789,
+        properties={"isLatestVersion": True},
+    )
+    file_model = File(
+        parent_id=PARENT_ID, id=SYN_123, name=FILE_NAME, is_latest_version=True
+    )
+    file_model_2 = File(
+        parent_id=PARENT_ID, id=SYN_789, name=FILE_NAME, is_latest_version=True
+    )
+
+    file_1_provenance = Activity(
+        data={
+            "used": "",
+            "executed": "",
+        }
+    )
+    file_2_provenance = Activity(
+        data={
+            "used": "",
+            "executed": "",
+            "name": "foo",
+            "description": "bar",
+        }
+    )
+
+    provenance = {
+        file.id: file_1_provenance,
+        file_2.id: file_2_provenance,
+    }
+
+    def get_provenance_side_effect(entity, *args, **kwargs) -> Activity:
+        return provenance[id_of(entity)]
+
+    with patch.object(
+        syn,
+        "getChildren",
+        side_effect=[
+            [mocked_folder_child(), mocked_file_child(syn_id=SYN_123)],
+            [mocked_file_child(syn_id=SYN_789)],
+        ],
+    ) as patch_syn_get_children, patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        side_effect=[
+            mock_project_dict(),
+            mock_folder_dict(),
+            mock_file_dict(syn_id=SYN_123),
+            mock_file_dict(syn_id=SYN_789),
+        ],
+    ), patch(
+        "synapseclient.api.entity_factory.get_entity_id_bundle2",
+        new_callable=AsyncMock,
+        side_effect=[
+            mocked_project_rest_api_dict(),
+            mocked_folder_rest_api_dict(),
+            mocked_file_rest_api_dict(syn_id=SYN_123),
+            mocked_file_rest_api_dict(syn_id=SYN_789),
+        ],
+    ), patch(
+        "synapseclient.models.file.get_from_entity_factory",
+        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
+    ) as patch_get_file_entity, patch.object(
+        syn, "getProvenance", side_effect=get_provenance_side_effect
+    ) as patch_syn_get_provenance, patch(
+        "synapseutils.sync.generate_manifest",
+        wraps=spy_for_function(synapseutils.sync.generate_manifest),
+    ) as generate_manifest_spy:
+        result = synapseutils.syncFromSynapse(
+            syn=syn, entity=project, path=temp_directory_path, manifest="root"
+        )
+        assert [file, file_2] == result
+        expected_get_children_agrs = [
+            call(parent=project["id"], includeTypes=["folder", "file"]),
+            call(parent=folder["id"], includeTypes=["folder", "file"]),
+        ]
+        assert patch_syn_get_children.call_count == 2
+        assert expected_get_children_agrs == patch_syn_get_children.call_args_list
+        assert patch_get_file_entity.call_args_list == [
+            call(
+                entity_to_update=file_model,
+                synapse_id_or_path=SYN_123,
+                version=None,
+                if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
+                limit_search=None,
+                download_file=True,
+                download_location=temp_directory_path,
+                md5=None,
+            ),
+            call(
+                entity_to_update=file_model_2,
+                synapse_id_or_path=SYN_789,
+                version=None,
+                if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
+                limit_search=None,
+                download_file=True,
+                download_location=os.path.join(temp_directory_path, FOLDER_NAME),
+                md5=None,
+            ),
+        ]
+
+        assert generate_manifest_spy.call_count == 1
+        assert patch_syn_get_provenance.call_count == 2
+
+        # Top level parent project
+        generate_manifest_spy.call_args_list[0] == call(
+            all_files=[file_model, file_model_2], path=temp_directory_path
+        )
+
+        expected_manifest = """path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+\tsyn456\tfile_name\tsyn123\tTrue\t\t\t\t\t
+\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
+        _compare_csv(
+            expected_manifest,
+            os.path.join(temp_directory_path, synapseutils.sync.MANIFEST_FILENAME),
+        )
+
+
+@patch.object(synapseutils.sync, "generate_manifest")
+@patch.object(synapseutils.sync, "_get_file_entity_provenance_dict")
+def test_sync_from_synapse_manifest_is_suppress(
+    mock_get_file_entity_provenance_dict: MagicMock,
+    mock_generate_manifest: MagicMock,
+    syn: Synapse,
+) -> None:
+    """
+    Verify manifest argument equal to "suppress" that pass in to syncFromSynapse, it won't create any manifest file.
+    """
+    # project
+    #    |---> file1
+    #    |---> folder
+    #             |---> file2
+    project = Project(name=PROJECT_NAME, parent=PARENT_ID, id=SYN_123)
+    folder = Folder(name=FOLDER_NAME, parent=PARENT_ID, id=SYN_123)
+    file = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_123,
+        properties={"isLatestVersion": True},
+    )
+    file_2 = SynapseFile(
+        name=FILE_NAME,
+        parent=PARENT_ID,
+        id=SYN_789,
+        properties={"isLatestVersion": True},
+    )
+    file_model = File(
+        parent_id=PARENT_ID, id=SYN_123, name=FILE_NAME, is_latest_version=True
+    )
+    file_model_2 = File(
+        parent_id=PARENT_ID, id=SYN_789, name=FILE_NAME, is_latest_version=True
+    )
+
+    mock_get_file_entity_provenance_dict.return_value = {}
+    with patch.object(
+        syn,
+        "getChildren",
+        side_effect=[
+            [mocked_folder_child(), mocked_file_child(syn_id=SYN_123)],
+            [mocked_file_child(syn_id=SYN_789)],
+        ],
+    ) as patch_syn_get_children, patch(
+        "synapseutils.sync.get_entity",
+        new_callable=AsyncMock,
+        side_effect=[
+            mock_project_dict(),
+            mock_folder_dict(),
+            mock_file_dict(syn_id=SYN_123),
+            mock_file_dict(syn_id=SYN_789),
+        ],
+    ), patch(
+        "synapseclient.api.entity_factory.get_entity_id_bundle2",
+        new_callable=AsyncMock,
+        side_effect=[
+            mocked_project_rest_api_dict(),
+            mocked_folder_rest_api_dict(),
+            mocked_file_rest_api_dict(syn_id=SYN_123),
+            mocked_file_rest_api_dict(syn_id=SYN_789),
+        ],
+    ), patch(
+        "synapseclient.models.file.get_from_entity_factory",
+        wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
+    ) as patch_get_file_entity, patch.object(
+        syn, "getProvenance", return_value=None
+    ) as patch_syn_get_provenance:
+        result = synapseutils.syncFromSynapse(
+            syn=syn, entity=project, path="./", manifest="suppress"
+        )
+        assert [file, file_2] == result
+        expected_get_children_agrs = [
+            call(parent=project["id"], includeTypes=["folder", "file"]),
+            call(parent=folder["id"], includeTypes=["folder", "file"]),
+        ]
+        assert patch_syn_get_children.call_count == 2
+        assert expected_get_children_agrs == patch_syn_get_children.call_args_list
+        assert patch_get_file_entity.call_args_list == [
+            call(
+                entity_to_update=file_model,
+                synapse_id_or_path=SYN_123,
+                version=None,
+                if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
+                limit_search=None,
+                download_file=True,
+                download_location="./",
+                md5=None,
+            ),
+            call(
+                entity_to_update=file_model_2,
+                synapse_id_or_path=SYN_789,
+                version=None,
+                if_collision=method_flags.COLLISION_OVERWRITE_LOCAL,
+                limit_search=None,
+                download_file=True,
+                download_location=f"./{FOLDER_NAME}",
+                md5=None,
+            ),
+        ]
+
+        assert mock_generate_manifest.call_count == 0
+        assert patch_syn_get_provenance.call_count == 2
+
+
+def test_sync_from_synapse_manifest_value_is_invalid(syn) -> None:
+    project = Project(name=PROJECT_NAME, parent=PARENT_ID, id=SYN_123)
+    with pytest.raises(ValueError) as ve:
+        synapseutils.syncFromSynapse(
+            syn, project, path="./", downloadFile=False, manifest="invalid_str"
+        )
+    assert (
+        str(ve.value)
+        == 'Value of manifest option should be one of the ("all", "root", "suppress")'
+    )
+
+
+def _compare_csv(expected_csv_string, csv_path):
+    # compare our expected csv with the one written to the given path.
+    # compare parsed dictionaries vs just comparing strings to avoid newline differences across platforms
+    expected = [
+        r for r in csv.DictReader(StringIO(expected_csv_string), delimiter="\t")
+    ]
+    with open(csv_path, "r") as csv_file:
+        actual = [r for r in csv.DictReader(csv_file, delimiter="\t")]
+    assert expected == actual
 
 
 def test_extract_file_entity_metadata__ensure_correct_row_metadata(
@@ -660,7 +877,7 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata(
 
     # create 2 file entities with different metadata
     entity1 = SynapseFile(
-        parent="syn123",
+        parent=SYN_123,
         id="syn456",
         contentType="text/json",
         path="path1",
@@ -706,7 +923,7 @@ async def test_manifest_upload(syn: Synapse) -> None:
     )
     data = {
         "path": ["/tmp/foo", "/tmp/bar", "/tmp/baz"],
-        "parent": ["syn123", "syn456", "syn789"],
+        "parent": [SYN_123, "syn456", "syn789"],
         "name": ["foo", "bar", "baz"],
         "used": [None, "/tmp/foo", "/tmp/bar"],
         "executed": [None, None, "/tmp/foo"],
@@ -800,42 +1017,42 @@ class TestSyncUploader:
         #         /tmp/1               /tmp/2
 
         item_1 = _SyncUploadItem(
-            File(path="/tmp/1", parent_id="syn123"),
+            File(path="/tmp/1", parent_id=SYN_123),
             used=[],  # used
             executed=[],  # executed
             activity_name=None,
             activity_description=None,
         )
         item_2 = _SyncUploadItem(
-            File(path="/tmp/2", parent_id="syn123"),
+            File(path="/tmp/2", parent_id=SYN_123),
             used=[],  # used
             executed=[],  # executed
             activity_name=None,
             activity_description=None,
         )
         item_3 = _SyncUploadItem(
-            File(path="/tmp/3", parent_id="syn123"),
+            File(path="/tmp/3", parent_id=SYN_123),
             used=["/tmp/1"],  # used
             executed=[],  # executed
             activity_name=None,
             activity_description=None,
         )
         item_4 = _SyncUploadItem(
-            File(path="/tmp/4", parent_id="syn123"),
+            File(path="/tmp/4", parent_id=SYN_123),
             used=[],  # used
             executed=["/tmp/3"],  # executed
             activity_name=None,
             activity_description=None,
         )
         item_5 = _SyncUploadItem(
-            File(path="/tmp/5", parent_id="syn123"),
+            File(path="/tmp/5", parent_id=SYN_123),
             used=["/tmp/3"],  # used
             executed=[],  # executed
             activity_name=None,
             activity_description=None,
         )
         item_6 = _SyncUploadItem(
-            File(path="/tmp/6", parent_id="syn123"),
+            File(path="/tmp/6", parent_id=SYN_123),
             used=["/tmp/5"],  # used
             executed=["/tmp/2"],  # executed
             activity_name=None,
@@ -868,14 +1085,14 @@ class TestSyncUploader:
 
         items = [
             _SyncUploadItem(
-                entity=File(path="/tmp/1", parent_id="syn123"),
+                entity=File(path="/tmp/1", parent_id=SYN_123),
                 used=["/tmp/2"],  # used
                 executed=[],
                 activity_name=None,
                 activity_description=None,
             ),
             _SyncUploadItem(
-                entity=File(path="/tmp/2", parent_id="syn123"),
+                entity=File(path="/tmp/2", parent_id=SYN_123),
                 used=[],  # used
                 executed=["/tmp/1"],  # executed
                 activity_name=None,
@@ -897,7 +1114,7 @@ class TestSyncUploader:
 
         items = [
             _SyncUploadItem(
-                entity=File(path="/tmp/1", parent_id="syn123"),
+                entity=File(path="/tmp/1", parent_id=SYN_123),
                 used=["/tmp/2"],  # used
                 executed=[],
                 activity_name=None,
@@ -917,7 +1134,7 @@ class TestSyncUploader:
 
         used = [SYNAPSE_URL]
         executed = [GITHUB_URL]
-        entity = File(path="/tmp/file", parent_id="syn123")
+        entity = File(path="/tmp/file", parent_id=SYN_123)
         entity.store_async = AsyncMock(return_value=None)
         item = _SyncUploadItem(
             entity=entity,
@@ -938,7 +1155,7 @@ class TestSyncUploader:
 
         uploader = _SyncUploader(syn)
 
-        entity = File(path="/tmp/file", parent_id="syn123")
+        entity = File(path="/tmp/file", parent_id=SYN_123)
         entity.store_async = AsyncMock(side_effect=ValueError("Falure during upload"))
 
         item = _SyncUploadItem(
@@ -959,7 +1176,7 @@ class TestSyncUploader:
         mock_os_isfile.return_value = True
         paths = ["/tmp/foo", "/tmp/bar", "/tmp/baz"]
 
-        file_1 = File(path=paths[0], parent_id="syn123", id="syn3")
+        file_1 = File(path=paths[0], parent_id=SYN_123, id="syn3")
         file_1.store_async = AsyncMock(return_value=file_1)
         item_1 = _SyncUploadItem(
             entity=file_1,
@@ -968,7 +1185,7 @@ class TestSyncUploader:
             activity_name=None,
             activity_description=None,
         )
-        file_2 = File(path=paths[1], parent_id="syn123", id="syn2")
+        file_2 = File(path=paths[1], parent_id=SYN_123, id="syn2")
         file_2.store_async = AsyncMock(return_value=file_2)
         item_2 = _SyncUploadItem(
             entity=file_2,
@@ -977,7 +1194,7 @@ class TestSyncUploader:
             activity_name=None,
             activity_description=None,
         )
-        file_3 = File(path=paths[2], parent_id="syn123", id="syn1")
+        file_3 = File(path=paths[2], parent_id=SYN_123, id="syn1")
         file_3.store_async = AsyncMock(return_value=file_3)
         item_3 = _SyncUploadItem(
             entity=file_3,
@@ -1017,7 +1234,7 @@ class TestGetFileEntityProvenanceDict:
         )
 
         result_dict = synapseutils.sync._get_file_entity_provenance_dict(
-            self.mock_syn, "syn123"
+            self.mock_syn, SYN_123
         )
         assert {} == result_dict
 
@@ -1030,7 +1247,7 @@ class TestGetFileEntityProvenanceDict:
             SynapseHTTPError,
             synapseutils.sync._get_file_entity_provenance_dict,
             self.mock_syn,
-            "syn123",
+            SYN_123,
         )
 
 
@@ -1040,7 +1257,7 @@ def test_check_size_each_file(mock_os: MagicMock, syn: Synapse) -> None:
     Verify the check_size_each_file method works correctly
     """
 
-    project_id = "syn123"
+    project_id = SYN_123
     header = "path\tparent\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
     path2 = SYNAPSE_URL
@@ -1087,7 +1304,7 @@ def test_check_size_each_file_raise_error(mock_os: MagicMock, syn: Synapse) -> N
     Verify the check_size_each_file method raises the ValueError when the file is empty.
     """
 
-    project_id = "syn123"
+    project_id = SYN_123
     header = "path\tparent\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
     path2 = SYNAPSE_URL
@@ -1121,7 +1338,7 @@ def test_check_file_name(mock_os: MagicMock, syn: Synapse) -> None:
     Verify the check_file_name method works correctly
     """
 
-    project_id = "syn123"
+    project_id = SYN_123
     header = "path\tparent\tname\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
     path2 = os.path.abspath(os.path.expanduser("~/file2.txt"))
@@ -1148,7 +1365,7 @@ def test_check_file_name_with_illegal_char(mock_os: MagicMock, syn: Synapse) -> 
     Verify the check_file_name method raises the ValueError when the file name contains illegal char
     """
 
-    project_id = "syn123"
+    project_id = SYN_123
     header = "path\tparent\tname\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
     path2 = os.path.abspath(os.path.expanduser("~/file2.txt"))
@@ -1182,7 +1399,7 @@ def test_check_file_name_duplicated(mock_os: MagicMock, syn: Synapse) -> None:
     Verify the check_file_name method raises the ValueError when the file name is duplicated
     """
 
-    project_id = "syn123"
+    project_id = SYN_123
     header = "path\tparent\tname\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
     path2 = os.path.abspath(os.path.expanduser("~/file2.txt"))
@@ -1215,7 +1432,7 @@ def test_check_file_name_with_too_long_filename(
     Verify the check_file_name method raises the ValueError when the file name is too long
     """
 
-    project_id = "syn123"
+    project_id = SYN_123
     header = "path\tparent\tname\n"
     path1 = os.path.abspath(os.path.expanduser("~/file1.txt"))
     path2 = os.path.abspath(os.path.expanduser("~/file2.txt"))
@@ -1250,7 +1467,7 @@ def test_check_file_name_with_too_long_filename(
 
 def test__create_folder(syn: Synapse) -> None:
     folder_name = "TestName"
-    parent_id = "syn123"
+    parent_id = SYN_123
     with patch.object(syn, "store") as patch_syn_store:
         sync._create_folder(syn, folder_name, parent_id)
         patch_syn_store.assert_called_once_with(
@@ -1274,7 +1491,7 @@ def test__create_folder(syn: Synapse) -> None:
 def test__walk_directory_tree(mock_os: MagicMock, syn: Synapse) -> None:
     folder_name = "TestFolder"
     subfolder_name = "TestSubfolder"
-    parent_id = "syn123"
+    parent_id = SYN_123
     mock_os.walk.return_value = [
         (folder_name, [subfolder_name], ["TestFile.txt"]),
         (os.path.join(folder_name, subfolder_name), [], ["TestSubfile.txt"]),
@@ -1292,7 +1509,7 @@ def test__walk_directory_tree(mock_os: MagicMock, syn: Synapse) -> None:
 
 def test_generate_sync_manifest(syn: Synapse) -> None:
     folder_name = "TestName"
-    parent_id = "syn123"
+    parent_id = SYN_123
     manifest_path = "TestFolder"
     with patch.object(
         sync, "_walk_directory_tree"
