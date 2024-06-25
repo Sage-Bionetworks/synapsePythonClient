@@ -219,7 +219,7 @@ class TestFile:
             # THEN the file should be stored
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == PATH
+            assert utils.equal_paths(result.path, PATH)
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -374,7 +374,7 @@ class TestFile:
             # THEN the file should be stored
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == bogus_file
+            assert utils.equal_paths(result.path, bogus_file)
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -460,7 +460,7 @@ class TestFile:
             # THEN the file should be stored
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == bogus_file
+            assert utils.equal_paths(result.path, bogus_file)
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -566,7 +566,7 @@ class TestFile:
             # THEN the file should be stored
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == bogus_file
+            assert utils.equal_paths(result.path, bogus_file)
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -746,7 +746,7 @@ class TestFile:
             # THEN the file should be retrieved
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == bogus_file
+            assert utils.equal_paths(result.path, bogus_file)
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -808,7 +808,7 @@ class TestFile:
             # THEN the file should be stored
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == PATH
+            assert utils.equal_paths(result.path, PATH)
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -866,7 +866,7 @@ class TestFile:
             # THEN the file should be retrieved
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == PATH
+            assert utils.equal_paths(result.path, PATH)
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
@@ -929,7 +929,7 @@ class TestFile:
             # THEN the file should be retrieved
             assert result.id == SYN_123
             assert result.name == FILE_NAME
-            assert result.path == bogus_file
+            assert utils.equal_paths(result.path, bogus_file)
             assert result.description == DESCRIPTION
             assert result.etag == ETAG
             assert result.created_on == CREATED_ON
