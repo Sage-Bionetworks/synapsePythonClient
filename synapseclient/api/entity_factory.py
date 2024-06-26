@@ -178,9 +178,10 @@ async def _search_for_file_by_md5(
     from synapseclient import Synapse
 
     syn = Synapse.get_client(synapse_client=synapse_client)
+    md5 = md5 or utils.md5_for_file_hex(filename=filepath)
     results = (
         await get_entities_by_md5(
-            md5=md5 or utils.md5_for_file_hex(filename=filepath),
+            md5=md5,
             synapse_client=synapse_client,
         )
     )["results"]
@@ -215,7 +216,9 @@ async def _search_for_file_by_md5(
         version=entity_version,
         synapse_client=synapse_client,
     )
-    syn.cache.add(file_handle_id=bundle["entity"]["dataFileHandleId"], path=filepath)
+    syn.cache.add(
+        file_handle_id=bundle["entity"]["dataFileHandleId"], path=filepath, md5=md5
+    )
 
     return bundle
 
