@@ -19,6 +19,7 @@ import httpx
 from opentelemetry import context
 from opentelemetry.context import Context
 from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 from synapseclient.api.file_services import (
     get_file_handle_for_download,
@@ -47,17 +48,18 @@ _thread_local = _threading.local()
 
 
 @contextmanager
-def shared_progress_bar(progress_bar):
+def shared_progress_bar(progress_bar: tqdm, syn: "Synapse"):
     """An outside process that will eventually trigger an upload through this module
     can configure a shared Progress Bar by running its code within this context manager.
     """
-    _thread_local.progress_bar = progress_bar
-    try:
-        yield
-    finally:
-        _thread_local.progress_bar.close()
-        _thread_local.progress_bar.refresh()
-        del _thread_local.progress_bar
+    with logging_redirect_tqdm(loggers=[syn.logger]):
+        _thread_local.progress_bar = progress_bar
+        try:
+            yield
+        finally:
+            _thread_local.progress_bar.close()
+            _thread_local.progress_bar.refresh()
+            del _thread_local.progress_bar
 
 
 class DownloadRequest(NamedTuple):

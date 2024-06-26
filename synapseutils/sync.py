@@ -185,7 +185,7 @@ def syncFromSynapse(
         unit_scale=True,
         smoothing=0,
     )
-    with download_shared_progress_bar(progress_bar):
+    with download_shared_progress_bar(progress_bar=progress_bar, syn=syn):
         root_entity = wrap_async_to_sync(
             coroutine=_sync(
                 syn=syn,
