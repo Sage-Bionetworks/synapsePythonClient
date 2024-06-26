@@ -690,7 +690,8 @@ class File(FileSynchronousProtocol, AccessControllable):
                 )
                 return await file_copy.get_async(
                     synapse_client=synapse_client,
-                    include_activity=self.activity is not None,
+                    include_activity=self.activity is not None
+                    or self.associate_activity_to_new_version,
                 )
             except SynapseFileNotFoundError:
                 return None
