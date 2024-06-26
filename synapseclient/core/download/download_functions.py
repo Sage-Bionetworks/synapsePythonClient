@@ -556,7 +556,8 @@ async def download_from_url_multi_threaded(
                 f"Downloaded file {temp_destination}'s md5 {actual_md5} does not match expected MD5 of {expected_md5}"
             )
     # once download completed, rename to desired destination
-    shutil.move(temp_destination, destination)
+    shutil.move(temp_destination, dst=destination)
+    client.logger.info(f"Downloaded {object_id} to {destination}")
 
     return destination
 
@@ -673,15 +674,7 @@ def download_from_url(
                 if is_synapse_uri(uri=url, synapse_client=client)
                 else None
             )
-            # TODO: Some more work is needed for streaming this data:
-            # https://www.python-httpx.org/quickstart/#streaming-responses
-            # response = await client.rest_get_async(
-            #     uri=url,
-            #     headers=client._generate_headers(range_header),
-            #     stream=True,
-            #     allow_redirects=False,
-            #     auth=auth,
-            # )
+
             response = with_retry(
                 lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
                     url=url,

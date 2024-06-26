@@ -372,9 +372,9 @@ class _MultithreadedDownloader:
                     if self._syn._parts_transfered_counter % 100 == 0:
                         gc.collect()
 
-                    self._syn.logger.debug(
-                        f"Downloaded bytes {start_bytes}-{end_bytes} to {self._download_request.path}"
-                    )
+                    # self._syn.logger.debug(
+                    #     f"Downloaded bytes {start_bytes}-{end_bytes} to {self._download_request.path}"
+                    # )
                 except BaseException as ex:
                     # on any exception (e.g. KeyboardInterrupt), attempt to cancel any pending futures.
                     # if they are already running this won't have any effect though
@@ -421,16 +421,25 @@ class _MultithreadedDownloader:
                 )
                 self._progress_bar.refresh()
             else:
-                self._progress_bar = getattr(
-                    _thread_local, "progress_bar", None
-                ) or tqdm(
-                    total=file_size,
-                    desc="Downloading",
-                    unit="B",
-                    unit_scale=True,
-                    postfix=os.path.basename(self._download_request.path),
-                    smoothing=0,
-                )
+                if (
+                    existing_progress_bar := getattr(
+                        _thread_local, "progress_bar", None
+                    )
+                ) is not None:
+                    self._progress_bar: tqdm = existing_progress_bar
+                    self._progress_bar.total = file_size + (
+                        self._progress_bar.total if self._progress_bar.total > 1 else 0
+                    )
+                    self._progress_bar.refresh()
+                else:
+                    self._progress_bar = tqdm(
+                        total=file_size,
+                        desc="Downloading",
+                        unit="B",
+                        unit_scale=True,
+                        postfix=os.path.basename(self._download_request.path),
+                        smoothing=0,
+                    )
 
     def _close_progress_bar(self) -> None:
         """Handle closing the progress bar."""
