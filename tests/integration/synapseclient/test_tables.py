@@ -387,7 +387,7 @@ async def test_tables_pandas(syn, project):
                 ]
             ),
             "string_": tuple(
-                np.string_(s) for s in ["urgot", "has", "dark", "mysterious", "past"]
+                np.bytes_(s) for s in ["urgot", "has", "dark", "mysterious", "past"]
             ),
         }
     )

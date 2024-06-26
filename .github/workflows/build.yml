@@ -33,10 +33,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - uses: pre-commit/action@v3.0.0
+    - uses: pre-commit/action@v3.0.1
 
 
   # run unit (and integration tests if account secrets available) on our build matrix
@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
 
@@ -70,7 +70,7 @@ jobs:
 
       - name: Cache py-dependencies
         id: cache-dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-py-dependencies
         with:
@@ -197,7 +197,7 @@ jobs:
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
           # pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
       - name: Upload otel spans
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: otel_spans_integration_testing_${{ matrix.os }}
@@ -205,7 +205,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload coverage report
         id: upload_coverage_report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
         with:
           name: coverage-report
@@ -217,7 +217,7 @@ jobs:
     name: SonarCloud
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: Check coverage report existence
@@ -256,7 +256,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.8
 
@@ -322,13 +322,13 @@ jobs:
       # upload the packages as build artifacts of the GitHub Action
 
       - name: upload-build-sdist
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.build-package.outputs.sdist-package-name }}
           path: dist/${{ steps.build-package.outputs.sdist-package-name }}
 
       - name: upload-build-bdist
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.build-package.outputs.bdist-package-name }}
           path: dist/${{ steps.build-package.outputs.bdist-package-name }}
@@ -401,7 +401,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
 
