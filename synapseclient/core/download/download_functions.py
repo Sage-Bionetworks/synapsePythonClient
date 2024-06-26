@@ -473,7 +473,9 @@ async def download_by_file_handle(
                     ),
                 )
 
-            syn.cache.add(file_handle["id"], downloaded_path)
+            syn.cache.add(
+                file_handle["id"], downloaded_path, file_handle.get("contentMd5", None)
+            )
             return downloaded_path
 
         except Exception as ex:
