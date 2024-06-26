@@ -556,7 +556,7 @@ async def download_from_url_multi_threaded(
                 f"Downloaded file {temp_destination}'s md5 {actual_md5} does not match expected MD5 of {expected_md5}"
             )
     # once download completed, rename to desired destination
-    shutil.move(temp_destination, dst=destination)
+    shutil.move(temp_destination, destination)
     client.logger.info(f"Downloaded {object_id} to {destination}")
 
     return destination
