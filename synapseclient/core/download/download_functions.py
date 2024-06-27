@@ -636,7 +636,7 @@ def download_from_url(
             destination = utils.file_url_to_path(url, verify_exists=True)
             if destination is None:
                 raise IOError(f"Local file ({url}) does not exist.")
-            if progress_bar:
+            if progress_bar is not None:
                 file_size = os.path.getsize(destination)
                 increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
                 increment_progress_bar(n=progress_bar.total, progress_bar=progress_bar)
@@ -670,7 +670,7 @@ def download_from_url(
                     None
                 """
                 nonlocal updated_progress_bar_with_total
-                if progress_bar:
+                if progress_bar is not None:
                     if not updated_progress_bar_with_total:
                         updated_progress_bar_with_total = True
                         increment_progress_bar_total(

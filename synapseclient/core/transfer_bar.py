@@ -41,9 +41,11 @@ def increment_progress_bar_total(total: int, progress_bar: Union[tqdm, None]) ->
     Returns:
         None
     """
-    if not progress_bar:
+    if progress_bar is None:
         return None
-    progress_bar.total = total + (progress_bar.total if progress_bar.total > 1 else 0)
+    progress_bar.total = total + (
+        progress_bar.total if progress_bar.total and progress_bar.total > 1 else 0
+    )
     progress_bar.refresh()
 
 
@@ -89,7 +91,7 @@ def close_download_progress_bar() -> None:
     """Handle closing the download progress bar if it is not context managed."""
     if not _is_context_managed_download_bar():
         progress_bar: tqdm = getattr(_thread_local, "progress_bar_download", None)
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.close()
             progress_bar.refresh()
             del _thread_local.progress_bar_download
@@ -133,7 +135,7 @@ def get_or_create_download_progress_bar(
         _thread_local.progress_bar_download = progress_bar
     else:
         progress_bar.total = file_size + (
-            progress_bar.total if progress_bar.total > 1 else 0
+            progress_bar.total if progress_bar.total and progress_bar.total > 1 else 0
         )
         progress_bar.postfix = None
         progress_bar.refresh()

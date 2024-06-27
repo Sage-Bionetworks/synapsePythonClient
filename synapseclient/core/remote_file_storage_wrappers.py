@@ -123,7 +123,7 @@ class S3ClientWrapper:
 
             progress_callback = None
 
-            if progress_bar:
+            if progress_bar is not None:
                 s3_obj.load()
                 file_size = s3_obj.content_length
                 increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
@@ -228,7 +228,7 @@ class S3ClientWrapper:
             Config=transfer_config,
             ExtraArgs={"ACL": "bucket-owner-full-control"},
         )
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.close()
         return upload_file_path
 
@@ -369,7 +369,7 @@ class SFTPWrapper:
                 path,
                 localFilepath,
                 preserve_mtime=True,
-                callback=(progress_callback),
+                callback=(progress_callback if progress_bar is not None else None),
             )
         return localFilepath
 

@@ -35,6 +35,7 @@ from synapseclient import (
 from synapseclient.annotations import convert_old_annotation_json
 from synapseclient.api import get_config_file
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
+from synapseclient.core import sts_transfer
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
 from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
@@ -446,7 +447,7 @@ class TestDownloadFileHandle:
             remote_file_key=FOO_KEY,
             download_file_path="/tmp",
             credentials=credentials,
-            show_progress=True,
+            progress_bar=ANY,
             transfer_config_kwargs={"max_concurrency": self.syn.max_threads},
         )
 
@@ -470,6 +471,8 @@ class TestDownloadFileHandle:
             utils, "md5_for_file"
         ) as mock_md5_for_file, patch.object(
             os, "makedirs"
+        ), patch.object(
+            sts_transfer, "is_storage_location_sts_enabled_async", return_value=False
         ):
             mock_get_file_handle_download.return_value = {
                 "fileHandle": {

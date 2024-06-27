@@ -6,7 +6,7 @@ import os
 import shutil
 import tempfile
 from typing import Dict
-from unittest.mock import AsyncMock, MagicMock, call, mock_open, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, call, mock_open, patch
 
 import pytest
 import requests
@@ -485,6 +485,7 @@ class TestDownloadFileHandle:
                 destination="/myfakepath",
                 file_handle_id="123",
                 expected_md5="someMD5",
+                progress_bar=ANY,
                 synapse_client=self.syn,
             )
 
@@ -540,6 +541,7 @@ class TestDownloadFileHandle:
                 destination="/myfakepath",
                 file_handle_id="123",
                 expected_md5="someMD5",
+                progress_bar=ANY,
                 synapse_client=self.syn,
             )
 
