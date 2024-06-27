@@ -437,7 +437,7 @@ class TestDownloadFileHandle:
             mock_os.makedirs.assert_called_once_with(
                 mock_os.path.dirname(destination), exist_ok=True
             )
-            cache.add.assert_called_once_with(file_handle_id, download_path)
+            cache.add.assert_called_once_with(file_handle_id, download_path, None)
 
         assert expected_download_path == download_path
         mock_s3_client_wrapper.download_file.assert_called_once_with(
