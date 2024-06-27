@@ -95,6 +95,7 @@ async def get_entity_id_version_bundle2(
 async def post_entity_bundle2_create(
     request: Dict[str, Any],
     generated_by: Optional[str] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -123,6 +124,7 @@ async def put_entity_id_bundle2(
     entity_id: str,
     request: Dict[str, Any],
     generated_by: Optional[str] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """

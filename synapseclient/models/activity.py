@@ -262,6 +262,7 @@ class Activity(ActivitySynchronousProtocol):
     async def store_async(
         self,
         parent: Optional[Union["Table", "File"]] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Activity":
         """
@@ -337,6 +338,7 @@ class Activity(ActivitySynchronousProtocol):
     async def from_parent_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Union["Activity", None]:
         """
@@ -386,6 +388,7 @@ class Activity(ActivitySynchronousProtocol):
     async def delete_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
@@ -427,6 +430,7 @@ class Activity(ActivitySynchronousProtocol):
     async def disassociate_from_entity_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """

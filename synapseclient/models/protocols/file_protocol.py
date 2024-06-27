@@ -20,6 +20,7 @@ class FileSynchronousProtocol(Protocol):
     def store(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -79,6 +80,7 @@ class FileSynchronousProtocol(Protocol):
         name: Optional[str] = None,
         download_as: Optional[str] = None,
         content_type: Optional[str] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -113,6 +115,7 @@ class FileSynchronousProtocol(Protocol):
     def get(
         self,
         include_activity: bool = False,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -159,6 +162,7 @@ class FileSynchronousProtocol(Protocol):
     def from_id(
         cls,
         synapse_id: str,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """Wrapper for [synapseclient.models.File.get][].
@@ -184,6 +188,7 @@ class FileSynchronousProtocol(Protocol):
     def from_path(
         cls,
         path: str,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """Get the file from Synapse. If the path of the file matches multiple files
@@ -213,6 +218,7 @@ class FileSynchronousProtocol(Protocol):
     def delete(
         self,
         version_only: Optional[bool] = False,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """Delete the file from Synapse.
@@ -245,6 +251,7 @@ class FileSynchronousProtocol(Protocol):
         update_existing: bool = False,
         copy_annotations: bool = True,
         copy_activity: Union[str, None] = "traceback",
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """

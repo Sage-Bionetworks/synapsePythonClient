@@ -23,6 +23,7 @@ class StorableContainerSynchronousProtocol(Protocol):
         download_file: bool = True,
         if_collision: str = COLLISION_OVERWRITE_LOCAL,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
         """

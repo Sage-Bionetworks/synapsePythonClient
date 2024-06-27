@@ -211,6 +211,7 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """Store folders and files to synapse. If you have any files or folders attached
@@ -306,6 +307,7 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
     async def get_async(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """Get the folder metadata from Synapse. You are able to find a folder by
@@ -344,7 +346,7 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Folder_Delete: {self.id}"
     )
-    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the folder from Synapse by its id.
 
         Arguments:
@@ -381,6 +383,7 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         exclude_types: Optional[List[str]] = None,
         file_update_existing: bool = False,
         file_copy_activity: Union[str, None] = "traceback",
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """

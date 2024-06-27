@@ -53,7 +53,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     folders: "Folder" = None
     _last_persistent_instance: None = None
 
-    async def get_async(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
 
     @otel_trace_method(
@@ -356,6 +356,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     def _retrieve_children(
         self,
         follow_link: bool,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> List:
         """
@@ -604,6 +605,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         self,
         result: Union[None, "Folder", "File", BaseException],
         failure_strategy: FailureStrategy,
+        *,
         synapse_client: Union[None, Synapse],
     ) -> None:
         """

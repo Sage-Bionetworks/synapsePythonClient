@@ -664,7 +664,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             self.content_md5 = utils.md5_for_file_hex(filename=self.path)
 
     async def _find_existing_file(
-        self, synapse_client: Optional[Synapse] = None
+        self, *, synapse_client: Optional[Synapse] = None
     ) -> Union["File", None]:
         """Determines if the file already exists in Synapse. If it does it will return
         the file object, otherwise it will return None. This is used to determine if the
@@ -742,6 +742,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def store_async(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -890,6 +891,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         name: Optional[str] = None,
         download_as: Optional[str] = None,
         content_type: Optional[str] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -1037,6 +1039,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def from_id_async(
         cls,
         synapse_id: str,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """Wrapper for [synapseclient.models.File.get][].
@@ -1062,6 +1065,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def from_path_async(
         cls,
         path: str,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """Get the file from Synapse. If the path of the file matches multiple files
@@ -1094,6 +1098,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def delete_async(
         self,
         version_only: Optional[bool] = False,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
@@ -1149,6 +1154,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         update_existing: bool = False,
         copy_annotations: bool = True,
         copy_activity: Union[str, None] = "traceback",
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -1306,6 +1312,7 @@ class File(FileSynchronousProtocol, AccessControllable):
 
     async def _upload_file(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """The upload process for a file. This will upload the file to Synapse if it

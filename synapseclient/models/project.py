@@ -239,6 +239,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
     async def store_async(
         self,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """
@@ -340,6 +341,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
     )
     async def get_async(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """Get the project metadata from Synapse.
@@ -377,7 +379,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Project_Delete: {self.id}, Name: {self.name}"
     )
-    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the project from Synapse.
 
         Arguments:
@@ -425,6 +427,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         exclude_types: Optional[List[str]] = None,
         file_update_existing: bool = False,
         file_copy_activity: Union[str, None] = "traceback",
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """

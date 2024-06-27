@@ -309,7 +309,9 @@ class Column(ColumnSynchronousProtocol):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Column_Store: {self.name}"
     )
-    async def store_async(self, synapse_client: Optional[Synapse] = None) -> "Column":
+    async def store_async(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> "Column":
         """Persist the column to Synapse.
 
         Arguments:
@@ -505,7 +507,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         method_to_trace_name=lambda _, **kwargs: f"Store_rows_by_csv: {kwargs.get('csv_path', None)}"
     )
     async def store_rows_from_csv_async(
-        self, csv_path: str, synapse_client: Optional[Synapse] = None
+        self, csv_path: str, *, synapse_client: Optional[Synapse] = None
     ) -> str:
         """Takes in a path to a CSV and stores the rows to Synapse.
 
@@ -537,7 +539,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         method_to_trace_name=lambda self, **kwargs: f"Delete_rows: {self.name}"
     )
     async def delete_rows_async(
-        self, rows: List[Row], synapse_client: Optional[Synapse] = None
+        self, rows: List[Row], *, synapse_client: Optional[Synapse] = None
     ) -> None:
         """Delete rows from a table.
 
@@ -570,7 +572,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         method_to_trace_name=lambda self, **kwargs: f"Table_Schema_Store: {self.name}"
     )
     async def store_schema_async(
-        self, synapse_client: Optional[Synapse] = None
+        self, *, synapse_client: Optional[Synapse] = None
     ) -> "Table":
         """Store non-row information about a table including the columns and annotations.
 
@@ -645,7 +647,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Table_Get: {self.name}"
     )
-    async def get_async(self, synapse_client: Optional[Synapse] = None) -> "Table":
+    async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> "Table":
         """Get the metadata about the table from synapse.
 
         Arguments:
@@ -675,7 +677,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
     )
     # TODO: Synapse allows immediate deletion of entities, but the Synapse Client does not
     # TODO: Should we support immediate deletion?
-    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the table from synapse.
 
         Arguments:
@@ -702,6 +704,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         cls,
         query: str,
         result_format: Union[CsvResultFormat, RowsetResultFormat] = CsvResultFormat(),
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Union[Synapse_CsvFileTable, Synaspe_TableQueryResult]:
         """Query for data on a table stored in Synapse.

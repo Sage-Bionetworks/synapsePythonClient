@@ -280,6 +280,7 @@ async def download_by_file_handle(
     entity_type: str,
     destination: str,
     retries: int = 5,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> str:
     """
@@ -855,6 +856,7 @@ def resolve_download_path_collisions(
     if_collision: str,
     synapse_cache_location: str,
     cached_file_path: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
     """
@@ -937,6 +939,7 @@ def ensure_download_location_is_directory(download_location: str) -> str:
 
 def is_synapse_uri(
     uri: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> bool:
     """

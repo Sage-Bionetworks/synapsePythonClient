@@ -21,6 +21,7 @@ async def post_file_multipart(
     upload_request_payload: Dict[str, Any],
     force_restart: bool,
     endpoint: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
@@ -71,6 +72,7 @@ async def put_file_multipart_add(
     upload_id: str,
     part_number: int,
     md5_hex: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> AddPartResponse:
     """
@@ -112,6 +114,7 @@ async def put_file_multipart_add(
 async def put_file_multipart_complete(
     upload_id: str,
     endpoint: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
@@ -139,6 +142,7 @@ async def put_file_multipart_complete(
 async def post_file_multipart_presigned_urls(
     upload_id: str,
     part_numbers: List[int],
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -179,6 +183,7 @@ async def post_external_object_store_filehandle(
     storage_location_id: int,
     mimetype: str = None,
     md5: str = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
@@ -223,6 +228,7 @@ async def post_external_filehandle(
     mimetype: str = None,
     md5: str = None,
     file_size: int = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
@@ -270,6 +276,7 @@ async def post_external_s3_file_handle(
     storage_location_id: str = None,
     mimetype: str = None,
     md5: str = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int, bool]]:
     """
@@ -338,6 +345,7 @@ async def post_external_s3_file_handle(
 
 async def get_file_handle(
     file_handle_id: Dict[str, Union[str, int]],
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
@@ -369,6 +377,7 @@ async def get_file_handle_for_download_async(
     file_handle_id: str,
     synapse_id: str,
     entity_type: str = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
@@ -428,6 +437,7 @@ def get_file_handle_for_download(
     file_handle_id: str,
     synapse_id: str,
     entity_type: str = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
