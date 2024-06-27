@@ -883,6 +883,8 @@ async def test_table_query(test_state):
     )
 
     output_rows = output.rstrip("\n").split("\n")
+    if output_rows[0] and output_rows[0].startswith(f"Downloaded {schema1.id} to"):
+        output_rows = output_rows[1:]
 
     # Check the length of the output
     assert len(output_rows) == 5, "got %s rows" % (len(output_rows),)
