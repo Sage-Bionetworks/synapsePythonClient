@@ -225,6 +225,8 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           files: "*coverage*"
+      - name: List files in the working directory
+        run: ls -la
       - name: Download coverage report
         uses: actions/download-artifact@v2
         if: steps.check_coverage_report.outputs.files_exists == 'true'
