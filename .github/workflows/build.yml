@@ -216,11 +216,18 @@ jobs:
     if: ${{ always() && !cancelled()}}
     name: SonarCloud
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-12, windows-2022]
+
+        # if changing the below change the run-integration-tests versions and the check-deploy versions
+        python: [3.8, '3.9', '3.10', '3.11']
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: Download coverage report
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
         uses: actions/download-artifact@v2
         with:
           name: coverage-report
@@ -230,7 +237,7 @@ jobs:
         id: check_coverage_report
         uses: andstor/file-existence-action@v3
         with:
-          files: "coverage.xml"
+          files: "coverage*.zip"
         # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
       - name: Override Coverage Source Path for Sonar
         if: steps.check_coverage_report.outputs.files_exists == 'true'
