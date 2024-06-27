@@ -224,7 +224,7 @@ jobs:
         id: check_coverage_report
         uses: andstor/file-existence-action@v3
         with:
-          files: "coverage.xml,coverage-report.zip,coverage-report"
+          files: "*coverage*"
       - name: Download coverage report
         uses: actions/download-artifact@v2
         if: steps.check_coverage_report.outputs.files_exists == 'true'
