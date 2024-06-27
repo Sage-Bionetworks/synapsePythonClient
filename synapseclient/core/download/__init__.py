@@ -7,7 +7,6 @@ from .download_async import (
     PresignedUrlProvider,
     _MultithreadedDownloader,
     download_file,
-    shared_progress_bar,
 )
 from .download_functions import (
     download_by_file_handle,
@@ -29,7 +28,6 @@ __all__ = [
     # download_async
     "DownloadRequest",
     "download_file",
-    "shared_progress_bar",
     "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
     "PresignedUrlInfo",
     "PresignedUrlProvider",

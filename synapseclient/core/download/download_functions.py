@@ -6,10 +6,11 @@ import hashlib
 import os
 import shutil
 import sys
-import time
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
+
+from tqdm import tqdm
 
 from synapseclient.api.configuration_services import get_client_authenticated_s3_profile
 from synapseclient.api.file_services import get_file_handle_for_download_async
@@ -36,6 +37,12 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry,
+)
+from synapseclient.core.transfer_bar import (
+    close_download_progress_bar,
+    get_or_create_download_progress_bar,
+    increment_progress_bar,
+    increment_progress_bar_total,
 )
 from synapseclient.core.utils import MB
 
@@ -462,6 +469,7 @@ async def download_by_file_handle(
 
             else:
                 loop = asyncio.get_running_loop()
+                progress_bar = get_or_create_download_progress_bar(file_size=1)
                 downloaded_path = await loop.run_in_executor(
                     syn._get_thread_pool_executor(asyncio_event_loop=loop),
                     lambda: download_from_url(
@@ -469,10 +477,12 @@ async def download_by_file_handle(
                         destination=destination,
                         file_handle_id=file_handle["id"],
                         expected_md5=file_handle.get("contentMd5"),
+                        progress_bar=progress_bar,
                         synapse_client=syn,
                     ),
                 )
 
+            syn.logger.info(f"Downloaded {synapse_id} to {downloaded_path}")
             syn.cache.add(
                 file_handle["id"], downloaded_path, file_handle.get("contentMd5", None)
             )
@@ -480,6 +490,7 @@ async def download_by_file_handle(
 
         except Exception as ex:
             if not is_retryable_download_error(ex):
+                close_download_progress_bar()
                 raise
 
             exc_info = sys.exc_info()
@@ -491,9 +502,11 @@ async def download_by_file_handle(
             if ex.progress == 0:  # No progress was made reduce remaining retries.
                 retries -= 1
             if retries <= 0:
+                close_download_progress_bar()
                 # Re-raise exception
                 raise
 
+    close_download_progress_bar()
     raise RuntimeError("should not reach this line")
 
 
@@ -559,7 +572,6 @@ async def download_from_url_multi_threaded(
             )
     # once download completed, rename to desired destination
     shutil.move(temp_destination, destination)
-    client.logger.info(f"Downloaded {object_id} to {destination}")
 
     return destination
 
@@ -569,6 +581,7 @@ def download_from_url(
     destination: str,
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
+    progress_bar: Optional[tqdm] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
@@ -619,41 +632,40 @@ def download_from_url(
                 localFilepath=destination,
                 username=username,
                 password=password,
-                show_progress=not client.silent,
+                progress_bar=progress_bar,
             )
             break
         elif scheme == "ftp":
-            transfer_start_time = time.time()
+            updated_progress_bar_with_total = False
 
             def _ftp_report_hook(
-                block_number: int,
+                _: int,
                 read_size: int,
                 total_size: int,
                 destination: str = destination,
-                transfer_start_time: float = transfer_start_time,
+                updated_progress_bar_with_total: bool = updated_progress_bar_with_total,
             ) -> None:
                 """Report hook for urllib.request.urlretrieve to show download progress.
 
                 Arguments:
-                    block_number: The number of blocks transferred so far
+                    _: The number of blocks transferred so far
                     read_size: The size of each block
                     total_size: The total size of the file
                     destination: The destination file path
-                    transfer_start_time: The time when the transfer started
+                    updated_progress_bar_with_total: Whether the progress bar has been
+                        updated with the total size
 
                 Returns:
                     None
                 """
-                show_progress = not client.silent
-                # TODO: Convert progress bar over to shared progress bar for sync
-                if show_progress:
-                    client._print_transfer_progress(
-                        transferred=block_number * read_size,
-                        toBeTransferred=total_size,
-                        prefix="Downloading ",
-                        postfix=os.path.basename(destination),
-                        dt=time.time() - transfer_start_time,
-                    )
+                if progress_bar:
+                    if not updated_progress_bar_with_total:
+                        updated_progress_bar_with_total = True
+                        increment_progress_bar_total(
+                            total=total_size, progress_bar=progress_bar
+                        )
+                    increment_progress_bar(n=read_size, progress_bar=progress_bar)
+                    # postfix=os.path.basename(destination),
 
             urllib_request.urlretrieve(
                 url=url, filename=destination, reporthook=_ftp_report_hook
@@ -732,6 +744,10 @@ def download_from_url(
                     previously_transferred = os.path.getsize(filename=temp_destination)
                     to_be_transferred += previously_transferred
                     transferred += previously_transferred
+                    increment_progress_bar_total(
+                        total=to_be_transferred, progress_bar=progress_bar
+                    )
+                    increment_progress_bar(n=transferred, progress_bar=progress_bar)
                     client.logger.debug(
                         f"Resuming partial download to {temp_destination}. "
                         f"{previously_transferred}/{to_be_transferred} bytes already "
@@ -741,11 +757,13 @@ def download_from_url(
                 else:
                     mode = "wb"
                     previously_transferred = 0
+                    increment_progress_bar_total(
+                        total=to_be_transferred, progress_bar=progress_bar
+                    )
                     sig = hashlib.new("md5", usedforsecurity=False)  # nosec
 
                 try:
                     with open(temp_destination, mode) as fd:
-                        t0 = time.time()
                         for _, chunk in enumerate(
                             response.iter_content(FILE_BUFFER_SIZE)
                         ):
@@ -759,12 +777,8 @@ def download_from_url(
                             # response.raw.tell() is the total number of response body bytes transferred over the
                             # wire so far
                             transferred = response.raw.tell() + previously_transferred
-                            client._print_transfer_progress(
-                                transferred,
-                                to_be_transferred,
-                                "Downloading ",
-                                os.path.basename(destination),
-                                dt=time.time() - t0,
+                            increment_progress_bar(
+                                n=len(chunk), progress_bar=progress_bar
                             )
                 except (
                     Exception

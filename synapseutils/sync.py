@@ -22,15 +22,13 @@ from synapseclient.api import get_entity, get_entity_id_bundle2
 from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.download.download_async import (
-    shared_progress_bar as download_shared_progress_bar,
-)
 from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
     SynapseProvenanceError,
 )
+from synapseclient.core.transfer_bar import shared_download_progress_bar
 from synapseclient.core.upload.multipart_upload_async import (
     shared_progress_bar as upload_shared_progress_bar,
 )
@@ -169,23 +167,8 @@ def syncFromSynapse(
     # 3. downloads that support S3 multipart concurrent downloads will be scheduled
     #    by the thread in #2 and have
     #    their parts downloaded in additional threads in the same Executor
-    # To support multipart downloads in #3 using the same Executor as the download
-    # thread #2, we need at least 2 threads always, if those aren't available then
-    # we'll run single threaded to avoid a deadlock.
 
-    # TODO: Items left to finish to port syncFromSynapse:
-    # 1) Correct the TQDM progress bar - Currently the shared bar does not work
-    # 2) Update the TQDM progress bar to note when file is downloading or md5 is being calculated
-    # 3) Update the .get() code to not just wrap the synapseClient.get() function
-
-    progress_bar = tqdm(
-        total=1,
-        desc="Downloading files",
-        unit="B",
-        unit_scale=True,
-        smoothing=0,
-    )
-    with download_shared_progress_bar(progress_bar=progress_bar, syn=syn):
+    with shared_download_progress_bar(file_size=1, synapse_client=syn):
         root_entity = wrap_async_to_sync(
             coroutine=_sync(
                 syn=syn,
@@ -199,7 +182,6 @@ def syncFromSynapse(
             syn=syn,
         )
 
-    progress_bar.close()
     files = []
 
     from synapseclient.models import Folder, Project

@@ -9,7 +9,6 @@ import asyncio
 import datetime
 import gc
 import os
-from contextlib import contextmanager
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Generator, NamedTuple, Optional, Set, Tuple, Union
@@ -18,8 +17,6 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 from opentelemetry import context
 from opentelemetry.context import Context
-from tqdm import tqdm
-from tqdm.contrib.logging import logging_redirect_tqdm
 
 from synapseclient.api.file_services import (
     get_file_handle_for_download,
@@ -35,6 +32,7 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry_time_based,
 )
+from synapseclient.core.transfer_bar import get_or_create_download_progress_bar
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -43,23 +41,6 @@ if TYPE_CHECKING:
 MiB: int = 2**20
 SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
 ISO_AWS_STR_FORMAT: str = "%Y%m%dT%H%M%SZ"
-
-_thread_local = _threading.local()
-
-
-@contextmanager
-def shared_progress_bar(progress_bar: tqdm, syn: "Synapse"):
-    """An outside process that will eventually trigger an upload through this module
-    can configure a shared Progress Bar by running its code within this context manager.
-    """
-    with logging_redirect_tqdm(loggers=[syn.logger]):
-        _thread_local.progress_bar = progress_bar
-        try:
-            yield
-        finally:
-            _thread_local.progress_bar.close()
-            _thread_local.progress_bar.refresh()
-            del _thread_local.progress_bar
 
 
 class DownloadRequest(NamedTuple):
@@ -321,9 +302,6 @@ class _MultithreadedDownloader:
         self._aborted = False
         self._download_request = download_request
         self._progress_bar = None
-        self._should_close_progress_bar = (
-            getattr(_thread_local, "progress_bar", None) is None
-        )
 
     async def download_file(self) -> None:
         """
@@ -338,7 +316,7 @@ class _MultithreadedDownloader:
         file_size = await _get_file_size_wrapper(
             syn=self._syn, url=url_info.url, debug=self._download_request.debug
         )
-        self._create_progress_bar(file_size=file_size)
+        self._progress_bar = get_or_create_download_progress_bar(file_size=file_size)
         self._prep_file()
 
         # Create AsyncIO tasks to download each of the parts according to chunk size
@@ -396,7 +374,6 @@ class _MultithreadedDownloader:
                     except FileNotFoundError:
                         pass
 
-        self._close_progress_bar()
         if cause:
             raise cause
 
@@ -405,52 +382,6 @@ class _MultithreadedDownloader:
         if self._syn.silent or not self._progress_bar:
             return
         self._progress_bar.update(part_size)
-
-    def _create_progress_bar(self, file_size: int) -> None:
-        """Handle creating the progress bar.
-
-        Arguments:
-            file_size: The size of the file to download
-
-        Returns:
-            None
-        """
-        if not self._syn.silent:
-            # TODO: This still needs to be patched up in the case of the shared progress bar
-            if self._progress_bar:
-                self._progress_bar.total = file_size + (
-                    self._progress_bar.total if self._progress_bar.total > 1 else 0
-                )
-                self._progress_bar.refresh()
-            else:
-                if (
-                    existing_progress_bar := getattr(
-                        _thread_local, "progress_bar", None
-                    )
-                ) is not None:
-                    self._progress_bar: tqdm = existing_progress_bar
-                    self._progress_bar.total = file_size + (
-                        self._progress_bar.total if self._progress_bar.total > 1 else 0
-                    )
-                    self._progress_bar.refresh()
-                else:
-                    self._progress_bar = tqdm(
-                        total=file_size,
-                        desc="Downloading",
-                        unit="B",
-                        unit_scale=True,
-                        postfix=os.path.basename(self._download_request.path),
-                        smoothing=0,
-                    )
-
-    def _close_progress_bar(self) -> None:
-        """Handle closing the progress bar."""
-        if (
-            not self._syn.silent
-            and self._progress_bar
-            and self._should_close_progress_bar
-        ):
-            self._progress_bar.close()
 
     def _generate_stream_and_write_chunk_tasks(
         self,
