@@ -43,7 +43,7 @@ def increment_progress_bar_total(total: int, progress_bar: Union[tqdm, None]) ->
     """
     if not progress_bar:
         return None
-    progress_bar.total = total + (progress_bar.total if progress_bar.total else 0)
+    progress_bar.total = total + (progress_bar.total if progress_bar.total > 1 else 0)
     progress_bar.refresh()
 
 
@@ -101,9 +101,17 @@ def _is_context_managed_download_bar() -> bool:
 
 
 def get_or_create_download_progress_bar(
-    file_size: int, *, synapse_client: Optional["Synapse"] = None
+    file_size: int, postfix: str = None, *, synapse_client: Optional["Synapse"] = None
 ) -> Union[tqdm, None]:
-    """Return the existing progress bar if it exists, otherwise create a new one."""
+    """Return the existing progress bar if it exists, otherwise create a new one.
+
+    Arguments:
+        file_size: The size of the file being downloaded.
+        postfix: The postfix to add to the progress bar. When this is called for the
+            first time the postfix will be set. If called again the postfix will be
+            removed as multiple downloads are sharing this bar.
+        synapse_client: The Synapse client.
+    """
 
     from synapseclient import Synapse
 
@@ -120,11 +128,13 @@ def get_or_create_download_progress_bar(
             unit="B",
             unit_scale=True,
             smoothing=0,
+            postfix=postfix,
         )
         _thread_local.progress_bar_download = progress_bar
     else:
         progress_bar.total = file_size + (
-            progress_bar.total if progress_bar.total else 0
+            progress_bar.total if progress_bar.total > 1 else 0
         )
+        progress_bar.postfix = None
         progress_bar.refresh()
     return progress_bar

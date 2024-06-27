@@ -62,7 +62,7 @@ class S3ClientWrapper:
             Arguments:
                 bytes: The number of bytes transferred.
             """
-            progress_bar.update(transferred_bytes)
+            increment_progress_bar(n=transferred_bytes, progress_bar=progress_bar)
 
         return progress_callback
 
@@ -75,7 +75,7 @@ class S3ClientWrapper:
         *,
         profile_name: str = None,
         credentials: typing.Dict[str, str] = None,
-        show_progress: bool = True,
+        progress_bar: tqdm = None,
         transfer_config_kwargs: dict = None,
     ) -> str:
         """
@@ -94,7 +94,7 @@ class S3ClientWrapper:
                 - `aws_access_key_id`
                 - `aws_secret_access_key`
                 - `aws_session_token`
-            show_progress: whether to print progress indicator to console
+            progress_bar: The progress bar to update. Defaults to None.
             transfer_config_kwargs: boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
 
         Returns:
@@ -122,20 +122,11 @@ class S3ClientWrapper:
             s3_obj = s3.Object(bucket, remote_file_key)
 
             progress_callback = None
-            # TODO: Convert progress bar over to shared progress bar for sync
-            progress_bar = None
-            if show_progress:
+
+            if progress_bar:
                 s3_obj.load()
                 file_size = s3_obj.content_length
-                filename = os.path.basename(download_file_path)
-                progress_bar = tqdm(
-                    total=file_size,
-                    desc="Downloading",
-                    unit="B",
-                    unit_scale=True,
-                    postfix=filename,
-                    smoothing=0,
-                )
+                increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
                 progress_callback = S3ClientWrapper._create_progress_callback_func(
                     progress_bar
                 )
@@ -145,8 +136,6 @@ class S3ClientWrapper:
                 Callback=progress_callback,
                 Config=transfer_config,
             )
-            if progress_bar:
-                progress_bar.close()
 
             return download_file_path
 
@@ -343,20 +332,21 @@ class SFTPWrapper:
             The local filepath where the file was saved.
         """
         updated_progress_bar_with_total = False
-        total_transferred = 0
+        last_transfer_checkpoint = 0
 
         def progress_callback(
             *args,
-            updated_progress_bar_with_total: bool = updated_progress_bar_with_total,
-            total_transferred: int = total_transferred,
             **kwargs,
         ) -> None:
+            nonlocal updated_progress_bar_with_total
+            nonlocal last_transfer_checkpoint
             if not updated_progress_bar_with_total:
+                updated_progress_bar_with_total = True
                 increment_progress_bar_total(args[1], progress_bar)
-            total_transferred += args[0]
             increment_progress_bar(
-                n=args[0] - total_transferred, progress_bar=progress_bar
+                n=args[0] - last_transfer_checkpoint, progress_bar=progress_bar
             )
+            last_transfer_checkpoint = args[0]
 
         parsed_url = SFTPWrapper._parse_for_sftp(url)
 

@@ -316,7 +316,9 @@ class _MultithreadedDownloader:
         file_size = await _get_file_size_wrapper(
             syn=self._syn, url=url_info.url, debug=self._download_request.debug
         )
-        self._progress_bar = get_or_create_download_progress_bar(file_size=file_size)
+        self._progress_bar = get_or_create_download_progress_bar(
+            file_size=file_size, postfix=self._download_request.object_id
+        )
         self._prep_file()
 
         # Create AsyncIO tasks to download each of the parts according to chunk size

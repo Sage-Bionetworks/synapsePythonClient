@@ -11,6 +11,7 @@ import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 from synapseclient.api.configuration_services import get_client_authenticated_s3_profile
 from synapseclient.api.file_services import get_file_handle_for_download_async
@@ -152,12 +153,13 @@ async def download_file_entity(
         # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
         # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
         # _downloadFileHandle may also return None to indicate that the download failed
-        download_path = await download_by_file_handle(
-            file_handle_id=entity.dataFileHandleId,
-            synapse_id=object_id,
-            entity_type=object_type,
-            destination=download_path,
-        )
+        with logging_redirect_tqdm(loggers=[client.logger]):
+            download_path = await download_by_file_handle(
+                file_handle_id=entity.dataFileHandleId,
+                synapse_id=object_id,
+                entity_type=object_type,
+                destination=download_path,
+            )
 
         if download_path is None or not os.path.exists(download_path):
             return
@@ -252,12 +254,13 @@ async def download_file_entity_model(
         # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
         # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
         # _downloadFileHandle may also return None to indicate that the download failed
-        download_path = await download_by_file_handle(
-            file_handle_id=file.data_file_handle_id,
-            synapse_id=object_id,
-            entity_type=object_type,
-            destination=download_path,
-        )
+        with logging_redirect_tqdm(loggers=[client.logger]):
+            download_path = await download_by_file_handle(
+                file_handle_id=file.data_file_handle_id,
+                synapse_id=object_id,
+                entity_type=object_type,
+                destination=download_path,
+            )
 
         if download_path is None or not os.path.exists(download_path):
             return
@@ -395,6 +398,9 @@ async def download_by_file_handle(
                     config_path=syn.configPath,
                 )
 
+                progress_bar = get_or_create_download_progress_bar(
+                    file_size=1, postfix=synapse_id
+                )
                 loop = asyncio.get_running_loop()
                 downloaded_path = await loop.run_in_executor(
                     syn._get_thread_pool_executor(asyncio_event_loop=loop),
@@ -405,7 +411,7 @@ async def download_by_file_handle(
                         download_file_path=destination,
                         profile_name=profile,
                         credentials=_get_aws_credentials(),
-                        show_progress=not syn.silent,
+                        progress_bar=progress_bar,
                     ),
                 )
 
@@ -416,6 +422,9 @@ async def download_by_file_handle(
                 )
                 and concrete_type == concrete_types.S3_FILE_HANDLE
             ):
+                progress_bar = get_or_create_download_progress_bar(
+                    file_size=1, postfix=synapse_id
+                )
 
                 def download_fn(
                     credentials: Dict[str, str],
@@ -435,7 +444,7 @@ async def download_by_file_handle(
                         remote_file_key=file_handle["key"],
                         download_file_path=destination,
                         credentials=credentials,
-                        show_progress=not syn.silent,
+                        progress_bar=progress_bar,
                         # pass through our synapse threading config to boto s3
                         transfer_config_kwargs={"max_concurrency": syn.max_threads},
                     )
@@ -469,7 +478,9 @@ async def download_by_file_handle(
 
             else:
                 loop = asyncio.get_running_loop()
-                progress_bar = get_or_create_download_progress_bar(file_size=1)
+                progress_bar = get_or_create_download_progress_bar(
+                    file_size=1, postfix=synapse_id
+                )
                 downloaded_path = await loop.run_in_executor(
                     syn._get_thread_pool_executor(asyncio_event_loop=loop),
                     lambda: download_from_url(
@@ -486,6 +497,7 @@ async def download_by_file_handle(
             syn.cache.add(
                 file_handle["id"], downloaded_path, file_handle.get("contentMd5", None)
             )
+            close_download_progress_bar()
             return downloaded_path
 
         except Exception as ex:
@@ -624,6 +636,10 @@ def download_from_url(
             destination = utils.file_url_to_path(url, verify_exists=True)
             if destination is None:
                 raise IOError(f"Local file ({url}) does not exist.")
+            if progress_bar:
+                file_size = os.path.getsize(destination)
+                increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
+                increment_progress_bar(n=progress_bar.total, progress_bar=progress_bar)
             break
         elif scheme == "sftp":
             username, password = client._getUserCredentials(url)
@@ -642,8 +658,6 @@ def download_from_url(
                 _: int,
                 read_size: int,
                 total_size: int,
-                destination: str = destination,
-                updated_progress_bar_with_total: bool = updated_progress_bar_with_total,
             ) -> None:
                 """Report hook for urllib.request.urlretrieve to show download progress.
 
@@ -651,13 +665,11 @@ def download_from_url(
                     _: The number of blocks transferred so far
                     read_size: The size of each block
                     total_size: The total size of the file
-                    destination: The destination file path
-                    updated_progress_bar_with_total: Whether the progress bar has been
-                        updated with the total size
 
                 Returns:
                     None
                 """
+                nonlocal updated_progress_bar_with_total
                 if progress_bar:
                     if not updated_progress_bar_with_total:
                         updated_progress_bar_with_total = True
@@ -665,7 +677,6 @@ def download_from_url(
                             total=total_size, progress_bar=progress_bar
                         )
                     increment_progress_bar(n=read_size, progress_bar=progress_bar)
-                    # postfix=os.path.basename(destination),
 
             urllib_request.urlretrieve(
                 url=url, filename=destination, reporthook=_ftp_report_hook
