@@ -855,10 +855,12 @@ def _convert_manifest_data_items_to_string_list(
             else:
                 items_to_write.append(repr(item))
 
-    if len(items) > 1:
+    if len(items_to_write) > 1:
         return f'[{",".join(items_to_write)}]'
-    else:
+    elif len(items_to_write) == 0:
         return items_to_write[0]
+    else:
+        return ""
 
 
 def _convert_manifest_data_row_to_dict(row: dict, keys: List[str]) -> dict:
