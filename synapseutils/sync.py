@@ -857,7 +857,7 @@ def _convert_manifest_data_items_to_string_list(
 
     if len(items_to_write) > 1:
         return f'[{",".join(items_to_write)}]'
-    elif len(items_to_write) == 0:
+    elif len(items_to_write) == 1:
         return items_to_write[0]
     else:
         return ""
