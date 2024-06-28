@@ -97,7 +97,7 @@ jobs:
       - name: run-unit-tests
         shell: bash
         run: |
-          pytest -sv --cov-append --cov=. --cov-report xml tests/unit
+          pytestt -sv --cov-append --cov=. --cov-report xml tests/unit
       - name: Check for Secret availability
         id: secret-check
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
