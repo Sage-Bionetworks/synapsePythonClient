@@ -30,6 +30,12 @@ functions.  Use at your own risk.
 ## Multithreaded Downloading
 ::: synapseclient.core.multithread_download
 
+## Download Functions
+::: synapseclient.core.download.download_functions
+
+## Async managed Multithreaded Downloads
+::: synapseclient.core.download.download_async
+
 ## Cache
 ::: synapseclient.core.cache
 

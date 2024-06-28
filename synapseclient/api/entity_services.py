@@ -75,6 +75,8 @@ async def put_entity(
 
 async def get_entity(
     entity_id: str,
+    version_number: int = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -90,9 +92,14 @@ async def get_entity(
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
-    return await client.rest_get_async(
-        uri=f"/entity/{entity_id}",
-    )
+    if version_number:
+        return await client.rest_get_async(
+            uri=f"/entity/{entity_id}/version/{version_number}",
+        )
+    else:
+        return await client.rest_get_async(
+            uri=f"/entity/{entity_id}",
+        )
 
 
 @alru_cache(ttl=60)

@@ -412,6 +412,7 @@ class Synapse(object):
         self._parallel_file_transfer_semaphore = {}
         self._md5_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
+        self._parts_transfered_counter = 0
 
     def _get_requests_session_async_synapse(
         self, asyncio_event_loop: asyncio.AbstractEventLoop

@@ -35,6 +35,18 @@ class UsedEntity:
     target_version_number: Optional[int] = None
     """The version number of the entity to which this reference refers."""
 
+    def format_for_manifest(self) -> str:
+        """
+        Format the content of this data class to be written to a manifest file.
+
+        Returns:
+            The formatted string.
+        """
+        return_value = f"{self.target_id}"
+        if self.target_version_number is not None:
+            return_value += f".{self.target_version_number}"
+        return return_value
+
 
 @dataclass
 class UsedURL:
@@ -54,6 +66,20 @@ class UsedURL:
     url: Optional[str] = None
     """The external URL of the file that was used such as a link to a GitHub commit
     or a link to a specific version of a software tool."""
+
+    def format_for_manifest(self) -> str:
+        """
+        Format the content of this data class to be written to a manifest file.
+
+        Returns:
+            The formatted string.
+        """
+        if self.name:
+            return_value = self.name
+        else:
+            return_value = self.url
+
+        return return_value
 
 
 class UsedAndExecutedSynapseActivities(NamedTuple):
