@@ -26,6 +26,7 @@ from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
+    SynapseNotFoundError,
     SynapseProvenanceError,
 )
 from synapseclient.core.transfer_bar import shared_download_progress_bar
@@ -265,6 +266,9 @@ async def _sync(
         entity = await get_entity(
             entity_id=synid, version_number=version, synapse_client=syn
         )
+
+    if entity is None:
+        raise SynapseNotFoundError(f"Entity {entity or synid} not found.")
 
     entity_type = entity.get("concreteType", None)
     entity_id = id_of(entity)
