@@ -332,7 +332,7 @@ async def _sync(
         )
     else:
         raise ValueError(
-            "Cannot initiate a sync from an entity that is not a File, Folder, or Link to a File/Folder."
+            "Cannot initiate a sync from an entity that is not a File, Folder, Project, or Link to a File/Folder."
         )
 
     return root_entity

@@ -11,7 +11,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from synapseclient.api.entity_services import get_upload_destination
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.exceptions import SynapseError, SynapseFileNotFoundError
+from synapseclient.core.exceptions import (
+    SynapseAuthorizationError,
+    SynapseFileNotFoundError,
+)
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -426,7 +429,7 @@ async def get_file_handle_for_download_async(
             f"The fileHandleId {file_handle_id} could not be found"
         )
     elif failure == "UNAUTHORIZED":
-        raise SynapseError(
+        raise SynapseAuthorizationError(
             f"You are not authorized to access fileHandleId {file_handle_id} "
             f"associated with the Synapse {entity_type}: {synapse_id}"
         )
@@ -487,7 +490,7 @@ def get_file_handle_for_download(
             f"The fileHandleId {file_handle_id} could not be found"
         )
     elif failure == "UNAUTHORIZED":
-        raise SynapseError(
+        raise SynapseAuthorizationError(
             f"You are not authorized to access fileHandleId {file_handle_id} "
             f"associated with the Synapse {entity_type}: {synapse_id}"
         )

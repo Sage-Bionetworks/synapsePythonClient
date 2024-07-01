@@ -31,7 +31,11 @@ class SynapseTimeoutError(SynapseError):
 
 
 class SynapseAuthenticationError(SynapseError):
-    """Unauthorized access."""
+    """Authentication errors."""
+
+
+class SynapseAuthorizationError(SynapseError):
+    """Authorization errors."""
 
 
 class SynapseNoCredentialsError(SynapseAuthenticationError):
