@@ -17,6 +17,7 @@ class UserProfileSynchronousProtocol(Protocol):
 
     def get(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "UserProfile":
         """
@@ -35,7 +36,7 @@ class UserProfileSynchronousProtocol(Protocol):
 
     @classmethod
     def from_id(
-        cls, user_id: int, synapse_client: Optional[Synapse] = None
+        cls, user_id: int, *, synapse_client: Optional[Synapse] = None
     ) -> "UserProfile":
         """Gets UserProfile object using its integer id. Wrapper for the
         [get][synapseclient.models.UserProfile.get] method.
@@ -54,7 +55,7 @@ class UserProfileSynchronousProtocol(Protocol):
 
     @classmethod
     def from_username(
-        cls, username: str, synapse_client: Optional[Synapse] = None
+        cls, username: str, *, synapse_client: Optional[Synapse] = None
     ) -> "UserProfile":
         """
         Gets UserProfile object using its string name. Wrapper for the
@@ -74,6 +75,7 @@ class UserProfileSynchronousProtocol(Protocol):
 
     def is_certified(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "bool":
         """

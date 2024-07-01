@@ -20,6 +20,7 @@ class FolderSynchronousProtocol(Protocol):
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """Store folders and files to synapse. If you have any files or folders attached
@@ -51,6 +52,7 @@ class FolderSynchronousProtocol(Protocol):
     def get(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """Get the folder metadata from Synapse. You are able to find a folder by
@@ -70,7 +72,7 @@ class FolderSynchronousProtocol(Protocol):
         """
         return self
 
-    def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the folder from Synapse by its id.
 
         Arguments:
@@ -92,6 +94,7 @@ class FolderSynchronousProtocol(Protocol):
         exclude_types: Optional[List[str]] = None,
         file_update_existing: bool = False,
         file_copy_activity: Union[str, None] = "traceback",
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Folder":
         """

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 def set_annotations(
     annotations: "Annotations",
+    *,
     synapse_client: Optional["Synapse"] = None,
 ):
     """Call to synapse and set the annotations for the given input.
@@ -49,6 +50,7 @@ def set_annotations(
 
 async def set_annotations_async(
     annotations: "Annotations",
+    *,
     synapse_client: Optional["Synapse"] = None,
 ):
     """Call to synapse and set the annotations for the given input.

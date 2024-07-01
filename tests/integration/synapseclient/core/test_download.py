@@ -2,20 +2,23 @@
 
 import filecmp
 import os
+import random
 import shutil
 import tempfile
 from typing import Callable
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import httpx
 import pytest
 from pytest_mock import MockerFixture
 
 import synapseclient
 import synapseclient.core.utils as utils
-from synapseclient import Synapse, client
+from synapseclient import Synapse
 from synapseclient.core.download import download_from_url, download_functions
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 from synapseclient.models import File, Project
+from tests.test_utils import spy_for_async_function
 
 
 class TestDownloadCollisions:
@@ -30,35 +33,38 @@ class TestDownloadCollisions:
     ) -> None:
         # Spys
         spy_file_handle = mocker.spy(download_functions, "download_by_file_handle")
-        spy_file_entity = mocker.spy(client, "download_file_entity")
 
-        # GIVEN a file stored in synapse
-        original_file_path = utils.make_bogus_data_file()
-        file = await File(
-            path=original_file_path, parent_id=project_model.id
-        ).store_async()
-        original_file_md5 = file.file_handle.content_md5
-        schedule_for_cleanup(original_file_path)
-        schedule_for_cleanup(file.id)
+        with patch(
+            "synapseclient.api.entity_factory.download_file_entity_model",
+            wraps=spy_for_async_function(download_functions.download_file_entity_model),
+        ) as spy_file_entity:
+            # GIVEN a file stored in synapse
+            original_file_path = utils.make_bogus_data_file()
+            file = await File(
+                path=original_file_path, parent_id=project_model.id
+            ).store_async()
+            original_file_md5 = file.file_handle.content_md5
+            schedule_for_cleanup(original_file_path)
+            schedule_for_cleanup(file.id)
 
-        # AND the file on disk is different from the file in synapse
-        with open(original_file_path, "w", encoding="utf-8") as f:
-            f.write("Different data")
-        assert original_file_md5 != utils.md5_for_file_hex(original_file_path)
+            # AND the file on disk is different from the file in synapse
+            with open(original_file_path, "w", encoding="utf-8") as f:
+                f.write("Different data")
+            assert original_file_md5 != utils.md5_for_file_hex(original_file_path)
 
-        # AND the file is not in the cache
-        syn.cache.remove(file_handle_id=file.file_handle.id)
+            # AND the file is not in the cache
+            syn.cache.remove(file_handle_id=file.file_handle.id)
 
-        # WHEN I download the file
-        file = await File(
-            id=file.id,
-            if_collision="overwrite.local",
-            download_location=os.path.dirname(original_file_path),
-        ).get_async()
+            # WHEN I download the file
+            file = await File(
+                id=file.id,
+                if_collision="overwrite.local",
+                download_location=os.path.dirname(original_file_path),
+            ).get_async()
 
-        # THEN the file is downloaded replacing the file on disk
-        assert utils.equal_paths(original_file_path, file.path)
-        assert original_file_md5 == utils.md5_for_file_hex(original_file_path)
+            # THEN the file is downloaded replacing the file on disk
+            assert utils.equal_paths(original_file_path, file.path)
+            assert original_file_md5 == utils.md5_for_file_hex(original_file_path)
 
         # AND download_by_file_handle was called
         spy_file_handle.assert_called_once()
@@ -75,28 +81,31 @@ class TestDownloadCollisions:
     ) -> None:
         # Spys
         spy_file_handle = mocker.spy(download_functions, "download_by_file_handle")
-        spy_file_entity = mocker.spy(client, "download_file_entity")
 
-        # GIVEN a file stored in synapse
-        original_file_path = utils.make_bogus_data_file()
-        file = await File(
-            path=original_file_path, parent_id=project_model.id
-        ).store_async()
-        schedule_for_cleanup(file.id)
-        schedule_for_cleanup(original_file_path)
+        with patch(
+            "synapseclient.api.entity_factory.download_file_entity_model",
+            wraps=spy_for_async_function(download_functions.download_file_entity_model),
+        ) as spy_file_entity:
+            # GIVEN a file stored in synapse
+            original_file_path = utils.make_bogus_data_file()
+            file = await File(
+                path=original_file_path, parent_id=project_model.id
+            ).store_async()
+            schedule_for_cleanup(file.id)
+            schedule_for_cleanup(original_file_path)
 
-        # AND the file is in the cache
-        assert syn.cache.contains(
-            file_handle_id=file.file_handle.id, path=original_file_path
-        )
+            # AND the file is in the cache
+            assert syn.cache.contains(
+                file_handle_id=file.file_handle.id, path=original_file_path
+            )
 
-        # WHEN I download the file
-        file = await File(id=file.id, if_collision="keep.local").get_async()
+            # WHEN I download the file
+            file = await File(id=file.id, if_collision="keep.local").get_async()
 
-        # THEN the file is not downloaded again, and the file path is the same
-        assert os.path.exists(file.path)
-        assert os.path.exists(original_file_path)
-        assert utils.equal_paths(original_file_path, file.path)
+            # THEN the file is not downloaded again, and the file path is the same
+            assert os.path.exists(file.path)
+            assert os.path.exists(original_file_path)
+            assert utils.equal_paths(original_file_path, file.path)
 
         # AND download_by_file_handle was not called
         spy_file_handle.assert_not_called()
@@ -119,33 +128,36 @@ class TestDownloadCaching:
 
         # Spys
         spy_file_handle = mocker.spy(download_functions, "download_by_file_handle")
-        spy_file_entity = mocker.spy(client, "download_file_entity")
 
-        # GIVEN a file stored in synapse
-        original_file_path = utils.make_bogus_data_file()
-        file = await File(
-            path=original_file_path, parent_id=project_model.id
-        ).store_async()
-        schedule_for_cleanup(file.id)
-        schedule_for_cleanup(original_file_path)
+        with patch(
+            "synapseclient.api.entity_factory.download_file_entity_model",
+            wraps=spy_for_async_function(download_functions.download_file_entity_model),
+        ) as spy_file_entity:
+            # GIVEN a file stored in synapse
+            original_file_path = utils.make_bogus_data_file()
+            file = await File(
+                path=original_file_path, parent_id=project_model.id
+            ).store_async()
+            schedule_for_cleanup(file.id)
+            schedule_for_cleanup(original_file_path)
 
-        # AND the file is in the cache
-        assert syn.cache.contains(
-            file_handle_id=file.file_handle.id, path=original_file_path
-        )
+            # AND the file is in the cache
+            assert syn.cache.contains(
+                file_handle_id=file.file_handle.id, path=original_file_path
+            )
 
-        # WHEN I download the file
-        file = await File(id=file.id).get_async()
+            # WHEN I download the file
+            file = await File(id=file.id).get_async()
 
-        # THEN the file is not downloaded again, and the file path is the same
-        assert os.path.exists(file.path)
-        assert os.path.exists(original_file_path)
-        assert utils.equal_paths(original_file_path, file.path)
+            # THEN the file is not downloaded again, and the file path is the same
+            assert os.path.exists(file.path)
+            assert os.path.exists(original_file_path)
+            assert utils.equal_paths(original_file_path, file.path)
 
         # AND download_by_file_handle was not called
         spy_file_handle.assert_not_called()
 
-        # AND download_file_entity was called
+        # AND download_file_entity_model was called
         spy_file_entity.assert_called_once()
 
     async def test_download_cached_file_to_new_directory(
@@ -159,38 +171,43 @@ class TestDownloadCaching:
 
         # Spys
         spy_file_handle = mocker.spy(download_functions, "download_by_file_handle")
-        spy_file_entity = mocker.spy(client, "download_file_entity")
 
-        # GIVEN a file stored in synapse
-        original_file_path = utils.make_bogus_data_file()
-        file = await File(
-            path=original_file_path, parent_id=project_model.id
-        ).store_async()
-        schedule_for_cleanup(file.id)
-        schedule_for_cleanup(original_file_path)
+        with patch(
+            "synapseclient.api.entity_factory.download_file_entity_model",
+            wraps=spy_for_async_function(download_functions.download_file_entity_model),
+        ) as spy_file_entity:
+            # GIVEN a file stored in synapse
+            original_file_path = utils.make_bogus_data_file()
+            file = await File(
+                path=original_file_path, parent_id=project_model.id
+            ).store_async()
+            schedule_for_cleanup(file.id)
+            schedule_for_cleanup(original_file_path)
 
-        # AND the file is in the cache
-        assert syn.cache.contains(
-            file_handle_id=file.file_handle.id, path=original_file_path
-        )
+            # AND the file is in the cache
+            assert syn.cache.contains(
+                file_handle_id=file.file_handle.id, path=original_file_path
+            )
 
-        # WHEN I download the file to another location
-        updated_location = os.path.join(
-            os.path.dirname(original_file_path), "subdirectory"
-        )
-        schedule_for_cleanup(updated_location)
-        file = await File(id=file.id, download_location=updated_location).get_async()
-        schedule_for_cleanup(file.path)
+            # WHEN I download the file to another location
+            updated_location = os.path.join(
+                os.path.dirname(original_file_path), "subdirectory"
+            )
+            schedule_for_cleanup(updated_location)
+            file = await File(
+                id=file.id, download_location=updated_location
+            ).get_async()
+            schedule_for_cleanup(file.path)
 
-        # THEN the file is not downloaded again, but it copied to the new location
-        assert os.path.exists(file.path)
-        assert os.path.exists(original_file_path)
-        assert not utils.equal_paths(original_file_path, file.path)
+            # THEN the file is not downloaded again, but it copied to the new location
+            assert os.path.exists(file.path)
+            assert os.path.exists(original_file_path)
+            assert not utils.equal_paths(original_file_path, file.path)
 
         # AND download_by_file_handle was not called
         spy_file_handle.assert_not_called()
 
-        # AND download_file_entity was called
+        # AND download_file_entity_model was called
         spy_file_entity.assert_called_once()
 
 
@@ -241,7 +258,7 @@ class TestDownloadFromUrl:
             f.truncate(truncated_size)
 
         # WHEN I resume the download
-        path = await download_from_url(
+        path = download_from_url(
             url=f"{syn.repoEndpoint}/entity/{file.id}/file",
             destination=tempfile.gettempdir(),
             file_handle_id=file.data_file_handle_id,
@@ -375,6 +392,84 @@ class TestDownloadFromUrlMultiThreaded:
             synapseclient.core.download.download_async,
             "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
             new=500,
+        ):
+            # WHEN I download the file with multiple parts
+            file = await File(
+                id=file.id, download_location=os.path.dirname(file.path)
+            ).get_async()
+
+        # THEN the file is downloaded and the md5 matches
+        assert file.file_handle.content_md5 == file_md5
+        assert os.path.exists(file_path)
+
+    async def test_download_from_url_multi_threaded_random_failures(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test download of a file if downloaded in multiple parts. In this case I am
+        dropping the download part size to 500 bytes to force multiple parts download.
+
+        This function will randomly fail the download of a part with a 500 status code.
+
+        """
+        # Set the failure rate to 90%
+        failure_rate = 0.9
+
+        # GIVEN a file stored in synapse
+        file_path = utils.make_bogus_data_file()
+        file = await File(path=file_path, parent_id=project_model.id).store_async()
+        schedule_for_cleanup(file.id)
+        schedule_for_cleanup(file_path)
+        file_md5 = file.file_handle.content_md5
+        assert file_md5 is not None
+        assert os.path.exists(file_path)
+
+        # AND the file is not in the cache
+        syn.cache.remove(file_handle_id=file.file_handle.id)
+        os.remove(file_path)
+        assert not os.path.exists(file_path)
+
+        # AND an httpx client that is not mocked
+        httpx_timeout = httpx.Timeout(70, pool=None)
+        client = httpx.Client(timeout=httpx_timeout)
+
+        # AND the mock httpx send function to simulate a failure
+        def mock_httpx_send(**kwargs):
+            """Conditionally mock the HTTPX send function to simulate a failure. The
+            HTTPX .stream function internally calls a non-contexted managed send
+            function. This allows us to simulate a failure in the send function."""
+            is_part_stream = False
+            for header in kwargs.get("request").headers.raw:
+                if header[0].lower() == b"range":
+                    is_part_stream = True
+                    break
+            if is_part_stream and random.random() <= failure_rate:
+                # Return a mock object or value representing a bad HTTP response
+                # For example, a response with a 500 status code
+                mock_response = Mock()
+                mock_response.status_code = 500
+                return mock_response
+            else:
+                # Call the real send function
+                return client.send(**kwargs)
+
+        with patch.object(
+            synapseclient.core.download.download_functions,
+            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+            new=500,
+        ), patch.object(
+            synapseclient.core.download.download_async,
+            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+            new=500,
+        ), patch.object(
+            syn._requests_session_storage,
+            "send",
+            mock_httpx_send,
+        ), patch(
+            "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
+            0.2,
         ):
             # WHEN I download the file with multiple parts
             file = await File(

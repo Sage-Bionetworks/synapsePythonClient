@@ -19,6 +19,7 @@ class ProjectSynchronousProtocol(Protocol):
     def store(
         self,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """
@@ -57,6 +58,7 @@ class ProjectSynchronousProtocol(Protocol):
 
     def get(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """
@@ -84,7 +86,7 @@ class ProjectSynchronousProtocol(Protocol):
         """
         return self
 
-    def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the project from Synapse.
 
         Arguments:
@@ -117,6 +119,7 @@ class ProjectSynchronousProtocol(Protocol):
         exclude_types: Optional[List[str]] = None,
         file_update_existing: bool = False,
         file_copy_activity: Union[str, None] = "traceback",
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Project":
         """

@@ -352,6 +352,7 @@ class Cache:
             raise ValueError('Can\'t find file "%s"' % path)
 
         cache_dir = self.get_cache_dir(file_handle_id)
+        content_md5 = md5 or utils.md5_for_file(path).hexdigest()
         with Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
 
@@ -361,7 +362,7 @@ class Cache:
                 "modified_time": epoch_time_to_iso(
                     math.floor(_get_modified_time(path))
                 ),
-                "content_md5": md5 or utils.md5_for_file(path).hexdigest(),
+                "content_md5": content_md5,
             }
             self._write_cache_map(cache_dir, cache_map)
 

@@ -27,7 +27,9 @@ class FailureStrategy(Enum):
     processed."""
 
 
-async def wrap_coroutine(task: asyncio.Task, synapse_client: Optional[Synapse] = None):
+async def wrap_coroutine(
+    task: asyncio.Task, *, synapse_client: Optional[Synapse] = None
+):
     """
     Wrapper to handle exceptions in async tasks. By default as_completed will cause
     sibiling tasks to be cancelled if one fails. This wrapper will catch the exception
@@ -43,6 +45,7 @@ async def wrap_coroutine(task: asyncio.Task, synapse_client: Optional[Synapse] =
 async def store_entity_components(
     root_resource: Union["File", "Folder", "Project", "Table"],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+    *,
     synapse_client: Optional[Synapse] = None,
 ) -> bool:
     """
@@ -112,6 +115,7 @@ async def store_entity_components(
 def _resolve_store_task(
     result: Union[bool, "Folder", "File", BaseException],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+    *,
     synapse_client: Optional[Synapse] = None,
 ) -> bool:
     """
@@ -200,6 +204,7 @@ def _pull_activity_forward_to_new_version(
 
 async def _store_activity_and_annotations(
     root_resource: Union["File", "Folder", "Project", "Table"],
+    *,
     synapse_client: Optional[Synapse] = None,
 ) -> bool:
     """

@@ -15,7 +15,7 @@ class TeamSynchronousProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def create(self, synapse_client: Optional[Synapse] = None) -> "Team":
+    def create(self, *, synapse_client: Optional[Synapse] = None) -> "Team":
         """Creates a new team on Synapse.
 
         Arguments:
@@ -27,7 +27,7 @@ class TeamSynchronousProtocol(Protocol):
         """
         return self
 
-    def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Deletes a team from Synapse.
 
         Arguments:
@@ -39,7 +39,7 @@ class TeamSynchronousProtocol(Protocol):
         """
         return None
 
-    def get(self, synapse_client: Optional[Synapse] = None) -> "Team":
+    def get(self, *, synapse_client: Optional[Synapse] = None) -> "Team":
         """
         Gets a Team from Synapse by ID or Name. If both are added to the Team instance
         it will use the ID.
@@ -57,7 +57,7 @@ class TeamSynchronousProtocol(Protocol):
         return self
 
     @classmethod
-    def from_id(cls, id: int, synapse_client: Optional[Synapse] = None) -> "Team":
+    def from_id(cls, id: int, *, synapse_client: Optional[Synapse] = None) -> "Team":
         """Gets Team object using its integer id.
 
         Arguments:
@@ -73,7 +73,9 @@ class TeamSynchronousProtocol(Protocol):
         return Team()
 
     @classmethod
-    def from_name(cls, name: str, synapse_client: Optional[Synapse] = None) -> "Team":
+    def from_name(
+        cls, name: str, *, synapse_client: Optional[Synapse] = None
+    ) -> "Team":
         """Gets Team object using its string name.
 
         *** You will be unable to retrieve a team by name immediately after its
@@ -93,7 +95,9 @@ class TeamSynchronousProtocol(Protocol):
 
         return Team()
 
-    def members(self, synapse_client: Optional[Synapse] = None) -> List["TeamMember"]:
+    def members(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> List["TeamMember"]:
         """
         Gets the TeamMembers associated with a team given the ID field on the
         Team instance.
@@ -114,6 +118,7 @@ class TeamSynchronousProtocol(Protocol):
         user: str,
         message: str,
         force: bool = True,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, str]:
         """Invites a user to a team given the ID field on the Team instance.
@@ -130,7 +135,7 @@ class TeamSynchronousProtocol(Protocol):
         return {}
 
     def open_invitations(
-        self, synapse_client: Optional[Synapse] = None
+        self, *, synapse_client: Optional[Synapse] = None
     ) -> List[Dict[str, str]]:
         """Gets all open invitations for a team given the ID field on the Team instance.
 

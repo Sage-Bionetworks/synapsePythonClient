@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 async def store_entity(
     resource: Union["File", "Folder", "Project"],
     entity: Dict[str, Union[str, bool, int, float]],
+    *,
     synapse_client: Optional[Synapse] = None,
 ) -> bool:
     """

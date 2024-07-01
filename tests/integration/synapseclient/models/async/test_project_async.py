@@ -372,9 +372,8 @@ class TestProjectDelete:
         with pytest.raises(SynapseHTTPError) as e:
             await stored_project.get_async()
 
-        assert (
-            f"404 Client Error: \nEntity {stored_project.id} is in trash can."
-            in str(e.value)
+        assert f"404 Client Error: Entity {stored_project.id} is in trash can." in str(
+            e.value
         )
 
 

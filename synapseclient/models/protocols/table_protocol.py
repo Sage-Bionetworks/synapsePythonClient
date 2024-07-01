@@ -24,7 +24,7 @@ class ColumnSynchronousProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def store(self, synapse_client: Optional[Synapse] = None) -> Self:
+    def store(self, *, synapse_client: Optional[Synapse] = None) -> Self:
         """Persist the column to Synapse.
 
         :param synapse_client: If not passed in or None this will use the last client
@@ -41,7 +41,7 @@ class TableSynchronousProtocol(Protocol):
     """
 
     def store_rows_from_csv(
-        self, csv_path: str, synapse_client: Optional[Synapse] = None
+        self, csv_path: str, *, synapse_client: Optional[Synapse] = None
     ) -> str:
         """Takes in a path to a CSV and stores the rows to Synapse.
 
@@ -56,7 +56,7 @@ class TableSynchronousProtocol(Protocol):
         return ""
 
     def delete_rows(
-        self, rows: List["Row"], synapse_client: Optional[Synapse] = None
+        self, rows: List["Row"], *, synapse_client: Optional[Synapse] = None
     ) -> None:
         """Delete rows from a table.
 
@@ -70,7 +70,7 @@ class TableSynchronousProtocol(Protocol):
         """
         return None
 
-    def store_schema(self, synapse_client: Optional[Synapse] = None) -> "Table":
+    def store_schema(self, *, synapse_client: Optional[Synapse] = None) -> "Table":
         """Store non-row information about a table including the columns and annotations.
 
         Arguments:
@@ -82,7 +82,7 @@ class TableSynchronousProtocol(Protocol):
         """
         return self
 
-    def get(self, synapse_client: Optional[Synapse] = None) -> "Table":
+    def get(self, *, synapse_client: Optional[Synapse] = None) -> "Table":
         """Get the metadata about the table from synapse.
 
         Arguments:
@@ -94,7 +94,7 @@ class TableSynchronousProtocol(Protocol):
         """
         return self
 
-    def delete(self, synapse_client: Optional[Synapse] = None) -> None:
+    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the table from synapse.
 
         Arguments:
@@ -111,6 +111,7 @@ class TableSynchronousProtocol(Protocol):
         cls,
         query: str,
         result_format: Union["CsvResultFormat", "RowsetResultFormat"] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Union[Synapse_CsvFileTable, Synaspe_TableQueryResult, None]:
         """Query for data on a table stored in Synapse.

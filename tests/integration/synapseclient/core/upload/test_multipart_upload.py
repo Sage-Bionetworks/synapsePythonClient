@@ -97,12 +97,10 @@ async def test_randomly_failing_parts(
 
         return normal_put(url, *args, **kwargs)
 
-    with (
-        mock.patch.object(
-            syn._requests_session_storage,
-            "put",
-            side_effect=_put_chunk_or_fail_randomly,
-        ),
+    with mock.patch.object(
+        syn._requests_session_storage,
+        "put",
+        side_effect=_put_chunk_or_fail_randomly,
     ):
         try:
             fhid = await multipart_upload_file_async(

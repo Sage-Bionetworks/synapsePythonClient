@@ -3,7 +3,7 @@
 """
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from async_lru import alru_cache
 
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 async def post_entity(
     request: Dict[str, Any],
     generated_by: Optional[str] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -44,6 +45,7 @@ async def put_entity(
     request: Dict[str, Any],
     new_version: bool = False,
     generated_by: Optional[str] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -104,7 +106,7 @@ async def get_entity(
 
 @alru_cache(ttl=60)
 async def get_upload_destination(
-    entity_id: str, synapse_client: Optional["Synapse"] = None
+    entity_id: str, *, synapse_client: Optional["Synapse"] = None
 ) -> Dict[str, Union[str, int]]:
     """
     <https://rest-docs.synapse.org/rest/GET/entity/id/uploadDestination.html>
@@ -128,7 +130,7 @@ async def get_upload_destination(
 
 
 async def get_upload_destination_location(
-    entity_id: str, location: str, synapse_client: Optional["Synapse"] = None
+    entity_id: str, location: str, *, synapse_client: Optional["Synapse"] = None
 ) -> Dict[str, Union[str, int]]:
     """
     <https://rest-docs.synapse.org/rest/GET/entity/id/uploadDestination/storageLocationId.html>
@@ -153,7 +155,7 @@ async def get_upload_destination_location(
 
 
 async def create_access_requirements_if_none(
-    entity_id: str, synapse_client: Optional["Synapse"] = None
+    entity_id: str, *, synapse_client: Optional["Synapse"] = None
 ) -> None:
     """
     Checks to see if the given entity has access requirements. If not, then one is added
@@ -187,6 +189,7 @@ async def create_access_requirements_if_none(
 
 async def delete_entity_generated_by(
     entity_id: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> None:
     """
@@ -202,4 +205,57 @@ async def delete_entity_generated_by(
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_delete_async(
         uri=f"/entity/{entity_id}/generatedBy",
+    )
+
+
+async def get_entity_path(
+    entity_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, List[Dict[str, Union[str, int, bool]]]]:
+    """
+    Implements:
+    <https://rest-docs.synapse.org/rest/GET/entity/id/path.html>
+
+    Arguments:
+        entity_id: The ID of the entity.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+
+    Returns:
+        Entity paths matching:
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityPath.html>
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_get_async(
+        uri=f"/entity/{entity_id}/path",
+    )
+
+
+async def get_entities_by_md5(
+    md5: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Union[int, List[Dict[str, Any]]]]:
+    """
+    Implements:
+    <https://rest-docs.synapse.org/rest/GET/entity/md5/md5.html>
+
+    Arguments:
+        md5: The MD5 of the entity.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+
+    Returns:
+        Paginated results of:
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/reflection/model/PaginatedResults.html>
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityHeader.html>
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_get_async(
+        uri=f"/entity/md5/{md5}",
     )

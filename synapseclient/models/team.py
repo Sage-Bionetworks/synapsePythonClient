@@ -141,7 +141,7 @@ class Team(TeamSynchronousProtocol):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Create: {self.name}"
     )
-    async def create_async(self, synapse_client: Optional[Synapse] = None) -> "Team":
+    async def create_async(self, *, synapse_client: Optional[Synapse] = None) -> "Team":
         """Creates a new team on Synapse.
 
         Arguments:
@@ -178,7 +178,7 @@ class Team(TeamSynchronousProtocol):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Delete: {self.id}"
     )
-    async def delete_async(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Deletes a team from Synapse.
 
         Arguments:
@@ -203,7 +203,7 @@ class Team(TeamSynchronousProtocol):
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Get: {self.id if self.id else self.name}"
     )
-    async def get_async(self, synapse_client: Optional[Synapse] = None) -> "Team":
+    async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> "Team":
         """
         Gets a Team from Synapse by ID or Name. If both are added to the Team instance
         it will use the ID.
@@ -251,7 +251,7 @@ class Team(TeamSynchronousProtocol):
         method_to_trace_name=lambda cls, id, **kwargs: f"Team_From_Id: {id}"
     )
     async def from_id_async(
-        cls, id: int, synapse_client: Optional[Synapse] = None
+        cls, id: int, *, synapse_client: Optional[Synapse] = None
     ) -> "Team":
         """Gets Team object using its integer id.
 
@@ -271,7 +271,7 @@ class Team(TeamSynchronousProtocol):
         method_to_trace_name=lambda cls, name, **kwargs: f"Team_From_Name: {name}"
     )
     async def from_name_async(
-        cls, name: str, synapse_client: Optional[Synapse] = None
+        cls, name: str, *, synapse_client: Optional[Synapse] = None
     ) -> "Team":
         """Gets Team object using its string name.
 
@@ -294,7 +294,7 @@ class Team(TeamSynchronousProtocol):
         method_to_trace_name=lambda self, **kwargs: f"Team_Members: {self.name}"
     )
     async def members_async(
-        self, synapse_client: Optional[Synapse] = None
+        self, *, synapse_client: Optional[Synapse] = None
     ) -> List[TeamMember]:
         """
         Gets the TeamMembers associated with a team given the ID field on the
@@ -332,6 +332,7 @@ class Team(TeamSynchronousProtocol):
         user: str,
         message: str,
         force: bool = True,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, str]:
         """Invites a user to a team given the ID field on the Team instance.
@@ -367,7 +368,7 @@ class Team(TeamSynchronousProtocol):
         method_to_trace_name=lambda self, **kwargs: f"Team_Open_Invitations: {self.name}"
     )
     async def open_invitations_async(
-        self, synapse_client: Optional[Synapse] = None
+        self, *, synapse_client: Optional[Synapse] = None
     ) -> List[Dict[str, str]]:
         """Gets all open invitations for a team given the ID field on the Team instance.
 

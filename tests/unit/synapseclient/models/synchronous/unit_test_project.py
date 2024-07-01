@@ -1,11 +1,13 @@
 """Tests for the synapseclient.models.Project class."""
 import uuid
-from unittest.mock import patch
+from typing import Dict
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from synapseclient import Project as Synapse_Project
 from synapseclient import Synapse
+from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
 from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models import FailureStrategy, File, Project
@@ -41,6 +43,22 @@ class TestProject:
             modifiedBy=MODIFIED_BY,
         )
 
+    def get_example_rest_api_project_output(self) -> Dict[str, str]:
+        return {
+            "entity": {
+                "concreteType": concrete_types.PROJECT_ENTITY,
+                "id": PROJECT_ID,
+                "name": PROJECT_NAME,
+                "parentId": PARENT_ID,
+                "description": DERSCRIPTION_PROJECT,
+                "etag": ETAG,
+                "createdOn": CREATED_ON,
+                "modifiedOn": MODIFIED_ON,
+                "createdBy": CREATED_BY,
+                "modifiedBy": MODIFIED_BY,
+            }
+        }
+
     def test_fill_from_dict(self) -> None:
         # GIVEN an example Synapse Project `get_example_synapse_project_output`
         # WHEN I call `fill_from_dict` with the example Synapse Project
@@ -74,11 +92,16 @@ class TestProject:
             self.syn,
             "store",
             return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_client_call, patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Project(
-                id=project.id,
+        ) as mocked_client_call, patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(
+                {
+                    "entity": {
+                        "concreteType": concrete_types.PROJECT_ENTITY,
+                        "id": project.id,
+                    }
+                }
             ),
         ) as mocked_get:
             result = project.store()
@@ -117,11 +140,16 @@ class TestProject:
         with patch.object(
             self.syn,
             "store",
-        ) as mocked_store, patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Project(
-                id=project.id,
+        ) as mocked_store, patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(
+                {
+                    "entity": {
+                        "concreteType": concrete_types.PROJECT_ENTITY,
+                        "id": project.id,
+                    }
+                }
             ),
         ) as mocked_get:
             result = project.store()
@@ -142,17 +170,22 @@ class TestProject:
         )
 
         # AND I call `get` on the Project object
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Project(
-                id=project.id,
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(
+                {
+                    "entity": {
+                        "concreteType": concrete_types.PROJECT_ENTITY,
+                        "id": project.id,
+                    }
+                }
             ),
         ) as mocked_get:
             project.get()
 
             mocked_get.assert_called_once_with(
-                entity=project.id,
+                entity_id=project.id, synapse_client=None
             )
             assert project.id == PROJECT_ID
 
@@ -160,11 +193,16 @@ class TestProject:
         with patch.object(
             self.syn,
             "store",
-        ) as mocked_store, patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Project(
-                id=project.id,
+        ) as mocked_store, patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(
+                {
+                    "entity": {
+                        "concreteType": concrete_types.PROJECT_ENTITY,
+                        "id": project.id,
+                    }
+                }
             ),
         ) as mocked_get:
             result = project.store()
@@ -185,17 +223,22 @@ class TestProject:
         )
 
         # AND I call `get` on the Project object
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Project(
-                id=project.id,
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(
+                {
+                    "entity": {
+                        "concreteType": concrete_types.PROJECT_ENTITY,
+                        "id": project.id,
+                    }
+                }
             ),
         ) as mocked_get:
             project.get()
 
             mocked_get.assert_called_once_with(
-                entity=project.id,
+                entity_id=project.id, synapse_client=None
             )
             assert project.id == PROJECT_ID
 
@@ -208,9 +251,8 @@ class TestProject:
             self.syn,
             "store",
             return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_store, patch.object(
-            self.syn,
-            "get",
+        ) as mocked_store, patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
         ) as mocked_get:
             result = project.store()
 
@@ -263,11 +305,16 @@ class TestProject:
             self.syn,
             "store",
             return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_client_call, patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Project(
-                id=project.id,
+        ) as mocked_client_call, patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(
+                {
+                    "entity": {
+                        "concreteType": concrete_types.PROJECT_ENTITY,
+                        "id": project.id,
+                    }
+                }
             ),
         ) as mocked_get:
             result = project.store()
@@ -323,11 +370,16 @@ class TestProject:
             self.syn,
             "findEntityId",
             return_value=PROJECT_ID,
-        ) as mocked_get, patch.object(
-            self.syn,
-            "get",
-            return_value=Synapse_Project(
-                id=project.id,
+        ) as mocked_get, patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(
+                {
+                    "entity": {
+                        "concreteType": concrete_types.PROJECT_ENTITY,
+                        "id": project.id,
+                    }
+                }
             ),
         ) as mocked_get:
             result = project.store()
@@ -379,16 +431,16 @@ class TestProject:
         )
 
         # WHEN I call `get` with the Project object
-        with patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_project_output()),
+        with patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_project_output()),
         ) as mocked_client_call:
             result = project.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                entity=project.id,
+                entity_id=project.id, synapse_client=None
             )
 
             # AND the project should be stored
@@ -414,16 +466,16 @@ class TestProject:
             self.syn,
             "findEntityId",
             return_value=(PROJECT_ID),
-        ) as mocked_client_search, patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_project_output()),
+        ) as mocked_client_search, patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_project_output()),
         ) as mocked_client_call:
             result = project.get()
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                entity=project.id,
+                entity_id=project.id, synapse_client=None
             )
 
             # AND we should search for the entity
@@ -591,10 +643,10 @@ class TestProject:
             self.syn,
             "getChildren",
             return_value=(children),
-        ) as mocked_children_call, patch.object(
-            self.syn,
-            "get",
-            return_value=(self.get_example_synapse_project_output()),
+        ) as mocked_children_call, patch(
+            "synapseclient.api.entity_factory.get_entity_id_bundle2",
+            new_callable=AsyncMock,
+            return_value=(self.get_example_rest_api_project_output()),
         ) as mocked_project_get, patch(
             "synapseclient.models.file.File.get_async",
             return_value=(File(id="syn456", name="example_file_1")),

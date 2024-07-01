@@ -9,7 +9,6 @@ import asyncio
 import datetime
 import gc
 import os
-from contextlib import contextmanager
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Generator, NamedTuple, Optional, Set, Tuple, Union
@@ -18,10 +17,11 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 from opentelemetry import context
 from opentelemetry.context import Context
-from tqdm import tqdm
 
-from synapseclient.api import get_file_handle_for_download
-from synapseclient.core.async_utils import wrap_async_to_sync
+from synapseclient.api.file_services import (
+    get_file_handle_for_download,
+    get_file_handle_for_download_async,
+)
 from synapseclient.core.exceptions import (
     SynapseDownloadAbortedException,
     _raise_for_status_httpx,
@@ -32,6 +32,7 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry_time_based,
 )
+from synapseclient.core.transfer_bar import get_or_create_download_progress_bar
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -40,22 +41,6 @@ if TYPE_CHECKING:
 MiB: int = 2**20
 SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
 ISO_AWS_STR_FORMAT: str = "%Y%m%dT%H%M%SZ"
-
-_thread_local = _threading.local()
-
-
-@contextmanager
-def shared_progress_bar(progress_bar):
-    """An outside process that will eventually trigger an upload through this module
-    can configure a shared Progress Bar by running its code within this context manager.
-    """
-    _thread_local.progress_bar = progress_bar
-    try:
-        yield
-    finally:
-        _thread_local.progress_bar.close()
-        _thread_local.progress_bar.refresh()
-        del _thread_local.progress_bar
 
 
 class DownloadRequest(NamedTuple):
@@ -127,8 +112,23 @@ class PresignedUrlProvider:
     # offset parameter used to buffer url expiration checks, time in seconds
     _TIME_BUFFER: datetime.timedelta = datetime.timedelta(seconds=5)
 
-    def __post_init__(self) -> None:
-        self._cached_info = self._get_pre_signed_info()
+    async def get_info_async(self) -> PresignedUrlInfo:
+        """
+        Using async, returns the cached info if it's not expired, otherwise
+        retrieves a new pre-signed url and returns that.
+
+        Returns:
+            Information about a retrieved presigned-url from either the cache or a
+            new request
+        """
+        if not self._cached_info or (
+            datetime.datetime.now(tz=datetime.timezone.utc)
+            + PresignedUrlProvider._TIME_BUFFER
+            >= self._cached_info.expiration_utc
+        ):
+            self._cached_info = await self._get_pre_signed_info_async()
+
+        return self._cached_info
 
     def get_info(self) -> PresignedUrlInfo:
         """
@@ -140,7 +140,7 @@ class PresignedUrlProvider:
             new request
         """
         with self._lock:
-            if (
+            if not self._cached_info or (
                 datetime.datetime.now(tz=datetime.timezone.utc)
                 + PresignedUrlProvider._TIME_BUFFER
                 >= self._cached_info.expiration_utc
@@ -156,14 +156,32 @@ class PresignedUrlProvider:
         Returns:
             Information about a retrieved presigned-url from a new request.
         """
-        response = wrap_async_to_sync(
-            coroutine=get_file_handle_for_download(
-                file_handle_id=self.request.file_handle_id,
-                synapse_id=self.request.object_id,
-                entity_type=self.request.object_type,
-                synapse_client=self.client,
-            ),
-            syn=self.client,
+        response = get_file_handle_for_download(
+            file_handle_id=self.request.file_handle_id,
+            synapse_id=self.request.object_id,
+            entity_type=self.request.object_type,
+            synapse_client=self.client,
+        )
+        file_name = response["fileHandle"]["fileName"]
+        pre_signed_url = response["preSignedURL"]
+        return PresignedUrlInfo(
+            file_name=file_name,
+            url=pre_signed_url,
+            expiration_utc=_pre_signed_url_expiration_time(pre_signed_url),
+        )
+
+    async def _get_pre_signed_info_async(self) -> PresignedUrlInfo:
+        """
+        Make an HTTP request to get a pre-signed url to download a file.
+
+        Returns:
+            Information about a retrieved presigned-url from a new request.
+        """
+        response = await get_file_handle_for_download_async(
+            file_handle_id=self.request.file_handle_id,
+            synapse_id=self.request.object_id,
+            entity_type=self.request.object_type,
+            synapse_client=self.client,
         )
         file_name = response["fileHandle"]["fileName"]
         pre_signed_url = response["preSignedURL"]
@@ -209,9 +227,9 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     time_made = parsed_query["X-Amz-Date"][0]
     time_made_datetime = datetime.datetime.strptime(time_made, ISO_AWS_STR_FORMAT)
     expires = parsed_query["X-Amz-Expires"][0]
-    return_data = time_made_datetime + datetime.timedelta(seconds=int(expires))
-    if return_data.tzinfo is None:
-        return_data = return_data.replace(tzinfo=datetime.timezone.utc)
+    return_data = (
+        time_made_datetime + datetime.timedelta(seconds=int(expires))
+    ).replace(tzinfo=datetime.timezone.utc)
     return return_data
 
 
@@ -284,24 +302,20 @@ class _MultithreadedDownloader:
         self._aborted = False
         self._download_request = download_request
         self._progress_bar = None
-        self._should_close_progress_bar = (
-            getattr(_thread_local, "progress_bar", None) is None
-        )
 
     async def download_file(self) -> None:
         """
         Splits up and downloads a file in chunks from a URL.
-
-        Arguments:
-            request: A DownloadRequest object specifying what Synapse file to download.
         """
         url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
 
-        url_info = url_provider.get_info()
+        url_info = await url_provider.get_info_async()
         file_size = await _get_file_size_wrapper(
             syn=self._syn, url=url_info.url, debug=self._download_request.debug
         )
-        self._create_progress_bar(file_size=file_size)
+        self._progress_bar = get_or_create_download_progress_bar(
+            file_size=file_size, postfix=self._download_request.object_id
+        )
         self._prep_file()
 
         # Create AsyncIO tasks to download each of the parts according to chunk size
@@ -337,9 +351,9 @@ class _MultithreadedDownloader:
                     if self._syn._parts_transfered_counter % 100 == 0:
                         gc.collect()
 
-                    self._syn.logger.debug(
-                        f"Downloaded bytes {start_bytes}-{end_bytes} to {self._download_request.path}"
-                    )
+                    # self._syn.logger.debug(
+                    #     f"Downloaded bytes {start_bytes}-{end_bytes} to {self._download_request.path}"
+                    # )
                 except BaseException as ex:
                     # on any exception (e.g. KeyboardInterrupt), attempt to cancel any pending futures.
                     # if they are already running this won't have any effect though
@@ -359,7 +373,6 @@ class _MultithreadedDownloader:
                     except FileNotFoundError:
                         pass
 
-        self._close_progress_bar()
         if cause:
             raise cause
 
@@ -368,39 +381,6 @@ class _MultithreadedDownloader:
         if self._syn.silent or not self._progress_bar:
             return
         self._progress_bar.update(part_size)
-
-    def _create_progress_bar(self, file_size: int) -> None:
-        """Handle creating the progress bar.
-
-        Arguments:
-            file_size: The size of the file to download
-
-        Returns:
-            None
-        """
-        if not self._syn.silent:
-            # TODO: This still needs to be patched up in the case of the shared progress bar
-            if self._progress_bar:
-                self._progress_bar.total = file_size + (
-                    self._progress_bar.total if self._progress_bar.total > 1 else 0
-                )
-                self._progress_bar.refresh()
-            else:
-                self._progress_bar = getattr(
-                    _thread_local, "progress_bar", None
-                ) or tqdm(
-                    total=file_size,
-                    desc="Downloading",
-                    unit="B",
-                    unit_scale=True,
-                    postfix=os.path.basename(self._download_request.path),
-                    smoothing=0,
-                )
-
-    def _close_progress_bar(self) -> None:
-        """Handle closing the progress bar."""
-        if not self._syn.silent and self._progress_bar and self._close_progress_bar:
-            self._progress_bar.close()
 
     def _generate_stream_and_write_chunk_tasks(
         self,
@@ -460,6 +440,19 @@ class _MultithreadedDownloader:
         end: int,
         otel_context: Union[Context, None],
     ) -> Tuple[int, int]:
+        """
+        Wrapper around the actual download logic to handle retries and range requests.
+
+        Arguments:
+            session: An httpx.Client
+            presigned_url_provider: A URL provider for the presigned urls
+            start: The start byte of the range to download
+            end: The end byte of the range to download
+            otel_context: The OpenTelemetry context if known, else None
+
+        Returns:
+            The start and end bytes of the range downloaded
+        """
         if otel_context:
             context.attach(otel_context)
         self._check_for_abort(start=start, end=end)
@@ -538,6 +531,7 @@ def _execute_stream_and_write_chunk(
     with session.stream(
         method="GET", url=presigned_url_provider.get_info().url, headers=range_header
     ) as response:
+        _raise_for_status_httpx(response=response, logger=request._syn.logger)
         data = response.read()
         data_length = len(data)
         request._write_chunk(

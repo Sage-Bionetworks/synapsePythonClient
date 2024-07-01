@@ -3,6 +3,7 @@ from unittest import mock
 
 import botocore.exceptions
 import pytest
+from tqdm import tqdm
 
 from synapseclient.core import remote_file_storage_wrappers
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -30,6 +31,7 @@ class TestS3ClientWrapper:
         remote_file_key = "foo/bar/baz"
         download_file_path = "/tmp/download"
         endpoint_url = "http://foo.s3.amazon.com"
+        show_progress = kwargs.pop("show_progress", True)
 
         with mock.patch(
             "boto3.session.Session"
@@ -46,7 +48,12 @@ class TestS3ClientWrapper:
             )
 
             returned_download_file_path = S3ClientWrapper.download_file(
-                bucket_name, endpoint_url, remote_file_key, download_file_path, **kwargs
+                bucket_name,
+                endpoint_url,
+                remote_file_key,
+                download_file_path,
+                progress_bar=tqdm() if show_progress else None,
+                **kwargs,
             )
 
             if "profile_name" in kwargs:
@@ -68,7 +75,7 @@ class TestS3ClientWrapper:
             transfer_config = mock_TransferConfig.return_value
 
             progress_callback = None
-            if kwargs.get("show_progress", True):
+            if show_progress:
                 s3_object.load.assert_called_once_with()
                 mock_create_progress_callback.assert_called_once()
                 progress_callback = mock_create_progress_callback.return_value
@@ -237,9 +244,7 @@ class TestSftpClientWrapper:
 
         path = urllib_parse.unquote(SFTPWrapper._parse_for_sftp(mock_url).path)
 
-        SFTPWrapper.download_file(
-            mock_url, localFilepath=mock_local_file_path, show_progress=False
-        )
+        SFTPWrapper.download_file(mock_url, localFilepath=mock_local_file_path)
         mock_sftp.get.assert_called_once_with(
             path, mock_local_file_path, preserve_mtime=True, callback=None
         )
@@ -257,7 +262,7 @@ class TestSftpClientWrapper:
 
         # test if localFilepath is None
         mock_os.getcwd.return_value = "/home/foo"
-        SFTPWrapper.download_file(mock_url, show_progress=False)
+        SFTPWrapper.download_file(mock_url)
         mock_sftp.get.assert_called_with(
             path, "/home/foo", preserve_mtime=True, callback=None
         )

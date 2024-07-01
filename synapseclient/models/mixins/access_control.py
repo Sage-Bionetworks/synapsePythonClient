@@ -28,6 +28,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
     async def get_permissions_async(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Permissions":
         """
@@ -65,7 +66,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         )
 
     async def get_acl_async(
-        self, principal_id: int = None, synapse_client: Optional[Synapse] = None
+        self, principal_id: int = None, *, synapse_client: Optional[Synapse] = None
     ) -> List[str]:
         """
         Get the [ACL][synapseclient.core.models.permission.Permissions.access_types]
@@ -102,6 +103,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         modify_benefactor: bool = False,
         warn_if_inherits: bool = True,
         overwrite: bool = True,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, Union[str, list]]:
         """

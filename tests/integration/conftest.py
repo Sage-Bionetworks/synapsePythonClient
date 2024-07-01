@@ -31,10 +31,7 @@ from synapseclient.models import Project as Project_Model
 from synapseclient.models import Team
 
 tracer = trace.get_tracer("synapseclient")
-
-"""
-pytest session level fixtures shared by all integration tests.
-"""
+working_directory = tempfile.mkdtemp(prefix="someTestFolder")
 
 
 def pytest_collection_modifyitems(items) -> None:
@@ -53,7 +50,7 @@ def pytest_collection_modifyitems(items) -> None:
 
 
 @pytest.fixture(scope="session")
-def syn() -> Synapse:
+def syn(request) -> Synapse:
     """
     Create a logged in Synapse instance that can be shared by all tests in the session.
     If xdist is being used a syn is created for each worker node.
@@ -69,6 +66,15 @@ def syn() -> Synapse:
 
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
     syn.login()
+
+    # set the working directory to a temp directory
+    _old_working_directory = os.getcwd()
+    os.chdir(working_directory)
+
+    def teardown() -> None:
+        os.chdir(_old_working_directory)
+
+    request.addfinalizer(teardown)
     return syn
 
 
@@ -84,14 +90,8 @@ async def project_model(request, syn: Synapse) -> Project_Model:
         name="integration_test_project" + str(uuid.uuid4())
     ).store_async()
 
-    # set the working directory to a temp directory
-    _old_working_directory = os.getcwd()
-    working_directory = tempfile.mkdtemp(prefix="someTestFolder_models")
-    os.chdir(working_directory)
-
     def project_teardown() -> None:
         wrap_async_to_sync(_cleanup(syn, [working_directory, proj.id]), syn)
-        os.chdir(_old_working_directory)
 
     request.addfinalizer(project_teardown)
 
@@ -108,14 +108,8 @@ async def project(request, syn: Synapse) -> Project:
     # Make one project for all the tests to use
     proj = syn.store(Project(name="integration_test_project" + str(uuid.uuid4())))
 
-    # set the working directory to a temp directory
-    _old_working_directory = os.getcwd()
-    working_directory = tempfile.mkdtemp(prefix="someTestFolder")
-    os.chdir(working_directory)
-
     def project_teardown():
         wrap_async_to_sync(_cleanup(syn, [working_directory, proj]), syn)
-        os.chdir(_old_working_directory)
 
     request.addfinalizer(project_teardown)
 
