@@ -306,9 +306,6 @@ class _MultithreadedDownloader:
     async def download_file(self) -> None:
         """
         Splits up and downloads a file in chunks from a URL.
-
-        Arguments:
-            request: A DownloadRequest object specifying what Synapse file to download.
         """
         url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
 
@@ -443,6 +440,19 @@ class _MultithreadedDownloader:
         end: int,
         otel_context: Union[Context, None],
     ) -> Tuple[int, int]:
+        """
+        Wrapper around the actual download logic to handle retries and range requests.
+
+        Arguments:
+            session: An httpx.Client
+            presigned_url_provider: A URL provider for the presigned urls
+            start: The start byte of the range to download
+            end: The end byte of the range to download
+            otel_context: The OpenTelemetry context if known, else None
+
+        Returns:
+            The start and end bytes of the range downloaded
+        """
         if otel_context:
             context.attach(otel_context)
         self._check_for_abort(start=start, end=end)

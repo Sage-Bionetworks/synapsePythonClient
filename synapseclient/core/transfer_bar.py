@@ -70,6 +70,15 @@ def shared_download_progress_bar(
 ):
     """An outside process that will eventually trigger a download through this module
     can configure a shared Progress Bar by running its code within this context manager.
+
+    Arguments:
+        file_size: The size of the file being downloaded.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+
+    Yields:
+        A context manager that will handle the download progress bar.
+
     """
     _thread_local.progress_bar_download_context_managed = True
     from synapseclient import Synapse
