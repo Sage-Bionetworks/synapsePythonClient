@@ -68,18 +68,20 @@ STANDARD_RETRY_PARAMS = {
 
 
 async def download_file_entity(
-    *,
     download_location: str,
     entity: "Entity",
     if_collision: str,
     submission: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> None:
     """
     Download file entity
 
     Arguments:
-        download_location: The download location
+        download_location: The location on disk where the entity will be downloaded. If
+            there is a matching file at the location, the download collision will be
+            handled according to the `if_collision` argument.
         entity:           The Synapse Entity object
         if_collision:      Determines how to handle file collisions.
                             May be
@@ -89,6 +91,8 @@ async def download_file_entity(
             - `keep.both`
 
         submission:       Access associated files through a submission rather than through an entity.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
     """
     from synapseclient import Synapse
 
@@ -144,6 +148,9 @@ async def download_file_entity(
             # create the foider if it does not exist already
             if not os.path.exists(download_location):
                 os.makedirs(download_location)
+            client.logger.info(
+                f"Copying existing file from {cached_file_path} to {download_path}"
+            )
             shutil.copy(cached_file_path, download_path)
 
     else:  # download the file from URL (could be a local file)
@@ -171,18 +178,20 @@ async def download_file_entity(
 
 
 async def download_file_entity_model(
-    *,
     download_location: str,
     file: "File",
     if_collision: str,
     submission: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> None:
     """
     Download file entity
 
     Arguments:
-        download_location: The download location
+        download_location: The location on disk where the entity will be downloaded. If
+            there is a matching file at the location, the download collision will be
+            handled according to the `if_collision` argument.
         entity:           The File object
         if_collision:      Determines how to handle file collisions.
                             May be
@@ -192,6 +201,8 @@ async def download_file_entity_model(
             - `keep.both`
 
         submission:       Access associated files through a submission rather than through an entity.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
     """
     from synapseclient import Synapse
 
@@ -245,6 +256,9 @@ async def download_file_entity_model(
             # create the foider if it does not exist already
             if not os.path.exists(download_location):
                 os.makedirs(download_location)
+            client.logger.info(
+                f"Copying existing file from {cached_file_path} to {download_path}"
+            )
             shutil.copy(cached_file_path, download_path)
 
     else:  # download the file from URL (could be a local file)
@@ -288,10 +302,12 @@ async def download_by_file_handle(
 
     Arguments:
         file_handle_id: The id of the FileHandle to download
-        synapse_id:     The id of the Synapse object that uses the FileHandle e.g. "syn123"
-        entity_type:   The type of the Synapse object that uses the FileHandle e.g. "FileEntity"
-        destination:  The destination on local file system
-        retries:      The Number of download retries attempted before throwing an exception.
+        synapse_id: The id of the Synapse object that uses the FileHandle e.g. "syn123"
+        entity_type: The type of the Synapse object that uses the FileHandle e.g. "FileEntity"
+        destination: The destination on local file system
+        retries: The Number of download retries attempted before throwing an exception.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
 
     Returns:
         The path to downloaded file
@@ -863,7 +879,9 @@ def resolve_download_path_collisions(
     Resolve file path collisions
 
     Arguments:
-        download_location:      The download location
+        download_location: The location on disk where the entity will be downloaded. If
+            there is a matching file at the location, the download collision will be
+            handled according to the `if_collision` argument.
         file_name:             The file name
         if_collision:           Determines how to handle file collisions.
                                 May be "overwrite.local", "keep.local", or "keep.both".
@@ -899,11 +917,15 @@ def resolve_download_path_collisions(
     if_collision = if_collision or COLLISION_KEEP_BOTH
 
     download_path = utils.normalize_path(os.path.join(download_location, file_name))
-    # resolve collison
+    # resolve collision
     if os.path.exists(path=download_path):
         if if_collision == COLLISION_OVERWRITE_LOCAL:
             pass  # Let the download proceed and overwrite the local file.
         elif if_collision == COLLISION_KEEP_LOCAL:
+            client.logger.info(
+                f"Found existing file at {download_path}, skipping download."
+            )
+
             # Don't want to overwrite the local file.
             download_path = None
         elif if_collision == COLLISION_KEEP_BOTH:
@@ -921,7 +943,7 @@ def ensure_download_location_is_directory(download_location: str) -> str:
     Check if the download location is a directory
 
     Arguments:
-        download_location: The download location
+        download_location: The location on disk where the entity will be downloaded.
 
     Raises:
         ValueError: If the download_location is not a directory
