@@ -178,7 +178,7 @@ async def download_file_entity(
 
 
 async def download_file_entity_model(
-    download_location: str,
+    download_location: Union[str, None],
     file: "File",
     if_collision: str,
     submission: str,
