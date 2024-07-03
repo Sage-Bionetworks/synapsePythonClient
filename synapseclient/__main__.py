@@ -162,8 +162,8 @@ def get(args, syn):
                 and entity.path is not None
                 and os.path.exists(entity.path)
             ):
+                # The core download functionality of syn.get will print out the message
                 printed_download_message = True
-                syn.logger.info("Downloaded file: %s", os.path.basename(entity.path))
             else:
                 syn.logger.info(
                     "WARNING: No files associated with entity %s\n", entity.id
