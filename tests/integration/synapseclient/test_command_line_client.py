@@ -131,7 +131,7 @@ async def test_command_line_client(test_state):
 
     # Get File from the command line
     output = run(test_state, "synapse", "--skip-checks", "get", file_entity_id)
-    downloaded_filename = parse(r"Downloaded file:\s+(.*)", output)
+    downloaded_filename = output.split("/")[-1].strip()
     test_state.schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
@@ -151,7 +151,7 @@ async def test_command_line_client(test_state):
 
     # Get the File again
     output = run(test_state, "synapse", "--skip-checks", "get", file_entity_id)
-    downloaded_filename = parse(r"Downloaded file:\s+(.*)", output)
+    downloaded_filename = output.split("/")[-1].strip()
     test_state.schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
@@ -258,7 +258,7 @@ async def test_command_line_client(test_state):
     )
 
     output = run(test_state, "synapse", "--skip-checks", "get", exteral_entity_id)
-    downloaded_filename = parse(r"Downloaded file:\s+(.*)", output)
+    downloaded_filename = output.split("/")[-1].strip()
     test_state.schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
 

@@ -75,7 +75,7 @@ class S3ClientWrapper:
         *,
         profile_name: str = None,
         credentials: typing.Dict[str, str] = None,
-        progress_bar: tqdm = None,
+        progress_bar: Union[tqdm, None] = None,
         transfer_config_kwargs: dict = None,
     ) -> str:
         """
@@ -316,7 +316,7 @@ class SFTPWrapper:
         localFilepath: str = None,
         username: str = None,
         password: str = None,
-        progress_bar: tqdm = None,
+        progress_bar: Union[tqdm, None] = None,
     ) -> str:
         """
         Performs download of a file from an sftp server.
