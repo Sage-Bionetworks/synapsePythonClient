@@ -62,6 +62,7 @@ class Annotations(AnnotationsSynchronousProtocol):
 
     async def store_async(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Annotations":
         """Storing annotations to synapse.

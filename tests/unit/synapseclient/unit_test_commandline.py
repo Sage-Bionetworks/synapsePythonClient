@@ -671,8 +671,6 @@ class TestGetFunction:
         assert self.syn.logger.info.call_args_list == [
             call("WARNING: No files associated with entity %s\n", "syn123"),
             call(mock_entity),
-            call("Downloaded file: %s", "./base_tmp_path"),
-            call("Creating %s", "./tmp_path"),
         ]
 
     def test_get__without_synapse_id(self):

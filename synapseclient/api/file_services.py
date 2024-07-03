@@ -11,7 +11,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from synapseclient.api.entity_services import get_upload_destination
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.exceptions import SynapseError, SynapseFileNotFoundError
+from synapseclient.core.exceptions import (
+    SynapseAuthorizationError,
+    SynapseFileNotFoundError,
+)
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -21,6 +24,7 @@ async def post_file_multipart(
     upload_request_payload: Dict[str, Any],
     force_restart: bool,
     endpoint: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
@@ -71,6 +75,7 @@ async def put_file_multipart_add(
     upload_id: str,
     part_number: int,
     md5_hex: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> AddPartResponse:
     """
@@ -112,6 +117,7 @@ async def put_file_multipart_add(
 async def put_file_multipart_complete(
     upload_id: str,
     endpoint: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
@@ -139,6 +145,7 @@ async def put_file_multipart_complete(
 async def post_file_multipart_presigned_urls(
     upload_id: str,
     part_numbers: List[int],
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -179,6 +186,7 @@ async def post_external_object_store_filehandle(
     storage_location_id: int,
     mimetype: str = None,
     md5: str = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
@@ -223,6 +231,7 @@ async def post_external_filehandle(
     mimetype: str = None,
     md5: str = None,
     file_size: int = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
@@ -270,6 +279,7 @@ async def post_external_s3_file_handle(
     storage_location_id: str = None,
     mimetype: str = None,
     md5: str = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int, bool]]:
     """
@@ -338,6 +348,7 @@ async def post_external_s3_file_handle(
 
 async def get_file_handle(
     file_handle_id: Dict[str, Union[str, int]],
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int]]:
     """
@@ -365,10 +376,11 @@ async def get_file_handle(
     )
 
 
-async def get_file_handle_for_download(
+async def get_file_handle_for_download_async(
     file_handle_id: str,
     synapse_id: str,
     entity_type: str = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, str]:
     """
@@ -417,7 +429,68 @@ async def get_file_handle_for_download(
             f"The fileHandleId {file_handle_id} could not be found"
         )
     elif failure == "UNAUTHORIZED":
-        raise SynapseError(
+        raise SynapseAuthorizationError(
+            f"You are not authorized to access fileHandleId {file_handle_id} "
+            f"associated with the Synapse {entity_type}: {synapse_id}"
+        )
+    return result
+
+
+def get_file_handle_for_download(
+    file_handle_id: str,
+    synapse_id: str,
+    entity_type: str = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, str]:
+    """
+    Gets the URL and the metadata as filehandle object for a filehandle or fileHandleId
+
+    Arguments:
+        file_handle_id:   ID of fileHandle to download
+        synapse_id:       The ID of the object associated with the file e.g. syn234
+        entity_type:     Type of object associated with a file e.g. FileEntity,
+            TableEntity
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+
+    Raises:
+        SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.
+        SynapseError: If the user does not have the permission to access the
+            fileHandleId.
+
+    Returns:
+        A dictionary with keys: fileHandle, fileHandleId and preSignedURL
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    body = {
+        "includeFileHandles": True,
+        "includePreSignedURLs": True,
+        "requestedFiles": [
+            {
+                "fileHandleId": file_handle_id,
+                "associateObjectId": synapse_id,
+                "associateObjectType": entity_type or "FileEntity",
+            }
+        ],
+    }
+
+    response = client.restPOST(
+        "/fileHandle/batch", body=json.dumps(body), endpoint=client.fileHandleEndpoint
+    )
+
+    result = response["requestedFiles"][0]
+    failure = result.get("failureCode")
+    if failure == "NOT_FOUND":
+        raise SynapseFileNotFoundError(
+            f"The fileHandleId {file_handle_id} could not be found"
+        )
+    elif failure == "UNAUTHORIZED":
+        raise SynapseAuthorizationError(
             f"You are not authorized to access fileHandleId {file_handle_id} "
             f"associated with the Synapse {entity_type}: {synapse_id}"
         )

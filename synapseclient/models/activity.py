@@ -168,6 +168,8 @@ class Activity(ActivitySynchronousProtocol):
         Returns:
             The Activity object.
         """
+        if not synapse_activity:
+            synapse_activity = {}
         self.id = synapse_activity.get("id", None)
         self.name = synapse_activity.get("name", None)
         self.description = synapse_activity.get("description", None)
@@ -260,6 +262,7 @@ class Activity(ActivitySynchronousProtocol):
     async def store_async(
         self,
         parent: Optional[Union["Table", "File"]] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Activity":
         """
@@ -335,6 +338,7 @@ class Activity(ActivitySynchronousProtocol):
     async def from_parent_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Union["Activity", None]:
         """
@@ -375,12 +379,16 @@ class Activity(ActivitySynchronousProtocol):
                     return None
                 else:
                     raise ex
-            return cls().fill_from_dict(synapse_activity=synapse_activity)
+            if synapse_activity:
+                return cls().fill_from_dict(synapse_activity=synapse_activity)
+            else:
+                return None
 
     @classmethod
     async def delete_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
@@ -422,6 +430,7 @@ class Activity(ActivitySynchronousProtocol):
     async def disassociate_from_entity_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """

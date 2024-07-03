@@ -8,8 +8,11 @@ from typing import Union
 
 from tqdm import tqdm
 
-from synapseclient.core.cumulative_transfer_progress import printTransferProgress
 from synapseclient.core.retry import with_retry
+from synapseclient.core.transfer_bar import (
+    increment_progress_bar,
+    increment_progress_bar_total,
+)
 from synapseclient.core.utils import attempt_import
 
 
@@ -59,7 +62,7 @@ class S3ClientWrapper:
             Arguments:
                 bytes: The number of bytes transferred.
             """
-            progress_bar.update(transferred_bytes)
+            increment_progress_bar(n=transferred_bytes, progress_bar=progress_bar)
 
         return progress_callback
 
@@ -72,7 +75,7 @@ class S3ClientWrapper:
         *,
         profile_name: str = None,
         credentials: typing.Dict[str, str] = None,
-        show_progress: bool = True,
+        progress_bar: Union[tqdm, None] = None,
         transfer_config_kwargs: dict = None,
     ) -> str:
         """
@@ -91,7 +94,7 @@ class S3ClientWrapper:
                 - `aws_access_key_id`
                 - `aws_secret_access_key`
                 - `aws_session_token`
-            show_progress: whether to print progress indicator to console
+            progress_bar: The progress bar to update. Defaults to None.
             transfer_config_kwargs: boto S3 transfer configuration (see boto3.s3.transfer.TransferConfig)
 
         Returns:
@@ -119,19 +122,11 @@ class S3ClientWrapper:
             s3_obj = s3.Object(bucket, remote_file_key)
 
             progress_callback = None
-            progress_bar = None
-            if show_progress:
+
+            if progress_bar is not None:
                 s3_obj.load()
                 file_size = s3_obj.content_length
-                filename = os.path.basename(download_file_path)
-                progress_bar = tqdm(
-                    total=file_size,
-                    desc="Downloading",
-                    unit="B",
-                    unit_scale=True,
-                    postfix=filename,
-                    smoothing=0,
-                )
+                increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
                 progress_callback = S3ClientWrapper._create_progress_callback_func(
                     progress_bar
                 )
@@ -141,8 +136,6 @@ class S3ClientWrapper:
                 Callback=progress_callback,
                 Config=transfer_config,
             )
-            if progress_bar:
-                progress_bar.close()
 
             return download_file_path
 
@@ -235,7 +228,7 @@ class S3ClientWrapper:
             Config=transfer_config,
             ExtraArgs={"ACL": "bucket-owner-full-control"},
         )
-        if progress_bar:
+        if progress_bar is not None:
             progress_bar.close()
         return upload_file_path
 
@@ -323,7 +316,7 @@ class SFTPWrapper:
         localFilepath: str = None,
         username: str = None,
         password: str = None,
-        show_progress: bool = True,
+        progress_bar: Union[tqdm, None] = None,
     ) -> str:
         """
         Performs download of a file from an sftp server.
@@ -333,34 +326,50 @@ class SFTPWrapper:
             localFilepath: location where to store file
             username: username on server
             password: password for authentication on  server
-            show_progress: whether to print progress indicator to console
+            progress_bar: The progress bar to update. Defaults to None.
 
         Returns:
             The local filepath where the file was saved.
         """
+        updated_progress_bar_with_total = False
+        last_transfer_checkpoint = 0
 
-        parsedURL = SFTPWrapper._parse_for_sftp(url)
+        def progress_callback(
+            *args,
+            **kwargs,
+        ) -> None:
+            nonlocal updated_progress_bar_with_total
+            nonlocal last_transfer_checkpoint
+            if not updated_progress_bar_with_total:
+                updated_progress_bar_with_total = True
+                increment_progress_bar_total(args[1], progress_bar)
+            increment_progress_bar(
+                n=args[0] - last_transfer_checkpoint, progress_bar=progress_bar
+            )
+            last_transfer_checkpoint = args[0]
+
+        parsed_url = SFTPWrapper._parse_for_sftp(url)
 
         # Create the local file path if it doesn't exist
-        path = urllib_parse.unquote(parsedURL.path)
+        path = urllib_parse.unquote(parsed_url.path)
         if localFilepath is None:
             localFilepath = os.getcwd()
         if os.path.isdir(localFilepath):
             localFilepath = os.path.join(localFilepath, path.split("/")[-1])
         # Check and create the directory
-        dir = os.path.dirname(localFilepath)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
+        download_directory = os.path.dirname(localFilepath)
+        if not os.path.exists(download_directory):
+            os.makedirs(download_directory)
 
         # Download file
         with _retry_pysftp_connection(
-            parsedURL.hostname, username=username, password=password
+            parsed_url.hostname, username=username, password=password
         ) as sftp:
             sftp.get(
                 path,
                 localFilepath,
                 preserve_mtime=True,
-                callback=(printTransferProgress if show_progress else None),
+                callback=(progress_callback if progress_bar is not None else None),
             )
         return localFilepath
 

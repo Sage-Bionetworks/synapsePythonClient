@@ -35,6 +35,7 @@ from synapseclient import (
 from synapseclient.annotations import convert_old_annotation_json
 from synapseclient.api import get_config_file
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
+from synapseclient.core import sts_transfer
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
 from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
@@ -59,7 +60,7 @@ from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.upload import upload_functions
 
 GET_FILE_HANDLE_FOR_DOWNLOAD = (
-    "synapseclient.core.download.download_functions.get_file_handle_for_download"
+    "synapseclient.core.download.download_functions.get_file_handle_for_download_async"
 )
 DOWNLOAD_BY_FILE_HANDLE = (
     "synapseclient.core.download.download_functions.download_by_file_handle"
@@ -340,7 +341,6 @@ class TestDownloadFileHandle:
                 new_callable=AsyncMock,
             ) as mock_get_file_handle_download, patch(
                 DOWNLOAD_FROM_URL,
-                new_callable=AsyncMock,
             ) as mock_download_from_URL:
                 mock_get_file_handle_download.return_value = {
                     "fileHandle": {
@@ -438,7 +438,7 @@ class TestDownloadFileHandle:
             mock_os.makedirs.assert_called_once_with(
                 mock_os.path.dirname(destination), exist_ok=True
             )
-            cache.add.assert_called_once_with(file_handle_id, download_path)
+            cache.add.assert_called_once_with(file_handle_id, download_path, None)
 
         assert expected_download_path == download_path
         mock_s3_client_wrapper.download_file.assert_called_once_with(
@@ -447,7 +447,7 @@ class TestDownloadFileHandle:
             remote_file_key=FOO_KEY,
             download_file_path="/tmp",
             credentials=credentials,
-            show_progress=True,
+            progress_bar=ANY,
             transfer_config_kwargs={"max_concurrency": self.syn.max_threads},
         )
 
@@ -468,9 +468,11 @@ class TestDownloadFileHandle:
         ), patch.object(
             urllib_request, "urlretrieve"
         ) as mock_url_retrieve, patch.object(
-            utils, "md5_for_file_multiprocessing"
+            utils, "md5_for_file"
         ) as mock_md5_for_file, patch.object(
             os, "makedirs"
+        ), patch.object(
+            sts_transfer, "is_storage_location_sts_enabled_async", return_value=False
         ):
             mock_get_file_handle_download.return_value = {
                 "fileHandle": {
@@ -513,7 +515,7 @@ class TestDownloadFileHandle:
 
         mock_get.return_value = response
 
-        out_destination = await download_from_url(
+        out_destination = download_from_url(
             url=uri,
             destination=in_destination.name,
             synapse_client=self.syn,
@@ -541,7 +543,7 @@ class TestDownloadFileHandle:
 
         mock_get.return_value = response
 
-        out_destination = await download_from_url(
+        out_destination = download_from_url(
             url=uri,
             destination=in_destination.name,
             synapse_client=self.syn,

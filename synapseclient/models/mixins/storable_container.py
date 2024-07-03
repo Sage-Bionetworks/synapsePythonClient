@@ -2,7 +2,7 @@
 
 import asyncio
 import os
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from opentelemetry import context
 from typing_extensions import Self
@@ -53,7 +53,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     folders: "Folder" = None
     _last_persistent_instance: None = None
 
-    async def get_async(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
 
     @otel_trace_method(
@@ -193,6 +193,8 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                         alt Recursive is True
                             note over sync_from_synapse: Append `folder.sync_from_synapse()` method
                         end
+                    else Child is Link and hops > 0
+                        note over sync_from_synapse: Append task to follow link
                     end
                 end
 
@@ -210,6 +212,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     and `folder.sync_from_synapse_async()`
                         note over sync_from_synapse: This is a recursive call to `sync_from_synapse`
                         sync_from_synapse->>sync_from_synapse: Recursive call to `.sync_from_synapse_async()`
+                    and `_follow_link`
+                        sync_from_synapse ->>client: call `get_entity_id_bundle2` function
+                        client-->sync_from_synapse: .
+                        note over sync_from_synapse: Do nothing if not link
+                        note over sync_from_synapse: call `_create_task_for_child` and execute
                     end
                 end
 
@@ -282,9 +289,74 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             files.extend(folder.flatten_file_list())
         return files
 
+    def map_directory_to_all_contained_files(
+        self, root_path: str
+    ) -> Dict[str, List["File"]]:
+        """
+        Recursively loop over all of the already retrieved files and folders. Then
+        return back a dictionary where the key is the path to the directory at each
+        level. The value is a list of all files in that directory AND all files in
+        the child directories.
+
+        This is used during the creation of the manifest TSV file during the
+        syncFromSynapse utility function.
+
+        Example: Using this function
+           Returning back a dict with 2 keys:
+
+                Given:
+                root_folder
+                ├── sub_folder
+                │   ├── file1.txt
+                │   └── file2.txt
+
+                Returns:
+                {
+                    "root_folder": [file1, file2],
+                    "root_folder/sub_folder": [file1, file2]
+                }
+
+
+           Returning back a dict with 3 keys:
+
+                Given:
+                root_folder
+                ├── sub_folder_1
+                │   ├── file1.txt
+                ├── sub_folder_2
+                │   └── file2.txt
+
+                Returns:
+                {
+                    "root_folder": [file1, file2],
+                    "root_folder/sub_folder_1": [file1]
+                    "root_folder/sub_folder_2": [file2]
+                }
+
+        Arguments:
+            root_path: The root path where the top level files are stored.
+
+        Returns:
+            A dictionary where the key is the path to the directory at each level. The
+                value is a list of all files in that directory AND all files in the child
+                directories.
+        """
+        directory_map = {}
+        directory_map.update({root_path: self.flatten_file_list()})
+
+        for folder in self.folders:
+            directory_map.update(
+                **folder.map_directory_to_all_contained_files(
+                    root_path=os.path.join(root_path, folder.name)
+                )
+            )
+
+        return directory_map
+
     def _retrieve_children(
         self,
         follow_link: bool,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> List:
         """
@@ -533,6 +605,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         self,
         result: Union[None, "Folder", "File", BaseException],
         failure_strategy: FailureStrategy,
+        *,
         synapse_client: Union[None, Synapse],
     ) -> None:
         """

@@ -26,9 +26,13 @@ from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
+    SynapseNotFoundError,
     SynapseProvenanceError,
 )
-from synapseclient.core.upload.multipart_upload_async import shared_progress_bar
+from synapseclient.core.transfer_bar import shared_download_progress_bar
+from synapseclient.core.upload.multipart_upload_async import (
+    shared_progress_bar as upload_shared_progress_bar,
+)
 from synapseclient.core.utils import (
     bool_or_none,
     datetime_or_none,
@@ -164,23 +168,8 @@ def syncFromSynapse(
     # 3. downloads that support S3 multipart concurrent downloads will be scheduled
     #    by the thread in #2 and have
     #    their parts downloaded in additional threads in the same Executor
-    # To support multipart downloads in #3 using the same Executor as the download
-    # thread #2, we need at least 2 threads always, if those aren't available then
-    # we'll run single threaded to avoid a deadlock.
 
-    # TODO: Items left to finish to port syncFromSynapse:
-    # 1) Correct the TQDM progress bar - Currently the shared bar does not work
-    # 2) Update the TQDM progress bar to note when file is downloading or md5 is being calculated
-    # 3) Update the .get() code to not just wrap the synapseClient.get() function
-
-    progress_bar = tqdm(
-        total=1,
-        desc="Downloading files",
-        unit="B",
-        unit_scale=True,
-        smoothing=0,
-    )
-    with shared_progress_bar(progress_bar):
+    with shared_download_progress_bar(file_size=1, synapse_client=syn):
         root_entity = wrap_async_to_sync(
             coroutine=_sync(
                 syn=syn,
@@ -194,18 +183,31 @@ def syncFromSynapse(
             syn=syn,
         )
 
-    progress_bar.close()
     files = []
 
     from synapseclient.models import Folder, Project
 
+    # Handle the creation of a manifest TSV file. The way that this works is that
+    # a manifest is created for each directory level if "all" is specified. If "root"
+    # is specified then only the root directory will have a manifest created.
     if isinstance(root_entity, Project) or isinstance(root_entity, Folder):
         files = root_entity.flatten_file_list()
-
-        generate_manifest(
-            all_files=files,
-            path=path,
-        )
+        if manifest == "all" and path:
+            for (
+                directory_path,
+                file_entities,
+            ) in root_entity.map_directory_to_all_contained_files(
+                root_path=path
+            ).items():
+                generate_manifest(
+                    all_files=file_entities,
+                    path=directory_path,
+                )
+        elif manifest == "root" and path:
+            generate_manifest(
+                all_files=files,
+                path=path,
+            )
     elif isinstance(root_entity, File):
         # When the root entity is a file we do not create a manifest file. This is
         # to match the behavior present in v4.x.x of the client.
@@ -230,9 +232,9 @@ def syncFromSynapse(
 async def _sync(
     syn: Synapse,
     entity: Union[str, SynapseFile, SynapseProject, SynapseFolder],
-    path: str,
-    if_collision: str,
-    follow_link: bool,
+    path: str = None,
+    if_collision: str = "overwrite.local",
+    follow_link: bool = False,
     download_file: bool = True,
     manifest: str = "all",
 ) -> Union["File", "Folder", "Project"]:
@@ -264,6 +266,9 @@ async def _sync(
         entity = await get_entity(
             entity_id=synid, version_number=version, synapse_client=syn
         )
+
+    if entity is None:
+        raise SynapseNotFoundError(f"Entity {entity or synid} not found.")
 
     entity_type = entity.get("concreteType", None)
     entity_id = id_of(entity)
@@ -327,7 +332,7 @@ async def _sync(
         )
     else:
         raise ValueError(
-            "Cannot initiate a sync from an entity that is not a File, Folder, or Link to a File/Folder."
+            "Cannot initiate a sync from an entity that is not a File, Folder, Project, or Link to a File/Folder."
         )
 
     return root_entity
@@ -850,10 +855,12 @@ def _convert_manifest_data_items_to_string_list(
             else:
                 items_to_write.append(repr(item))
 
-    if len(items) > 1:
+    if len(items_to_write) > 1:
         return f'[{",".join(items_to_write)}]'
-    else:
+    elif len(items_to_write) == 1:
         return items_to_write[0]
+    else:
+        return ""
 
 
 def _convert_manifest_data_row_to_dict(row: dict, keys: List[str]) -> dict:
@@ -1151,7 +1158,7 @@ def syncToSynapse(
         unit_scale=True,
         smoothing=0,
     )
-    with shared_progress_bar(progress_bar):
+    with upload_shared_progress_bar(progress_bar):
         if sendMessages:
             notify_decorator = notify_me_async(
                 syn, "Upload of %s" % manifestFile, retries=retries

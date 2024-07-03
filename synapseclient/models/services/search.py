@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 async def get_id(
     entity: Union["Project", "Folder", "File"],
     failure_strategy: Optional[FailureStrategy] = FailureStrategy.RAISE_EXCEPTION,
+    *,
     synapse_client: Optional[Synapse] = None,
 ) -> Union[str, None]:
     """

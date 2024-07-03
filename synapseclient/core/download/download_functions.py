@@ -1,19 +1,20 @@
 """This module handles the various ways that a user can download a file to Synapse."""
 
+import asyncio
 import errno
 import hashlib
 import os
 import shutil
 import sys
-import time
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
-from synapseclient.api import (
-    get_client_authenticated_s3_profile,
-    get_file_handle_for_download,
-)
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
+
+from synapseclient.api.configuration_services import get_client_authenticated_s3_profile
+from synapseclient.api.file_services import get_file_handle_for_download_async
 from synapseclient.core import exceptions, sts_transfer, utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.method_flags import (
@@ -38,10 +39,17 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry,
 )
+from synapseclient.core.transfer_bar import (
+    close_download_progress_bar,
+    get_or_create_download_progress_bar,
+    increment_progress_bar,
+    increment_progress_bar_total,
+)
 from synapseclient.core.utils import MB
 
 if TYPE_CHECKING:
     from synapseclient import Entity, Synapse
+    from synapseclient.models import File
 
 FILE_BUFFER_SIZE = 2 * MB
 REDIRECT_LIMIT = 5
@@ -60,18 +68,20 @@ STANDARD_RETRY_PARAMS = {
 
 
 async def download_file_entity(
-    *,
     download_location: str,
     entity: "Entity",
     if_collision: str,
     submission: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> None:
     """
     Download file entity
 
     Arguments:
-        download_location: The download location
+        download_location: The location on disk where the entity will be downloaded. If
+            there is a matching file at the location, the download collision will be
+            handled according to the `if_collision` argument.
         entity:           The Synapse Entity object
         if_collision:      Determines how to handle file collisions.
                             May be
@@ -81,6 +91,8 @@ async def download_file_entity(
             - `keep.both`
 
         submission:       Access associated files through a submission rather than through an entity.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
     """
     from synapseclient import Synapse
 
@@ -136,6 +148,9 @@ async def download_file_entity(
             # create the foider if it does not exist already
             if not os.path.exists(download_location):
                 os.makedirs(download_location)
+            client.logger.info(
+                f"Copying existing file from {cached_file_path} to {download_path}"
+            )
             shutil.copy(cached_file_path, download_path)
 
     else:  # download the file from URL (could be a local file)
@@ -145,12 +160,13 @@ async def download_file_entity(
         # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
         # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
         # _downloadFileHandle may also return None to indicate that the download failed
-        download_path = await download_by_file_handle(
-            file_handle_id=entity.dataFileHandleId,
-            synapse_id=object_id,
-            entity_type=object_type,
-            destination=download_path,
-        )
+        with logging_redirect_tqdm(loggers=[client.logger]):
+            download_path = await download_by_file_handle(
+                file_handle_id=entity.dataFileHandleId,
+                synapse_id=object_id,
+                entity_type=object_type,
+                destination=download_path,
+            )
 
         if download_path is None or not os.path.exists(download_path):
             return
@@ -159,6 +175,112 @@ async def download_file_entity(
     entity.path = os.path.normpath(download_path)
     entity.files = [os.path.basename(download_path)]
     entity.cacheDir = os.path.dirname(download_path)
+
+
+async def download_file_entity_model(
+    download_location: Union[str, None],
+    file: "File",
+    if_collision: str,
+    submission: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Download file entity
+
+    Arguments:
+        download_location: The location on disk where the entity will be downloaded. If
+            there is a matching file at the location, the download collision will be
+            handled according to the `if_collision` argument.
+        entity:           The File object
+        if_collision:      Determines how to handle file collisions.
+                            May be
+
+            - `overwrite.local`
+            - `keep.local`
+            - `keep.both`
+
+        submission:       Access associated files through a submission rather than through an entity.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    # set the initial local state
+    file.path = None
+
+    # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
+    # this location could be either in .synapseCache or a user specified location to which the user previously
+    # downloaded the file
+    cached_file_path = client.cache.get(
+        file_handle_id=file.data_file_handle_id, path=download_location
+    )
+
+    # location in .synapseCache where the file would be corresponding to its FileHandleId
+    synapse_cache_location = client.cache.get_cache_dir(
+        file_handle_id=file.data_file_handle_id
+    )
+
+    file_name = (
+        file.file_handle.file_name
+        if cached_file_path is None
+        else os.path.basename(cached_file_path)
+    )
+
+    # Decide the best download location for the file
+    if download_location is not None:
+        # Make sure the specified download location is a fully resolved directory
+        download_location = ensure_download_location_is_directory(download_location)
+    elif cached_file_path is not None:
+        # file already cached so use that as the download location
+        download_location = os.path.dirname(cached_file_path)
+    else:
+        # file not cached and no user-specified location so default to .synapseCache
+        download_location = synapse_cache_location
+
+    # resolve file path collisions by either overwriting, renaming, or not downloading, depending on the
+    # ifcollision value
+    download_path = resolve_download_path_collisions(
+        download_location=download_location,
+        file_name=file_name,
+        if_collision=if_collision,
+        synapse_cache_location=synapse_cache_location,
+        cached_file_path=cached_file_path,
+    )
+    if download_path is None:
+        return
+
+    if cached_file_path is not None:  # copy from cache
+        if download_path != cached_file_path:
+            # create the foider if it does not exist already
+            if not os.path.exists(download_location):
+                os.makedirs(download_location)
+            client.logger.info(
+                f"Copying existing file from {cached_file_path} to {download_path}"
+            )
+            shutil.copy(cached_file_path, download_path)
+
+    else:  # download the file from URL (could be a local file)
+        object_type = "FileEntity" if submission is None else "SubmissionAttachment"
+        object_id = file.id if submission is None else submission
+
+        # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
+        # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
+        # _downloadFileHandle may also return None to indicate that the download failed
+        with logging_redirect_tqdm(loggers=[client.logger]):
+            download_path = await download_by_file_handle(
+                file_handle_id=file.data_file_handle_id,
+                synapse_id=object_id,
+                entity_type=object_type,
+                destination=download_path,
+            )
+
+        if download_path is None or not os.path.exists(download_path):
+            return
+
+    # converts the path format from forward slashes back to backward slashes on Windows
+    file.path = os.path.normpath(download_path)
 
 
 def _get_aws_credentials() -> None:
@@ -171,8 +293,8 @@ async def download_by_file_handle(
     synapse_id: str,
     entity_type: str,
     destination: str,
-    # TODO: Update this retries to be time based to match the upload logic
     retries: int = 5,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> str:
     """
@@ -180,10 +302,12 @@ async def download_by_file_handle(
 
     Arguments:
         file_handle_id: The id of the FileHandle to download
-        synapse_id:     The id of the Synapse object that uses the FileHandle e.g. "syn123"
-        entity_type:   The type of the Synapse object that uses the FileHandle e.g. "FileEntity"
-        destination:  The destination on local file system
-        retries:      The Number of download retries attempted before throwing an exception.
+        synapse_id: The id of the Synapse object that uses the FileHandle e.g. "syn123"
+        entity_type: The type of the Synapse object that uses the FileHandle e.g. "FileEntity"
+        destination: The destination on local file system
+        retries: The Number of download retries attempted before throwing an exception.
+        synapse_client: If not passed in or None this will use the last client from
+            the `.login()` method.
 
     Returns:
         The path to downloaded file
@@ -267,16 +391,18 @@ async def download_by_file_handle(
     """
     from synapseclient import Synapse
 
-    client = Synapse.get_client(synapse_client=synapse_client)
+    syn = Synapse.get_client(synapse_client=synapse_client)
     os.makedirs(os.path.dirname(destination), exist_ok=True)
 
     while retries > 0:
         try:
-            file_handle_result = await get_file_handle_for_download(
+            file_handle_result: Dict[
+                str, str
+            ] = await get_file_handle_for_download_async(
                 file_handle_id=file_handle_id,
                 synapse_id=synapse_id,
                 entity_type=entity_type,
-                synapse_client=client,
+                synapse_client=syn,
             )
             file_handle = file_handle_result["fileHandle"]
             concrete_type = file_handle["concreteType"]
@@ -286,26 +412,37 @@ async def download_by_file_handle(
                 profile = get_client_authenticated_s3_profile(
                     endpoint=file_handle["endpointUrl"],
                     bucket=file_handle["bucket"],
-                    config_path=client.configPath,
+                    config_path=syn.configPath,
                 )
-                downloaded_path = S3ClientWrapper.download_file(
-                    bucket=file_handle["bucket"],
-                    endpoint_url=file_handle["endpointUrl"],
-                    remote_file_key=file_handle["fileKey"],
-                    download_file_path=destination,
-                    profile_name=profile,
-                    credentials=_get_aws_credentials(),
-                    show_progress=not client.silent,
+
+                progress_bar = get_or_create_download_progress_bar(
+                    file_size=1, postfix=synapse_id
+                )
+                loop = asyncio.get_running_loop()
+                downloaded_path = await loop.run_in_executor(
+                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                    lambda: S3ClientWrapper.download_file(
+                        bucket=file_handle["bucket"],
+                        endpoint_url=file_handle["endpointUrl"],
+                        remote_file_key=file_handle["fileKey"],
+                        download_file_path=destination,
+                        profile_name=profile,
+                        credentials=_get_aws_credentials(),
+                        progress_bar=progress_bar,
+                    ),
                 )
 
             elif (
-                sts_transfer.is_boto_sts_transfer_enabled(syn=client)
+                sts_transfer.is_boto_sts_transfer_enabled(syn=syn)
                 and await sts_transfer.is_storage_location_sts_enabled_async(
-                    syn=client, entity_id=synapse_id, location=storage_location_id
+                    syn=syn, entity_id=synapse_id, location=storage_location_id
                 )
                 and concrete_type == concrete_types.S3_FILE_HANDLE
             ):
-                # TODO: Some work is needed here to run these in a thread executor
+                progress_bar = get_or_create_download_progress_bar(
+                    file_size=1, postfix=synapse_id
+                )
+
                 def download_fn(
                     credentials: Dict[str, str],
                     file_handle: Dict[str, str] = file_handle,
@@ -324,20 +461,21 @@ async def download_by_file_handle(
                         remote_file_key=file_handle["key"],
                         download_file_path=destination,
                         credentials=credentials,
-                        show_progress=not client.silent,
+                        progress_bar=progress_bar,
                         # pass through our synapse threading config to boto s3
-                        transfer_config_kwargs={"max_concurrency": client.max_threads},
+                        transfer_config_kwargs={"max_concurrency": syn.max_threads},
                     )
 
-                downloaded_path = sts_transfer.with_boto_sts_credentials(
-                    fn=download_fn,
-                    syn=client,
-                    entity_id=synapse_id,
-                    permission="read_only",
+                loop = asyncio.get_running_loop()
+                downloaded_path = await loop.run_in_executor(
+                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                    lambda: sts_transfer.with_boto_sts_credentials(
+                        download_fn, syn, synapse_id, "read_only"
+                    ),
                 )
 
             elif (
-                client.multi_threaded
+                syn.multi_threaded
                 and concrete_type == concrete_types.S3_FILE_HANDLE
                 and file_handle.get("contentSize", 0)
                 > SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
@@ -352,36 +490,52 @@ async def download_by_file_handle(
                     object_type=entity_type,
                     destination=destination,
                     expected_md5=file_handle.get("contentMd5"),
-                    synapse_client=client,
+                    synapse_client=syn,
                 )
 
             else:
-                downloaded_path = await download_from_url(
-                    url=file_handle_result["preSignedURL"],
-                    destination=destination,
-                    file_handle_id=file_handle["id"],
-                    expected_md5=file_handle.get("contentMd5"),
-                    synapse_client=client,
+                loop = asyncio.get_running_loop()
+                progress_bar = get_or_create_download_progress_bar(
+                    file_size=1, postfix=synapse_id
                 )
-            client.cache.add(file_handle["id"], downloaded_path)
+                downloaded_path = await loop.run_in_executor(
+                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                    lambda: download_from_url(
+                        url=file_handle_result["preSignedURL"],
+                        destination=destination,
+                        file_handle_id=file_handle["id"],
+                        expected_md5=file_handle.get("contentMd5"),
+                        progress_bar=progress_bar,
+                        synapse_client=syn,
+                    ),
+                )
+
+            syn.logger.info(f"Downloaded {synapse_id} to {downloaded_path}")
+            syn.cache.add(
+                file_handle["id"], downloaded_path, file_handle.get("contentMd5", None)
+            )
+            close_download_progress_bar()
             return downloaded_path
 
         except Exception as ex:
             if not is_retryable_download_error(ex):
+                close_download_progress_bar()
                 raise
 
             exc_info = sys.exc_info()
             ex.progress = 0 if not hasattr(ex, "progress") else ex.progress
-            client.logger.debug(
+            syn.logger.debug(
                 f"\nRetrying download on error: [{exc_info[0]}] after progressing {ex.progress} bytes",
                 exc_info=True,
             )  # this will include stack trace
             if ex.progress == 0:  # No progress was made reduce remaining retries.
                 retries -= 1
             if retries <= 0:
+                close_download_progress_bar()
                 # Re-raise exception
                 raise
 
+    close_download_progress_bar()
     raise RuntimeError("should not reach this line")
 
 
@@ -451,11 +605,13 @@ async def download_from_url_multi_threaded(
     return destination
 
 
-async def download_from_url(
+def download_from_url(
     url: str,
     destination: str,
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
+    progress_bar: Optional[tqdm] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
     """
@@ -497,6 +653,10 @@ async def download_from_url(
             destination = utils.file_url_to_path(url, verify_exists=True)
             if destination is None:
                 raise IOError(f"Local file ({url}) does not exist.")
+            if progress_bar is not None:
+                file_size = os.path.getsize(destination)
+                increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
+                increment_progress_bar(n=progress_bar.total, progress_bar=progress_bar)
             break
         elif scheme == "sftp":
             username, password = client._getUserCredentials(url)
@@ -505,40 +665,35 @@ async def download_from_url(
                 localFilepath=destination,
                 username=username,
                 password=password,
-                show_progress=not client.silent,
+                progress_bar=progress_bar,
             )
             break
         elif scheme == "ftp":
-            transfer_start_time = time.time()
+            updated_progress_bar_with_total = False
 
             def _ftp_report_hook(
-                block_number: int,
+                _: int,
                 read_size: int,
                 total_size: int,
-                destination: str = destination,
-                transfer_start_time: float = transfer_start_time,
             ) -> None:
                 """Report hook for urllib.request.urlretrieve to show download progress.
 
                 Arguments:
-                    block_number: The number of blocks transferred so far
+                    _: The number of blocks transferred so far
                     read_size: The size of each block
                     total_size: The total size of the file
-                    destination: The destination file path
-                    transfer_start_time: The time when the transfer started
 
                 Returns:
                     None
                 """
-                show_progress = not client.silent
-                if show_progress:
-                    client._print_transfer_progress(
-                        transferred=block_number * read_size,
-                        toBeTransferred=total_size,
-                        prefix="Downloading ",
-                        postfix=os.path.basename(destination),
-                        dt=time.time() - transfer_start_time,
-                    )
+                nonlocal updated_progress_bar_with_total
+                if progress_bar is not None:
+                    if not updated_progress_bar_with_total:
+                        updated_progress_bar_with_total = True
+                        increment_progress_bar_total(
+                            total=total_size, progress_bar=progress_bar
+                        )
+                    increment_progress_bar(n=read_size, progress_bar=progress_bar)
 
             urllib_request.urlretrieve(
                 url=url, filename=destination, reporthook=_ftp_report_hook
@@ -561,15 +716,7 @@ async def download_from_url(
                 if is_synapse_uri(uri=url, synapse_client=client)
                 else None
             )
-            # TODO: Some more work is needed for streaming this data:
-            # https://www.python-httpx.org/quickstart/#streaming-responses
-            # response = await client.rest_get_async(
-            #     uri=url,
-            #     headers=client._generate_headers(range_header),
-            #     stream=True,
-            #     allow_redirects=False,
-            #     auth=auth,
-            # )
+
             response = with_retry(
                 lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
                     url=url,
@@ -625,6 +772,10 @@ async def download_from_url(
                     previously_transferred = os.path.getsize(filename=temp_destination)
                     to_be_transferred += previously_transferred
                     transferred += previously_transferred
+                    increment_progress_bar_total(
+                        total=to_be_transferred, progress_bar=progress_bar
+                    )
+                    increment_progress_bar(n=transferred, progress_bar=progress_bar)
                     client.logger.debug(
                         f"Resuming partial download to {temp_destination}. "
                         f"{previously_transferred}/{to_be_transferred} bytes already "
@@ -634,11 +785,13 @@ async def download_from_url(
                 else:
                     mode = "wb"
                     previously_transferred = 0
+                    increment_progress_bar_total(
+                        total=to_be_transferred, progress_bar=progress_bar
+                    )
                     sig = hashlib.new("md5", usedforsecurity=False)  # nosec
 
                 try:
                     with open(temp_destination, mode) as fd:
-                        t0 = time.time()
                         for _, chunk in enumerate(
                             response.iter_content(FILE_BUFFER_SIZE)
                         ):
@@ -652,12 +805,8 @@ async def download_from_url(
                             # response.raw.tell() is the total number of response body bytes transferred over the
                             # wire so far
                             transferred = response.raw.tell() + previously_transferred
-                            client._print_transfer_progress(
-                                transferred,
-                                to_be_transferred,
-                                "Downloading ",
-                                os.path.basename(destination),
-                                dt=time.time() - t0,
+                            increment_progress_bar(
+                                n=len(chunk), progress_bar=progress_bar
                             )
                 except (
                     Exception
@@ -723,13 +872,16 @@ def resolve_download_path_collisions(
     if_collision: str,
     synapse_cache_location: str,
     cached_file_path: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
     """
     Resolve file path collisions
 
     Arguments:
-        download_location:      The download location
+        download_location: The location on disk where the entity will be downloaded. If
+            there is a matching file at the location, the download collision will be
+            handled according to the `if_collision` argument.
         file_name:             The file name
         if_collision:           Determines how to handle file collisions.
                                 May be "overwrite.local", "keep.local", or "keep.both".
@@ -765,11 +917,15 @@ def resolve_download_path_collisions(
     if_collision = if_collision or COLLISION_KEEP_BOTH
 
     download_path = utils.normalize_path(os.path.join(download_location, file_name))
-    # resolve collison
+    # resolve collision
     if os.path.exists(path=download_path):
         if if_collision == COLLISION_OVERWRITE_LOCAL:
             pass  # Let the download proceed and overwrite the local file.
         elif if_collision == COLLISION_KEEP_LOCAL:
+            client.logger.info(
+                f"Found existing file at {download_path}, skipping download."
+            )
+
             # Don't want to overwrite the local file.
             download_path = None
         elif if_collision == COLLISION_KEEP_BOTH:
@@ -787,7 +943,7 @@ def ensure_download_location_is_directory(download_location: str) -> str:
     Check if the download location is a directory
 
     Arguments:
-        download_location: The download location
+        download_location: The location on disk where the entity will be downloaded.
 
     Raises:
         ValueError: If the download_location is not a directory
@@ -805,6 +961,7 @@ def ensure_download_location_is_directory(download_location: str) -> str:
 
 def is_synapse_uri(
     uri: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> bool:
     """
