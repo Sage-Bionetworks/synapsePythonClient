@@ -109,6 +109,7 @@ def _getIdsFromQuery(queryString, syn, downloadLocation):
 @tracer.start_as_current_span("main::get")
 def get(args, syn):
     syn.multi_threaded = args.multiThreaded
+    printed_download_message = False
     if args.recursive:
         if args.version is not None:
             raise ValueError(
@@ -161,13 +162,14 @@ def get(args, syn):
                 and entity.path is not None
                 and os.path.exists(entity.path)
             ):
+                printed_download_message = True
                 syn.logger.info("Downloaded file: %s", os.path.basename(entity.path))
             else:
                 syn.logger.info(
                     "WARNING: No files associated with entity %s\n", entity.id
                 )
                 syn.logger.info(entity)
-        if "path" in entity:
+        if "path" in entity and not printed_download_message:
             syn.logger.info("Creating %s", entity.path)
 
 
