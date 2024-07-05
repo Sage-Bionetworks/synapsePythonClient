@@ -9,6 +9,33 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.4.0 (2024-07-05)
+### Highlights
+- **Downloading files stability improvements:**
+    - The download algorithm has been re-written to focus on stability, reliability,
+    and performance.
+    - [Checkout the results of our benchmarking](./explanations/benchmarking.md#07022024-downloading-files-from-synapse).
+    Compared to v4.3.0 we are seeing a 10-50% decrease in overall transfer time for
+    most test cases.
+- **New Docker containers every release:**
+  - Every production, release candidate, and develop release will create a new docker
+    image available [here](https://github.com/Sage-Bionetworks/synapsePythonClient/pkgs/container/synapsepythonclient)
+- Credentials passed by command line argument will now be evaluated before credentials
+stored in the `~/.synapseConfig` file.
+
+
+### Bug Fixes
+-  \[[SYNPY-1447](https://sagebionetworks.jira.com/browse/SYNPY-1447)\] - `FutureWarning` received with latest pandas version when reading in a Synapse table as a data frame
+
+### Stories
+-  \[[SYNPY-1457](https://sagebionetworks.jira.com/browse/SYNPY-1457)\] - Resolve github build warnings for out-of-date dependencies
+-  \[[SYNPY-1476](https://sagebionetworks.jira.com/browse/SYNPY-1476)\] - Improve stability of Synapse downloads
+-  \[[SYNPY-1479](https://sagebionetworks.jira.com/browse/SYNPY-1479)\] - Create GHCR image for pre-release
+-  \[[SYNPY-1482](https://sagebionetworks.jira.com/browse/SYNPY-1482)\] - Update annotations to use async/await instead of executor
+-  \[[SYNPY-1483](https://sagebionetworks.jira.com/browse/SYNPY-1483)\] - Update credential chain to use user args first
+-  \[[SYNPY-1485](https://sagebionetworks.jira.com/browse/SYNPY-1485)\] - Include isort with pre-commit
+-  \[[SYNPY-1487](https://sagebionetworks.jira.com/browse/SYNPY-1487)\] - Fix missing coverage.xml bug
+
 ## 4.3.0 (2024-05-30)
 ### Highlights
 - **New tutorial:**
