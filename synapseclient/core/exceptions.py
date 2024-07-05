@@ -31,7 +31,11 @@ class SynapseTimeoutError(SynapseError):
 
 
 class SynapseAuthenticationError(SynapseError):
-    """Unauthorized access."""
+    """Authentication errors."""
+
+
+class SynapseAuthorizationError(SynapseError):
+    """Authorization errors."""
 
 
 class SynapseNoCredentialsError(SynapseAuthenticationError):
@@ -62,6 +66,11 @@ class SynapseHTTPError(SynapseError, requests.exceptions.HTTPError):
 
 class SynapseUploadAbortedException(SynapseError):
     """Raised when a worker thread detects the upload was
+    aborted and stops further processing."""
+
+
+class SynapseDownloadAbortedException(SynapseError):
+    """Raised when a worker thread detects the download was
     aborted and stops further processing."""
 
 

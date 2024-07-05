@@ -22,6 +22,7 @@ from synapseclient.core.upload.multipart_upload import (
     multipart_upload_file,
     multipart_upload_string,
 )
+from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
 
 
 @pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
@@ -68,7 +69,7 @@ async def test_single_thread_upload(syn: Synapse):
 
 async def test_randomly_failing_parts(
     syn: Synapse, project: Project, schedule_for_cleanup
-):
+) -> None:
     """Verify that we can recover gracefully with some randomly inserted errors
     while uploading parts."""
 
@@ -81,12 +82,12 @@ async def test_randomly_failing_parts(
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + (MIN_PART_SIZE / 2))
 
     put_count = 0
-    normal_put = requests.Session.put
+    normal_put = syn._requests_session_storage.put
 
-    def _put_chunk_or_fail_randomly(self, url, *args, **kwargs):
+    def _put_chunk_or_fail_randomly(url, *args, **kwargs):
         # fail every nth put to aws s3
         if "s3.amazonaws.com" not in url:
-            return normal_put(self, url, *args, **kwargs)
+            return normal_put(url, *args, **kwargs)
 
         nonlocal put_count
         put_count += 1
@@ -94,13 +95,17 @@ async def test_randomly_failing_parts(
         if (put_count + fail_cycle) % fail_every == 0:
             raise IOError("Ooops! Artificial upload failure for testing.")
 
-        return normal_put(self, url, *args, **kwargs)
+        return normal_put(url, *args, **kwargs)
 
-    with mock.patch(
-        "requests.Session.put", side_effect=_put_chunk_or_fail_randomly, autospec=True
+    with mock.patch.object(
+        syn._requests_session_storage,
+        "put",
+        side_effect=_put_chunk_or_fail_randomly,
     ):
         try:
-            fhid = multipart_upload_file(syn, filepath, part_size=MIN_PART_SIZE)
+            fhid = await multipart_upload_file_async(
+                syn=syn, file_path=filepath, part_size=MIN_PART_SIZE
+            )
 
             # Download the file and compare it with the original
             junk = File(parent=project, dataFileHandleId=fhid)

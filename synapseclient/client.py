@@ -412,6 +412,7 @@ class Synapse(object):
         self._parallel_file_transfer_semaphore = {}
         self._md5_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
+        self._parts_transfered_counter = 0
 
     def _get_requests_session_async_synapse(
         self, asyncio_event_loop: asyncio.AbstractEventLoop
@@ -2480,14 +2481,11 @@ class Synapse(object):
         """
         manifest = self._generate_manifest_from_download_list()
         # Get file handle download link
-        file_result = wrap_async_to_sync(
-            coroutine=get_file_handle_for_download(
-                file_handle_id=manifest["resultFileHandleId"],
-                synapse_id=manifest["resultFileHandleId"],
-                entity_type="FileEntity",
-                synapse_client=self,
-            ),
-            syn=self,
+        file_result = get_file_handle_for_download(
+            file_handle_id=manifest["resultFileHandleId"],
+            synapse_id=manifest["resultFileHandleId"],
+            entity_type="FileEntity",
+            synapse_client=self,
         )
         # Download the manifest
         downloaded_path = self._download_from_URL(

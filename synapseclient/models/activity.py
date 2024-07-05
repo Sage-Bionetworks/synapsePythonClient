@@ -35,6 +35,18 @@ class UsedEntity:
     target_version_number: Optional[int] = None
     """The version number of the entity to which this reference refers."""
 
+    def format_for_manifest(self) -> str:
+        """
+        Format the content of this data class to be written to a manifest file.
+
+        Returns:
+            The formatted string.
+        """
+        return_value = f"{self.target_id}"
+        if self.target_version_number is not None:
+            return_value += f".{self.target_version_number}"
+        return return_value
+
 
 @dataclass
 class UsedURL:
@@ -54,6 +66,20 @@ class UsedURL:
     url: Optional[str] = None
     """The external URL of the file that was used such as a link to a GitHub commit
     or a link to a specific version of a software tool."""
+
+    def format_for_manifest(self) -> str:
+        """
+        Format the content of this data class to be written to a manifest file.
+
+        Returns:
+            The formatted string.
+        """
+        if self.name:
+            return_value = self.name
+        else:
+            return_value = self.url
+
+        return return_value
 
 
 class UsedAndExecutedSynapseActivities(NamedTuple):
@@ -142,6 +168,8 @@ class Activity(ActivitySynchronousProtocol):
         Returns:
             The Activity object.
         """
+        if not synapse_activity:
+            synapse_activity = {}
         self.id = synapse_activity.get("id", None)
         self.name = synapse_activity.get("name", None)
         self.description = synapse_activity.get("description", None)
@@ -234,6 +262,7 @@ class Activity(ActivitySynchronousProtocol):
     async def store_async(
         self,
         parent: Optional[Union["Table", "File"]] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Activity":
         """
@@ -309,6 +338,7 @@ class Activity(ActivitySynchronousProtocol):
     async def from_parent_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Union["Activity", None]:
         """
@@ -349,12 +379,16 @@ class Activity(ActivitySynchronousProtocol):
                     return None
                 else:
                     raise ex
-            return cls().fill_from_dict(synapse_activity=synapse_activity)
+            if synapse_activity:
+                return cls().fill_from_dict(synapse_activity=synapse_activity)
+            else:
+                return None
 
     @classmethod
     async def delete_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
@@ -396,6 +430,7 @@ class Activity(ActivitySynchronousProtocol):
     async def disassociate_from_entity_async(
         cls,
         parent: Union["Table", "File"],
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """

@@ -1,3 +1,7 @@
+---
+hide:
+- toc
+---
 # Benchmarking
 
 Periodically we will be publishing results of benchmarking the Synapse Python Client
@@ -7,8 +11,38 @@ will give us a way to measure the impact of changes to the client.
 
 ## Results
 
+
+### 07/02/2024: Downloading files from Synapse
+These benchmarking results were collected due to the following changes:
+
+- The download algorithm for the client was re-written to focus on error handling and
+handling of multi-threaded downloads orchestrated by AsyncIO.
+- The `synapseutils.syncFromSynapse()` function was refactored to use this new logic
+
+The results were created on a `t3a.micro` EC2 instance with a 200GB disk size running
+in us-east-1. The script that was run can be found in `docs/scripts/downloadBenchmark.py`.
+
+Average transfer time result:
+
+* <= 100 MiB per file: <p style="color:green;">8% Decrease</p>
+* \>= 1 GiB per file: <p style="color:green;">31% Decrease</p>
+
+| Test                | Total Transfer Size | v4.4.0 .syncFromSynapse()                      | v4.3.0 .syncFromSynapse() | v4.4.0 .Get()                                  | v4.3.0 .Get() |
+|---------------------|---------------------|------------------------------------------------|---------------------------|------------------------------------------------|---------------|
+| 10 File/10GiB ea    | 100GiB              | 1910s <p style="color:green;">39% Decrease</p> | 3155s                     | 2186s <p style="color:green;">26% Decrease</p> | 2958s         |
+| 1 File/10GiB ea     | 10GiB               | 229s <p style="color:green;">21% Decrease</p>  | 289s                      | 214s <p style="color:green;">31% Decrease</p>  | 308s          |
+| 10 File/1GiB ea     | 10GiB               | 174s <p style="color:green;">47% Decrease</p>  | 330s                      | 224s <p style="color:green;">24% Decrease</p>  | 295s          |
+| 100 File/100 MiB ea | 10GiB               | 161s <p style="color:red;">3% Increase</p>     | 156s                      | 228s <p style="color:green;">13% Decrease</p>  | 262s          |
+| 10 File/100 MiB ea  | 1GiB                | 15s <p style="color:green;">12% Decrease</p>   | 17s                       | 24s <p style="color:green;">11% Decrease</p>   | 27s           |
+| 100 File/10 MiB ea  | 1GiB                | 24s <p style="color:green;">14% Decrease</p>   | 28s                       | 69s <p style="color:green;">9% Decrease</p>    | 76s           |
+| 1000 File/1 MiB ea  | 1GiB                | 98s <p style="color:green;">8% Decrease</p>    | 106s                      | 309s <p style="color:green;">1% Decrease</p>   | 312s          |
+
+* [.syncFromSynapse() documentation][synapseutils.syncFromSynapse]
+* [.Get() documentation][synapseclient.Synapse.get]
+
 ### 05/10/2024: Uploading files to Synapse
 These benchmarking results were collected due to the following changes:
+
 - The upload algorithm for the Synapseutils `syncToSynapse` being re-written to take
 advantage of the new AsyncIO upload algorithm for individual files.
 - An updated limit on concurrent file transfers to match `max_threads * 2`

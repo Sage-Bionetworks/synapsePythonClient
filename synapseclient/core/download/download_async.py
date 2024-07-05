@@ -5,72 +5,42 @@ try:
 except ImportError:
     import dummy_threading as _threading
 
-import concurrent.futures
+import asyncio
 import datetime
+import gc
 import os
-import time
-from contextlib import contextmanager
+from dataclasses import dataclass
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Generator, NamedTuple
+from typing import TYPE_CHECKING, Generator, NamedTuple, Optional, Set, Tuple, Union
 from urllib.parse import parse_qs, urlparse
 
-from deprecated import deprecated
-from requests import Response, Session
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+import httpx
+from opentelemetry import context
+from opentelemetry.context import Context
 
-from synapseclient.api import get_file_handle_for_download
-from synapseclient.core.async_utils import wrap_async_to_sync
-from synapseclient.core.exceptions import SynapseError, _raise_for_status
-from synapseclient.core.pool_provider import get_executor
+from synapseclient.api.file_services import (
+    get_file_handle_for_download,
+    get_file_handle_for_download_async,
+)
+from synapseclient.core.exceptions import (
+    SynapseDownloadAbortedException,
+    _raise_for_status_httpx,
+)
 from synapseclient.core.retry import (
+    DEFAULT_MAX_BACK_OFF_ASYNC,
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
-    with_retry,
+    with_retry_time_based,
 )
+from synapseclient.core.transfer_bar import get_or_create_download_progress_bar
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
 # constants
-MAX_QUEUE_SIZE: int = 20
 MiB: int = 2**20
 SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
 ISO_AWS_STR_FORMAT: str = "%Y%m%dT%H%M%SZ"
-CONNECT_FACTOR: int = 3
-BACK_OFF_FACTOR: float = 0.5
-
-
-_thread_local = _threading.local()
-
-
-@contextmanager
-@deprecated(
-    version="4.4.0",
-    reason="To be removed ASAP - Left for testing purposes only",
-)
-def shared_executor(executor):
-    """An outside process that will eventually trigger a download through the this module
-    can configure a shared Executor by running its code within this context manager."""
-    _thread_local.executor = executor
-    try:
-        yield
-    finally:
-        del _thread_local.executor
-
-
-@contextmanager
-def shared_progress_bar(progress_bar):
-    """An outside process that will eventually trigger an upload through this module
-    can configure a shared Progress Bar by running its code within this context manager.
-    """
-    _thread_local.progress_bar = progress_bar
-    try:
-        yield
-    finally:
-        _thread_local.progress_bar.close()
-        _thread_local.progress_bar.refresh()
-        del _thread_local.progress_bar
 
 
 class DownloadRequest(NamedTuple):
@@ -86,40 +56,31 @@ class DownloadRequest(NamedTuple):
             This path can be either an absolute path or
             a relative path from where the code is executed to the download location.
         debug: A boolean to specify if debug mode is on.
-        content_size: The size of the file to download.
     """
 
     file_handle_id: int
     object_id: str
     object_type: str
     path: str
-    content_size: int = 0
     debug: bool = False
 
 
-class TransferStatus(object):
+async def download_file(
+    client: "Synapse",
+    download_request: DownloadRequest,
+) -> None:
     """
-    Transfer progress parameters. Lock should be acquired via `with trasfer_status:` before accessing attributes
+    Main driver for the multi-threaded download. Users an ExecutorService,
+    either set externally onto a thread local by an outside process,
+    or creating one as needed otherwise.
 
-    Attributes:
-        total_bytes_to_be_transferred: int
-        transferred: int
+    Arguments:
+        client: A synapseclient
+        download_request: A batch of DownloadRequest objects specifying what
+                            Synapse files to download
     """
-
-    total_bytes_to_be_transferred: int
-    transferred: int
-
-    def __init__(self, total_bytes_to_be_transferred: int):
-        self.total_bytes_to_be_transferred = total_bytes_to_be_transferred
-        self.transferred = 0
-        self._t0 = time.time()
-
-    def elapsed_time(self) -> float:
-        """
-        Returns:
-            Time since this object was created (assuming same time as transfer started)
-        """
-        return time.time() - self._t0
+    downloader = _MultithreadedDownloader(syn=client, download_request=download_request)
+    await downloader.download_file()
 
 
 class PresignedUrlInfo(NamedTuple):
@@ -137,27 +98,51 @@ class PresignedUrlInfo(NamedTuple):
     expiration_utc: datetime.datetime
 
 
-class PresignedUrlProvider(object):
+@dataclass
+class PresignedUrlProvider:
     """
     Provides an un-exipired pre-signed url to download a file
     """
 
+    client: "Synapse"
     request: DownloadRequest
-    _cached_info: PresignedUrlInfo
+    _lock: _threading.Lock = _threading.Lock()
+    _cached_info: Optional[PresignedUrlInfo] = None
 
     # offset parameter used to buffer url expiration checks, time in seconds
     _TIME_BUFFER: datetime.timedelta = datetime.timedelta(seconds=5)
 
-    def __init__(self, client, request: DownloadRequest):
-        self.client = client
-        self.request: DownloadRequest = request
-        self._cached_info: PresignedUrlInfo = self._get_pre_signed_info()
-        self._lock = _threading.Lock()
+    async def get_info_async(self) -> PresignedUrlInfo:
+        """
+        Using async, returns the cached info if it's not expired, otherwise
+        retrieves a new pre-signed url and returns that.
+
+        Returns:
+            Information about a retrieved presigned-url from either the cache or a
+            new request
+        """
+        if not self._cached_info or (
+            datetime.datetime.now(tz=datetime.timezone.utc)
+            + PresignedUrlProvider._TIME_BUFFER
+            >= self._cached_info.expiration_utc
+        ):
+            self._cached_info = await self._get_pre_signed_info_async()
+
+        return self._cached_info
 
     def get_info(self) -> PresignedUrlInfo:
+        """
+        Using a thread lock, returns the cached info if it's not expired, otherwise
+        retrieves a new pre-signed url and returns that.
+
+        Returns:
+            Information about a retrieved presigned-url from either the cache or a
+            new request
+        """
         with self._lock:
-            if (
-                datetime.datetime.utcnow() + PresignedUrlProvider._TIME_BUFFER
+            if not self._cached_info or (
+                datetime.datetime.now(tz=datetime.timezone.utc)
+                + PresignedUrlProvider._TIME_BUFFER
                 >= self._cached_info.expiration_utc
             ):
                 self._cached_info = self._get_pre_signed_info()
@@ -166,19 +151,37 @@ class PresignedUrlProvider(object):
 
     def _get_pre_signed_info(self) -> PresignedUrlInfo:
         """
-        Returns the file_name and pre-signed url for download as specified in request
+        Make an HTTP request to get a pre-signed url to download a file.
 
         Returns:
-            PresignedUrlInfo
+            Information about a retrieved presigned-url from a new request.
         """
-        response = wrap_async_to_sync(
-            coroutine=get_file_handle_for_download(
-                file_handle_id=self.request.file_handle_id,
-                synapse_id=self.request.object_id,
-                entity_type=self.request.object_type,
-                synapse_client=self.client,
-            ),
-            syn=self.client,
+        response = get_file_handle_for_download(
+            file_handle_id=self.request.file_handle_id,
+            synapse_id=self.request.object_id,
+            entity_type=self.request.object_type,
+            synapse_client=self.client,
+        )
+        file_name = response["fileHandle"]["fileName"]
+        pre_signed_url = response["preSignedURL"]
+        return PresignedUrlInfo(
+            file_name=file_name,
+            url=pre_signed_url,
+            expiration_utc=_pre_signed_url_expiration_time(pre_signed_url),
+        )
+
+    async def _get_pre_signed_info_async(self) -> PresignedUrlInfo:
+        """
+        Make an HTTP request to get a pre-signed url to download a file.
+
+        Returns:
+            Information about a retrieved presigned-url from a new request.
+        """
+        response = await get_file_handle_for_download_async(
+            file_handle_id=self.request.file_handle_id,
+            synapse_id=self.request.object_id,
+            entity_type=self.request.object_type,
+            synapse_client=self.client,
         )
         file_name = response["fileHandle"]["fileName"]
         pre_signed_url = response["preSignedURL"]
@@ -191,7 +194,7 @@ class PresignedUrlProvider(object):
 
 def _generate_chunk_ranges(
     file_size: int,
-) -> Generator:
+) -> Generator[Tuple[int, int], None, None]:
     """
     Creates a generator which yields byte ranges and meta data required
     to make a range request download of url and write the data to file_name
@@ -220,104 +223,59 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     Returns:
         A datetime in UTC of when the url will expire
     """
-    parsed_query: dict = parse_qs(urlparse(url).query)
-    time_made: str = parsed_query["X-Amz-Date"][0]
-    time_made_datetime: datetime.datetime = datetime.datetime.strptime(
-        time_made, ISO_AWS_STR_FORMAT
-    )
-    expires: str = parsed_query["X-Amz-Expires"][0]
-    return time_made_datetime + datetime.timedelta(seconds=int(expires))
+    parsed_query = parse_qs(urlparse(url).query)
+    time_made = parsed_query["X-Amz-Date"][0]
+    time_made_datetime = datetime.datetime.strptime(time_made, ISO_AWS_STR_FORMAT)
+    expires = parsed_query["X-Amz-Expires"][0]
+    return_data = (
+        time_made_datetime + datetime.timedelta(seconds=int(expires))
+    ).replace(tzinfo=datetime.timezone.utc)
+    return return_data
 
 
-def _get_new_session() -> Session:
-    """
-    Creates a new requests.Session object with retry defined by CONNECT_FACTOR and BACK_OFF_FACTOR
-
-    Returns:
-        A new requests.Session object
-    """
-    session = Session()
-    retry = Retry(connect=CONNECT_FACTOR, backoff_factor=BACK_OFF_FACTOR)
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session
-
-
-def _get_file_size(url: str, debug: bool) -> int:
+async def _get_file_size_wrapper(syn: "Synapse", url: str, debug: bool) -> int:
     """
     Gets the size of the file located at url
 
     Arguments:
+        syn: The synapseclient
         url: The pre-signed url of the file
         debug: A boolean to specify if debug mode is on
 
     Returns:
         The size of the file in bytes
     """
-    session = _get_new_session()
-    res_get = session.get(url, stream=True)
-    _raise_for_status(res_get, verbose=debug)
-    return int(res_get.headers["Content-Length"])
+    loop = asyncio.get_running_loop()
+    otel_context = context.get_current()
+    return await loop.run_in_executor(
+        syn._get_thread_pool_executor(asyncio_event_loop=loop),
+        _get_file_size,
+        syn,
+        url,
+        debug,
+        otel_context,
+    )
 
 
-def download_file(
-    client: "Synapse",
-    download_request: DownloadRequest,
-    *,
-    max_concurrent_parts: int = None,
-) -> None:
+def _get_file_size(
+    syn: "Synapse", url: str, debug: bool, otel_context: context.Context = None
+) -> int:
     """
-    Main driver for the multi-threaded download. Users an ExecutorService,
-    either set externally onto a thread local by an outside process,
-    or creating one as needed otherwise.
+    Gets the size of the file located at url
 
     Arguments:
-        client: A synapseclient
-        download_request: A batch of DownloadRequest objects specifying what
-                            Synapse files to download
-        max_concurrent_parts: The maximum concurrent number parts to download
-                                at once when downloading this file
+        url: The pre-signed url of the file
+        debug: A boolean to specify if debug mode is on
+        otel_context: The OpenTelemetry context
+
+    Returns:
+        The size of the file in bytes
     """
-    # progress_bar = getattr(_thread_local, "progress_bar", None) or tqdm(
-    #     total=download_request,
-    #     desc="Downloading",
-    #     unit="B",
-    #     unit_scale=True,
-    #     postfix=download_request.object_id,
-    #     smoothing=0,
-    # )
-
-    # we obtain an executor from a thread local if we are in the context of a Synapse sync
-    # and wan't to re-use the same threadpool as was created for that
-    executor = getattr(_thread_local, "executor", None)
-    shutdown_after = False
-    if not executor:
-        shutdown_after = True
-        executor = get_executor(client.max_threads)
-
-    max_concurrent_parts = max_concurrent_parts or client.max_threads
-    try:
-        downloader = _MultithreadedDownloader(client, executor, max_concurrent_parts)
-        downloader.download_file(download_request)
-    finally:
-        # if we created the Executor for the purposes of processing this download we also
-        # shut it down. if it was passed in from the outside then it's managed by the caller
-        if shutdown_after:
-            executor.shutdown()
-
-
-def _get_thread_session():
-    # get a lazily initialized requests.Session from the thread.
-    # we want to share a requests.Session over the course of a thread
-    # to take advantage of persistent http connection. we put it on a
-    # thread local since Sessions are not thread safe so we need one per
-    # active thread and since we're allowing the use of an externally provided
-    # ExecutorService we don't can't really allocate a pool of Sessions ourselves
-    session = getattr(_thread_local, "session", None)
-    if not session:
-        session = _thread_local.session = _get_new_session()
-    return session
+    if otel_context:
+        context.attach(otel_context)
+    with syn._requests_session_storage.stream("GET", url) as response:
+        _raise_for_status_httpx(response=response, logger=syn.logger, verbose=debug)
+        return int(response.headers["Content-Length"])
 
 
 class _MultithreadedDownloader:
@@ -326,7 +284,11 @@ class _MultithreadedDownloader:
     from a URL that supports range headers.
     """
 
-    def __init__(self, syn, executor, max_concurrent_parts):
+    def __init__(
+        self,
+        syn: "Synapse",
+        download_request: DownloadRequest,
+    ) -> None:
         """
         Initializes the class
 
@@ -334,161 +296,250 @@ class _MultithreadedDownloader:
             syn: A synapseclient
             executor: An ExecutorService that will be used to run part downloads
                          in separate threads
-            max_concurrent_parts: An integer to specify the maximum number of
-                                    concurrent parts that can be downloaded at once.
-                                    If there are more parts than can be run concurrently
-                                    they will be scheduled in the executor when previously
-                                    running part downloads complete.
         """
         self._syn = syn
-        self._executor = executor
-        self._max_concurrent_parts = max_concurrent_parts
+        self._thread_lock = _threading.Lock()
+        self._aborted = False
+        self._download_request = download_request
+        self._progress_bar = None
 
-    def download_file(self, request: DownloadRequest) -> None:
+    async def download_file(self) -> None:
         """
         Splits up and downloads a file in chunks from a URL.
+        """
+        url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
+
+        url_info = await url_provider.get_info_async()
+        file_size = await _get_file_size_wrapper(
+            syn=self._syn, url=url_info.url, debug=self._download_request.debug
+        )
+        self._progress_bar = get_or_create_download_progress_bar(
+            file_size=file_size, postfix=self._download_request.object_id
+        )
+        self._prep_file()
+
+        # Create AsyncIO tasks to download each of the parts according to chunk size
+        download_tasks = self._generate_stream_and_write_chunk_tasks(
+            url_provider=url_provider,
+            chunk_range_generator=_generate_chunk_ranges(file_size),
+        )
+        await self._execute_download_tasks(download_tasks=download_tasks)
+
+    async def _execute_download_tasks(self, download_tasks: Set[asyncio.Task]) -> None:
+        """Handle the execution of the download tasks.
 
         Arguments:
             request: A DownloadRequest object specifying what Synapse file to download.
+            download_tasks: A set of asyncio tasks to download the file in chunks.
+
+        Returns:
+            None
         """
-        url_provider = PresignedUrlProvider(self._syn, request=request)
-
-        url_info = url_provider.get_info()
-        file_size = _get_file_size(url_info.url, request.debug)
-        chunk_range_generator = _generate_chunk_ranges(file_size)
-
-        self._prep_file(request)
-
-        transfer_status = TransferStatus(file_size)
-
-        # the entrant thread runs in a loop doing the following:
-        # 1. scheduling any additional part downloads as previous parts are completed
-        # 2. writing any completed parts out to the local disk
-        # 3. waiting for additional parts to complete
-        pending_futures = set()
-        completed_futures = set()
-        try:
-            while True:
-                submitted_futures = self._submit_chunks(
-                    url_provider,
-                    chunk_range_generator,
-                    pending_futures,
-                )
-
-                self._write_chunks(request, completed_futures, transfer_status)
-
-                # once there is nothing else pending we are done with the file download
-                pending_futures = pending_futures.union(submitted_futures)
-                if not pending_futures:
-                    break
-
-                completed_futures, pending_futures = concurrent.futures.wait(
-                    pending_futures, return_when=concurrent.futures.FIRST_COMPLETED
-                )
-
-                self._check_for_errors(request, completed_futures)
-
-        except BaseException:
-            # on any exception (e.g. KeyboardInterrupt), attempt to cancel any pending futures.
-            # if they are already running this won't have any effect though
-            for future in pending_futures:
-                future.cancel()
-
-            try:
-                os.remove(request.path)
-            except FileNotFoundError:
-                pass
-
-            raise
-
-    @staticmethod
-    def _get_response_with_retry(
-        presigned_url_provider, start: int, end: int
-    ) -> Response:
-        session = _get_thread_session()
-        range_header = {"Range": f"bytes={start}-{end}"}
-
-        def session_get():
-            return session.get(
-                presigned_url_provider.get_info().url, headers=range_header
-            )
-
-        response = None
         cause = None
-        try:
-            # currently when doing a range request to AWS we retry on anything other than a 206.
-            # this seems a bit excessive (i.e. some 400 statuses would suggest a non-retryable condition)
-            # but for now matching previous behavior.
-            response = with_retry(
-                session_get,
-                expected_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
-                retry_errors=RETRYABLE_CONNECTION_ERRORS,
-                retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS,
+        while download_tasks:
+            done_tasks, pending_tasks = await asyncio.wait(
+                download_tasks, return_when=asyncio.FIRST_COMPLETED
             )
-        except Exception as ex:
-            cause = ex
+            download_tasks = pending_tasks
+            for completed_task in done_tasks:
+                try:
+                    start_bytes, end_bytes = completed_task.result()
+                    del completed_task
+                    self._syn._parts_transfered_counter += 1
 
-        if not response or response.status_code != HTTPStatus.PARTIAL_CONTENT:
-            raise SynapseError(
-                f"Could not download the file: {presigned_url_provider.get_info().file_name},"
-                f" please try again."
-            ) from cause
+                    # Garbage collect every 100 iterations
+                    if self._syn._parts_transfered_counter % 100 == 0:
+                        gc.collect()
 
-        return start, response
+                    # self._syn.logger.debug(
+                    #     f"Downloaded bytes {start_bytes}-{end_bytes} to {self._download_request.path}"
+                    # )
+                except BaseException as ex:
+                    # on any exception (e.g. KeyboardInterrupt), attempt to cancel any pending futures.
+                    # if they are already running this won't have any effect though
+                    cause = ex
 
-    @staticmethod
-    def _prep_file(request):
-        # upon receiving the parts of the file we'll open the file
-        # and write the specific byte ranges, but to open it in
-        # r+ mode we need to to exist and be empty
-        open(request.path, "wb").close()
+                    with self._thread_lock:
+                        if self._aborted:
+                            # we've already aborted, no need to execute this logic again
+                            continue
+                        self._aborted = True
 
-    def _submit_chunks(self, url_provider, chunk_range_generator, pending_futures):
-        submit_count = self._max_concurrent_parts - len(pending_futures)
-        submitted_futures = set()
+                    try:
+                        self._syn.logger.exception(
+                            f"Failed downloading {self._download_request.object_id} to {self._download_request.path}"
+                        )
+                        os.remove(self._download_request.path)
+                    except FileNotFoundError:
+                        pass
 
+        if cause:
+            raise cause
+
+    def _update_progress_bar(self, part_size: int) -> None:
+        """Update the progress bar with the given part size."""
+        if self._syn.silent or not self._progress_bar:
+            return
+        self._progress_bar.update(part_size)
+
+    def _generate_stream_and_write_chunk_tasks(
+        self,
+        url_provider: PresignedUrlProvider,
+        chunk_range_generator: Generator[Tuple[int, int], None, None],
+    ) -> Set[asyncio.Task]:
+        download_tasks = set()
+        session = self._syn._requests_session_storage
         for chunk_range in chunk_range_generator:
             start, end = chunk_range
-            chunk_future = self._executor.submit(
-                self._get_response_with_retry,
-                url_provider,
-                start,
-                end,
-            )
-            submitted_futures.add(chunk_future)
 
-            if len(submitted_futures) == submit_count:
-                break
-
-        return submitted_futures
-
-    def _write_chunks(self, request, completed_futures, transfer_status):
-        if completed_futures:
-            with open(request.path, "rb+") as file_write:
-                for chunk_future in completed_futures:
-                    start, chunk_response = chunk_future.result()
-                    chunk_data = chunk_response.content
-                    file_write.seek(start)
-                    file_write.write(chunk_response.content)
-
-                    transfer_status.transferred += len(chunk_data)
-                    self._syn._print_transfer_progress(
-                        transfer_status.transferred,
-                        transfer_status.total_bytes_to_be_transferred,
-                        "Downloading ",
-                        os.path.basename(request.path),
-                        dt=transfer_status.elapsed_time(),
+            download_tasks.add(
+                asyncio.create_task(
+                    self._stream_and_write_chunk_wrapper(
+                        session=session,
+                        url_provider=url_provider,
+                        start=start,
+                        end=end,
                     )
+                )
+            )
 
-    @staticmethod
-    def _check_for_errors(request, completed_futures):
-        # if any submitted part download failed we abort the download.
-        # any retry/recovery should be attempted within the download method
-        # submitted to the Executor, if an Exception was flagged on the Future
-        # we consider it unrecoverable
-        for completed_future in completed_futures:
-            exception = completed_future.exception()
-            if exception:
-                raise ValueError(
-                    f"Failed downloading {request.object_id} to {request.path}"
-                ) from exception
+        return download_tasks
+
+    async def _stream_and_write_chunk_wrapper(
+        self,
+        session: httpx.Client,
+        url_provider: PresignedUrlProvider,
+        start: int,
+        end: int,
+    ) -> Tuple[int, int]:
+        loop = asyncio.get_running_loop()
+        otel_context = context.get_current()
+        return await loop.run_in_executor(
+            self._syn._get_thread_pool_executor(asyncio_event_loop=loop),
+            self._stream_and_write_chunk,
+            session,
+            url_provider,
+            start,
+            end,
+            otel_context,
+        )
+
+    def _check_for_abort(self, start: int, end: int) -> None:
+        """Check if the download has been aborted and raise an exception if so."""
+        with self._thread_lock:
+            if self._aborted:
+                raise SynapseDownloadAbortedException(
+                    f"Download aborted, skipping bytes {start}-{end}"
+                )
+
+    def _stream_and_write_chunk(
+        self,
+        session: httpx.Client,
+        presigned_url_provider: PresignedUrlProvider,
+        start: int,
+        end: int,
+        otel_context: Union[Context, None],
+    ) -> Tuple[int, int]:
+        """
+        Wrapper around the actual download logic to handle retries and range requests.
+
+        Arguments:
+            session: An httpx.Client
+            presigned_url_provider: A URL provider for the presigned urls
+            start: The start byte of the range to download
+            end: The end byte of the range to download
+            otel_context: The OpenTelemetry context if known, else None
+
+        Returns:
+            The start and end bytes of the range downloaded
+        """
+        if otel_context:
+            context.attach(otel_context)
+        self._check_for_abort(start=start, end=end)
+        range_header = {"Range": f"bytes={start}-{end}"}
+
+        # currently when doing a range request to AWS we retry on anything other than a 206.
+        # this seems a bit excessive (i.e. some 400 statuses would suggest a non-retryable condition)
+        # but for now matching previous behavior.
+        end = with_retry_time_based(
+            lambda: _execute_stream_and_write_chunk(
+                session=session,
+                request=self,
+                presigned_url_provider=presigned_url_provider,
+                range_header=range_header,
+                start=start,
+            ),
+            expected_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
+            retry_errors=RETRYABLE_CONNECTION_ERRORS,
+            retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS,
+            retry_max_back_off=DEFAULT_MAX_BACK_OFF_ASYNC,
+        )
+
+        return start, end
+
+    def _prep_file(self) -> None:
+        """
+        Upon receiving the parts of the file we'll open the file and write the specific
+        byte ranges, but to open it in r+ mode we need it to exist and be empty.
+        """
+        open(self._download_request.path, "wb").close()
+
+    def _write_chunk(
+        self, request: DownloadRequest, chunk: bytes, start: int, length: int
+    ) -> None:
+        """Open the file and write the chunk to the specified byte range. Also update
+        the progress bar.
+
+        Arguments:
+            request: A DownloadRequest object specifying what Synapse file to download
+            chunk: The chunk of data to write to the file
+            start: The start byte of the range to download
+            length: The length of the chunk
+
+        Returns:
+            None
+        """
+        with self._thread_lock:
+            with open(request.path, "rb+") as file_write:
+                file_write.seek(start)
+                file_write.write(chunk)
+                self._update_progress_bar(part_size=length)
+
+
+def _execute_stream_and_write_chunk(
+    session: httpx.Client,
+    request: _MultithreadedDownloader,
+    presigned_url_provider: PresignedUrlProvider,
+    range_header: httpx.Headers,
+    start: int,
+) -> int:
+    """
+    Coordinates the streaming of a chunk of data from a presigned url and writing it to
+    a file.
+
+    Arguments:
+        session: An httpx.Client
+        request: The request object for the download
+        presigned_url_provider: A URL provider for the presigned urls
+        range_header: The range of bytes to download
+        start: The start byte of the range to download
+
+    Returns:
+        The end byte of the range downloaded
+    """
+    additional_offset = 0
+    with session.stream(
+        method="GET", url=presigned_url_provider.get_info().url, headers=range_header
+    ) as response:
+        _raise_for_status_httpx(response=response, logger=request._syn.logger)
+        data = response.read()
+        data_length = len(data)
+        request._write_chunk(
+            request=request._download_request,
+            chunk=data,
+            start=start + additional_offset,
+            length=data_length,
+        )
+        additional_offset = data_length
+    del data
+    return start + additional_offset

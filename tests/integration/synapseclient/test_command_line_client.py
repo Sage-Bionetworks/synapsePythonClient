@@ -1,3 +1,5 @@
+"""Integration tests for the CLI."""
+import asyncio
 import filecmp
 import json
 import logging
@@ -129,7 +131,7 @@ async def test_command_line_client(test_state):
 
     # Get File from the command line
     output = run(test_state, "synapse", "--skip-checks", "get", file_entity_id)
-    downloaded_filename = parse(r"Downloaded file:\s+(.*)", output)
+    downloaded_filename = output.split("/")[-1].strip()
     test_state.schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
@@ -149,7 +151,7 @@ async def test_command_line_client(test_state):
 
     # Get the File again
     output = run(test_state, "synapse", "--skip-checks", "get", file_entity_id)
-    downloaded_filename = parse(r"Downloaded file:\s+(.*)", output)
+    downloaded_filename = output.split("/")[-1].strip()
     test_state.schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
@@ -256,7 +258,7 @@ async def test_command_line_client(test_state):
     )
 
     output = run(test_state, "synapse", "--skip-checks", "get", exteral_entity_id)
-    downloaded_filename = parse(r"Downloaded file:\s+(.*)", output)
+    downloaded_filename = output.split("/")[-1].strip()
     test_state.schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
 
@@ -598,7 +600,7 @@ async def test_command_get_recursive_and_query(test_state):
 
     # get -r uses syncFromSynapse() which uses getChildren(), which is not immediately consistent,
     # but faster than chunked queries.
-    time.sleep(2)
+    await asyncio.sleep(2)
     # Test recursive get
     run(test_state, "synapse" "--skip-checks", "get", "-r", folder_entity.id)
     # Verify that we downloaded files:
@@ -630,7 +632,7 @@ async def test_command_get_recursive_and_query(test_state):
 
     test_state.syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data1]))
 
-    time.sleep(3)  # get -q are eventually consistent
+    await asyncio.sleep(3)  # get -q are eventually consistent
     # Test Table/View query get
     run(
         test_state,
@@ -881,6 +883,8 @@ async def test_table_query(test_state):
     )
 
     output_rows = output.rstrip("\n").split("\n")
+    if output_rows[0] and output_rows[0].startswith(f"Downloaded {schema1.id} to"):
+        output_rows = output_rows[1:]
 
     # Check the length of the output
     assert len(output_rows) == 5, "got %s rows" % (len(output_rows),)

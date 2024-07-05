@@ -1,36 +1,38 @@
 """This module is responsible for holding sync to/from synapse utility functions."""
+
 import ast
 import asyncio
-import concurrent.futures
 import csv
 import datetime
 import io
 import os
 import re
 import sys
-import threading
-from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, NamedTuple, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, NamedTuple, Tuple, Union
 
+from deprecated import deprecated
 from tqdm import tqdm
 
 from synapseclient import File as SynapseFile
+from synapseclient import Folder as SynapseFolder
+from synapseclient import Project as SynapseProject
 from synapseclient import Synapse, table
-from synapseclient.core import config, utils
+from synapseclient.api import get_entity, get_entity_id_bundle2
+from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
-from synapseclient.core.cumulative_transfer_progress import CumulativeTransferProgress
+from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import (
     SynapseError,
     SynapseFileNotFoundError,
     SynapseHTTPError,
+    SynapseNotFoundError,
     SynapseProvenanceError,
 )
-from synapseclient.core.multithread_download.download_threads import (
-    shared_executor as download_shared_executor,
+from synapseclient.core.transfer_bar import shared_download_progress_bar
+from synapseclient.core.upload.multipart_upload_async import (
+    shared_progress_bar as upload_shared_progress_bar,
 )
-from synapseclient.core.pool_provider import SingleThreadExecutor
-from synapseclient.core.upload.multipart_upload_async import shared_progress_bar
 from synapseclient.core.utils import (
     bool_or_none,
     datetime_or_none,
@@ -43,6 +45,9 @@ from synapseclient.entity import is_container
 from synapseclient.models import Activity, File, UsedEntity, UsedURL
 
 from .monitor import notify_me_async
+
+if TYPE_CHECKING:
+    from synapseclient.models import Folder, Project
 
 # When new fields are added to the manifest they will also need to be added to
 # file.py#_determine_fields_to_ignore_in_merge
@@ -71,30 +76,15 @@ SINGLE_CLOSING_BRACKET_PATTERN = re.compile(r"\]$")
 COMMAS_OUTSIDE_DOUBLE_QUOTES_PATTERN = re.compile(r",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
 
 
-@contextmanager
-def _sync_executor(syn):
-    """Use this context manager to run some sync code with an executor that will
-    be created and then shutdown once the context completes."""
-    if syn.max_threads < 2 or config.single_threaded:
-        executor = SingleThreadExecutor()
-    else:
-        executor = concurrent.futures.ThreadPoolExecutor(syn.max_threads)
-
-    try:
-        yield executor
-    finally:
-        executor.shutdown()
-
-
 def syncFromSynapse(
-    syn,
-    entity,
-    path=None,
-    ifcollision="overwrite.local",
+    syn: Synapse,
+    entity: Union[str, SynapseFile, SynapseProject, SynapseFolder],
+    path: str = None,
+    ifcollision: str = "overwrite.local",
     allFiles=None,
-    followLink=False,
-    manifest="all",
-    downloadFile=True,
+    followLink: bool = False,
+    manifest: str = "all",
+    downloadFile: bool = True,
 ):
     """Synchronizes a File entity, or a Folder entity, meaning all the files in a folder
     (including subfolders) from Synapse, and adds a readme manifest with file metadata.
@@ -123,17 +113,21 @@ def syncFromSynapse(
         entity: A Synapse ID, a Synapse Entity object of type file, folder or
                 project.
         path: An optional path where the file hierarchy will be reproduced. If not
-              specified the files will by default be placed in the synapseCache.
+            specified the files will by default be placed in the synapseCache. A path
+            is required in order to create a manifest file. A manifest is TSV file
+            that is automatically created that contains metadata (annotations, storage
+            location and provenance) of all downloaded files. If no files were
+            downloaded, no manifest file will be created.
         ifcollision: Determines how to handle file collisions. Maybe
                      "overwrite.local", "keep.local", or "keep.both".
+        allFiles: Deprecated and not to be used. This will be removed in v5.0.0.
         followLink: Determines whether the link returns the target Entity.
         manifest: Determines whether creating manifest file automatically. The
                   optional values here (`all`, `root`, `suppress`).
         downloadFile: Determines whether downloading the files.
 
     Returns:
-        List of entities ([files][synapseclient.File],
-            [tables][synapseclient.Table], [links][synapseclient.Link])
+        List of [files][synapseclient.File]
 
 
     When entity is a Project or Folder, this function will crawl all subfolders
@@ -174,337 +168,174 @@ def syncFromSynapse(
     # 3. downloads that support S3 multipart concurrent downloads will be scheduled
     #    by the thread in #2 and have
     #    their parts downloaded in additional threads in the same Executor
-    # To support multipart downloads in #3 using the same Executor as the download
-    # thread #2, we need at least 2 threads always, if those aren't available then
-    # we'll run single threaded to avoid a deadlock.
-    with _sync_executor(syn) as executor:
-        sync_from_synapse = _SyncDownloader(syn, executor)
-        files = sync_from_synapse.sync(
-            entity, path, ifcollision, followLink, downloadFile, manifest
+
+    with shared_download_progress_bar(file_size=1, synapse_client=syn):
+        root_entity = wrap_async_to_sync(
+            coroutine=_sync(
+                syn=syn,
+                entity=entity,
+                path=path,
+                if_collision=ifcollision,
+                follow_link=followLink,
+                download_file=downloadFile,
+                manifest=manifest,
+            ),
+            syn=syn,
         )
+
+    files = []
+
+    from synapseclient.models import Folder, Project
+
+    # Handle the creation of a manifest TSV file. The way that this works is that
+    # a manifest is created for each directory level if "all" is specified. If "root"
+    # is specified then only the root directory will have a manifest created.
+    if isinstance(root_entity, Project) or isinstance(root_entity, Folder):
+        files = root_entity.flatten_file_list()
+        if manifest == "all" and path:
+            for (
+                directory_path,
+                file_entities,
+            ) in root_entity.map_directory_to_all_contained_files(
+                root_path=path
+            ).items():
+                generate_manifest(
+                    all_files=file_entities,
+                    path=directory_path,
+                )
+        elif manifest == "root" and path:
+            generate_manifest(
+                all_files=files,
+                path=path,
+            )
+    elif isinstance(root_entity, File):
+        # When the root entity is a file we do not create a manifest file. This is
+        # to match the behavior present in v4.x.x of the client.
+        files = [root_entity]
+
+    synapse_files = []
+    for file in files:
+        synapse_files.append(file._convert_into_legacy_file())
 
     # the allFiles parameter used to be passed in as part of the recursive
     # implementation of this function with the public signature invoking itself. now
     # that this isn't a recursive any longer we don't need allFiles as a parameter
     # (especially on the public signature) but it is retained for now for backwards
-    # compatibility with external invokers.
+    # compatibility with external invokers. To be removed in v5.0.0.
     if allFiles is not None:
-        allFiles.extend(files)
-        files = allFiles
+        allFiles.extend(synapse_files)
+        synapse_files = allFiles
 
-    return files
+    return synapse_files
 
 
-class _FolderSync:
+async def _sync(
+    syn: Synapse,
+    entity: Union[str, SynapseFile, SynapseProject, SynapseFolder],
+    path: str = None,
+    if_collision: str = "overwrite.local",
+    follow_link: bool = False,
+    download_file: bool = True,
+    manifest: str = "all",
+) -> Union["File", "Folder", "Project"]:
     """
-    A FolderSync tracks the syncFromSynapse activity associated with a
-    Folder/container. It has a link to its parent and is kept updated as the
-    children of the associated folder are downloaded, and when complete
-    it communicates up its chain to the root that it is completed.
-    When the root FolderSync is complete the sync is complete.
+    Given an entity to sync from synapse handle the download of the entity and
+    its children.
 
-    It serves as a way to track and store the data related to the sync
-    at each folder of the sync so we can generate manifests and notify
-    when finished.
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        entity: A Synapse ID, a Synapse Entity object of type file, folder or project.
+        path: An optional path where the file hierarchy will be reproduced. If not
+            specified the files will by default be placed in the synapseCache. A path
+            is required in order to create a manifest file. A manifest is TSV file that
+            is automatically created that contains metadata (annotations, storage
+            location and provenance) of all downloaded files. If no files were
+            downloaded, no manifest file will be created.
+        if_collision: Determines how to handle file collisions. May be
+            "overwrite.local", "keep.local", or "keep.both".
+        follow_link: Determines whether the link returns the target Entity.
+        download_file: Determines whether downloading the files.
+        manifest: Determines whether creating manifest file automatically. The optional
+            values here (all, root, suppress).
+
     """
 
-    def __init__(self, syn, entity_id, path, child_ids, parent, create_manifest=True):
-        self._syn = syn
-        self._entity_id = entity_id
-        self._path = path
-        self._parent = parent
-        self._create_manifest = create_manifest
-
-        self._pending_ids = set(child_ids or [])
-        self._files = []
-        self._provenance = {}
-        self._exception = None
-
-        self._lock = threading.Lock()
-        self._finished = threading.Condition(lock=self._lock)
-
-    def update(self, finished_id=None, files=None, provenance=None):
-        with self._lock:
-            if finished_id:
-                self._pending_ids.remove(finished_id)
-            if files:
-                self._files.extend(files)
-            if provenance:
-                self._provenance.update(provenance)
-
-            if self._is_finished():
-                if self._create_manifest:
-                    self._generate_folder_manifest()
-
-                if self._parent:
-                    self._parent.update(
-                        finished_id=self._entity_id,
-                        files=self._files,
-                        provenance=self._provenance,
-                    )
-
-                # in practice only the root folder sync will be waited on/need notifying
-                self._finished.notify_all()
-
-    def _manifest_filename(self):
-        return os.path.expanduser(
-            os.path.normcase(os.path.join(self._path, MANIFEST_FILENAME))
+    if is_synapse_id_str(entity):
+        # ensure that we seed with an actual entity
+        synid, version = get_synid_and_version(obj=entity)
+        entity = await get_entity(
+            entity_id=synid, version_number=version, synapse_client=syn
         )
 
-    def _generate_folder_manifest(self):
-        # when a folder is complete we write a manifest file if we are downloading
-        # to a path outside the Synapse cache and there are actually some files in
-        # this folder.
-        if self._path and self._files:
-            generateManifest(
-                self._syn,
-                self._files,
-                self._manifest_filename(),
-                provenance_cache=self._provenance,
-            )
+    if entity is None:
+        raise SynapseNotFoundError(f"Entity {entity or synid} not found.")
 
-    def get_exception(self):
-        with self._lock:
-            return self._exception
+    entity_type = entity.get("concreteType", None)
+    entity_id = id_of(entity)
+    entity_version = entity.get("versionNumber", None)
+    root_entity = None
 
-    def set_exception(self, exception):
-        with self._lock:
-            self._exception = exception
+    # Path is used to determine `include_activity` here because only when a path
+    # is supplied can a manifest possibly be created. If we are not creating a
+    # manifest we can skip the activity retrieval process.
+    retrieve_activity = path is not None and path != ""
+    if entity_type == concrete_types.PROJECT_ENTITY:
+        from synapseclient.models import Project
 
-            # an exception that occurred in this container is considered to have also
-            # happened in the parent container and up to the root
-            if self._parent:
-                self._parent.set_exception(exception)
-
-            # an error also results in the folder being finished
-            self._finished.notify_all()
-
-    def wait_until_finished(self):
-        with self._finished:
-            self._finished.wait_for(self._is_finished)
-            return self._files
-
-    def _is_finished(self):
-        return len(self._pending_ids) == 0 or self._exception
-
-
-class _SyncDownloader:
-    """
-    Manages the downloads associated associated with a syncFromSynapse call concurrently.
-    """
-
-    def __init__(
-        self,
-        syn,
-        executor: concurrent.futures.Executor,
-        max_concurrent_file_downloads=None,
-    ):
-        """
-        Arguments:
-            syn: A synapse client
-            executor: An ExecutorService in which concurrent file downlaods can be scheduled
-
-        """
-        self._syn = syn
-        self._executor = executor
-
-        # by default limit the number of concurrent file downloads that can happen at once to some proportion
-        # of the available threads. otherwise we could end up downloading a single part from many files at once
-        # rather than concentrating our download threads on a few files at a time so those files complete faster.
-        max_concurrent_file_downloads = max(
-            int(max_concurrent_file_downloads or self._syn.max_threads / 2), 1
+        root_entity = await Project(id=entity_id).sync_from_synapse_async(
+            path=path,
+            download_file=download_file,
+            if_collision=if_collision,
+            include_activity=retrieve_activity,
+            follow_link=follow_link,
+            synapse_client=syn,
+            recursive=True,
         )
-        self._file_semaphore = threading.BoundedSemaphore(max_concurrent_file_downloads)
+    elif entity_type == concrete_types.FOLDER_ENTITY:
+        from synapseclient.models import Folder
 
-    def sync(
-        self, entity, path, ifcollision, followLink, downloadFile=True, manifest="all"
-    ):
-        progress = CumulativeTransferProgress("Downloaded")
+        root_entity = await Folder(id=entity_id).sync_from_synapse_async(
+            path=path,
+            download_file=download_file,
+            if_collision=if_collision,
+            include_activity=retrieve_activity,
+            follow_link=follow_link,
+            synapse_client=syn,
+            recursive=True,
+        )
+    elif entity_type == concrete_types.FILE_ENTITY:
+        root_entity = await File(
+            id=entity_id,
+            version_number=entity_version,
+            if_collision=if_collision,
+            download_location=path,
+            download_file=download_file,
+        ).get_async(
+            include_activity=retrieve_activity,
+            synapse_client=syn,
+        )
+    elif follow_link and entity_type == concrete_types.LINK_ENTITY:
+        entity_bundle = await get_entity_id_bundle2(
+            entity_id=entity_id,
+            request={"includeEntity": True},
+            synapse_client=syn,
+        )
 
-        if is_synapse_id_str(entity):
-            # ensure that we seed with an actual entity
-            entity = self._syn.get(
-                entity,
-                downloadLocation=path,
-                ifcollision=ifcollision,
-                followLink=followLink,
-            )
+        return await _sync(
+            syn=syn,
+            entity=entity_bundle["entity"],
+            path=path,
+            if_collision=if_collision,
+            follow_link=follow_link,
+            download_file=download_file,
+            manifest=manifest,
+        )
+    else:
+        raise ValueError(
+            "Cannot initiate a sync from an entity that is not a File, Folder, Project, or Link to a File/Folder."
+        )
 
-        if is_container(entity):
-            root_folder_sync = self._sync_root(
-                entity, path, ifcollision, followLink, progress, downloadFile, manifest
-            )
-
-            # once the whole folder hierarchy has been traversed this entrant thread
-            # waits for all file downloads to complete before returning
-            files = root_folder_sync.wait_until_finished()
-
-        elif isinstance(entity, SynapseFile):
-            files = [entity]
-
-        else:
-            raise ValueError(
-                "Cannot initiate a sync from an entity that is not a File or Folder"
-            )
-
-        # since the sub folders could complete out of order from when they were submitted we
-        # sort the files by their path (which includes their local folder) to get a
-        # predictable ordering.
-        # not required but nice for testing etc.
-        files.sort(key=lambda f: f.get("path") or "")
-        return files
-
-    def _sync_file(
-        self,
-        entity_id,
-        parent_folder_sync,
-        path,
-        ifcollision,
-        followLink,
-        progress,
-        downloadFile,
-    ):
-        try:
-            # we use syn.get to download the File.
-            # these context managers ensure that we are using some shared state
-            # when conducting that download (shared progress bar, ExecutorService shared
-            # by all multi threaded downloads in this sync)
-            with progress.accumulate_progress(), download_shared_executor(
-                self._executor
-            ):
-                entity = self._syn.get(
-                    entity_id,
-                    downloadLocation=path,
-                    ifcollision=ifcollision,
-                    followLink=followLink,
-                    downloadFile=downloadFile,
-                )
-
-            files = []
-            provenance = None
-            if isinstance(entity, SynapseFile):
-                if path:
-                    entity_provenance = _get_file_entity_provenance_dict(
-                        self._syn, entity
-                    )
-                    provenance = {entity_id: entity_provenance}
-
-                files.append(entity)
-
-            # else if the entity is not a File (and wasn't a container)
-            # then we ignore it for the purposes of this sync
-
-            parent_folder_sync.update(
-                finished_id=entity_id,
-                files=files,
-                provenance=provenance,
-            )
-
-        except Exception as ex:
-            # this could be anything raised by any type of download, and so by
-            # nature is a broad catch. the purpose here is not to handle it but
-            # just to raise it up the folder sync chain such that it will abort
-            # the sync and raise the error to the entrant thread. it is not the
-            # responsibility here to recover or retry a particular file download,
-            # reasonable recovery should be handled within the file download code.
-            parent_folder_sync.set_exception(ex)
-
-        finally:
-            self._file_semaphore.release()
-
-    def _sync_root(
-        self,
-        root,
-        root_path,
-        ifcollision,
-        followLink,
-        progress,
-        downloadFile,
-        manifest="all",
-    ):
-        # stack elements are a 3-tuple of:
-        # 1. the folder entity/dict
-        # 2. the local path to the folder to download to
-        # 3. the FolderSync of the parent to the folder (None at the root)
-
-        create_root_manifest = True if manifest != "suppress" else False
-        folder_stack = [(root, root_path, None, create_root_manifest)]
-        create_child_manifest = True if manifest == "all" else False
-
-        root_folder_sync = None
-        while folder_stack:
-            if root_folder_sync:
-                # if at any point the sync encounters an exception it will
-                # be communicated up to the root at which point we should abort
-                exception = root_folder_sync.get_exception()
-                if exception:
-                    raise ValueError("File download failed during sync") from exception
-
-            (
-                folder,
-                parent_path,
-                parent_folder_sync,
-                create_manifest,
-            ) = folder_stack.pop()
-
-            entity_id = id_of(folder)
-            folder_path = None
-            if parent_path is not None:
-                folder_path = parent_path
-                if root_folder_sync:
-                    # syncFromSynapse behavior is that we do NOT create a folder for
-                    # the root folder of the sync. we treat the download local path
-                    # folder as the root and write the children of the sync
-                    # directly into that local folder
-                    folder_path = os.path.join(folder_path, folder["name"])
-                os.makedirs(folder_path, exist_ok=True)
-
-            child_ids = []
-            child_file_ids = []
-            child_folders = []
-            for child in self._syn.getChildren(entity_id):
-                child_id = id_of(child)
-                child_ids.append(child_id)
-                if is_container(child):
-                    child_folders.append(child)
-                else:
-                    child_file_ids.append(child_id)
-
-            folder_sync = _FolderSync(
-                self._syn,
-                entity_id,
-                folder_path,
-                child_ids,
-                parent_folder_sync,
-                create_manifest=create_manifest,
-            )
-            if not root_folder_sync:
-                root_folder_sync = folder_sync
-
-            if not child_ids:
-                # this folder has no children, so it is immediately finished
-                folder_sync.update()
-
-            else:
-                for child_file_id in child_file_ids:
-                    self._file_semaphore.acquire()
-                    self._executor.submit(
-                        self._sync_file,
-                        child_file_id,
-                        folder_sync,
-                        folder_path,
-                        ifcollision,
-                        followLink,
-                        progress,
-                        downloadFile,
-                    )
-
-                for child_folder in child_folders:
-                    folder_stack.append(
-                        (child_folder, folder_path, folder_sync, create_child_manifest)
-                    )
-
-        return root_folder_sync
+    return root_entity
 
 
 class _SyncUploadItem(NamedTuple):
@@ -751,6 +582,10 @@ class _SyncUploader:
         return item
 
 
+@deprecated(
+    version="4.4.0",
+    reason="To be removed in 5.0.0. This is being replaced by `generate_manifest`.",
+)
 def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
     """Generates a manifest file based on a list of entities objects.
 
@@ -767,11 +602,15 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
         None
     """
     keys, data = _extract_file_entity_metadata(
-        syn, allFiles, provenance_cache=provenance_cache
+        syn=syn, allFiles=allFiles, provenance_cache=provenance_cache
     )
     _write_manifest_data(filename, keys, data)
 
 
+@deprecated(
+    version="4.4.0",
+    reason="To be removed in 5.0.0. This is being replaced by `_extract_entity_metadata_for_file`.",
+)
 def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
     Extracts metadata from the list of File Entities and returns them in a form
@@ -825,6 +664,10 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     return keys, data
 
 
+@deprecated(
+    version="4.4.0",
+    reason="To be removed in 5.0.0. This is being replaced by `_get_entity_provenance_dict_for_file`.",
+)
 def _get_file_entity_provenance_dict(syn, entity):
     """
     Arguments:
@@ -848,6 +691,103 @@ def _get_file_entity_provenance_dict(syn, entity):
             return {}  # No provenance present return empty dict
         else:
             raise  # unexpected error so we re-raise the exception
+
+
+def generate_manifest(all_files: List[File], path: str) -> None:
+    """Generates a manifest file based on a list of entities objects.
+
+    [Read more about the manifest file format](../../explanations/manifest_tsv/)
+
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        all_files: A list of File objects on Synapse (can't be Synapse IDs)
+        path: path where manifest will be written
+        provenance_cache: an optional dict of known provenance dicts keyed by entity
+                          ids
+
+    Returns:
+        None
+    """
+    if path and all_files:
+        filename = _manifest_filename(path=path)
+        keys, data = _extract_entity_metadata_for_file(all_files=all_files)
+        _write_manifest_data(filename, keys, data)
+
+
+def _extract_entity_metadata_for_file(
+    all_files: List[File],
+) -> Tuple[List[str], List[Dict[str, str]]]:
+    """
+    Extracts metadata from the list of File Entities and returns them in a form
+    usable by csv.DictWriter
+
+    Arguments:
+        syn: instance of the Synapse client
+        allFiles: an iterable that provides File entities
+        provenance_cache: an optional dict of known provenance dicts keyed by entity
+                          ids
+
+    Returns:
+        keys: a list column headers
+        data: a list of dicts containing data from each row
+    """
+    keys = list(DEFAULT_GENERATED_MANIFEST_KEYS)
+    annotation_keys = set()
+    data = []
+    for entity in all_files:
+        row = {
+            "parent": entity.parent_id,
+            "path": entity.path,
+            "name": entity.name,
+            "id": entity.id,
+            "synapseStore": entity.synapse_store,
+            "contentType": entity.content_type,
+        }
+
+        if entity.annotations:
+            annotation_keys.update(set(entity.annotations.keys()))
+            row.update(
+                {
+                    key: (val if len(val) > 0 else "")
+                    for key, val in entity.annotations.items()
+                }
+            )
+
+        row_provenance = _get_entity_provenance_dict_for_file(entity=entity)
+        row.update(row_provenance)
+
+        data.append(row)
+    keys.extend(annotation_keys)
+    return keys, data
+
+
+def _get_entity_provenance_dict_for_file(entity: File):
+    """
+    Arguments:
+        syn: Synapse object
+        entity: Entity object
+
+    Returns:
+        dict: a dict with a subset of the provenance metadata for the entity.
+              An empty dict is returned if the metadata does not have a provenance record.
+    """
+    if not entity.activity:
+        return {}
+
+    used_activities = []
+    for used_activity in entity.activity.used:
+        used_activities.append(used_activity.format_for_manifest())
+
+    executed_activities = []
+    for executed_activity in entity.activity.executed:
+        executed_activities.append(executed_activity.format_for_manifest())
+
+    return {
+        "used": ";".join(used_activities),
+        "executed": ";".join(executed_activities),
+        "activityName": entity.activity.name or "",
+        "activityDescription": entity.activity.description or "",
+    }
 
 
 def _convert_manifest_data_items_to_string_list(
@@ -915,10 +855,12 @@ def _convert_manifest_data_items_to_string_list(
             else:
                 items_to_write.append(repr(item))
 
-    if len(items) > 1:
+    if len(items_to_write) > 1:
         return f'[{",".join(items_to_write)}]'
-    else:
+    elif len(items_to_write) == 1:
         return items_to_write[0]
+    else:
+        return ""
 
 
 def _convert_manifest_data_row_to_dict(row: dict, keys: List[str]) -> dict:
@@ -1216,7 +1158,7 @@ def syncToSynapse(
         unit_scale=True,
         smoothing=0,
     )
-    with shared_progress_bar(progress_bar):
+    with upload_shared_progress_bar(progress_bar):
         if sendMessages:
             notify_decorator = notify_me_async(
                 syn, "Upload of %s" % manifestFile, retries=retries
@@ -1407,9 +1349,9 @@ async def _manifest_upload(
             row["used"] if "used" in row else [],
             row["executed"] if "executed" in row else [],
             activity_name=row["activityName"] if "activityName" in row else None,
-            activity_description=row["activityDescription"]
-            if "activityDescription" in row
-            else None,
+            activity_description=(
+                row["activityDescription"] if "activityDescription" in row else None
+            ),
         )
         items.append(item)
 
@@ -1516,3 +1458,23 @@ def _walk_directory_tree(syn, path, parent_id):
             if os.stat(filepath).st_size > 0:
                 rows.append(manifest_row)
     return rows
+
+
+def _manifest_filename(path: str) -> str:
+    """
+    Create a path to write the manifest file to.
+
+    Arguments:
+        path: The directory to write the manifest file to.
+
+    Returns:
+        The path to write the manifest file to.
+    """
+    file_name = MANIFEST_FILENAME
+    return os.path.expanduser(
+        os.path.normcase(
+            os.path.join(
+                path, f"{file_name}{'' if file_name.endswith('.tsv') else '.tsv'}"
+            )
+        )
+    )

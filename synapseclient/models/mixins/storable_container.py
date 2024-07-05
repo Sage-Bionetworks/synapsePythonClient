@@ -2,14 +2,19 @@
 
 import asyncio
 import os
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from opentelemetry import context
 from typing_extensions import Self
 
 from synapseclient import Synapse
+from synapseclient.api import get_entity_id_bundle2
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.constants.concrete_types import FILE_ENTITY, FOLDER_ENTITY
+from synapseclient.core.constants.concrete_types import (
+    FILE_ENTITY,
+    FOLDER_ENTITY,
+    LINK_ENTITY,
+)
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import run_and_attach_otel_context
@@ -44,11 +49,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
     id: None = None
     name: None = None
-    files: None = None
-    folders: None = None
+    files: "File" = None
+    folders: "Folder" = None
     _last_persistent_instance: None = None
 
-    async def get_async(self, synapse_client: Optional[Synapse] = None) -> None:
+    async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
 
     @otel_trace_method(
@@ -61,6 +66,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         download_file: bool = True,
         if_collision: str = COLLISION_OVERWRITE_LOCAL,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        include_activity: bool = True,
+        follow_link: bool = False,
+        link_hops: int = 1,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
         """
@@ -89,6 +98,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 - `keep.both`
             failure_strategy: Determines how to handle failures when retrieving children
                 under this Folder and an exception occurs.
+            include_activity: Whether to include the activity of the files.
+            follow_link: Whether to follow a link entity or not. Links can be used to
+                point at other Synapse entities.
+            link_hops: The number of hops to follow the link. A number of 1 is used to
+                prevent circular references. There is nothing in place to prevent
+                infinite loops. Be careful if setting this above 1.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -178,6 +193,8 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                         alt Recursive is True
                             note over sync_from_synapse: Append `folder.sync_from_synapse()` method
                         end
+                    else Child is Link and hops > 0
+                        note over sync_from_synapse: Append task to follow link
                     end
                 end
 
@@ -195,6 +212,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     and `folder.sync_from_synapse_async()`
                         note over sync_from_synapse: This is a recursive call to `sync_from_synapse`
                         sync_from_synapse->>sync_from_synapse: Recursive call to `.sync_from_synapse_async()`
+                    and `_follow_link`
+                        sync_from_synapse ->>client: call `get_entity_id_bundle2` function
+                        client-->sync_from_synapse: .
+                        note over sync_from_synapse: Do nothing if not link
+                        note over sync_from_synapse: call `_create_task_for_child` and execute
                     end
                 end
 
@@ -216,6 +238,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             None,
             lambda: run_and_attach_otel_context(
                 lambda: self._retrieve_children(
+                    follow_link=follow_link,
                     synapse_client=synapse_client,
                 ),
                 current_context,
@@ -236,6 +259,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     if_collision=if_collision,
                     failure_strategy=failure_strategy,
                     synapse_client=synapse_client,
+                    include_activity=include_activity,
+                    follow_link=follow_link,
+                    link_hops=link_hops,
                 )
             )
 
@@ -248,16 +274,108 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             )
         return self
 
+    def flatten_file_list(self) -> List["File"]:
+        """
+        Recursively loop over all of the already retrieved files and folders and return
+        a list of all files in the container.
+
+        Returns:
+            A list of all files in the container.
+        """
+        files = []
+        for file in self.files:
+            files.append(file)
+        for folder in self.folders:
+            files.extend(folder.flatten_file_list())
+        return files
+
+    def map_directory_to_all_contained_files(
+        self, root_path: str
+    ) -> Dict[str, List["File"]]:
+        """
+        Recursively loop over all of the already retrieved files and folders. Then
+        return back a dictionary where the key is the path to the directory at each
+        level. The value is a list of all files in that directory AND all files in
+        the child directories.
+
+        This is used during the creation of the manifest TSV file during the
+        syncFromSynapse utility function.
+
+        Example: Using this function
+           Returning back a dict with 2 keys:
+
+                Given:
+                root_folder
+                ├── sub_folder
+                │   ├── file1.txt
+                │   └── file2.txt
+
+                Returns:
+                {
+                    "root_folder": [file1, file2],
+                    "root_folder/sub_folder": [file1, file2]
+                }
+
+
+           Returning back a dict with 3 keys:
+
+                Given:
+                root_folder
+                ├── sub_folder_1
+                │   ├── file1.txt
+                ├── sub_folder_2
+                │   └── file2.txt
+
+                Returns:
+                {
+                    "root_folder": [file1, file2],
+                    "root_folder/sub_folder_1": [file1]
+                    "root_folder/sub_folder_2": [file2]
+                }
+
+        Arguments:
+            root_path: The root path where the top level files are stored.
+
+        Returns:
+            A dictionary where the key is the path to the directory at each level. The
+                value is a list of all files in that directory AND all files in the child
+                directories.
+        """
+        directory_map = {}
+        directory_map.update({root_path: self.flatten_file_list()})
+
+        for folder in self.folders:
+            directory_map.update(
+                **folder.map_directory_to_all_contained_files(
+                    root_path=os.path.join(root_path, folder.name)
+                )
+            )
+
+        return directory_map
+
     def _retrieve_children(
         self,
+        follow_link: bool,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> List:
-        """This wraps the `getChildren` generator to return back a list of children."""
+        """
+        This wraps the `getChildren` generator to return back a list of children.
+
+        Arguments:
+            follow_link: Whether to follow a link entity or not. Links can be used to
+                point at other Synapse entities.
+            synapse_client: If not passed in or None this will use the last client from
+                the `.login()` method.
+        """
+        include_types = ["folder", "file"]
+        if follow_link:
+            include_types.append("link")
         children_objects = Synapse.get_client(
             synapse_client=synapse_client
         ).getChildren(
             parent=self.id,
-            includeTypes=["folder", "file"],
+            includeTypes=include_types,
         )
         children = []
         for child in children_objects:
@@ -272,6 +390,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         download_file: bool = False,
         if_collision: str = COLLISION_OVERWRITE_LOCAL,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        include_activity: bool = True,
+        follow_link: bool = False,
+        link_hops: int = 1,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
@@ -291,6 +413,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             path=new_resolved_path,
             if_collision=if_collision,
             failure_strategy=failure_strategy,
+            include_activity=include_activity,
+            follow_link=follow_link,
+            link_hops=link_hops,
             synapse_client=synapse_client,
         )
 
@@ -302,6 +427,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         download_file: bool = False,
         if_collision: str = COLLISION_OVERWRITE_LOCAL,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        include_activity: bool = True,
+        follow_link: bool = False,
+        link_hops: int = 1,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> List[asyncio.Task]:
         """
@@ -325,6 +454,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 - `keep.both`
             failure_strategy: Determines how to handle failures when retrieving children
                 under this Folder and an exception occurs.
+            include_activity: Whether to include the activity of the files.
+            follow_link: Whether to follow a link entity or not. Links can be used to
+                point at other Synapse entities.
+            link_hops: The number of hops to follow the link. A number of 1 is used to
+                prevent circular references. There is nothing in place to prevent
+                infinite loops. Be careful if setting this above 1.
             synapse_client: If not passed in or None this will use the last client from
                 the `.login()` method.
 
@@ -351,6 +486,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                             download_file=download_file,
                             if_collision=if_collision,
                             failure_strategy=failure_strategy,
+                            include_activity=include_activity,
+                            follow_link=follow_link,
+                            link_hops=link_hops,
                             synapse_client=synapse_client,
                         )
                     )
@@ -373,15 +511,101 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
             pending_tasks.append(
                 asyncio.create_task(
-                    wrap_coroutine(file.get_async(include_activity=True))
+                    wrap_coroutine(file.get_async(include_activity=include_activity))
                 )
             )
+        elif link_hops > 0 and synapse_id and child_type == LINK_ENTITY:
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(
+                        self._follow_link(
+                            child=child,
+                            recursive=recursive,
+                            path=path,
+                            download_file=download_file,
+                            if_collision=if_collision,
+                            failure_strategy=failure_strategy,
+                            synapse_client=synapse_client,
+                            include_activity=include_activity,
+                            follow_link=follow_link,
+                            link_hops=link_hops - 1,
+                        )
+                    )
+                )
+            )
+
         return pending_tasks
+
+    async def _follow_link(
+        self,
+        child,
+        recursive: bool = False,
+        path: Optional[str] = None,
+        download_file: bool = False,
+        if_collision: str = COLLISION_OVERWRITE_LOCAL,
+        failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        include_activity: bool = True,
+        follow_link: bool = False,
+        link_hops: int = 0,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """Follow a link to get a target entity.
+
+        Arguments in this function are all supplied in order to recursively traverse
+        the container hierarchy.
+
+        Returns:
+            None
+        """
+
+        synapse_id = child.get("id", None)
+        # TODO: Until Link is an official Model dataclass this logic will suffice for
+        # the purpose of following a link to potentially download a File or open another
+        # Folder.
+        entity_bundle = await get_entity_id_bundle2(
+            entity_id=synapse_id,
+            request={"includeEntity": True},
+            synapse_client=synapse_client,
+        )
+
+        if (
+            entity_bundle is None
+            or not (entity := entity_bundle.get("entity", None))
+            or not (links_to := entity.get("linksTo", None))
+            or not (link_class_name := entity.get("linksToClassName", None))
+            or not (link_target_id := links_to.get("targetId", None))
+        ):
+            return
+
+        pending_tasks = self._create_task_for_child(
+            child={
+                "id": link_target_id,
+                "type": link_class_name,
+            },
+            recursive=recursive,
+            path=path,
+            download_file=download_file,
+            if_collision=if_collision,
+            failure_strategy=failure_strategy,
+            include_activity=include_activity,
+            follow_link=follow_link,
+            link_hops=link_hops,
+            synapse_client=synapse_client,
+        )
+        for task in asyncio.as_completed(pending_tasks):
+            result = await task
+            self._resolve_sync_from_synapse_result(
+                result=result,
+                failure_strategy=failure_strategy,
+                synapse_client=synapse_client,
+            )
 
     def _resolve_sync_from_synapse_result(
         self,
         result: Union[None, "Folder", "File", BaseException],
         failure_strategy: FailureStrategy,
+        *,
         synapse_client: Union[None, Synapse],
     ) -> None:
         """

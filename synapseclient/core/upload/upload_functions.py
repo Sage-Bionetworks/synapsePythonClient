@@ -243,7 +243,7 @@ def create_external_file_handle(
         url, mimetype=mimetype, md5=md5, fileSize=file_size
     )
     if is_local_file:
-        syn.cache.add(file_handle["id"], file_url_to_path(url))
+        syn.cache.add(file_handle["id"], file_url_to_path(url), md5=md5)
     trace.get_current_span().set_attributes(
         {"synapse.file_handle_id": file_handle["id"]}
     )
@@ -257,14 +257,14 @@ def upload_external_file_handle_sftp(
     uploaded_url = SFTPWrapper.upload_file(
         file_path, urllib_parse.unquote(sftp_url), username, password
     )
-
+    md5 = md5 or md5_for_file(file_path).hexdigest()
     file_handle = syn._createExternalFileHandle(
         externalURL=uploaded_url,
         mimetype=mimetype,
-        md5=md5 or md5_for_file(file_path).hexdigest(),
+        md5=md5,
         fileSize=os.stat(file_path).st_size,
     )
-    syn.cache.add(file_handle["id"], file_path)
+    syn.cache.add(file_handle["id"], file_path, md5=md5)
     return file_handle
 
 
@@ -371,6 +371,6 @@ def upload_client_auth_s3(
         mimetype=mimetype,
         md5=md5,
     )
-    syn.cache.add(file_handle["id"], file_path)
+    syn.cache.add(file_handle["id"], file_path, md5=md5)
 
     return file_handle

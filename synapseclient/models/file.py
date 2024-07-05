@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from opentelemetry import context
 
+from synapseclient import File as SynapseFile
 from synapseclient import Synapse
+from synapseclient.api import get_from_entity_factory
 from synapseclient.core import utils
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import (
@@ -166,6 +168,30 @@ class FileHandle:
         file_handle.external_url = synapse_instance.get("externalURL", None)
 
         return self
+
+    def _convert_into_legacy_file_handle(self) -> Dict[str, Union[str, bool, int]]:
+        """Convert the file handle object into a legacy File Handle object."""
+        return_data = {
+            "id": self.id,
+            "etag": self.etag,
+            "createdBy": self.created_by,
+            "createdOn": self.created_on,
+            "modifiedOn": self.modified_on,
+            "concreteType": self.concrete_type,
+            "contentType": self.content_type,
+            "contentMd5": self.content_md5,
+            "fileName": self.file_name,
+            "storageLocationId": self.storage_location_id,
+            "contentSize": self.content_size,
+            "status": self.status,
+            "bucketName": self.bucket_name,
+            "key": self.key,
+            "previewId": self.preview_id,
+            "isPreview": self.is_preview,
+            "externalURL": self.external_url,
+        }
+        delete_none_keys(return_data)
+        return return_data
 
 
 @dataclass()
@@ -631,22 +657,14 @@ class File(FileSynchronousProtocol, AccessControllable):
             )
         )
 
-    async def _load_local_md5(self, syn: "Synapse") -> None:
+    async def _load_local_md5(self) -> None:
         """Load the MD5 of the file if it's a local file and we have not already loaded
         it."""
         if not self.content_md5 and self.path and os.path.isfile(self.path):
-            self.content_md5 = await utils.md5_for_file_multiprocessing(
-                filename=self.path,
-                process_pool_executor=syn._get_process_pool_executor(
-                    asyncio_event_loop=asyncio.get_running_loop()
-                ),
-                md5_semaphore=syn._get_md5_semaphore(
-                    asyncio_event_loop=asyncio.get_running_loop()
-                ),
-            )
+            self.content_md5 = utils.md5_for_file_hex(filename=self.path)
 
     async def _find_existing_file(
-        self, synapse_client: Optional[Synapse] = None
+        self, *, synapse_client: Optional[Synapse] = None
     ) -> Union["File", None]:
         """Determines if the file already exists in Synapse. If it does it will return
         the file object, otherwise it will return None. This is used to determine if the
@@ -671,7 +689,9 @@ class File(FileSynchronousProtocol, AccessControllable):
                     parent_id=self.parent_id,
                 )
                 return await file_copy.get_async(
-                    synapse_client=synapse_client, include_activity=True
+                    synapse_client=synapse_client,
+                    include_activity=self.activity is not None
+                    or self.associate_activity_to_new_version,
                 )
             except SynapseFileNotFoundError:
                 return None
@@ -722,6 +742,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def store_async(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -870,6 +891,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         name: Optional[str] = None,
         download_as: Optional[str] = None,
         content_type: Optional[str] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -936,6 +958,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def get_async(
         self,
         include_activity: bool = False,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -981,27 +1004,18 @@ class File(FileSynchronousProtocol, AccessControllable):
             raise ValueError("The file must have an ID or path to get.")
         syn = Synapse.get_client(synapse_client=synapse_client)
 
-        loop = asyncio.get_event_loop()
-        current_context = context.get_current()
-        await self._load_local_md5(syn)
+        await self._load_local_md5()
 
-        entity = await loop.run_in_executor(
-            None,
-            lambda: run_and_attach_otel_context(
-                lambda: syn.get(
-                    entity=self.id or self.path,
-                    version=self.version_number,
-                    ifcollision=self.if_collision,
-                    limitSearch=self.synapse_container_limit or self.parent_id,
-                    downloadFile=self.download_file,
-                    downloadLocation=self.download_location,
-                    md5=self.content_md5,
-                ),
-                current_context,
-            ),
+        await get_from_entity_factory(
+            entity_to_update=self,
+            synapse_id_or_path=self.id or self.path,
+            version=self.version_number,
+            if_collision=self.if_collision,
+            limit_search=self.synapse_container_limit or self.parent_id,
+            download_file=self.download_file,
+            download_location=self.download_location,
+            md5=self.content_md5,
         )
-
-        self.fill_from_dict(synapse_file=entity, set_annotations=True)
 
         if (
             not self.path
@@ -1025,6 +1039,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def from_id_async(
         cls,
         synapse_id: str,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """Wrapper for [synapseclient.models.File.get][].
@@ -1050,6 +1065,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def from_path_async(
         cls,
         path: str,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """Get the file from Synapse. If the path of the file matches multiple files
@@ -1082,6 +1098,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     async def delete_async(
         self,
         version_only: Optional[bool] = False,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
@@ -1137,6 +1154,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         update_existing: bool = False,
         copy_annotations: bool = True,
         copy_activity: Union[str, None] = "traceback",
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """
@@ -1267,7 +1285,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                     and os.path.isfile(self.path)
                     and md5_stored_in_synapse
                 ):
-                    await self._load_local_md5(syn)
+                    await self._load_local_md5()
                     if md5_stored_in_synapse == (
                         local_file_md5_hex := self.content_md5
                     ):
@@ -1294,6 +1312,7 @@ class File(FileSynchronousProtocol, AccessControllable):
 
     async def _upload_file(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "File":
         """The upload process for a file. This will upload the file to Synapse if it
@@ -1337,3 +1356,33 @@ class File(FileSynchronousProtocol, AccessControllable):
             self._fill_from_file_handle()
 
         return self
+
+    def _convert_into_legacy_file(self) -> SynapseFile:
+        """Convert the file object into a SynapseFile object."""
+        return_data = SynapseFile(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            etag=self.etag,
+            createdOn=self.created_on,
+            modifiedOn=self.modified_on,
+            createdBy=self.created_by,
+            modifiedBy=self.modified_by,
+            parentId=self.parent_id,
+            versionNumber=self.version_number,
+            versionLabel=self.version_label,
+            versionComment=self.version_comment,
+            dataFileHandleId=self.data_file_handle_id,
+            path=self.path,
+            properties={
+                "isLatestVersion": self.is_latest_version,
+            },
+            _file_handle=(
+                self.file_handle._convert_into_legacy_file_handle()
+                if self.file_handle
+                else None
+            ),
+            annotations=self.annotations,
+        )
+        delete_none_keys(return_data)
+        return return_data

@@ -1206,7 +1206,7 @@ class TestDelete:
         # THEN I expect the file to be deleted
         with pytest.raises(SynapseHTTPError) as e:
             file.get()
-        assert f"404 Client Error: \nEntity {file.id} is in trash can." in str(e.value)
+        assert f"404 Client Error: Entity {file.id} is in trash can." in str(e.value)
 
     async def test_delete_specific_version(
         self, file: File, schedule_for_cleanup: Callable[..., None]
@@ -1229,7 +1229,7 @@ class TestDelete:
         with pytest.raises(SynapseHTTPError) as e:
             File(id=file.id, version_number=1).get()
         assert (
-            f"404 Client Error: \nCannot find a node with id {file.id} and version 1"
+            f"404 Client Error: Cannot find a node with id {file.id} and version 1"
             in str(e.value)
         )
 

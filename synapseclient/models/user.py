@@ -229,6 +229,7 @@ class UserProfile(UserProfileSynchronousProtocol):
     )
     async def get_async(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "UserProfile":
         """
@@ -285,7 +286,7 @@ class UserProfile(UserProfileSynchronousProtocol):
         method_to_trace_name=lambda cls, user_id, **kwargs: f"Profile_From_Id: {user_id}"
     )
     async def from_id_async(
-        cls, user_id: int, synapse_client: Optional[Synapse] = None
+        cls, user_id: int, *, synapse_client: Optional[Synapse] = None
     ) -> "UserProfile":
         """Gets UserProfile object using its integer id. Wrapper for the
         [get][synapseclient.models.UserProfile.get] method.
@@ -306,7 +307,7 @@ class UserProfile(UserProfileSynchronousProtocol):
         method_to_trace_name=lambda cls, username, **kwargs: f"Profile_From_Username: {username}"
     )
     async def from_username_async(
-        cls, username: str, synapse_client: Optional[Synapse] = None
+        cls, username: str, *, synapse_client: Optional[Synapse] = None
     ) -> "UserProfile":
         """
         Gets UserProfile object using its string name. Wrapper for the
@@ -327,6 +328,7 @@ class UserProfile(UserProfileSynchronousProtocol):
     )
     async def is_certified_async(
         self,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> "bool":
         """
