@@ -84,9 +84,9 @@ def create_folder_structure(
 
     def create_files_in_current_dir(path_to_create_files: str) -> None:
         for i in range(1, num_files_per_directory + 1):
-            chunk_size = 1048576  # size of each chunk in bytes
+            chunk_size = MiB  # size of each chunk in bytes
             num_chunks = size_of_each_file_bytes // chunk_size
-            filename = f"{path_to_create_files}/file{i}.txt"
+            filename = os.path.join(path_to_create_files, f"file{i}.txt")
             if (
                 os.path.isfile(filename)
                 and os.path.getsize(filename) == size_of_each_file_bytes
