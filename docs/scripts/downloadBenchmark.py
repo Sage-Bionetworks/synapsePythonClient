@@ -1,6 +1,8 @@
 """
 Handle running a few tests for benchmark download times from synapse and S3.
 
+Uncomment/comment out the tests you want to/don't want to run.
+
 This tests 3 different methods of downloading files from synapse and S3:
 1. `synapseclient.Synapse.getChildren` - This method will traverse the entire synapse
     project and download all files and folders recursively.
@@ -8,6 +10,7 @@ This tests 3 different methods of downloading files from synapse and S3:
     entire synapse project and download all files and folders recursively.
 3. `aws s3 sync` - This uses the AWS CLI to sync all files and folders from S3.
 """
+
 import os
 import shutil
 import subprocess  # nosec
@@ -15,37 +18,34 @@ from time import perf_counter
 
 import synapseclient
 import synapseutils
+from synapseclient.models import Folder, Project
 
+PARENT_PROJECT = "syn$FILL_ME_IN"
 S3_BUCKET = "s3://$FILL_ME_IN"
 S3_PROFILE = "$FILL_ME_IN"
 
-PROJECT_25_FILES_1MB = "download_benchmarking_25_files_1mb"
-PROJECT_775_FILES_10MB = "download_benchmarking_775_files_10mb"
-PROJECT_10_FILES_1GB = "download_benchmarking_10_files_1gb"
-PROJECT_10_FILES_100GB = "download_benchmarking_10_files_100gb"
+# `uploadTestFiles.py` creates the following folders
+FOLDER_10_FILES_10GIB = "download_benchmarking_10_files_10gib"
+FOLDER_1_FILES_10GIB = "download_benchmarking_1_files_10gib"
+FOLDER_10_FILES_1GIB = "download_benchmarking_10_files_1gib"
+FOLDER_100_FILES_100MIB = "download_benchmarking_100_files_100mib"
+FOLDER_10_FILES_100MIB = "download_benchmarking_10_files_100mib"
+FOLDER_100_FILES_10MIB = "download_benchmarking_100_files_10mib"
+FOLDER_1000_FILES_1MIB = "download_benchmarking_1000_files_1mib"
 
 
 def excute_get_children_synapse_test(
-    path: str, syn: synapseclient.Synapse, project_name: str
+    path: str, syn: synapseclient.Synapse, folder_id: str
 ) -> None:
     """This test uses the `synapseclient.Synapse.getChildren` method to download files
     for the entire synapse project. This will create the folder on disk and find the folders
     children recursively.
 
-    :param path: The path to download to.
-    :param syn: The logged in synapse instance.
-    :param project_name: The name of the project to download.
+
     """
-    document_path = os.path.expanduser("~/")
-    with open(
-        os.path.join(document_path, "synapse_download_benchmarking.txt"), "a"
-    ) as f:
-        f.write(f"Started excute_get_children_synapse_test\n")
-        f.close()
     before = perf_counter()
-    parent_project_id = syn.store(synapseclient.Project(name=project_name)).id
     children_under_project = syn.getChildren(
-        parent=parent_project_id, includeTypes=["file", "folder"]
+        parent=folder_id, includeTypes=["file", "folder"]
     )
 
     def download_or_create_folder(
@@ -76,63 +76,31 @@ def excute_get_children_synapse_test(
             syn.get(
                 entity=entity["id"],
                 downloadFile=True,
-                downloadLocation=os.path.join(current_resolved_path, entity["name"]),
+                downloadLocation=current_resolved_path,
             )
 
     for entity in children_under_project:
         download_or_create_folder(entity=entity, current_resolved_path=path)
 
-    with open(
-        os.path.join(document_path, "synapse_download_benchmarking.txt"), "a"
-    ) as f:
-        f.write(
-            f"Time to excute_get_children_synapse_test: {perf_counter() - before}\n"
-        )
-        f.close()
     print(f"\nTime to excute_get_children_synapse_test: {perf_counter() - before}")
 
 
 def execute_synapseutils_sync_from_synapse_test(
-    path: str, syn: synapseclient.Synapse, project_name: str
+    path: str, syn: synapseclient.Synapse, folder_id: str
 ) -> None:
     """Use the `synapseutils.syncFromSynapse` method to download files for the entire
     synapse project.
 
-    :param path: The path to download to.
-    :param syn: The logged in synapse instance.
-    :param project_name: The name of the project to download.
     """
-    document_path = os.path.expanduser("~/")
-    with open(
-        os.path.join(document_path, "synapse_download_benchmarking.txt"), "a"
-    ) as f:
-        f.write(f"\nStarted syncFromSynapse\n")
-        f.close()
-    before = perf_counter()
-    project = syn.store(synapseclient.Project(name=project_name))
-    synapseutils.syncFromSynapse(syn=syn, entity=project, path=path)
 
-    with open(
-        os.path.join(document_path, "synapse_download_benchmarking.txt"), "a"
-    ) as f:
-        f.write(f"\nTime to syncFromSynapse: {perf_counter() - before}\n")
-        f.close()
+    before = perf_counter()
+    synapseutils.syncFromSynapse(syn=syn, entity=folder_id, path=path)
+
     print(f"\nTime to syncFromSynapse: {perf_counter() - before}")
 
 
 def execute_sync_from_s3(path: str, key_in_bucket: str) -> None:
-    """Executes the AWS CLI sync command.
-
-    :param path: The path to the root directory
-    :param test_name: The name of the test to add to the span name
-    """
-    document_path = os.path.expanduser("~/")
-    with open(
-        os.path.join(document_path, "synapse_download_benchmarking.txt"), "a"
-    ) as f:
-        f.write(f"\nStarted S3 Sync\n")
-        f.close()
-
+    """Executes the AWS CLI sync command."""
     time_before_sync = perf_counter()
     subprocess.run(
         [
@@ -143,80 +111,86 @@ def execute_sync_from_s3(path: str, key_in_bucket: str) -> None:
             path,
             "--profile",
             S3_PROFILE,
-        ]
+        ],
+        check=False,
     )  # nosec
 
-    with open(
-        os.path.join(document_path, "synapse_download_benchmarking.txt"), "a"
-    ) as f:
-        f.write(f"\nTime to S3 sync: {perf_counter() - time_before_sync}\n")
-        f.close()
     print(f"\nTime to S3 sync: {perf_counter() - time_before_sync}")
 
 
 def execute_test_suite(
-    path: str, project_name: str, syn: synapseclient.Synapse
+    path: str, folder_name: str, syn: synapseclient.Synapse, project_id: str
 ) -> None:
-    """Execute the test suite.
+    """Execute the test suite."""
+    folder_id = Folder(name=folder_name, parent_id=project_id).get().id
 
-    :param path: The path to download to.
-    :param project_name: The name of the project to download.
-    """
-    excute_get_children_synapse_test(path=path, syn=syn, project_name=project_name)
+    excute_get_children_synapse_test(path=path, syn=syn, folder_id=folder_id)
     shutil.rmtree(path)
 
-    execute_synapseutils_sync_from_synapse_test(
-        path=path, project_name=project_name, syn=syn
-    )
+    execute_synapseutils_sync_from_synapse_test(path=path, folder_id=folder_id, syn=syn)
     shutil.rmtree(path)
 
-    execute_sync_from_s3(path=path, key_in_bucket=project_name)
-    shutil.rmtree(path)
+    # execute_sync_from_s3(path=path, key_in_bucket=project_name)
+    # shutil.rmtree(path)
 
 
 synapse = synapseclient.Synapse(debug=False)
 root_path = os.path.expanduser("~/benchmarkingDownload")
 if not os.path.exists(root_path):
     os.mkdir(root_path)
+
 # Log-in with ~.synapseConfig `authToken`
 synapse.login()
+project_id = Project(id=PARENT_PROJECT).get().id
 
-document_path = os.path.expanduser("~/")
-with open(os.path.join(document_path, "synapse_download_benchmarking.txt"), "a") as f:
-    f.write(f"\nStarted Benchmarking: 25 Files - 1MB\n")
-    f.close()
-print("25 Files - 1MB")
-# ## 25 Files - 1MB -----------------------------------------------------------------------
-
-execute_test_suite(path=root_path, project_name=PROJECT_25_FILES_1MB, syn=synapse)
-
-if not os.path.exists(root_path):
-    os.mkdir(root_path)
-
-with open(os.path.join(document_path, "synapse_download_benchmarking.txt"), "a") as f:
-    f.write(f"\nStarted Benchmarking: 775 Files - 10MB\n")
-    f.close()
-print("775 Files - 10MB")
-### 775 Files - 10MB ---------------------------------------------------------------------
-execute_test_suite(path=root_path, project_name=PROJECT_775_FILES_10MB, syn=synapse)
-
-if not os.path.exists(root_path):
-    os.mkdir(root_path)
+execute_test_suite(
+    path=root_path,
+    folder_name=FOLDER_1000_FILES_1MIB,
+    syn=synapse,
+    project_id=project_id,
+)
 
 
-with open(os.path.join(document_path, "synapse_download_benchmarking.txt"), "a") as f:
-    f.write(f"\nStarted Benchmarking: 10 Files - 1GB\n")
-    f.close()
-print("10 Files - 1GB")
-## 10 Files - 1GB -----------------------------------------------------------------------
-execute_test_suite(path=root_path, project_name=PROJECT_10_FILES_1GB, syn=synapse)
+# execute_test_suite(
+#     path=root_path,
+#     folder_name=FOLDER_100_FILES_10MIB,
+#     syn=synapse,
+#     project_id=project_id,
+# )
 
-if not os.path.exists(root_path):
-    os.mkdir(root_path)
 
-with open(os.path.join(document_path, "synapse_download_benchmarking.txt"), "a") as f:
-    f.write(f"\nStarted Benchmarking: 10 Files - 100GB\n")
-    f.close()
-print("10 Files - 100GB")
-### 10 Files - 100GB ---------------------------------------------------------------------
-execute_test_suite(path=root_path, project_name=PROJECT_10_FILES_100GB, syn=synapse)
+# execute_test_suite(
+#     path=root_path,
+#     folder_name=FOLDER_10_FILES_100MIB,
+#     syn=synapse,
+#     project_id=project_id,
+# )
+
+
+# execute_test_suite(
+#     path=root_path,
+#     folder_name=FOLDER_100_FILES_100MIB,
+#     syn=synapse,
+#     project_id=project_id,
+# )
+
+# execute_test_suite(
+#     path=root_path,
+#     folder_name=FOLDER_10_FILES_1GIB,
+#     syn=synapse,
+#     project_id=project_id,
+# )
+
+# execute_test_suite(
+#     path=root_path,
+#     folder_name=FOLDER_1_FILES_10GIB,
+#     syn=synapse,
+#     project_id=project_id,
+# )
+
+# execute_test_suite(
+#     path=root_path,
+#     folder_name=FOLDER_10_FILES_10GIB,
+#     syn=synapse,
+#     project_id=project_id,
+# )

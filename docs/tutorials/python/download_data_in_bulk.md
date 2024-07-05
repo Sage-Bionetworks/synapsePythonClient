@@ -109,7 +109,7 @@ Using `sync_from_synapse` will load into memory the state of all Folders and Fil
 retrieved from Synapse. This will allow you to loop over the contents of your container.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=40-49}
+{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=40-47}
 ```
 
 <details class="example">

@@ -2,22 +2,31 @@
 Create some test files and upload them to Synapse and S3. This is used as the first step
 for benchmarking downloads.
 """
+
+import asyncio
 import os
 import shutil
 import subprocess  # nosec
 
 import synapseclient
 import synapseutils
-from synapseclient.entity import Project
+from synapseclient.models import Folder, Project
 
 PARENT_PROJECT = "syn$FILL_ME_IN"
 S3_BUCKET = "s3://$FILL_ME_IN"
 S3_PROFILE = "$FILL_ME_IN"
 
-PROJECT_25_FILES_1MB = "download_benchmarking_25_files_1mb"
-PROJECT_775_FILES_10MB = "download_benchmarking_775_files_10mb"
-PROJECT_10_FILES_1GB = "download_benchmarking_10_files_1gb"
-PROJECT_10_FILES_100GB = "download_benchmarking_10_files_100gb"
+
+# Create a bunch of folders with known names to be used during the benchmarking
+FOLDER_10_FILES_10GIB = "download_benchmarking_10_files_10gib"
+FOLDER_1_FILES_10GIB = "download_benchmarking_1_files_10gib"
+FOLDER_10_FILES_1GIB = "download_benchmarking_10_files_1gib"
+FOLDER_100_FILES_100MIB = "download_benchmarking_100_files_100mib"
+FOLDER_10_FILES_100MIB = "download_benchmarking_10_files_100mib"
+FOLDER_100_FILES_10MIB = "download_benchmarking_100_files_10mib"
+FOLDER_1000_FILES_1MIB = "download_benchmarking_1000_files_1mib"
+
+MiB: int = 2**20
 
 
 def create_folder_structure(
@@ -25,7 +34,7 @@ def create_folder_structure(
     depth_of_directory_tree: int,
     num_sub_directories: int,
     num_files_per_directory: int,
-    total_size_of_files_mbytes: int,
+    total_size_of_files_mib: int,
 ) -> None:
     """Create a tree directory structure starting with `root/subdir`.
 
@@ -49,36 +58,52 @@ def create_folder_structure(
             root/subdir2/file1.txt
             root/subdir2/file2.txt
 
-    :param path: _description_
-    :param depth_of_directory_tree: _description_
-    :param num_sub_directories: _description_
-    :param num_files_per_directory: _description_
-    :param total_size_of_files_mbytes: _description_
-    :return: _description_
+    Arguments:
+        path: The path to the root directory
+        depth_of_directory_tree: The depth of the directory tree
+        num_sub_directories: The number of subdirectories to create
+        num_files_per_directory: The number of files to create in each directory
+        total_size_of_files_mib: The total size of all files in MiB
+
+    Returns:
+        The total number of directories, total number of files, and the size of each
+        file in bytes
     """
     # Calculate total number of files and size of each file
     total_dirs = sum(
         [num_sub_directories**i for i in range(1, depth_of_directory_tree + 1)]
     )
     total_files = total_dirs * num_files_per_directory
-    total_size_of_files_bytes = total_size_of_files_mbytes * 1024 * 1024
+    total_size_of_files_bytes = total_size_of_files_mib * MiB
     size_of_each_file_bytes = total_size_of_files_bytes // total_files
 
     print(f"total_directories: {total_dirs}")
     print(f"total_files: {total_files}")
     print(f"total_size_of_files_bytes: {total_size_of_files_bytes}")
-    print(f"size_of_each_file_bits: {size_of_each_file_bytes}")
+    print(f"size_of_each_file_bytes: {size_of_each_file_bytes}")
 
-    def create_files_in_current_dir(path_to_create_files):
+    def create_files_in_current_dir(path_to_create_files: str) -> None:
         for i in range(1, num_files_per_directory + 1):
-            chunk_size = 1024  # size of each chunk in bytes
+            chunk_size = MiB  # size of each chunk in bytes
             num_chunks = size_of_each_file_bytes // chunk_size
-
-            with open(f"{path_to_create_files}/file{i}.txt", "wb") as f:
-                for _ in range(num_chunks):
+            filename = os.path.join(path_to_create_files, f"file{i}.txt")
+            if (
+                os.path.isfile(filename)
+                and os.path.getsize(filename) == size_of_each_file_bytes
+            ):
+                with open(filename, "r+b") as f:
+                    f.seek(0)
                     f.write(os.urandom(chunk_size))
+            else:
+                if os.path.isfile(filename):
+                    os.remove(filename)
+                with open(filename, "wb") as f:
+                    for _ in range(num_chunks):
+                        f.write(os.urandom(chunk_size))
 
-    def create_directories_in_current_dir(path_to_create_dirs, current_depth):
+    def create_directories_in_current_dir(
+        path_to_create_dirs: str, current_depth: int
+    ) -> None:
         if current_depth < depth_of_directory_tree:
             for i in range(1, num_sub_directories + 1):
                 path = f"{path_to_create_dirs}/subdir{i}"
@@ -94,23 +119,16 @@ def create_folder_structure(
     return total_dirs, total_files, size_of_each_file_bytes
 
 
-def execute_synapseutils_sync_from_synapse_test(
-    path: str, syn: synapseclient.Synapse
-) -> None:
-    result = synapseutils.syncFromSynapse(syn=syn, entity=PARENT_PROJECT, path=path)
-    print(result)
-
-    synapseutils.syncToSynapse(
-        syn,
-        manifestFile=f"{path}/SYNAPSE_METADATA_MANIFEST.tsv",
-        sendMessages=False,
-    )
-
-
 def sync_to_synapse(path: str, project_id: str, syn: synapseclient.Synapse) -> None:
     """Execute the test that uses synapseutils to sync all files/folders to synapse.
 
-    :param path: The path to the root directory
+    Arguments:
+        path: The path to the root directory
+        project_id: The project ID to sync to
+        syn: The logged in synapse instance
+
+    Returns:
+        None
     """
     manifest_path = f"{path}/benchmarking_manifest.tsv"
     with open(manifest_path, "w", encoding="utf-8") as f:
@@ -123,23 +141,6 @@ def sync_to_synapse(path: str, project_id: str, syn: synapseclient.Synapse) -> N
         manifest_path=manifest_path,
     )
 
-    # Write annotations to the manifest file -----------------------------------------
-    # Open the `manifest_path` tab-delimited file and read its contents
-    with open(manifest_path, "r") as file:
-        lines = file.readlines()
-
-    # Append 3 columns "annot1", "annot2", "annot3" to the header
-    lines[0] = lines[0].strip() + "\tannot1\tannot2\tannot3\tannot4\tannot5\n"
-
-    # Append the values to each line
-    for i in range(1, len(lines)):
-        lines[i] = lines[i].strip() + "\tvalue1\1\1.2\tFalse\t2020-01-01\n"
-
-    # Write the modified contents back to the file
-    with open(manifest_path, "w") as file:
-        file.writelines(lines)
-    # Finish writing annotations to the manifest file --------------------------------
-
     synapseutils.syncToSynapse(
         syn,
         manifestFile=manifest_path,
@@ -148,78 +149,145 @@ def sync_to_synapse(path: str, project_id: str, syn: synapseclient.Synapse) -> N
 
 
 def execute_sync_to_s3(path: str, key_in_bucket: str) -> None:
-    """Executes the AWS CLI sync command. Expected to run last as this will delete local files.
-
-    :param path: The path to the root directory
-    :param test_name: The name of the test to add to the span name
-    """
-
     subprocess.run(
-        [
-            "aws",
-            "s3",
-            "sync",
-            path,
-            f"{S3_BUCKET}/{key_in_bucket}",
-            "--profile",
-            S3_PROFILE,
-        ]
+        f"aws s3 sync {path} {S3_BUCKET}/{key_in_bucket} --profile {S3_PROFILE}",
+        shell=True,
+        check=False,
     )  # nosec
 
 
-def set_up_projects_one_time(path: str, syn: synapseclient.Synapse) -> None:
+async def set_up_folders_one_time(path: str, syn: synapseclient.Synapse) -> None:
+    project = await Project(id=PARENT_PROJECT).get_async()
+
+    depth = 1
+    sub_directories = 1
+    files_per_directory = 1000
+    size_mib = 1024
     create_folder_structure(
         path=path,
-        depth_of_directory_tree=1,
-        num_sub_directories=5,
-        num_files_per_directory=5,
-        total_size_of_files_mbytes=1,
+        depth_of_directory_tree=depth,
+        num_sub_directories=sub_directories,
+        num_files_per_directory=files_per_directory,
+        total_size_of_files_mib=size_mib,
     )
-    # Set up the project:
-    project_25_files_1MB = syn.store(obj=Project(name=PROJECT_25_FILES_1MB))
-    sync_to_synapse(path=path, syn=syn, project_id=project_25_files_1MB.id)
+
+    folder = await Folder(
+        name=FOLDER_1000_FILES_1MIB, parent_id=project.id
+    ).store_async()
+    sync_to_synapse(path=path, syn=syn, project_id=folder.id)
     os.remove(f"{path}/benchmarking_manifest.tsv")
-    execute_sync_to_s3(path=path, key_in_bucket=PROJECT_25_FILES_1MB)
+    execute_sync_to_s3(path=path, key_in_bucket=FOLDER_1000_FILES_1MIB)
     shutil.rmtree(path)
 
-    create_folder_structure(
-        path=path,
-        depth_of_directory_tree=3,
-        num_sub_directories=5,
-        num_files_per_directory=5,
-        total_size_of_files_mbytes=10,
-    )
-    project_775_files_10MB = syn.store(obj=Project(name=PROJECT_775_FILES_10MB))
-    sync_to_synapse(path=path, syn=syn, project_id=project_775_files_10MB.id)
-    os.remove(f"{path}/benchmarking_manifest.tsv")
-    execute_sync_to_s3(path=path, key_in_bucket=PROJECT_775_FILES_10MB)
-    shutil.rmtree(path)
+    # depth = 1
+    # sub_directories = 1
+    # files_per_directory = 100
+    # size_mib = 1024
+    # create_folder_structure(
+    #     path=path,
+    #     depth_of_directory_tree=depth,
+    #     num_sub_directories=sub_directories,
+    #     num_files_per_directory=files_per_directory,
+    #     total_size_of_files_mib=size_mib,
+    # )
 
-    create_folder_structure(
-        path=path,
-        depth_of_directory_tree=1,
-        num_sub_directories=1,
-        num_files_per_directory=10,
-        total_size_of_files_mbytes=1000,
-    )
-    project_10_files_1GB = syn.store(obj=Project(name=PROJECT_10_FILES_1GB))
-    sync_to_synapse(path=path, syn=syn, project_id=project_10_files_1GB.id)
-    os.remove(f"{path}/benchmarking_manifest.tsv")
-    execute_sync_to_s3(path=path, key_in_bucket=PROJECT_10_FILES_1GB)
-    shutil.rmtree(path)
+    # folder = await Folder(
+    #     name=FOLDER_100_FILES_10MIB, parent_id=project.id
+    # ).store_async()
+    # sync_to_synapse(path=path, syn=syn, project_id=folder.id)
+    # os.remove(f"{path}/benchmarking_manifest.tsv")
+    # shutil.rmtree(path)
 
-    create_folder_structure(
-        path=path,
-        depth_of_directory_tree=1,
-        num_sub_directories=1,
-        num_files_per_directory=10,
-        total_size_of_files_mbytes=100000,
-    )
-    project_10_files_100GB = syn.store(obj=Project(name=PROJECT_10_FILES_100GB))
-    sync_to_synapse(path=path, syn=syn, project_id=project_10_files_100GB.id)
-    os.remove(f"{path}/benchmarking_manifest.tsv")
-    execute_sync_to_s3(path=path, key_in_bucket=PROJECT_10_FILES_100GB)
-    shutil.rmtree(path)
+    # depth = 1
+    # sub_directories = 1
+    # files_per_directory = 10
+    # size_mib = 1024
+    # create_folder_structure(
+    #     path=path,
+    #     depth_of_directory_tree=depth,
+    #     num_sub_directories=sub_directories,
+    #     num_files_per_directory=files_per_directory,
+    #     total_size_of_files_mib=size_mib,
+    # )
+
+    # folder = await Folder(
+    #     name=FOLDER_10_FILES_100MIB, parent_id=project.id
+    # ).store_async()
+    # sync_to_synapse(path=path, syn=syn, project_id=folder.id)
+    # os.remove(f"{path}/benchmarking_manifest.tsv")
+    # shutil.rmtree(path)
+
+    # depth = 1
+    # sub_directories = 1
+    # files_per_directory = 100
+    # size_mib = 10240
+    # create_folder_structure(
+    #     path=path,
+    #     depth_of_directory_tree=depth,
+    #     num_sub_directories=sub_directories,
+    #     num_files_per_directory=files_per_directory,
+    #     total_size_of_files_mib=size_mib,
+    # )
+
+    # folder = await Folder(
+    #     name=FOLDER_100_FILES_100MIB, parent_id=project.id
+    # ).store_async()
+    # sync_to_synapse(path=path, syn=syn, project_id=folder.id)
+    # os.remove(f"{path}/benchmarking_manifest.tsv")
+    # shutil.rmtree(path)
+
+    # depth = 1
+    # sub_directories = 1
+    # files_per_directory = 10
+    # size_mib = 10240
+    # create_folder_structure(
+    #     path=path,
+    #     depth_of_directory_tree=depth,
+    #     num_sub_directories=sub_directories,
+    #     num_files_per_directory=files_per_directory,
+    #     total_size_of_files_mib=size_mib,
+    # )
+
+    # folder = await Folder(name=FOLDER_10_FILES_1GIB, parent_id=project.id).store_async()
+    # sync_to_synapse(path=path, syn=syn, project_id=folder.id)
+    # os.remove(f"{path}/benchmarking_manifest.tsv")
+    # shutil.rmtree(path)
+
+    # depth = 1
+    # sub_directories = 1
+    # files_per_directory = 1
+    # size_mib = 10240
+    # create_folder_structure(
+    #     path=path,
+    #     depth_of_directory_tree=depth,
+    #     num_sub_directories=sub_directories,
+    #     num_files_per_directory=files_per_directory,
+    #     total_size_of_files_mib=size_mib,
+    # )
+
+    # folder = await Folder(name=FOLDER_1_FILES_10GIB, parent_id=project.id).store_async()
+    # sync_to_synapse(path=path, syn=syn, project_id=folder.id)
+    # os.remove(f"{path}/benchmarking_manifest.tsv")
+    # shutil.rmtree(path)
+
+    # depth = 1
+    # sub_directories = 1
+    # files_per_directory = 10
+    # size_mib = 102400
+    # create_folder_structure(
+    #     path=path,
+    #     depth_of_directory_tree=depth,
+    #     num_sub_directories=sub_directories,
+    #     num_files_per_directory=files_per_directory,
+    #     total_size_of_files_mib=size_mib,
+    # )
+
+    # folder = await Folder(
+    #     name=FOLDER_10_FILES_10GIB, parent_id=project.id
+    # ).store_async()
+    # sync_to_synapse(path=path, syn=syn, project_id=folder.id)
+    # os.remove(f"{path}/benchmarking_manifest.tsv")
+    # shutil.rmtree(path)
 
 
 synapse = synapseclient.Synapse(debug=False)
@@ -227,4 +295,4 @@ root_path = os.path.expanduser("~/benchmarkingDownload")
 # Log-in with ~.synapseConfig `authToken`
 synapse.login()
 
-set_up_projects_one_time(path=root_path, syn=synapse)
+asyncio.run(set_up_folders_one_time(path=root_path, syn=synapse))

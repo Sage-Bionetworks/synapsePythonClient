@@ -104,11 +104,11 @@ def create_folder_structure(
     print(f"total_size_of_files_bytes: {total_size_of_files_bytes}")
     print(f"size_of_each_file_bytes: {size_of_each_file_bytes}")
 
-    def create_files_in_current_dir(path_to_create_files):
+    def create_files_in_current_dir(path_to_create_files: str) -> None:
         for i in range(1, num_files_per_directory + 1):
-            chunk_size = 1048576  # size of each chunk in bytes
+            chunk_size = MiB  # size of each chunk in bytes
             num_chunks = size_of_each_file_bytes // chunk_size
-            filename = f"{path_to_create_files}/file{i}.txt"
+            filename = os.path.join(path_to_create_files, f"file{i}.txt")
             if (
                 os.path.isfile(filename)
                 and os.path.getsize(filename) == size_of_each_file_bytes
@@ -386,7 +386,7 @@ root_path = os.path.expanduser("~/benchmarking")
 syn.login()
 
 print("25 Files - 25MiB")
-## 25 Files - 25MiB -----------------------------------------------------------------------
+# 25 Files - 25MiB -----------------------------------------------------------------------
 depth = 1
 sub_directories = 1
 files_per_directory = 25
