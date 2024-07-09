@@ -113,7 +113,7 @@ from synapseclient.core.upload.upload_utils import (
 )
 from synapseclient.core.utils import MB
 from synapseclient.core.utils import md5_fn as md5_fn_util
-from synapseclient.core.utils import md5_for_file_multiprocessing
+from synapseclient.core.utils import md5_for_file_hex
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -668,17 +668,7 @@ async def multipart_upload_file_async(
         mime_type, _ = mimetypes.guess_type(file_path, strict=False)
         content_type = mime_type or "application/octet-stream"
 
-    md5_hex = md5 or (
-        await md5_for_file_multiprocessing(
-            filename=file_path,
-            process_pool_executor=syn._get_process_pool_executor(
-                asyncio_event_loop=asyncio.get_running_loop()
-            ),
-            md5_semaphore=syn._get_md5_semaphore(
-                asyncio_event_loop=asyncio.get_running_loop()
-            ),
-        )
-    )
+    md5_hex = md5 or md5_for_file_hex(filename=file_path)
 
     part_size = get_part_size(
         part_size or DEFAULT_PART_SIZE,
