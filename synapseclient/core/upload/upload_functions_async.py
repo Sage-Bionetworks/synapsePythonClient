@@ -72,7 +72,7 @@ async def upload_file_handle(
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
 
     if md5 is None and os.path.isfile(expanded_upload_path):
-        md5 = await utils.md5_for_file_hex(filename=expanded_upload_path)
+        md5 = utils.md5_for_file_hex(filename=expanded_upload_path)
 
     entity_parent_id = id_of(parent_entity_id)
 
@@ -190,7 +190,7 @@ async def create_external_file_handle(
         parsed_url = urllib_parse.urlparse(url)
         parsed_path = file_url_to_path(url)
         if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
-            actual_md5 = await utils.md5_for_file_hex(filename=parsed_path)
+            actual_md5 = utils.md5_for_file_hex(filename=parsed_path)
             if md5 is not None and md5 != actual_md5:
                 raise SynapseMd5MismatchError(
                     f"The specified md5 [{md5}] does not match the calculated md5 "
@@ -234,7 +234,7 @@ async def upload_external_file_handle_sftp(
         storage_str=storage_str,
     )
 
-    file_md5 = md5 or await utils.md5_for_file_hex(filename=file_path)
+    file_md5 = md5 or utils.md5_for_file_hex(filename=file_path)
     file_handle = await post_external_filehandle(
         external_url=uploaded_url,
         mimetype=mimetype,
