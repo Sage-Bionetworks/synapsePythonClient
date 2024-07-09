@@ -2,7 +2,6 @@
 Utility functions useful in the implementation and testing of the Synapse client.
 """
 
-import asyncio
 import base64
 import cgi
 import collections.abc
@@ -68,7 +67,7 @@ def md5_for_file(
         The MD5 Checksum
     """
     loop_iteration = 0
-    md5 = hashlib.new("md5", usedforsecurity=False)
+    md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     with open(filename, "rb") as f:
         while True:
             loop_iteration += 1
@@ -106,37 +105,6 @@ def md5_for_file_hex(
     return md5_for_file(filename, block_size, callback).hexdigest()
 
 
-async def md5_for_file_multiprocessing(
-    filename: str,
-    process_pool_executor,
-    md5_semaphore: asyncio.Semaphore,
-    block_size: int = 2 * MB,
-) -> str:
-    """
-    Calculates the MD5 of the given file.
-    See source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>.
-
-    Arguments:
-        filename: The file to read in
-        process_pool_executor: The process pool executor to use for the calculation.
-        md5_semaphore: The semaphore to use for waiting to calculate.
-        block_size: How much of the file to read in at once (bytes).
-                    Defaults to 2 MB.
-
-    Returns:
-        The MD5 Checksum
-    """
-    async with md5_semaphore:
-        with tracer.start_as_current_span("Utils::md5_for_file_multiprocessing"):
-            future = process_pool_executor.submit(
-                md5_for_file_hex, filename, block_size
-            )
-            while not future.done():
-                await asyncio.sleep(0)
-            result = future.result()
-            return result
-
-
 @tracer.start_as_current_span("Utils::md5_fn")
 def md5_fn(part, _) -> str:
     """Calculate the MD5 of a file-like object.
@@ -147,7 +115,7 @@ def md5_fn(part, _) -> str:
     Returns:
         The MD5 Checksum
     """
-    md5 = hashlib.new("md5", usedforsecurity=False)
+    md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     md5.update(part)
     return md5.hexdigest()
 
