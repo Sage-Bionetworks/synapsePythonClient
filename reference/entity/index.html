@@ -1,0 +1,3814 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A Python client for Sage Bionetworks' Synapse, a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.">
+      
+      
+        <meta name="author" content="Bryan Fauble">
+      
+      
+      
+        <link rel="prev" href="../synapse_utils/">
+      
+      
+        <link rel="next" href="../project/">
+      
+      
+      <link rel="icon" href="../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.28">
+    
+    
+      
+        <title>Entity - Synapse Python/Command Line Client Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+  
+  
+    
+    
+  
+    
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/custom.css">
+    
+      <link rel="stylesheet" href="../../termynal.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#entity" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Synapse Python/Command Line Client Documentation" class="md-header__button md-logo" aria-label="Synapse Python/Command Line Client Documentation" data-md-component="logo">
+      
+  <img src="../../assets/synapse_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Synapse Python/Command Line Client Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Entity
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6zm0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4zM7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7 0-.24-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91 1.61 0 2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08Z"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    synapsePythonClient
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/home/" class="md-tabs__link">
+          
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/home/" class="md-tabs__link">
+          
+  
+  How-To Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../client/" class="md-tabs__link">
+          
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanations/home/" class="md-tabs__link">
+          
+  
+  Further Reading
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../news/" class="md-tabs__link">
+          
+  
+  News
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Synapse Python/Command Line Client Documentation" class="md-nav__button md-logo" aria-label="Synapse Python/Command Line Client Documentation" data-md-component="logo">
+      
+  <img src="../../assets/synapse_logo.png" alt="logo">
+
+    </a>
+    Synapse Python/Command Line Client Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    synapsePythonClient
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Home
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_1_2" id="__nav_1_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Setup
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            Setup
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/authentication/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Authentication
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/home/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Working with the Python client
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Working with the Python client
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/python_client/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Python client
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/python/project/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/python/folder/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/python/file/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    File
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/python/annotation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Annotation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/python/upload_data_in_bulk/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upload data in bulk
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/python/download_data_in_bulk/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Download data in bulk
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/command_line_client/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with the Command Line Client
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/file_versioning/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with file versioning
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/tables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with tables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/reticulate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Synapseclient with R through reticulate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How-To Guides
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            How-To Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/home/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/views/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Using Entity Views
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/data_storage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Storage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/accessing_the_rest_api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access the REST API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Expermental Features
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            Expermental Features
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/validate_annotations/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Validating Annotations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../client/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Client
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../synapse_utils/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Synapse Utils
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Entity
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Entity
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Entity
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Entity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Functions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity.create" class="md-nav__link">
+    <span class="md-ellipsis">
+      create
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity.local_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      local_state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity.keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      keys
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity.has_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      has_key
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#synapseclient.entity.Versionable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Versionable
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../folder/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../file/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    File
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../annotations/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Annotations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../table_schema/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Table Schema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../view_schema/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Entity View Schema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../activity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Activity/Provenance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../teams/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Teams
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wiki/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Wiki
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Evaluation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../link/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Link
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docker_repository/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DockerRepository
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../json_schema/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JSON Schema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exceptions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Exceptions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../permissions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Permissions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Core
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rest_apis/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    REST Apis
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_22" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_22" id="__nav_4_22_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Experimental
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_22">
+            <span class="md-nav__icon md-icon"></span>
+            Experimental
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oop/models/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Object-Orientated Models
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oop/models_async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async Object-Orientated Models
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Further Reading
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Further Reading
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/home/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/domain_models_of_synapse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Domain Models of Synapse
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/access_control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/properties_vs_annotations/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Properties vs Annotations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/manifest_tsv/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Manifest TSV
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/benchmarking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Benchmarking
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanations/structuring_your_project/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Structuring Your Project
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    News
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            News
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../news/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release Notes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Entity
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Entity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Functions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity.create" class="md-nav__link">
+    <span class="md-ellipsis">
+      create
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity.local_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      local_state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity.keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      keys
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synapseclient.entity.Entity.has_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      has_key
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#synapseclient.entity.Versionable" class="md-nav__link">
+    <span class="md-ellipsis">
+      Versionable
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="entity">Entity<a class="headerlink" href="#entity" title="Permanent link">&para;</a></h1>
+<p>The Entity class is the base class for all entities, including Project, Folder, File, and Link.</p>
+<p>Entities are dictionary-like objects in which both object and dictionary notation (<code>entity.foo</code> or <code>entity['foo']</code>) can be
+used interchangeably.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="synapseclient.entity.Entity" class="doc doc-heading">
+            <code>synapseclient.entity.Entity</code>
+
+
+<a href="#synapseclient.entity.Entity" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="collections.abc.MutableMapping">MutableMapping</span></code></p>
+
+
+      <p>A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
+source code, or a folder that contains other entities.</p>
+<p>Entities should typically be created using the constructors for specific subclasses
+such as <a class="autorefs autorefs-internal" href="../project/#synapseclient.entity.Project">synapseclient.Project</a>, <a class="autorefs autorefs-internal" href="../folder/#synapseclient.entity.Folder">synapseclient.Folder</a> or <a class="autorefs autorefs-internal" href="../file/#synapseclient.entity.File">synapseclient.File</a>.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">ATTRIBUTE</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.id">id</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The unique immutable ID for this entity. A new ID will be generated for new
+Entities. Once issued, this ID is guaranteed to never change or be re-issued</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.name">name</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The name of this entity. Must be 256 characters or less. Names may only
+    contain: letters, numbers, spaces, underscores, hyphens, periods, plus
+    signs, apostrophes, and parentheses</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.description">description</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The description of this entity. Must be 1000 characters or less.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.parentId">parentId</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The ID of the Entity that is the parent of this Entity.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.entityType">entityType</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The type of this entity.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.concreteType">concreteType</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Indicates which implementation of Entity this object represents.
+            The value is the fully qualified class name, e.g.
+            org.sagebionetworks.repo.model.FileEntity.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.etag">etag</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+    concurrent updates. Since the E-Tag changes every time an entity is
+    updated it is used to detect when a client's current representation of
+    an entity is out-of-date.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.annotations">annotations</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The dict of annotations for this entity.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.accessControlList">accessControlList</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The access control list for this entity.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.createdOn">createdOn</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The date this entity was created.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.createdBy">createdBy</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The ID of the user that created this entity.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.modifiedOn">modifiedOn</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The date this entity was last modified.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Entity.modifiedBy">modifiedBy</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The ID of the user that last modified this entity.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+              <details class="quote">
+                <summary>Source code in <code>synapseclient/entity.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 56</span>
+<span class="normal"> 57</span>
+<span class="normal"> 58</span>
+<span class="normal"> 59</span>
+<span class="normal"> 60</span>
+<span class="normal"> 61</span>
+<span class="normal"> 62</span>
+<span class="normal"> 63</span>
+<span class="normal"> 64</span>
+<span class="normal"> 65</span>
+<span class="normal"> 66</span>
+<span class="normal"> 67</span>
+<span class="normal"> 68</span>
+<span class="normal"> 69</span>
+<span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Entity</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,</span>
+<span class="sd">    source code, or a folder that contains other entities.</span>
+
+<span class="sd">    Entities should typically be created using the constructors for specific subclasses</span>
+<span class="sd">    such as [synapseclient.Project][], [synapseclient.Folder][] or [synapseclient.File][].</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        id: The unique immutable ID for this entity. A new ID will be generated for new</span>
+<span class="sd">            Entities. Once issued, this ID is guaranteed to never change or be re-issued</span>
+<span class="sd">        name: The name of this entity. Must be 256 characters or less. Names may only</span>
+<span class="sd">                contain: letters, numbers, spaces, underscores, hyphens, periods, plus</span>
+<span class="sd">                signs, apostrophes, and parentheses</span>
+<span class="sd">        description: The description of this entity. Must be 1000 characters or less.</span>
+<span class="sd">        parentId: The ID of the Entity that is the parent of this Entity.</span>
+<span class="sd">        entityType: The type of this entity.</span>
+<span class="sd">        concreteType: Indicates which implementation of Entity this object represents.</span>
+<span class="sd">                        The value is the fully qualified class name, e.g.</span>
+<span class="sd">                        org.sagebionetworks.repo.model.FileEntity.</span>
+<span class="sd">        etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle</span>
+<span class="sd">                concurrent updates. Since the E-Tag changes every time an entity is</span>
+<span class="sd">                updated it is used to detect when a client&#39;s current representation of</span>
+<span class="sd">                an entity is out-of-date.</span>
+<span class="sd">        annotations: The dict of annotations for this entity.</span>
+<span class="sd">        accessControlList: The access control list for this entity.</span>
+<span class="sd">        createdOn: The date this entity was created.</span>
+<span class="sd">        createdBy: The ID of the user that created this entity.</span>
+<span class="sd">        modifiedOn: The date this entity was last modified.</span>
+<span class="sd">        modifiedBy: The ID of the user that last modified this entity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_synapse_entity_type</span> <span class="o">=</span> <span class="s2">&quot;org.sagebionetworks.repo.model.Entity&quot;</span>
+    <span class="n">_property_keys</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;id&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;name&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;description&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;parentId&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;entityType&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;concreteType&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;uri&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;etag&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;annotations&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;accessControlList&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;createdOn&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;createdBy&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;modifiedOn&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;modifiedBy&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="n">_local_keys</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create an Entity or a subclass given dictionaries of properties and annotations, as might be received from the</span>
+<span class="sd">        Synapse Repository.</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">            properties:  A map of Synapse properties</span>
+
+<span class="sd">                - If &#39;concreteType&#39; is defined in properties, we create the proper subclass of Entity. If not, give back the</span>
+<span class="sd">                type whose constructor was called.</span>
+<span class="sd">                - If passed an Entity as input, create a new Entity using the input entity as a prototype.</span>
+<span class="sd">            annotations: A map of user defined annotations</span>
+<span class="sd">            local_state: Internal use only</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Create a new Entity using an existing Entity as a prototype</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">properties</span><span class="p">,</span> <span class="n">Entity</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">annotations</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">annotations</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">if</span> <span class="n">local_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">local_state</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">annotations</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">properties</span><span class="o">.</span><span class="n">annotations</span><span class="p">)</span>
+            <span class="n">local_state</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">properties</span><span class="o">.</span><span class="n">local_state</span><span class="p">())</span>
+            <span class="n">properties</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">properties</span>
+            <span class="k">if</span> <span class="s2">&quot;id&quot;</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="bp">cls</span> <span class="o">==</span> <span class="n">Entity</span>
+            <span class="ow">and</span> <span class="s2">&quot;concreteType&quot;</span> <span class="ow">in</span> <span class="n">properties</span>
+            <span class="ow">and</span> <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;concreteType&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">entity_type_to_class</span>
+        <span class="p">):</span>
+            <span class="bp">cls</span> <span class="o">=</span> <span class="n">entity_type_to_class</span><span class="p">[</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;concreteType&quot;</span><span class="p">]]</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">properties</span><span class="o">=</span><span class="n">properties</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=</span><span class="n">annotations</span><span class="p">,</span> <span class="n">local_state</span><span class="o">=</span><span class="n">local_state</span>
+        <span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">getURI</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="nb">id</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;/entity/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">id</span>
+
+    <span class="k">def</span> <span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+
+        <span class="c1"># Make really sure that properties and annotations exist before</span>
+        <span class="c1"># any object methods get invoked. This is important because the</span>
+        <span class="c1"># dot operator magic methods have been overridden and depend on</span>
+        <span class="c1"># properties and annotations existing.</span>
+        <span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DictObject</span><span class="p">()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DictObject</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">properties</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">properties</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Mapping</span><span class="p">):</span>
+                <span class="k">if</span> <span class="s2">&quot;annotations&quot;</span> <span class="ow">in</span> <span class="n">properties</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+                    <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">],</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Mapping</span>
+                <span class="p">):</span>
+                    <span class="n">annotations</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">])</span>
+                    <span class="k">del</span> <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">]</span>
+
+                <span class="c1"># Re-map `items` to `datasetItems` to avoid namespace conflicts</span>
+                <span class="c1"># between Dataset schema and the items() builtin method.</span>
+                <span class="k">if</span> <span class="s2">&quot;items&quot;</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+                    <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;datasetItems&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;items&quot;</span><span class="p">]</span>
+                    <span class="k">del</span> <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;items&quot;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SynapseMalformedEntityError</span><span class="p">(</span>
+                    <span class="s2">&quot;Unknown argument type: properties is a </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">properties</span><span class="p">))</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">annotations</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">annotations</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Mapping</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">annotations</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">annotations</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">annotations</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SynapseMalformedEntityError</span><span class="p">(</span>
+                    <span class="s2">&quot;Unknown argument type: annotations is a </span><span class="si">%s</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">annotations</span><span class="p">))</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">local_state</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">local_state</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Mapping</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">local_state</span><span class="p">(</span><span class="n">local_state</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SynapseMalformedEntityError</span><span class="p">(</span>
+                    <span class="s2">&quot;Unknown argument type: local_state is a </span><span class="si">%s</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">local_state</span><span class="p">))</span>
+                <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">_local_keys</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Extract parentId from parent</span>
+        <span class="k">if</span> <span class="s2">&quot;parentId&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">parent</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;parentId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">id_of</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">Entity</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;id&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parent</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">SynapseMalformedEntityError</span><span class="p">(</span>
+                            <span class="s2">&quot;Couldn&#39;t find &#39;id&#39; of parent.&quot;</span>
+                            <span class="s2">&quot; Has it been stored in Synapse?&quot;</span>
+                        <span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">SynapseMalformedEntityError</span><span class="p">(</span>
+                            <span class="s2">&quot;Couldn&#39;t find &#39;id&#39; of parent.&quot;</span>
+                        <span class="p">)</span>
+
+        <span class="c1"># Note: that this will work properly if derived classes declare their internal state variable *before* invoking</span>
+        <span class="c1"># super(...).__init__(...)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;concreteType&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;concreteType&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">_synapse_entity_type</span>
+
+        <span class="c1"># Only project can be top-level. All other entity types require parentId don&#39;t enforce this for generic Entity</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="s2">&quot;parentId&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span>
+            <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Project</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="n">Entity</span>
+        <span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;id&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SynapseMalformedEntityError</span><span class="p">(</span>
+                <span class="s2">&quot;Entities of type </span><span class="si">%s</span><span class="s2"> must have a parentId.&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">postURI</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;/entity&quot;</span>
+
+    <span class="k">def</span> <span class="nf">putURI</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;/entity/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>
+
+    <span class="k">def</span> <span class="nf">deleteURI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">versionNumber</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">versionNumber</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;/entity/</span><span class="si">%s</span><span class="s2">/version/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">versionNumber</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;/entity/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>
+
+    <span class="k">def</span> <span class="nf">local_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set or get the object&#39;s internal state, excluding properties, or annotations.</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">            state: A dictionary containing the object&#39;s internal state.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            result: The object&#39;s internal state, excluding properties, or annotations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">,</span> <span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">,</span> <span class="s2">&quot;properties&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span> <span class="ow">or</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">_local_keys</span><span class="p">:</span>
+            <span class="c1"># If we assign like so:</span>
+            <span class="c1">#   entity.annotations = {&#39;foo&#39;;123, &#39;bar&#39;:&#39;bat&#39;}</span>
+            <span class="c1"># Wrap the dictionary in a DictObject so we can</span>
+            <span class="c1"># later do:</span>
+            <span class="c1">#   entity.annotations.foo = &#39;bar&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;annotations&quot;</span> <span class="ow">or</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;properties&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">value</span><span class="p">,</span> <span class="n">DictObject</span>
+            <span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">DictObject</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">_property_keys</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="c1"># TODO: def __delattr__</span>
+
+    <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="c1"># Note: that __getattr__ is only called after an attempt to</span>
+        <span class="c1"># look the key up in the object&#39;s dictionary has failed.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="c1"># Note that hasattr in Python2 is more permissive than Python3</span>
+            <span class="c1"># about what exceptions it catches. In Python3, hasattr catches</span>
+            <span class="c1"># only AttributeError</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="c1"># TODO shouldn&#39;t these include local_state as well? -jcb</span>
+    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            A set of property and annotation keys</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">has_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Is the given key a property or annotation?&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span> <span class="ow">or</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span>
+
+    <span class="k">def</span> <span class="nf">_write_kvps</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">f</span><span class="p">:</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">,</span>
+        <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">key_filter</span><span class="p">:</span> <span class="nb">callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">key_aliases</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Writes key-value pairs from a dictionary to a file.</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">            f: The file object to write to.</span>
+<span class="sd">            dictionary: The dictionary containing the key-value pairs.</span>
+<span class="sd">            key_filter: A function that filters the keys.</span>
+<span class="sd">                        Only keys that pass the filter will be written to the file.</span>
+<span class="sd">                        Defaults to None.</span>
+<span class="sd">            key_aliases: A dictionary mapping keys to their alias names.</span>
+<span class="sd">                         If provided, the alias names will be used instead</span>
+<span class="sd">                         of the original keys when writing to the file.</span>
+<span class="sd">                         Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dictionary</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">key_filter</span><span class="p">)</span> <span class="ow">or</span> <span class="n">key_filter</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;  &quot;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">key_aliases</span> <span class="k">else</span> <span class="n">key_aliases</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">dictionary</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a string representation of the object.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: A string representation of the object, including the class name,</span>
+<span class="sd">                name property, id property (if available), properties, and annotations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="o">%</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;None&quot;</span><span class="p">),</span>
+                <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;id&quot;</span> <span class="ow">in</span> <span class="bp">self</span> <span class="k">else</span> <span class="s2">&quot;-&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_str_localstate</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;properties:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_kvps</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
+
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;annotations:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_kvps</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_str_localstate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper method for writing the string representation</span>
+<span class="sd">        of the local state to a StringIO object</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">            f: a StringIO object to which the local state string will be written</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_kvps</span><span class="p">(</span>
+            <span class="n">f</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">key</span><span class="p">:</span> <span class="ow">not</span> <span class="p">(</span>
+                <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">,</span> <span class="s2">&quot;annotations&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns an eval-able representation of the Entity.&quot;&quot;&quot;</span>
+
+        <span class="n">f</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+            <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">=</span><span class="si">%s</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
+                        <span class="n">value</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(),</span>
+                    <span class="p">)</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span>
+                        <span class="nb">list</span><span class="p">(</span>
+                            <span class="p">[</span>
+                                <span class="n">k_v</span>
+                                <span class="k">for</span> <span class="n">k_v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+                                    <span class="n">k_v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">,</span> <span class="s2">&quot;annotations&quot;</span><span class="p">]</span>
+                                    <span class="ow">or</span> <span class="n">k_v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)</span>
+                                <span class="p">)</span>
+                            <span class="p">]</span>
+                        <span class="p">),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+                    <span class="p">)</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+<h3 id="synapseclient.entity.Entity-functions">Functions<a href="#synapseclient.entity.Entity-functions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="synapseclient.entity.Entity.create" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">create</span><span class="p">(</span><span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_state</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#synapseclient.entity.Entity.create" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Create an Entity or a subclass given dictionaries of properties and annotations, as might be received from the
+Synapse Repository.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">PARAMETER</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>properties</code></td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>A map of Synapse properties</p>
+<ul>
+<li>If 'concreteType' is defined in properties, we create the proper subclass of Entity. If not, give back the
+type whose constructor was called.</li>
+<li>If passed an Entity as input, create a new Entity using the input entity as a prototype.</li>
+</ul>
+              </div>
+              <p>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>annotations</code></td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>A map of user defined annotations</p>
+              </div>
+              <p>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>local_state</code></td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Internal use only</p>
+              </div>
+              <p>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+            <details class="quote">
+              <summary>Source code in <code>synapseclient/entity.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create an Entity or a subclass given dictionaries of properties and annotations, as might be received from the</span>
+<span class="sd">    Synapse Repository.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        properties:  A map of Synapse properties</span>
+
+<span class="sd">            - If &#39;concreteType&#39; is defined in properties, we create the proper subclass of Entity. If not, give back the</span>
+<span class="sd">            type whose constructor was called.</span>
+<span class="sd">            - If passed an Entity as input, create a new Entity using the input entity as a prototype.</span>
+<span class="sd">        annotations: A map of user defined annotations</span>
+<span class="sd">        local_state: Internal use only</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Create a new Entity using an existing Entity as a prototype</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">properties</span><span class="p">,</span> <span class="n">Entity</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">annotations</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">annotations</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">local_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">local_state</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">annotations</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">properties</span><span class="o">.</span><span class="n">annotations</span><span class="p">)</span>
+        <span class="n">local_state</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">properties</span><span class="o">.</span><span class="n">local_state</span><span class="p">())</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">properties</span>
+        <span class="k">if</span> <span class="s2">&quot;id&quot;</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+            <span class="k">del</span> <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="bp">cls</span> <span class="o">==</span> <span class="n">Entity</span>
+        <span class="ow">and</span> <span class="s2">&quot;concreteType&quot;</span> <span class="ow">in</span> <span class="n">properties</span>
+        <span class="ow">and</span> <span class="n">properties</span><span class="p">[</span><span class="s2">&quot;concreteType&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">entity_type_to_class</span>
+    <span class="p">):</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="n">entity_type_to_class</span><span class="p">[</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;concreteType&quot;</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+        <span class="n">properties</span><span class="o">=</span><span class="n">properties</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=</span><span class="n">annotations</span><span class="p">,</span> <span class="n">local_state</span><span class="o">=</span><span class="n">local_state</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="synapseclient.entity.Entity.local_state" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">local_state</span><span class="p">(</span><span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#synapseclient.entity.Entity.local_state" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Set or get the object's internal state, excluding properties, or annotations.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">PARAMETER</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>state</code></td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>A dictionary containing the object's internal state.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>dict</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">RETURNS</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>result</code>
+            </td>
+            <td class="doc-returns-details">
+              <div class="doc-md-description">
+                <p>The object's internal state, excluding properties, or annotations.</p>
+              </div>
+                <p>
+                  <span class="doc-returns-annotation">
+                    <b>TYPE:</b>
+                      <code>dict</code>
+                  </span>
+                </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+            <details class="quote">
+              <summary>Source code in <code>synapseclient/entity.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">local_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Set or get the object&#39;s internal state, excluding properties, or annotations.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        state: A dictionary containing the object&#39;s internal state.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        result: The object&#39;s internal state, excluding properties, or annotations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">,</span> <span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">,</span> <span class="s2">&quot;properties&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">):</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">result</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="synapseclient.entity.Entity.keys" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">keys</span><span class="p">()</span></code>
+
+<a href="#synapseclient.entity.Entity.keys" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">RETURNS</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td class="doc-returns-details">
+              <div class="doc-md-description">
+                <p>A set of property and annotation keys</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+            <details class="quote">
+              <summary>Source code in <code>synapseclient/entity.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        A set of property and annotation keys</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="synapseclient.entity.Entity.has_key" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">has_key</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></code>
+
+<a href="#synapseclient.entity.Entity.has_key" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Is the given key a property or annotation?</p>
+
+            <details class="quote">
+              <summary>Source code in <code>synapseclient/entity.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">has_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Is the given key a property or annotation?&quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span> <span class="ow">or</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="synapseclient.entity.Versionable" class="doc doc-heading">
+            <code>synapseclient.entity.Versionable</code>
+
+
+<a href="#synapseclient.entity.Versionable" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code>object</code></p>
+
+
+      <p>An entity for which Synapse will store a version history.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">ATTRIBUTE</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Versionable.versionNumber">versionNumber</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The version number issued to this version on the object.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Versionable.versionLabel">versionLabel</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The version label for this entity</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Versionable.versionComment">versionComment</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The version comment for this entity</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Versionable.versionUrl">versionUrl</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>The URL for this version</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="synapseclient.entity.Versionable.versions">versions</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>A list of all versions</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+              <details class="quote">
+                <summary>Source code in <code>synapseclient/entity.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Versionable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An entity for which Synapse will store a version history.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        versionNumber: The version number issued to this version on the object.</span>
+<span class="sd">        versionLabel:  	The version label for this entity</span>
+<span class="sd">        versionComment: The version comment for this entity</span>
+<span class="sd">        versionUrl:     The URL for this version</span>
+<span class="sd">        versions:       A list of all versions</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_synapse_entity_type</span> <span class="o">=</span> <span class="s2">&quot;org.sagebionetworks.repo.model.Versionable&quot;</span>
+    <span class="n">_property_keys</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;versionNumber&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;versionLabel&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;versionComment&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;versionUrl&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;versions&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../synapse_utils/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Synapse Utils">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Synapse Utils
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../project/" class="md-footer__link md-footer__link--next" aria-label="Next: Project">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Project
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Sage-Bionetworks/synapsePythonClient" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Sage-Bionetworks/synapsePythonClient/pkgs/container/synapsepythonclient" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M349.9 236.3h-66.1v-59.4h66.1v59.4zm0-204.3h-66.1v60.7h66.1V32zm78.2 144.8H362v59.4h66.1v-59.4zm-156.3-72.1h-66.1v60.1h66.1v-60.1zm78.1 0h-66.1v60.1h66.1v-60.1zm276.8 100c-14.4-9.7-47.6-13.2-73.1-8.4-3.3-24-16.7-44.9-41.1-63.7l-14-9.3-9.3 14c-18.4 27.8-23.4 73.6-3.7 103.8-8.7 4.7-25.8 11.1-48.4 10.7H2.4c-8.7 50.8 5.8 116.8 44 162.1 37.1 43.9 92.7 66.2 165.4 66.2 157.4 0 273.9-72.5 328.4-204.2 21.4.4 67.6.1 91.3-45.2 1.5-2.5 6.6-13.2 8.5-17.1l-13.3-8.9zm-511.1-27.9h-66v59.4h66.1v-59.4zm78.1 0h-66.1v59.4h66.1v-59.4zm78.1 0h-66.1v59.4h66.1v-59.4zm-78.1-72.1h-66.1v60.1h66.1v-60.1z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/synapseclient/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6zM286.2 404c11.1 0 20.1 9.1 20.1 20.3 0 11.3-9 20.4-20.1 20.4-11 0-20.1-9.2-20.1-20.4.1-11.3 9.1-20.3 20.1-20.3zM167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4zm-6.7-142.6c-11.1 0-20.1-9.1-20.1-20.3.1-11.3 9-20.4 20.1-20.4 11 0 20.1 9.2 20.1 20.4s-9 20.3-20.1 20.3z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "navigation.footer", "navigation.sections", "search.highlight", "search.share", "search.suggest", "toc.follow", "navigation.tabs", "navigation.tabs.sticky"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.fe8b6f2b.min.js"></script>
+      
+        <script src="../../termynal.js"></script>
+      
+        <script src="../../js/open_in_new_tab.js"></script>
+      
+    
+  </body>
+</html>
