@@ -635,7 +635,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         """Load the MD5 of the file if it's a local file and we have not already loaded
         it."""
         if not self.content_md5 and self.path and os.path.isfile(self.path):
-            self.content_md5 = await utils.md5_for_file_hex(filename=self.path)
+            self.content_md5 = utils.md5_for_file_hex(filename=self.path)
 
     async def _find_existing_file(
         self, synapse_client: Optional[Synapse] = None
