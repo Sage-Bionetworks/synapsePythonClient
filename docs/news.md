@@ -9,6 +9,12 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+### 4.3.1 (2024-07-10)
+
+### Bug Fixes
+-  \[[SYNPY-1494](https://sagebionetworks.jira.com/browse/SYNPY-1494)\] - loky crashed uwsgi process in schematic manifest submission
+
+
 ## 4.3.0 (2024-05-30)
 ### Highlights
 - **New tutorial:**
