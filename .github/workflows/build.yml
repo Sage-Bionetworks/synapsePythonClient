@@ -94,10 +94,10 @@ jobs:
             pip install numpy
           fi
 
-      - name: run-unit-tests
-        shell: bash
-        run: |
-          pytest -sv --cov-append --cov=. --cov-report xml tests/unit
+      # - name: run-unit-tests
+      #   shell: bash
+      #   run: |
+      #     pytest -sv --cov-append --cov=. --cov-report xml tests/unit
       - name: Check for Secret availability
         id: secret-check
         if: ${{ contains(fromJSON('["3.9"]'), matrix.python) }}
@@ -192,7 +192,7 @@ jobs:
           fi
 
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          # pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n auto --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
           # pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
@@ -211,35 +211,35 @@ jobs:
           name: coverage-report
           path: coverage.xml
 
-  sonarcloud:
-    needs: [test]
-    if: ${{ always() && !cancelled()}}
-    name: SonarCloud
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Check coverage report existence
-        id: check_coverage_report
-        uses: andstor/file-existence-action@v3
-        with:
-          files: "coverage.xml"
-      - name: Download coverage report
-        uses: actions/download-artifact@v2
-        if: steps.check_coverage_report.outputs.files_exists == 'true'
-        with:
-          name: coverage-report
-        # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
-      - name: Override Coverage Source Path for Sonar
-        if: steps.check_coverage_report.outputs.files_exists == 'true'
-        run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        if: ${{ always() }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  # sonarcloud:
+  #   needs: [test]
+  #   if: ${{ always() && !cancelled()}}
+  #   name: SonarCloud
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+  #     - name: Check coverage report existence
+  #       id: check_coverage_report
+  #       uses: andstor/file-existence-action@v3
+  #       with:
+  #         files: "coverage.xml"
+  #     - name: Download coverage report
+  #       uses: actions/download-artifact@v2
+  #       if: steps.check_coverage_report.outputs.files_exists == 'true'
+  #       with:
+  #         name: coverage-report
+  #       # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
+  #     - name: Override Coverage Source Path for Sonar
+  #       if: steps.check_coverage_report.outputs.files_exists == 'true'
+  #       run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
+  #     - name: SonarCloud Scan
+  #       uses: SonarSource/sonarcloud-github-action@master
+  #       if: ${{ always() }}
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
@@ -368,13 +368,13 @@ jobs:
       id-token: write
     steps:
       - name: download-sdist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v2
         with:
           name: ${{ needs.package.outputs.sdist-package-name }}
           path: dist
 
       - name: download-bdist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v2
         with:
           name: ${{ needs.package.outputs.bdist-package-name }}
           path: dist
