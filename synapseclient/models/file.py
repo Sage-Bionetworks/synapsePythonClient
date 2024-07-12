@@ -1027,8 +1027,10 @@ class File(FileSynchronousProtocol, AccessControllable):
             md5=self.content_md5,
         )
 
-        if self.data_file_handle_id and (
-            cached_path := syn.cache.get(file_handle_id=self.data_file_handle_id)
+        if (
+            self.data_file_handle_id
+            and (not self.path or (self.path and not os.path.isfile(self.path)))
+            and (cached_path := syn.cache.get(file_handle_id=self.data_file_handle_id))
         ):
             self.path = cached_path
 
