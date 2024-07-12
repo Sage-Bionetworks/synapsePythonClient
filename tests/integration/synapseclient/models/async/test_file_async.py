@@ -1362,9 +1362,7 @@ class TestGet:
         await file_2.change_metadata_async(download_as=file.name)
 
         # WHEN I get the file with the default collision of `keep.both`
-        file_2 = await File(
-            id=file_2.id, download_location=os.path.dirname(file.path)
-        ).get_async()
+        file_2 = await File(id=file_2.id, path=os.path.dirname(file.path)).get_async()
 
         # THEN I expect both files to exist
         assert file.path != file_2.path
@@ -1409,7 +1407,7 @@ class TestGet:
         # WHEN I get the file with the default collision of `overwrite.local`
         file_2 = await File(
             id=file_2.id,
-            download_location=os.path.dirname(file.path),
+            path=os.path.dirname(file.path),
             if_collision="overwrite.local",
         ).get_async()
 
@@ -1451,7 +1449,7 @@ class TestGet:
         # WHEN I get the file with the default collision of `keep.local`
         file_2 = await File(
             id=file_2.id,
-            download_location=os.path.dirname(file.path),
+            path=os.path.dirname(file.path),
             if_collision="keep.local",
         ).get_async()
 

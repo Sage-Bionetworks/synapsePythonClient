@@ -367,7 +367,7 @@ class TestExernalStorage:
                 # THEN I should be able to donwload the file
                 assert not os.path.exists(file.path)
                 file_copy = await File(
-                    id=file.id, download_location=os.path.dirname(upload_file)
+                    id=file.id, path=os.path.dirname(upload_file)
                 ).get_async()
                 assert os.path.exists(file_copy.path)
                 assert utils.equal_paths(file_copy.path, upload_file)

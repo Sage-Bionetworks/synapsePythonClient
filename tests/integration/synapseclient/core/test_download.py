@@ -59,7 +59,7 @@ class TestDownloadCollisions:
             file = await File(
                 id=file.id,
                 if_collision="overwrite.local",
-                download_location=os.path.dirname(original_file_path),
+                path=os.path.dirname(original_file_path),
             ).get_async()
 
             # THEN the file is downloaded replacing the file on disk
@@ -191,12 +191,11 @@ class TestDownloadCaching:
 
             # WHEN I download the file to another location
             updated_location = os.path.join(
-                os.path.dirname(original_file_path), "subdirectory"
+                os.path.dirname(original_file_path),
+                "subdirectory/asd/asdas/dasd/asdas/dasdasd",
             )
             schedule_for_cleanup(updated_location)
-            file = await File(
-                id=file.id, download_location=updated_location
-            ).get_async()
+            file = await File(id=file.id, path=updated_location).get_async()
             schedule_for_cleanup(file.path)
 
             # THEN the file is not downloaded again, but it copied to the new location
@@ -304,7 +303,7 @@ class TestDownloadFromUrl:
 
         # WHEN I download the file
         file = await File(
-            id=file.id, download_location=os.path.dirname(original_file_path)
+            id=file.id, path=os.path.dirname(original_file_path)
         ).get_async()
 
         # THEN the file is downloaded to a different location and matches the original
@@ -394,9 +393,7 @@ class TestDownloadFromUrlMultiThreaded:
             new=500,
         ):
             # WHEN I download the file with multiple parts
-            file = await File(
-                id=file.id, download_location=os.path.dirname(file.path)
-            ).get_async()
+            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
 
         # THEN the file is downloaded and the md5 matches
         assert file.file_handle.content_md5 == file_md5
@@ -472,9 +469,7 @@ class TestDownloadFromUrlMultiThreaded:
             0.2,
         ):
             # WHEN I download the file with multiple parts
-            file = await File(
-                id=file.id, download_location=os.path.dirname(file.path)
-            ).get_async()
+            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
 
         # THEN the file is downloaded and the md5 matches
         assert file.file_handle.content_md5 == file_md5
@@ -514,7 +509,7 @@ class TestDownloadFromS3:
 
         # WHEN I download the file
         file = await File(
-            id=file.id, download_location=os.path.dirname(original_file_path)
+            id=file.id, path=os.path.dirname(original_file_path)
         ).get_async()
 
         # THEN the file is downloaded to a different location and matches the original

@@ -564,9 +564,9 @@ def test_sync_from_synapse_manifest_is_all(
             all_files=[file_model, file_model_2], path=temp_directory_path
         )
 
-        expected_manifest = """path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-\tsyn456\tfile_name\tsyn123\tTrue\t\t\t\t\t
-\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
+        expected_manifest = f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{temp_directory_path}\tsyn456\tfile_name\tsyn123\tTrue\t\t\t\t\t
+{os.path.join(temp_directory_path, FOLDER_NAME)}\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
         _compare_csv(
             expected_manifest,
             os.path.join(temp_directory_path, synapseutils.sync.MANIFEST_FILENAME),
@@ -577,8 +577,8 @@ def test_sync_from_synapse_manifest_is_all(
             all_files=[file_model_2],
             path=os.path.join(temp_directory_path, FOLDER_NAME),
         )
-        expected_manifest = """path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
+        expected_manifest = f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{os.path.join(temp_directory_path, FOLDER_NAME)}\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
         _compare_csv(
             expected_manifest,
             os.path.join(
@@ -719,9 +719,9 @@ def test_sync_from_synapse_manifest_is_root(
             all_files=[file_model, file_model_2], path=temp_directory_path
         )
 
-        expected_manifest = """path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
-\tsyn456\tfile_name\tsyn123\tTrue\t\t\t\t\t
-\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
+        expected_manifest = f"""path\tparent\tname\tid\tsynapseStore\tcontentType\tused\texecuted\tactivityName\tactivityDescription
+{temp_directory_path}\tsyn456\tfile_name\tsyn123\tTrue\t\t\t\t\t
+{os.path.join(temp_directory_path, FOLDER_NAME)}\tsyn456\tfile_name\tsyn789\tTrue\t\t\t\tfoo\tbar"""
         _compare_csv(
             expected_manifest,
             os.path.join(temp_directory_path, synapseutils.sync.MANIFEST_FILENAME),
