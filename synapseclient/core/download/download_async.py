@@ -473,6 +473,7 @@ class _MultithreadedDownloader:
             retry_errors=RETRYABLE_CONNECTION_ERRORS,
             retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS,
             retry_max_back_off=DEFAULT_MAX_BACK_OFF_ASYNC,
+            read_response_content=False,
         )
 
         return start, end

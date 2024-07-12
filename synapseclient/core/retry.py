@@ -272,6 +272,7 @@ async def with_retry_time_based_async(
     retry_back_off_factor: float = DEFAULT_BACK_OFF_FACTOR_ASYNC,
     retry_max_back_off: float = DEFAULT_MAX_BACK_OFF_ASYNC,
     retry_max_wait_before_failure: float = DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC,
+    read_response_content: bool = True,
 ) -> Union[Exception, httpx.Response, Any, None]:
     """
     Retries the given function under certain conditions. This is created such that it
@@ -297,6 +298,7 @@ async def with_retry_time_based_async(
         retry_back_off_factor: The factor to increase the wait time by for each retry.
         retry_max_back_off: The maximum wait time.
         retry_max_wait_before_failure: The maximum wait time before failure.
+        read_response_content: Whether to read the response content for HTTP requests.
 
     Example: Using with_retry
         Using ``with_retry_time_based_async`` to consolidate inputs into a list.
@@ -353,7 +355,10 @@ async def with_retry_time_based_async(
         retries += 1
         if total_wait < retry_max_wait_before_failure and retry:
             _log_for_retry(
-                logger=logger, response=response, caught_exception=caught_exception
+                logger=logger,
+                response=response,
+                caught_exception=caught_exception,
+                read_response_content=read_response_content,
             )
 
             backoff_wait = calculate_exponential_backoff(
@@ -395,6 +400,7 @@ def with_retry_time_based(
     retry_back_off_factor: float = DEFAULT_BACK_OFF_FACTOR_ASYNC,
     retry_max_back_off: float = DEFAULT_MAX_BACK_OFF_ASYNC,
     retry_max_wait_before_failure: float = DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC,
+    read_response_content: bool = True,
 ) -> Union[Exception, httpx.Response, Any, None]:
     """
     Retries the given function under certain conditions. This is created such that it
@@ -420,6 +426,7 @@ def with_retry_time_based(
         retry_back_off_factor: The factor to increase the wait time by for each retry.
         retry_max_back_off: The maximum wait time.
         retry_max_wait_before_failure: The maximum wait time before failure.
+        read_response_content: Whether to read the response content for HTTP requests.
 
     Example: Using with_retry
         Using ``with_retry_time_based`` to consolidate inputs into a list.
@@ -476,7 +483,10 @@ def with_retry_time_based(
         retries += 1
         if total_wait < retry_max_wait_before_failure and retry:
             _log_for_retry(
-                logger=logger, response=response, caught_exception=caught_exception
+                logger=logger,
+                response=response,
+                caught_exception=caught_exception,
+                read_response_content=read_response_content,
             )
 
             backoff_wait = calculate_exponential_backoff(
@@ -569,6 +579,7 @@ def _log_for_retry(
     logger: logging.Logger,
     response: httpx.Response = None,
     caught_exception: Exception = None,
+    read_response_content: bool = True,
 ) -> None:
     """Logs the retry message to debug.
 
@@ -576,9 +587,10 @@ def _log_for_retry(
         logger: The logger to use for logging the retry message.
         response: The response object from the request.
         caught_exception: The exception caught from the request.
+        read_response_content: Whether to read the response content for HTTP requests.
     """
     if response is not None:
-        response_message = _get_message(response)
+        response_message = _get_message(response) if read_response_content else ""
         url_message_part = ""
 
         if hasattr(response, "request") and hasattr(response.request, "url"):
