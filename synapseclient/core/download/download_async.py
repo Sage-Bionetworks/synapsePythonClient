@@ -473,6 +473,7 @@ class _MultithreadedDownloader:
             retry_errors=RETRYABLE_CONNECTION_ERRORS,
             retry_exceptions=RETRYABLE_CONNECTION_EXCEPTIONS,
             retry_max_back_off=DEFAULT_MAX_BACK_OFF_ASYNC,
+            read_response_content=False,
         )
 
         return start, end
@@ -531,7 +532,9 @@ def _execute_stream_and_write_chunk(
     with session.stream(
         method="GET", url=presigned_url_provider.get_info().url, headers=range_header
     ) as response:
-        _raise_for_status_httpx(response=response, logger=request._syn.logger)
+        _raise_for_status_httpx(
+            response=response, logger=request._syn.logger, read_response_content=False
+        )
         data = response.read()
         data_length = len(data)
         request._write_chunk(

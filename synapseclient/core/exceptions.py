@@ -191,7 +191,10 @@ def _raise_for_status(response, verbose=False):
 
 
 def _raise_for_status_httpx(
-    response: httpx.Response, logger: logging.Logger, verbose: bool = False
+    response: httpx.Response,
+    logger: logging.Logger,
+    verbose: bool = False,
+    read_response_content: bool = True,
 ) -> None:
     """
     Replacement for requests.response.raise_for_status().
@@ -200,8 +203,12 @@ def _raise_for_status_httpx(
 
     Arguments:
         response: The response object from the HTTPX request.
+        logger: The logger object to log any exceptions.
         verbose: If True, the request and response information will be appended to the
             error message.
+        read_response_content: If True, the response content will be read and appended
+            to the error message. If False, the response content will not be read and
+            appended to the error message.
     """
 
     message = None
@@ -242,7 +249,7 @@ def _raise_for_status_httpx(
         # 450: 'blocked_by_windows_parental_controls'
         # 451: 'unavailable_for_legal_reasons'
         # 499: 'client_closed_request'
-        message_body = _get_message(response, logger)
+        message_body = _get_message(response, logger) if read_response_content else ""
         message = f"{response.status_code} {CLIENT_ERROR} {message_body}"
 
     elif 500 <= response.status_code < 600:
@@ -257,7 +264,7 @@ def _raise_for_status_httpx(
         # 507: 'insufficient_storage'
         # 509: 'bandwidth_limit_exceeded'
         # 510: 'not_extended'
-        message_body = _get_message(response, logger)
+        message_body = _get_message(response, logger) if read_response_content else ""
         message = f"{response.status_code} {SERVER_ERROR} {message_body}"
 
     if message is not None:
@@ -275,7 +282,8 @@ def _raise_for_status_httpx(
                 # Append the response received
                 message += f"\n\n{RESPONSE_PREFIX}\n{str(response)}"
                 message += f"\n{HEADERS_PREFIX}{response.headers}"
-                message += f"\n{BODY_PREFIX}{message_body}\n\n"
+                if read_response_content:
+                    message += f"\n{BODY_PREFIX}{message_body}\n\n"
             except Exception:  # noqa
                 logger.exception(UNABLE_TO_APPEND_RESPONSE)
                 message += f"\n{UNABLE_TO_APPEND_RESPONSE}"
