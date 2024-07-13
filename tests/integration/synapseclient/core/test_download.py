@@ -191,7 +191,8 @@ class TestDownloadCaching:
 
             # WHEN I download the file to another location
             updated_location = os.path.join(
-                os.path.dirname(original_file_path), "subdirectory",
+                os.path.dirname(original_file_path),
+                "subdirectory",
             )
             schedule_for_cleanup(updated_location)
             file = await File(id=file.id, path=updated_location).get_async()
