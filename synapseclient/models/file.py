@@ -206,7 +206,15 @@ class File(FileSynchronousProtocol, AccessControllable):
             contain: letters, numbers, spaces, underscores, hyphens, periods, plus
             signs, apostrophes, and parentheses. If not specified, the name will be
             derived from the file name.
-        path: The path to the file on disk.
+        path: The path to the file on disk. Using shorthand `~` will be expanded to the
+            user's home directory.
+
+            This is used during a `get` operation to specify where to download the file
+            to. It should be pointing to a directory.
+
+            This is also used during a `store` operation to specify the file to upload.
+            It should be pointing to a file.
+
         description: The description of this file. Must be 1000 characters or less.
         parent_id: The ID of the Entity that is the parent of this Entity. Setting this
             to a new value and storing it will move this File under the new parent.
@@ -297,7 +305,6 @@ class File(FileSynchronousProtocol, AccessControllable):
 
     Attributes:
         download_file: (Get only) If True the file will be downloaded.
-        download_location: (Get only) The location to download the file to.
         if_collision: (Get only)
             Determines how to handle file collisions. Defaults to "keep.both". May be:
 
@@ -338,7 +345,14 @@ class File(FileSynchronousProtocol, AccessControllable):
     """
 
     path: Optional[str] = field(default=None, compare=False)
-    """The path to the file on disk."""
+    """The path to the file on disk. Using shorthand `~` will be expanded to the user's
+    home directory.
+
+    This is used during a `get` operation to specify where to download the file to. It
+    should be pointing to a directory.
+
+    This is also used during a `store` operation to specify the file to upload. It
+    should be pointing to a file."""
 
     description: Optional[str] = None
     """The description of this file. Must be 1000 characters or less."""
@@ -511,12 +525,6 @@ class File(FileSynchronousProtocol, AccessControllable):
     (Get only)
 
     If True the file will be downloaded."""
-
-    download_location: str = field(default=None, repr=False, compare=False)
-    """
-    (Get only)
-
-    The location to download the file to."""
 
     if_collision: str = field(default="keep.both", repr=False, compare=False)
     """
@@ -996,9 +1004,9 @@ class File(FileSynchronousProtocol, AccessControllable):
 
                 file_instance = await File(id="syn123").get_async()
 
-            Assuming you have a file at the path "path/to/file.txt":
+            Assuming you want to download a file to this directory: "path/to/directory":
 
-                file_instance = await File(path="path/to/file.txt").get_async()
+                file_instance = await File(path="path/to/directory").get_async()
         """
         if not self.id and not self.path:
             raise ValueError("The file must have an ID or path to get.")
@@ -1013,13 +1021,15 @@ class File(FileSynchronousProtocol, AccessControllable):
             if_collision=self.if_collision,
             limit_search=self.synapse_container_limit or self.parent_id,
             download_file=self.download_file,
-            download_location=self.download_location,
+            download_location=os.path.dirname(self.path)
+            if self.path and os.path.isfile(self.path)
+            else self.path,
             md5=self.content_md5,
         )
 
         if (
-            not self.path
-            and self.data_file_handle_id
+            self.data_file_handle_id
+            and (not self.path or (self.path and not os.path.isfile(self.path)))
             and (cached_path := syn.cache.get(file_handle_id=self.data_file_handle_id))
         ):
             self.path = cached_path

@@ -131,7 +131,7 @@ def store_file():
     # 5. Downloading a file ===============================================================
     # Downloading a file to a location has a default beahvior of "keep.both"
     downloaded_file = File(
-        id=file.id, download_location=os.path.expanduser("~/temp/myNewFolder")
+        id=file.id, path=os.path.expanduser("~/temp/myNewFolder")
     ).get()
     print(f"Downloaded file: {downloaded_file.path}")
 
@@ -142,7 +142,7 @@ def store_file():
     print(f"Before file md5: {utils.md5_for_file(path_to_file).hexdigest()}")
     downloaded_file = File(
         id=downloaded_file.id,
-        download_location=os.path.expanduser("~/temp/myNewFolder"),
+        path=os.path.expanduser("~/temp/myNewFolder"),
         if_collision="overwrite.local",
     ).get()
     print(f"After file md5: {utils.md5_for_file(path_to_file).hexdigest()}")
@@ -153,7 +153,7 @@ def store_file():
     print(f"Before file md5: {utils.md5_for_file(path_to_file).hexdigest()}")
     downloaded_file = File(
         id=downloaded_file.id,
-        download_location=os.path.expanduser("~/temp/myNewFolder"),
+        path=os.path.expanduser("~/temp/myNewFolder"),
         if_collision="keep.local",
     ).get()
     print(f"After file md5: {utils.md5_for_file(path_to_file).hexdigest()}")

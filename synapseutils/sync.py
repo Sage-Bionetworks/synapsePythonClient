@@ -308,7 +308,7 @@ async def _sync(
             id=entity_id,
             version_number=entity_version,
             if_collision=if_collision,
-            download_location=path,
+            path=path,
             download_file=download_file,
         ).get_async(
             include_activity=retrieve_activity,

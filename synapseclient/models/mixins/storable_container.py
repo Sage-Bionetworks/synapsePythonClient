@@ -505,7 +505,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             file = File(id=synapse_id, name=name, download_file=download_file)
             self.files.append(file)
             if path:
-                file.download_location = path
+                file.path = path
             if if_collision:
                 file.if_collision = if_collision
 
