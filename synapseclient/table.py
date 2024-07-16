@@ -2457,7 +2457,9 @@ class CsvFileTable(TableAbstractBaseClass):
         Returns:
             A Pandas dataframe with results
         """
-        print("Hey I hit my custom message in asDataFrame")
+        from synapseclient import Synapse
+
+        Synapse.get_client().logger.info("Hey I hit my custom message in asDataFrame")
         test_import_pandas()
         import pandas as pd
 

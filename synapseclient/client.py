@@ -746,7 +746,7 @@ class Synapse(object):
                 > Welcome, Me!
 
         """
-        print("Hey I hit my custom message in login")
+        self.logger.info("Hey I hit my custom message in login")
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
