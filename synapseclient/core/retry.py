@@ -64,6 +64,11 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
     "timeout",
     "ReadError",
     "ReadTimeout",
+    # HTTPX Specific connection exceptions:
+    "RemoteProtocolError",
+    "TimeoutException",
+    "ConnectError",
+    "ConnectTimeout",
 ]
 
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
