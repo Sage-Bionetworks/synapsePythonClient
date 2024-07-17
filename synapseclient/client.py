@@ -34,7 +34,6 @@ import asyncio_atexit
 import httpx
 import requests
 from deprecated import deprecated
-from loky import get_reusable_executor
 from opentelemetry import trace
 from opentelemetry.trace import SpanKind
 
@@ -410,7 +409,6 @@ class Synapse(object):
         self._thread_executor = {}
         self._process_executor = {}
         self._parallel_file_transfer_semaphore = {}
-        self._md5_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
         self._parts_transfered_counter = 0
 
@@ -521,55 +519,6 @@ class Synapse(object):
 
         asyncio_atexit.register(close_pool)
         return self._thread_executor[asyncio_event_loop]
-
-    def _get_process_pool_executor(self, asyncio_event_loop: asyncio.AbstractEventLoop):
-        """
-        Retrieve the process pool executor for the Synapse client. Or create a new one
-        if it does not exist. This executor is used for parallel processing of data.
-
-        This is expected to be called from within an AsyncIO loop.
-
-        Note: Within Windows a ProcessPoolExecutor requires that the initial entry point
-        into the code be within a `if __name__ == "__main__":` block. This is not
-        possible within the current codebase as it would require everyone using this
-        library to have this as their entry point. As a result, the ProcessPoolExecutor
-        will not work within Windows.
-
-        To get around this Windows limitation this is using this package:
-        https://github.com/joblib/loky
-        """
-        if (
-            hasattr(self, "_process_executor")
-            and asyncio_event_loop in self._process_executor
-            and self._process_executor[asyncio_event_loop] is not None
-        ):
-            return self._process_executor[asyncio_event_loop]
-
-        self._process_executor.update({asyncio_event_loop: get_reusable_executor(1)})
-
-        return self._process_executor[asyncio_event_loop]
-
-    def _get_md5_semaphore(
-        self, asyncio_event_loop: asyncio.AbstractEventLoop
-    ) -> asyncio.Semaphore:
-        """
-        Retrieve the semaphore for the Synapse client. Or create a new one if it does not
-        exist. This semaphore is used to ensure that only one process is calculating the
-        MD5 hash at a time. This is to prevent the custom process pool executor from
-        thrashing or handling the waiting. We should let asyncio handle the waiting.
-
-        This is expected to be called from within an AsyncIO loop.
-        """
-        if (
-            hasattr(self, "_md5_semaphore")
-            and asyncio_event_loop in self._md5_semaphore
-            and self._md5_semaphore[asyncio_event_loop] is not None
-        ):
-            return self._md5_semaphore[asyncio_event_loop]
-
-        self._md5_semaphore.update({asyncio_event_loop: asyncio.Semaphore(1)})
-
-        return self._md5_semaphore[asyncio_event_loop]
 
     def _get_parallel_file_transfer_semaphore(
         self, asyncio_event_loop: asyncio.AbstractEventLoop

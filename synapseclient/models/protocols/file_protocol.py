@@ -152,9 +152,9 @@ class FileSynchronousProtocol(Protocol):
 
                 file_instance = File(id="syn123").get()
 
-            Assuming you have a file at the path "path/to/file.txt":
+            Assuming you want to download a file to this directory: "path/to/directory":
 
-                file_instance = File(path="path/to/file.txt").get()
+                file_instance = File(path="path/to/directory").get()
         """
         return self
 

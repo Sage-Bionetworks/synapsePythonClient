@@ -35,6 +35,7 @@ stored in the `~/.synapseConfig` file.
 -  \[[SYNPY-1483](https://sagebionetworks.jira.com/browse/SYNPY-1483)\] - Update credential chain to use user args first
 -  \[[SYNPY-1485](https://sagebionetworks.jira.com/browse/SYNPY-1485)\] - Include isort with pre-commit
 -  \[[SYNPY-1487](https://sagebionetworks.jira.com/browse/SYNPY-1487)\] - Fix missing coverage.xml bug
+-  \[[SYNPY-1504](https://sagebionetworks.jira.com/browse/SYNPY-1504)\] - Review usage of download_location and path parameters on File class
 
 ## 4.3.0 (2024-05-30)
 ### Highlights

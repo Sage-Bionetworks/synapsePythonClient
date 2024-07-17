@@ -59,7 +59,7 @@ class TestDownloadCollisions:
             file = await File(
                 id=file.id,
                 if_collision="overwrite.local",
-                download_location=os.path.dirname(original_file_path),
+                path=os.path.dirname(original_file_path),
             ).get_async()
 
             # THEN the file is downloaded replacing the file on disk
@@ -191,12 +191,11 @@ class TestDownloadCaching:
 
             # WHEN I download the file to another location
             updated_location = os.path.join(
-                os.path.dirname(original_file_path), "subdirectory"
+                os.path.dirname(original_file_path),
+                "subdirectory",
             )
             schedule_for_cleanup(updated_location)
-            file = await File(
-                id=file.id, download_location=updated_location
-            ).get_async()
+            file = await File(id=file.id, path=updated_location).get_async()
             schedule_for_cleanup(file.path)
 
             # THEN the file is not downloaded again, but it copied to the new location
@@ -304,7 +303,7 @@ class TestDownloadFromUrl:
 
         # WHEN I download the file
         file = await File(
-            id=file.id, download_location=os.path.dirname(original_file_path)
+            id=file.id, path=os.path.dirname(original_file_path)
         ).get_async()
 
         # THEN the file is downloaded to a different location and matches the original
@@ -394,9 +393,7 @@ class TestDownloadFromUrlMultiThreaded:
             new=500,
         ):
             # WHEN I download the file with multiple parts
-            file = await File(
-                id=file.id, download_location=os.path.dirname(file.path)
-            ).get_async()
+            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
 
         # THEN the file is downloaded and the md5 matches
         assert file.file_handle.content_md5 == file_md5
@@ -472,9 +469,81 @@ class TestDownloadFromUrlMultiThreaded:
             0.2,
         ):
             # WHEN I download the file with multiple parts
-            file = await File(
-                id=file.id, download_location=os.path.dirname(file.path)
-            ).get_async()
+            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
+
+        # THEN the file is downloaded and the md5 matches
+        assert file.file_handle.content_md5 == file_md5
+        assert os.path.exists(file_path)
+
+    async def test_download_from_url_multi_threaded_random_protocol_exceptions(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test download of a file if downloaded in multiple parts. In this case I am
+        dropping the download part size to 500 bytes to force multiple parts download.
+
+        This function will randomly fail the download of a part with protocol exceptions
+
+        """
+        # Set the failure rate to 90%
+        failure_rate = 0.9
+
+        # GIVEN a file stored in synapse
+        file_path = utils.make_bogus_data_file()
+        file = await File(path=file_path, parent_id=project_model.id).store_async()
+        schedule_for_cleanup(file.id)
+        schedule_for_cleanup(file_path)
+        file_md5 = file.file_handle.content_md5
+        assert file_md5 is not None
+        assert os.path.exists(file_path)
+
+        # AND the file is not in the cache
+        syn.cache.remove(file_handle_id=file.file_handle.id)
+        os.remove(file_path)
+        assert not os.path.exists(file_path)
+
+        # AND an httpx client that is not mocked
+        httpx_timeout = httpx.Timeout(70, pool=None)
+        client = httpx.Client(timeout=httpx_timeout)
+
+        # AND the mock httpx send function to simulate a failure
+        def mock_httpx_send(**kwargs):
+            """Conditionally mock the HTTPX send function to simulate a failure. The
+            HTTPX .stream function internally calls a non-contexted managed send
+            function. This allows us to simulate a failure in the send function."""
+            is_part_stream = False
+            for header in kwargs.get("request").headers.raw:
+                if header[0].lower() == b"range":
+                    is_part_stream = True
+                    break
+            if is_part_stream and random.random() <= failure_rate:
+                raise httpx.RemoteProtocolError(
+                    "peer closed connection without sending complete message body (received 1 bytes, expected 2)"
+                )
+            else:
+                # Call the real send function
+                return client.send(**kwargs)
+
+        with patch.object(
+            synapseclient.core.download.download_functions,
+            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+            new=500,
+        ), patch.object(
+            synapseclient.core.download.download_async,
+            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+            new=500,
+        ), patch.object(
+            syn._requests_session_storage,
+            "send",
+            mock_httpx_send,
+        ), patch(
+            "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
+            0.2,
+        ):
+            # WHEN I download the file with multiple parts
+            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
 
         # THEN the file is downloaded and the md5 matches
         assert file.file_handle.content_md5 == file_md5
@@ -514,7 +583,7 @@ class TestDownloadFromS3:
 
         # WHEN I download the file
         file = await File(
-            id=file.id, download_location=os.path.dirname(original_file_path)
+            id=file.id, path=os.path.dirname(original_file_path)
         ).get_async()
 
         # THEN the file is downloaded to a different location and matches the original
