@@ -96,10 +96,13 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         return r
 
     def __repr__(self):
-        return (f"SynapseAuthTokenCredentials("
+        return (
+            f"SynapseAuthTokenCredentials("
             f"username='{self.username}', "
             f"displayname='{self.displayname}', "
-            f"token='{self.secret}')")
+            f"token='{self.secret}')"
+        )
+
 
 # a class that just contains args passed form synapse client login
 UserLoginArgs = collections.namedtuple(
