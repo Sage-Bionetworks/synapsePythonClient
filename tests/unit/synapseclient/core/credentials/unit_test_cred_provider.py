@@ -116,14 +116,11 @@ class TestSynapseCredentialProvider(object):
 
     def test_get_synapse_credentials(self) -> None:
         auth_info = ("username", "auth_token")
-        with (
-            patch.object(
-                self.provider, "_get_auth_info", return_value=auth_info
-            ) as mock_get_auth_info,
-            patch.object(
-                self.provider, "_create_synapse_credential"
-            ) as mock_create_synapse_credentials,
-        ):
+        with patch.object(
+            self.provider, "_get_auth_info", return_value=auth_info
+        ) as mock_get_auth_info, patch.object(
+            self.provider, "_create_synapse_credential"
+        ) as mock_create_synapse_credentials:
             self.provider.get_synapse_credentials(self.syn, self.user_login_args)
 
             mock_get_auth_info.assert_called_once_with(
