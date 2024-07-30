@@ -54,7 +54,10 @@ class TestSynapseAuthTokenCredentials:
 
     def test_repr(self):
         assert (
-            f"SynapseAuthTokenCredentials(username='{self.username}', displayname='{self.displayname}', token='{self.auth_token}')"
+            f"SynapseAuthTokenCredentials("\
+            f"username='{self.username}', "\
+            f"displayname='{self.displayname}', "\
+            f"token='{self.auth_token}')"
             == repr(self.credentials)
         )
 
