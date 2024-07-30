@@ -98,7 +98,7 @@ My file was last modified on: 2023-12-28T21:55:17.971Z
 Now that your project has a number of Folders and Files let's explore how we can traverse the content stored within the Project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/file.py!lines=101-111}
+{!docs/tutorials/python/tutorial_scripts/file.py!lines=101-112}
 ```
 
 
