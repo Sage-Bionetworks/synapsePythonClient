@@ -3797,4 +3797,3 @@ def test_delete_team(syn: Synapse) -> None:
     with patch.object(syn, "restDELETE") as mock_delete:
         syn.delete_team(1)
         mock_delete.assert_called_once_with("/team/1")
-        
