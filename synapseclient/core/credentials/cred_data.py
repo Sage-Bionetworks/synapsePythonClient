@@ -61,7 +61,7 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
             # ValueError if the split string is not base64 encoded or if the decoded base64 is not json
             pass
 
-    def __init__(self, token, username=None, displayname=None):
+    def __init__(self, token: str, username: str = None, displayname: str = None) -> None:
         self._validate_token(token)
 
         self._token = token
