@@ -13,7 +13,6 @@ from synapseclient.core.credentials.cred_data import (
     SynapseCredentials,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
-import pdb
 
 if TYPE_CHECKING:
     from synapseclient import Synapse

@@ -142,7 +142,7 @@ from .table import (
 )
 from .team import Team, TeamMember, UserGroupHeader, UserProfile
 from .wiki import Wiki, WikiAttachment
-import pdb
+
 tracer = trace.get_tracer("synapseclient")
 
 PRODUCTION_ENDPOINTS = {

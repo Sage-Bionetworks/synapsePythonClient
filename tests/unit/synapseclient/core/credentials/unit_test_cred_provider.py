@@ -25,7 +25,6 @@ from synapseclient.core.credentials.credential_provider import (
     UserArgsCredentialsProvider,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
-import pdb
 
 
 class TestSynapseApiKeyCredentialsProviderChain(object):

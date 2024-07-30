@@ -5,7 +5,6 @@ import requests
 
 from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
 from synapseclient.core.exceptions import SynapseAuthenticationError
-import pdb
 
 
 class TestSynapseAuthTokenCredentials:
