@@ -2,6 +2,7 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
+
 import asyncio
 import collections
 import collections.abc
@@ -770,7 +771,12 @@ class Synapse(object):
             raise SynapseNoCredentialsError("No credentials provided.")
 
         if not silent:
-            self.logger.info(f"Welcome, {self.credentials.displayname}!\n")
+            display_name = (
+                self.credentials.displayname
+                if self.credentials.displayname is not None
+                else self.credentials.username
+            )
+            self.logger.info(f"Welcome, {display_name}!\n")
 
         if cache_client:
             Synapse.set_client(self)
@@ -1952,9 +1958,14 @@ class Synapse(object):
                     upload_file_handle_async(
                         self,
                         parent_id_for_upload,
-                        local_state["path"]
-                        if (synapseStore or local_state_fh.get("externalURL") is None)
-                        else local_state_fh.get("externalURL"),
+                        (
+                            local_state["path"]
+                            if (
+                                synapseStore
+                                or local_state_fh.get("externalURL") is None
+                            )
+                            else local_state_fh.get("externalURL")
+                        ),
                         synapse_store=synapseStore,
                         md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
                         file_size=local_state_fh.get("contentSize"),
@@ -2454,9 +2465,10 @@ class Synapse(object):
         dl_list_path = self.get_download_list_manifest()
         downloaded_files = []
         new_manifest_path = f"manifest_{time.time_ns()}.csv"
-        with open(dl_list_path) as manifest_f, open(
-            new_manifest_path, "w"
-        ) as write_obj:
+        with (
+            open(dl_list_path) as manifest_f,
+            open(new_manifest_path, "w") as write_obj,
+        ):
             reader = csv.DictReader(manifest_f)
             columns = reader.fieldnames
             columns.extend(["path", "error"])
@@ -3124,9 +3136,11 @@ class Synapse(object):
         if usedList is None:
             return None
         usedList = [
-            self.get(target, limitSearch=limitSearch)
-            if (os.path.isfile(target) if isinstance(target, str) else False)
-            else target
+            (
+                self.get(target, limitSearch=limitSearch)
+                if (os.path.isfile(target) if isinstance(target, str) else False)
+                else target
+            )
             for target in usedList
         ]
         return usedList
