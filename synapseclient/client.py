@@ -2465,10 +2465,9 @@ class Synapse(object):
         dl_list_path = self.get_download_list_manifest()
         downloaded_files = []
         new_manifest_path = f"manifest_{time.time_ns()}.csv"
-        with (
-            open(dl_list_path) as manifest_f,
-            open(new_manifest_path, "w") as write_obj,
-        ):
+        with open(dl_list_path) as manifest_f, open(
+            new_manifest_path, "w"
+        ) as write_obj:
             reader = csv.DictReader(manifest_f)
             columns = reader.fieldnames
             columns.extend(["path", "error"])
