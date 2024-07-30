@@ -25,7 +25,7 @@ from synapseclient.core.credentials.credential_provider import (
     UserArgsCredentialsProvider,
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
-
+import pdb
 
 class TestSynapseApiKeyCredentialsProviderChain(object):
     @pytest.fixture(autouse=True, scope="function")
@@ -62,6 +62,7 @@ class TestSynapseApiKeyCredentialsProviderChain(object):
         cred_provider2.get_synapse_credentials.return_value = (
             SynapseAuthTokenCredentials(
                 username="asdf",
+                displayname="aaaa",
                 token="ghjk",
             )
         )
@@ -174,13 +175,14 @@ class TestSynapseCredentialProvider(object):
         assert creds is mock_creds
 
     @pytest.mark.parametrize(
-        "login_username,profile_username,profile_emails",
+        "login_username,profile_username,profile_emails,profile_displayname",
         (
-            ("foo", "foo", ["foo@bar.com"]),  # username matches
+            ("foo", "foo", ["foo@bar.com"],"foo"),  # username matches
             (
                 "foo@bar.com",
                 "foo",
                 ["1@2.com", "foo@bar.com", "3@4.com"],
+                "foo"
             ),  # email matches
         ),
     )
@@ -190,6 +192,7 @@ class TestSynapseCredentialProvider(object):
         login_username,
         profile_username,
         profile_emails,
+        profile_displayname,
     ) -> None:
         """Verify that if both a username/email and a auth token are provided, the login is successful
         if the token matches either the username or a profile email address."""
@@ -198,6 +201,7 @@ class TestSynapseCredentialProvider(object):
         mock_rest_get.return_value = {
             "userName": profile_username,
             "emails": profile_emails,
+            "displayName": profile_displayname
         }
 
         cred = self.provider._create_synapse_credential(
@@ -205,6 +209,7 @@ class TestSynapseCredentialProvider(object):
         )
         assert cred.secret == self.auth_token
         assert cred.username == profile_username
+        assert cred.displayname == profile_displayname
 
     def test_create_synapse_credential__username_auth_token_mismatch(
         self, mocker
@@ -217,6 +222,7 @@ class TestSynapseCredentialProvider(object):
         mock_rest_get.return_value = {
             "userName": "foo",
             "emails": ["foo@bar.com", "bar@baz.com"],
+            "displayName": "foo"
         }
 
         with pytest.raises(SynapseAuthenticationError) as ex:

@@ -142,7 +142,7 @@ from .table import (
 )
 from .team import Team, TeamMember, UserGroupHeader, UserProfile
 from .wiki import Wiki, WikiAttachment
-
+import pdb
 tracer = trace.get_tracer("synapseclient")
 
 PRODUCTION_ENDPOINTS = {
@@ -770,13 +770,7 @@ class Synapse(object):
             raise SynapseNoCredentialsError("No credentials provided.")
 
         if not silent:
-            profile = self.getUserProfile()
-            display_name = (
-                profile["displayName"]
-                if "displayName" in profile
-                else self.credentials.username
-            )
-            self.logger.info(f"Welcome, {display_name}!\n")
+            self.logger.info(f"Welcome, {self.credentials.displayname}!\n")
 
         if cache_client:
             Synapse.set_client(self)

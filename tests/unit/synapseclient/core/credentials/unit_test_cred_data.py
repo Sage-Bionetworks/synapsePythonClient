@@ -5,15 +5,16 @@ import requests
 
 from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
 from synapseclient.core.exceptions import SynapseAuthenticationError
-
+import pdb
 
 class TestSynapseAuthTokenCredentials:
     @pytest.fixture(scope="function", autouse=True)
     def setup_method(self):
         self.username = "ahhhhhhhhhhhhhh"
         self.auth_token = "opensesame"
+        self.displayname ="hhhhhaaaa"
         self.credentials = SynapseAuthTokenCredentials(
-            self.auth_token, username=self.username
+            self.auth_token, username=self.username, displayname=self.displayname
         )
         self.KEYRING_NAME = "SYNAPSE.ORG_CLIENT_AUTH_TOKEN"
 
@@ -25,6 +26,15 @@ class TestSynapseAuthTokenCredentials:
         assert credentials.username is None
         credentials.username = self.username
         assert credentials.username is self.username
+
+    def test_displayname(self):
+        assert self.displayname == self.credentials.displayname
+
+    def test_displayname_setter(self):
+        credentials = SynapseAuthTokenCredentials(self.auth_token)
+        assert credentials.displayname is None
+        credentials.displayname = self.displayname
+        assert credentials.displayname is self.displayname
 
     def test_secret(self):
         assert self.credentials.secret == self.auth_token
@@ -44,7 +54,7 @@ class TestSynapseAuthTokenCredentials:
 
     def test_repr(self):
         assert (
-            f"SynapseAuthTokenCredentials(username='{self.username}', token='{self.auth_token}')"
+            f"SynapseAuthTokenCredentials(username='{self.username}', displayname='{self.displayname}', token='{self.auth_token}')"
             == repr(self.credentials)
         )
 
