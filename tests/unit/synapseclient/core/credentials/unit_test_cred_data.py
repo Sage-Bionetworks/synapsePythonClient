@@ -7,12 +7,13 @@ from synapseclient.core.credentials.cred_data import SynapseAuthTokenCredentials
 from synapseclient.core.exceptions import SynapseAuthenticationError
 import pdb
 
+
 class TestSynapseAuthTokenCredentials:
     @pytest.fixture(scope="function", autouse=True)
     def setup_method(self):
         self.username = "ahhhhhhhhhhhhhh"
         self.auth_token = "opensesame"
-        self.displayname ="hhhhhaaaa"
+        self.displayname = "hhhhhaaaa"
         self.credentials = SynapseAuthTokenCredentials(
             self.auth_token, username=self.username, displayname=self.displayname
         )

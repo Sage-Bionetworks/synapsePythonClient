@@ -27,6 +27,7 @@ from synapseclient.core.credentials.credential_provider import (
 from synapseclient.core.exceptions import SynapseAuthenticationError
 import pdb
 
+
 class TestSynapseApiKeyCredentialsProviderChain(object):
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -116,11 +117,14 @@ class TestSynapseCredentialProvider(object):
 
     def test_get_synapse_credentials(self) -> None:
         auth_info = ("username", "auth_token")
-        with patch.object(
-            self.provider, "_get_auth_info", return_value=auth_info
-        ) as mock_get_auth_info, patch.object(
-            self.provider, "_create_synapse_credential"
-        ) as mock_create_synapse_credentials:
+        with (
+            patch.object(
+                self.provider, "_get_auth_info", return_value=auth_info
+            ) as mock_get_auth_info,
+            patch.object(
+                self.provider, "_create_synapse_credential"
+            ) as mock_create_synapse_credentials,
+        ):
             self.provider.get_synapse_credentials(self.syn, self.user_login_args)
 
             mock_get_auth_info.assert_called_once_with(
@@ -177,12 +181,12 @@ class TestSynapseCredentialProvider(object):
     @pytest.mark.parametrize(
         "login_username,profile_username,profile_emails,profile_displayname",
         (
-            ("foo", "foo", ["foo@bar.com"],"foo"),  # username matches
+            ("foo", "foo", ["foo@bar.com"], "foo"),  # username matches
             (
                 "foo@bar.com",
                 "foo",
                 ["1@2.com", "foo@bar.com", "3@4.com"],
-                "foo"
+                "foo",
             ),  # email matches
         ),
     )
@@ -201,7 +205,7 @@ class TestSynapseCredentialProvider(object):
         mock_rest_get.return_value = {
             "userName": profile_username,
             "emails": profile_emails,
-            "displayName": profile_displayname
+            "displayName": profile_displayname,
         }
 
         cred = self.provider._create_synapse_credential(
@@ -222,7 +226,7 @@ class TestSynapseCredentialProvider(object):
         mock_rest_get.return_value = {
             "userName": "foo",
             "emails": ["foo@bar.com", "bar@baz.com"],
-            "displayName": "foo"
+            "displayName": "foo",
         }
 
         with pytest.raises(SynapseAuthenticationError) as ex:
