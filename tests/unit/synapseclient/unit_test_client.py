@@ -100,7 +100,9 @@ class TestLogin:
             auth_token="hunter2", username="AzureDiamond"
         )
         self.synapse_creds = SynapseAuthTokenCredentials(
-            token="hunter2", username="AzureDiamond"
+            token="hunter2",
+            displayname="Azure Diamond",
+            username="AzureDiamond",
         )
 
         self.mocked_credential_chain = create_autospec(SynapseCredentialsProviderChain)
@@ -139,9 +141,7 @@ class TestLogin:
         assert self.synapse_creds == self.syn.credentials
 
     def test_login_silent_is_false(self) -> None:
-        with patch.object(self.syn, "getUserProfile"), patch.object(
-            self.syn, "logger"
-        ) as mocked_logger:
+        with patch.object(self.syn, "logger") as mocked_logger:
             # method under test
             self.syn.login(silent=False, **self.login_args)
 

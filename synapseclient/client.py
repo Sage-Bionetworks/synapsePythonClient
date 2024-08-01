@@ -2,6 +2,7 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
+
 import asyncio
 import collections
 import collections.abc
@@ -770,12 +771,7 @@ class Synapse(object):
             raise SynapseNoCredentialsError("No credentials provided.")
 
         if not silent:
-            profile = self.getUserProfile()
-            display_name = (
-                profile["displayName"]
-                if "displayName" in profile
-                else self.credentials.username
-            )
+            display_name = self.credentials.displayname or self.credentials.username
             self.logger.info(f"Welcome, {display_name}!\n")
 
         if cache_client:
@@ -1958,9 +1954,14 @@ class Synapse(object):
                     upload_file_handle_async(
                         self,
                         parent_id_for_upload,
-                        local_state["path"]
-                        if (synapseStore or local_state_fh.get("externalURL") is None)
-                        else local_state_fh.get("externalURL"),
+                        (
+                            local_state["path"]
+                            if (
+                                synapseStore
+                                or local_state_fh.get("externalURL") is None
+                            )
+                            else local_state_fh.get("externalURL")
+                        ),
                         synapse_store=synapseStore,
                         md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
                         file_size=local_state_fh.get("contentSize"),
@@ -3130,9 +3131,11 @@ class Synapse(object):
         if usedList is None:
             return None
         usedList = [
-            self.get(target, limitSearch=limitSearch)
-            if (os.path.isfile(target) if isinstance(target, str) else False)
-            else target
+            (
+                self.get(target, limitSearch=limitSearch)
+                if (os.path.isfile(target) if isinstance(target, str) else False)
+                else target
+            )
             for target in usedList
         ]
         return usedList

@@ -61,11 +61,14 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
             # ValueError if the split string is not base64 encoded or if the decoded base64 is not json
             pass
 
-    def __init__(self, token, username=None):
+    def __init__(
+        self, token: str, username: str = None, displayname: str = None
+    ) -> None:
         self._validate_token(token)
 
         self._token = token
         self.username = username
+        self.displayname = displayname
 
     @property
     def username(self) -> str:
@@ -77,6 +80,15 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         self._username = username
 
     @property
+    def displayname(self) -> str:
+        """The displayname associated with this token."""
+        return self._displayname
+
+    @displayname.setter
+    def displayname(self, displayname: str) -> None:
+        self._displayname = displayname
+
+    @property
     def secret(self) -> str:
         """The bearer token."""
         return self._token
@@ -86,7 +98,12 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         return r
 
     def __repr__(self):
-        return f"SynapseAuthTokenCredentials(username='{self.username}', token='{self.secret}')"
+        return (
+            f"SynapseAuthTokenCredentials("
+            f"username='{self.username}', "
+            f"displayname='{self.displayname}', "
+            f"token='{self.secret}')"
+        )
 
 
 # a class that just contains args passed form synapse client login
