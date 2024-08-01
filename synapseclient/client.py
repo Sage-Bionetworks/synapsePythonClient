@@ -771,11 +771,7 @@ class Synapse(object):
             raise SynapseNoCredentialsError("No credentials provided.")
 
         if not silent:
-            display_name = (
-                self.credentials.displayname
-                if self.credentials.displayname is not None
-                else self.credentials.username
-            )
+            display_name = self.credentials.displayname or self.credentials.username
             self.logger.info(f"Welcome, {display_name}!\n")
 
         if cache_client:
