@@ -77,6 +77,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
             profile = syn.restGET("/userProfile", auth=credentials)
             profile_username = profile.get("userName")
             profile_emails = profile.get("emails", [])
+            profile_displayname = profile.get("displayName")
 
             if username and (
                 username != profile_username and username not in profile_emails
@@ -88,8 +89,9 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
                     "username/email and auth_token both provided but username does not "
                     "match token profile"
                 )
-
             credentials.username = profile_username
+            credentials.displayname = profile_displayname
+
             return credentials
 
         return None
