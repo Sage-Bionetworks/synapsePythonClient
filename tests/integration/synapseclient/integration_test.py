@@ -78,7 +78,7 @@ async def testCustomConfigFile(schedule_for_cleanup):
         shutil.copyfile(client.CONFIG_FILE, configPath)
         schedule_for_cleanup(configPath)
 
-        syn2 = Synapse(configPath=configPath)
+        syn2 = Synapse(configPath=configPath, cache_client=False)
         syn2.login()
     else:
         raise ValueError(

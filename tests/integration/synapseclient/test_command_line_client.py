@@ -900,7 +900,7 @@ async def test_table_query(test_state):
 
 
 async def test_login(test_state):
-    alt_syn = Synapse()
+    alt_syn = Synapse(cache_client=False)
     username = "username"
     auth_token = "my_auth_token"
     with patch.object(alt_syn, "login") as mock_login, patch.object(
