@@ -390,7 +390,7 @@ def test_is_versionable_dict_representation_of_entity():
     )
 
 
-def test_create_Link_to_entity_with_the_same_parent():
+def test_create_Link_to_entity_with_the_same_parent(syn: Synapse):
     parent = "syn123"
     file = File("new file", parent=parent, id="syn456")
     file_bundle = {
@@ -414,6 +414,5 @@ def test_create_Link_to_entity_with_the_same_parent():
         "versionUrl": "/repo/v1/entity/syn456/version/1",
     }
     link = Link(targetId=file, parent=parent)
-    syn = Synapse(skip_checks=True)
     with patch.object(syn, "_getEntity", return_value=file_bundle):
         pytest.raises(ValueError, syn.store, link)

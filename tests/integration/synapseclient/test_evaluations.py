@@ -178,7 +178,7 @@ async def test_teams(syn: Synapse, schedule_for_cleanup):
     schedule_for_cleanup(team)
 
     # not logged in, teams are public
-    anonymous_syn = Synapse()
+    anonymous_syn = Synapse(cache_client=False)
 
     found_team = anonymous_syn.getTeam(team.id)
     assert team == found_team

@@ -727,7 +727,9 @@ class TestMultipartUpload:
             )
 
             # Test when call the multipart_upload_file, md5_for_file pass in the correct callback function
-            syn_with_silent_mode = Synapse(silent=True, skip_checks=True)
+            syn_with_silent_mode = Synapse(
+                silent=True, skip_checks=True, cache_client=False
+            )
             multipart_upload_file(
                 syn_with_silent_mode,
                 file_path,
@@ -735,7 +737,9 @@ class TestMultipartUpload:
             )
             md5_for_file.assert_called_with(file_path, callback=None)
 
-            syn_with_no_silent_mode = Synapse(debug=False, skip_checks=True)
+            syn_with_no_silent_mode = Synapse(
+                debug=False, skip_checks=True, cache_client=False
+            )
             multipart_upload_file(
                 syn_with_no_silent_mode,
                 file_path,

@@ -162,6 +162,7 @@ async def test_mock_download(syn: Synapse) -> None:
             destination=temp_dir,
             file_handle_id=12345,
             expected_md5=contents_md5,
+            synapse_client=syn,
         )
 
     # 2. Multiple redirects
@@ -181,6 +182,7 @@ async def test_mock_download(syn: Synapse) -> None:
             destination=temp_dir,
             file_handle_id=12345,
             expected_md5=contents_md5,
+            synapse_client=syn,
         )
 
     # 3. recover from partial download
@@ -286,6 +288,7 @@ async def test_mock_download(syn: Synapse) -> None:
             synapse_id=objectId,
             entity_type=objectType,
             destination=temp_dir,
+            synapse_client=syn,
         )
 
     # 5. don't recover, a partial download that never completes
@@ -337,6 +340,7 @@ async def test_mock_download(syn: Synapse) -> None:
                 synapse_id=objectId,
                 entity_type=objectType,
                 destination=temp_dir,
+                synapse_client=syn,
             )
 
     # 6. 206 Range header not supported, respond with 200 and full file
@@ -377,6 +381,7 @@ async def test_mock_download(syn: Synapse) -> None:
             synapse_id=objectId,
             entity_type=objectType,
             destination=temp_dir,
+            synapse_client=syn,
         )
 
     # 7. Too many redirects
@@ -408,6 +413,7 @@ async def test_mock_download(syn: Synapse) -> None:
                 synapse_id=objectId,
                 entity_type=objectType,
                 destination=temp_dir,
+                synapse_client=syn,
             )
 
 
@@ -445,6 +451,7 @@ class TestDownloadFileHandle:
                 synapse_id=456,
                 entity_type="FileEntity",
                 destination="/myfakepath",
+                synapse_client=self.syn,
             )
 
             mock_multi_thread_download.assert_called_once_with(
@@ -478,6 +485,7 @@ class TestDownloadFileHandle:
                 synapse_id=456,
                 entity_type="FileEntity",
                 destination="/myfakepath",
+                synapse_client=self.syn,
             )
 
             mock_download_from_URL.assert_called_once_with(
@@ -534,6 +542,7 @@ class TestDownloadFileHandle:
                 synapse_id=456,
                 entity_type="FileEntity",
                 destination="/myfakepath",
+                synapse_client=self.syn,
             )
 
             mock_download_from_URL.assert_called_once_with(
@@ -674,7 +683,7 @@ async def test_download_end_early_retry(syn: Synapse) -> None:
         shutil, "move"
     ) as mocked_move:
         # function under test
-        download_from_url(url=url, destination=destination)
+        download_from_url(url=url, destination=destination, synapse_client=syn)
 
         # assert temp_download_filename() called 2 times with same parameters
         assert [
@@ -742,7 +751,10 @@ async def test_download_md5_mismatch__not_local_file(syn: Synapse) -> None:
         # function under test
         with pytest.raises(SynapseMd5MismatchError):
             await download_from_url(
-                url=url, destination=destination, expected_md5="fake md5 is fake"
+                url=url,
+                destination=destination,
+                expected_md5="fake md5 is fake",
+                synapse_client=syn,
             )
 
         # assert temp_download_filename() called once

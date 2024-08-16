@@ -2,7 +2,6 @@
 The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
 retrieving data, and recording provenance of data analysis.
 """
-
 import asyncio
 import collections
 import collections.abc
@@ -278,6 +277,7 @@ class Synapse(object):
         requests_session_async_synapse: httpx.AsyncClient = None,
         requests_session_storage: httpx.Client = None,
         asyncio_event_loop: asyncio.AbstractEventLoop = None,
+        cache_client: bool = True,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -301,6 +301,9 @@ class Synapse(object):
             asyncio_event_loop: The event loop that is going to be used while executing
                 this code. This is optional and only used when you are manually
                 specifying an async HTTPX client.
+            cache_client: Whether to cache the Synapse client object in the Synapse module. Defaults to True.
+                             When set to True anywhere a `Synapse` object is optional you do not need to pass an
+                             instance of `Synapse` to that function, method, or class.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
@@ -412,6 +415,8 @@ class Synapse(object):
         self._parallel_file_transfer_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
         self._parts_transfered_counter = 0
+        if cache_client:
+            Synapse.set_client(synapse_client=self)
 
     def _get_requests_session_async_synapse(
         self, asyncio_event_loop: asyncio.AbstractEventLoop
@@ -709,7 +714,6 @@ class Synapse(object):
         email: str = None,
         silent: bool = False,
         authToken: str = None,
-        cache_client: bool = True,
     ) -> None:
         """
         Valid combinations of login() arguments:
@@ -730,9 +734,6 @@ class Synapse(object):
             authToken:    A bearer authorization token, e.g. a
                 [personal access token](https://python-docs.synapse.org/tutorials/authentication/).
             silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
-            cache_client: Whether to cache the Synapse client object in the Synapse module. Defaults to True.
-                             When set to True anywhere a `Synapse` object is optional you do not need to pass an
-                             instance of `Synapse` to that function, method, or class.
 
         Example: Logging in
             Using an auth token:
@@ -773,9 +774,6 @@ class Synapse(object):
         if not silent:
             display_name = self.credentials.displayname or self.credentials.username
             self.logger.info(f"Welcome, {display_name}!\n")
-
-        if cache_client:
-            Synapse.set_client(self)
 
     @deprecated(
         version="4.4.0",
@@ -1954,14 +1952,9 @@ class Synapse(object):
                     upload_file_handle_async(
                         self,
                         parent_id_for_upload,
-                        (
-                            local_state["path"]
-                            if (
-                                synapseStore
-                                or local_state_fh.get("externalURL") is None
-                            )
-                            else local_state_fh.get("externalURL")
-                        ),
+                        local_state["path"]
+                        if (synapseStore or local_state_fh.get("externalURL") is None)
+                        else local_state_fh.get("externalURL"),
                         synapse_store=synapseStore,
                         md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
                         file_size=local_state_fh.get("contentSize"),
@@ -3131,11 +3124,9 @@ class Synapse(object):
         if usedList is None:
             return None
         usedList = [
-            (
-                self.get(target, limitSearch=limitSearch)
-                if (os.path.isfile(target) if isinstance(target, str) else False)
-                else target
-            )
+            self.get(target, limitSearch=limitSearch)
+            if (os.path.isfile(target) if isinstance(target, str) else False)
+            else target
             for target in usedList
         ]
         return usedList
@@ -4938,6 +4929,7 @@ class Synapse(object):
                     destination=os.path.join(
                         cache_dir, str(wiki.markdownFileHandleId) + ".md"
                     ),
+                    synapse_client=self,
                 ),
                 syn=self,
             )
@@ -5606,6 +5598,7 @@ class Synapse(object):
                 synapse_id=extract_synapse_id_from_query(query),
                 entity_type="TableEntity",
                 destination=os.path.join(download_dir, filename),
+                synapse_client=self,
             ),
             syn=self,
         )
