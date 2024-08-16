@@ -85,7 +85,7 @@ def shared_download_progress_bar(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
     with logging_redirect_tqdm(loggers=[syn.logger]):
-        get_or_create_download_progress_bar(file_size=file_size)
+        get_or_create_download_progress_bar(file_size=file_size, synapse_client=syn)
         try:
             yield
         finally:

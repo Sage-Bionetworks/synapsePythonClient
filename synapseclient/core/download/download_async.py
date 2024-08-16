@@ -314,7 +314,9 @@ class _MultithreadedDownloader:
             syn=self._syn, url=url_info.url, debug=self._download_request.debug
         )
         self._progress_bar = get_or_create_download_progress_bar(
-            file_size=file_size, postfix=self._download_request.object_id
+            file_size=file_size,
+            postfix=self._download_request.object_id,
+            synapse_client=self._syn,
         )
         self._prep_file()
 

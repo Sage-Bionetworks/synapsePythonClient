@@ -166,6 +166,7 @@ async def download_file_entity(
                 synapse_id=object_id,
                 entity_type=object_type,
                 destination=download_path,
+                synapse_client=client,
             )
 
         if download_path is None or not os.path.exists(download_path):
@@ -274,6 +275,7 @@ async def download_file_entity_model(
                 synapse_id=object_id,
                 entity_type=object_type,
                 destination=download_path,
+                synapse_client=client,
             )
 
         if download_path is None or not os.path.exists(download_path):
@@ -416,7 +418,7 @@ async def download_by_file_handle(
                 )
 
                 progress_bar = get_or_create_download_progress_bar(
-                    file_size=1, postfix=synapse_id
+                    file_size=1, postfix=synapse_id, synapse_client=syn
                 )
                 loop = asyncio.get_running_loop()
                 downloaded_path = await loop.run_in_executor(
@@ -440,7 +442,7 @@ async def download_by_file_handle(
                 and concrete_type == concrete_types.S3_FILE_HANDLE
             ):
                 progress_bar = get_or_create_download_progress_bar(
-                    file_size=1, postfix=synapse_id
+                    file_size=1, postfix=synapse_id, synapse_client=syn
                 )
 
                 def download_fn(
@@ -496,7 +498,7 @@ async def download_by_file_handle(
             else:
                 loop = asyncio.get_running_loop()
                 progress_bar = get_or_create_download_progress_bar(
-                    file_size=1, postfix=synapse_id
+                    file_size=1, postfix=synapse_id, synapse_client=syn
                 )
                 downloaded_path = await loop.run_in_executor(
                     syn._get_thread_pool_executor(asyncio_event_loop=loop),
