@@ -825,7 +825,7 @@ def test_aggregate_query_result_to_data_frame() -> None:
 
 
 def test_wait_for_async() -> None:
-    syn = Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True, cache_client=False)
     syn.table_query_timeout = 0.05
     syn.table_query_max_sleep = 0.001
     syn.restPOST = MagicMock(return_value={"token": "1234567"})
@@ -1001,8 +1001,6 @@ def test_SubmissionViewSchema__default_params() -> None:
 
 
 def test_SubmissionViewSchema__before_synapse_store(syn: Synapse) -> None:
-    syn = Synapse(debug=True, skip_checks=True)
-
     with patch.object(
         syn, "_get_default_view_columns"
     ) as mocked_get_default, patch.object(
@@ -1021,7 +1019,7 @@ def test_SubmissionViewSchema__before_synapse_store(syn: Synapse) -> None:
 
 
 def test_EntityViewSchema__before_synapse_store(syn: Synapse) -> None:
-    syn = Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True, cache_client=False)
 
     with patch.object(
         syn, "_get_default_view_columns"
@@ -1128,8 +1126,6 @@ def test_EntityViewSchema__ignore_column_names_set_info_preserved() -> None:
 
 
 def test_EntityViewSchema__ignore_annotation_column_names(syn: Synapse) -> None:
-    syn = Synapse(debug=True, skip_checks=True)
-
     scopeIds = ["123"]
     entity_view = EntityViewSchema(
         "someName",
@@ -1165,7 +1161,7 @@ def test_EntityViewSchema__ignore_annotation_column_names(syn: Synapse) -> None:
 
 
 def test_EntityViewSchema__repeated_columnName_different_type(syn: Synapse) -> None:
-    syn = Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True, cache_client=False)
 
     scopeIds = ["123"]
     entity_view = EntityViewSchema("someName", scopes=scopeIds, parent="syn123")
@@ -1184,7 +1180,7 @@ def test_EntityViewSchema__repeated_columnName_different_type(syn: Synapse) -> N
 
 
 def test_EntityViewSchema__repeated_columnName_same_type(syn: Synapse) -> None:
-    syn = Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True, cache_client=False)
 
     entity_view = EntityViewSchema("someName", parent="syn123")
 

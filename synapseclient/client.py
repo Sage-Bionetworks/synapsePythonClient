@@ -308,8 +308,6 @@ class Synapse(object):
         Raises:
             ValueError: Warn for non-boolean debug value.
         """
-        if cache_client:
-            Synapse.set_client(synapse_client=self)
         self._requests_session = requests_session or requests.Session()
 
         # `requests_session_async_synapse` and the thread pools are being stored in
@@ -417,6 +415,8 @@ class Synapse(object):
         self._parallel_file_transfer_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
         self._parts_transfered_counter = 0
+        if cache_client:
+            Synapse.set_client(synapse_client=self)
 
     def _get_requests_session_async_synapse(
         self, asyncio_event_loop: asyncio.AbstractEventLoop

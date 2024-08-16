@@ -72,8 +72,7 @@ def test_Wiki__markdownFile_path_not_exist():
         )
 
 
-def test_wiki_with_none_attachments():
-    syn = Synapse(skip_checks=True)
+def test_wiki_with_none_attachments(syn: Synapse):
     with patch.object(syn, "restPOST"):
         w = Wiki(owner="syn1", markdown="markdown", attachments=None)
         syn.store(w)

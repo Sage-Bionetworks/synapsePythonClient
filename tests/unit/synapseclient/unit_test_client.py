@@ -227,6 +227,7 @@ class TestPrivateGetWithEntityBundle:
             entity_type: str,
             destination: str,
             retries: int = 5,
+            synapse_client: Synapse = None,
         ):
             # touch file at path
             with open(destination, "a"):
@@ -2341,7 +2342,9 @@ def test_get_unparseable_config() -> None:
         read_config.side_effect = configparser.Error(config_error_msg)
 
         with pytest.raises(ValueError) as cm:
-            Synapse(debug=False, skip_checks=True, configPath="/foo")
+            Synapse(
+                debug=False, skip_checks=True, configPath="/foo", cache_client=False
+            )
 
         # underlying error should be chained
         assert config_error_msg == str(cm.value.__context__)
@@ -2354,7 +2357,7 @@ def test_get_config_file_caching() -> None:
     with patch("configparser.RawConfigParser.read") as read_config:
         read_config.return_value = configparser.ConfigParser()
 
-        Synapse(debug=False, skip_checks=True, configPath="/foo")
+        Synapse(debug=False, skip_checks=True, configPath="/foo", cache_client=False)
 
         # additional calls shouldn't be returned via a cached value
         config1a = get_config_file("/foo")
@@ -2363,7 +2366,9 @@ def test_get_config_file_caching() -> None:
         assert 1 == read_config.call_count
 
         # however a new path should not be cached
-        Synapse(debug=False, skip_checks=True, configPath="/foo/bar")
+        Synapse(
+            debug=False, skip_checks=True, configPath="/foo/bar", cache_client=False
+        )
         assert 2 == read_config.call_count
 
         # but an additional call on that path should be
@@ -2411,7 +2416,7 @@ def test_get_transfer_config(mock_config_dict: MagicMock) -> None:
         ),
     ]:
         mock_config_dict.return_value = config_dict
-        syn = Synapse(skip_checks=True)
+        syn = Synapse(skip_checks=True, cache_client=False)
         for k, v in expected_values.items():
             assert v == getattr(syn, k)
 
@@ -2419,13 +2424,13 @@ def test_get_transfer_config(mock_config_dict: MagicMock) -> None:
     for invalid_max_thread_value in ("not a number", "12.2", "true"):
         mock_config_dict.return_value = {"max_threads": invalid_max_thread_value}
         with pytest.raises(ValueError):
-            Synapse(skip_checks=True)
+            Synapse(skip_checks=True, cache_client=False)
 
     # invalid value for use_boto_sts should raise an error
     for invalid_max_thread_value in ("not true", "1.2", "0", "falsey"):
         mock_config_dict.return_value = {"use_boto_sts": invalid_max_thread_value}
         with pytest.raises(ValueError):
-            Synapse(skip_checks=True)
+            Synapse(skip_checks=True, cache_client=False)
 
 
 @patch("synapseclient.api.configuration_services.get_config_section_dict")
@@ -2433,7 +2438,7 @@ def test_transfer_config_values_overridable(mock_config_dict: MagicMock) -> None
     """Verify we can override the default transfer config values by setting them directly on the Synapse object"""
 
     mock_config_dict.return_value = {"max_threads": 24, "use_boto_sts": False}
-    syn = Synapse(skip_checks=True)
+    syn = Synapse(skip_checks=True, cache_client=False)
 
     assert 24 == syn.max_threads
     assert not syn.use_boto_sts_transfers
@@ -3196,7 +3201,7 @@ class TestGenerateHeaders:
     def test_generate_headers(self) -> None:
         """Verify expected headers"""
 
-        syn = Synapse(skip_checks=True)
+        syn = Synapse(skip_checks=True, cache_client=False)
 
         headers = syn._generate_headers()
         expected = {}
@@ -3210,7 +3215,7 @@ class TestGenerateHeaders:
 
         custom_headers = {"foo": "bar"}
 
-        syn = Synapse(skip_checks=True)
+        syn = Synapse(skip_checks=True, cache_client=False)
 
         headers = syn._generate_headers(headers=custom_headers)
         expected = {}
@@ -3225,7 +3230,7 @@ class TestHandleSynapseHTTPError:
         """If you are not LOGGED in a http error with an unauthenticated/forbidden
         status code should raise an SynapseAuthenticationError chained from the
         underlying SynapseHTTPError"""
-        syn = Synapse(skip_checks=True)
+        syn = Synapse(skip_checks=True, cache_client=False)
         syn.credentials = None
 
         for status_code in (401, 403):
@@ -3240,7 +3245,7 @@ class TestHandleSynapseHTTPError:
     def test_handle_synapse_http_error__logged_in(self) -> None:
         """If you are logged in a SynapseHTTPError should be raised directly,
         even if it is an unauthenticated/forbidden error."""
-        syn = Synapse(skip_checks=True)
+        syn = Synapse(skip_checks=True, cache_client=False)
         syn.credentials = Mock()
         for status_code in (401, 403, 404):
             response = Mock(status_code=status_code, headers={})
@@ -3342,6 +3347,7 @@ class TestTableQuery:
                 synapse_id="syn123",
                 entity_type="TableEntity",
                 destination=expected_path,
+                synapse_client=syn,
             )
 
             assert (mock_download_result, expected_path) == actual_result
@@ -3353,9 +3359,13 @@ class TestSilentCommandAndLogger:
         """
         Set up three different synapse objects
         """
-        self.syn = Synapse(debug=False, skip_checks=True)
-        self.syn_with_silent = Synapse(silent=True, debug=False, skip_checks=True)
-        self.syn_with_debug = Synapse(silent=False, debug=True, skip_checks=True)
+        self.syn = Synapse(debug=False, skip_checks=True, cache_client=False)
+        self.syn_with_silent = Synapse(
+            silent=True, debug=False, skip_checks=True, cache_client=False
+        )
+        self.syn_with_debug = Synapse(
+            silent=False, debug=True, skip_checks=True, cache_client=False
+        )
 
     def test_syn_silent(self) -> None:
         """
@@ -3454,7 +3464,7 @@ def test_init_change_cache_path() -> None:
     fanout = 1000
     file_handle_id = "-1337"
 
-    syn = Synapse(debug=False, skip_checks=True)
+    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
     expected_cache_path = os.path.join(
         str(Path.home()),
         cache_root_dir,
@@ -3465,7 +3475,10 @@ def test_init_change_cache_path() -> None:
 
     with tempfile.TemporaryDirectory() as temp_dir_name:
         syn_changed_cache_path = Synapse(
-            debug=False, skip_checks=True, cache_root_dir=temp_dir_name
+            debug=False,
+            skip_checks=True,
+            cache_root_dir=temp_dir_name,
+            cache_client=False,
         )
         expected_changed_cache_path = os.path.join(
             temp_dir_name, str(int(file_handle_id) % fanout), str(file_handle_id)
