@@ -9,6 +9,14 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.4.1 (2024-07-05)
+
+### Bug Fixes
+-  \[[SYNPY-1511](https://sagebionetworks.jira.com/browse/SYNPY-1511)\] - Allow for anonymous access
+
+### Stories
+-  \[[SYNPY-1436](https://sagebionetworks.jira.com/browse/SYNPY-1436)\] - Don't call /userProfile twice on login
+
 ## 4.4.0 (2024-07-05)
 ### Highlights
 - **Downloading files stability improvements:**
