@@ -274,7 +274,12 @@ def _get_file_size(
     if otel_context:
         context.attach(otel_context)
     with syn._requests_session_storage.stream("GET", url) as response:
-        _raise_for_status_httpx(response=response, logger=syn.logger, verbose=debug)
+        _raise_for_status_httpx(
+            response=response,
+            logger=syn.logger,
+            verbose=debug,
+            read_response_content=False,
+        )
         return int(response.headers["Content-Length"])
 
 
