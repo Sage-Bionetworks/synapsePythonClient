@@ -231,9 +231,9 @@ class TestDownloadFromUrl:
             await download_from_url(
                 url=entity_bad_md5.external_url,
                 destination=tempfile.gettempdir(),
-                file_handle_id=entity_bad_md5.data_file_handle_id,
                 object_id=entity_bad_md5.id,
                 object_type="FileEntity",
+                file_handle_id=entity_bad_md5.data_file_handle_id,
                 expected_md5="2345a",
             )
 
@@ -266,9 +266,9 @@ class TestDownloadFromUrl:
         path = download_from_url(
             url=f"{syn.repoEndpoint}/entity/{file.id}/file",
             destination=tempfile.gettempdir(),
-            file_handle_id=file.data_file_handle_id,
             object_id=file.id,
             object_type="FileEntity",
+            file_handle_id=file.data_file_handle_id,
             expected_md5=file.file_handle.content_md5,
         )
 
@@ -391,14 +391,17 @@ class TestDownloadFromUrlMultiThreaded:
         os.remove(file_path)
         assert not os.path.exists(file_path)
 
-        with patch.object(
-            synapseclient.core.download.download_functions,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            synapseclient.core.download.download_async,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
         ):
             # WHEN I download the file with multiple parts
             file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
@@ -460,21 +463,26 @@ class TestDownloadFromUrlMultiThreaded:
                 # Call the real send function
                 return client.send(**kwargs)
 
-        with patch.object(
-            synapseclient.core.download.download_functions,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            synapseclient.core.download.download_async,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            syn._requests_session_storage,
-            "send",
-            mock_httpx_send,
-        ), patch(
-            "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
-            0.2,
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                syn._requests_session_storage,
+                "send",
+                mock_httpx_send,
+            ),
+            patch(
+                "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
+                0.2,
+            ),
         ):
             # WHEN I download the file with multiple parts
             file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
@@ -534,21 +542,26 @@ class TestDownloadFromUrlMultiThreaded:
                 # Call the real send function
                 return client.send(**kwargs)
 
-        with patch.object(
-            synapseclient.core.download.download_functions,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            synapseclient.core.download.download_async,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            syn._requests_session_storage,
-            "send",
-            mock_httpx_send,
-        ), patch(
-            "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
-            0.2,
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                syn._requests_session_storage,
+                "send",
+                mock_httpx_send,
+            ),
+            patch(
+                "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
+                0.2,
+            ),
         ):
             # WHEN I download the file with multiple parts
             file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
