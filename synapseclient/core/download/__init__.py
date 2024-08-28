@@ -7,6 +7,7 @@ from .download_async import (
     PresignedUrlProvider,
     _MultithreadedDownloader,
     download_file,
+    _pre_signed_url_expiration_time,
 )
 from .download_functions import (
     download_by_file_handle,
