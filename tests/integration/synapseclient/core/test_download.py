@@ -3,6 +3,8 @@
 import filecmp
 import os
 import random
+import datetime
+import requests
 import shutil
 import tempfile
 from typing import Callable
@@ -19,6 +21,8 @@ from synapseclient.core.download import download_from_url, download_functions
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 from synapseclient.models import File, Project
 from tests.test_utils import spy_for_async_function
+
+from synapseclient.core.exceptions import SynapseHTTPError
 
 
 class TestDownloadCollisions:
@@ -228,6 +232,8 @@ class TestDownloadFromUrl:
                 url=entity_bad_md5.external_url,
                 destination=tempfile.gettempdir(),
                 file_handle_id=entity_bad_md5.data_file_handle_id,
+                object_id=entity_bad_md5.id,
+                object_type="FileEntity",
                 expected_md5="2345a",
             )
 
@@ -261,6 +267,8 @@ class TestDownloadFromUrl:
             url=f"{syn.repoEndpoint}/entity/{file.id}/file",
             destination=tempfile.gettempdir(),
             file_handle_id=file.data_file_handle_id,
+            object_id=file.id,
+            object_type="FileEntity",
             expected_md5=file.file_handle.content_md5,
         )
 
