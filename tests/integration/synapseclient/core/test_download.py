@@ -15,9 +15,9 @@ import requests
 from pytest_mock import MockerFixture
 
 import synapseclient
-from synapseclient.core import exceptions
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
+from synapseclient.core import exceptions
 from synapseclient.core.download import download_from_url, download_functions
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError
 from synapseclient.models import File, Project
