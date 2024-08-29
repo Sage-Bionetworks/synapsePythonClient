@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import datetime
 import os
 import shutil
 import tempfile
@@ -10,7 +11,6 @@ from unittest.mock import ANY, AsyncMock, MagicMock, call, mock_open, patch
 
 import pytest
 import requests
-
 import synapseclient.core.constants.concrete_types as concrete_types
 import synapseclient.core.download.download_async as download_async
 from synapseclient import Synapse
@@ -843,6 +843,87 @@ class TestDownloadFromUrl:
             mocked_md5_for_file.assert_called_once()
             # assert file was NOT removed
             assert not mocked_remove.called
+
+    def test_download_expired_url(self, syn: Synapse) -> None:
+        url = "http://www.ayy.lmao/filerino.txt"
+        new_url = "http://www.ayy.lmao/new_url.txt"
+        contents = "\n".join(str(i) for i in range(1000))
+        temp_destination = os.path.normpath(
+            os.path.expanduser("~/fake/path/filerino.txt.temp")
+        )
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+
+        partial_content_break = len(contents) // 7 * 3
+        mock_requests_get = MockRequestGetFunction(
+            [
+                create_mock_response(
+                    url,
+                    "stream",
+                    contents=contents[:partial_content_break],
+                    buffer_size=1024,
+                    partial_end=len(contents),
+                    status_code=403,
+                ),
+                create_mock_response(
+                    url,
+                    "stream",
+                    contents=contents,
+                    buffer_size=1024,
+                    partial_start=len(contents),
+                    status_code=200,
+                ),
+            ]
+        )
+        with (
+            patch.object(
+                syn._requests_session, "get", side_effect=mock_requests_get
+            ) as mocked_get,
+            patch(
+                "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
+                return_value=datetime.datetime(
+                    1900, 1, 1, tzinfo=datetime.timezone.utc
+                ),
+            ) as mocked_pre_signed_url_expiration_time,
+            patch(
+                "synapseclient.core.download.download_functions.get_file_handle_for_download",
+                return_value={"preSignedURL": new_url},
+            ) as mocked_get_file_handle_for_download,
+            patch.object(
+                Synapse, "_generate_headers", side_effect=mock_generate_headers
+            ),
+            patch.object(
+                utils, "temp_download_filename", return_value=temp_destination
+            ),
+            patch(
+                "synapseclient.core.download.download_functions.open",
+                new_callable=mock_open(),
+                create=True,
+            ),
+            patch.object(hashlib, "new") as mocked_hashlib_new,
+            patch.object(shutil, "move"),
+            patch.object(os, "remove"),
+        ):
+            mocked_hashlib_new.return_value.hexdigest.return_value = "fake md5 is fake"
+            # WHEN I call download_from_url with an expired url
+            download_from_url(
+                url=url,
+                destination=destination,
+                object_id=OBJECT_ID,
+                object_type=OBJECT_TYPE,
+                expected_md5="fake md5 is fake",
+            )
+            # I expect the expired url to be identified
+            mocked_pre_signed_url_expiration_time.assert_called_once_with(url)
+            # AND I expect the URL to be refreshed
+            mocked_get_file_handle_for_download.assert_called_once()
+            # AND I expect the download to be retried with the new URL
+            mocked_get.assert_called_with(
+                url=new_url,
+                headers=mock_generate_headers(self),
+                stream=True,
+                allow_redirects=False,
+                auth=None,
+            )
 
 
 async def test_get_file_handle_download__error_unauthorized(syn: Synapse) -> None:
