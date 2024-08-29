@@ -1,8 +1,8 @@
 """Unit tests for downloads."""
 
+import datetime
 import hashlib
 import json
-import datetime
 import os
 import shutil
 import tempfile
@@ -11,6 +11,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, call, mock_open, patch
 
 import pytest
 import requests
+
 import synapseclient.core.constants.concrete_types as concrete_types
 import synapseclient.core.download.download_async as download_async
 from synapseclient import Synapse
@@ -844,7 +845,7 @@ class TestDownloadFromUrl:
             # assert file was NOT removed
             assert not mocked_remove.called
 
-    def test_download_expired_url(self, syn: Synapse) -> None:
+    async def test_download_expired_url(self, syn: Synapse) -> None:
         url = "http://www.ayy.lmao/filerino.txt"
         new_url = "http://www.ayy.lmao/new_url.txt"
         contents = "\n".join(str(i) for i in range(1000))

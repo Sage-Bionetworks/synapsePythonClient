@@ -1,10 +1,9 @@
 """Integration tests around downloading files from Synapse."""
 
+import datetime
 import filecmp
 import os
 import random
-import datetime
-import requests
 import shutil
 import tempfile
 from typing import Callable
@@ -12,17 +11,16 @@ from unittest.mock import Mock, patch
 
 import httpx
 import pytest
+import requests
 from pytest_mock import MockerFixture
 
 import synapseclient
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.core.download import download_from_url, download_functions
-from synapseclient.core.exceptions import SynapseMd5MismatchError
+from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError
 from synapseclient.models import File, Project
 from tests.test_utils import spy_for_async_function
-
-from synapseclient.core.exceptions import SynapseHTTPError
 
 
 class TestDownloadCollisions:

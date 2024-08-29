@@ -404,13 +404,13 @@ async def download_by_file_handle(
 
     while retries > 0:
         try:
-            file_handle_result: Dict[str, str] = (
-                await get_file_handle_for_download_async(
-                    file_handle_id=file_handle_id,
-                    synapse_id=synapse_id,
-                    entity_type=entity_type,
-                    synapse_client=syn,
-                )
+            file_handle_result: Dict[
+                str, str
+            ] = await get_file_handle_for_download_async(
+                file_handle_id=file_handle_id,
+                synapse_id=synapse_id,
+                entity_type=entity_type,
+                synapse_client=syn,
             )
             file_handle = file_handle_result["fileHandle"]
             concrete_type = file_handle["concreteType"]
@@ -734,7 +734,7 @@ def download_from_url(
                 if is_synapse_uri(uri=url, synapse_client=client)
                 else None
             )
-            
+
             try:
                 response = with_retry(
                     lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
