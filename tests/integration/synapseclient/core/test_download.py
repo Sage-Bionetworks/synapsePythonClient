@@ -15,6 +15,7 @@ import requests
 from pytest_mock import MockerFixture
 
 import synapseclient
+from synapseclient.core import exceptions
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.core.download import download_from_url, download_functions
@@ -276,6 +277,37 @@ class TestDownloadFromUrl:
         # is not the default. This was verified by running the test in debug mode.
         # `caplog: pytest.LogCaptureFixture` would need to be added to the args.
         # assert f"Resuming partial download to {tmp_path}. {truncated_size}/{original_size}.0 bytes already transferred." in caplog.text
+
+    async def test_download_expired_url(
+        self,
+        syn: Synapse,
+        project_model: Project,
+    ) -> None:
+        # simulate expired url for file
+        with patch.object(
+            exceptions,
+            "_raise_for_status",
+            side_effect=SynapseHTTPError(response=httpx.Response(403)),
+        ):
+            """Tests that a file download is retried when ."""
+            # GIVEN a file stored in synapse
+            original_file = utils.make_bogus_data_file(40000)
+            file = await File(
+                path=original_file, parent_id=project_model.id
+            ).store_async()
+
+            # WHEN I download the file with a simulated expired url
+            path = download_from_url(
+                url=f"{syn.repoEndpoint}/entity/{file.id}/file",
+                destination=tempfile.gettempdir(),
+                object_id=file.id,
+                object_type="FileEntity",
+                file_handle_id=file.data_file_handle_id,
+                expected_md5=file.file_handle.content_md5,
+            )
+
+            # THEN the file is downloaded anyway AND matches the original
+            assert filecmp.cmp(original_file, path), "File comparison failed"
 
     async def test_download_via_get(
         self,
