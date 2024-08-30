@@ -524,17 +524,14 @@ class TestDownloadFileHandle:
         await self._multithread_not_applicable(file_handle)
 
     async def test_multithread_false_s3_file_handle(self) -> None:
-        with (
-            patch.object(os, "makedirs"),
-            patch(
-                GET_FILE_HANDLE_FOR_DOWNLOAD,
-                new_callable=AsyncMock,
-            ) as mock_getFileHandleDownload,
-            patch(
-                DOWNLOAD_FROM_URL,
-                new_callable=AsyncMock,
-            ) as mock_download_from_URL,
-            patch.object(self.syn, "cache"),
+        with patch.object(os, "makedirs"), patch(
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
+            new_callable=AsyncMock,
+        ) as mock_getFileHandleDownload, patch(
+            DOWNLOAD_FROM_URL,
+            new_callable=AsyncMock,
+        ) as mock_download_from_URL, patch.object(
+            self.syn, "cache"
         ):
             mock_getFileHandleDownload.return_value = {
                 "fileHandle": {
