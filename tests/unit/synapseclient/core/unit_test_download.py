@@ -155,9 +155,9 @@ async def test_mock_download(syn: Synapse) -> None:
         [create_mock_response(url, "stream", contents=contents, buffer_size=1024)]
     )
 
-    with patch.object(syn._requests_session, "get", side_effect=mock_requests_get), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-        ):
+    with patch.object(
+        syn._requests_session, "get", side_effect=mock_requests_get
+    ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
         download_from_url(
             url=url,
             destination=temp_dir,
@@ -177,8 +177,9 @@ async def test_mock_download(syn: Synapse) -> None:
         ]
     )
 
-    with patch.object(syn._requests_session, "get", side_effect=mock_requests_get), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers):
+    with patch.object(
+        syn._requests_session, "get", side_effect=mock_requests_get
+    ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
         download_from_url(
             url=url,
             destination=temp_dir,
