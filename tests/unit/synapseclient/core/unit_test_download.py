@@ -751,23 +751,23 @@ class TestDownloadFromUrl:
             ]
         )
 
-        with (
-            patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
-            patch.object(
-                Synapse, "_generate_headers", side_effect=mock_generate_headers
-            ),
-            patch.object(
-                utils, "temp_download_filename", return_value=temp_destination
-            ) as mocked_temp_dest,
-            patch(
-                "synapseclient.core.download.download_functions.open",
-                new_callable=mock_open(),
-                create=True,
-            ) as mocked_open,
-            patch.object(os.path, "exists", side_effect=[False, True]) as mocked_exists,
-            patch.object(shutil, "move") as mocked_move,
-            patch.object(os, "remove") as mocked_remove,
-        ):
+        with patch.object(
+            syn._requests_session, "get", side_effect=mock_requests_get
+        ), patch.object(
+            Synapse, "_generate_headers", side_effect=mock_generate_headers
+        ), patch.object(
+            utils, "temp_download_filename", return_value=temp_destination
+        ) as mocked_temp_dest, patch(
+            "synapseclient.core.download.download_functions.open",
+            new_callable=mock_open(),
+            create=True,
+        ) as mocked_open, patch.object(
+            os.path, "exists", side_effect=[False, True]
+        ) as mocked_exists, patch.object(
+            shutil, "move"
+        ) as mocked_move, patch.object(
+            os, "remove"
+        ) as mocked_remove:
             # function under test
             with pytest.raises(SynapseMd5MismatchError):
                 await download_from_url(
@@ -806,17 +806,15 @@ class TestDownloadFromUrl:
         url = "file:///some/file/path.txt"
         destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
 
-        with (
-            patch.object(
-                utils, "file_url_to_path", return_value=destination
-            ) as mocked_file_url_to_path,
-            patch.object(
-                utils,
-                "md5_for_file_hex",
-                return_value="Some other incorrect md5",
-            ) as mocked_md5_for_file,
-            patch("os.remove") as mocked_remove,
-        ):
+        with patch.object(
+            utils, "file_url_to_path", return_value=destination
+        ) as mocked_file_url_to_path, patch.object(
+            utils,
+            "md5_for_file_hex",
+            return_value="Some other incorrect md5",
+        ) as mocked_md5_for_file, patch(
+            "os.remove"
+        ) as mocked_remove:
             # function under test
             with pytest.raises(SynapseMd5MismatchError):
                 await download_from_url(
