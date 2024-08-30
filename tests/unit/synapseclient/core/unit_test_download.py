@@ -676,26 +676,25 @@ class TestDownloadFromUrl:
         # with patch.object(
         #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
         # )
-        with (
-            patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
-            patch.object(
-                Synapse, "_generate_headers", side_effect=mock_generate_headers
-            ),
-            patch.object(
-                utils, "temp_download_filename", return_value=temp_destination
-            ) as mocked_temp_dest,
-            patch(
-                "synapseclient.core.download.download_functions.open",
-                new_callable=mock_open(),
-                create=True,
-            ) as mocked_open,
-            patch.object(os.path, "exists", side_effect=[False, True]) as mocked_exists,
-            patch.object(
-                os.path, "getsize", return_value=partial_content_break
-            ) as mocked_getsize,
-            patch.object(utils, "md5_for_file"),
-            patch.object(shutil, "move") as mocked_move,
-        ):
+        with patch.object(
+            syn._requests_session, "get", side_effect=mock_requests_get
+        ), patch.object(
+            Synapse, "_generate_headers", side_effect=mock_generate_headers
+        ), patch.object(
+            utils, "temp_download_filename", return_value=temp_destination
+        ) as mocked_temp_dest, patch(
+            "synapseclient.core.download.download_functions.open",
+            new_callable=mock_open(),
+            create=True,
+        ) as mocked_open, patch.object(
+            os.path, "exists", side_effect=[False, True]
+        ) as mocked_exists, patch.object(
+            os.path, "getsize", return_value=partial_content_break
+        ) as mocked_getsize, patch.object(
+            utils, "md5_for_file"
+        ), patch.object(
+            shutil, "move"
+        ) as mocked_move:
             # function under test
             download_from_url(
                 url=url,
