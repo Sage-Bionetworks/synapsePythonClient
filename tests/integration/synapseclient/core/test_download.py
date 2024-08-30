@@ -5,8 +5,10 @@ import os
 import random
 import shutil
 import tempfile
+from datetime import datetime
 from typing import Callable
 from unittest.mock import Mock, patch
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
 import pytest
@@ -15,11 +17,25 @@ from pytest_mock import MockerFixture
 import synapseclient
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
+from synapseclient.api.file_services import get_file_handle_for_download
 from synapseclient.core import exceptions
 from synapseclient.core.download import download_from_url, download_functions
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError
 from synapseclient.models import File, Project
 from tests.test_utils import spy_for_async_function
+
+
+def _expire_url(url: str) -> str:
+    """Expire a string URL by setting the expiration date to 1900-01-01T00:00:00Z"""
+    parsed_url = urlparse(url)
+    params = parse_qs(parsed_url.query)
+    expired_date = datetime(1900, 1, 1, 0, 0, 0)
+    params["X-Amz-Date"] = [expired_date.strftime("%Y%m%dT%H%M%SZ")]
+    params["X-Amz-Expires"] = ["30"]  # Keep the original expiration duration
+    params["Expires"] = [str(int(expired_date.timestamp()))]
+    new_query = urlencode(params, doseq=True)
+    new_url = parsed_url._replace(query=new_query).geturl()
+    return new_url
 
 
 class TestDownloadCollisions:
@@ -278,34 +294,41 @@ class TestDownloadFromUrl:
 
     async def test_download_expired_url(
         self,
-        syn: Synapse,
+        mocker: MockerFixture,
         project_model: Project,
     ) -> None:
-        # simulate expired url for file
-        with patch.object(
-            exceptions,
-            "_raise_for_status",
-            side_effect=SynapseHTTPError(response=httpx.Response(403)),
-        ):
-            """Tests that a file download is retried when ."""
-            # GIVEN a file stored in synapse
-            original_file = utils.make_bogus_data_file(40000)
-            file = await File(
-                path=original_file, parent_id=project_model.id
-            ).store_async()
+        """Tests that a file download is retried when URL is expired."""
+        # GIVEN a file stored in synapse
+        original_file = utils.make_bogus_data_file(40000)
+        file = await File(path=original_file, parent_id=project_model.id).store_async()
 
-            # WHEN I download the file with a simulated expired url
-            path = download_from_url(
-                url=f"{syn.repoEndpoint}/entity/{file.id}/file",
-                destination=tempfile.gettempdir(),
-                object_id=file.id,
-                object_type="FileEntity",
-                file_handle_id=file.data_file_handle_id,
-                expected_md5=file.file_handle.content_md5,
-            )
+        # AND an expired preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+        )
+        url = file_handle_response["preSignedURL"]
+        expired_url = _expire_url(url)
 
-            # THEN the file is downloaded anyway AND matches the original
-            assert filecmp.cmp(original_file, path), "File comparison failed"
+        # get_file_handle_for_download only runs if we are handling an expired URL
+        spy_file_handle = mocker.spy(download_functions, "get_file_handle_for_download")
+
+        # WHEN I download the file with a simulated expired url
+        path = download_from_url(
+            url=expired_url,
+            destination=tempfile.gettempdir(),
+            object_id=file.id,
+            object_type="FileEntity",
+            file_handle_id=file.data_file_handle_id,
+            expected_md5=file.file_handle.content_md5,
+        )
+
+        # THEN the expired URL is refreshed
+        spy_file_handle.assert_called_once()
+
+        # THEN the file is downloaded anyway AND matches the original
+        assert filecmp.cmp(original_file, path), "File comparison failed"
 
     async def test_download_via_get(
         self,
