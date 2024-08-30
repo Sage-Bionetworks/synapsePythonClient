@@ -569,12 +569,13 @@ class TestDownloadFromUrlMultiThreaded:
         self.syn = syn
 
     async def test_md5_mismatch(self) -> None:
-        with (
-            patch("synapseclient.core.download.download_functions.download_file"),
-            patch.object(utils, "md5_for_file") as mock_md5_for_file,
-            patch.object(os, "remove") as mock_os_remove,
-            patch.object(shutil, "move") as mock_move,
-        ):
+        with patch(
+            "synapseclient.core.download.download_functions.download_file"
+        ), patch.object(utils, "md5_for_file") as mock_md5_for_file, patch.object(
+            os, "remove"
+        ) as mock_os_remove, patch.object(
+            shutil, "move"
+        ) as mock_move:
             path = os.path.abspath("/myfakepath")
 
             mock_md5_for_file.return_value.hexdigest.return_value = "unexpetedMd5"
@@ -597,16 +598,17 @@ class TestDownloadFromUrlMultiThreaded:
     async def test_md5_match(self) -> None:
         expected_md5 = "myExpectedMd5"
 
-        with (
-            patch("synapseclient.core.download.download_functions.download_file"),
-            patch.object(
-                utils,
-                "md5_for_file_hex",
-                return_value=expected_md5,
-            ),
-            patch.object(os, "remove") as mock_os_remove,
-            patch.object(shutil, "move") as mock_move,
-        ):
+        with patch(
+            "synapseclient.core.download.download_functions.download_file"
+        ), patch.object(
+            utils,
+            "md5_for_file_hex",
+            return_value=expected_md5,
+        ), patch.object(
+            os, "remove"
+        ) as mock_os_remove, patch.object(
+            shutil, "move"
+        ) as mock_move:
             path = os.path.abspath("/myfakepath")
 
             await download_from_url_multi_threaded(
