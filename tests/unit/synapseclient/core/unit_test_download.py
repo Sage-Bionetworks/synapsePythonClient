@@ -481,11 +481,7 @@ class TestDownloadFileHandle:
             new_callable=AsyncMock,
         ) as mock_download_from_URL, patch.object(
             self.syn, "cache"
-            mock_getFileHandleDownload.return_value = {
-                "fileHandle": file_handle,
-                "preSignedURL": "asdf.com",
-            }
-
+        ):
             # multi_threaded/max_threads will have effect
             self.syn.multi_threaded = True
             await download_by_file_handle(
