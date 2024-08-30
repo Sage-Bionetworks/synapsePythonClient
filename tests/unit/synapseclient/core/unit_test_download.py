@@ -473,10 +473,16 @@ class TestDownloadFileHandle:
             )
 
     async def _multithread_not_applicable(self, file_handle: Dict[str, str]) -> None:
+        get_file_handle_for_download_return_value = {
+            "fileHandle": file_handle,
+            "preSignedURL": "asdf.com",
+        }
+
         with patch.object(os, "makedirs"), patch(
             GET_FILE_HANDLE_FOR_DOWNLOAD,
             new_callable=AsyncMock,
-        ) as mock_getFileHandleDownload, patch(
+            return_value=get_file_handle_for_download_return_value,
+        ), patch(
             DOWNLOAD_FROM_URL,
             new_callable=AsyncMock,
         ) as mock_download_from_URL, patch.object(
