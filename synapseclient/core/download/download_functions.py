@@ -9,7 +9,6 @@ import shutil
 import sys
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
-from ssl import SSLZeroReturnError
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from tqdm import tqdm
