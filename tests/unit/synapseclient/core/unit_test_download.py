@@ -667,7 +667,8 @@ class TestDownloadFromUrl:
             ]
         )
 
-        # make the first response's 'content-type' header say it will transfer the full content even though it
+        # make the first response's 'content-type' header say
+        # it will transfer the full content even though it
         # is only partially doing so
         mock_requests_get.responses[0].headers["content-length"] = len(contents)
         mock_requests_get.responses[1].headers["content-length"] = len(

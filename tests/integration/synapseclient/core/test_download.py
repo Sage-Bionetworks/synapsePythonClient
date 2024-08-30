@@ -1,6 +1,5 @@
 """Integration tests around downloading files from Synapse."""
 
-import datetime
 import filecmp
 import os
 import random
@@ -11,7 +10,6 @@ from unittest.mock import Mock, patch
 
 import httpx
 import pytest
-import requests
 from pytest_mock import MockerFixture
 
 import synapseclient
