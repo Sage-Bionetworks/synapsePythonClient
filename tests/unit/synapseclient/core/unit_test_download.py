@@ -860,34 +860,28 @@ class TestDownloadFromUrl:
                 ),
             ]
         )
-        with (
-            patch.object(
-                syn._requests_session, "get", side_effect=mock_requests_get
-            ) as mocked_get,
-            patch(
-                "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
-                return_value=datetime.datetime(
-                    1900, 1, 1, tzinfo=datetime.timezone.utc
-                ),
-            ) as mocked_pre_signed_url_expiration_time,
-            patch(
-                "synapseclient.core.download.download_functions.get_file_handle_for_download",
-                return_value={"preSignedURL": new_url},
-            ) as mocked_get_file_handle_for_download,
-            patch.object(
-                Synapse, "_generate_headers", side_effect=mock_generate_headers
-            ),
-            patch.object(
-                utils, "temp_download_filename", return_value=temp_destination
-            ),
-            patch(
-                "synapseclient.core.download.download_functions.open",
-                new_callable=mock_open(),
-                create=True,
-            ),
-            patch.object(hashlib, "new") as mocked_hashlib_new,
-            patch.object(shutil, "move"),
-            patch.object(os, "remove"),
+        with patch.object(
+            syn._requests_session, "get", side_effect=mock_requests_get
+        ) as mocked_get, patch(
+            "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
+            return_value=datetime.datetime(1900, 1, 1, tzinfo=datetime.timezone.utc),
+        ) as mocked_pre_signed_url_expiration_time, patch(
+            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            return_value={"preSignedURL": new_url},
+        ) as mocked_get_file_handle_for_download, patch.object(
+            Synapse, "_generate_headers", side_effect=mock_generate_headers
+        ), patch.object(
+            utils, "temp_download_filename", return_value=temp_destination
+        ), patch(
+            "synapseclient.core.download.download_functions.open",
+            new_callable=mock_open(),
+            create=True,
+        ), patch.object(
+            hashlib, "new"
+        ) as mocked_hashlib_new, patch.object(
+            shutil, "move"
+        ), patch.object(
+            os, "remove"
         ):
             mocked_hashlib_new.return_value.hexdigest.return_value = "fake md5 is fake"
             # WHEN I call download_from_url with an expired url
