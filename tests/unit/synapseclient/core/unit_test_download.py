@@ -231,14 +231,12 @@ async def test_mock_download(syn: Synapse) -> None:
         },
     }
 
-    with (
-        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
-        patch.object(syn, "_generate_headers", side_effect=mock_generate_headers),
-        patch(
-            GET_FILE_HANDLE_FOR_DOWNLOAD,
-            new_callable=AsyncMock,
-            return_value=_getFileHandleDownload_return_value,
-        ),
+    with patch.object(
+        syn._requests_session, "get", side_effect=mock_requests_get
+    ), patch.object(syn, "_generate_headers", side_effect=mock_generate_headers), patch(
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
+        new_callable=AsyncMock,
+        return_value=_getFileHandleDownload_return_value,
     ):
         await download_by_file_handle(
             file_handle_id=FILE_HANDLE_ID,
@@ -281,14 +279,14 @@ async def test_mock_download(syn: Synapse) -> None:
     # with patch.object(
     #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     # )
-    with (
-        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
-        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
-        patch(
-            GET_FILE_HANDLE_FOR_DOWNLOAD,
-            new_callable=AsyncMock,
-            return_value=_getFileHandleDownload_return_value,
-        ),
+    with patch.object(
+        syn._requests_session, "get", side_effect=mock_requests_get
+    ), patch.object(
+        Synapse, "_generate_headers", side_effect=mock_generate_headers
+    ), patch(
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
+        new_callable=AsyncMock,
+        return_value=_getFileHandleDownload_return_value,
     ):
         await download_by_file_handle(
             file_handle_id=FILE_HANDLE_ID,
@@ -332,14 +330,14 @@ async def test_mock_download(syn: Synapse) -> None:
     # with patch.object(
     #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     # )
-    with (
-        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
-        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
-        patch(
-            GET_FILE_HANDLE_FOR_DOWNLOAD,
-            new_callable=AsyncMock,
-            return_value=_getFileHandleDownload_return_value,
-        ),
+    with patch.object(
+        syn._requests_session, "get", side_effect=mock_requests_get
+    ), patch.object(
+        Synapse, "_generate_headers", side_effect=mock_generate_headers
+    ), patch(
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
+        new_callable=AsyncMock,
+        return_value=_getFileHandleDownload_return_value,
     ):
         with pytest.raises(Exception):
             await download_by_file_handle(
@@ -374,14 +372,14 @@ async def test_mock_download(syn: Synapse) -> None:
     # with patch.object(
     #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     # )
-    with (
-        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
-        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
-        patch(
-            GET_FILE_HANDLE_FOR_DOWNLOAD,
-            new_callable=AsyncMock,
-            return_value=_getFileHandleDownload_return_value,
-        ),
+    with patch.object(
+        syn._requests_session, "get", side_effect=mock_requests_get
+    ), patch.object(
+        Synapse, "_generate_headers", side_effect=mock_generate_headers
+    ), patch(
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
+        new_callable=AsyncMock,
+        return_value=_getFileHandleDownload_return_value,
     ):
         await download_by_file_handle(
             file_handle_id=FILE_HANDLE_ID,
@@ -405,14 +403,14 @@ async def test_mock_download(syn: Synapse) -> None:
     # with patch.object(
     #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     # )
-    with (
-        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
-        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
-        patch(
-            GET_FILE_HANDLE_FOR_DOWNLOAD,
-            new_callable=AsyncMock,
-            return_value=_getFileHandleDownload_return_value,
-        ),
+    with patch.object(
+        syn._requests_session, "get", side_effect=mock_requests_get
+    ), patch.object(
+        Synapse, "_generate_headers", side_effect=mock_generate_headers
+    ), patch(
+        GET_FILE_HANDLE_FOR_DOWNLOAD,
+        new_callable=AsyncMock,
+        return_value=_getFileHandleDownload_return_value,
     ):
         with pytest.raises(SynapseHTTPError):
             await download_by_file_handle(
