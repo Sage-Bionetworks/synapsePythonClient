@@ -774,6 +774,8 @@ def download_from_url(
                             verbose=client.debug,
                             **STANDARD_RETRY_PARAMS,
                         )
+                    else:
+                        raise
                 elif err.response.status_code == 404:
                     raise SynapseError(f"Could not download the file at {url}") from err
                 elif (
