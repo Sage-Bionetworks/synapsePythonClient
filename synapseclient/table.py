@@ -2463,7 +2463,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                     (and row_etag if it exists)
             convert_to_datetime:    If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                     integers into UTC datetime objects
-            na_values:            A list of strings to recognize as NA/NaN. 
+            na_values:            A list of strings to recognize as NA/NaN.
             keep_default_na:      Whether to include the default NaN values.
                                  https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
 
@@ -2507,7 +2507,7 @@ class CsvFileTable(TableAbstractBaseClass):
                 na_values=na_values,
                 keep_default_na=keep_default_na,
             )
-        
+
         except pd.errors.ParserError:
             return pd.DataFrame()
 

@@ -697,11 +697,12 @@ def test_csv_table() -> None:
                 print(ex)
         raise
 
+
 def test_csv_table_no_default_na_values() -> None:
     # GIVEN a CSVFileTable with known data
     data = {
-    'id': ['abc', '', 'None', 'NA'],
-    'test_num': [1, 2, 3, 4],
+        "id": ["abc", "", "None", "NA"],
+        "test_num": [1, 2, 3, 4],
     }
     test_df = pd.DataFrame(data)
     schema = synapseclient.table.Schema(
@@ -718,11 +719,12 @@ def test_csv_table_no_default_na_values() -> None:
     # THEN the DataFrame should be equal to the original DataFrame
     pd.testing.assert_frame_equal(result, test_df)
 
+
 def test_csv_table_custom_na_values() -> None:
     # GIVEN a CSVFileTable with known data
     data = {
-    'id': ['abc', '', 'None', 'NA'],
-    'test_num': [1, 2, 3, 4],
+        "id": ["abc", "", "None", "NA"],
+        "test_num": [1, 2, 3, 4],
     }
     test_df = pd.DataFrame(data)
     schema = synapseclient.table.Schema(
@@ -734,10 +736,10 @@ def test_csv_table_custom_na_values() -> None:
     test_table = CsvFileTable.from_data_frame(df=test_df, schema=schema)
 
     # WHEN the table is converted to a DataFrame with custom NA values
-    result = test_table.asDataFrame(na_values=['None'], keep_default_na=False)
+    result = test_table.asDataFrame(na_values=["None"], keep_default_na=False)
     expected_data = {
-    'id': ['abc', '', float('nan'), 'NA'],
-    'test_num': [1, 2, 3, 4],
+        "id": ["abc", "", float("nan"), "NA"],
+        "test_num": [1, 2, 3, 4],
     }
     expected_df = pd.DataFrame(expected_data)
 
