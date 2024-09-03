@@ -155,14 +155,15 @@ async def test_mock_download(syn: Synapse) -> None:
         [create_mock_response(url, "stream", contents=contents, buffer_size=1024)]
     )
 
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
+    with (
+        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
+    ):
         download_from_url(
             url=url,
             destination=temp_dir,
-            object_id=OBJECT_ID,
-            object_type=OBJECT_TYPE,
+            entity_id=OBJECT_ID,
+            file_handle_associate_type=OBJECT_TYPE,
             file_handle_id=12345,
             expected_md5=contents_md5,
             synapse_client=syn,
@@ -177,14 +178,15 @@ async def test_mock_download(syn: Synapse) -> None:
         ]
     )
 
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers):
+    with (
+        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
+    ):
         download_from_url(
             url=url,
             destination=temp_dir,
-            object_id=OBJECT_ID,
-            object_type=OBJECT_TYPE,
+            entity_id=OBJECT_ID,
+            file_handle_associate_type=OBJECT_TYPE,
             file_handle_id=12345,
             expected_md5=contents_md5,
             synapse_client=syn,
@@ -231,12 +233,14 @@ async def test_mock_download(syn: Synapse) -> None:
         },
     }
 
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(syn, "_generate_headers", side_effect=mock_generate_headers), patch(
-        GET_FILE_HANDLE_FOR_DOWNLOAD,
-        new_callable=AsyncMock,
-        return_value=_getFileHandleDownload_return_value,
+    with (
+        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+        patch.object(syn, "_generate_headers", side_effect=mock_generate_headers),
+        patch(
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
+            new_callable=AsyncMock,
+            return_value=_getFileHandleDownload_return_value,
+        ),
     ):
         await download_by_file_handle(
             file_handle_id=FILE_HANDLE_ID,
@@ -279,14 +283,14 @@ async def test_mock_download(syn: Synapse) -> None:
     # with patch.object(
     #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     # )
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch(
-        GET_FILE_HANDLE_FOR_DOWNLOAD,
-        new_callable=AsyncMock,
-        return_value=_getFileHandleDownload_return_value,
+    with (
+        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
+        patch(
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
+            new_callable=AsyncMock,
+            return_value=_getFileHandleDownload_return_value,
+        ),
     ):
         await download_by_file_handle(
             file_handle_id=FILE_HANDLE_ID,
@@ -330,14 +334,14 @@ async def test_mock_download(syn: Synapse) -> None:
     # with patch.object(
     #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     # )
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch(
-        GET_FILE_HANDLE_FOR_DOWNLOAD,
-        new_callable=AsyncMock,
-        return_value=_getFileHandleDownload_return_value,
+    with (
+        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
+        patch(
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
+            new_callable=AsyncMock,
+            return_value=_getFileHandleDownload_return_value,
+        ),
     ):
         with pytest.raises(Exception):
             await download_by_file_handle(
@@ -372,14 +376,14 @@ async def test_mock_download(syn: Synapse) -> None:
     # with patch.object(
     #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     # )
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch(
-        GET_FILE_HANDLE_FOR_DOWNLOAD,
-        new_callable=AsyncMock,
-        return_value=_getFileHandleDownload_return_value,
+    with (
+        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
+        patch(
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
+            new_callable=AsyncMock,
+            return_value=_getFileHandleDownload_return_value,
+        ),
     ):
         await download_by_file_handle(
             file_handle_id=FILE_HANDLE_ID,
@@ -403,14 +407,14 @@ async def test_mock_download(syn: Synapse) -> None:
     # with patch.object(
     #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
     # )
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch(
-        GET_FILE_HANDLE_FOR_DOWNLOAD,
-        new_callable=AsyncMock,
-        return_value=_getFileHandleDownload_return_value,
+    with (
+        patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+        patch.object(Synapse, "_generate_headers", side_effect=mock_generate_headers),
+        patch(
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
+            new_callable=AsyncMock,
+            return_value=_getFileHandleDownload_return_value,
+        ),
     ):
         with pytest.raises(SynapseHTTPError):
             await download_by_file_handle(
@@ -431,14 +435,17 @@ class TestDownloadFileHandle:
         self.syn.multi_threaded = False
 
     async def test_multithread_true_s3_file_handle(self) -> None:
-        with patch.object(os, "makedirs"), patch(
-            GET_FILE_HANDLE_FOR_DOWNLOAD,
-            new_callable=AsyncMock,
-        ) as mock_getFileHandleDownload, patch(
-            "synapseclient.core.download.download_functions.download_from_url_multi_threaded",
-            new_callable=AsyncMock,
-        ) as mock_multi_thread_download, patch.object(
-            self.syn, "cache"
+        with (
+            patch.object(os, "makedirs"),
+            patch(
+                GET_FILE_HANDLE_FOR_DOWNLOAD,
+                new_callable=AsyncMock,
+            ) as mock_getFileHandleDownload,
+            patch(
+                "synapseclient.core.download.download_functions.download_from_url_multi_threaded",
+                new_callable=AsyncMock,
+            ) as mock_multi_thread_download,
+            patch.object(self.syn, "cache"),
         ):
             mock_getFileHandleDownload.return_value = {
                 "fileHandle": {
@@ -474,15 +481,18 @@ class TestDownloadFileHandle:
             "preSignedURL": "asdf.com",
         }
 
-        with patch.object(os, "makedirs"), patch(
-            GET_FILE_HANDLE_FOR_DOWNLOAD,
-            new_callable=AsyncMock,
-            return_value=get_file_handle_for_download_return_value,
-        ), patch(
-            DOWNLOAD_FROM_URL,
-            new_callable=AsyncMock,
-        ) as mock_download_from_URL, patch.object(
-            self.syn, "cache"
+        with (
+            patch.object(os, "makedirs"),
+            patch(
+                GET_FILE_HANDLE_FOR_DOWNLOAD,
+                new_callable=AsyncMock,
+                return_value=get_file_handle_for_download_return_value,
+            ),
+            patch(
+                DOWNLOAD_FROM_URL,
+                new_callable=AsyncMock,
+            ) as mock_download_from_URL,
+            patch.object(self.syn, "cache"),
         ):
             # multi_threaded/max_threads will have effect
             self.syn.multi_threaded = True
@@ -497,8 +507,8 @@ class TestDownloadFileHandle:
             mock_download_from_URL.assert_called_once_with(
                 url="asdf.com",
                 destination="/myfakepath",
-                object_id=456,
-                object_type="FileEntity",
+                entity_id=456,
+                file_handle_associate_type="FileEntity",
                 file_handle_id="123",
                 expected_md5="someMD5",
                 progress_bar=ANY,
@@ -526,14 +536,17 @@ class TestDownloadFileHandle:
         await self._multithread_not_applicable(file_handle)
 
     async def test_multithread_false_s3_file_handle(self) -> None:
-        with patch.object(os, "makedirs"), patch(
-            GET_FILE_HANDLE_FOR_DOWNLOAD,
-            new_callable=AsyncMock,
-        ) as mock_getFileHandleDownload, patch(
-            DOWNLOAD_FROM_URL,
-            new_callable=AsyncMock,
-        ) as mock_download_from_URL, patch.object(
-            self.syn, "cache"
+        with (
+            patch.object(os, "makedirs"),
+            patch(
+                GET_FILE_HANDLE_FOR_DOWNLOAD,
+                new_callable=AsyncMock,
+            ) as mock_getFileHandleDownload,
+            patch(
+                DOWNLOAD_FROM_URL,
+                new_callable=AsyncMock,
+            ) as mock_download_from_URL,
+            patch.object(self.syn, "cache"),
         ):
             mock_getFileHandleDownload.return_value = {
                 "fileHandle": {
@@ -556,8 +569,8 @@ class TestDownloadFileHandle:
             mock_download_from_URL.assert_called_once_with(
                 url="asdf.com",
                 destination="/myfakepath",
-                object_id=456,
-                object_type="FileEntity",
+                entity_id=456,
+                file_handle_associate_type="FileEntity",
                 file_handle_id="123",
                 expected_md5="someMD5",
                 progress_bar=ANY,
@@ -571,13 +584,12 @@ class TestDownloadFromUrlMultiThreaded:
         self.syn = syn
 
     async def test_md5_mismatch(self) -> None:
-        with patch(
-            "synapseclient.core.download.download_functions.download_file"
-        ), patch.object(utils, "md5_for_file") as mock_md5_for_file, patch.object(
-            os, "remove"
-        ) as mock_os_remove, patch.object(
-            shutil, "move"
-        ) as mock_move:
+        with (
+            patch("synapseclient.core.download.download_functions.download_file"),
+            patch.object(utils, "md5_for_file") as mock_md5_for_file,
+            patch.object(os, "remove") as mock_os_remove,
+            patch.object(shutil, "move") as mock_move,
+        ):
             path = os.path.abspath("/myfakepath")
 
             mock_md5_for_file.return_value.hexdigest.return_value = "unexpetedMd5"
@@ -600,17 +612,16 @@ class TestDownloadFromUrlMultiThreaded:
     async def test_md5_match(self) -> None:
         expected_md5 = "myExpectedMd5"
 
-        with patch(
-            "synapseclient.core.download.download_functions.download_file"
-        ), patch.object(
-            utils,
-            "md5_for_file_hex",
-            return_value=expected_md5,
-        ), patch.object(
-            os, "remove"
-        ) as mock_os_remove, patch.object(
-            shutil, "move"
-        ) as mock_move:
+        with (
+            patch("synapseclient.core.download.download_functions.download_file"),
+            patch.object(
+                utils,
+                "md5_for_file_hex",
+                return_value=expected_md5,
+            ),
+            patch.object(os, "remove") as mock_os_remove,
+            patch.object(shutil, "move") as mock_move,
+        ):
             path = os.path.abspath("/myfakepath")
 
             await download_from_url_multi_threaded(
@@ -679,31 +690,32 @@ class TestDownloadFromUrl:
         # with patch.object(
         #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
         # )
-        with patch.object(
-            syn._requests_session, "get", side_effect=mock_requests_get
-        ), patch.object(
-            Synapse, "_generate_headers", side_effect=mock_generate_headers
-        ), patch.object(
-            utils, "temp_download_filename", return_value=temp_destination
-        ) as mocked_temp_dest, patch(
-            "synapseclient.core.download.download_functions.open",
-            new_callable=mock_open(),
-            create=True,
-        ) as mocked_open, patch.object(
-            os.path, "exists", side_effect=[False, True]
-        ) as mocked_exists, patch.object(
-            os.path, "getsize", return_value=partial_content_break
-        ) as mocked_getsize, patch.object(
-            utils, "md5_for_file"
-        ), patch.object(
-            shutil, "move"
-        ) as mocked_move:
+        with (
+            patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+            patch.object(
+                Synapse, "_generate_headers", side_effect=mock_generate_headers
+            ),
+            patch.object(
+                utils, "temp_download_filename", return_value=temp_destination
+            ) as mocked_temp_dest,
+            patch(
+                "synapseclient.core.download.download_functions.open",
+                new_callable=mock_open(),
+                create=True,
+            ) as mocked_open,
+            patch.object(os.path, "exists", side_effect=[False, True]) as mocked_exists,
+            patch.object(
+                os.path, "getsize", return_value=partial_content_break
+            ) as mocked_getsize,
+            patch.object(utils, "md5_for_file"),
+            patch.object(shutil, "move") as mocked_move,
+        ):
             # function under test
             download_from_url(
                 url=url,
                 destination=destination,
-                object_id=OBJECT_ID,
-                object_type=OBJECT_TYPE,
+                entity_id=OBJECT_ID,
+                file_handle_associate_type=OBJECT_TYPE,
                 synapse_client=syn,
             )
 
@@ -754,30 +766,30 @@ class TestDownloadFromUrl:
             ]
         )
 
-        with patch.object(
-            syn._requests_session, "get", side_effect=mock_requests_get
-        ), patch.object(
-            Synapse, "_generate_headers", side_effect=mock_generate_headers
-        ), patch.object(
-            utils, "temp_download_filename", return_value=temp_destination
-        ) as mocked_temp_dest, patch(
-            "synapseclient.core.download.download_functions.open",
-            new_callable=mock_open(),
-            create=True,
-        ) as mocked_open, patch.object(
-            os.path, "exists", side_effect=[False, True]
-        ) as mocked_exists, patch.object(
-            shutil, "move"
-        ) as mocked_move, patch.object(
-            os, "remove"
-        ) as mocked_remove:
+        with (
+            patch.object(syn._requests_session, "get", side_effect=mock_requests_get),
+            patch.object(
+                Synapse, "_generate_headers", side_effect=mock_generate_headers
+            ),
+            patch.object(
+                utils, "temp_download_filename", return_value=temp_destination
+            ) as mocked_temp_dest,
+            patch(
+                "synapseclient.core.download.download_functions.open",
+                new_callable=mock_open(),
+                create=True,
+            ) as mocked_open,
+            patch.object(os.path, "exists", side_effect=[False, True]) as mocked_exists,
+            patch.object(shutil, "move") as mocked_move,
+            patch.object(os, "remove") as mocked_remove,
+        ):
             # function under test
             with pytest.raises(SynapseMd5MismatchError):
                 await download_from_url(
                     url=url,
                     destination=destination,
-                    object_id=OBJECT_ID,
-                    object_type=OBJECT_TYPE,
+                    entity_id=OBJECT_ID,
+                    file_handle_associate_type=OBJECT_TYPE,
                     expected_md5="fake md5 is fake",
                     synapse_client=syn,
                 )
@@ -809,22 +821,24 @@ class TestDownloadFromUrl:
         url = "file:///some/file/path.txt"
         destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
 
-        with patch.object(
-            utils, "file_url_to_path", return_value=destination
-        ) as mocked_file_url_to_path, patch.object(
-            utils,
-            "md5_for_file_hex",
-            return_value="Some other incorrect md5",
-        ) as mocked_md5_for_file, patch(
-            "os.remove"
-        ) as mocked_remove:
+        with (
+            patch.object(
+                utils, "file_url_to_path", return_value=destination
+            ) as mocked_file_url_to_path,
+            patch.object(
+                utils,
+                "md5_for_file_hex",
+                return_value="Some other incorrect md5",
+            ) as mocked_md5_for_file,
+            patch("os.remove") as mocked_remove,
+        ):
             # function under test
             with pytest.raises(SynapseMd5MismatchError):
                 await download_from_url(
                     url=url,
                     destination=destination,
-                    object_id=OBJECT_ID,
-                    object_type=OBJECT_TYPE,
+                    entity_id=OBJECT_ID,
+                    file_handle_associate_type=OBJECT_TYPE,
                     expected_md5="fake md5 is fake",
                 )
 
@@ -863,36 +877,42 @@ class TestDownloadFromUrl:
                 ),
             ]
         )
-        with patch.object(
-            syn._requests_session, "get", side_effect=mock_requests_get
-        ) as mocked_get, patch(
-            "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
-            return_value=datetime.datetime(1900, 1, 1, tzinfo=datetime.timezone.utc),
-        ) as mocked_pre_signed_url_expiration_time, patch(
-            "synapseclient.core.download.download_functions.get_file_handle_for_download",
-            return_value={"preSignedURL": new_url},
-        ) as mocked_get_file_handle_for_download, patch.object(
-            Synapse, "_generate_headers", side_effect=mock_generate_headers
-        ), patch.object(
-            utils, "temp_download_filename", return_value=temp_destination
-        ), patch(
-            "synapseclient.core.download.download_functions.open",
-            new_callable=mock_open(),
-            create=True,
-        ), patch.object(
-            hashlib, "new"
-        ) as mocked_hashlib_new, patch.object(
-            shutil, "move"
-        ), patch.object(
-            os, "remove"
+        with (
+            patch.object(
+                syn._requests_session, "get", side_effect=mock_requests_get
+            ) as mocked_get,
+            patch(
+                "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
+                return_value=datetime.datetime(
+                    1900, 1, 1, tzinfo=datetime.timezone.utc
+                ),
+            ) as mocked_pre_signed_url_expiration_time,
+            patch(
+                "synapseclient.core.download.download_functions.get_file_handle_for_download",
+                return_value={"preSignedURL": new_url},
+            ) as mocked_get_file_handle_for_download,
+            patch.object(
+                Synapse, "_generate_headers", side_effect=mock_generate_headers
+            ),
+            patch.object(
+                utils, "temp_download_filename", return_value=temp_destination
+            ),
+            patch(
+                "synapseclient.core.download.download_functions.open",
+                new_callable=mock_open(),
+                create=True,
+            ),
+            patch.object(hashlib, "new") as mocked_hashlib_new,
+            patch.object(shutil, "move"),
+            patch.object(os, "remove"),
         ):
             mocked_hashlib_new.return_value.hexdigest.return_value = "fake md5 is fake"
             # WHEN I call download_from_url with an expired url
             download_from_url(
                 url=url,
                 destination=destination,
-                object_id=OBJECT_ID,
-                object_type=OBJECT_TYPE,
+                entity_id=OBJECT_ID,
+                file_handle_associate_type=OBJECT_TYPE,
                 expected_md5="fake md5 is fake",
             )
             # I expect the expired url to be identified

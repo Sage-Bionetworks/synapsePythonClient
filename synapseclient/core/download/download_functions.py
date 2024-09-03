@@ -404,13 +404,13 @@ async def download_by_file_handle(
 
     while retries > 0:
         try:
-            file_handle_result: Dict[
-                str, str
-            ] = await get_file_handle_for_download_async(
-                file_handle_id=file_handle_id,
-                synapse_id=synapse_id,
-                entity_type=entity_type,
-                synapse_client=syn,
+            file_handle_result: Dict[str, str] = (
+                await get_file_handle_for_download_async(
+                    file_handle_id=file_handle_id,
+                    synapse_id=synapse_id,
+                    entity_type=entity_type,
+                    synapse_client=syn,
+                )
             )
             file_handle = file_handle_result["fileHandle"]
             concrete_type = file_handle["concreteType"]
@@ -512,8 +512,8 @@ async def download_by_file_handle(
                     lambda: download_from_url(
                         url=file_handle_result["preSignedURL"],
                         destination=destination,
-                        object_id=synapse_id,
-                        object_type=entity_type,
+                        entity_id=synapse_id,
+                        file_handle_associate_type=entity_type,
                         file_handle_id=file_handle["id"],
                         expected_md5=file_handle.get("contentMd5"),
                         progress_bar=progress_bar,
@@ -619,8 +619,8 @@ async def download_from_url_multi_threaded(
 def download_from_url(
     url: str,
     destination: str,
-    object_id: Optional[str],
-    object_type: Optional[str],
+    entity_id: Optional[str],
+    file_handle_associate_type: Optional[str],
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
     progress_bar: Optional[tqdm] = None,
@@ -633,9 +633,9 @@ def download_from_url(
     Arguments:
         url:           The source of download
         destination:   The destination on local file system
-        object_id:      The id of the Synapse object that uses the FileHandle
+        entity_id:      The id of the Synapse object that uses the FileHandle
             e.g. "syn123"
-        object_type:    The type of the Synapse object that uses the
+        file_handle_associate_type:    The type of the Synapse object that uses the
             FileHandle e.g. "FileEntity". Any of
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         file_handle_id:  Optional. If given, the file will be given a temporary name that includes the file
@@ -758,8 +758,8 @@ def download_from_url(
                     if url_is_expired:
                         response = get_file_handle_for_download(
                             file_handle_id=file_handle_id,
-                            synapse_id=object_id,
-                            entity_type=object_type,
+                            synapse_id=entity_id,
+                            entity_type=file_handle_associate_type,
                             synapse_client=client,
                         )
                         refreshed_url = response["preSignedURL"]
