@@ -338,15 +338,12 @@ class TestDownloadFileHandle:
             (disk_space_error, 1),
             (ValueError("foo"), retries),
         ]:
-            with (
-                patch(
-                    GET_FILE_HANDLE_FOR_DOWNLOAD,
-                    new_callable=AsyncMock,
-                ) as mock_get_file_handle_download,
-                patch(
-                    DOWNLOAD_FROM_URL,
-                ) as mock_download_from_URL,
-            ):
+            with patch(
+                GET_FILE_HANDLE_FOR_DOWNLOAD,
+                new_callable=AsyncMock,
+            ) as mock_get_file_handle_download, patch(
+                DOWNLOAD_FROM_URL,
+            ) as mock_download_from_URL:
                 mock_get_file_handle_download.return_value = {
                     "fileHandle": {
                         "id": file_handle_id,
@@ -410,13 +407,10 @@ class TestDownloadFileHandle:
         expected_download_path = FOO_KEY
         mock_s3_client_wrapper.download_file.return_value = expected_download_path
 
-        with (
-            patch(
-                GET_FILE_HANDLE_FOR_DOWNLOAD,
-                new_callable=AsyncMock,
-            ) as mock_get_file_handle_download,
-            patch.object(self.syn, "cache") as cache,
-        ):
+        with patch(
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
+            new_callable=AsyncMock,
+        ) as mock_get_file_handle_download, patch.object(self.syn, "cache") as cache:
             mock_get_file_handle_download.return_value = {
                 "fileHandle": {
                     "id": file_handle_id,
@@ -468,20 +462,19 @@ class TestDownloadFileHandle:
         destination = "/tmp"
         expected_destination = os.path.abspath(destination)
 
-        with (
-            patch(
-                GET_FILE_HANDLE_FOR_DOWNLOAD,
-                new_callable=AsyncMock,
-            ) as mock_get_file_handle_download,
-            patch.object(self.syn, "cache"),
-            patch.object(urllib_request, "urlretrieve") as mock_url_retrieve,
-            patch.object(utils, "md5_for_file") as mock_md5_for_file,
-            patch.object(os, "makedirs"),
-            patch.object(
-                sts_transfer,
-                "is_storage_location_sts_enabled_async",
-                return_value=False,
-            ),
+        with patch(
+            GET_FILE_HANDLE_FOR_DOWNLOAD,
+            new_callable=AsyncMock,
+        ) as mock_get_file_handle_download, patch.object(
+            self.syn, "cache"
+        ), patch.object(
+            urllib_request, "urlretrieve"
+        ) as mock_url_retrieve, patch.object(
+            utils, "md5_for_file"
+        ) as mock_md5_for_file, patch.object(
+            os, "makedirs"
+        ), patch.object(
+            sts_transfer, "is_storage_location_sts_enabled_async", return_value=False
         ):
             mock_get_file_handle_download.return_value = {
                 "fileHandle": {
@@ -831,12 +824,12 @@ class TestSubmit:
             "contributors": self.contributors,
             "submitterAlias": self.team["name"],
         }
-        with (
-            patch.object(self.syn, "get", return_value=docker_entity) as patch_syn_get,
-            patch.object(
-                self.syn, "_get_docker_digest", return_value=docker_digest
-            ) as patch_get_digest,
-            patch.object(self.syn, "_submit", return_value=expected_submission),
+        with patch.object(
+            self.syn, "get", return_value=docker_entity
+        ) as patch_syn_get, patch.object(
+            self.syn, "_get_docker_digest", return_value=docker_digest
+        ) as patch_get_digest, patch.object(
+            self.syn, "_submit", return_value=expected_submission
         ):
             submission = self.syn.submit("9090", patch_syn_get, name="George")
             patch_get_digest.assert_called_once_with(docker_entity, "latest")
@@ -967,14 +960,13 @@ def test_send_message(syn: Synapse) -> None:
         "Through caverns measureless to man\n"
         "Down to a sunless sea.\n"
     )
-    with (
-        patch(
-            "synapseclient.client.multipart_upload_string_async",
-            new_callable=AsyncMock,
-            return_value="7365905",
-        ) as mock_upload_string,
-        patch("synapseclient.client.Synapse.restPOST") as post_mock,
-    ):
+    with patch(
+        "synapseclient.client.multipart_upload_string_async",
+        new_callable=AsyncMock,
+        return_value="7365905",
+    ) as mock_upload_string, patch(
+        "synapseclient.client.Synapse.restPOST"
+    ) as post_mock:
         syn.sendMessage(
             userIds=[1421212], messageSubject="Xanadu", messageBody=messageBody
         )
@@ -1018,17 +1010,15 @@ class TestPrivateUploadExternallyStoringProjects:
         max_threads = 8
 
         # method under test
-        with (
-            patch.object(
-                upload_functions,
-                "multipart_upload_file",
-                return_value=expected_file_handle_id,
-            ) as mocked_multipart_upload,
-            patch.object(self.syn.cache, "add") as mocked_cache_add,
-            patch.object(
-                self.syn, "_get_file_handle_as_creator"
-            ) as mocked_get_file_handle,
-        ):
+        with patch.object(
+            upload_functions,
+            "multipart_upload_file",
+            return_value=expected_file_handle_id,
+        ) as mocked_multipart_upload, patch.object(
+            self.syn.cache, "add"
+        ) as mocked_cache_add, patch.object(
+            self.syn, "_get_file_handle_as_creator"
+        ) as mocked_get_file_handle:
             upload_functions.upload_file_handle(
                 syn=self.syn,
                 parent_entity=test_file["parentId"],
@@ -1377,10 +1367,9 @@ def test_move(syn: Synapse) -> None:
     entity = Folder(name="folder", parent="syn456")
     moved_entity = entity
     moved_entity.parentId = "syn789"
-    with (
-        patch.object(syn, "get", return_value=entity) as syn_get_patch,
-        patch.object(syn, "store", return_value=moved_entity) as syn_store_patch,
-    ):
+    with patch.object(syn, "get", return_value=entity) as syn_get_patch, patch.object(
+        syn, "store", return_value=moved_entity
+    ) as syn_store_patch:
         assert moved_entity == syn.move("syn123", "syn789")
         syn_get_patch.assert_called_once_with("syn123", downloadFile=False)
         syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
@@ -1431,11 +1420,9 @@ def test_set_permissions_default_permissions(syn: Synapse) -> None:
             {"accessType": ["READ", "DOWNLOAD"], "principalId": principalId}
         ]
     }
-    with (
-        patch.object(syn, "_getBenefactor", return_value=entity),
-        patch.object(syn, "_getACL", return_value=acl),
-        patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl,
-    ):
+    with patch.object(syn, "_getBenefactor", return_value=entity), patch.object(
+        syn, "_getACL", return_value=acl
+    ), patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
         assert update_acl == syn.setPermissions(entity, principalId)
         patch_store_acl.assert_called_once_with(entity, update_acl)
 
@@ -1629,11 +1616,9 @@ class TestCreateS3StorageLocation:
     def _create_storage_location_test(
         self, expected_post_body, *args, **kwargs
     ) -> None:
-        with (
-            patch.object(self.syn, "restPOST") as mock_post,
-            patch.object(self.syn, "setStorageLocation") as mock_set_storage_location,
-            patch.object(self.syn, "store") as syn_store,
-        ):
+        with patch.object(self.syn, "restPOST") as mock_post, patch.object(
+            self.syn, "setStorageLocation"
+        ) as mock_set_storage_location, patch.object(self.syn, "store") as syn_store:
             mock_post.return_value = {"storageLocationId": 456}
             mock_set_storage_location.return_value = {"id": "foo"}
 
@@ -1705,16 +1690,19 @@ class TestCreateExternalS3FileHandle:
         self.syn = syn
 
     def _s3_file_handle_test(self, **kwargs) -> None:
-        with (
-            patch.object(
-                self.syn, "_getDefaultUploadDestination"
-            ) as mock_get_upload_dest,
-            patch.object(os, "path") as mock_os_path,
-            patch.object(os, "stat") as mock_os_stat,
-            patch.object(utils, "md5_for_file") as mock_md5,
-            patch("mimetypes.guess_type") as mock_guess_mimetype,
-            patch.object(self.syn, "restPOST") as mock_post,
-        ):
+        with patch.object(
+            self.syn, "_getDefaultUploadDestination"
+        ) as mock_get_upload_dest, patch.object(
+            os, "path"
+        ) as mock_os_path, patch.object(
+            os, "stat"
+        ) as mock_os_stat, patch.object(
+            utils, "md5_for_file"
+        ) as mock_md5, patch(
+            "mimetypes.guess_type"
+        ) as mock_guess_mimetype, patch.object(
+            self.syn, "restPOST"
+        ) as mock_post:
             bucket_name = "foo_bucket"
             s3_file_key = "/foo/bar/baz"
             file_path = "/tmp/foo"
@@ -1873,17 +1861,13 @@ class TestMembershipInvitation:
             "inviteeEmail": self.email,
             "inviteeId": None,
         }
-        with (
-            patch.object(
-                self.syn, "get_team_open_invitations", return_value=[]
-            ) as patch_get_invites,
-            patch.object(
-                self.syn, "getUserProfile", return_value=self.profile
-            ) as patch_get_profile,
-            patch.object(
-                self.syn, "send_membership_invitation", return_value=self.response
-            ) as patch_invitation,
-        ):
+        with patch.object(
+            self.syn, "get_team_open_invitations", return_value=[]
+        ) as patch_get_invites, patch.object(
+            self.syn, "getUserProfile", return_value=self.profile
+        ) as patch_get_profile, patch.object(
+            self.syn, "send_membership_invitation", return_value=self.response
+        ) as patch_invitation:
             invite = self.syn.invite_to_team(
                 self.team, inviteeEmail=self.email, message=self.message
             )
@@ -1896,20 +1880,15 @@ class TestMembershipInvitation:
         """Invite user to team via their Synapse userid"""
         self.member_status["isMember"] = False
         invite_body = {"inviteeId": self.userid, "inviteeEmail": None, "message": None}
-        with (
-            patch.object(
-                self.syn, "get_membership_status", return_value=self.member_status
-            ) as patch_getmem,
-            patch.object(
-                self.syn, "get_team_open_invitations", return_value=[]
-            ) as patch_get_invites,
-            patch.object(
-                self.syn, "getUserProfile", return_value=self.profile
-            ) as patch_get_profile,
-            patch.object(
-                self.syn, "send_membership_invitation", return_value=self.response
-            ) as patch_invitation,
-        ):
+        with patch.object(
+            self.syn, "get_membership_status", return_value=self.member_status
+        ) as patch_getmem, patch.object(
+            self.syn, "get_team_open_invitations", return_value=[]
+        ) as patch_get_invites, patch.object(
+            self.syn, "getUserProfile", return_value=self.profile
+        ) as patch_get_profile, patch.object(
+            self.syn, "send_membership_invitation", return_value=self.response
+        ) as patch_invitation:
             invite = self.syn.invite_to_team(self.team, user=self.userid)
             patch_getmem.assert_called_once_with(self.userid, self.team.id)
             patch_get_profile.assert_called_once_with(self.userid)
@@ -1921,20 +1900,15 @@ class TestMembershipInvitation:
         """Invite user to team via their Synapse username"""
         self.member_status["isMember"] = False
         invite_body = {"inviteeId": self.userid, "inviteeEmail": None, "message": None}
-        with (
-            patch.object(
-                self.syn, "get_membership_status", return_value=self.member_status
-            ) as patch_getmem,
-            patch.object(
-                self.syn, "get_team_open_invitations", return_value=[]
-            ) as patch_get_invites,
-            patch.object(
-                self.syn, "getUserProfile", return_value=self.profile
-            ) as patch_get_profile,
-            patch.object(
-                self.syn, "send_membership_invitation", return_value=self.response
-            ) as patch_invitation,
-        ):
+        with patch.object(
+            self.syn, "get_membership_status", return_value=self.member_status
+        ) as patch_getmem, patch.object(
+            self.syn, "get_team_open_invitations", return_value=[]
+        ) as patch_get_invites, patch.object(
+            self.syn, "getUserProfile", return_value=self.profile
+        ) as patch_get_profile, patch.object(
+            self.syn, "send_membership_invitation", return_value=self.response
+        ) as patch_invitation:
             invite = self.syn.invite_to_team(self.team, user=self.username)
             patch_getmem.assert_called_once_with(self.userid, self.team.id)
             patch_get_profile.assert_called_once_with(self.username)
@@ -1944,20 +1918,15 @@ class TestMembershipInvitation:
 
     def test_invite_to_team__ismember(self) -> None:
         """None returned when user is already a member"""
-        with (
-            patch.object(
-                self.syn, "get_membership_status", return_value=self.member_status
-            ) as patch_getmem,
-            patch.object(
-                self.syn, "get_team_open_invitations", return_value=[]
-            ) as patch_get_invites,
-            patch.object(
-                self.syn, "getUserProfile", return_value=self.profile
-            ) as patch_get_profile,
-            patch.object(
-                self.syn, "send_membership_invitation", return_value=self.response
-            ) as patch_invitation,
-        ):
+        with patch.object(
+            self.syn, "get_membership_status", return_value=self.member_status
+        ) as patch_getmem, patch.object(
+            self.syn, "get_team_open_invitations", return_value=[]
+        ) as patch_get_invites, patch.object(
+            self.syn, "getUserProfile", return_value=self.profile
+        ) as patch_get_profile, patch.object(
+            self.syn, "send_membership_invitation", return_value=self.response
+        ) as patch_invitation:
             invite = self.syn.invite_to_team(self.team, user=self.userid)
             patch_getmem.assert_called_once_with(self.userid, self.team.id)
             patch_get_profile.assert_called_once_with(self.userid)
@@ -1969,21 +1938,17 @@ class TestMembershipInvitation:
         """None returned when user already has an invitation"""
         self.member_status["isMember"] = False
         invite_body = {"inviteeId": self.userid}
-        with (
-            patch.object(
-                self.syn, "get_membership_status", return_value=self.member_status
-            ) as patch_getmem,
-            patch.object(
-                self.syn, "get_team_open_invitations", return_value=[invite_body]
-            ) as patch_get_invites,
-            patch.object(
-                self.syn, "getUserProfile", return_value=self.profile
-            ) as patch_get_profile,
-            patch.object(self.syn, "_delete_membership_invitation") as patch_delete,
-            patch.object(
-                self.syn, "send_membership_invitation", return_value=self.response
-            ) as patch_invitation,
-        ):
+        with patch.object(
+            self.syn, "get_membership_status", return_value=self.member_status
+        ) as patch_getmem, patch.object(
+            self.syn, "get_team_open_invitations", return_value=[invite_body]
+        ) as patch_get_invites, patch.object(
+            self.syn, "getUserProfile", return_value=self.profile
+        ) as patch_get_profile, patch.object(
+            self.syn, "_delete_membership_invitation"
+        ) as patch_delete, patch.object(
+            self.syn, "send_membership_invitation", return_value=self.response
+        ) as patch_invitation:
             invite = self.syn.invite_to_team(self.team, user=self.userid)
             patch_getmem.assert_called_once_with(self.userid, self.team.id)
             patch_get_profile.assert_called_once_with(self.userid)
@@ -1995,15 +1960,13 @@ class TestMembershipInvitation:
     def test_invite_to_team__email_openinvite(self) -> None:
         """None returned when email already has an invitation"""
         invite_body = {"inviteeEmail": self.email}
-        with (
-            patch.object(
-                self.syn, "get_team_open_invitations", return_value=[invite_body]
-            ) as patch_get_invites,
-            patch.object(self.syn, "_delete_membership_invitation") as patch_delete,
-            patch.object(
-                self.syn, "send_membership_invitation", return_value=self.response
-            ) as patch_invitation,
-        ):
+        with patch.object(
+            self.syn, "get_team_open_invitations", return_value=[invite_body]
+        ) as patch_get_invites, patch.object(
+            self.syn, "_delete_membership_invitation"
+        ) as patch_delete, patch.object(
+            self.syn, "send_membership_invitation", return_value=self.response
+        ) as patch_invitation:
             invite = self.syn.invite_to_team(self.team, inviteeEmail=self.email)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_not_called()
@@ -2014,15 +1977,13 @@ class TestMembershipInvitation:
     def test_invite_to_team__none_matching_invitation(self) -> None:
         """Invitation sent when no matching open invitations"""
         invite_body = {"inviteeEmail": self.email + "foo"}
-        with (
-            patch.object(
-                self.syn, "get_team_open_invitations", return_value=[invite_body]
-            ) as patch_get_invites,
-            patch.object(self.syn, "_delete_membership_invitation") as patch_delete,
-            patch.object(
-                self.syn, "send_membership_invitation", return_value=self.response
-            ) as patch_invitation,
-        ):
+        with patch.object(
+            self.syn, "get_team_open_invitations", return_value=[invite_body]
+        ) as patch_get_invites, patch.object(
+            self.syn, "_delete_membership_invitation"
+        ) as patch_delete, patch.object(
+            self.syn, "send_membership_invitation", return_value=self.response
+        ) as patch_invitation:
             invite = self.syn.invite_to_team(self.team, inviteeEmail=self.email)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_delete.assert_not_called()
@@ -2033,15 +1994,13 @@ class TestMembershipInvitation:
         """Invitation sent when force the invite, make sure open invitation
         is deleted"""
         open_invitations = {"inviteeEmail": self.email, "id": "9938"}
-        with (
-            patch.object(
-                self.syn, "get_team_open_invitations", return_value=[open_invitations]
-            ) as patch_get_invites,
-            patch.object(self.syn, "_delete_membership_invitation") as patch_delete,
-            patch.object(
-                self.syn, "send_membership_invitation", return_value=self.response
-            ) as patch_invitation,
-        ):
+        with patch.object(
+            self.syn, "get_team_open_invitations", return_value=[open_invitations]
+        ) as patch_get_invites, patch.object(
+            self.syn, "_delete_membership_invitation"
+        ) as patch_delete, patch.object(
+            self.syn, "send_membership_invitation", return_value=self.response
+        ) as patch_invitation:
             invite = self.syn.invite_to_team(
                 self.team, inviteeEmail=self.email, force=True
             )
@@ -2270,16 +2229,15 @@ class TestRestCalls:
         kwargs = {"stream": True}
 
         requests_session = requests_session or self.syn._requests_session
-        with (
-            patch.object(
-                self.syn, "_build_uri_and_headers"
-            ) as mock_build_uri_and_headers,
-            patch.object(self.syn, "_build_retry_policy") as mock_build_retry_policy,
-            patch.object(
-                self.syn, "_handle_synapse_http_error"
-            ) as mock_handle_synapse_http_error,
-            patch.object(requests_session, method) as mock_requests_call,
-        ):
+        with patch.object(
+            self.syn, "_build_uri_and_headers"
+        ) as mock_build_uri_and_headers, patch.object(
+            self.syn, "_build_retry_policy"
+        ) as mock_build_retry_policy, patch.object(
+            self.syn, "_handle_synapse_http_error"
+        ) as mock_handle_synapse_http_error, patch.object(
+            requests_session, method
+        ) as mock_requests_call:
             mock_build_uri_and_headers.return_value = (uri, headers)
             mock_build_retry_policy.return_value = retryPolicy
 
@@ -2520,18 +2478,22 @@ def test_store_needs_upload_false_file_handle_id_not_in_local_state(
         ],
         "annotations": {"id": synapse_id, "etag": etag, "annotations": {}},
     }
-    with (
-        patch.object(syn, "_getEntityBundle", return_value=returned_bundle),
-        patch.object(
-            synapseclient.client,
-            "upload_file_handle_async",
-            return_value=returned_file_handle,
-        ),
-        patch.object(syn.cache, "contains", return_value=True),
-        patch.object(syn, "_updateEntity"),
-        patch.object(syn, "set_annotations"),
-        patch.object(Entity, "create"),
-        patch.object(syn, "get"),
+    with patch.object(
+        syn, "_getEntityBundle", return_value=returned_bundle
+    ), patch.object(
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
+    ), patch.object(
+        syn.cache, "contains", return_value=True
+    ), patch.object(
+        syn, "_updateEntity"
+    ), patch.object(
+        syn, "set_annotations"
+    ), patch.object(
+        Entity, "create"
+    ), patch.object(
+        syn, "get"
     ):
         f = File("/fake_file.txt", parent=parent_id)
         syn.store(f)
@@ -2596,20 +2558,22 @@ def test_store_existing_processed_as_update(syn: Synapse) -> None:
         "baz": [4],
     }
 
-    with (
-        patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle,
-        patch.object(
-            synapseclient.client,
-            "upload_file_handle_async",
-            return_value=returned_file_handle,
-        ),
-        patch.object(syn.cache, "contains", return_value=True),
-        patch.object(syn, "_createEntity") as mock_createEntity,
-        patch.object(syn, "_updateEntity") as mock_updateEntity,
-        patch.object(syn, "findEntityId") as mock_findEntityId,
-        patch.object(syn, "set_annotations") as mock_set_annotations,
-        patch.object(Entity, "create"),
-        patch.object(syn, "get"),
+    with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
+    ), patch.object(syn.cache, "contains", return_value=True), patch.object(
+        syn, "_createEntity"
+    ) as mock_createEntity, patch.object(
+        syn, "_updateEntity"
+    ) as mock_updateEntity, patch.object(
+        syn, "findEntityId"
+    ) as mock_findEntityId, patch.object(
+        syn, "set_annotations"
+    ) as mock_set_annotations, patch.object(
+        Entity, "create"
+    ), patch.object(
+        syn, "get"
     ):
         mock_get_entity_bundle.return_value = returned_bundle
 
@@ -2690,21 +2654,23 @@ def test_store__409_processed_as_update(syn: Synapse) -> None:
         "baz": [4],
     }
 
-    with (
-        patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle,
-        patch.object(
-            synapseclient.client,
-            "upload_file_handle_async",
-            new_callable=AsyncMock,
-            return_value=returned_file_handle,
-        ),
-        patch.object(syn.cache, "contains", return_value=True),
-        patch.object(syn, "_createEntity") as mock_createEntity,
-        patch.object(syn, "_updateEntity") as mock_updateEntity,
-        patch.object(syn, "findEntityId") as mock_findEntityId,
-        patch.object(syn, "set_annotations") as mock_set_annotations,
-        patch.object(Entity, "create"),
-        patch.object(syn, "get"),
+    with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
+        synapseclient.client,
+        "upload_file_handle_async",
+        new_callable=AsyncMock,
+        return_value=returned_file_handle,
+    ), patch.object(syn.cache, "contains", return_value=True), patch.object(
+        syn, "_createEntity"
+    ) as mock_createEntity, patch.object(
+        syn, "_updateEntity"
+    ) as mock_updateEntity, patch.object(
+        syn, "findEntityId"
+    ) as mock_findEntityId, patch.object(
+        syn, "set_annotations"
+    ) as mock_set_annotations, patch.object(
+        Entity, "create"
+    ), patch.object(
+        syn, "get"
     ):
         mock_get_entity_bundle.side_effect = [None, returned_bundle]
         mock_createEntity.side_effect = SynapseHTTPError(
@@ -2769,20 +2735,22 @@ def test_store__no_need_to_update_annotation(syn: Synapse) -> None:
         },
     }
 
-    with (
-        patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle,
-        patch.object(
-            synapseclient.client,
-            "upload_file_handle_async",
-            return_value=returned_file_handle,
-        ),
-        patch.object(syn.cache, "contains", return_value=True),
-        patch.object(syn, "_createEntity"),
-        patch.object(syn, "_updateEntity"),
-        patch.object(syn, "findEntityId"),
-        patch.object(syn, "set_annotations") as mock_set_annotations,
-        patch.object(Entity, "create"),
-        patch.object(syn, "get"),
+    with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
+    ), patch.object(syn.cache, "contains", return_value=True), patch.object(
+        syn, "_createEntity"
+    ), patch.object(
+        syn, "_updateEntity"
+    ), patch.object(
+        syn, "findEntityId"
+    ), patch.object(
+        syn, "set_annotations"
+    ) as mock_set_annotations, patch.object(
+        Entity, "create"
+    ), patch.object(
+        syn, "get"
     ):
         mock_get_entity_bundle.return_value = returned_bundle
 
@@ -2838,20 +2806,22 @@ def test_store__update_version_comment(syn: Synapse) -> None:
         "versionComment": "12345",
     }
 
-    with (
-        patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle,
-        patch.object(
-            synapseclient.client,
-            "upload_file_handle_async",
-            return_value=returned_file_handle,
-        ),
-        patch.object(syn.cache, "contains", return_value=True),
-        patch.object(syn, "_createEntity") as mock_createEntity,
-        patch.object(syn, "_updateEntity") as mock_updateEntity,
-        patch.object(syn, "findEntityId") as mock_findEntityId,
-        patch.object(syn, "set_annotations") as mock_set_annotations,
-        patch.object(Entity, "create"),
-        patch.object(syn, "get"),
+    with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
+    ), patch.object(syn.cache, "contains", return_value=True), patch.object(
+        syn, "_createEntity"
+    ) as mock_createEntity, patch.object(
+        syn, "_updateEntity"
+    ) as mock_updateEntity, patch.object(
+        syn, "findEntityId"
+    ) as mock_findEntityId, patch.object(
+        syn, "set_annotations"
+    ) as mock_set_annotations, patch.object(
+        Entity, "create"
+    ), patch.object(
+        syn, "get"
     ):
         mock_get_entity_bundle.return_value = returned_bundle
 
@@ -2945,17 +2915,16 @@ def test_store__existing_no_update(syn: Synapse) -> None:
         "annotations": {},
     }
 
-    with (
-        patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle,
-        patch.object(
-            synapseclient.client,
-            "upload_file_handle_async",
-            return_value=returned_file_handle,
-        ),
-        patch.object(syn.cache, "contains", return_value=True),
-        patch.object(syn, "_createEntity") as mock_createEntity,
-        patch.object(syn, "_updateEntity") as mock_updatentity,
-        patch.object(syn, "get"),
+    with patch.object(syn, "_getEntityBundle") as mock_get_entity_bundle, patch.object(
+        synapseclient.client,
+        "upload_file_handle_async",
+        return_value=returned_file_handle,
+    ), patch.object(syn.cache, "contains", return_value=True), patch.object(
+        syn, "_createEntity"
+    ) as mock_createEntity, patch.object(
+        syn, "_updateEntity"
+    ) as mock_updatentity, patch.object(
+        syn, "get"
     ):
         mock_get_entity_bundle.return_value = returned_bundle
         mock_createEntity.side_effect = SynapseHTTPError(
@@ -3011,10 +2980,9 @@ def test_get_submission_with_annotations(syn: Synapse) -> None:
         "entityBundleJSON": json.dumps(entity_bundle_json),
     }
 
-    with (
-        patch.object(syn, "restGET") as restGET,
-        patch.object(syn, "_getWithEntityBundle") as get_entity,
-    ):
+    with patch.object(syn, "restGET") as restGET, patch.object(
+        syn, "_getWithEntityBundle"
+    ) as get_entity:
         restGET.return_value = submission
         response = syn.getSubmission(submission_id)
 
@@ -3061,10 +3029,9 @@ class TestTableSnapshot:
             "description": activity["description"],
             "id": 123,
         }
-        with (
-            patch.object(syn, "restPOST", return_value=snapshot) as restpost,
-            patch.object(syn, "_saveActivity") as mock__saveActivity,
-        ):
+        with patch.object(
+            syn, "restPOST", return_value=snapshot
+        ) as restpost, patch.object(syn, "_saveActivity") as mock__saveActivity:
             mock__saveActivity.return_value = mock_dict
             syn._create_table_snapshot(
                 "syn1234", comment="foo", label="new_label", activity=activity
@@ -3125,14 +3092,11 @@ class TestTableSnapshot:
         """Create Table snapshot"""
         table = Mock(Schema)
         snapshot_version = 3
-        with (
-            patch.object(syn, "get", return_value=table) as get,
-            patch.object(
-                syn,
-                "_create_table_snapshot",
-                return_value={"snapshotVersionNumber": snapshot_version},
-            ) as create,
-        ):
+        with patch.object(syn, "get", return_value=table) as get, patch.object(
+            syn,
+            "_create_table_snapshot",
+            return_value={"snapshotVersionNumber": snapshot_version},
+        ) as create:
             result = syn.create_snapshot_version(
                 "syn1234", comment="foo", label="new_label", activity=2, wait=True
             )
@@ -3152,14 +3116,11 @@ class TestTableSnapshot:
         views = [Mock(EntityViewSchema), Mock(SubmissionViewSchema)]
         for view in views:
             snapshot_version = 3
-            with (
-                patch.object(syn, "get", return_value=view) as get,
-                patch.object(
-                    syn,
-                    "_async_table_update",
-                    return_value={"snapshotVersionNumber": snapshot_version},
-                ) as update,
-            ):
+            with patch.object(syn, "get", return_value=view) as get, patch.object(
+                syn,
+                "_async_table_update",
+                return_value={"snapshotVersionNumber": snapshot_version},
+            ) as update:
                 result = syn.create_snapshot_version(
                     "syn1234",
                     comment="foo",
@@ -3178,12 +3139,9 @@ class TestTableSnapshot:
                 )
                 assert snapshot_version == result
 
-            with (
-                patch.object(syn, "get", return_value=view) as get,
-                patch.object(
-                    syn, "_async_table_update", return_value={"token": 5}
-                ) as update,
-            ):
+            with patch.object(syn, "get", return_value=view) as get, patch.object(
+                syn, "_async_table_update", return_value={"token": 5}
+            ) as update:
                 result = syn.create_snapshot_version(
                     "syn1234", comment="foo", label="new_label", activity=2, wait=False
                 )
@@ -3201,12 +3159,9 @@ class TestTableSnapshot:
     def test_create_snapshot_version_raiseerror(self, syn: Synapse) -> None:
         """Raise error if entity view or table not passed in"""
         wrong_type = Mock()
-        with (
-            patch.object(syn, "get", return_value=wrong_type),
-            pytest.raises(
-                ValueError,
-                match="This function only accepts Synapse ids of Tables or Views",
-            ),
+        with patch.object(syn, "get", return_value=wrong_type), pytest.raises(
+            ValueError,
+            match="This function only accepts Synapse ids of Tables or Views",
         ):
             syn.create_snapshot_version("syn1234")
 
@@ -3351,15 +3306,14 @@ class TestTableQuery:
         expanduser = os.path.expanduser
         expandvars = os.path.expandvars
         os_join = os.path.join
-        with (
-            patch.object(syn, "_waitForAsync") as mock_wait_for_async,
-            patch.object(syn, "cache") as mock_cache,
-            patch(
-                "synapseclient.client.download_by_file_handle",
-                new_callable=AsyncMock,
-            ) as mock_download_file_handle,
-            patch.object(client, "os") as mock_os,
-        ):
+        with patch.object(syn, "_waitForAsync") as mock_wait_for_async, patch.object(
+            syn, "cache"
+        ) as mock_cache, patch(
+            "synapseclient.client.download_by_file_handle",
+            new_callable=AsyncMock,
+        ) as mock_download_file_handle, patch.object(
+            client, "os"
+        ) as mock_os:
             mock_download_result = {"resultsFileHandleId": file_handle_id}
             mock_wait_for_async.return_value = mock_download_result
             mock_cache.get.return_value = None
@@ -3465,14 +3419,11 @@ def test__get_certified_passing_record(userid, syn: Synapse) -> None:
 
 @pytest.mark.parametrize("response", [True, False])
 def test_is_certified(response, syn: Synapse) -> None:
-    with (
-        patch.object(
-            syn, "getUserProfile", return_value={"ownerId": "foobar"}
-        ) as patch_get_user,
-        patch.object(
-            syn, "_get_certified_passing_record", return_value={"passed": response}
-        ) as patch_get_cert,
-    ):
+    with patch.object(
+        syn, "getUserProfile", return_value={"ownerId": "foobar"}
+    ) as patch_get_user, patch.object(
+        syn, "_get_certified_passing_record", return_value={"passed": response}
+    ) as patch_get_cert:
         is_certified = syn.is_certified("test")
         patch_get_user.assert_called_once_with("test")
         patch_get_cert.assert_called_once_with("foobar")
@@ -3484,16 +3435,13 @@ def test_is_certified__no_quiz_results(syn: Synapse) -> None:
     In this case the back end returns a 404 rather than a result."""
     response = MagicMock(requests.Response)
     response.status_code = 404
-    with (
-        patch.object(
-            syn, "getUserProfile", return_value={"ownerId": "foobar"}
-        ) as patch_get_user,
-        patch.object(
-            syn,
-            "_get_certified_passing_record",
-            side_effect=SynapseHTTPError(response=response),
-        ) as patch_get_cert,
-    ):
+    with patch.object(
+        syn, "getUserProfile", return_value={"ownerId": "foobar"}
+    ) as patch_get_user, patch.object(
+        syn,
+        "_get_certified_passing_record",
+        side_effect=SynapseHTTPError(response=response),
+    ) as patch_get_cert:
         is_certified = syn.is_certified("test")
     patch_get_user.assert_called_once_with("test")
     patch_get_cert.assert_called_once_with("foobar")
@@ -3605,46 +3553,41 @@ class TestPermissionsOnProject:
 
     def test_get_permissions_with_defined_set_for_access(self) -> None:
         # GIVEN the API calls are mocked
-        with (
-            patch.object(
-                self.syn,
-                "_getUserbyPrincipalIdOrName",
-                # AND a user with id of 456
-                return_value=456,
-            ),
-            patch.object(
-                self.syn,
-                "_getACL",
-                return_value={
-                    "resourceAccess": [
-                        {
-                            "principalId": 456,
-                            # AND the permissions are given to the user
-                            "accessType": [
-                                "READ",
-                                "DELETE",
-                                "CHANGE_SETTINGS",
-                                "UPDATE",
-                                "CHANGE_PERMISSIONS",
-                                "CREATE",
-                                "MODERATE",
-                                "DOWNLOAD",
-                            ],
-                        }
-                    ]
-                },
-            ),
-            patch.object(
-                self.syn,
-                "_find_teams_for_principal",
-                # AND the user is a part of no teams
-                return_value=[],
-            ),
-            patch.object(
-                self.syn,
-                "_get_user_bundle",
-                return_value=None,
-            ),
+        with patch.object(
+            self.syn,
+            "_getUserbyPrincipalIdOrName",
+            # AND a user with id of 456
+            return_value=456,
+        ), patch.object(
+            self.syn,
+            "_getACL",
+            return_value={
+                "resourceAccess": [
+                    {
+                        "principalId": 456,
+                        # AND the permissions are given to the user
+                        "accessType": [
+                            "READ",
+                            "DELETE",
+                            "CHANGE_SETTINGS",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                            "CREATE",
+                            "MODERATE",
+                            "DOWNLOAD",
+                        ],
+                    }
+                ]
+            },
+        ), patch.object(
+            self.syn,
+            "_find_teams_for_principal",
+            # AND the user is a part of no teams
+            return_value=[],
+        ), patch.object(
+            self.syn,
+            "_get_user_bundle",
+            return_value=None,
         ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
@@ -3664,46 +3607,41 @@ class TestPermissionsOnProject:
 
     def test_get_permissions_with_no_permissions_for_user(self) -> None:
         # GIVEN the API calls are mocked
-        with (
-            patch.object(
-                self.syn,
-                "_getUserbyPrincipalIdOrName",
-                # AND a user with id of 456
-                return_value=456,
-            ),
-            patch.object(
-                self.syn,
-                "_getACL",
-                return_value={
-                    "resourceAccess": [
-                        {
-                            # AND the permissions are given to an unknown user
-                            "principalId": 99999,
-                            "accessType": [
-                                "READ",
-                                "DELETE",
-                                "CHANGE_SETTINGS",
-                                "UPDATE",
-                                "CHANGE_PERMISSIONS",
-                                "CREATE",
-                                "MODERATE",
-                                "DOWNLOAD",
-                            ],
-                        }
-                    ]
-                },
-            ),
-            patch.object(
-                self.syn,
-                "_find_teams_for_principal",
-                # AND the user is a part of no teams
-                return_value=[],
-            ),
-            patch.object(
-                self.syn,
-                "_get_user_bundle",
-                return_value=None,
-            ),
+        with patch.object(
+            self.syn,
+            "_getUserbyPrincipalIdOrName",
+            # AND a user with id of 456
+            return_value=456,
+        ), patch.object(
+            self.syn,
+            "_getACL",
+            return_value={
+                "resourceAccess": [
+                    {
+                        # AND the permissions are given to an unknown user
+                        "principalId": 99999,
+                        "accessType": [
+                            "READ",
+                            "DELETE",
+                            "CHANGE_SETTINGS",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                            "CREATE",
+                            "MODERATE",
+                            "DOWNLOAD",
+                        ],
+                    }
+                ]
+            },
+        ), patch.object(
+            self.syn,
+            "_find_teams_for_principal",
+            # AND the user is a part of no teams
+            return_value=[],
+        ), patch.object(
+            self.syn,
+            "_get_user_bundle",
+            return_value=None,
         ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
@@ -3714,46 +3652,41 @@ class TestPermissionsOnProject:
 
     def test_get_permissions_with_permissions_given_through_single_team(self) -> None:
         # GIVEN the API calls are mocked
-        with (
-            patch.object(
-                self.syn,
-                "_getUserbyPrincipalIdOrName",
-                # AND a user with id of 456
-                return_value=456,
-            ),
-            patch.object(
-                self.syn,
-                "_getACL",
-                return_value={
-                    "resourceAccess": [
-                        {
-                            # AND the permissions are given to a team
-                            "principalId": 999,
-                            "accessType": [
-                                "READ",
-                                "DELETE",
-                                "CHANGE_SETTINGS",
-                                "UPDATE",
-                                "CHANGE_PERMISSIONS",
-                                "CREATE",
-                                "MODERATE",
-                                "DOWNLOAD",
-                            ],
-                        }
-                    ]
-                },
-            ),
-            patch.object(
-                self.syn,
-                "_find_teams_for_principal",
-                # AND the user is assigned to a team
-                return_value=[Team(id=999)],
-            ),
-            patch.object(
-                self.syn,
-                "_get_user_bundle",
-                return_value=None,
-            ),
+        with patch.object(
+            self.syn,
+            "_getUserbyPrincipalIdOrName",
+            # AND a user with id of 456
+            return_value=456,
+        ), patch.object(
+            self.syn,
+            "_getACL",
+            return_value={
+                "resourceAccess": [
+                    {
+                        # AND the permissions are given to a team
+                        "principalId": 999,
+                        "accessType": [
+                            "READ",
+                            "DELETE",
+                            "CHANGE_SETTINGS",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                            "CREATE",
+                            "MODERATE",
+                            "DOWNLOAD",
+                        ],
+                    }
+                ]
+            },
+        ), patch.object(
+            self.syn,
+            "_find_teams_for_principal",
+            # AND the user is assigned to a team
+            return_value=[Team(id=999)],
+        ), patch.object(
+            self.syn,
+            "_get_user_bundle",
+            return_value=None,
         ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
@@ -3775,54 +3708,49 @@ class TestPermissionsOnProject:
         self,
     ) -> None:
         # GIVEN the API calls are mocked
-        with (
-            patch.object(
-                self.syn,
-                "_getUserbyPrincipalIdOrName",
-                # AND a user with id of 456
-                return_value=456,
-            ),
-            patch.object(
-                self.syn,
-                "_getACL",
-                return_value={
-                    "resourceAccess": [
-                        # AND the permissions are spread across a set of 2 teams
-                        {
-                            "principalId": 888,
-                            "accessType": [
-                                "READ",
-                                "DELETE",
-                                "CHANGE_SETTINGS",
-                                "UPDATE",
-                                "CHANGE_PERMISSIONS",
-                            ],
-                        },
-                        {
-                            "principalId": 999,
-                            "accessType": [
-                                "READ",
-                                "UPDATE",
-                                "CHANGE_PERMISSIONS",
-                                "CREATE",
-                                "MODERATE",
-                                "DOWNLOAD",
-                            ],
-                        },
-                    ]
-                },
-            ),
-            patch.object(
-                self.syn,
-                "_find_teams_for_principal",
-                # AND the user is assigned to both of the teams
-                return_value=[Team(id=888), Team(id=999)],
-            ),
-            patch.object(
-                self.syn,
-                "_get_user_bundle",
-                return_value=None,
-            ),
+        with patch.object(
+            self.syn,
+            "_getUserbyPrincipalIdOrName",
+            # AND a user with id of 456
+            return_value=456,
+        ), patch.object(
+            self.syn,
+            "_getACL",
+            return_value={
+                "resourceAccess": [
+                    # AND the permissions are spread across a set of 2 teams
+                    {
+                        "principalId": 888,
+                        "accessType": [
+                            "READ",
+                            "DELETE",
+                            "CHANGE_SETTINGS",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                        ],
+                    },
+                    {
+                        "principalId": 999,
+                        "accessType": [
+                            "READ",
+                            "UPDATE",
+                            "CHANGE_PERMISSIONS",
+                            "CREATE",
+                            "MODERATE",
+                            "DOWNLOAD",
+                        ],
+                    },
+                ]
+            },
+        ), patch.object(
+            self.syn,
+            "_find_teams_for_principal",
+            # AND the user is assigned to both of the teams
+            return_value=[Team(id=888), Team(id=999)],
+        ), patch.object(
+            self.syn,
+            "_get_user_bundle",
+            return_value=None,
         ):
             # WHEN I get the permissions for the user on the entity
             permissions = self.syn.getPermissions("123", "456")
