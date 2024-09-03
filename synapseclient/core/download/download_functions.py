@@ -404,13 +404,13 @@ async def download_by_file_handle(
 
     while retries > 0:
         try:
-            file_handle_result: Dict[
-                str, str
-            ] = await get_file_handle_for_download_async(
-                file_handle_id=file_handle_id,
-                synapse_id=synapse_id,
-                entity_type=entity_type,
-                synapse_client=syn,
+            file_handle_result: Dict[str, str] = (
+                await get_file_handle_for_download_async(
+                    file_handle_id=file_handle_id,
+                    synapse_id=synapse_id,
+                    entity_type=entity_type,
+                    synapse_client=syn,
+                )
             )
             file_handle = file_handle_result["fileHandle"]
             concrete_type = file_handle["concreteType"]
@@ -736,6 +736,22 @@ def download_from_url(
             )
 
             try:
+                url_has_expiration = "Expires" in urllib_urlparse.urlparse(url).query
+                url_is_expired = False
+                if url_has_expiration:
+                    url_is_expired = datetime.datetime.now(
+                        tz=datetime.timezone.utc
+                    ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
+                        url
+                    )
+                if url_is_expired:
+                    response = get_file_handle_for_download(
+                        file_handle_id=file_handle_id,
+                        synapse_id=entity_id,
+                        entity_type=file_handle_associate_type,
+                        synapse_client=client,
+                    )
+                    url = response["preSignedURL"]
                 response = with_retry(
                     lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
                         url=url,
