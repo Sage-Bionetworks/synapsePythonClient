@@ -766,11 +766,16 @@ def download_from_url(
                 exceptions._raise_for_status(response, verbose=client.debug)
             except SynapseHTTPError as err:
                 if err.response.status_code == 403:
-                    url_is_expired = datetime.datetime.now(
-                        tz=datetime.timezone.utc
-                    ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
-                        url
+                    url_has_expiration = (
+                        "Expires" in urllib_urlparse.urlparse(url).query
                     )
+                    url_is_expired = False
+                    if url_has_expiration:
+                        url_is_expired = datetime.datetime.now(
+                            tz=datetime.timezone.utc
+                        ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
+                            url
+                        )
                     if url_is_expired:
                         response = get_file_handle_for_download(
                             file_handle_id=file_handle_id,
