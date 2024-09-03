@@ -407,6 +407,8 @@ def _csv_to_pandas_df(
     list_columns=None,
     rowIdAndVersionInIndex=True,
     dtype=None,
+    na_values=None,
+    keep_default_na=True,
 ):
     test_import_pandas()
     import pandas as pd
@@ -426,6 +428,8 @@ def _csv_to_pandas_df(
         escapechar=escape_char,
         header=0 if contain_headers else None,
         skiprows=lines_to_skip,
+        na_values=na_values,
+        keep_default_na=keep_default_na,
     )
     # parse date columns if exists
     if date_columns:
@@ -2445,7 +2449,13 @@ class CsvFileTable(TableAbstractBaseClass):
             self.etag = upload_to_table_result["etag"]
         return self
 
-    def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime=False):
+    def asDataFrame(
+        self,
+        rowIdAndVersionInIndex=True,
+        convert_to_datetime=False,
+        na_values=None,
+        keep_default_na=True,
+    ):
         """Convert query result to a Pandas DataFrame.
 
         Arguments:
@@ -2491,6 +2501,8 @@ class CsvFileTable(TableAbstractBaseClass):
                 list_columns=list_columns,
                 rowIdAndVersionInIndex=rowIdAndVersionInIndex,
                 dtype=dtype,
+                na_values=na_values,
+                keep_default_na=keep_default_na,
             )
         except pd.parser.CParserError:
             return pd.DataFrame()
