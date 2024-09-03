@@ -410,6 +410,27 @@ def _csv_to_pandas_df(
     na_values=None,
     keep_default_na=True,
 ):
+    """
+    Convert a csv file to a pandas dataframe
+
+    Arguments:
+        filepath: The path to the file.
+        separator: The separator for the file, Defaults to `DEFAULT_SEPARATOR`.
+        quote_char: The quote character for the file, Defaults to `DEFAULT_QUOTE_CHARACTER`.
+        escape_char: The escape character for the file, Defaults to `DEFAULT_ESCAPSE_CHAR`.
+        contain_headers: Whether the file contains headers, Defaults to `True`.
+        lines_to_skip: The number of lines to skip at the beginning of the file, Defaults to `0`.
+        date_columns: The names of the date columns in the file
+        list_columns: The names of the list columns in the file
+        rowIdAndVersionInIndex: Whether the file contains rowId and version in the index, Defaults to `True`.
+        dtype: The data type for the file, Defaults to `None`.
+        na_values: The values to be considered as NA/NaN, Defaults to `None`.
+                    The list of defaults for Pandas can be found here: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+        keep_default_na: Whether to keep the default NaN values when parsing the file, Defaults to `True`.
+
+    Returns:
+        A pandas dataframe
+    """
     test_import_pandas()
     import pandas as pd
 
