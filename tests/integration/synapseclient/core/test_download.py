@@ -29,10 +29,10 @@ def _expire_url(url: str) -> str:
     """Expire a string URL by setting the expiration date to 1900-01-01T00:00:00Z"""
     parsed_url = urlparse(url)
     params = parse_qs(parsed_url.query)
-    expired_date = datetime(1900, 1, 1, 0, 0, 0)
+    expired_date = datetime(1970, 1, 1, 0, 0, 0)
     params["X-Amz-Date"] = [expired_date.strftime("%Y%m%dT%H%M%SZ")]
-    params["X-Amz-Expires"] = ["30"]  # Keep the original expiration duration
-    params["Expires"] = [str(int(expired_date.timestamp()))]
+    params["X-Amz-Expires"] = ["30"]
+    params["Expires"] = ["0"]
     new_query = urlencode(params, doseq=True)
     new_url = parsed_url._replace(query=new_query).geturl()
     return new_url
