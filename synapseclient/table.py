@@ -2478,7 +2478,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                     (and row_etag if it exists)
             convert_to_datetime:    If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                     integers into UTC datetime objects
-            kwargs:                Additional keyword arguments to pass to pandas.read_csv. See
+            kwargs:                Additional keyword arguments to pass to pandas.read_csv via _csv_to_pandas_df. See
                                     https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
                                     for complete list of supported arguments.
 
