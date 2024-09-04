@@ -743,7 +743,8 @@ def test_csv_table_custom_na_values() -> None:
     }
     expected_df = pd.DataFrame(expected_data)
 
-    # THEN the DataFrame should be equal to a dataframe with the custom NA values converted to NaN
+    # THEN the DataFrame should be equal to a dataframe
+    # with the custom NA values converted to NaN
     pd.testing.assert_frame_equal(result, expected_df)
 
 
