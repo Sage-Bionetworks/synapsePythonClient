@@ -2469,7 +2469,10 @@ class CsvFileTable(TableAbstractBaseClass):
         return self
 
     def asDataFrame(
-        self, rowIdAndVersionInIndex=True, convert_to_datetime=False, **kwargs
+        self,
+        rowIdAndVersionInIndex: bool = True,
+        convert_to_datetime: bool = False,
+        **kwargs,
     ):
         """Convert query result to a Pandas DataFrame.
 
