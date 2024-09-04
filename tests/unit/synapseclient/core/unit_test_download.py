@@ -1,5 +1,6 @@
 """Unit tests for downloads."""
 
+import datetime
 import hashlib
 import json
 import os
@@ -32,6 +33,10 @@ GET_FILE_HANDLE_FOR_DOWNLOAD = (
     "synapseclient.core.download.download_functions.get_file_handle_for_download_async"
 )
 DOWNLOAD_FROM_URL = "synapseclient.core.download.download_functions.download_from_url"
+
+FILE_HANDLE_ID = "42"
+OBJECT_ID = "syn789"
+OBJECT_TYPE = "FileEntity"
 
 
 # a callable that mocks the requests.get function
@@ -135,10 +140,6 @@ def mock_generate_headers(self, headers=None):
 async def test_mock_download(syn: Synapse) -> None:
     temp_dir = tempfile.gettempdir()
 
-    fileHandleId = "42"
-    objectId = "syn789"
-    objectType = "FileEntity"
-
     # make bogus content
     contents = "\n".join(str(i) for i in range(1000))
 
@@ -160,6 +161,8 @@ async def test_mock_download(syn: Synapse) -> None:
         download_from_url(
             url=url,
             destination=temp_dir,
+            entity_id=OBJECT_ID,
+            file_handle_associate_type=OBJECT_TYPE,
             file_handle_id=12345,
             expected_md5=contents_md5,
             synapse_client=syn,
@@ -180,6 +183,8 @@ async def test_mock_download(syn: Synapse) -> None:
         download_from_url(
             url=url,
             destination=temp_dir,
+            entity_id=OBJECT_ID,
+            file_handle_associate_type=OBJECT_TYPE,
             file_handle_id=12345,
             expected_md5=contents_md5,
             synapse_client=syn,
@@ -234,9 +239,9 @@ async def test_mock_download(syn: Synapse) -> None:
         return_value=_getFileHandleDownload_return_value,
     ):
         await download_by_file_handle(
-            file_handle_id=fileHandleId,
-            synapse_id=objectId,
-            entity_type=objectType,
+            file_handle_id=FILE_HANDLE_ID,
+            synapse_id=OBJECT_ID,
+            entity_type=OBJECT_TYPE,
             destination=temp_dir,
             synapse_client=syn,
         )
@@ -284,9 +289,9 @@ async def test_mock_download(syn: Synapse) -> None:
         return_value=_getFileHandleDownload_return_value,
     ):
         await download_by_file_handle(
-            file_handle_id=fileHandleId,
-            synapse_id=objectId,
-            entity_type=objectType,
+            file_handle_id=FILE_HANDLE_ID,
+            synapse_id=OBJECT_ID,
+            entity_type=OBJECT_TYPE,
             destination=temp_dir,
             synapse_client=syn,
         )
@@ -336,9 +341,9 @@ async def test_mock_download(syn: Synapse) -> None:
     ):
         with pytest.raises(Exception):
             await download_by_file_handle(
-                file_handle_id=fileHandleId,
-                synapse_id=objectId,
-                entity_type=objectType,
+                file_handle_id=FILE_HANDLE_ID,
+                synapse_id=OBJECT_ID,
+                entity_type=OBJECT_TYPE,
                 destination=temp_dir,
                 synapse_client=syn,
             )
@@ -377,9 +382,9 @@ async def test_mock_download(syn: Synapse) -> None:
         return_value=_getFileHandleDownload_return_value,
     ):
         await download_by_file_handle(
-            file_handle_id=fileHandleId,
-            synapse_id=objectId,
-            entity_type=objectType,
+            file_handle_id=FILE_HANDLE_ID,
+            synapse_id=OBJECT_ID,
+            entity_type=OBJECT_TYPE,
             destination=temp_dir,
             synapse_client=syn,
         )
@@ -409,9 +414,9 @@ async def test_mock_download(syn: Synapse) -> None:
     ):
         with pytest.raises(SynapseHTTPError):
             await download_by_file_handle(
-                file_handle_id=fileHandleId,
-                synapse_id=objectId,
-                entity_type=objectType,
+                file_handle_id=FILE_HANDLE_ID,
+                synapse_id=OBJECT_ID,
+                entity_type=OBJECT_TYPE,
                 destination=temp_dir,
                 synapse_client=syn,
             )
@@ -464,20 +469,21 @@ class TestDownloadFileHandle:
             )
 
     async def _multithread_not_applicable(self, file_handle: Dict[str, str]) -> None:
+        get_file_handle_for_download_return_value = {
+            "fileHandle": file_handle,
+            "preSignedURL": "asdf.com",
+        }
+
         with patch.object(os, "makedirs"), patch(
             GET_FILE_HANDLE_FOR_DOWNLOAD,
             new_callable=AsyncMock,
-        ) as mock_getFileHandleDownload, patch(
+            return_value=get_file_handle_for_download_return_value,
+        ), patch(
             DOWNLOAD_FROM_URL,
             new_callable=AsyncMock,
         ) as mock_download_from_URL, patch.object(
             self.syn, "cache"
         ):
-            mock_getFileHandleDownload.return_value = {
-                "fileHandle": file_handle,
-                "preSignedURL": "asdf.com",
-            }
-
             # multi_threaded/max_threads will have effect
             self.syn.multi_threaded = True
             await download_by_file_handle(
@@ -491,6 +497,8 @@ class TestDownloadFileHandle:
             mock_download_from_URL.assert_called_once_with(
                 url="asdf.com",
                 destination="/myfakepath",
+                entity_id=456,
+                file_handle_associate_type="FileEntity",
                 file_handle_id="123",
                 expected_md5="someMD5",
                 progress_bar=ANY,
@@ -548,6 +556,8 @@ class TestDownloadFileHandle:
             mock_download_from_URL.assert_called_once_with(
                 url="asdf.com",
                 destination="/myfakepath",
+                entity_id=456,
+                file_handle_associate_type="FileEntity",
                 file_handle_id="123",
                 expected_md5="someMD5",
                 progress_bar=ANY,
@@ -618,192 +628,340 @@ class TestDownloadFromUrlMultiThreaded:
             )
 
 
-async def test_download_end_early_retry(syn: Synapse) -> None:
-    """
-    -------Test to ensure download retry even if connection ends early--------
-    """
+class TestDownloadFromUrl:
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
 
-    url = "http://www.ayy.lmao/filerino.txt"
-    contents = "\n".join(str(i) for i in range(1000))
-    destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
-    temp_destination = os.path.normpath(
-        os.path.expanduser("~/fake/path/filerino.txt.temp")
-    )
+    async def test_download_end_early_retry(self, syn: Synapse) -> None:
+        """
+        -------Test to ensure download retry even if connection ends early--------
+        """
 
-    partial_content_break = len(contents) // 7 * 3
-    mock_requests_get = MockRequestGetFunction(
-        [
-            create_mock_response(
-                url,
-                "stream",
-                contents=contents[:partial_content_break],
-                buffer_size=1024,
-                partial_end=len(contents),
-                status_code=200,
-            ),
-            create_mock_response(
-                url,
-                "stream",
-                contents=contents,
-                buffer_size=1024,
-                partial_start=partial_content_break,
-                status_code=206,
-            ),
-        ]
-    )
+        url = "http://www.ayy.lmao/filerino.txt"
+        contents = "\n".join(str(i) for i in range(1000))
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+        temp_destination = os.path.normpath(
+            os.path.expanduser("~/fake/path/filerino.txt.temp")
+        )
 
-    # make the first response's 'content-type' header say it will transfer the full content even though it
-    # is only partially doing so
-    mock_requests_get.responses[0].headers["content-length"] = len(contents)
-    mock_requests_get.responses[1].headers["content-length"] = len(
-        contents[partial_content_break:]
-    )
+        partial_content_break = len(contents) // 7 * 3
+        mock_requests_get = MockRequestGetFunction(
+            [
+                create_mock_response(
+                    url,
+                    "stream",
+                    contents=contents[:partial_content_break],
+                    buffer_size=1024,
+                    partial_end=len(contents),
+                    status_code=200,
+                ),
+                create_mock_response(
+                    url,
+                    "stream",
+                    contents=contents,
+                    buffer_size=1024,
+                    partial_start=partial_content_break,
+                    status_code=206,
+                ),
+            ]
+        )
 
-    # TODO: When swapping out for the HTTPX client, we will need to update this test
-    # with patch.object(
-    #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
-    # )
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch.object(
-        utils, "temp_download_filename", return_value=temp_destination
-    ) as mocked_temp_dest, patch(
-        "synapseclient.core.download.download_functions.open",
-        new_callable=mock_open(),
-        create=True,
-    ) as mocked_open, patch.object(
-        os.path, "exists", side_effect=[False, True]
-    ) as mocked_exists, patch.object(
-        os.path, "getsize", return_value=partial_content_break
-    ) as mocked_getsize, patch.object(
-        utils, "md5_for_file"
-    ), patch.object(
-        shutil, "move"
-    ) as mocked_move:
-        # function under test
-        download_from_url(url=url, destination=destination, synapse_client=syn)
+        # make the first response's 'content-type' header say
+        # it will transfer the full content even though it
+        # is only partially doing so
+        mock_requests_get.responses[0].headers["content-length"] = len(contents)
+        mock_requests_get.responses[1].headers["content-length"] = len(
+            contents[partial_content_break:]
+        )
 
-        # assert temp_download_filename() called 2 times with same parameters
-        assert [
-            call(destination=destination, file_handle_id=None)
-        ] * 2 == mocked_temp_dest.call_args_list
-
-        # assert exists called 2 times
-        assert [call(temp_destination)] * 2 == mocked_exists.call_args_list
-
-        # assert open() called 2 times with different parameters
-        assert [
-            call(temp_destination, "wb"),
-            call(temp_destination, "ab"),
-        ] == mocked_open.call_args_list
-
-        # assert getsize() called 2 times
-        # once because exists()=True and another time because response status code = 206
-        assert [call(filename=temp_destination)] * 2 == mocked_getsize.call_args_list
-
-        # assert shutil.move() called 1 time
-        mocked_move.assert_called_once_with(temp_destination, destination)
-
-
-async def test_download_md5_mismatch__not_local_file(syn: Synapse) -> None:
-    """
-    --------Test to ensure file gets removed on md5 mismatch--------
-    """
-    url = "http://www.ayy.lmao/filerino.txt"
-    contents = "\n".join(str(i) for i in range(1000))
-    destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
-    temp_destination = os.path.normpath(
-        os.path.expanduser("~/fake/path/filerino.txt.temp")
-    )
-
-    mock_requests_get = MockRequestGetFunction(
-        [
-            create_mock_response(
-                url,
-                "stream",
-                contents=contents,
-                buffer_size=1024,
-                partial_end=len(contents),
-                status_code=200,
-            )
-        ]
-    )
-
-    with patch.object(
-        syn._requests_session, "get", side_effect=mock_requests_get
-    ), patch.object(
-        Synapse, "_generate_headers", side_effect=mock_generate_headers
-    ), patch.object(
-        utils, "temp_download_filename", return_value=temp_destination
-    ) as mocked_temp_dest, patch(
-        "synapseclient.core.download.download_functions.open",
-        new_callable=mock_open(),
-        create=True,
-    ) as mocked_open, patch.object(
-        os.path, "exists", side_effect=[False, True]
-    ) as mocked_exists, patch.object(
-        shutil, "move"
-    ) as mocked_move, patch.object(
-        os, "remove"
-    ) as mocked_remove:
-        # function under test
-        with pytest.raises(SynapseMd5MismatchError):
-            await download_from_url(
+        # TODO: When swapping out for the HTTPX client, we will need to update this test
+        # with patch.object(
+        #     syn, "rest_get_async", new_callable=AsyncMock, side_effect=mock_requests_get
+        # )
+        with patch.object(
+            syn._requests_session, "get", side_effect=mock_requests_get
+        ), patch.object(
+            Synapse, "_generate_headers", side_effect=mock_generate_headers
+        ), patch.object(
+            utils, "temp_download_filename", return_value=temp_destination
+        ) as mocked_temp_dest, patch(
+            "synapseclient.core.download.download_functions.open",
+            new_callable=mock_open(),
+            create=True,
+        ) as mocked_open, patch.object(
+            os.path, "exists", side_effect=[False, True]
+        ) as mocked_exists, patch.object(
+            os.path, "getsize", return_value=partial_content_break
+        ) as mocked_getsize, patch.object(
+            utils, "md5_for_file"
+        ), patch.object(
+            shutil, "move"
+        ) as mocked_move:
+            # function under test
+            download_from_url(
                 url=url,
                 destination=destination,
-                expected_md5="fake md5 is fake",
+                entity_id=OBJECT_ID,
+                file_handle_associate_type=OBJECT_TYPE,
                 synapse_client=syn,
             )
 
-        # assert temp_download_filename() called once
-        mocked_temp_dest.assert_called_once_with(
-            destination=destination, file_handle_id=None
+            # assert temp_download_filename() called 2 times with same parameters
+            assert [
+                call(destination=destination, file_handle_id=None)
+            ] * 2 == mocked_temp_dest.call_args_list
+
+            # assert exists called 2 times
+            assert [call(temp_destination)] * 2 == mocked_exists.call_args_list
+
+            # assert open() called 2 times with different parameters
+            assert [
+                call(temp_destination, "wb"),
+                call(temp_destination, "ab"),
+            ] == mocked_open.call_args_list
+
+            # assert getsize() called 2 times
+            # once because exists()=True and another time because response status code = 206
+            assert [
+                call(filename=temp_destination)
+            ] * 2 == mocked_getsize.call_args_list
+
+            # assert shutil.move() called 1 time
+            mocked_move.assert_called_once_with(temp_destination, destination)
+
+    async def test_download_md5_mismatch__not_local_file(self, syn: Synapse) -> None:
+        """
+        --------Test to ensure file gets removed on md5 mismatch--------
+        """
+        url = "http://www.ayy.lmao/filerino.txt"
+        contents = "\n".join(str(i) for i in range(1000))
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+        temp_destination = os.path.normpath(
+            os.path.expanduser("~/fake/path/filerino.txt.temp")
         )
 
-        # assert exists called 2 times
-        assert [
-            call(temp_destination),
-            call(destination),
-        ] == mocked_exists.call_args_list
+        mock_requests_get = MockRequestGetFunction(
+            [
+                create_mock_response(
+                    url,
+                    "stream",
+                    contents=contents,
+                    buffer_size=1024,
+                    partial_end=len(contents),
+                    status_code=200,
+                )
+            ]
+        )
 
-        # assert open() called once
-        mocked_open.assert_called_once_with(temp_destination, "wb")
+        with patch.object(
+            syn._requests_session, "get", side_effect=mock_requests_get
+        ), patch.object(
+            Synapse, "_generate_headers", side_effect=mock_generate_headers
+        ), patch.object(
+            utils, "temp_download_filename", return_value=temp_destination
+        ) as mocked_temp_dest, patch(
+            "synapseclient.core.download.download_functions.open",
+            new_callable=mock_open(),
+            create=True,
+        ) as mocked_open, patch.object(
+            os.path, "exists", side_effect=[False, True]
+        ) as mocked_exists, patch.object(
+            shutil, "move"
+        ) as mocked_move, patch.object(
+            os, "remove"
+        ) as mocked_remove:
+            # function under test
+            with pytest.raises(SynapseMd5MismatchError):
+                await download_from_url(
+                    url=url,
+                    destination=destination,
+                    entity_id=OBJECT_ID,
+                    file_handle_associate_type=OBJECT_TYPE,
+                    expected_md5="fake md5 is fake",
+                    synapse_client=syn,
+                )
 
-        # assert shutil.move() called once
-        mocked_move.assert_called_once_with(temp_destination, destination)
-
-        # assert file was removed
-        mocked_remove.assert_called_once_with(destination)
-
-
-async def test_download_md5_mismatch_local_file() -> None:
-    """
-    --------Test to ensure file gets removed on md5 mismatch--------
-    """
-    url = "file:///some/file/path.txt"
-    destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
-
-    with patch.object(
-        utils, "file_url_to_path", return_value=destination
-    ) as mocked_file_url_to_path, patch.object(
-        utils,
-        "md5_for_file_hex",
-        return_value="Some other incorrect md5",
-    ) as mocked_md5_for_file, patch(
-        "os.remove"
-    ) as mocked_remove:
-        # function under test
-        with pytest.raises(SynapseMd5MismatchError):
-            await download_from_url(
-                url=url, destination=destination, expected_md5="fake md5 is fake"
+            # assert temp_download_filename() called once
+            mocked_temp_dest.assert_called_once_with(
+                destination=destination, file_handle_id=None
             )
 
-        mocked_file_url_to_path.assert_called_once_with(url, verify_exists=True)
-        mocked_md5_for_file.assert_called_once()
-        # assert file was NOT removed
-        assert not mocked_remove.called
+            # assert exists called 2 times
+            assert [
+                call(temp_destination),
+                call(destination),
+            ] == mocked_exists.call_args_list
+
+            # assert open() called once
+            mocked_open.assert_called_once_with(temp_destination, "wb")
+
+            # assert shutil.move() called once
+            mocked_move.assert_called_once_with(temp_destination, destination)
+
+            # assert file was removed
+            mocked_remove.assert_called_once_with(destination)
+
+    async def test_download_md5_mismatch_local_file(self) -> None:
+        """
+        --------Test to ensure file gets removed on md5 mismatch--------
+        """
+        url = "file:///some/file/path.txt"
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+
+        with patch.object(
+            utils, "file_url_to_path", return_value=destination
+        ) as mocked_file_url_to_path, patch.object(
+            utils,
+            "md5_for_file_hex",
+            return_value="Some other incorrect md5",
+        ) as mocked_md5_for_file, patch(
+            "os.remove"
+        ) as mocked_remove:
+            # function under test
+            with pytest.raises(SynapseMd5MismatchError):
+                await download_from_url(
+                    url=url,
+                    destination=destination,
+                    entity_id=OBJECT_ID,
+                    file_handle_associate_type=OBJECT_TYPE,
+                    expected_md5="fake md5 is fake",
+                )
+
+            mocked_file_url_to_path.assert_called_once_with(url, verify_exists=True)
+            mocked_md5_for_file.assert_called_once()
+            # assert file was NOT removed
+            assert not mocked_remove.called
+
+    async def test_download_expired_url(self, syn: Synapse) -> None:
+        url = "http://www.ayy.lmao/filerino.txt?Expires=0"
+        new_url = "http://www.ayy.lmao/new_url.txt?Expires=1715000000"
+        contents = "\n".join(str(i) for i in range(1000))
+        temp_destination = os.path.normpath(
+            os.path.expanduser("~/fake/path/filerino.txt.temp")
+        )
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+
+        mock_requests_get = MockRequestGetFunction(
+            [
+                create_mock_response(
+                    url,
+                    "stream",
+                    contents=contents,
+                    buffer_size=1024,
+                    partial_end=len(contents),
+                    status_code=200,
+                ),
+            ]
+        )
+        with patch.object(
+            syn._requests_session, "get", side_effect=mock_requests_get
+        ) as mocked_get, patch(
+            "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
+            return_value=datetime.datetime(1900, 1, 1, tzinfo=datetime.timezone.utc),
+        ) as mocked_pre_signed_url_expiration_time, patch(
+            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            return_value={"preSignedURL": new_url},
+        ) as mocked_get_file_handle_for_download, patch.object(
+            Synapse, "_generate_headers", side_effect=mock_generate_headers
+        ), patch.object(
+            utils, "temp_download_filename", return_value=temp_destination
+        ), patch(
+            "synapseclient.core.download.download_functions.open",
+            new_callable=mock_open(),
+            create=True,
+        ), patch.object(
+            hashlib, "new"
+        ) as mocked_hashlib_new, patch.object(
+            shutil, "move"
+        ), patch.object(
+            os, "remove"
+        ):
+            mocked_hashlib_new.return_value.hexdigest.return_value = "fake md5 is fake"
+            # WHEN I call download_from_url with an expired url
+            download_from_url(
+                url=url,
+                destination=destination,
+                entity_id=OBJECT_ID,
+                file_handle_associate_type=OBJECT_TYPE,
+                expected_md5="fake md5 is fake",
+            )
+            # I expect the expired url to be identified
+            mocked_pre_signed_url_expiration_time.assert_called_once_with(url)
+            # AND I expect the URL to be refreshed
+            mocked_get_file_handle_for_download.assert_called_once()
+            # AND I expect the download to be retried with the new URL
+            mocked_get.assert_called_with(
+                url=new_url,
+                headers=mock_generate_headers(self),
+                stream=True,
+                allow_redirects=False,
+                auth=None,
+            )
+
+    async def test_download_url_no_expiration(self, syn: Synapse) -> None:
+        url = "http://www.ayy.lmao/filerino.txt"
+        contents = "\n".join(str(i) for i in range(1000))
+        temp_destination = os.path.normpath(
+            os.path.expanduser("~/fake/path/filerino.txt.temp")
+        )
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+
+        mock_requests_get = MockRequestGetFunction(
+            [
+                create_mock_response(
+                    url,
+                    "stream",
+                    contents=contents,
+                    buffer_size=1024,
+                    partial_end=len(contents),
+                    status_code=200,
+                ),
+            ]
+        )
+        with patch.object(
+            syn._requests_session, "get", side_effect=mock_requests_get
+        ) as mocked_get, patch(
+            "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
+            return_value=datetime.datetime(1900, 1, 1, tzinfo=datetime.timezone.utc),
+        ) as mocked_pre_signed_url_expiration_time, patch(
+            "synapseclient.core.download.download_functions.get_file_handle_for_download",
+        ) as mocked_get_file_handle_for_download, patch.object(
+            Synapse, "_generate_headers", side_effect=mock_generate_headers
+        ), patch.object(
+            utils, "temp_download_filename", return_value=temp_destination
+        ), patch(
+            "synapseclient.core.download.download_functions.open",
+            new_callable=mock_open(),
+            create=True,
+        ), patch.object(
+            hashlib, "new"
+        ) as mocked_hashlib_new, patch.object(
+            shutil, "move"
+        ), patch.object(
+            os, "remove"
+        ):
+            mocked_hashlib_new.return_value.hexdigest.return_value = "fake md5 is fake"
+            # WHEN I call download_from_url with an expired url
+            download_from_url(
+                url=url,
+                destination=destination,
+                entity_id=OBJECT_ID,
+                file_handle_associate_type=OBJECT_TYPE,
+                expected_md5="fake md5 is fake",
+            )
+            # I expect the expired url to be identified
+            mocked_pre_signed_url_expiration_time.assert_not_called()
+            # AND I expect the URL to be refreshed
+            mocked_get_file_handle_for_download.assert_not_called()
+            # AND I expect the download to be retried with the new URL
+            mocked_get.assert_called_with(
+                url=url,
+                headers=mock_generate_headers(self),
+                stream=True,
+                allow_redirects=False,
+                auth=None,
+            )
 
 
 async def test_get_file_handle_download__error_unauthorized(syn: Synapse) -> None:

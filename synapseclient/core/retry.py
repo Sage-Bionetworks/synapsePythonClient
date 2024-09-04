@@ -69,6 +69,8 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
     "TimeoutException",
     "ConnectError",
     "ConnectTimeout",
+    # SSL Specific exceptions:
+    "SSLZeroReturnError",
 ]
 
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"

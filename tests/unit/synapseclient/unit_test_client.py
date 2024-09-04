@@ -1,4 +1,5 @@
 """Unit tests for the Synapse client"""
+
 import configparser
 import datetime
 import errno
@@ -518,6 +519,8 @@ class TestDownloadFileHandle:
 
         out_destination = download_from_url(
             url=uri,
+            entity_id="syn123",
+            file_handle_associate_type="FileEntity",
             destination=in_destination.name,
             synapse_client=self.syn,
         )
@@ -547,6 +550,8 @@ class TestDownloadFileHandle:
         out_destination = download_from_url(
             url=uri,
             destination=in_destination.name,
+            entity_id="syn123",
+            file_handle_associate_type="FileEntity",
             synapse_client=self.syn,
         )
         assert mock_get.call_args[1]["auth"] is None

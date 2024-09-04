@@ -6,6 +6,7 @@ from .download_async import (
     PresignedUrlInfo,
     PresignedUrlProvider,
     _MultithreadedDownloader,
+    _pre_signed_url_expiration_time,
     download_file,
 )
 from .download_functions import (
@@ -32,4 +33,5 @@ __all__ = [
     "PresignedUrlInfo",
     "PresignedUrlProvider",
     "_MultithreadedDownloader",
+    "_pre_signed_url_expiration_time",
 ]

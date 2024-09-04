@@ -1,6 +1,7 @@
 """This module handles the various ways that a user can download a file to Synapse."""
 
 import asyncio
+import datetime
 import errno
 import hashlib
 import os
@@ -14,7 +15,10 @@ from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 from synapseclient.api.configuration_services import get_client_authenticated_s3_profile
-from synapseclient.api.file_services import get_file_handle_for_download_async
+from synapseclient.api.file_services import (
+    get_file_handle_for_download,
+    get_file_handle_for_download_async,
+)
 from synapseclient.core import exceptions, sts_transfer, utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.method_flags import (
@@ -25,6 +29,8 @@ from synapseclient.core.constants.method_flags import (
 from synapseclient.core.download import (
     SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
     DownloadRequest,
+    PresignedUrlProvider,
+    _pre_signed_url_expiration_time,
     download_file,
 )
 from synapseclient.core.exceptions import (
@@ -500,11 +506,14 @@ async def download_by_file_handle(
                 progress_bar = get_or_create_download_progress_bar(
                     file_size=1, postfix=synapse_id, synapse_client=syn
                 )
+
                 downloaded_path = await loop.run_in_executor(
                     syn._get_thread_pool_executor(asyncio_event_loop=loop),
                     lambda: download_from_url(
                         url=file_handle_result["preSignedURL"],
                         destination=destination,
+                        entity_id=synapse_id,
+                        file_handle_associate_type=entity_type,
                         file_handle_id=file_handle["id"],
                         expected_md5=file_handle.get("contentMd5"),
                         progress_bar=progress_bar,
@@ -610,6 +619,8 @@ async def download_from_url_multi_threaded(
 def download_from_url(
     url: str,
     destination: str,
+    entity_id: Optional[str],
+    file_handle_associate_type: Optional[str],
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
     progress_bar: Optional[tqdm] = None,
@@ -622,6 +633,11 @@ def download_from_url(
     Arguments:
         url:           The source of download
         destination:   The destination on local file system
+        entity_id:      The id of the Synapse object that uses the FileHandle
+            e.g. "syn123"
+        file_handle_associate_type:    The type of the Synapse object that uses the
+            FileHandle e.g. "FileEntity". Any of
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         file_handle_id:  Optional. If given, the file will be given a temporary name that includes the file
                                 handle id which allows resuming partial downloads of the same file from previous
                                 sessions
@@ -719,21 +735,69 @@ def download_from_url(
                 else None
             )
 
-            response = with_retry(
-                lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
-                    url=url,
-                    headers=client._generate_headers(range_header),
-                    stream=True,
-                    allow_redirects=False,
-                    auth=auth,
-                ),
-                verbose=client.debug,
-                **STANDARD_RETRY_PARAMS,
-            )
             try:
+                url_has_expiration = "Expires" in urllib_urlparse.urlparse(url).query
+                url_is_expired = False
+                if url_has_expiration:
+                    url_is_expired = datetime.datetime.now(
+                        tz=datetime.timezone.utc
+                    ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
+                        url
+                    )
+                if url_is_expired:
+                    response = get_file_handle_for_download(
+                        file_handle_id=file_handle_id,
+                        synapse_id=entity_id,
+                        entity_type=file_handle_associate_type,
+                        synapse_client=client,
+                    )
+                    url = response["preSignedURL"]
+                response = with_retry(
+                    lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
+                        url=url,
+                        headers=client._generate_headers(range_header),
+                        stream=True,
+                        allow_redirects=False,
+                        auth=auth,
+                    ),
+                    verbose=client.debug,
+                    **STANDARD_RETRY_PARAMS,
+                )
                 exceptions._raise_for_status(response, verbose=client.debug)
             except SynapseHTTPError as err:
-                if err.response.status_code == 404:
+                if err.response.status_code == 403:
+                    url_has_expiration = (
+                        "Expires" in urllib_urlparse.urlparse(url).query
+                    )
+                    url_is_expired = False
+                    if url_has_expiration:
+                        url_is_expired = datetime.datetime.now(
+                            tz=datetime.timezone.utc
+                        ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
+                            url
+                        )
+                    if url_is_expired:
+                        response = get_file_handle_for_download(
+                            file_handle_id=file_handle_id,
+                            synapse_id=entity_id,
+                            entity_type=file_handle_associate_type,
+                            synapse_client=client,
+                        )
+                        refreshed_url = response["preSignedURL"]
+                        response = with_retry(
+                            lambda url=refreshed_url, range_header=range_header, auth=auth: client._requests_session.get(
+                                url=url,
+                                headers=client._generate_headers(range_header),
+                                stream=True,
+                                allow_redirects=False,
+                                auth=auth,
+                            ),
+                            verbose=client.debug,
+                            **STANDARD_RETRY_PARAMS,
+                        )
+                    else:
+                        raise
+                elif err.response.status_code == 404:
                     raise SynapseError(f"Could not download the file at {url}") from err
                 elif (
                     err.response.status_code == 416
@@ -745,8 +809,8 @@ def download_from_url(
                     # If it fails the user can retry with another download.
                     shutil.move(temp_destination, destination)
                     break
-                raise
-
+                else:
+                    raise
             # handle redirects
             if response.status_code in [301, 302, 303, 307, 308]:
                 url = response.headers["location"]

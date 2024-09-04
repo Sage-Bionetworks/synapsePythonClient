@@ -304,7 +304,7 @@ class TestExernalStorage:
                     Bucket=bucket_name,
                     Key=remote_key,
                 )
-            assert "Access Denied" in str(ex_cm.value)
+            assert "AccessDenied" in str(ex_cm.value)
 
             # WHEN I put an object directly using the STS read/write credentials
             s3_write_client.upload_file(
