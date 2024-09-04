@@ -407,8 +407,7 @@ def _csv_to_pandas_df(
     list_columns=None,
     rowIdAndVersionInIndex=True,
     dtype=None,
-    na_values=None,
-    keep_default_na=True,
+    **kwargs,
 ):
     """
     Convert a csv file to a pandas dataframe
@@ -424,9 +423,9 @@ def _csv_to_pandas_df(
         list_columns: The names of the list columns in the file
         rowIdAndVersionInIndex: Whether the file contains rowId and version in the index, Defaults to `True`.
         dtype: The data type for the file, Defaults to `None`.
-        na_values: The values to be considered as NA/NaN, Defaults to `None`.
-                    The list of defaults for Pandas can be found here: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
-        keep_default_na: Whether to keep the default NaN values when parsing the file, Defaults to `True`.
+        **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
+                    https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+                    for complete list of supported arguments.
 
     Returns:
         A pandas dataframe
@@ -449,8 +448,7 @@ def _csv_to_pandas_df(
         escapechar=escape_char,
         header=0 if contain_headers else None,
         skiprows=lines_to_skip,
-        na_values=na_values,
-        keep_default_na=keep_default_na,
+        **kwargs,
     )
     # parse date columns if exists
     if date_columns:
@@ -2471,11 +2469,7 @@ class CsvFileTable(TableAbstractBaseClass):
         return self
 
     def asDataFrame(
-        self,
-        rowIdAndVersionInIndex=True,
-        convert_to_datetime=False,
-        na_values=None,
-        keep_default_na=True,
+        self, rowIdAndVersionInIndex=True, convert_to_datetime=False, **kwargs
     ):
         """Convert query result to a Pandas DataFrame.
 
@@ -2484,9 +2478,9 @@ class CsvFileTable(TableAbstractBaseClass):
                                     (and row_etag if it exists)
             convert_to_datetime:    If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                     integers into UTC datetime objects
-            na_values:            A list of strings to recognize as NA/NaN.
-            keep_default_na:      Whether to include the default NaN values.
-                                 https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+            kwargs:                Additional keyword arguments to pass to pandas.read_csv. See
+                                    https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+                                    for complete list of supported arguments.
 
         Returns:
             A Pandas dataframe with results
@@ -2525,8 +2519,7 @@ class CsvFileTable(TableAbstractBaseClass):
                 list_columns=list_columns,
                 rowIdAndVersionInIndex=rowIdAndVersionInIndex,
                 dtype=dtype,
-                na_values=na_values,
-                keep_default_na=keep_default_na,
+                **kwargs,
             )
 
         except pd.errors.ParserError:
