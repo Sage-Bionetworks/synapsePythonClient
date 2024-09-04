@@ -421,11 +421,12 @@ def _csv_to_pandas_df(
                     Defaults to `DEFAULT_ESCAPSE_CHAR`.
                     contain_headers: Whether the file contains headers,
                     Defaults to `True`.
-        lines_to_skip: The number of lines to skip at the beginning of the file, Defaults to `0`.
+        lines_to_skip: The number of lines to skip at the beginning of the file,
+                        Defaults to `0`.
         date_columns: The names of the date columns in the file
         list_columns: The names of the list columns in the file
-        rowIdAndVersionInIndex: Whether the file contains rowId and version in the index,
-                                 Defaults to `True`.
+        rowIdAndVersionInIndex: Whether the file contains rowId and
+                                version in the index, Defaults to `True`.
         dtype: The data type for the file, Defaults to `None`.
         **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
                     https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
@@ -2485,7 +2486,8 @@ class CsvFileTable(TableAbstractBaseClass):
                                     row_id and row_version (and row_etag if it exists)
             convert_to_datetime:    If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                     integers into UTC datetime objects
-            kwargs:                Additional keyword arguments to pass to pandas.read_csv via _csv_to_pandas_df. See
+            kwargs:                 Additional keyword arguments to pass to
+                                    pandas.read_csv via _csv_to_pandas_df. See
                                     https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
                                     for complete list of supported arguments.
 
