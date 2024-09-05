@@ -407,7 +407,34 @@ def _csv_to_pandas_df(
     list_columns=None,
     rowIdAndVersionInIndex=True,
     dtype=None,
+    **kwargs,
 ):
+    """
+    Convert a csv file to a pandas dataframe
+
+    Arguments:
+        filepath: The path to the file.
+        separator: The separator for the file, Defaults to `DEFAULT_SEPARATOR`.
+        quote_char: The quote character for the file,
+          Defaults to `DEFAULT_QUOTE_CHARACTER`.
+        escape_char: The escape character for the file,
+                    Defaults to `DEFAULT_ESCAPSE_CHAR`.
+                    contain_headers: Whether the file contains headers,
+                    Defaults to `True`.
+        lines_to_skip: The number of lines to skip at the beginning of the file,
+                        Defaults to `0`.
+        date_columns: The names of the date columns in the file
+        list_columns: The names of the list columns in the file
+        rowIdAndVersionInIndex: Whether the file contains rowId and
+                                version in the index, Defaults to `True`.
+        dtype: The data type for the file, Defaults to `None`.
+        **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
+                    https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+                    for complete list of supported arguments.
+
+    Returns:
+        A pandas dataframe
+    """
     test_import_pandas()
     import pandas as pd
 
@@ -426,6 +453,7 @@ def _csv_to_pandas_df(
         escapechar=escape_char,
         header=0 if contain_headers else None,
         skiprows=lines_to_skip,
+        **kwargs,
     )
     # parse date columns if exists
     if date_columns:
@@ -2445,14 +2473,23 @@ class CsvFileTable(TableAbstractBaseClass):
             self.etag = upload_to_table_result["etag"]
         return self
 
-    def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime=False):
+    def asDataFrame(
+        self,
+        rowIdAndVersionInIndex: bool = True,
+        convert_to_datetime: bool = False,
+        **kwargs,
+    ):
         """Convert query result to a Pandas DataFrame.
 
         Arguments:
-            rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version
-                                    (and row_etag if it exists)
+            rowIdAndVersionInIndex: Make the dataframe index consist of the
+                                    row_id and row_version (and row_etag if it exists)
             convert_to_datetime:    If set to True, will convert all Synapse DATE columns from UNIX timestamp
                                     integers into UTC datetime objects
+            kwargs:                 Additional keyword arguments to pass to
+                                    pandas.read_csv via _csv_to_pandas_df. See
+                                    https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+                                    for complete list of supported arguments.
 
         Returns:
             A Pandas dataframe with results
@@ -2491,8 +2528,10 @@ class CsvFileTable(TableAbstractBaseClass):
                 list_columns=list_columns,
                 rowIdAndVersionInIndex=rowIdAndVersionInIndex,
                 dtype=dtype,
+                **kwargs,
             )
-        except pd.parser.CParserError:
+
+        except pd.errors.ParserError:
             return pd.DataFrame()
 
     def asRowSet(self):
