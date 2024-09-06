@@ -5077,7 +5077,7 @@ class Synapse(object):
                 sleep = min(
                     self.table_query_max_sleep, sleep * self.table_query_backoff
                 )
-                doze(sleep, trace_span_name="Synapse::_waitForAsync")
+                doze(sleep, trace_span_name="Synapse::doze_for_async")
             else:
                 break
         else:
