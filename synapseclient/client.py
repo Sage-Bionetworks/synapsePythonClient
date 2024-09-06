@@ -697,7 +697,7 @@ class Synapse(object):
             # Update endpoints if we get redirected
             if not skip_checks:
                 response = with_retry(
-                    lambda: self._requests_session.get(
+                    lambda point=point: self._requests_session.get(
                         endpoints[point],
                         allow_redirects=False,
                         headers=synapseclient.USER_AGENT,

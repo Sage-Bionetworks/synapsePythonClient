@@ -24,7 +24,18 @@ def clear_listeners():
     del _listeners[:]
 
 
-def doze(secs, listener_check_interval_secs=0.1, trace_span_name="doze") -> None:
+def doze(
+    secs: float,
+    listener_check_interval_secs: float = 0.1,
+    trace_span_name: str = "doze",
+) -> None:
+    """Sleep for a given number of seconds while checking registered listeners.
+
+    Arguments:
+        secs: the number of seconds to sleep
+        listener_check_interval_secs: the interval at which to check the listeners
+        trace_span_name: the name of the trace span
+    """
     with tracer.start_as_current_span(name=trace_span_name):
         end_time = time.time() + secs
         while time.time() < end_time:
