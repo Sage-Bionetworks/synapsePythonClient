@@ -380,6 +380,10 @@ class Synapse(object):
         if debug is None:
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
 
+        if not isinstance(debug, bool):
+            raise ValueError("debug must be set to a bool (either True or False)")
+        self.debug = debug
+
         self.cache = cache.Cache(cache_root_dir)
         self._sts_token_store = sts_transfer.StsTokenStore()
 
@@ -393,16 +397,12 @@ class Synapse(object):
         }
         self.credentials = None
 
-        if not isinstance(debug, bool):
-            raise ValueError("debug must be set to a bool (either True or False)")
-        self.debug = debug
-
         self.silent = silent
         self._init_logger()  # initializes self.logger
 
         self.skip_checks = skip_checks
 
-        self.table_query_sleep = 2
+        self.table_query_sleep = 0.2  # Sleep for 200ms between table query retries
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
@@ -696,10 +696,14 @@ class Synapse(object):
 
             # Update endpoints if we get redirected
             if not skip_checks:
-                response = self._requests_session.get(
-                    endpoints[point],
-                    allow_redirects=False,
-                    headers=synapseclient.USER_AGENT,
+                response = with_retry(
+                    lambda: self._requests_session.get(
+                        endpoints[point],
+                        allow_redirects=False,
+                        headers=synapseclient.USER_AGENT,
+                    ),
+                    verbose=self.debug,
+                    **STANDARD_RETRY_PARAMS,
                 )
                 if response.status_code == 301:
                     endpoints[point] = response.headers["location"]
@@ -5041,6 +5045,7 @@ class Synapse(object):
     #                      Tables                              #
     ############################################################
 
+    @tracer.start_as_current_span("Synapse::_waitForAsync")
     def _waitForAsync(self, uri, request, endpoint=None):
         if endpoint is None:
             endpoint = self.repoEndpoint
@@ -5072,7 +5077,7 @@ class Synapse(object):
                 sleep = min(
                     self.table_query_max_sleep, sleep * self.table_query_backoff
                 )
-                doze(sleep)
+                doze(sleep, trace_span_name="Synapse::_waitForAsync")
             else:
                 break
         else:
