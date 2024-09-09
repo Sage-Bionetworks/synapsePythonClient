@@ -16,6 +16,7 @@ breaking changes will not be included until v5.0.
 
 ### Stories
 -  \[[SYNPY-1509](https://sagebionetworks.jira.com/browse/SYNPY-1509)\] - Add `na_values` and   `keep_default_na` as parameters for the CsvFileTable class's asDataFrame method
+-  \[[FDS-2373](https://sagebionetworks.jira.com/browse/FDS-2373)\] - Update retry delay, add some otel traces, add retry to url creation
 
 ## 4.4.1 (2024-07-05)
 
