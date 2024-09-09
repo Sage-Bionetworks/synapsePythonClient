@@ -43,14 +43,14 @@ tools to open and manipulate Tab Separated Value (TSV) files.
 
 First let's set up some constants we'll use in this script, and find the ID of our project
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=5-19}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=5-20}
 ```
 
 ## 2. Create a manifest TSV file to upload data in bulk
 
 Let's "walk" our directory on disk to create a manifest file for upload
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=21-30}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=21-31}
 ```
 
 <details class="example">
@@ -72,7 +72,7 @@ path    parent
 ## 3. Upload the data in bulk
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=32-35}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=32-36}
 ```
 
 
@@ -101,7 +101,7 @@ you are not comfortable with pandas you may use any tool that can open and manip
 TSV such as excel or google sheets.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=37-56}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=37-57}
 ```
 
 Now that you have uploaded and annotated your files you'll be able to inspect your data
@@ -123,7 +123,7 @@ Synapse. Additionally we'll link off to a sample URL that describes a process th
 may have executed to generate the file.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=58-89}
+{!docs/tutorials/python/tutorial_scripts/upload_data_in_bulk.py!lines=58-90}
 ```
 
 After running this code we may again inspect the synapse web UI. In this screenshot i've
