@@ -9,6 +9,14 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.5.0 (2024-09-09)
+
+### Bug Fixes
+-  \[[SYNPY-1514](https://sagebionetworks.jira.com/browse/SYNPY-1514)\] - Retry logic for unauthorized needed for non-multi threaded downloads
+
+### Stories
+-  \[[SYNPY-1509](https://sagebionetworks.jira.com/browse/SYNPY-1509)\] - Add `na_values` and   `keep_default_na` as parameters for the CsvFileTable class's asDataFrame method
+
 ## 4.4.1 (2024-07-05)
 
 ### Bug Fixes
