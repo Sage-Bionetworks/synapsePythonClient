@@ -10,13 +10,22 @@ the 4.x.x versions hidden behind optional feature flags or different import path
 breaking changes will not be included until v5.0.
 
 ## 4.5.0 (2024-09-09)
+### Highlights
+- **Improved handling of pre-authorized requests:**
+    - During long running asyncronous download operations (i.e. syncing a folder with many files),
+    some pre-authorized URLs were expiring before they were used to download the file. This
+    change will now check the expiration datetime of the URL before using it to download the file.
+    If the URL is expired it will be refreshed.
+- **Added support for `pandas.read_csv` key word arguments:**
+    - Added support for all `pandas.read_csv` key word arguments to the `asDataFrame` method of the `CsvFileTable` class.
+    - This enables custom handling of how to handle missing values and default values when reading a Synapse table to a pandas DataFrame.
+
 
 ### Bug Fixes
 -  \[[SYNPY-1514](https://sagebionetworks.jira.com/browse/SYNPY-1514)\] - Retry logic for unauthorized needed for non-multi threaded downloads
 
 ### Stories
 -  \[[SYNPY-1509](https://sagebionetworks.jira.com/browse/SYNPY-1509)\] - Add `na_values` and   `keep_default_na` as parameters for the CsvFileTable class's asDataFrame method
--  \[[FDS-2373](https://sagebionetworks.jira.com/browse/FDS-2373)\] - Update retry delay, add some otel traces, add retry to url creation
 
 ## 4.4.1 (2024-07-05)
 
