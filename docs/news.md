@@ -17,7 +17,7 @@ breaking changes will not be included until v5.0.
     change will now check the expiration datetime of the URL before using it.
     If the URL is expired it will be refreshed.
 - **Added support for `pandas.read_csv` key word arguments:**
-    - Added support for all `pandas.read_csv` key word arguments to the `asDataFrame` method of the `CsvFileTable` class.
+    - Added support for all `pandas.read_csv` keyword arguments to the `asDataFrame` method of the `CsvFileTable` class.
     - This enables custom handling of missing values and default values when reading a Synapse table to a pandas DataFrame. See the pandas [documentation](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html) for a full list of available keyword arguments.
 
 
