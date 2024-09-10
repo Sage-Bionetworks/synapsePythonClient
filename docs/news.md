@@ -12,13 +12,13 @@ breaking changes will not be included until v5.0.
 ## 4.5.0 (2024-09-09)
 ### Highlights
 - **Improved handling of pre-authorized requests:**
-    - During long running asyncronous download operations (i.e. syncing a folder with many files),
+    - During long running asynchronous download operations (i.e. syncing a folder with many files),
     some pre-authorized URLs were expiring before they were used to download the file. This
-    change will now check the expiration datetime of the URL before using it to download the file.
+    change will now check the expiration datetime of the URL before using it.
     If the URL is expired it will be refreshed.
 - **Added support for `pandas.read_csv` key word arguments:**
     - Added support for all `pandas.read_csv` key word arguments to the `asDataFrame` method of the `CsvFileTable` class.
-    - This enables custom handling of how to handle missing values and default values when reading a Synapse table to a pandas DataFrame.
+    - This enables custom handling of missing values and default values when reading a Synapse table to a pandas DataFrame. See the pandas [documentation](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html) for a full list of available key word arguments.
 
 
 ### Bug Fixes
