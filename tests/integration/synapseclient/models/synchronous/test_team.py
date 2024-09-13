@@ -31,7 +31,7 @@ class TestTeam:
     async def test_create(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
-        test_team = self.team.create()
+        test_team = self.team.create(synapse_client=self.syn)
         # THEN I expect the created team to be returned
         assert test_team.id is not None
         assert test_team.name == self.expected_name
@@ -45,28 +45,28 @@ class TestTeam:
         assert test_team.created_by is not None
         assert test_team.modified_by is not None
         # Clean up
-        test_team.delete()
+        test_team.delete(synapse_client=self.syn)
 
     async def test_delete(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
-        test_team = self.team.create()
+        test_team = self.team.create(synapse_client=self.syn)
         # AND I delete the team
-        test_team.delete()
+        test_team.delete(synapse_client=self.syn)
         # THEN I expect the team to no longer exist
         with pytest.raises(
             SynapseHTTPError,
             match=f"404 Client Error: \nTeam id: '{test_team.id}' does not exist",
         ):
-            Team.from_id(id=test_team.id)
+            Team.from_id(id=test_team.id, synapse_client=self.syn)
 
     async def test_get_with_id(self) -> None:
         # GIVEN a team created in Synapse
-        synapse_team = self.team.create()
+        synapse_team = self.team.create(synapse_client=self.syn)
         # AND a locally created Team object with the same id and name
         id_team = Team(id=self.team.id, name=self.team.name)
         # WHEN I get the team
-        id_team = id_team.get()
+        id_team = id_team.get(synapse_client=self.syn)
         # THEN I expect the team to be returned
         assert id_team.id == synapse_team.id
         assert id_team.name == synapse_team.name
@@ -78,17 +78,17 @@ class TestTeam:
         assert id_team.created_by == synapse_team.created_by
         assert id_team.modified_by == synapse_team.modified_by
         # Clean up
-        synapse_team.delete()
+        synapse_team.delete(synapse_client=self.syn)
 
     async def test_get_with_name(self) -> None:
         # GIVEN a team created in Synapse
-        synapse_team = self.team.create()
+        synapse_team = self.team.create(synapse_client=self.syn)
         # This sleep is necessary because the API is eventually consistent
         time.sleep(5)
         # AND a locally created Team object with the same name, but no id
         name_team = Team(name=self.team.name)
         # WHEN I get the team
-        name_team = name_team.get()
+        name_team = name_team.get(synapse_client=self.syn)
         # THEN I expect the team to be returned
         assert name_team.id == synapse_team.id
         assert name_team.name == synapse_team.name
@@ -100,14 +100,14 @@ class TestTeam:
         assert name_team.created_by == synapse_team.created_by
         assert name_team.modified_by == synapse_team.modified_by
         # Clean up
-        synapse_team.delete()
+        synapse_team.delete(synapse_client=self.syn)
 
     async def test_from_id(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
-        test_team = self.team.create()
+        test_team = self.team.create(synapse_client=self.syn)
         # THEN I expect the team to be returned by from_id
-        test_team_from_id = Team.from_id(id=test_team.id)
+        test_team_from_id = Team.from_id(id=test_team.id, synapse_client=self.syn)
         assert test_team_from_id.id == test_team.id
         assert test_team_from_id.name == test_team.name
         assert test_team_from_id.description == test_team.description
@@ -118,18 +118,20 @@ class TestTeam:
         assert test_team_from_id.created_by == test_team.created_by
         assert test_team_from_id.modified_by == test_team.modified_by
         # Clean up
-        test_team.delete()
+        test_team.delete(synapse_client=self.syn)
 
     async def test_from_name(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
-        test_team = self.team.create()
+        test_team = self.team.create(synapse_client=self.syn)
 
         # Searching by name is eventually consistent
         time.sleep(20)
 
         # THEN I expect the team to be returned by from_name
-        test_team_from_name = Team.from_name(name=test_team.name)
+        test_team_from_name = Team.from_name(
+            name=test_team.name, synapse_client=self.syn
+        )
         assert test_team_from_name.id == test_team.id
         assert test_team_from_name.name == test_team.name
         assert test_team_from_name.description == test_team.description
@@ -140,29 +142,30 @@ class TestTeam:
         assert test_team_from_name.created_by == test_team.created_by
         assert test_team_from_name.modified_by == test_team.modified_by
         # Clean up
-        test_team.delete()
+        test_team.delete(synapse_client=self.syn)
 
     async def test_members(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
-        test_team = self.team.create()
+        test_team = self.team.create(synapse_client=self.syn)
         # THEN I expect the team members to be returned by members
-        test_team_members = test_team.members()
+        test_team_members = test_team.members(synapse_client=self.syn)
         assert len(test_team_members) == 1
         assert test_team_members[0].team_id == test_team.id
         assert isinstance(test_team_members[0].member, UserGroupHeader)
         assert test_team_members[0].is_admin == True
         # Clean up
-        test_team.delete()
+        test_team.delete(synapse_client=self.syn)
 
     async def test_invite(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
-        test_team = self.team.create()
+        test_team = self.team.create(synapse_client=self.syn)
         # AND I invite a user to the team
         test_invite = test_team.invite(
             user=self.TEST_USER,
             message=self.TEST_MESSAGE,
+            synapse_client=self.syn,
         )
         # THEN I expect the invite to be returned
         assert test_invite["id"] is not None
@@ -173,19 +176,20 @@ class TestTeam:
         assert test_invite["createdBy"] is not None
 
         # Clean up
-        test_team.delete()
+        test_team.delete(synapse_client=self.syn)
 
     async def test_open_invitations(self) -> None:
         # GIVEN a team object self.team
         # WHEN I create the team on Synapse
-        test_team = self.team.create()
+        test_team = self.team.create(synapse_client=self.syn)
         # AND I invite a user to the team
         test_team.invite(
             user=self.TEST_USER,
             message=self.TEST_MESSAGE,
+            synapse_client=self.syn,
         )
         # THEN I expect the invite to be returned by open_invitations
-        test_open_invitations = test_team.open_invitations()
+        test_open_invitations = test_team.open_invitations(synapse_client=self.syn)
         assert len(test_open_invitations) == 1
         assert test_open_invitations[0]["id"] is not None
         assert test_open_invitations[0]["teamId"] == str(test_team.id)
@@ -195,4 +199,4 @@ class TestTeam:
         assert test_open_invitations[0]["createdBy"] is not None
 
         # Clean up
-        test_team.delete()
+        test_team.delete(synapse_client=self.syn)

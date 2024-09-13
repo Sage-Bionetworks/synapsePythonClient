@@ -4,17 +4,13 @@ from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.core.utils import (
-    delete_none_keys,
-    merge_dataclass_entities,
-    run_and_attach_otel_context,
-)
+from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import Annotations, File
 from synapseclient.models.mixins import AccessControllable, StorableContainer
@@ -228,8 +224,9 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
             parent: The parent folder or project to store the folder in.
             failure_strategy: Determines how to handle failures when storing attached
                 Files and Folders under this Folder and an exception occurs.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The folder object.
@@ -254,7 +251,11 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
                     entity=self, failure_strategy=None, synapse_client=synapse_client
                 )
             )
-            and (existing_folder := await Folder(id=existing_folder_id).get_async())
+            and (
+                existing_folder := await Folder(id=existing_folder_id).get_async(
+                    synapse_client=synapse_client
+                )
+            )
         ):
             merge_dataclass_entities(source=existing_folder, destination=self)
         trace.get_current_span().set_attributes(
@@ -273,17 +274,13 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
                 description=self.description,
             )
             delete_none_keys(synapse_folder)
-            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                        obj=synapse_folder,
-                        set_annotations=False,
-                        isRestricted=self.is_restricted,
-                        createOrUpdate=False,
-                    ),
-                    current_context,
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_folder,
+                    set_annotations=False,
+                    isRestricted=self.is_restricted,
+                    createOrUpdate=False,
                 ),
             )
 
@@ -315,8 +312,9 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
 
         Arguments:
             parent: The parent folder or project this folder exists under.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The folder object.
@@ -338,6 +336,7 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         await get_from_entity_factory(
             entity_to_update=self,
             synapse_id_or_path=entity_id,
+            synapse_client=synapse_client,
         )
 
         self._set_last_persistent_instance()
@@ -350,8 +349,9 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         """Delete the folder from Synapse by its id.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -362,14 +362,10 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         if not self.id:
             raise ValueError("The folder must have an id set.")
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=self.id,
-                ),
-                current_context=current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                obj=self.id,
             ),
         )
 
@@ -403,8 +399,9 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
                     - traceback: Creates a copy of the source files Activity.
                     - existing: Link to the source file's original Activity (if it exists)
                     - None: No activity is set
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The copied folder object.
@@ -427,21 +424,17 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
 
         loop = asyncio.get_event_loop()
 
-        current_context = context.get_current()
         syn = Synapse.get_client(synapse_client=synapse_client)
         source_and_destination = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: copy(
-                    syn=syn,
-                    entity=self.id,
-                    destinationId=parent_id,
-                    excludeTypes=exclude_types or [],
-                    skipCopyAnnotations=not copy_annotations,
-                    updateExisting=file_update_existing,
-                    setProvenance=file_copy_activity,
-                ),
-                current_context,
+            lambda: copy(
+                syn=syn,
+                entity=self.id,
+                destinationId=parent_id,
+                excludeTypes=exclude_types or [],
+                skipCopyAnnotations=not copy_annotations,
+                updateExisting=file_update_existing,
+                setProvenance=file_copy_activity,
             ),
         )
 
@@ -449,12 +442,12 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         if not new_folder_id:
             raise SynapseError("Failed to copy folder.")
         folder_copy = await (
-            await Folder(id=new_folder_id).get_async()
+            await Folder(id=new_folder_id).get_async(synapse_client=syn)
         ).sync_from_synapse_async(
             download_file=False,
             synapse_client=synapse_client,
         )
-        Synapse.get_client(synapse_client=synapse_client).logger.debug(
+        syn.logger.debug(
             f"Copied from folder {self.id} to {parent_id} with new id of {folder_copy.id}"
         )
         return folder_copy

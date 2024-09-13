@@ -45,14 +45,16 @@ class TestAclOnProject:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_acl_default_permissions"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(project_with_default_permissions.id)
 
         # AND the user that created the project
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_default_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_default_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -71,11 +73,11 @@ class TestAclOnProject:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the project
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set to READ only
         project_with_read_only_permissions.set_permissions(
@@ -87,10 +89,13 @@ class TestAclOnProject:
                 "UPDATE",
                 "DELETE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_read_only_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_read_only_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see read only permissions
         expected_permissions = [
@@ -107,16 +112,16 @@ class TestAclOnProject:
         project_with_permissions_through_single_team = Project(
             name=str(uuid.uuid4())
             + "test_get_acl_through_team_assigned_to_user_and_project"
-        ).store()
+        ).store(synapse_client=self.syn)
 
         # AND the user that created the project
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -135,16 +140,17 @@ class TestAclOnProject:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         project_with_permissions_through_single_team.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
         permissions = project_with_permissions_through_single_team.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of the team
@@ -164,22 +170,22 @@ class TestAclOnProject:
         project_with_permissions_through_multiple_teams = Project(
             name=str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
-        ).store()
+        ).store(synapse_client=self.syn)
 
         # AND the user that created the project
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_2 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -199,22 +205,25 @@ class TestAclOnProject:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
         project_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
+            principal_id=team_2.id,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         project_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
 
         permissions = project_with_permissions_through_multiple_teams.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of both teams
@@ -234,22 +243,24 @@ class TestAclOnProject:
         # GIVEN a project created with default permissions of administrator
         project_with_permissions_for_public_and_authenticated_users = Project(
             name=str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(
             project_with_permissions_for_public_and_authenticated_users.id
         )
 
         # AND the user that created the project
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for PUBLIC are set to 'READ'
         project_with_permissions_for_public_and_authenticated_users.set_permissions(
-            principal_id=PUBLIC, access_type=["READ"]
+            principal_id=PUBLIC, access_type=["READ"], synapse_client=self.syn
         )
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
         project_with_permissions_for_public_and_authenticated_users.set_permissions(
-            principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
+            principal_id=AUTHENTICATED_USERS,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
@@ -264,11 +275,14 @@ class TestAclOnProject:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for a public user on the entity
         permissions = (
-            project_with_permissions_for_public_and_authenticated_users.get_acl()
+            project_with_permissions_for_public_and_authenticated_users.get_acl(
+                synapse_client=self.syn
+            )
         )
 
         # THEN I expect to the public permissions
@@ -278,7 +292,7 @@ class TestAclOnProject:
         # and WHEN I get the permissions for an authenticated user on the entity
         permissions = (
             project_with_permissions_for_public_and_authenticated_users.get_acl(
-                principal_id=p1.id
+                principal_id=p1.id, synapse_client=self.syn
             )
         )
 
@@ -308,14 +322,16 @@ class TestAclOnFolder:
         # GIVEN a folder created with default permissions of administrator
         folder_with_default_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_default_permissions",
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder_with_default_permissions.id)
 
         # AND the user that created the folder
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # WHEN I get the permissions for the user on the entity
-        permissions = folder_with_default_permissions.get_acl(principal_id=p1.id)
+        permissions = folder_with_default_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -336,11 +352,11 @@ class TestAclOnFolder:
         # GIVEN a folder created with default permissions of administrator
         project_with_minimal_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_minimal_permissions_on_project"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the folder
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set
         project_with_minimal_permissions.set_permissions(
@@ -352,10 +368,13 @@ class TestAclOnFolder:
                 "UPDATE",
                 "DELETE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_minimal_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_minimal_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see minimal permissions
         expected_permissions = [
@@ -373,16 +392,16 @@ class TestAclOnFolder:
         # GIVEN a parent folder with default permissions
         parent_folder = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_sub_folder"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
 
         # AND a folder created with default permissions of administrator
         folder_with_minimal_permissions = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        ).store(parent=parent_folder)
+        ).store(parent=parent_folder, synapse_client=self.syn)
         self.schedule_for_cleanup(folder_with_minimal_permissions.id)
 
         # AND the user that created the folder
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set
         folder_with_minimal_permissions.set_permissions(
@@ -394,13 +413,18 @@ class TestAclOnFolder:
                 "UPDATE",
                 "DELETE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = folder_with_minimal_permissions.get_acl(principal_id=p1.id)
+        permissions = folder_with_minimal_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # AND I get the permissions for the user on the parent entity
-        permissions_on_parent = parent_folder.get_acl(principal_id=p1.id)
+        permissions_on_parent = parent_folder.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see minimal permissions on the sub-folder
         expected_permissions = [
@@ -432,16 +456,16 @@ class TestAclOnFolder:
         folder_with_permissions_through_single_team = Folder(
             name=str(uuid.uuid4())
             + "test_get_acl_through_team_assigned_to_user_and_project"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
 
         # AND the user that created the folder
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -460,16 +484,17 @@ class TestAclOnFolder:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         folder_with_permissions_through_single_team.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
         permissions = folder_with_permissions_through_single_team.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of the team
@@ -491,22 +516,22 @@ class TestAclOnFolder:
         folder_with_permissions_through_multiple_teams = Folder(
             name=str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
 
         # AND the user that created the folder
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_2 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -526,22 +551,25 @@ class TestAclOnFolder:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
         folder_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
+            principal_id=team_2.id,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         folder_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
 
         permissions = folder_with_permissions_through_multiple_teams.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of both teams
@@ -563,22 +591,24 @@ class TestAclOnFolder:
         # GIVEN a folder created with default permissions of administrator
         folder_with_permissions_for_public_and_authenticated_users = Folder(
             name=str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(
             folder_with_permissions_for_public_and_authenticated_users.id
         )
 
         # AND the user that created the folder
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for PUBLIC are set to 'READ'
         folder_with_permissions_for_public_and_authenticated_users.set_permissions(
-            principal_id=PUBLIC, access_type=["READ"]
+            principal_id=PUBLIC, access_type=["READ"], synapse_client=self.syn
         )
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
         folder_with_permissions_for_public_and_authenticated_users.set_permissions(
-            principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
+            principal_id=AUTHENTICATED_USERS,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
@@ -593,11 +623,14 @@ class TestAclOnFolder:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for a public user on the entity
         permissions = (
-            folder_with_permissions_for_public_and_authenticated_users.get_acl()
+            folder_with_permissions_for_public_and_authenticated_users.get_acl(
+                synapse_client=self.syn
+            )
         )
 
         # THEN I expect to the public permissions
@@ -607,7 +640,7 @@ class TestAclOnFolder:
         # and WHEN I get the permissions for an authenticated user on the entity
         permissions = (
             folder_with_permissions_for_public_and_authenticated_users.get_acl(
-                principal_id=p1.id
+                principal_id=p1.id, synapse_client=self.syn
             )
         )
 
@@ -642,14 +675,18 @@ class TestAclOnFile:
     async def test_get_acl_default(self, project_model: Project, file: File) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
-        file_with_default_permissions = file.store(parent=project_model)
+        file_with_default_permissions = file.store(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(file_with_default_permissions.id)
 
         # AND the user that created the file
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # WHEN I get the permissions for the user on the entity
-        permissions = file_with_default_permissions.get_acl(principal_id=p1.id)
+        permissions = file_with_default_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -669,11 +706,13 @@ class TestAclOnFile:
     ) -> None:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_minimal_permissions = file.store(parent=project_model)
+        project_with_minimal_permissions = file.store(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the file
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set
         project_with_minimal_permissions.set_permissions(
@@ -685,10 +724,13 @@ class TestAclOnFile:
                 "UPDATE",
                 "DELETE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_minimal_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_minimal_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see minimal permissions
         expected_permissions = [
@@ -707,16 +749,18 @@ class TestAclOnFile:
         file.name = (
             str(uuid.uuid4()) + "test_get_acl_through_team_assigned_to_user_and_project"
         )
-        file_with_permissions_through_single_team = file.store(parent=project_model)
+        file_with_permissions_through_single_team = file.store(
+            parent=project_model, synapse_client=self.syn
+        )
 
         # AND the user that created the file
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -735,16 +779,17 @@ class TestAclOnFile:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         file_with_permissions_through_single_team.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
         permissions = file_with_permissions_through_single_team.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of the team
@@ -767,22 +812,24 @@ class TestAclOnFile:
             str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
         )
-        file_with_permissions_through_multiple_teams = file.store(parent=project_model)
+        file_with_permissions_through_multiple_teams = file.store(
+            parent=project_model, synapse_client=self.syn
+        )
 
         # AND the user that created the file
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_2 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -802,22 +849,25 @@ class TestAclOnFile:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
         file_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
+            principal_id=team_2.id,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         file_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
 
         permissions = file_with_permissions_through_multiple_teams.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of both teams
@@ -839,23 +889,25 @@ class TestAclOnFile:
         # GIVEN a file created with default permissions of administrator
         file.name = str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
         file_with_permissions_for_public_and_authenticated_users = file.store(
-            parent=project_model
+            parent=project_model, synapse_client=self.syn
         )
         self.schedule_for_cleanup(
             file_with_permissions_for_public_and_authenticated_users.id
         )
 
         # AND the user that created the file
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for PUBLIC are set to 'READ'
         file_with_permissions_for_public_and_authenticated_users.set_permissions(
-            principal_id=PUBLIC, access_type=["READ"]
+            principal_id=PUBLIC, access_type=["READ"], synapse_client=self.syn
         )
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
         file_with_permissions_for_public_and_authenticated_users.set_permissions(
-            principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
+            principal_id=AUTHENTICATED_USERS,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
@@ -870,10 +922,13 @@ class TestAclOnFile:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for a public user on the entity
-        permissions = file_with_permissions_for_public_and_authenticated_users.get_acl()
+        permissions = file_with_permissions_for_public_and_authenticated_users.get_acl(
+            synapse_client=self.syn
+        )
 
         # THEN I expect to the public permissions
         expected_permissions = ["READ"]
@@ -881,7 +936,7 @@ class TestAclOnFile:
 
         # and WHEN I get the permissions for an authenticated user on the entity
         permissions = file_with_permissions_for_public_and_authenticated_users.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of the user, and the authenticated user, and the public user
@@ -925,14 +980,16 @@ class TestAclOnTable:
     async def test_get_acl_default(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
-        table_with_default_permissions = table.store_schema()
+        table_with_default_permissions = table.store_schema(synapse_client=self.syn)
         self.schedule_for_cleanup(table_with_default_permissions.id)
 
         # AND the user that created the table
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # WHEN I get the permissions for the user on the entity
-        permissions = table_with_default_permissions.get_acl(principal_id=p1.id)
+        permissions = table_with_default_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -950,11 +1007,11 @@ class TestAclOnTable:
     async def test_get_acl_minimal_permissions_on_entity(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_minimal_permissions = table.store_schema()
+        project_with_minimal_permissions = table.store_schema(synapse_client=self.syn)
         self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the table
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set
         project_with_minimal_permissions.set_permissions(
@@ -966,10 +1023,13 @@ class TestAclOnTable:
                 "UPDATE",
                 "DELETE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_minimal_permissions.get_acl(principal_id=p1.id)
+        permissions = project_with_minimal_permissions.get_acl(
+            principal_id=p1.id, synapse_client=self.syn
+        )
 
         # THEN I expect to see minimal permissions
         expected_permissions = [
@@ -986,16 +1046,18 @@ class TestAclOnTable:
         table.name = (
             str(uuid.uuid4()) + "test_get_acl_through_team_assigned_to_user_and_project"
         )
-        table_with_permissions_through_single_team = table.store_schema()
+        table_with_permissions_through_single_team = table.store_schema(
+            synapse_client=self.syn
+        )
 
         # AND the user that created the table
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -1014,16 +1076,17 @@ class TestAclOnTable:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         table_with_permissions_through_single_team.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
         permissions = table_with_permissions_through_single_team.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of the team
@@ -1046,22 +1109,24 @@ class TestAclOnTable:
             str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
         )
-        table_with_permissions_through_multiple_teams = table.store_schema()
+        table_with_permissions_through_multiple_teams = table.store_schema(
+            synapse_client=self.syn
+        )
 
         # AND the user that created the table
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_2 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Handle Cleanup - Note: When running this schedule for cleanup order
         # can matter when there are dependent resources
@@ -1081,22 +1146,25 @@ class TestAclOnTable:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
         table_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
+            principal_id=team_2.id,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         table_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
 
         permissions = table_with_permissions_through_multiple_teams.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of both teams
@@ -1117,23 +1185,27 @@ class TestAclOnTable:
     ) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
-        table_with_permissions_for_public_and_authenticated_users = table.store_schema()
+        table_with_permissions_for_public_and_authenticated_users = table.store_schema(
+            synapse_client=self.syn
+        )
 
         self.schedule_for_cleanup(
             table_with_permissions_for_public_and_authenticated_users.id
         )
 
         # AND the user that created the table
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for PUBLIC are set to 'READ'
         table_with_permissions_for_public_and_authenticated_users.set_permissions(
-            principal_id=PUBLIC, access_type=["READ"]
+            principal_id=PUBLIC, access_type=["READ"], synapse_client=self.syn
         )
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
         table_with_permissions_for_public_and_authenticated_users.set_permissions(
-            principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
+            principal_id=AUTHENTICATED_USERS,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
@@ -1148,6 +1220,7 @@ class TestAclOnTable:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # WHEN I get the permissions for a public user on the entity
@@ -1161,7 +1234,7 @@ class TestAclOnTable:
 
         # and WHEN I get the permissions for an authenticated user on the entity
         permissions = table_with_permissions_for_public_and_authenticated_users.get_acl(
-            principal_id=p1.id
+            principal_id=p1.id, synapse_client=self.syn
         )
 
         # THEN I expect to see the permissions of the user, and the authenticated user, and the public user
@@ -1192,11 +1265,13 @@ class TestPermissionsOnEntityForCaller:
         # GIVEN a project created with default permissions of administrator
         project_with_default_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_permissions_default_permissions"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(project_with_default_permissions.id)
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_default_permissions.get_permissions()
+        permissions = project_with_default_permissions.get_permissions(
+            synapse_client=self.syn
+        )
 
         # THEN I expect to see the default admin permissions
         expected_permissions = [
@@ -1215,19 +1290,21 @@ class TestPermissionsOnEntityForCaller:
         # GIVEN a project created with default permissions of administrator
         project_with_read_only_permissions = Project(
             name=str(uuid.uuid4()) + "test_get_permissions_read_permissions_on_project"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the project
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set to READ only
         project_with_read_only_permissions.set_permissions(
-            principal_id=p1.id, access_type=["READ"]
+            principal_id=p1.id, access_type=["READ"], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_read_only_permissions.get_permissions()
+        permissions = project_with_read_only_permissions.get_permissions(
+            synapse_client=self.syn
+        )
 
         # THEN I expect to see read only permissions. CHANGE_SETTINGS is bound to ownerId.
         # Since the entity is created by the Caller, the CHANGE_SETTINGS will always be True.
@@ -1240,16 +1317,16 @@ class TestPermissionsOnEntityForCaller:
         project_with_permissions_through_single_team = Project(
             name=str(uuid.uuid4())
             + "test_get_permissions_through_team_assigned_to_user_and_project"
-        ).store()
+        ).store(synapse_client=self.syn)
 
         # AND the user that created the project
-        p1: UserProfile = UserProfile().get()
+        p1: UserProfile = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Note: When running this schedule for cleanup order can matter when
         # there are dependent resources
@@ -1268,15 +1345,18 @@ class TestPermissionsOnEntityForCaller:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         project_with_permissions_through_single_team.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_permissions_through_single_team.get_permissions()
+        permissions = project_with_permissions_through_single_team.get_permissions(
+            synapse_client=self.syn
+        )
 
         # THEN I expect to see the permissions of the team
         expected_permissions = [
@@ -1297,22 +1377,22 @@ class TestPermissionsOnEntityForCaller:
         project_with_permissions_through_multiple_teams = Project(
             name=str(uuid.uuid4())
             + "test_get_permissions_through_two_teams_assigned_to_user_and_project"
-        ).store()
+        ).store(synapse_client=self.syn)
 
         # AND the user that created the project
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_1,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_2 = Team(
             name=name,
             description=DESCRIPTION_FAKE_TEAM_SINGLE_PROJECT_2,
-        ).create()
+        ).create(synapse_client=self.syn)
 
         # Note: When running this schedule for cleanup order can matter when
         # there are dependent resources
@@ -1332,20 +1412,25 @@ class TestPermissionsOnEntityForCaller:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the Team 2 on the entity are set to only READ and DOWNLOAD
         project_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
+            principal_id=team_2.id,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity are set to NONE
         project_with_permissions_through_multiple_teams.set_permissions(
-            principal_id=p1.id, access_type=[]
+            principal_id=p1.id, access_type=[], synapse_client=self.syn
         )
 
         # WHEN I get the permissions for the user on the entity
-        permissions = project_with_permissions_through_multiple_teams.get_permissions()
+        permissions = project_with_permissions_through_multiple_teams.get_permissions(
+            synapse_client=self.syn
+        )
 
         # THEN I expect to see the permissions of both teams
         expected_permissions = [
@@ -1365,15 +1450,17 @@ class TestPermissionsOnEntityForCaller:
         project_with_permissions_for_authenticated_users = Project(
             name=str(uuid.uuid4())
             + "test_get_permissions_for_project_with_registered_user"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(project_with_permissions_for_authenticated_users.id)
 
         # AND the user that created the project
-        p1 = UserProfile().get()
+        p1 = UserProfile().get(synapse_client=self.syn)
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
         project_with_permissions_for_authenticated_users.set_permissions(
-            principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
+            principal_id=AUTHENTICATED_USERS,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the permissions for the user on the entity do NOT include DOWNLOAD
@@ -1388,10 +1475,13 @@ class TestPermissionsOnEntityForCaller:
                 "CREATE",
                 "MODERATE",
             ],
+            synapse_client=self.syn,
         )
 
         # and WHEN I get the permissions for the user on the entity
-        permissions = project_with_permissions_for_authenticated_users.get_permissions()
+        permissions = project_with_permissions_for_authenticated_users.get_permissions(
+            synapse_client=self.syn
+        )
 
         # THEN I expect to see the permissions of the user, and the authenticated user
         expected_permissions = [

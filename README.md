@@ -313,6 +313,7 @@ trace.set_tracer_provider(
 )
 trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 tracer = trace.get_tracer("my_tracer")
+synapseclient.Synapse.enable_open_telemetry(True)
 
 @tracer.start_as_current_span("my_span_name")
 def main():

@@ -49,7 +49,7 @@ class TestAclOnProject:
         self.schedule_for_cleanup(project_with_default_permissions.id)
 
         # AND the user that created the project
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # WHEN I get the permissions for the user on the entity
         permissions = await project_with_default_permissions.get_acl_async(
@@ -77,7 +77,7 @@ class TestAclOnProject:
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the project
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set to READ only
         await project_with_read_only_permissions.set_permissions_async(
@@ -114,7 +114,7 @@ class TestAclOnProject:
         ).store_async()
 
         # AND the user that created the project
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = await Team(
@@ -171,7 +171,7 @@ class TestAclOnProject:
         ).store_async()
 
         # AND the user that created the project
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = await Team(
@@ -246,7 +246,7 @@ class TestAclOnProject:
         )
 
         # AND the user that created the project
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for PUBLIC are set to 'READ'
         await project_with_permissions_for_public_and_authenticated_users.set_permissions_async(
@@ -316,7 +316,7 @@ class TestAclOnFolder:
         self.schedule_for_cleanup(folder_with_default_permissions.id)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # WHEN I get the permissions for the user on the entity
         permissions = await folder_with_default_permissions.get_acl_async(
@@ -346,7 +346,7 @@ class TestAclOnFolder:
         self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set
         await project_with_minimal_permissions.set_permissions_async(
@@ -390,7 +390,7 @@ class TestAclOnFolder:
         self.schedule_for_cleanup(folder_with_minimal_permissions.id)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set
         await folder_with_minimal_permissions.set_permissions_async(
@@ -445,7 +445,7 @@ class TestAclOnFolder:
         ).store_async(parent=project_model)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = await Team(
@@ -504,7 +504,7 @@ class TestAclOnFolder:
         ).store_async(parent=project_model)
 
         # AND the user that created the folder
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = await Team(
@@ -581,7 +581,7 @@ class TestAclOnFolder:
         )
 
         # AND the user that created the folder
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for PUBLIC are set to 'READ'
         await folder_with_permissions_for_public_and_authenticated_users.set_permissions_async(
@@ -656,7 +656,7 @@ class TestAclOnFile:
         self.schedule_for_cleanup(file_with_default_permissions.id)
 
         # AND the user that created the file
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # WHEN I get the permissions for the user on the entity
         permissions = await file_with_default_permissions.get_acl_async(
@@ -685,7 +685,7 @@ class TestAclOnFile:
         self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the file
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set
         await project_with_minimal_permissions.set_permissions_async(
@@ -726,7 +726,7 @@ class TestAclOnFile:
         )
 
         # AND the user that created the file
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = await Team(
@@ -788,7 +788,7 @@ class TestAclOnFile:
         )
 
         # AND the user that created the file
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = await Team(
@@ -864,7 +864,7 @@ class TestAclOnFile:
         )
 
         # AND the user that created the file
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for PUBLIC are set to 'READ'
         await file_with_permissions_for_public_and_authenticated_users.set_permissions_async(
@@ -949,7 +949,7 @@ class TestAclOnTable:
         self.schedule_for_cleanup(table_with_default_permissions.id)
 
         # AND the user that created the table
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # WHEN I get the permissions for the user on the entity
         permissions = await table_with_default_permissions.get_acl_async(
@@ -976,7 +976,7 @@ class TestAclOnTable:
         self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the table
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set
         await project_with_minimal_permissions.set_permissions_async(
@@ -1013,7 +1013,7 @@ class TestAclOnTable:
         table_with_permissions_through_single_team = await table.store_schema_async()
 
         # AND the user that created the table
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = await Team(
@@ -1073,7 +1073,7 @@ class TestAclOnTable:
         table_with_permissions_through_multiple_teams = await table.store_schema_async()
 
         # AND the user that created the table
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = await Team(
@@ -1150,7 +1150,7 @@ class TestAclOnTable:
         )
 
         # AND the user that created the table
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for PUBLIC are set to 'READ'
         await table_with_permissions_for_public_and_authenticated_users.set_permissions_async(
@@ -1245,7 +1245,7 @@ class TestPermissionsOnEntityForCaller:
         self.schedule_for_cleanup(project_with_read_only_permissions.id)
 
         # AND the user that created the project
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for the user on the entity are set to READ only
         await project_with_read_only_permissions.set_permissions_async(
@@ -1269,7 +1269,7 @@ class TestPermissionsOnEntityForCaller:
         ).store_async()
 
         # AND the user that created the project
-        p1: UserProfile = await UserProfile().get_async()
+        p1: UserProfile = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team = await Team(
@@ -1328,7 +1328,7 @@ class TestPermissionsOnEntityForCaller:
         ).store_async()
 
         # AND the user that created the project
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         name = TEAM_PREFIX + str(uuid.uuid4())
         team_1 = await Team(
@@ -1399,7 +1399,7 @@ class TestPermissionsOnEntityForCaller:
         self.schedule_for_cleanup(project_with_permissions_for_authenticated_users.id)
 
         # AND the user that created the project
-        p1 = await UserProfile().get_async()
+        p1 = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for AUTHENTICATED_USERS is set to 'READ, DOWNLOAD'
         await project_with_permissions_for_authenticated_users.set_permissions_async(

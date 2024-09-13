@@ -5,14 +5,13 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import trace
 
 from synapseclient import Column as Synapse_Column
 from synapseclient import Schema as Synapse_Schema
 from synapseclient import Synapse
 from synapseclient import Table as Synapse_Table
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.protocols.table_protocol import (
@@ -315,8 +314,9 @@ class Column(ColumnSynchronousProtocol):
         """Persist the column to Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The Column instance stored in synapse.
@@ -326,15 +326,11 @@ class Column(ColumnSynchronousProtocol):
 
         # Call synapse
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).createColumn(
-                    name=self.name,
-                    columnType=self.column_type,
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).createColumn(
+                name=self.name,
+                columnType=self.column_type,
             ),
         )
         print(entity)
@@ -513,22 +509,19 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         Arguments:
             csv_path: The path to the CSV to store.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The path to the CSV that was stored.
         """
         synapse_table = Synapse_Table(schema=self.id, values=csv_path)
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_table
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                obj=synapse_table
             ),
         )
         print(entity)
@@ -545,8 +538,9 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         Arguments:
             rows: The rows to delete.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -555,16 +549,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
         for row in rows:
             rows_to_delete.append([row.row_id, row.version_number])
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: delete_rows(
-                    syn=Synapse.get_client(synapse_client=synapse_client),
-                    table_id=self.id,
-                    row_id_vers_list=rows_to_delete,
-                ),
-                current_context,
+            lambda: delete_rows(
+                syn=Synapse.get_client(synapse_client=synapse_client),
+                table_id=self.id,
+                row_id_vers_list=rows_to_delete,
             ),
         )
 
@@ -577,8 +567,9 @@ class Table(TableSynchronousProtocol, AccessControllable):
         """Store non-row information about a table including the columns and annotations.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The Table instance stored in synapse.
@@ -621,14 +612,10 @@ class Table(TableSynchronousProtocol, AccessControllable):
             }
         )
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_schema
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                obj=synapse_schema
             ),
         )
 
@@ -651,22 +638,19 @@ class Table(TableSynchronousProtocol, AccessControllable):
         """Get the metadata about the table from synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The Table instance stored in synapse.
         """
         # TODO: How do we want to support retriving the table? Do we want to support by name, and parent?
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         entity = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).get(
-                    entity=self.id
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).get(
+                entity=self.id
             ),
         )
         self.fill_from_dict(synapse_table=entity, set_annotations=True)
@@ -681,21 +665,18 @@ class Table(TableSynchronousProtocol, AccessControllable):
         """Delete the table from synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=self.id
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                obj=self.id
             ),
         )
 
@@ -712,24 +693,21 @@ class Table(TableSynchronousProtocol, AccessControllable):
         Arguments:
             query: The query to run.
             result_format: The format of the results. Defaults to CsvResultFormat().
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The results of the query.
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
 
         # TODO: Future Idea - We stream back a CSV, and let those reading this to handle the CSV however they want
         results = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
-                    query=query,
-                    **result_format.to_dict(),
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
+                query=query,
+                **result_format.to_dict(),
             ),
         )
         print(results)

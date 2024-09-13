@@ -151,7 +151,9 @@ class TestExernalStorage:
         self, bucket_name: str, folder_name: str
     ) -> Tuple[SynFolder, Dict[str, str]]:
         folder_id = (
-            await Folder(name=folder_name, parent_id=self.project.id).store_async()
+            await Folder(name=folder_name, parent_id=self.project.id).store_async(
+                synapse_client=self.syn
+            )
         ).id
 
         destination = {
@@ -243,11 +245,13 @@ class TestExernalStorage:
             with open(upload_file, "r", encoding="utf-8") as f:
                 file_contents = f.read()
 
-            file = await File(path=upload_file, parent_id=folder.id).store_async()
+            file = await File(path=upload_file, parent_id=folder.id).store_async(
+                synapse_client=self.syn
+            )
 
             # THEN the file should be accessible via the external storage location
             os.remove(upload_file)
-            file = await File(id=file.id).get_async()
+            file = await File(id=file.id).get_async(synapse_client=self.syn)
             with open(file.path, "r", encoding="utf-8") as f:
                 downloaded_content = f.read()
             assert file_contents == downloaded_content
@@ -333,10 +337,12 @@ class TestExernalStorage:
             # AND store the file in Synapse
             file: File = await File(
                 parent_id=folder.id, data_file_handle_id=file_handle["id"]
-            ).store_async()
+            ).store_async(synapse_client=self.syn)
 
             # THEN I should be able to retrieve the file via synapse
-            retrieved_file_entity = await File(id=file.id).get_async()
+            retrieved_file_entity = await File(id=file.id).get_async(
+                synapse_client=self.syn
+            )
             with open(retrieved_file_entity.path, "r", encoding="utf-8") as f:
                 assert file_contents == f.read()
         finally:
@@ -360,7 +366,9 @@ class TestExernalStorage:
                 "use_boto_sts_transfers",
                 new_callable=mock.PropertyMock(return_value=True),
             ):
-                file = await File(path=upload_file, parent_id=folder.id).store_async()
+                file = await File(path=upload_file, parent_id=folder.id).store_async(
+                    synapse_client=self.syn
+                )
                 assert os.path.exists(file.path)
                 os.remove(file.path)
 
@@ -368,7 +376,7 @@ class TestExernalStorage:
                 assert not os.path.exists(file.path)
                 file_copy = await File(
                     id=file.id, path=os.path.dirname(upload_file)
-                ).get_async()
+                ).get_async(synapse_client=self.syn)
                 assert os.path.exists(file_copy.path)
                 assert utils.equal_paths(file_copy.path, upload_file)
 
@@ -430,11 +438,13 @@ class TestExernalStorage:
                 with open(upload_file, "r", encoding="utf-8") as f:
                     file_contents = f.read()
 
-                file = await File(path=upload_file, parent_id=folder.id).store_async()
+                file = await File(path=upload_file, parent_id=folder.id).store_async(
+                    synapse_client=self.syn
+                )
 
                 # THEN the file should be accessible via the external storage location
                 os.remove(upload_file)
-                file = await File(id=file.id).get_async()
+                file = await File(id=file.id).get_async(synapse_client=self.syn)
                 with open(file.path, "r", encoding="utf-8") as f:
                     downloaded_content = f.read()
                 assert file_contents == downloaded_content

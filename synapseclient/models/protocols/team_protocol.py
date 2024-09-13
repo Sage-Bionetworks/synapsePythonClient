@@ -19,8 +19,9 @@ class TeamSynchronousProtocol(Protocol):
         """Creates a new team on Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             Team: The Team object.
@@ -31,8 +32,9 @@ class TeamSynchronousProtocol(Protocol):
         """Deletes a team from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -45,8 +47,9 @@ class TeamSynchronousProtocol(Protocol):
         it will use the ID.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Raises:
             ValueError: If the Team object has neither an id nor a name.
@@ -62,8 +65,9 @@ class TeamSynchronousProtocol(Protocol):
 
         Arguments:
             id: The id of the team.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             Team: The Team object.
@@ -85,8 +89,9 @@ class TeamSynchronousProtocol(Protocol):
 
         Arguments:
             name: The name of the team.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             Team: The Team object.
@@ -103,8 +108,9 @@ class TeamSynchronousProtocol(Protocol):
         Team instance.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             List[TeamMember]: A List of TeamMember objects.
@@ -126,8 +132,9 @@ class TeamSynchronousProtocol(Protocol):
         Arguments:
             user: The username of the user to invite.
             message: The message to send.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             dict: The invite response.
@@ -140,8 +147,9 @@ class TeamSynchronousProtocol(Protocol):
         """Gets all open invitations for a team given the ID field on the Team instance.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             List[dict]: A list of invitations.

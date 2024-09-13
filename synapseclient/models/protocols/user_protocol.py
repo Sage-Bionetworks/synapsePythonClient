@@ -25,8 +25,9 @@ class UserProfileSynchronousProtocol(Protocol):
         and username is not specified this will retrieve the current user's profile.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -43,8 +44,9 @@ class UserProfileSynchronousProtocol(Protocol):
 
         Arguments:
             user_id: The id of the user.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -63,8 +65,9 @@ class UserProfileSynchronousProtocol(Protocol):
 
         Arguments:
             username: A name chosen by the user that uniquely identifies them.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -82,8 +85,9 @@ class UserProfileSynchronousProtocol(Protocol):
         Determine whether a user is certified.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             True if the user is certified, False otherwise.

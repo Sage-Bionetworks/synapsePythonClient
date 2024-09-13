@@ -40,8 +40,9 @@ class FileSynchronousProtocol(Protocol):
             parent: The parent folder or project to store the file in. May also be
                 specified in the File object. If both are provided the parent passed
                 into `store` will take precedence.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -92,8 +93,9 @@ class FileSynchronousProtocol(Protocol):
             download_as: Specify filename to change the filename of a filehandle.
             content_type: Specify content type to change the content type of a
                 filehandle.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -137,8 +139,9 @@ class FileSynchronousProtocol(Protocol):
 
         Arguments:
             include_activity: If True the activity will be included in the file if it exists.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -169,8 +172,9 @@ class FileSynchronousProtocol(Protocol):
 
         Arguments:
             synapse_id: The ID of the file in Synapse.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -200,8 +204,9 @@ class FileSynchronousProtocol(Protocol):
 
         Arguments:
             path: The path to the file on disk.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -227,8 +232,9 @@ class FileSynchronousProtocol(Protocol):
             version_only: If True only the version specified in the `version_number`
                 attribute of the file will be deleted. If False the entire file will
                 be deleted.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -269,8 +275,9 @@ class FileSynchronousProtocol(Protocol):
                     - traceback: Creates a copy of the source files Activity.
                     - existing: Link to the source file's original Activity (if it exists)
                     - None: No activity is set
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The copied file object.

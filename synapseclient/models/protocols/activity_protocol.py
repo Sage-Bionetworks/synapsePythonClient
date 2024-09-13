@@ -26,8 +26,9 @@ class ActivitySynchronousProtocol(Protocol):
 
         Arguments:
             parent: The parent entity to associate this activity with.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The activity object.
@@ -54,8 +55,9 @@ class ActivitySynchronousProtocol(Protocol):
             parent: The parent entity this activity is associated with. The parent may
                 also have a version_number. Gets the most recent version if version is
                 omitted.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The activity object or None if it does not exist.
@@ -84,8 +86,9 @@ class ActivitySynchronousProtocol(Protocol):
 
         Arguments:
             parent: The parent entity this activity is associated with.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Raises:
             ValueError: If the parent does not have an ID.
@@ -106,8 +109,9 @@ class ActivitySynchronousProtocol(Protocol):
 
         Arguments:
             parent: The parent entity this activity is associated with.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Raises:
             ValueError: If the parent does not have an ID.

@@ -2,11 +2,8 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Union
 
-from opentelemetry import context
-
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.user_protocol import UserProfileSynchronousProtocol
 from synapseclient.team import UserGroupHeader as Synapse_UserGroupHeader
 from synapseclient.team import UserProfile as Synapse_UserProfile
@@ -237,8 +234,9 @@ class UserProfile(UserProfileSynchronousProtocol):
         and username is not specified this will retrieve the current user's profile.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -246,36 +244,26 @@ class UserProfile(UserProfileSynchronousProtocol):
         """
         loop = asyncio.get_event_loop()
 
-        current_context = context.get_current()
         if self.id:
             synapse_user_profile = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).get_user_profile_by_id(id=self.id),
-                    current_context,
-                ),
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).get_user_profile_by_id(id=self.id),
             )
         elif self.username:
             synapse_user_profile = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).get_user_profile_by_username(username=self.username),
-                    current_context,
-                ),
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).get_user_profile_by_username(username=self.username),
             )
         else:
             synapse_user_profile = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).get_user_profile_by_username(),
-                    current_context,
-                ),
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).get_user_profile_by_username(),
             )
 
         self.fill_from_dict(synapse_user_profile=synapse_user_profile)
@@ -293,8 +281,9 @@ class UserProfile(UserProfileSynchronousProtocol):
 
         Arguments:
             user_id: The id of the user.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -315,8 +304,9 @@ class UserProfile(UserProfileSynchronousProtocol):
 
         Arguments:
             username: A name chosen by the user that uniquely identifies them.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -335,8 +325,9 @@ class UserProfile(UserProfileSynchronousProtocol):
         Determine whether a user is certified.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             True if the user is certified, False otherwise.
@@ -346,15 +337,11 @@ class UserProfile(UserProfileSynchronousProtocol):
         """
         loop = asyncio.get_event_loop()
 
-        current_context = context.get_current()
         if self.id or self.username:
             is_certified = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).is_certified(user=self.id or self.username),
-                    current_context,
+                lambda: Synapse.get_client(synapse_client=synapse_client).is_certified(
+                    user=self.id or self.username
                 ),
             )
         else:

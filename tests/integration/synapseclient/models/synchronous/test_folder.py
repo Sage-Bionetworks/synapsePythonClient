@@ -46,7 +46,7 @@ class TestFolderStore:
         # GIVEN a Folder object and a Project object
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -72,7 +72,7 @@ class TestFolderStore:
         folder.files.append(file)
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -108,7 +108,7 @@ class TestFolderStore:
         folder.files = files
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -160,7 +160,7 @@ class TestFolderStore:
         folder.folders = folders
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -215,7 +215,7 @@ class TestFolderStore:
         folder.annotations = annotations
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -234,7 +234,9 @@ class TestFolderStore:
 
         # AND I expect the annotations to be stored on Synapse
         assert stored_folder.annotations == annotations
-        assert (Folder(id=stored_folder.id).get()).annotations == annotations
+        assert (
+            Folder(id=stored_folder.id).get(synapse_client=self.syn)
+        ).annotations == annotations
 
 
 class TestFolderGet:
@@ -256,11 +258,11 @@ class TestFolderGet:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I get the Folder from Synapse
-        folder_copy = Folder(id=stored_folder.id).get()
+        folder_copy = Folder(id=stored_folder.id).get(synapse_client=self.syn)
 
         # THEN I expect the stored Folder to have the expected properties
         assert folder_copy.id is not None
@@ -282,13 +284,13 @@ class TestFolderGet:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I get the Folder from Synapse
         folder_copy = Folder(
             name=stored_folder.name, parent_id=stored_folder.parent_id
-        ).get()
+        ).get(synapse_client=self.syn)
 
         # THEN I expect the stored Folder to have the expected properties
         assert folder_copy.id is not None
@@ -310,11 +312,13 @@ class TestFolderGet:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I get the Folder from Synapse
-        folder_copy = Folder(name=stored_folder.name).get(parent=project_model)
+        folder_copy = Folder(name=stored_folder.name).get(
+            parent=project_model, synapse_client=self.syn
+        )
 
         # THEN I expect the stored Folder to have the expected properties
         assert folder_copy.id is not None
@@ -348,15 +352,15 @@ class TestFolderDelete:
         # GIVEN a Folder object and a Project object
 
         # AND the folder is stored in synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I delete the Folder from Synapse
-        stored_folder.delete()
+        stored_folder.delete(synapse_client=self.syn)
 
         # THEN I expect the folder to have been deleted
         with pytest.raises(SynapseHTTPError) as e:
-            stored_folder.get()
+            stored_folder.get(synapse_client=self.syn)
 
         assert f"404 Client Error: Entity {stored_folder.id} is in trash can." in str(
             e.value
@@ -391,7 +395,7 @@ class TestFolderCopy:
         # GIVEN a folder to copy to
         destination_folder = Folder(
             name=str(uuid.uuid4()), description="Destination for folder copy"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
 
         # AND multiple files in the source folder
         files = []
@@ -416,14 +420,18 @@ class TestFolderCopy:
 
         # WHEN I store the Folder on Synapse
         folder.annotations = {"test": ["test"]}
-        folder = folder.store(parent=project_model)
+        folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # AND I copy the folder to the destination folder
-        copied_folder = folder.copy(parent_id=destination_folder.id)
+        copied_folder = folder.copy(
+            parent_id=destination_folder.id, synapse_client=self.syn
+        )
 
         # AND I sync the destination folder from Synapse
-        destination_folder.sync_from_synapse(recursive=False, download_file=False)
+        destination_folder.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
 
         # THEN I expect the copied Folder to have the expected properties
         assert len(destination_folder.folders) == 1
@@ -463,7 +471,7 @@ class TestFolderCopy:
         # GIVEN a folder to copy to
         destination_folder = Folder(
             name=str(uuid.uuid4()), description="Destination for folder copy"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
 
         # AND multiple files in the source folder
         files = []
@@ -488,16 +496,20 @@ class TestFolderCopy:
 
         # WHEN I store the Folder on Synapse
         folder.annotations = {"test": ["test"]}
-        folder = folder.store(parent=project_model)
+        folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # AND I copy the folder to the destination folder
         copied_folder = folder.copy(
-            parent_id=destination_folder.id, exclude_types=["file"]
+            parent_id=destination_folder.id,
+            exclude_types=["file"],
+            synapse_client=self.syn,
         )
 
         # AND I sync the destination folder from Synapse
-        destination_folder.sync_from_synapse(recursive=False, download_file=False)
+        destination_folder.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
 
         # THEN I expect the copied Folder to have the expected properties
         assert len(destination_folder.folders) == 1
@@ -576,11 +588,13 @@ class TestFolderSyncFromSynapse:
         folder.folders = folders
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # AND I sync the folder from Synapse
-        copied_folder = stored_folder.sync_from_synapse(path=root_directory_path)
+        copied_folder = stored_folder.sync_from_synapse(
+            path=root_directory_path, synapse_client=self.syn
+        )
 
         # THEN I expect that the folder and its contents are synced from Synapse to disk
         for file in copied_folder.files:

@@ -133,7 +133,7 @@ class TestUser:
             "get_user_profile_by_id",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await user_profile.get_async()
+            profile = await user_profile.get_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(id=123)
@@ -175,7 +175,7 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await user_profile.get_async()
+            profile = await user_profile.get_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(username=USER_NAME)
@@ -217,7 +217,7 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = await user_profile.get_async()
+            profile = await user_profile.get_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with()

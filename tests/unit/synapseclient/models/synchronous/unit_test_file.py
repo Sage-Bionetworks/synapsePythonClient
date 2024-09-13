@@ -195,11 +195,11 @@ class TestFile:
             new_callable=AsyncMock,
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_store_entity:
-            result = file.store()
+            result = file.store(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_get_entity_bundle.assert_called_once_with(
-                entity_id=SYN_123, synapse_client=None
+                entity_id=SYN_123, synapse_client=self.syn
             )
 
             # AND We should upload the file handle
@@ -274,11 +274,11 @@ class TestFile:
             new_callable=AsyncMock,
             return_value=(self.get_example_synapse_file_output()),
         ) as mocked_store_entity:
-            result = file.store()
+            result = file.store(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_get_entity_bundle.assert_called_once_with(
-                entity_id=SYN_123, synapse_client=None
+                entity_id=SYN_123, synapse_client=self.syn
             )
 
             # AND We should not upload the file handle
@@ -352,7 +352,9 @@ class TestFile:
             new_callable=AsyncMock,
             return_value=(self.get_example_synapse_file_output(path=bogus_file)),
         ) as mocked_store_entity:
-            result = file.store(parent=Project(id=ACTUAL_PARENT_ID))
+            result = file.store(
+                parent=Project(id=ACTUAL_PARENT_ID), synapse_client=self.syn
+            )
 
             # THEN we should not call the get method when just the path is supplied.
             mocked_get_call.assert_not_called()
@@ -438,7 +440,9 @@ class TestFile:
             new_callable=AsyncMock,
             return_value=(self.get_example_synapse_file_output(path=bogus_file)),
         ) as mocked_store_entity:
-            result = file.store(parent=Project(id=ACTUAL_PARENT_ID))
+            result = file.store(
+                parent=Project(id=ACTUAL_PARENT_ID), synapse_client=self.syn
+            )
 
             # THEN we should not call the get method when just the path is supplied.
             mocked_get_call.assert_not_called()
@@ -538,7 +542,7 @@ class TestFile:
             "get_async",
             return_value=file,
         ) as mocked_get:
-            result = file.store()
+            result = file.store(synapse_client=self.syn)
 
             # THEN we should not call the get method when just the path is supplied.
             mocked_get_call.assert_not_called()
@@ -605,7 +609,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            file.store()
+            file.store(synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == CANNOT_STORE_FILE_ERROR
@@ -616,7 +620,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            file.store()
+            file.store(synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == CANNOT_STORE_FILE_ERROR
@@ -629,7 +633,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            file.store()
+            file.store(synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == CANNOT_STORE_FILE_ERROR
@@ -640,7 +644,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            file.store(parent=Project(id=ACTUAL_PARENT_ID))
+            file.store(parent=Project(id=ACTUAL_PARENT_ID), synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == CANNOT_STORE_FILE_ERROR
@@ -658,6 +662,7 @@ class TestFile:
                 name="modified_file.txt",
                 download_as="modified_file.txt",
                 content_type="text/plain",
+                synapse_client=self.syn,
             )
 
             # THEN we should call the method with this data
@@ -711,7 +716,7 @@ class TestFile:
 
         # WHEN I change the metadata on the example file
         with pytest.raises(ValueError) as e:
-            file.change_metadata()
+            file.change_metadata(synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID to change metadata."
@@ -735,12 +740,12 @@ class TestFile:
             new_callable=AsyncMock,
             return_value=(self.get_example_rest_api_file_output(path=bogus_file)),
         ) as mocked_get_entity_bundle:
-            result = file.get()
+            result = file.get(synapse_client=self.syn)
             os.remove(bogus_file)
 
             # THEN we should call the method with this data
             mocked_get_entity_bundle.assert_called_once_with(
-                entity_id=SYN_123, synapse_client=None
+                entity_id=SYN_123, synapse_client=self.syn
             )
 
             # THEN the file should be retrieved
@@ -795,14 +800,14 @@ class TestFile:
         ), patch(
             "os.path.isfile", return_value=True
         ):
-            result = file.get()
+            result = file.get(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_search_for_file.assert_called_once_with(
                 filepath="/asdf/example_file.txt",
                 limit_search=None,
                 md5=None,
-                synapse_client=None,
+                synapse_client=self.syn,
             )
 
             # THEN the file should be stored
@@ -856,11 +861,11 @@ class TestFile:
         ), patch(
             "os.path.isfile", return_value=True
         ):
-            result = File.from_path(path=path)
+            result = File.from_path(path=path, synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_search_for_file.assert_called_once_with(
-                filepath=PATH, limit_search=None, md5=None, synapse_client=None
+                filepath=PATH, limit_search=None, md5=None, synapse_client=self.syn
             )
 
             # THEN the file should be retrieved
@@ -918,12 +923,12 @@ class TestFile:
             new_callable=AsyncMock,
             return_value=(self.get_example_rest_api_file_output(path=bogus_file)),
         ) as mocked_get_entity_bundle:
-            result = File.from_id(synapse_id=synapse_id)
+            result = File.from_id(synapse_id=synapse_id, synapse_client=self.syn)
             os.remove(bogus_file)
 
             # THEN we should call the method with this data
             mocked_get_entity_bundle.assert_called_once_with(
-                entity_id=SYN_123, synapse_client=None
+                entity_id=SYN_123, synapse_client=self.syn
             )
 
             # THEN the file should be retrieved
@@ -968,7 +973,7 @@ class TestFile:
 
         # WHEN I get the file
         with pytest.raises(ValueError) as e:
-            file.get()
+            file.get(synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID or path to get."
@@ -983,7 +988,7 @@ class TestFile:
             "delete",
             return_value=(None),
         ) as mocked_client_call:
-            file.delete()
+            file.delete(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -997,7 +1002,7 @@ class TestFile:
 
         # WHEN I delete the file
         with pytest.raises(ValueError) as e:
-            file.delete()
+            file.delete(synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == "The file must have an ID to delete."
@@ -1008,7 +1013,7 @@ class TestFile:
 
         # WHEN I delete the file
         with pytest.raises(ValueError) as e:
-            file.delete(version_only=True)
+            file.delete(version_only=True, synapse_client=self.syn)
 
         # THEN we should get an error
         assert (

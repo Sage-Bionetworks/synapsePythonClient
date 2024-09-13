@@ -105,7 +105,7 @@ class TestFolder:
                 }
             ),
         ) as mocked_get:
-            result = await folder.store_async()
+            result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -154,7 +154,7 @@ class TestFolder:
                 }
             ),
         ) as mocked_get:
-            result = await folder.store_async()
+            result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should not call store because there are no changes
             mocked_store.assert_not_called()
@@ -184,9 +184,11 @@ class TestFolder:
                 }
             ),
         ) as mocked_get:
-            await folder.get_async()
+            await folder.get_async(synapse_client=self.syn)
 
-            mocked_get.assert_called_once_with(entity_id=folder.id, synapse_client=None)
+            mocked_get.assert_called_once_with(
+                entity_id=folder.id, synapse_client=self.syn
+            )
             assert folder.id == SYN_123
 
         # WHEN I call `store` with the Folder object
@@ -200,7 +202,7 @@ class TestFolder:
                 id=folder.id,
             ),
         ) as mocked_get:
-            result = await folder.store_async()
+            result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should not call store because there are no changes
             mocked_store.assert_not_called()
@@ -230,9 +232,11 @@ class TestFolder:
                 }
             ),
         ) as mocked_get:
-            await folder.get_async()
+            await folder.get_async(synapse_client=self.syn)
 
-            mocked_get.assert_called_once_with(entity_id=folder.id, synapse_client=None)
+            mocked_get.assert_called_once_with(
+                entity_id=folder.id, synapse_client=self.syn
+            )
             assert folder.id == SYN_123
 
         # AND I update a field on the folder
@@ -248,7 +252,7 @@ class TestFolder:
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
             new_callable=AsyncMock,
         ) as mocked_get:
-            result = await folder.store_async()
+            result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should  call store because there are changes
             mocked_store.assert_called_once_with(
@@ -312,7 +316,7 @@ class TestFolder:
                 }
             ),
         ) as mocked_get:
-            result = await folder.store_async()
+            result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -332,7 +336,7 @@ class TestFolder:
             mocked_store_entity_components.assert_called_once_with(
                 root_resource=folder,
                 failure_strategy=FailureStrategy.LOG_EXCEPTION,
-                synapse_client=None,
+                synapse_client=self.syn,
             )
 
             # AND the folder should be stored with the mock return data
@@ -378,7 +382,7 @@ class TestFolder:
                 }
             ),
         ) as mocked_get:
-            result = await folder.store_async()
+            result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -441,7 +445,9 @@ class TestFolder:
                 }
             ),
         ) as mocked_get:
-            result = await folder.store_async(parent=Folder(id=PARENT_ID))
+            result = await folder.store_async(
+                parent=Folder(id=PARENT_ID), synapse_client=self.syn
+            )
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -479,7 +485,7 @@ class TestFolder:
 
         # WHEN I call `store` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.store_async()
+            await folder.store_async(synapse_client=self.syn)
 
         # THEN we should get an error
         assert (
@@ -493,7 +499,7 @@ class TestFolder:
 
         # WHEN I call `store` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.store_async()
+            await folder.store_async(synapse_client=self.syn)
 
         # THEN we should get an error
         assert (
@@ -507,7 +513,7 @@ class TestFolder:
 
         # WHEN I call `store` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.store_async()
+            await folder.store_async(synapse_client=self.syn)
 
         # THEN we should get an error
         assert (
@@ -527,11 +533,11 @@ class TestFolder:
             new_callable=AsyncMock,
             return_value=self.get_example_rest_api_folder_output(),
         ) as mocked_client_call:
-            result = await folder.get_async()
+            result = await folder.get_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                entity_id=folder.id, synapse_client=None
+                entity_id=folder.id, synapse_client=self.syn
             )
 
             # AND the folder should be stored
@@ -562,11 +568,11 @@ class TestFolder:
             new_callable=AsyncMock,
             return_value=self.get_example_rest_api_folder_output(),
         ) as mocked_client_call:
-            result = await folder.get_async()
+            result = await folder.get_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
-                entity_id=folder.id, synapse_client=None
+                entity_id=folder.id, synapse_client=self.syn
             )
 
             # AND we should search for the entity
@@ -600,7 +606,7 @@ class TestFolder:
             return_value=(None),
         ) as mocked_client_search:
             with pytest.raises(SynapseNotFoundError) as e:
-                await folder.get_async()
+                await folder.get_async(synapse_client=self.syn)
             assert (
                 str(e.value)
                 == "Folder [Id: None, Name: example_folder, Parent: parent_id_value] not found in Synapse."
@@ -623,7 +629,7 @@ class TestFolder:
             "delete",
             return_value=(None),
         ) as mocked_client_call:
-            await folder.delete_async()
+            await folder.delete_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(
@@ -636,7 +642,7 @@ class TestFolder:
 
         # WHEN I call `delete` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.delete_async()
+            await folder.delete_async(synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == "The folder must have an id set."
@@ -666,7 +672,9 @@ class TestFolder:
             "synapseclient.models.folder.Folder.sync_from_synapse_async",
             return_value=(returned_folder),
         ) as mocked_sync:
-            result = await folder.copy_async(parent_id="destination_id")
+            result = await folder.copy_async(
+                parent_id="destination_id", synapse_client=self.syn
+            )
 
             # THEN we should call the method with this data
             mocked_copy.assert_called_once_with(
@@ -685,7 +693,7 @@ class TestFolder:
             # AND we should call the sync method
             mocked_sync.assert_called_once_with(
                 download_file=False,
-                synapse_client=None,
+                synapse_client=self.syn,
             )
 
             # AND the file should be stored
@@ -697,7 +705,7 @@ class TestFolder:
 
         # WHEN I call `copy` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.copy_async(parent_id="destination_id")
+            await folder.copy_async(parent_id="destination_id", synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == "The folder must have an ID and parent_id to copy."
@@ -708,7 +716,7 @@ class TestFolder:
 
         # WHEN I call `copy` with the Folder object
         with pytest.raises(ValueError) as e:
-            await folder.copy_async(parent_id=None)
+            await folder.copy_async(parent_id=None, synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == "The folder must have an ID and parent_id to copy."
@@ -741,7 +749,7 @@ class TestFolder:
             "synapseclient.models.file.File.get_async",
             return_value=(File(id=SYN_456, name="example_file_1")),
         ):
-            result = await folder.sync_from_synapse_async()
+            result = await folder.sync_from_synapse_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_children_call.assert_called_once()

@@ -638,7 +638,7 @@ class TestSyncToSynapse:
 
         # WHEN I update a metadata field on the File not available in the manifest
         folder.files[0].description = "new file description"
-        await folder.files[0].store_async()
+        await folder.files[0].store_async(synapse_client=syn)
         assert folder.files[0].version_number == 2
 
         # WHEN I update the manifest file to remove the activities
@@ -746,7 +746,7 @@ class TestSyncToSynapse:
         # AND the first version of the file still has the activity
         first_file_version = await File(
             id=folder.files[0].id, version_number=1
-        ).get_async(include_activity=True)
+        ).get_async(include_activity=True, synapse_client=syn)
         assert first_file_version is not None
         assert first_file_version.activity is not None
         assert first_file_version.activity.name == BOGUS_ACTIVITY

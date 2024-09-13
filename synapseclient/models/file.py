@@ -8,8 +8,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from opentelemetry import context
-
 from synapseclient import File as SynapseFile
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
@@ -25,7 +23,6 @@ from synapseclient.core.utils import (
     delete_none_keys,
     guess_file_name,
     merge_dataclass_entities,
-    run_and_attach_otel_context,
 )
 from synapseclient.entity import File as Synapse_File
 from synapseclient.models import Activity, Annotations
@@ -780,8 +777,9 @@ class File(FileSynchronousProtocol, AccessControllable):
             parent: The parent folder or project to store the file in. May also be
                 specified in the File object. If both are provided the parent passed
                 into `store` will take precedence.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -911,8 +909,9 @@ class File(FileSynchronousProtocol, AccessControllable):
             download_as: Specify filename to change the filename of a filehandle.
             content_type: Specify content type to change the content type of a
                 filehandle.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -936,20 +935,16 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         loop = asyncio.get_event_loop()
 
-        current_context = context.get_current()
         syn = Synapse.get_client(synapse_client=synapse_client)
         entity = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: changeFileMetaData(
-                    syn=syn,
-                    entity=self.id,
-                    name=name,
-                    downloadAs=download_as,
-                    contentType=content_type,
-                    forceVersion=self.force_version,
-                ),
-                current_context,
+            lambda: changeFileMetaData(
+                syn=syn,
+                entity=self.id,
+                name=name,
+                downloadAs=download_as,
+                contentType=content_type,
+                forceVersion=self.force_version,
             ),
         )
 
@@ -989,8 +984,9 @@ class File(FileSynchronousProtocol, AccessControllable):
         Arguments:
             include_activity: If True the activity will be included in the file
                 if it exists.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -1025,6 +1021,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             if self.path and os.path.isfile(self.path)
             else self.path,
             md5=self.content_md5,
+            synapse_client=syn,
         )
 
         if (
@@ -1056,8 +1053,9 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         Arguments:
             synapse_id: The ID of the file in Synapse.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -1087,8 +1085,9 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         Arguments:
             path: The path to the file on disk.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -1118,8 +1117,9 @@ class File(FileSynchronousProtocol, AccessControllable):
             version_only: If True only the version specified in the `version_number`
                 attribute of the file will be deleted. If False the entire file will
                 be deleted.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -1140,15 +1140,11 @@ class File(FileSynchronousProtocol, AccessControllable):
             raise ValueError("The file must have a version number to delete a version.")
 
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=self.id,
-                    version=self.version_number if version_only else None,
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                obj=self.id,
+                version=self.version_number if version_only else None,
             ),
         )
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
@@ -1182,8 +1178,9 @@ class File(FileSynchronousProtocol, AccessControllable):
                     - traceback: Creates a copy of the source files Activity.
                     - existing: Link to the source file's original Activity (if it exists)
                     - None: No activity is set
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The copied file object.
@@ -1206,21 +1203,17 @@ class File(FileSynchronousProtocol, AccessControllable):
 
         loop = asyncio.get_event_loop()
 
-        current_context = context.get_current()
         syn = Synapse.get_client(synapse_client=synapse_client)
         source_and_destination = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: copy(
-                    syn=syn,
-                    version=self.version_number,
-                    entity=self.id,
-                    destinationId=parent_id,
-                    skipCopyAnnotations=not copy_annotations,
-                    updateExisting=update_existing,
-                    setProvenance=copy_activity,
-                ),
-                current_context,
+            lambda: copy(
+                syn=syn,
+                version=self.version_number,
+                entity=self.id,
+                destinationId=parent_id,
+                skipCopyAnnotations=not copy_annotations,
+                updateExisting=update_existing,
+                setProvenance=copy_activity,
             ),
         )
 
@@ -1251,8 +1244,9 @@ class File(FileSynchronousProtocol, AccessControllable):
         outside of this upload process.
 
         Arguments:
-            syn: If not passed in or None this will use the last client from
-                the `.login()` method.
+            syn: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             True if the file needs to be uploaded, otherwise False.
@@ -1330,8 +1324,9 @@ class File(FileSynchronousProtocol, AccessControllable):
         metadata will be added to Synapse outside of this upload process.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The file object.

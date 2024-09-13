@@ -1,11 +1,8 @@
 import asyncio
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from opentelemetry import context
-
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
-from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.access_control_protocol import (
     AccessControllableSynchronousProtocol,
 )
@@ -36,8 +33,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         that the caller has on an Entity.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             A Permissions object
@@ -53,15 +51,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 permissions.access_types
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
 
         return await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).get_permissions(entity=self.id),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).get_permissions(
+                entity=self.id
             ),
         )
 
@@ -74,8 +68,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         Arguments:
             principal_id: Identifier of a user or group (defaults to PUBLIC users)
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             An array containing some combination of
@@ -84,15 +79,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 or an empty array
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
 
         return await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).get_acl(
-                    entity=self.id, principal_id=principal_id
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).get_acl(
+                entity=self.id, principal_id=principal_id
             ),
         )
 
@@ -124,8 +115,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             overwrite: By default this function overwrites existing permissions for
                 the specified user. Set this flag to False to add new permissions
                 non-destructively.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             An Access Control List object
@@ -142,21 +134,15 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         if access_type is None:
             access_type = ["READ", "DOWNLOAD"]
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
 
         return await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).setPermissions(
-                    entity=self.id,
-                    principalId=principal_id,
-                    accessType=access_type,
-                    modify_benefactor=modify_benefactor,
-                    warn_if_inherits=warn_if_inherits,
-                    overwrite=overwrite,
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).setPermissions(
+                entity=self.id,
+                principalId=principal_id,
+                accessType=access_type,
+                modify_benefactor=modify_benefactor,
+                warn_if_inherits=warn_if_inherits,
+                overwrite=overwrite,
             ),
         )

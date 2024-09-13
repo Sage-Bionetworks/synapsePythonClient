@@ -28,7 +28,7 @@ class ColumnSynchronousProtocol(Protocol):
         """Persist the column to Synapse.
 
         :param synapse_client: If not passed in or None this will use the last client
-            from the `.login()` method.
+            from the Synapse class constructor.
         :return: Column
         """
         return self
@@ -47,8 +47,9 @@ class TableSynchronousProtocol(Protocol):
 
         Arguments:
             csv_path: The path to the CSV to store.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The path to the CSV that was stored.
@@ -62,8 +63,9 @@ class TableSynchronousProtocol(Protocol):
 
         Arguments:
             rows: The rows to delete.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -74,8 +76,9 @@ class TableSynchronousProtocol(Protocol):
         """Store non-row information about a table including the columns and annotations.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The Table instance stored in synapse.
@@ -86,8 +89,9 @@ class TableSynchronousProtocol(Protocol):
         """Get the metadata about the table from synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The Table instance stored in synapse.
@@ -98,8 +102,9 @@ class TableSynchronousProtocol(Protocol):
         """Delete the table from synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -119,8 +124,9 @@ class TableSynchronousProtocol(Protocol):
         Arguments:
             query: The query to run.
             result_format: The format of the results. Defaults to CsvResultFormat().
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The results of the query.

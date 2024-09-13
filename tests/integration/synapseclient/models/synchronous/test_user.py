@@ -18,7 +18,7 @@ class TestUser:
 
     async def test_from_id(self) -> None:
         # GIVEN our test profile
-        integration_test_profile = UserProfile().get()
+        integration_test_profile = UserProfile().get(synapse_client=self.syn)
 
         # WHEN we get the profile by ID
         profile = UserProfile.from_id(integration_test_profile.id)
@@ -28,7 +28,7 @@ class TestUser:
 
     async def test_from_username(self) -> None:
         # GIVEN our test profile
-        integration_test_profile = UserProfile().get()
+        integration_test_profile = UserProfile().get(synapse_client=self.syn)
 
         # WHEN we get the profile by username
         profile = UserProfile.from_username(integration_test_profile.username)
@@ -38,7 +38,7 @@ class TestUser:
 
     async def test_is_certified_id(self) -> None:
         # GIVEN out test profile
-        integration_test_profile = UserProfile().get()
+        integration_test_profile = UserProfile().get(synapse_client=self.syn)
 
         # AND a copy of the profile
         profile_copy = UserProfile(id=integration_test_profile.id)
@@ -51,7 +51,7 @@ class TestUser:
 
     async def test_is_certified_username(self) -> None:
         # GIVEN out test profile
-        integration_test_profile = UserProfile().get()
+        integration_test_profile = UserProfile().get(synapse_client=self.syn)
 
         # AND a copy of the profile
         profile_copy = UserProfile(username=integration_test_profile.username)

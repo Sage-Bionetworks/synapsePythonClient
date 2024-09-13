@@ -39,7 +39,7 @@ async def test_round_trip(
         # AND Create a reference in Synapse to the file
         junk = await File(
             parent_id=project_model.id, data_file_handle_id=file_handle_id
-        ).store_async()
+        ).store_async(synapse_client=syn)
 
         (_, tmp_path) = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
@@ -50,13 +50,14 @@ async def test_round_trip(
             synapse_id=junk.id,
             entity_type="FileEntity",
             destination=tmp_path,
+            synapse_client=syn,
         )
 
         # THEN I expect the files to match
         assert filecmp.cmp(filepath, path_from_file_handle)
 
         # AND that retrieving the file by ID also works to fill in the path
-        file_by_id = await File(id=junk.id).get_async()
+        file_by_id = await File(id=junk.id).get_async(synapse_client=syn)
         assert filecmp.cmp(filepath, file_by_id.path)
     except Exception:
         syn.logger.exception("Failed to upload or download file")
@@ -64,7 +65,7 @@ async def test_round_trip(
     finally:
         try:
             if "junk" in locals():
-                await junk.delete_async()
+                await junk.delete_async(synapse_client=syn)
         except Exception:
             syn.logger.exception("Failed to cleanup")
         try:
@@ -125,7 +126,7 @@ async def test_randomly_failing_parts(
             # AND Create a reference to the File in Synapse
             junk = await File(
                 parent_id=project_model.id, data_file_handle_id=file_handle_id
-            ).store_async()
+            ).store_async(synapse_client=syn)
 
             (_, tmp_path) = tempfile.mkstemp()
             schedule_for_cleanup(tmp_path)
@@ -136,13 +137,14 @@ async def test_randomly_failing_parts(
                 synapse_id=junk.id,
                 entity_type="FileEntity",
                 destination=tmp_path,
+                synapse_client=syn,
             )
 
             # THEN I expect the files to match
             assert filecmp.cmp(filepath, path_from_file_handle)
 
             # AND that retrieving the file by ID also works to fill in the path
-            file_by_id = await File(id=junk.id).get_async()
+            file_by_id = await File(id=junk.id).get_async(synapse_client=syn)
             assert filecmp.cmp(filepath, file_by_id.path)
         except Exception:
             syn.logger.exception("Failed to upload or download file")
@@ -222,6 +224,7 @@ async def test_multipart_upload_big_string(
         synapse_id=junk.id,
         entity_type="FileEntity",
         destination=tmp_path,
+        synapse_client=syn,
     )
 
     # THEN I expect the data to match
@@ -264,7 +267,9 @@ async def _multipart_copy_test(
         tmp_out.write(file_content)
 
     # WHEN I upload the file to Synapse in a default location
-    file = await File(path=tmp.name, parent_id=project_model.id).store_async()
+    file = await File(path=tmp.name, parent_id=project_model.id).store_async(
+        synapse_client=syn
+    )
 
     # AND I copy the file to the new folder
     dest_file_name = "{}_copy".format(file.name)
@@ -289,10 +294,10 @@ async def _multipart_copy_test(
         name=dest_file_name,
         parent_id=dest_folder["id"],
         data_file_handle_id=copied_fhid,
-    ).store_async()
+    ).store_async(synapse_client=syn)
 
     # AND Download the copied file from Synapse
-    await dest_file.get_async()
+    await dest_file.get_async(synapse_client=syn)
 
     # THEN I expect the data to match
     with open(dest_file.path, "r") as dest_file_in:
@@ -301,7 +306,7 @@ async def _multipart_copy_test(
     assert file_content == dest_file_content
 
     # AND retrieving the file again should also work by ID
-    dest_file_copy = await File(dest_file.id).get_async()
+    dest_file_copy = await File(dest_file.id).get_async(synapse_client=syn)
 
     with open(dest_file_copy.path, "r") as dest_file_in:
         dest_file_content = dest_file_in.read()

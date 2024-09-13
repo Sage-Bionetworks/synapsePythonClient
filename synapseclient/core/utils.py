@@ -25,11 +25,10 @@ import uuid
 import warnings
 import zipfile
 from dataclasses import asdict, is_dataclass
-from typing import TYPE_CHECKING, Callable, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import requests
-from opentelemetry import context, trace
-from opentelemetry.context import Context
+from opentelemetry import trace
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder, Project
@@ -1322,40 +1321,6 @@ class Spinner:
             sys.stdout.write(f"\r {spinner} {self.msg}")
             sys.stdout.flush()
         self._tick += 1
-
-
-def run_and_attach_otel_context(
-    callable_function: Callable[..., R], current_context: Context
-) -> R:
-    """
-    This is a generic function that will run a callable function and attach the passed in
-    OpenTelemetry context to the thread or context that the function is running on.
-
-    This is a hack to get around AsyncIO `run_in_executor` not propagating the context
-    to the code it's executing. When we are directly calling async functions after
-    SYNPY-1411 we will be able to remove this function.
-
-    Example: Adding this to a `run_in_executor` call
-        Note the 2 lambdas that are required:
-
-            import asyncio
-            from opentelemetry import context
-            from synapseclient import Synapse
-
-            loop = asyncio.get_event_loop()
-            current_context = context.get_current()
-            await loop.run_in_executor(
-                None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                        obj="syn123",
-                    ),
-                    current_context,
-                ),
-            )
-    """
-    context.attach(current_context)
-    return callable_function()
 
 
 def delete_none_keys(incoming_object: typing.Dict) -> None:

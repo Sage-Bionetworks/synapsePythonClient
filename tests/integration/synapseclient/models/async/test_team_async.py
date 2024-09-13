@@ -66,7 +66,7 @@ class TestTeam:
         # AND a locally created Team object with the same id and name
         id_team = Team(id=self.team.id, name=self.team.name)
         # WHEN I get the team
-        id_team = await id_team.get_async()
+        id_team = await id_team.get_async(synapse_client=self.syn)
         # THEN I expect the team to be returned
         assert id_team.id == synapse_team.id
         assert id_team.name == synapse_team.name
@@ -88,7 +88,7 @@ class TestTeam:
         # AND a locally created Team object with the same name, but no id
         name_team = Team(name=self.team.name)
         # WHEN I get the team
-        name_team = await name_team.get_async()
+        name_team = await name_team.get_async(synapse_client=self.syn)
         # THEN I expect the team to be returned
         assert name_team.id == synapse_team.id
         assert name_team.name == synapse_team.name

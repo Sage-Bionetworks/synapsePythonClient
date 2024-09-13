@@ -59,8 +59,9 @@ async def get_from_entity_factory(
             hop to the target of the link.
         entity_to_update: An existing entity class instance to update with data from
             Synapse.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Example: Using this function
             Download file into cache
@@ -127,7 +128,10 @@ async def get_from_entity_factory(
 
     # Check and warn for unmet access requirements
     _check_entity_restrictions(
-        bundle=bundle, synapse_id=bundle["entity"]["id"], download_file=download_file
+        bundle=bundle,
+        synapse_id=bundle["entity"]["id"],
+        download_file=download_file,
+        synapse_client=synapse_client,
     )
 
     return_data = await _cast_into_class_type(
@@ -166,8 +170,9 @@ async def _search_for_file_by_md5(
         md5: The MD5 of the file to retrieve. If not passed in, the MD5 will be
             calculated.
         limit_search: Limit the search to a specific project or folder.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         A dictionary containing the entity bundle of the file found.
@@ -255,8 +260,9 @@ async def _cast_into_class_type(
             hop to the target of the link.
         entity_to_update: An existing entity class instance to update with data from
             Synapse.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         A Synapse entity object.
