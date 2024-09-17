@@ -13,6 +13,7 @@ class TestSynapseAuthTokenCredentials:
         self.username = "ahhhhhhhhhhhhhh"
         self.auth_token = "opensesame"
         self.displayname = "hhhhhaaaa"
+        self.owner_id = 123
         self.credentials = SynapseAuthTokenCredentials(
             self.auth_token, username=self.username, displayname=self.displayname
         )
@@ -57,7 +58,8 @@ class TestSynapseAuthTokenCredentials:
             f"SynapseAuthTokenCredentials("
             f"username='{self.username}', "
             f"displayname='{self.displayname}', "
-            f"token='{self.auth_token}')" == repr(self.credentials)
+            f"token='{self.auth_token}')" == repr(self.credentials),
+            f"owner_id={self.owner_id}",
         )
 
     def test_tokens_validated(self, mocker):
