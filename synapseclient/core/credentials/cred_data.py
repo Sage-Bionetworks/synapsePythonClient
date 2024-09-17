@@ -20,6 +20,11 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
     def secret(self) -> None:
         """The secret associated with these credentials."""
 
+    @property
+    @abc.abstractmethod
+    def owner_id(self) -> None:
+        """The owner id, or profile id, associated with these credentials."""
+
 
 class SynapseAuthTokenCredentials(SynapseCredentials):
     @classmethod
@@ -69,6 +74,7 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         self._token = token
         self.username = username
         self.displayname = displayname
+        self.owner_id = None
 
     @property
     def username(self) -> str:
@@ -89,6 +95,15 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         self._displayname = displayname
 
     @property
+    def owner_id(self) -> str:
+        """The owner id associated with this token."""
+        return self._owner_id
+
+    @owner_id.setter
+    def owner_id(self, owner_id: str) -> None:
+        self._owner_id = owner_id
+
+    @property
     def secret(self) -> str:
         """The bearer token."""
         return self._token
@@ -102,7 +117,8 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
             f"SynapseAuthTokenCredentials("
             f"username='{self.username}', "
             f"displayname='{self.displayname}', "
-            f"token='{self.secret}')"
+            f"token='{self.secret}', "
+            f"owner_id='{self.owner_id}')"
         )
 
 
