@@ -13,9 +13,11 @@ class TestSynapseAuthTokenCredentials:
         self.username = "ahhhhhhhhhhhhhh"
         self.auth_token = "opensesame"
         self.displayname = "hhhhhaaaa"
+        self.owner_id = 123
         self.credentials = SynapseAuthTokenCredentials(
             self.auth_token, username=self.username, displayname=self.displayname
         )
+        self.credentials.owner_id = self.owner_id
         self.KEYRING_NAME = "SYNAPSE.ORG_CLIENT_AUTH_TOKEN"
 
     def test_username(self):
@@ -57,8 +59,9 @@ class TestSynapseAuthTokenCredentials:
             f"SynapseAuthTokenCredentials("
             f"username='{self.username}', "
             f"displayname='{self.displayname}', "
-            f"token='{self.auth_token}')" == repr(self.credentials)
-        )
+            f"token='{self.auth_token}', "
+            f"owner_id='{self.owner_id}')"
+        ) == repr(self.credentials)
 
     def test_tokens_validated(self, mocker):
         """Validate that tokens are validated when a credentials object is created"""

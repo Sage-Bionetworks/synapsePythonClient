@@ -91,6 +91,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
                 )
             credentials.username = profile_username
             credentials.displayname = profile_displayname
+            credentials.owner_id = profile.get("ownerId", None)
 
             return credentials
 

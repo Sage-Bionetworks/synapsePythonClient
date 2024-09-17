@@ -98,6 +98,7 @@ class TestSynapseCredentialProvider(object):
     def setup_method(self) -> None:
         self.username = "username"
         self.auth_token = "auth_token"
+        self.owner_id = 1234567890
         self.user_login_args = UserLoginArgs(
             self.username,
             self.auth_token,
@@ -149,6 +150,7 @@ class TestSynapseCredentialProvider(object):
         mock_init_auth_creds.return_value = mock_creds
         mock_creds.secret = self.auth_token
         mock_creds.username = self.username
+        mock_creds.owner_id = self.owner_id
         mock_rest_get.return_value = {"userName": self.username}
         creds = self.provider._create_synapse_credential(
             syn=self.syn, username=None, auth_token=self.auth_token
@@ -175,14 +177,15 @@ class TestSynapseCredentialProvider(object):
         assert creds is mock_creds
 
     @pytest.mark.parametrize(
-        "login_username,profile_username,profile_emails,profile_displayname",
+        "login_username,profile_username,profile_emails,profile_displayname,profile_owner_id",
         (
-            ("foo", "foo", ["foo@bar.com"], "foo"),  # username matches
+            ("foo", "foo", ["foo@bar.com"], "foo", 123),  # username matches
             (
                 "foo@bar.com",
                 "foo",
                 ["1@2.com", "foo@bar.com", "3@4.com"],
                 "foo",
+                456,
             ),  # email matches
         ),
     )
@@ -193,6 +196,7 @@ class TestSynapseCredentialProvider(object):
         profile_username,
         profile_emails,
         profile_displayname,
+        profile_owner_id,
     ) -> None:
         """Verify that if both a username/email and a auth token are provided, the login is successful
         if the token matches either the username or a profile email address."""
@@ -202,6 +206,7 @@ class TestSynapseCredentialProvider(object):
             "userName": profile_username,
             "emails": profile_emails,
             "displayName": profile_displayname,
+            "ownerId": profile_owner_id,
         }
 
         cred = self.provider._create_synapse_credential(
@@ -210,6 +215,7 @@ class TestSynapseCredentialProvider(object):
         assert cred.secret == self.auth_token
         assert cred.username == profile_username
         assert cred.displayname == profile_displayname
+        assert cred.owner_id == profile_owner_id
 
     def test_create_synapse_credential__username_auth_token_mismatch(
         self, mocker
