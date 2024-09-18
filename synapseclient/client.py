@@ -534,16 +534,16 @@ class Synapse(object):
             An instance of 'Synapse'.
 
         Raises:
-            SynapseError: No instance has been passed into a function where
-                the `synapse_client` kwarg is available, and no instance has been cached
-                during the Synapse constructor.
+            SynapseError: No Synapse client instance was provided, and no cached
+                instance is available. Ensure that either an instance is passed as the
+                `synapse_client` kwarg, or a cached instance is available.
         """
         if synapse_client:
             return synapse_client
 
         if not cls._synapse_client:
             raise SynapseError(
-                "No instance has been passed into a function where the `synapse_client` kwarg is available, and no instance has been cached during the Synapse constructor."
+                "No Synapse client instance was provided, and no cached instance is available. Ensure that either an instance is passed as the `synapse_client` kwarg, or a cached instance is available."
             )
         return cls._synapse_client
 
@@ -570,6 +570,10 @@ class Synapse(object):
             - urllib
             - requests
             - httpx
+
+        When OpenTelemetry is enabled it will automatically start the instrumentation
+        of these libraries. When it is disabled it will automatically stop the
+        instrumentation of these libraries.
         """
         if enable_open_telemetry and not Synapse._enable_open_telemetry:
             set_up_tracing(enabled=True)
