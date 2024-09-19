@@ -254,7 +254,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
                 Files and Folders under this Project and an exception occurs.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The project object.
@@ -342,7 +342,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The project object.
@@ -380,7 +380,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             None
@@ -445,7 +445,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
                     - None: No activity is set
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The copied project object.

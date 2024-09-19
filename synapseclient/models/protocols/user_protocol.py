@@ -27,7 +27,7 @@ class UserProfileSynchronousProtocol(Protocol):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -46,7 +46,7 @@ class UserProfileSynchronousProtocol(Protocol):
             user_id: The id of the user.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -67,7 +67,7 @@ class UserProfileSynchronousProtocol(Protocol):
             username: A name chosen by the user that uniquely identifies them.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The UserProfile object.
@@ -87,7 +87,7 @@ class UserProfileSynchronousProtocol(Protocol):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             True if the user is certified, False otherwise.

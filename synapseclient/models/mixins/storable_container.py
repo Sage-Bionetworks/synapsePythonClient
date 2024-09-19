@@ -104,7 +104,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 infinite loops. Be careful if setting this above 1.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The object that was called on. This will be the same object that was called on
@@ -362,7 +362,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 point at other Synapse entities.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
         """
         include_types = ["folder", "file"]
         if follow_link:
@@ -458,7 +458,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 infinite loops. Be careful if setting this above 1.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         """
 
@@ -623,7 +623,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 under this Folder and an exception occurs.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
         """
         if result is None:
             # We will recieve None when executing `_wrap_recursive_get_children` as

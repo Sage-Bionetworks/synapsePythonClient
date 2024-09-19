@@ -39,7 +39,7 @@ class FolderSynchronousProtocol(Protocol):
                 Files and Folders under this Folder and an exception occurs.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The folder object.
@@ -63,7 +63,7 @@ class FolderSynchronousProtocol(Protocol):
             parent: The parent folder or project this folder exists under.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The folder object.
@@ -80,7 +80,7 @@ class FolderSynchronousProtocol(Protocol):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             None
@@ -119,7 +119,7 @@ class FolderSynchronousProtocol(Protocol):
                     - None: No activity is set
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The copied folder object.

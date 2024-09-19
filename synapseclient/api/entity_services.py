@@ -24,7 +24,7 @@ async def post_entity(
         generated_by: The ID of the activity to associate with the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The requested entity matching
@@ -58,7 +58,7 @@ async def put_entity(
         generated_by: The ID of the activity to associate with the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The requested entity bundle matching
@@ -88,7 +88,7 @@ async def get_entity(
         entity_id: The ID of the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The requested entity bundle matching
@@ -118,7 +118,7 @@ async def get_upload_destination(
         entity_id: The ID of the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The upload destination.
@@ -144,7 +144,7 @@ async def get_upload_destination_location(
         location: A storage location ID of the upload destination.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The upload destination.
@@ -169,7 +169,7 @@ async def create_access_requirements_if_none(
         entity_id: The ID of the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
     """
     from synapseclient import Synapse
 
@@ -203,7 +203,7 @@ async def delete_entity_generated_by(
         entity_id: The ID of the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns: None
     """
@@ -228,7 +228,7 @@ async def get_entity_path(
         entity_id: The ID of the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         Entity paths matching:
@@ -255,7 +255,7 @@ async def get_entities_by_md5(
         md5: The MD5 of the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         Paginated results of:

@@ -54,7 +54,7 @@ class StorableContainerSynchronousProtocol(Protocol):
                 under this Folder and an exception occurs.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The object that was called on. This will be the same object that was called on

@@ -271,7 +271,7 @@ class Activity(ActivitySynchronousProtocol):
             parent: The parent entity to associate this activity with.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The activity object.
@@ -341,7 +341,7 @@ class Activity(ActivitySynchronousProtocol):
                 omitted.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The activity object or None if it does not exist.
@@ -391,7 +391,7 @@ class Activity(ActivitySynchronousProtocol):
             parent: The parent entity this activity is associated with.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the parent does not have an ID.
@@ -427,7 +427,7 @@ class Activity(ActivitySynchronousProtocol):
             parent: The parent entity this activity is associated with.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the parent does not have an ID.

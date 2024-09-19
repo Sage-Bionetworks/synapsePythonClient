@@ -35,7 +35,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             A Permissions object
@@ -70,7 +70,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             principal_id: Identifier of a user or group (defaults to PUBLIC users)
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             An array containing some combination of
@@ -117,7 +117,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 non-destructively.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             An Access Control List object

@@ -61,7 +61,7 @@ async def get_from_entity_factory(
             Synapse.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Example: Using this function
             Download file into cache
@@ -172,7 +172,7 @@ async def _search_for_file_by_md5(
         limit_search: Limit the search to a specific project or folder.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         A dictionary containing the entity bundle of the file found.
@@ -262,7 +262,7 @@ async def _cast_into_class_type(
             Synapse.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         A Synapse entity object.

@@ -99,7 +99,7 @@ async def download_file_entity(
         submission:       Access associated files through a submission rather than through an entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
     """
     from synapseclient import Synapse
 
@@ -212,7 +212,7 @@ async def download_file_entity_model(
         submission:       Access associated files through a submission rather than through an entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
     """
     from synapseclient import Synapse
 
@@ -320,7 +320,7 @@ async def download_by_file_handle(
         retries: The Number of download retries attempted before throwing an exception.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The path to downloaded file
@@ -579,7 +579,7 @@ async def download_from_url_multi_threaded(
         content_size:   The size of the content
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
     Raises:
         SynapseMd5MismatchError: If the actual MD5 does not match expected MD5.
 
@@ -650,7 +650,7 @@ def download_from_url(
         expected_md5:  Optional. If given, check that the MD5 of the downloaded file matches the expected MD5
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Raises:
         IOError:                 If the local file does not exist.

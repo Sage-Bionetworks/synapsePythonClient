@@ -33,7 +33,7 @@ async def store_entity(
         entity: The entity to store.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         If a read from Synapse is required to retireve the current state of the entity.

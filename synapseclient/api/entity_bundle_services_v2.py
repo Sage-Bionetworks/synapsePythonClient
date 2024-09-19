@@ -28,7 +28,7 @@ async def get_entity_id_bundle2(
             - includeRestrictionInformation: True
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The requested entity bundle matching
@@ -72,7 +72,7 @@ async def get_entity_id_version_bundle2(
             - includeRestrictionInformation: True
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The requested entity bundle matching
@@ -107,7 +107,7 @@ async def post_entity_bundle2_create(
         generated_by: The ID of the activity to associate with the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The requested entity bundle matching
@@ -138,7 +138,7 @@ async def put_entity_id_bundle2(
         generated_by: The ID of the activity to associate with the entity.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The requested entity bundle matching

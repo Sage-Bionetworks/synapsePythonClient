@@ -38,7 +38,7 @@ async def post_file_multipart(
         endpoint: Server endpoint to call to.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The requested multipart upload status matching
@@ -90,7 +90,7 @@ async def put_file_multipart_add(
             will fail.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         Object matching
@@ -130,7 +130,7 @@ async def put_file_multipart_complete(
         endpoint: Server endpoint to call to.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         Object matching
@@ -159,7 +159,7 @@ async def post_file_multipart_presigned_urls(
         part_numbers: The part numbers to get pre-signed URLs for.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         Object matching
@@ -205,7 +205,7 @@ async def post_external_object_store_filehandle(
         md5:                 The file's content MD5, if known.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         A FileHandle for objects that are stored externally.
@@ -250,7 +250,7 @@ async def post_external_filehandle(
         file_size:    The size of the file in bytes.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         A FileHandle for objects that are stored externally.
@@ -307,7 +307,7 @@ async def post_external_s3_file_handle(
         md5: MD5 of the file, if known
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         The created file handle.
@@ -369,7 +369,7 @@ async def get_file_handle(
         file_handle_id: The ID of the file handle to look up.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Returns:
         A file handle retrieved from the file handle service.
@@ -402,7 +402,7 @@ async def get_file_handle_for_download_async(
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Raises:
         SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.
@@ -463,7 +463,7 @@ def get_file_handle_for_download(
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Raises:
         SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.

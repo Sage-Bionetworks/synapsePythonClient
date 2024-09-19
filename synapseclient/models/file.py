@@ -779,7 +779,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                 into `store` will take precedence.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -911,7 +911,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                 filehandle.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -986,7 +986,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                 if it exists.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -1055,7 +1055,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             synapse_id: The ID of the file in Synapse.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -1087,7 +1087,7 @@ class File(FileSynchronousProtocol, AccessControllable):
             path: The path to the file on disk.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The file object.
@@ -1119,7 +1119,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                 be deleted.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             None
@@ -1180,7 +1180,7 @@ class File(FileSynchronousProtocol, AccessControllable):
                     - None: No activity is set
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The copied file object.
@@ -1246,7 +1246,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         Arguments:
             syn: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             True if the file needs to be uploaded, otherwise False.
@@ -1326,7 +1326,7 @@ class File(FileSynchronousProtocol, AccessControllable):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The file object.

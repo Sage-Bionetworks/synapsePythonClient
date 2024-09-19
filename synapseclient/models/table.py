@@ -316,7 +316,7 @@ class Column(ColumnSynchronousProtocol):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The Column instance stored in synapse.
@@ -511,7 +511,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             csv_path: The path to the CSV to store.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The path to the CSV that was stored.
@@ -540,7 +540,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             rows: The rows to delete.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             None
@@ -569,7 +569,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The Table instance stored in synapse.
@@ -640,7 +640,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The Table instance stored in synapse.
@@ -667,7 +667,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             None
@@ -695,7 +695,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             result_format: The format of the results. Defaults to CsvResultFormat().
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
         Returns:
             The results of the query.

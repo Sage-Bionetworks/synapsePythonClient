@@ -75,7 +75,7 @@ def shared_download_progress_bar(
         file_size: The size of the file being downloaded.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                insance from the Synapse class constructor.
+                instance from the Synapse class constructor.
 
     Yields:
         A context manager that will handle the download progress bar.
