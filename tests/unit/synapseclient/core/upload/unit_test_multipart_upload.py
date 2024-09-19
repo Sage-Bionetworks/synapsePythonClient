@@ -221,7 +221,7 @@ class TestUploadAttempt:
         upload._aborted = True
 
         with pytest.raises(SynapseUploadAbortedException):
-            upload._handle_part(5, None)
+            upload._handle_part(5)
 
     def test_handle_part__500(self, syn):
         """Test that we retry if we encounter a 500 from AWS on a PUT to the signed URL"""
@@ -322,7 +322,7 @@ class TestUploadAttempt:
 
             mock_session.put.side_effect = [aws_call[1] for aws_call in aws_calls]
 
-            result = upload._handle_part(1, None)
+            result = upload._handle_part(1)
 
             expected_put_calls = [aws_call[0] for aws_call in aws_calls]
             assert mock_session.put.call_args_list == expected_put_calls
@@ -464,7 +464,7 @@ class TestUploadAttempt:
             mock_session.put.return_value = mock_response
 
             with pytest.raises(SynapseHTTPError):
-                upload._handle_part(1, None)
+                upload._handle_part(1)
 
     def test_call_upload(self, syn):
         """Verify the behavior of an upload call, it should trigger

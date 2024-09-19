@@ -167,7 +167,7 @@ class TestActivity:
             "updateActivity",
             return_value=(self.get_example_synapse_activity_output()),
         ) as path_update_activity:
-            result_of_store = activity.store()
+            result_of_store = activity.store(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             sample_input = self.get_example_synapse_activity_input()
@@ -222,7 +222,9 @@ class TestActivity:
             "setProvenance",
             return_value=(self.get_example_synapse_activity_output()),
         ) as path_set_provenance:
-            result_of_store = activity.store(parent=File("syn999"))
+            result_of_store = activity.store(
+                parent=File("syn999"), synapse_client=self.syn
+            )
 
             # THEN we should call the method with this data
             sample_input = self.get_example_synapse_activity_input()
@@ -265,7 +267,7 @@ class TestActivity:
             "getProvenance",
             return_value=(self.get_example_synapse_activity_output()),
         ) as path_get_provenance:
-            result_of_get = Activity.from_parent(parent=parent)
+            result_of_get = Activity.from_parent(parent=parent, synapse_client=self.syn)
 
             # THEN we should call the method with this data
             path_get_provenance.assert_called_once_with(
@@ -307,7 +309,7 @@ class TestActivity:
             attribute="deleteProvenance",
             return_value=None,
         ) as path_delete_provenance:
-            Activity.delete(parent=parent)
+            Activity.delete(parent=parent, synapse_client=self.syn)
 
             # THEN we should call the method with this data
             path_delete_provenance.assert_called_once_with(

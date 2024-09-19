@@ -107,7 +107,7 @@ class TestUser:
             "get_user_profile_by_id",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = user_profile.get()
+            profile = user_profile.get(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(id=123)
@@ -149,7 +149,7 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = user_profile.get()
+            profile = user_profile.get(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(username=USER_NAME)
@@ -191,7 +191,7 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = user_profile.get()
+            profile = user_profile.get(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with()
@@ -232,7 +232,7 @@ class TestUser:
             "get_user_profile_by_id",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = UserProfile.from_id(user_id=123)
+            profile = UserProfile.from_id(user_id=123, synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(id=123)
@@ -273,7 +273,9 @@ class TestUser:
             "get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
-            profile = UserProfile.from_username(username=USER_NAME)
+            profile = UserProfile.from_username(
+                username=USER_NAME, synapse_client=self.syn
+            )
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(username=USER_NAME)
@@ -315,7 +317,7 @@ class TestUser:
             "is_certified",
             return_value=True,
         ) as mocked_client_call:
-            is_certified = user_profile.is_certified()
+            is_certified = user_profile.is_certified(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(user=123)
@@ -333,7 +335,7 @@ class TestUser:
             "is_certified",
             return_value=True,
         ) as mocked_client_call:
-            is_certified = user_profile.is_certified()
+            is_certified = user_profile.is_certified(synapse_client=self.syn)
 
             # THEN we should call the method with this data
             mocked_client_call.assert_called_once_with(user=USER_NAME)
@@ -347,7 +349,7 @@ class TestUser:
 
         # WHEN we check if the user is certified
         with pytest.raises(ValueError) as e:
-            user_profile.is_certified()
+            user_profile.is_certified(synapse_client=self.syn)
 
         # THEN we should get an error
         assert str(e.value) == "Must specify either id or username"

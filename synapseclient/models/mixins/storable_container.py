@@ -4,7 +4,6 @@ import asyncio
 import os
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from opentelemetry import context
 from typing_extensions import Self
 
 from synapseclient import Synapse
@@ -17,7 +16,6 @@ from synapseclient.core.constants.concrete_types import (
 )
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.storable_container_protocol import (
     StorableContainerSynchronousProtocol,
 )
@@ -104,8 +102,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             link_hops: The number of hops to follow the link. A number of 1 is used to
                 prevent circular references. There is nothing in place to prevent
                 infinite loops. Be careful if setting this above 1.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The object that was called on. This will be the same object that was called on
@@ -233,15 +232,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         path = os.path.expanduser(path) if path else None
 
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         children = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: self._retrieve_children(
-                    follow_link=follow_link,
-                    synapse_client=synapse_client,
-                ),
-                current_context,
+            lambda: self._retrieve_children(
+                follow_link=follow_link,
+                synapse_client=synapse_client,
             ),
         )
 
@@ -365,8 +360,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         Arguments:
             follow_link: Whether to follow a link entity or not. Links can be used to
                 point at other Synapse entities.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
         """
         include_types = ["folder", "file"]
         if follow_link:
@@ -460,8 +456,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             link_hops: The number of hops to follow the link. A number of 1 is used to
                 prevent circular references. There is nothing in place to prevent
                 infinite loops. Be careful if setting this above 1.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         """
 
@@ -495,7 +492,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 )
             else:
                 pending_tasks.append(
-                    asyncio.create_task(wrap_coroutine(folder.get_async()))
+                    asyncio.create_task(
+                        wrap_coroutine(folder.get_async(synapse_client=synapse_client))
+                    )
                 )
 
         elif synapse_id and child_type == FILE_ENTITY:
@@ -511,7 +510,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
             pending_tasks.append(
                 asyncio.create_task(
-                    wrap_coroutine(file.get_async(include_activity=include_activity))
+                    wrap_coroutine(
+                        file.get_async(
+                            include_activity=include_activity,
+                            synapse_client=synapse_client,
+                        )
+                    )
                 )
             )
         elif link_hops > 0 and synapse_id and child_type == LINK_ENTITY:
@@ -617,8 +621,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             result: The result of the task that was completed.
             failure_strategy: Determines how to handle failures when retrieving children
                 under this Folder and an exception occurs.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
         """
         if result is None:
             # We will recieve None when executing `_wrap_recursive_get_children` as

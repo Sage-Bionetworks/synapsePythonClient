@@ -46,7 +46,7 @@ class TestProjectStore:
         # GIVEN a Project object
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -70,7 +70,7 @@ class TestProjectStore:
         project.files.append(file)
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -100,7 +100,7 @@ class TestProjectStore:
         self, file: File, project: Project
     ) -> None:
         # GIVEN that the project is already stored in Synapse
-        project_copy = Project(name=project.name).store()
+        project_copy = Project(name=project.name).store(synapse_client=self.syn)
         assert project_copy.id is not None
 
         # AND a Folder under the project instance that didn't interact with Synapse
@@ -111,7 +111,7 @@ class TestProjectStore:
         folder.files.append(file)
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -150,7 +150,7 @@ class TestProjectStore:
         project.files = files
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -202,7 +202,7 @@ class TestProjectStore:
         project.folders = folders
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -255,7 +255,7 @@ class TestProjectStore:
         project.annotations = annotations
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -274,7 +274,9 @@ class TestProjectStore:
 
         # AND I expect the annotations to be stored on Synapse
         assert stored_project.annotations == annotations
-        assert (Project(id=stored_project.id).get()).annotations == annotations
+        assert (
+            Project(id=stored_project.id).get(synapse_client=self.syn)
+        ).annotations == annotations
 
 
 class TestProjectGet:
@@ -294,11 +296,11 @@ class TestProjectGet:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # WHEN I get the Project from Synapse
-        project_copy = Project(id=stored_project.id).get()
+        project_copy = Project(id=stored_project.id).get(synapse_client=self.syn)
 
         # THEN I expect the stored Project to have the expected properties
         assert project_copy.id is not None
@@ -320,11 +322,11 @@ class TestProjectGet:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # WHEN I get the Project from Synapse
-        project_copy = Project(name=stored_project.name).get()
+        project_copy = Project(name=stored_project.name).get(synapse_client=self.syn)
 
         # THEN I expect the stored Project to have the expected properties
         assert project_copy.id is not None
@@ -360,15 +362,15 @@ class TestProjectDelete:
         # GIVEN a Project object
 
         # AND the project is stored in synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # WHEN I delete the Project from Synapse
-        stored_project.delete()
+        stored_project.delete(synapse_client=self.syn)
 
         # THEN I expect the project to have been deleted
         with pytest.raises(SynapseHTTPError) as e:
-            stored_project.get()
+            stored_project.get(synapse_client=self.syn)
 
         assert f"404 Client Error: Entity {stored_project.id} is in trash can." in str(
             e.value
@@ -403,7 +405,7 @@ class TestProjectCopy:
         # GIVEN a project to copy to
         destination_project = Project(
             name=str(uuid.uuid4()), description="Destination for project copy"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(destination_project.id)
 
         # AND multiple files in the source project
@@ -429,14 +431,18 @@ class TestProjectCopy:
 
         # WHEN I store the Project on Synapse
         project.annotations = {"test": ["test"]}
-        project = project.store()
+        project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # AND I copy the project to the destination project
-        copied_project = project.copy(destination_id=destination_project.id)
+        copied_project = project.copy(
+            destination_id=destination_project.id, synapse_client=self.syn
+        )
 
         # AND I sync the destination project from Synapse
-        destination_project.sync_from_synapse(recursive=False, download_file=False)
+        destination_project.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
 
         # THEN I expect the copied Project to have the expected properties
         assert len(destination_project.files) == 3
@@ -474,7 +480,7 @@ class TestProjectCopy:
         # GIVEN a project to copy to
         destination_project = Project(
             name=str(uuid.uuid4()), description="Destination for project copy"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(destination_project.id)
 
         # AND multiple files in the source project
@@ -500,16 +506,20 @@ class TestProjectCopy:
 
         # WHEN I store the Project on Synapse
         project.annotations = {"test": ["test"]}
-        project = project.store()
+        project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # AND I copy the project to the destination project
         copied_project = project.copy(
-            destination_id=destination_project.id, exclude_types=["file"]
+            destination_id=destination_project.id,
+            exclude_types=["file"],
+            synapse_client=self.syn,
         )
 
         # AND I sync the destination project from Synapse
-        destination_project.sync_from_synapse(recursive=False, download_file=False)
+        destination_project.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
 
         # THEN I expect the copied Project to have the expected properties
         assert len(destination_project.folders) == 2
@@ -589,7 +599,9 @@ class TestProjectSyncFromSynapse:
         self.schedule_for_cleanup(project.id)
 
         # AND I sync the project from Synapse
-        copied_project = stored_project.sync_from_synapse(path=root_directory_path)
+        copied_project = stored_project.sync_from_synapse(
+            path=root_directory_path, synapse_client=self.syn
+        )
 
         # THEN I expect that the project and its contents are synced from Synapse to disk
         for file in copied_project.files:

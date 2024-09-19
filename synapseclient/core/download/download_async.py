@@ -11,12 +11,10 @@ import gc
 import os
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Generator, NamedTuple, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Generator, NamedTuple, Optional, Set, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import httpx
-from opentelemetry import context
-from opentelemetry.context import Context
 
 from synapseclient.api.file_services import (
     get_file_handle_for_download,
@@ -246,33 +244,26 @@ async def _get_file_size_wrapper(syn: "Synapse", url: str, debug: bool) -> int:
         The size of the file in bytes
     """
     loop = asyncio.get_running_loop()
-    otel_context = context.get_current()
     return await loop.run_in_executor(
         syn._get_thread_pool_executor(asyncio_event_loop=loop),
         _get_file_size,
         syn,
         url,
         debug,
-        otel_context,
     )
 
 
-def _get_file_size(
-    syn: "Synapse", url: str, debug: bool, otel_context: context.Context = None
-) -> int:
+def _get_file_size(syn: "Synapse", url: str, debug: bool) -> int:
     """
     Gets the size of the file located at url
 
     Arguments:
         url: The pre-signed url of the file
         debug: A boolean to specify if debug mode is on
-        otel_context: The OpenTelemetry context
 
     Returns:
         The size of the file in bytes
     """
-    if otel_context:
-        context.attach(otel_context)
     with syn._requests_session_storage.stream("GET", url) as response:
         _raise_for_status_httpx(
             response=response,
@@ -420,7 +411,6 @@ class _MultithreadedDownloader:
         end: int,
     ) -> Tuple[int, int]:
         loop = asyncio.get_running_loop()
-        otel_context = context.get_current()
         return await loop.run_in_executor(
             self._syn._get_thread_pool_executor(asyncio_event_loop=loop),
             self._stream_and_write_chunk,
@@ -428,7 +418,6 @@ class _MultithreadedDownloader:
             url_provider,
             start,
             end,
-            otel_context,
         )
 
     def _check_for_abort(self, start: int, end: int) -> None:
@@ -445,7 +434,6 @@ class _MultithreadedDownloader:
         presigned_url_provider: PresignedUrlProvider,
         start: int,
         end: int,
-        otel_context: Union[Context, None],
     ) -> Tuple[int, int]:
         """
         Wrapper around the actual download logic to handle retries and range requests.
@@ -455,13 +443,10 @@ class _MultithreadedDownloader:
             presigned_url_provider: A URL provider for the presigned urls
             start: The start byte of the range to download
             end: The end byte of the range to download
-            otel_context: The OpenTelemetry context if known, else None
 
         Returns:
             The start and end bytes of the range downloaded
         """
-        if otel_context:
-            context.attach(otel_context)
         self._check_for_abort(start=start, end=end)
         range_header = {"Range": f"bytes={start}-{end}"}
 

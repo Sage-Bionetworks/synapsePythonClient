@@ -16,6 +16,7 @@ import logging
 import mimetypes
 import numbers
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -28,6 +29,7 @@ import warnings
 import webbrowser
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from http.client import HTTPResponse
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import asyncio_atexit
@@ -35,7 +37,11 @@ import httpx
 import requests
 from deprecated import deprecated
 from opentelemetry import trace
-from opentelemetry.trace import SpanKind
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.instrumentation.threading import ThreadingInstrumentor
+from opentelemetry.instrumentation.urllib import URLLibInstrumentor
+from opentelemetry.trace import Span
 
 import synapseclient
 import synapseclient.core.multithread_download as multithread_download
@@ -260,6 +266,8 @@ class Synapse(object):
     """
 
     _synapse_client = None
+    _allow_client_caching = True
+    _enable_open_telemetry = False
 
     # TODO: add additional boolean for write to disk?
     def __init__(
@@ -304,6 +312,9 @@ class Synapse(object):
             cache_client: Whether to cache the Synapse client object in the Synapse module. Defaults to True.
                              When set to True anywhere a `Synapse` object is optional you do not need to pass an
                              instance of `Synapse` to that function, method, or class.
+                             When working in a multi-user environment it is
+                             recommended to set this to False, or use
+                             `Synapse.allow_client_caching(False)`.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
@@ -321,46 +332,9 @@ class Synapse(object):
         else:
             self._requests_session_async_synapse = {}
 
-        span_dict: Dict[httpx.Request, trace.Span] = {}
-
-        def log_request(request: httpx.Request) -> None:
-            """
-            Log the HTTPX request to an otel span.
-
-            Arguments:
-                request: The HTTPX request object.
-            """
-            # Don't log the query string as it will contain tokens
-            url_without_query_string: httpx.URL = request.url.copy_with(query=None)
-            current_span = trace.get_current_span()
-            if current_span.is_recording():
-                span = tracer.start_span(
-                    f"{request.method} {url_without_query_string}", kind=SpanKind.CLIENT
-                )
-                span.set_attributes(
-                    {
-                        "url": str(url_without_query_string),
-                        "http.method": request.method,
-                    }
-                )
-                span_dict.update({request: span})
-
-        def log_response(response: httpx.Response) -> None:
-            """
-            Log the HTTPX response to an otel span.
-
-            Arguments:
-                response: The HTTPX response object.
-            """
-            span = span_dict.pop(response.request, None)
-            if span and span.is_recording():
-                span.set_attribute("http.response.status_code", response.status_code)
-                span.end()
-
-        event_hooks = {"request": [log_request], "response": [log_response]}
         httpx_timeout = httpx.Timeout(70, pool=None)
         self._requests_session_storage = requests_session_storage or httpx.Client(
-            timeout=httpx_timeout, event_hooks=event_hooks
+            timeout=httpx_timeout
         )
 
         cache_root_dir = (
@@ -415,7 +389,7 @@ class Synapse(object):
         self._parallel_file_transfer_semaphore = {}
         self.use_boto_sts_transfers = transfer_config["use_boto_sts"]
         self._parts_transfered_counter = 0
-        if cache_client:
+        if cache_client and Synapse._allow_client_caching:
             Synapse.set_client(synapse_client=self)
 
     def _get_requests_session_async_synapse(
@@ -449,47 +423,11 @@ class Synapse(object):
             del self._requests_session_async_synapse[asyncio_event_loop]
 
         httpx_timeout = httpx.Timeout(70, pool=None)
-        span_dict: Dict[httpx.Request, trace.Span] = {}
-
-        async def log_request(request: httpx.Request) -> None:
-            """
-            Log the HTTPX request to an otel span.
-
-            Arguments:
-                request: The HTTPX request object.
-            """
-            current_span = trace.get_current_span()
-            if current_span.is_recording():
-                span = tracer.start_span(
-                    f"{request.method} {request.url}", kind=SpanKind.CLIENT
-                )
-                span.set_attributes(
-                    {"url": str(request.url), "http.method": request.method}
-                )
-                self._attach_rest_data_to_otel(
-                    request.method, str(request.url), request.content, span
-                )
-                span_dict.update({request: span})
-
-        async def log_response(response: httpx.Response) -> None:
-            """
-            Log the HTTPX response to an otel span.
-
-            Arguments:
-                response: The HTTPX response object.
-            """
-            span = span_dict.pop(response.request, None)
-            if span and span.is_recording():
-                span.set_attribute("http.response.status_code", response.status_code)
-                span.end()
-
-        event_hooks = {"request": [log_request], "response": [log_response]}
         self._requests_session_async_synapse.update(
             {
                 asyncio_event_loop: httpx.AsyncClient(
                     limits=httpx.Limits(max_connections=25),
                     timeout=httpx_timeout,
-                    event_hooks=event_hooks,
                 )
             }
         )
@@ -596,16 +534,52 @@ class Synapse(object):
             An instance of 'Synapse'.
 
         Raises:
-            SynapseError: No instance has been created - Please use login() first
+            SynapseError: No Synapse client instance was provided, and no cached
+                instance is available. Ensure that either an instance is passed as the
+                `synapse_client` kwarg, or a cached instance is available.
         """
         if synapse_client:
             return synapse_client
 
         if not cls._synapse_client:
             raise SynapseError(
-                "No instance has been created - Please use login() first"
+                "No Synapse client instance was provided, and no cached instance is available. Ensure that either an instance is passed as the `synapse_client` kwarg, or a cached instance is available."
             )
         return cls._synapse_client
+
+    @staticmethod
+    def allow_client_caching(allow_client_caching: bool) -> None:
+        """Allows for a global setting to enable or disable caching of the Synapse
+        client object. **If you are working in a multi-user environment you should set
+        this to False to prevent any possibility of picking up another user session.**
+
+
+        As a consequence of setting this to false you must pass a Synapse class instance
+        to any function, method, or class that requires it - If if it is marked as
+        `Optional`.
+        """
+        Synapse._allow_client_caching = allow_client_caching
+
+    @staticmethod
+    def enable_open_telemetry(enable_open_telemetry: bool) -> None:
+        """Determines whether OpenTelemetry is enabled for the Synapse client. This is
+        used to know whether or not this library will automatically kick off the
+        instruementation of several dependent libraries including:
+
+            - threading
+            - urllib
+            - requests
+            - httpx
+
+        When OpenTelemetry is enabled it will automatically start the instrumentation
+        of these libraries. When it is disabled it will automatically stop the
+        instrumentation of these libraries.
+        """
+        if enable_open_telemetry and not Synapse._enable_open_telemetry:
+            set_up_tracing(enabled=True)
+        elif not enable_open_telemetry and Synapse._enable_open_telemetry:
+            set_up_tracing(enabled=False)
+        Synapse._enable_open_telemetry = enable_open_telemetry
 
     @classmethod
     def set_client(cls, synapse_client) -> None:
@@ -6070,52 +6044,6 @@ class Synapse(object):
 
             raise
 
-    def _attach_rest_data_to_otel(
-        self,
-        method: str,
-        uri: str,
-        data: typing.Union[str, bytes],
-        current_span: trace.Span,
-    ) -> None:
-        """Handle attaching a few piece of data from the REST call into the OTEL span.
-        This is used for easier tracking of data that is being sent out of this service.
-
-        Arguments:
-            method: The HTTP method used in the REST call.
-            uri: The URI of the REST call.
-            data: The data being sent in the REST call.
-        """
-        current_span.set_attributes({"url": uri, "http.method": method.upper()})
-        if current_span.is_recording() and data:
-            try:
-                if isinstance(data, str):
-                    data_to_parse = data
-                elif isinstance(data, bytes):
-                    data_to_parse = data.decode("utf-8")
-                else:
-                    return
-                data_dict = json.loads(data_to_parse)
-                if "parentId" in data_dict:
-                    current_span.set_attribute(
-                        "synapse.parent_id", data_dict["parentId"]
-                    )
-                if "id" in data_dict:
-                    current_span.set_attribute("synapse.id", data_dict["id"])
-                if "concreteType" in data_dict:
-                    current_span.set_attribute(
-                        "synapse.concrete_type", data_dict["concreteType"]
-                    )
-                if "entityName" in data_dict:
-                    current_span.set_attribute(
-                        "synapse.entity_name", data_dict["entityName"]
-                    )
-                elif "name" in data_dict:
-                    current_span.set_attribute("synapse.name", data_dict["name"])
-            except Exception as ex:
-                self.logger.debug(
-                    "Failed to parse data for OTEL span in _rest_call", ex
-                )
-
     def _rest_call(
         self,
         method,
@@ -6154,12 +6082,6 @@ class Synapse(object):
 
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
-        current_span = trace.get_current_span()
-        if current_span.is_recording():
-            current_span = tracer.start_span(
-                f"{method.upper()} {uri}", kind=SpanKind.CLIENT
-            )
-            self._attach_rest_data_to_otel(method, uri, data, current_span)
         response = with_retry(
             lambda: requests_method_fn(
                 uri,
@@ -6171,8 +6093,6 @@ class Synapse(object):
             verbose=self.debug,
             **retryPolicy,
         )
-        if current_span.is_recording():
-            current_span.end()
         self._handle_synapse_http_error(response)
         return response
 
@@ -6344,9 +6264,6 @@ class Synapse(object):
 
     def _return_rest_body(self, response) -> Union[Dict[str, Any], str]:
         """Returns either a dictionary or a string depending on the 'content-type' of the response."""
-        trace.get_current_span().set_attributes(
-            {"http.response.status_code": response.status_code}
-        )
         if is_json(response.headers.get("content-type", None)):
             return response.json()
         return response.text
@@ -6578,3 +6495,88 @@ class Synapse(object):
             requests_session_async_synapse,
             **kwargs,
         )
+
+
+async def async_request_hook_httpx(span: Span, request: httpx.Request) -> None:
+    """Hook used to encapsulate a span for this library. The request hook is called
+    shortly after entering the library. The response hook is called shortly before
+    exiting the library."""
+    try:
+        syn_id = re.search(r"syn\d+", request.url).group()
+        span.set_attribute("synapse.id", syn_id)
+    except Exception:
+        # Let this silently fail at this point. To revist later.
+        pass
+
+
+async def async_response_hook_httpx(
+    span: Span, request: httpx.Request, response: httpx.Response
+) -> None:
+    """Hook used to encapsulate a span for this library. The request hook is called
+    shortly after entering the library. The response hook is called shortly before
+    exiting the library."""
+    pass
+
+
+def request_hook_requests(span: Span, request_obj: requests.PreparedRequest) -> None:
+    """Hook used to encapsulate a span for this library. The request hook is called
+    shortly after entering the library. The response hook is called shortly before
+    exiting the library."""
+    try:
+        syn_id = re.search(r"syn\d+", request_obj.url).group()
+        span.set_attribute("synapse.id", syn_id)
+    except Exception:
+        # Let this silently fail at this point. To revist later.
+        pass
+
+
+def response_hook_requests(
+    span: Span, request_obj: requests.PreparedRequest, response: requests.Response
+) -> None:
+    """Hook used to encapsulate a span for this library. The request hook is called
+    shortly after entering the library. The response hook is called shortly before
+    exiting the library."""
+    pass
+
+
+def request_hook_urllib(span: Span, request_obj: urllib_request.Request) -> None:
+    """Hook used to encapsulate a span for this library. The request hook is called
+    shortly after entering the library. The response hook is called shortly before
+    exiting the library."""
+    try:
+        syn_id = re.search(r"syn\d+", request_obj.full_url).group()
+        span.set_attribute("synapse.id", syn_id)
+    except Exception:
+        # Let this silently fail at this point. To revist later.
+        pass
+
+
+def response_hook_urllib(
+    span: Span, request_obj: urllib_request.Request, response: HTTPResponse
+) -> None:
+    """Hook used to encapsulate a span for this library. The request hook is called
+    shortly after entering the library. The response hook is called shortly before
+    exiting the library."""
+    pass
+
+
+# These libraries are used to automatically trace requests made by the Synapse client.
+# As well as the ThreadingInstrumentor provides context propagation through threads.
+def set_up_tracing(enabled: bool) -> None:
+    if enabled:
+        ThreadingInstrumentor().instrument()
+        HTTPXClientInstrumentor().instrument(
+            async_request_hook=async_request_hook_httpx,
+            async_response_hook=async_response_hook_httpx,
+        )
+        RequestsInstrumentor().instrument(
+            request_hook=request_hook_requests, response_hook=response_hook_requests
+        )
+        URLLibInstrumentor().instrument(
+            request_hook=request_hook_urllib, response_hook=response_hook_urllib
+        )
+    else:
+        ThreadingInstrumentor().uninstrument()
+        HTTPXClientInstrumentor().uninstrument()
+        RequestsInstrumentor().uninstrument()
+        URLLibInstrumentor().uninstrument()

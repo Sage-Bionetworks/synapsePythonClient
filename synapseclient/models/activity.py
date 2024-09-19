@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.activity import Activity as Synapse_Activity
@@ -10,7 +10,6 @@ from synapseclient.api import delete_entity_generated_by
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants.concrete_types import USED_ENTITY, USED_URL
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.activity_protocol import ActivitySynchronousProtocol
 
 if TYPE_CHECKING:
@@ -270,8 +269,9 @@ class Activity(ActivitySynchronousProtocol):
 
         Arguments:
             parent: The parent entity to associate this activity with.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The activity object.
@@ -295,7 +295,6 @@ class Activity(ActivitySynchronousProtocol):
         )
 
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         if self.id:
             # Despite init in `Synapse_Activity` not accepting an ID/ETAG the
             # `updateActivity` method expects that it exists on the dict
@@ -305,26 +304,18 @@ class Activity(ActivitySynchronousProtocol):
         if parent:
             saved_activity = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).setProvenance(
-                        entity=parent.id,
-                        activity=synapse_activity,
-                    ),
-                    current_context,
+                lambda: Synapse.get_client(synapse_client=synapse_client).setProvenance(
+                    entity=parent.id,
+                    activity=synapse_activity,
                 ),
             )
         else:
             saved_activity = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).updateActivity(
-                        activity=synapse_activity,
-                    ),
-                    current_context,
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).updateActivity(
+                    activity=synapse_activity,
                 ),
             )
         self.fill_from_dict(synapse_activity=saved_activity)
@@ -348,8 +339,9 @@ class Activity(ActivitySynchronousProtocol):
             parent: The parent entity this activity is associated with. The parent may
                 also have a version_number. Gets the most recent version if version is
                 omitted.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The activity object or None if it does not exist.
@@ -360,18 +352,14 @@ class Activity(ActivitySynchronousProtocol):
         # TODO: Input validation: SYNPY-1400
         with tracer.start_as_current_span(name=f"Activity_get: Parent_ID: {parent.id}"):
             loop = asyncio.get_event_loop()
-            current_context = context.get_current()
             try:
                 synapse_activity = await loop.run_in_executor(
                     None,
-                    lambda: run_and_attach_otel_context(
-                        lambda: Synapse.get_client(
-                            synapse_client=synapse_client
-                        ).getProvenance(
-                            entity=parent.id,
-                            version=parent.version_number,
-                        ),
-                        current_context,
+                    lambda: Synapse.get_client(
+                        synapse_client=synapse_client
+                    ).getProvenance(
+                        entity=parent.id,
+                        version=parent.version_number,
                     ),
                 )
             except SynapseHTTPError as ex:
@@ -401,8 +389,9 @@ class Activity(ActivitySynchronousProtocol):
 
         Arguments:
             parent: The parent entity this activity is associated with.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Raises:
             ValueError: If the parent does not have an ID.
@@ -412,16 +401,12 @@ class Activity(ActivitySynchronousProtocol):
             name=f"Activity_delete: Parent_ID: {parent.id}"
         ):
             loop = asyncio.get_event_loop()
-            current_context = context.get_current()
             await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).deleteProvenance(
-                        entity=parent.id,
-                    ),
-                    current_context,
+                lambda: Synapse.get_client(
+                    synapse_client=synapse_client
+                ).deleteProvenance(
+                    entity=parent.id,
                 ),
             )
             parent.activity = None
@@ -440,8 +425,9 @@ class Activity(ActivitySynchronousProtocol):
 
         Arguments:
             parent: The parent entity this activity is associated with.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Raises:
             ValueError: If the parent does not have an ID.

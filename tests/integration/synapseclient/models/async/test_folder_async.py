@@ -234,7 +234,7 @@ class TestFolderStore:
         # AND I expect the annotations to be stored on Synapse
         assert stored_folder.annotations == annotations
         assert (
-            await Folder(id=stored_folder.id).get_async()
+            await Folder(id=stored_folder.id).get_async(synapse_client=self.syn)
         ).annotations == annotations
 
 
@@ -261,7 +261,9 @@ class TestFolderGet:
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I get the Folder from Synapse
-        folder_copy = await Folder(id=stored_folder.id).get_async()
+        folder_copy = await Folder(id=stored_folder.id).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect the stored Folder to have the expected properties
         assert folder_copy.id is not None
@@ -289,7 +291,7 @@ class TestFolderGet:
         # WHEN I get the Folder from Synapse
         folder_copy = await Folder(
             name=stored_folder.name, parent_id=stored_folder.parent_id
-        ).get_async()
+        ).get_async(synapse_client=self.syn)
 
         # THEN I expect the stored Folder to have the expected properties
         assert folder_copy.id is not None
@@ -316,7 +318,7 @@ class TestFolderGet:
 
         # WHEN I get the Folder from Synapse
         folder_copy = await Folder(name=stored_folder.name).get_async(
-            parent=project_model
+            parent=project_model, synapse_client=self.syn
         )
 
         # THEN I expect the stored Folder to have the expected properties

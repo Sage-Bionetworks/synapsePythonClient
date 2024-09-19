@@ -18,9 +18,8 @@ import synapseclient
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.api.file_services import get_file_handle_for_download
-from synapseclient.core import exceptions
 from synapseclient.core.download import download_from_url, download_functions
-from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError
+from synapseclient.core.exceptions import SynapseMd5MismatchError
 from synapseclient.models import File, Project
 from tests.test_utils import spy_for_async_function
 
@@ -59,7 +58,7 @@ class TestDownloadCollisions:
             original_file_path = utils.make_bogus_data_file()
             file = await File(
                 path=original_file_path, parent_id=project_model.id
-            ).store_async()
+            ).store_async(synapse_client=syn)
             original_file_md5 = file.file_handle.content_md5
             schedule_for_cleanup(original_file_path)
             schedule_for_cleanup(file.id)
@@ -77,7 +76,7 @@ class TestDownloadCollisions:
                 id=file.id,
                 if_collision="overwrite.local",
                 path=os.path.dirname(original_file_path),
-            ).get_async()
+            ).get_async(synapse_client=syn)
 
             # THEN the file is downloaded replacing the file on disk
             assert utils.equal_paths(original_file_path, file.path)
@@ -107,7 +106,7 @@ class TestDownloadCollisions:
             original_file_path = utils.make_bogus_data_file()
             file = await File(
                 path=original_file_path, parent_id=project_model.id
-            ).store_async()
+            ).store_async(synapse_client=syn)
             schedule_for_cleanup(file.id)
             schedule_for_cleanup(original_file_path)
 
@@ -117,7 +116,9 @@ class TestDownloadCollisions:
             )
 
             # WHEN I download the file
-            file = await File(id=file.id, if_collision="keep.local").get_async()
+            file = await File(id=file.id, if_collision="keep.local").get_async(
+                synapse_client=syn
+            )
 
             # THEN the file is not downloaded again, and the file path is the same
             assert os.path.exists(file.path)
@@ -154,7 +155,7 @@ class TestDownloadCaching:
             original_file_path = utils.make_bogus_data_file()
             file = await File(
                 path=original_file_path, parent_id=project_model.id
-            ).store_async()
+            ).store_async(synapse_client=syn)
             schedule_for_cleanup(file.id)
             schedule_for_cleanup(original_file_path)
 
@@ -164,7 +165,7 @@ class TestDownloadCaching:
             )
 
             # WHEN I download the file
-            file = await File(id=file.id).get_async()
+            file = await File(id=file.id).get_async(synapse_client=syn)
 
             # THEN the file is not downloaded again, and the file path is the same
             assert os.path.exists(file.path)
@@ -197,7 +198,7 @@ class TestDownloadCaching:
             original_file_path = utils.make_bogus_data_file()
             file = await File(
                 path=original_file_path, parent_id=project_model.id
-            ).store_async()
+            ).store_async(synapse_client=syn)
             schedule_for_cleanup(file.id)
             schedule_for_cleanup(original_file_path)
 
@@ -212,7 +213,9 @@ class TestDownloadCaching:
                 "subdirectory",
             )
             schedule_for_cleanup(updated_location)
-            file = await File(id=file.id, path=updated_location).get_async()
+            file = await File(id=file.id, path=updated_location).get_async(
+                synapse_client=syn
+            )
             schedule_for_cleanup(file.path)
 
             # THEN the file is not downloaded again, but it copied to the new location
@@ -232,13 +235,16 @@ class TestDownloadFromUrl:
     `synapseclient/core/download/download_functions.py::download_from_url`"""
 
     async def test_download_check_md5(
-        self, project_model: Project, schedule_for_cleanup: Callable[..., None]
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
     ) -> None:
         tempfile_path = utils.make_bogus_data_file()
         schedule_for_cleanup(tempfile_path)
         entity_bad_md5 = await File(
             path=tempfile_path, parent_id=project_model.id, synapse_store=False
-        ).store_async()
+        ).store_async(synapse_client=syn)
 
         with pytest.raises(SynapseMd5MismatchError):
             await download_from_url(
@@ -258,7 +264,9 @@ class TestDownloadFromUrl:
     ) -> None:
         # GIVEN a file stored in synapse
         original_file = utils.make_bogus_data_file(40000)
-        file = await File(path=original_file, parent_id=project_model.id).store_async()
+        file = await File(path=original_file, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
 
         # AND the original file is stashed for comparison later
         updated_location = original_file + ".original"
@@ -283,6 +291,7 @@ class TestDownloadFromUrl:
             file_handle_associate_type="FileEntity",
             file_handle_id=file.data_file_handle_id,
             expected_md5=file.file_handle.content_md5,
+            synapse_client=syn,
         )
 
         # THEN the file is downloaded and matches the original
@@ -294,19 +303,23 @@ class TestDownloadFromUrl:
 
     async def test_download_expired_url(
         self,
+        syn: Synapse,
         mocker: MockerFixture,
         project_model: Project,
     ) -> None:
         """Tests that a file download is retried when URL is expired."""
         # GIVEN a file stored in synapse
         original_file = utils.make_bogus_data_file(40000)
-        file = await File(path=original_file, parent_id=project_model.id).store_async()
+        file = await File(path=original_file, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
 
         # AND an expired preSignedURL for that file
         file_handle_response = get_file_handle_for_download(
             file_handle_id=file.data_file_handle_id,
             synapse_id=file.id,
             entity_type="FileEntity",
+            synapse_client=syn,
         )
         url = file_handle_response["preSignedURL"]
         expired_url = _expire_url(url)
@@ -346,7 +359,7 @@ class TestDownloadFromUrl:
         original_file_path = utils.make_bogus_data_file()
         file = await File(
             path=original_file_path, parent_id=project_model.id
-        ).store_async()
+        ).store_async(synapse_client=syn)
         schedule_for_cleanup(file.id)
         schedule_for_cleanup(original_file_path)
 
@@ -363,7 +376,7 @@ class TestDownloadFromUrl:
         # WHEN I download the file
         file = await File(
             id=file.id, path=os.path.dirname(original_file_path)
-        ).get_async()
+        ).get_async(synapse_client=syn)
 
         # THEN the file is downloaded to a different location and matches the original
         assert not utils.equal_paths(updated_file_path, file.path)
@@ -388,7 +401,7 @@ class TestDownloadFromUrl:
         original_file_path = utils.make_bogus_data_file()
         file = await File(
             path=original_file_path, parent_id=project_model.id
-        ).store_async()
+        ).store_async(synapse_client=syn)
         synapse_cache_location = syn.cache.get_cache_dir(
             file_handle_id=file.data_file_handle_id
         )
@@ -402,7 +415,7 @@ class TestDownloadFromUrl:
         os.remove(original_file_path)
 
         # WHEN I download the file
-        file = await File(id=file.id).get_async()
+        file = await File(id=file.id).get_async(synapse_client=syn)
 
         # THEN the file is downloaded to a different location and matches the original
         assert not utils.equal_paths(original_file_path, file.path)
@@ -430,7 +443,9 @@ class TestDownloadFromUrlMultiThreaded:
 
         # GIVEN a file stored in synapse
         file_path = utils.make_bogus_data_file()
-        file = await File(path=file_path, parent_id=project_model.id).store_async()
+        file = await File(path=file_path, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
         schedule_for_cleanup(file.id)
         schedule_for_cleanup(file_path)
         file_md5 = file.file_handle.content_md5
@@ -452,7 +467,9 @@ class TestDownloadFromUrlMultiThreaded:
             new=500,
         ):
             # WHEN I download the file with multiple parts
-            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
+            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async(
+                synapse_client=syn
+            )
 
         # THEN the file is downloaded and the md5 matches
         assert file.file_handle.content_md5 == file_md5
@@ -475,7 +492,9 @@ class TestDownloadFromUrlMultiThreaded:
 
         # GIVEN a file stored in synapse
         file_path = utils.make_bogus_data_file()
-        file = await File(path=file_path, parent_id=project_model.id).store_async()
+        file = await File(path=file_path, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
         schedule_for_cleanup(file.id)
         schedule_for_cleanup(file_path)
         file_md5 = file.file_handle.content_md5
@@ -528,7 +547,9 @@ class TestDownloadFromUrlMultiThreaded:
             0.2,
         ):
             # WHEN I download the file with multiple parts
-            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
+            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async(
+                synapse_client=syn
+            )
 
         # THEN the file is downloaded and the md5 matches
         assert file.file_handle.content_md5 == file_md5
@@ -551,7 +572,9 @@ class TestDownloadFromUrlMultiThreaded:
 
         # GIVEN a file stored in synapse
         file_path = utils.make_bogus_data_file()
-        file = await File(path=file_path, parent_id=project_model.id).store_async()
+        file = await File(path=file_path, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
         schedule_for_cleanup(file.id)
         schedule_for_cleanup(file_path)
         file_md5 = file.file_handle.content_md5
@@ -602,7 +625,9 @@ class TestDownloadFromUrlMultiThreaded:
             0.2,
         ):
             # WHEN I download the file with multiple parts
-            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async()
+            file = await File(id=file.id, path=os.path.dirname(file.path)).get_async(
+                synapse_client=syn
+            )
 
         # THEN the file is downloaded and the md5 matches
         assert file.file_handle.content_md5 == file_md5
@@ -626,7 +651,7 @@ class TestDownloadFromS3:
         original_file_path = utils.make_bogus_data_file()
         file = await File(
             path=original_file_path, parent_id=project_model.id
-        ).store_async()
+        ).store_async(synapse_client=syn)
         schedule_for_cleanup(file.id)
         schedule_for_cleanup(original_file_path)
 
@@ -643,7 +668,7 @@ class TestDownloadFromS3:
         # WHEN I download the file
         file = await File(
             id=file.id, path=os.path.dirname(original_file_path)
-        ).get_async()
+        ).get_async(synapse_client=syn)
 
         # THEN the file is downloaded to a different location and matches the original
         assert not utils.equal_paths(updated_file_path, file.path)

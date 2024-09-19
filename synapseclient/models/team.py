@@ -2,11 +2,10 @@ import asyncio
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.utils import run_and_attach_otel_context
 from synapseclient.models.protocols.team_protocol import TeamSynchronousProtocol
 from synapseclient.models.user import UserGroupHeader
 from synapseclient.team import Team as Synapse_Team
@@ -145,14 +144,14 @@ class Team(TeamSynchronousProtocol):
         """Creates a new team on Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             Team: The Team object.
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         trace.get_current_span().set_attributes(
             {
                 "synapse.name": self.name or "",
@@ -161,15 +160,12 @@ class Team(TeamSynchronousProtocol):
         )
         team = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
-                    name=self.name,
-                    description=self.description,
-                    icon=self.icon,
-                    can_public_join=self.can_public_join,
-                    can_request_membership=self.can_request_membership,
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
+                name=self.name,
+                description=self.description,
+                icon=self.icon,
+                can_public_join=self.can_public_join,
+                can_request_membership=self.can_request_membership,
             ),
         )
         self.fill_from_dict(synapse_team=team)
@@ -182,21 +178,18 @@ class Team(TeamSynchronousProtocol):
         """Deletes a team from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
-                    id=self.id,
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
+                id=self.id,
             ),
         )
 
@@ -209,8 +202,9 @@ class Team(TeamSynchronousProtocol):
         it will use the ID.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Raises:
             ValueError: If the Team object has neither an id nor a name.
@@ -220,27 +214,19 @@ class Team(TeamSynchronousProtocol):
         """
         if self.id:
             loop = asyncio.get_event_loop()
-            current_context = context.get_current()
             api_team = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                        id=self.id,
-                    ),
-                    current_context,
+                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                    id=self.id,
                 ),
             )
             return self.fill_from_dict(api_team)
         elif self.name:
             loop = asyncio.get_event_loop()
-            current_context = context.get_current()
             api_team = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                        id=self.name,
-                    ),
-                    current_context,
+                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
+                    id=self.name,
                 ),
             )
             return self.fill_from_dict(api_team)
@@ -257,8 +243,9 @@ class Team(TeamSynchronousProtocol):
 
         Arguments:
             id: The id of the team.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             Team: The Team object.
@@ -282,8 +269,9 @@ class Team(TeamSynchronousProtocol):
 
         Arguments:
             name: The name of the team.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             Team: The Team object.
@@ -301,21 +289,18 @@ class Team(TeamSynchronousProtocol):
         Team instance.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             List[TeamMember]: A List of TeamMember objects.
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         team_members = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).getTeamMembers(team=self),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).getTeamMembers(
+                team=self
             ),
         )
         team_member_list = [
@@ -340,26 +325,21 @@ class Team(TeamSynchronousProtocol):
         Arguments:
             user: The username of the user to invite.
             message: The message to send.
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             dict: The invite response.
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         invite = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).invite_to_team(
-                    team=self,
-                    user=user,
-                    message=message,
-                    force=force,
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).invite_to_team(
+                team=self,
+                user=user,
+                message=message,
+                force=force,
             ),
         )
         return invite
@@ -373,23 +353,20 @@ class Team(TeamSynchronousProtocol):
         """Gets all open invitations for a team given the ID field on the Team instance.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client
-                from the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             List[dict]: A list of invitations.
         """
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         invitations = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).get_team_open_invitations(
-                    team=self,
-                ),
-                current_context,
+            lambda: Synapse.get_client(
+                synapse_client=synapse_client
+            ).get_team_open_invitations(
+                team=self,
             ),
         )
         return list(invitations)

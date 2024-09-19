@@ -14,6 +14,8 @@ from pytest_socket import SocketBlockedError, disable_socket
 from synapseclient import Synapse
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
+Synapse.allow_client_caching = False
+
 
 def pytest_runtest_setup():
     """Disable socket connections during unit tests.

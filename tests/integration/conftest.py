@@ -32,6 +32,7 @@ from synapseclient.models import Team
 
 tracer = trace.get_tracer("synapseclient")
 working_directory = tempfile.mkdtemp(prefix="someTestFolder")
+Synapse.allow_client_caching = False
 
 
 def pytest_collection_modifyitems(items) -> None:
@@ -215,6 +216,7 @@ def setup_otel():
     # Setup
     exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", None)
     if exporter_type:
+        Synapse.enable_open_telemetry(True)
         trace.set_tracer_provider(
             TracerProvider(
                 resource=Resource(

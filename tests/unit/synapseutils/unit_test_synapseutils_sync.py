@@ -368,6 +368,7 @@ def test_sync_from_synapse_project_contains_empty_folder(syn: Synapse) -> None:
             download_file=True,
             download_location=None,
             md5=None,
+            synapse_client=syn,
         )
 
 
@@ -430,6 +431,7 @@ def test_sync_from_synapse_download_file_is_false(syn: Synapse) -> None:
             download_file=False,
             download_location=None,
             md5=None,
+            synapse_client=syn,
         )
 
 
@@ -543,6 +545,7 @@ def test_sync_from_synapse_manifest_is_all(
                 download_file=True,
                 download_location=temp_directory_path,
                 md5=None,
+                synapse_client=syn,
             ),
             call(
                 entity_to_update=file_model_2,
@@ -553,6 +556,7 @@ def test_sync_from_synapse_manifest_is_all(
                 download_file=True,
                 download_location=os.path.join(temp_directory_path, FOLDER_NAME),
                 md5=None,
+                synapse_client=syn,
             ),
         ]
 
@@ -698,6 +702,7 @@ def test_sync_from_synapse_manifest_is_root(
                 download_file=True,
                 download_location=temp_directory_path,
                 md5=None,
+                synapse_client=syn,
             ),
             call(
                 entity_to_update=file_model_2,
@@ -708,6 +713,7 @@ def test_sync_from_synapse_manifest_is_root(
                 download_file=True,
                 download_location=os.path.join(temp_directory_path, FOLDER_NAME),
                 md5=None,
+                synapse_client=syn,
             ),
         ]
 
@@ -815,6 +821,7 @@ def test_sync_from_synapse_manifest_is_suppress(
                 download_file=True,
                 download_location="./",
                 md5=None,
+                synapse_client=syn,
             ),
             call(
                 entity_to_update=file_model_2,
@@ -825,6 +832,7 @@ def test_sync_from_synapse_manifest_is_suppress(
                 download_file=True,
                 download_location=f"./{FOLDER_NAME}",
                 md5=None,
+                synapse_client=syn,
             ),
         ]
 

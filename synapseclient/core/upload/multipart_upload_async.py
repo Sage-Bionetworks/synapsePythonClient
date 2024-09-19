@@ -84,8 +84,7 @@ from typing import (
 import httpx
 import psutil
 import requests
-from opentelemetry import context, trace
-from opentelemetry.context import Context
+from opentelemetry import trace
 from tqdm import tqdm
 
 from synapseclient.api import (
@@ -304,7 +303,6 @@ class UploadAttemptAsync:
 
     async def _handle_part_wrapper(self, part_number: int) -> HandlePartResult:
         loop = asyncio.get_running_loop()
-        otel_context = context.get_current()
 
         mem_info = psutil.virtual_memory()
 
@@ -315,7 +313,6 @@ class UploadAttemptAsync:
             self._syn._get_thread_pool_executor(asyncio_event_loop=loop),
             self._handle_part,
             part_number,
-            otel_context,
         )
 
     async def _upload_parts(
@@ -488,14 +485,11 @@ class UploadAttemptAsync:
 
         return upload_status_response
 
-    def _handle_part(
-        self, part_number: int, otel_context: Union[Context, None]
-    ) -> HandlePartResult:
+    def _handle_part(self, part_number: int) -> HandlePartResult:
         """Take an individual part number and upload it to the pre-signed URL.
 
         Arguments:
             part_number: The part number to upload.
-            otel_context: The OpenTelemetry context to use for tracing.
 
         Returns:
             The result of the part upload.
@@ -504,8 +498,6 @@ class UploadAttemptAsync:
             SynapseUploadAbortedException: If the upload has been aborted.
             ValueError: If the part body is None.
         """
-        if otel_context:
-            context.attach(otel_context)
         with self._thread_lock:
             if self._aborted:
                 # this upload attempt has already been aborted

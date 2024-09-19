@@ -37,8 +37,9 @@ class FolderSynchronousProtocol(Protocol):
             parent: The parent folder or project to store the folder in.
             failure_strategy: Determines how to handle failures when storing attached
                 Files and Folders under this Folder and an exception occurs.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The folder object.
@@ -60,8 +61,9 @@ class FolderSynchronousProtocol(Protocol):
 
         Arguments:
             parent: The parent folder or project this folder exists under.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The folder object.
@@ -76,8 +78,9 @@ class FolderSynchronousProtocol(Protocol):
         """Delete the folder from Synapse by its id.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -114,8 +117,9 @@ class FolderSynchronousProtocol(Protocol):
                     - traceback: Creates a copy of the source files Activity.
                     - existing: Link to the source file's original Activity (if it exists)
                     - None: No activity is set
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The copied folder object.

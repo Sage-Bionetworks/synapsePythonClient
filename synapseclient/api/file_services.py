@@ -36,8 +36,9 @@ async def post_file_multipart(
         force_restart: Optional parameter. When True, any upload state for the given
             file will be cleared and a new upload will be started.
         endpoint: Server endpoint to call to.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         The requested multipart upload status matching
@@ -87,8 +88,9 @@ async def put_file_multipart_add(
         md5_hex: The MD5 of the uploaded part represented as a hexadecimal string. If
             the provided MD5 does not match the MD5 of the uploaded part, the add
             will fail.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         Object matching
@@ -126,8 +128,9 @@ async def put_file_multipart_complete(
     Arguments:
         upload_id: The unique identifier of the file upload.
         endpoint: Server endpoint to call to.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         Object matching
@@ -154,8 +157,9 @@ async def post_file_multipart_presigned_urls(
     Arguments:
         upload_id: The unique identifier of the file upload.
         part_numbers: The part numbers to get pre-signed URLs for.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         Object matching
@@ -199,8 +203,9 @@ async def post_external_object_store_filehandle(
         storage_location_id: The optional storage location descriptor
         mimetype:            The Mimetype of the file, if known.
         md5:                 The file's content MD5, if known.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         A FileHandle for objects that are stored externally.
@@ -243,8 +248,9 @@ async def post_external_filehandle(
         mimetype:     The Mimetype of the file, if known.
         md5:          The file's content MD5.
         file_size:    The size of the file in bytes.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         A FileHandle for objects that are stored externally.
@@ -299,8 +305,9 @@ async def post_external_s3_file_handle(
             mutually exclusive with parent
         mimetype: Mimetype of the file, if known
         md5: MD5 of the file, if known
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         The created file handle.
@@ -360,8 +367,9 @@ async def get_file_handle(
 
     Arguments:
         file_handle_id: The ID of the file handle to look up.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         A file handle retrieved from the file handle service.
@@ -392,8 +400,9 @@ async def get_file_handle_for_download_async(
         entity_type:     Type of object associated with a file e.g. FileEntity,
             TableEntity
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Raises:
         SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.
@@ -452,8 +461,9 @@ def get_file_handle_for_download(
         entity_type:     Type of object associated with a file e.g. FileEntity,
             TableEntity
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Raises:
         SynapseFileNotFoundError: If the fileHandleId is not found in Synapse.

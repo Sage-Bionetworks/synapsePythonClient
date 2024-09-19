@@ -275,7 +275,7 @@ class TestProjectStore:
         # AND I expect the annotations to be stored on Synapse
         assert stored_project.annotations == annotations
         assert (
-            await Project(id=stored_project.id).get_async()
+            await Project(id=stored_project.id).get_async(synapse_client=self.syn)
         ).annotations == annotations
 
 
@@ -300,7 +300,9 @@ class TestProjectGet:
         self.schedule_for_cleanup(project.id)
 
         # WHEN I get the Project from Synapse
-        project_copy = await Project(id=stored_project.id).get_async()
+        project_copy = await Project(id=stored_project.id).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect the stored Project to have the expected properties
         assert project_copy.id is not None
@@ -326,7 +328,9 @@ class TestProjectGet:
         self.schedule_for_cleanup(project.id)
 
         # WHEN I get the Project from Synapse
-        project_copy = await Project(name=stored_project.name).get_async()
+        project_copy = await Project(name=stored_project.name).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect the stored Project to have the expected properties
         assert project_copy.id is not None
@@ -370,7 +374,7 @@ class TestProjectDelete:
 
         # THEN I expect the project to have been deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await stored_project.get_async()
+            await stored_project.get_async(synapse_client=self.syn)
 
         assert f"404 Client Error: Entity {stored_project.id} is in trash can." in str(
             e.value

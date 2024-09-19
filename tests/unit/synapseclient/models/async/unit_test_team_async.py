@@ -90,7 +90,7 @@ class TestTeam:
             # GIVEN a team object
             team = Team(name=self.NAME, description=self.DESCRIPTION)
             # WHEN I create the team
-            team = await team.create_async()
+            team = await team.create_async(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
             patch_create_team.assert_called_once_with(
                 name=self.NAME,
@@ -116,7 +116,7 @@ class TestTeam:
             # GIVEN a team object
             team = Team(id=1, name=self.NAME)
             # WHEN I delete the team
-            await team.delete_async()
+            await team.delete_async(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
             patch_delete_team.assert_called_once_with(id=1)
 
@@ -131,7 +131,7 @@ class TestTeam:
             # GIVEN a team object with an id
             team = Team(id=1)
             # WHEN I retrieve a team using its id
-            team = await team.get_async()
+            team = await team.get_async(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
             patch_from_id.assert_called_once_with(id=1)
             # AND I expect the intended team to be returned
@@ -150,7 +150,7 @@ class TestTeam:
             # GIVEN a team object with a name
             team = Team(name=self.NAME)
             # WHEN I retrieve a team using its name
-            team = await team.get_async()
+            team = await team.get_async(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
             patch_from_name.assert_called_once_with(id=self.NAME)
             # AND I expect the intended team to be returned
@@ -164,7 +164,7 @@ class TestTeam:
         # WHEN I retrieve a team
         with pytest.raises(ValueError, match="Team must have either an id or a name"):
             # THEN I expect an error to be raised
-            await team.get_async()
+            await team.get_async(synapse_client=self.syn)
 
     async def test_from_id(self) -> None:
         with patch.object(
@@ -173,9 +173,9 @@ class TestTeam:
             return_value=Team(id=1, name=self.NAME, description=self.DESCRIPTION),
         ) as patch_get:
             # WHEN I retrieve a team using its id
-            team = await Team.from_id_async(id=1)
+            team = await Team.from_id_async(id=1, synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_get.assert_called_once_with(synapse_client=None)
+            patch_get.assert_called_once_with(synapse_client=self.syn)
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
@@ -188,9 +188,9 @@ class TestTeam:
             return_value=Team(id=1, name=self.NAME, description=self.DESCRIPTION),
         ) as patch_get:
             # WHEN I retrieve a team using its name
-            team = await Team.from_name_async(name=self.NAME)
+            team = await Team.from_name_async(name=self.NAME, synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_get.assert_called_once_with(synapse_client=None)
+            patch_get.assert_called_once_with(synapse_client=self.syn)
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
@@ -205,7 +205,7 @@ class TestTeam:
             # GIVEN a team object
             team = Team(id=1)
             # WHEN I get the team members
-            team_members = await team.members_async()
+            team_members = await team.members_async(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
             patch_get_team_members.assert_called_once_with(team=team)
             # AND I expect the expected team members to be returned
@@ -225,6 +225,7 @@ class TestTeam:
             invite = await team.invite_async(
                 user=self.USER,
                 message=self.MESSAGE,
+                synapse_client=self.syn,
             )
             # THEN I expect the patched method to be called as expected
             patch_invite_team_member.assert_called_once_with(
@@ -245,7 +246,9 @@ class TestTeam:
             # GIVEN a team object
             team = Team(id=1)
             # WHEN I get the open team invitations
-            open_team_invitations = await team.open_invitations_async()
+            open_team_invitations = await team.open_invitations_async(
+                synapse_client=self.syn
+            )
             # THEN I expect the patched method to be called as expected
             patch_get_open_team_invitations.assert_called_once_with(team=team)
             # AND I expect the expected invitations to be returned

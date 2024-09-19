@@ -4,17 +4,13 @@ from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
-from opentelemetry import context, trace
+from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.core.utils import (
-    delete_none_keys,
-    merge_dataclass_entities,
-    run_and_attach_otel_context,
-)
+from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.entity import Project as Synapse_Project
 from synapseclient.models import Annotations, File, Folder
 from synapseclient.models.mixins import AccessControllable, StorableContainer
@@ -256,8 +252,9 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         Arguments:
             failure_strategy: Determines how to handle failures when storing attached
                 Files and Folders under this Project and an exception occurs.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The project object.
@@ -309,16 +306,12 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
                 parentId=self.parent_id,
             )
             delete_none_keys(synapse_project)
-            current_context = context.get_current()
             entity = await loop.run_in_executor(
                 None,
-                lambda: run_and_attach_otel_context(
-                    lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                        obj=synapse_project,
-                        set_annotations=False,
-                        createOrUpdate=False,
-                    ),
-                    current_context,
+                lambda: Synapse.get_client(synapse_client=synapse_client).store(
+                    obj=synapse_project,
+                    set_annotations=False,
+                    createOrUpdate=False,
                 ),
             )
             self.fill_from_dict(synapse_project=entity, set_annotations=False)
@@ -347,8 +340,9 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         """Get the project metadata from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The project object.
@@ -371,6 +365,7 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         await get_from_entity_factory(
             entity_to_update=self,
             synapse_id_or_path=entity_id,
+            synapse_client=synapse_client,
         )
 
         self._set_last_persistent_instance()
@@ -383,8 +378,9 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         """Delete the project from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -405,14 +401,10 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         entity_id = await get_id(entity=self, synapse_client=synapse_client)
 
         loop = asyncio.get_event_loop()
-        current_context = context.get_current()
         await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                    obj=entity_id,
-                ),
-                current_context,
+            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
+                obj=entity_id,
             ),
         )
 
@@ -451,8 +443,9 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
                     - traceback: Creates a copy of the source files Activity.
                     - existing: Link to the source file's original Activity (if it exists)
                     - None: No activity is set
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The copied project object.
@@ -475,22 +468,18 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
 
         loop = asyncio.get_event_loop()
 
-        current_context = context.get_current()
         syn = Synapse.get_client(synapse_client=synapse_client)
         source_and_destination = await loop.run_in_executor(
             None,
-            lambda: run_and_attach_otel_context(
-                lambda: copy(
-                    syn=syn,
-                    entity=self.id,
-                    destinationId=destination_id,
-                    excludeTypes=exclude_types or [],
-                    skipCopyAnnotations=not copy_annotations,
-                    skipCopyWikiPage=not copy_wiki,
-                    updateExisting=file_update_existing,
-                    setProvenance=file_copy_activity,
-                ),
-                current_context,
+            lambda: copy(
+                syn=syn,
+                entity=self.id,
+                destinationId=destination_id,
+                excludeTypes=exclude_types or [],
+                skipCopyAnnotations=not copy_annotations,
+                skipCopyWikiPage=not copy_wiki,
+                updateExisting=file_update_existing,
+                setProvenance=file_copy_activity,
             ),
         )
 
@@ -498,12 +487,10 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         if not new_project_id:
             raise SynapseError("Failed to copy project.")
         project_copy = await (
-            await Project(id=new_project_id).get_async()
+            await Project(id=new_project_id).get_async(synapse_client=syn)
         ).sync_from_synapse_async(
             download_file=False,
             synapse_client=synapse_client,
         )
-        Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Copied from project {self.id} to {destination_id}"
-        )
+        syn.logger.debug(f"Copied from project {self.id} to {destination_id}")
         return project_copy

@@ -11,13 +11,11 @@ import mimetypes
 import os
 import threading
 import time
-import typing
 from contextlib import contextmanager
 from typing import List, Mapping
 
 import requests
-from opentelemetry import context, trace
-from opentelemetry.context import Context
+from opentelemetry import trace
 
 from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
@@ -225,9 +223,7 @@ class UploadAttempt:
 
             return refreshed_url
 
-    def _handle_part(self, part_number, otel_context: typing.Union[Context, None]):
-        if otel_context:
-            context.attach(otel_context)
+    def _handle_part(self, part_number):
         with tracer.start_as_current_span("UploadAttempt::_handle_part"):
             trace.get_current_span().set_attributes(
                 {"thread.id": threading.get_ident()}
@@ -345,7 +341,6 @@ class UploadAttempt:
                     executor.submit(
                         self._handle_part,
                         part_number,
-                        context.get_current(),
                     )
                 )
 

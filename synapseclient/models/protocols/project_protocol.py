@@ -36,8 +36,9 @@ class ProjectSynchronousProtocol(Protocol):
         Arguments:
             failure_strategy: Determines how to handle failures when storing attached
                 Files and Folders under this Project and an exception occurs.
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The project object.
@@ -65,8 +66,9 @@ class ProjectSynchronousProtocol(Protocol):
         Get the project metadata from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The project object.
@@ -90,8 +92,9 @@ class ProjectSynchronousProtocol(Protocol):
         """Delete the project from Synapse.
 
         Arguments:
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             None
@@ -143,8 +146,9 @@ class ProjectSynchronousProtocol(Protocol):
                     - traceback: Creates a copy of the source files Activity.
                     - existing: Link to the source file's original Activity (if it exists)
                     - None: No activity is set
-            synapse_client: If not passed in or None this will use the last client from
-                the `.login()` method.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
         Returns:
             The copied project object.

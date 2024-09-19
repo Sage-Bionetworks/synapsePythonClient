@@ -46,7 +46,9 @@ class TestFileStore:
         file.name = str(uuid.uuid4())
 
         # WHEN I store the file
-        file_copy_object = await file.store_async(parent=project_model)
+        file_copy_object = await file.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -97,7 +99,7 @@ class TestFileStore:
         file.activity = activity
 
         # WHEN I store the file
-        await file.store_async(parent=project_model)
+        await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -114,14 +116,16 @@ class TestFileStore:
         assert file.activity.used[0].name == "example"
 
         # WHEN I remove the activity from the file
-        await file.activity.disassociate_from_entity_async(parent=file)
+        await file.activity.disassociate_from_entity_async(
+            parent=file, synapse_client=self.syn
+        )
 
         # AND I store the file again
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN I expect the activity to be removed
         file_copy = await File(id=file.id, download_file=False).get_async(
-            include_activity=True
+            include_activity=True, synapse_client=self.syn
         )
         assert file_copy.activity is None
         assert file.activity is None
@@ -134,11 +138,13 @@ class TestFileStore:
         # AND a folder to store the file in
         folder = await Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I store the file
-        file_copy_object = await file.store_async(parent=folder)
+        file_copy_object = await file.store_async(
+            parent=folder, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -198,8 +204,8 @@ class TestFileStore:
         # WHEN I store both the file
         files = await asyncio.gather(
             *[
-                file_1.store_async(parent=project_model),
-                file_2.store_async(parent=project_model),
+                file_1.store_async(parent=project_model, synapse_client=self.syn),
+                file_2.store_async(parent=project_model, synapse_client=self.syn),
             ]
         )
         for file in files:
@@ -243,7 +249,7 @@ class TestFileStore:
         file.parent_id = project_model.id
 
         # WHEN I store the file
-        file = await file.store_async()
+        file = await file.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
         before_etag = file.etag
 
@@ -252,7 +258,7 @@ class TestFileStore:
         file.name = changed_file_name
 
         # AND I store the file again
-        file = await file.store_async()
+        file = await file.store_async(synapse_client=self.syn)
 
         # THEN I expect the file to be changed
         assert file.name == changed_file_name
@@ -268,17 +274,17 @@ class TestFileStore:
         # AND a folder to store the file in
         folder = await Folder(
             name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I store the file in the project
-        file = await file.store_async()
+        file = await file.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
         assert file.parent_id == project_model.id
         before_file_id = file.id
 
         # AND I store the file under a new parent
-        file = await file.store_async(parent=folder)
+        file = await file.store_async(parent=folder, synapse_client=self.syn)
 
         # THEN I expect the file to have been moved
         assert file.parent_id == folder.id
@@ -296,7 +302,7 @@ class TestFileStore:
             content_type=CONTENT_TYPE,
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
-        ).store_async(parent=project_model)
+        ).store_async(parent=project_model, synapse_client=self.syn)
 
         # AND a second file
         filename = utils.make_bogus_uuid_file()
@@ -307,7 +313,7 @@ class TestFileStore:
             content_type=CONTENT_TYPE,
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
-        ).store_async(parent=project_model)
+        ).store_async(parent=project_model, synapse_client=self.syn)
         assert file_1.data_file_handle_id is not None
         assert file_2.data_file_handle_id is not None
         assert file_1.data_file_handle_id != file_2.data_file_handle_id
@@ -315,15 +321,15 @@ class TestFileStore:
 
         # WHEN I store the data_file_handle_id onto the second file
         file_2.data_file_handle_id = file_1.data_file_handle_id
-        await file_2.store_async()
+        await file_2.store_async(synapse_client=self.syn)
 
         # THEN I expect the file handles to match
         assert file_2_etag != file_2.etag
 
         # The file_handle is eventually consistent & changes when a file preview is
         # created. To handle for this I am just confirming the IDs match
-        assert (await file_1.get_async()).file_handle.id == (
-            await file_2.get_async()
+        assert (await file_1.get_async(synapse_client=self.syn)).file_handle.id == (
+            await file_2.get_async(synapse_client=self.syn)
         ).file_handle.id
 
     async def test_store_updated_file(self, project_model: Project) -> None:
@@ -336,7 +342,7 @@ class TestFileStore:
             content_type=CONTENT_TYPE,
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
-        ).store_async(parent=project_model)
+        ).store_async(parent=project_model, synapse_client=self.syn)
         before_etag = file.etag
         before_id = file.id
         before_file_handle_id = file.file_handle.id
@@ -345,7 +351,7 @@ class TestFileStore:
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file.path = filename
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN I expect the file to be updated
         assert before_etag is not None
@@ -378,12 +384,12 @@ class TestFileStore:
         file.activity = activity
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # AND I get the file with the activity
         file_copy = await File(id=file.id, download_file=False).get_async(
-            include_activity=True
+            include_activity=True, synapse_client=self.syn
         )
 
         # THEN I expect that the activity is returned
@@ -400,7 +406,9 @@ class TestFileStore:
         assert file_copy.activity.executed[1].target_version_number == 1
 
         # WHEN I get the file without the activity flag
-        file_copy_2 = await File(id=file.id, download_file=False).get_async()
+        file_copy_2 = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect that the activity is not returned
         assert file_copy_2.activity is None
@@ -420,7 +428,7 @@ class TestFileStore:
         file.annotations = annotations_for_my_file
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         assert file.version_number == 1
         self.schedule_for_cleanup(file.id)
 
@@ -434,7 +442,7 @@ class TestFileStore:
 
         # WHEN I update the annotations and store the file again
         file.annotations["my_key_string"] = ["new", "values", "here"]
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN I expect the file annotations to have been updated
         assert file.annotations.keys() == annotations_for_my_file.keys()
@@ -459,7 +467,7 @@ class TestFileStore:
         file.annotations["my_key_long"] = [1, 2, 3]
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file annotations to have been stored
@@ -472,7 +480,7 @@ class TestFileStore:
 
         # WHEN I update the annotations and store the file again
         file.annotations["my_key_string"] = ["new", "values", "here"]
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN I expect the file annotations to have been updated
         assert len(file.annotations.keys()) == 5
@@ -499,7 +507,7 @@ class TestFileStore:
         file.annotations = annotations_for_my_file
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file annotations to have been stored
@@ -512,13 +520,15 @@ class TestFileStore:
 
         # WHEN I update the annotations to None
         file.annotations = None
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN I expect the file annotations to have been removed
         assert not file.annotations and isinstance(file.annotations, dict)
 
         # AND retrieving the file gives an empty dict for the annoations
-        file_copy = await File(id=file.id, download_file=False).get_async()
+        file_copy = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
         assert not file_copy.annotations and isinstance(file_copy.annotations, dict)
 
     async def test_removing_annotations_to_empty_dict(
@@ -538,7 +548,7 @@ class TestFileStore:
         file.annotations = annotations_for_my_file
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file annotations to have been stored
@@ -551,13 +561,15 @@ class TestFileStore:
 
         # WHEN I update the annotations to an empty dict
         file.annotations = {}
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN I expect the file annotations to have been removed
         assert not file.annotations and isinstance(file.annotations, dict)
 
         # AND retrieving the file gives an empty dict for the annoations
-        file_copy = await File(id=file.id, download_file=False).get_async()
+        file_copy = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
         assert not file_copy.annotations and isinstance(file_copy.annotations, dict)
 
     async def test_store_without_upload(
@@ -570,7 +582,7 @@ class TestFileStore:
         file.synapse_store = False
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored as an external file
@@ -619,7 +631,7 @@ class TestFileStore:
 
         # WHEN I store the file
         with pytest.raises(SynapseMd5MismatchError) as e:
-            await file.store_async(parent=project_model)
+            await file.store_async(parent=project_model, synapse_client=self.syn)
 
         assert (
             f"The specified md5 [{BOGUS_MD5}] does not match the calculated md5 "
@@ -639,7 +651,7 @@ class TestFileStore:
         file.content_size = 123
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored as an external file
@@ -687,7 +699,7 @@ class TestFileStore:
         file.external_url = BOGUS_URL
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored as an external file
@@ -740,7 +752,7 @@ class TestFileStore:
         file.content_size = 123
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored as an external file
@@ -796,7 +808,7 @@ class TestFileStore:
         file.content_md5 = BOGUS_MD5
 
         # WHEN I store the file
-        file = await file.store_async(parent=project_model)
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored as an external file
@@ -841,7 +853,9 @@ class TestFileStore:
         file.name = str(uuid.uuid4())
 
         # WHEN I store the file
-        file_copy_object = await file.store_async(parent=project_model)
+        file_copy_object = await file.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -887,7 +901,7 @@ class TestFileStore:
 
         # THEN I expect a SynapseHTTPError to be raised
         with pytest.raises(SynapseHTTPError) as e:
-            await new_file.store_async()
+            await new_file.store_async(synapse_client=self.syn)
 
         assert (
             f"409 Client Error: An entity with the name: {file.name} already exists with a parentId: {project_model.id}"
@@ -901,7 +915,7 @@ class TestFileStore:
         file.name = str(uuid.uuid4())
 
         # WHEN I store the file
-        await file.store_async(parent=project_model)
+        await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -910,14 +924,14 @@ class TestFileStore:
 
         # WHEN I store the file again with force_version=False
         file.force_version = False
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN the version should not be updated
         assert file.version_number == 1
 
         # WHEN I store the file again with force_version=True and no change was made
         file.force_version = True
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN the version should not be updated
         assert file.version_number == 1
@@ -929,7 +943,7 @@ class TestFileStore:
         file.name = str(uuid.uuid4())
 
         # WHEN I store the file
-        await file.store_async(parent=project_model)
+        await file.store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -939,7 +953,7 @@ class TestFileStore:
         # WHEN I store the file again with force_version=False
         file.force_version = False
         file.description = "aaaaaaaaaaaaaaaa"
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN the version should not be updated
         assert file.version_number == 1
@@ -947,7 +961,7 @@ class TestFileStore:
         # WHEN I store the file again with force_version=True and I update a field
         file.force_version = True
         file.description = "new description"
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # THEN the version should be updated
         assert file.version_number == 2
@@ -969,7 +983,7 @@ class TestFileStore:
             "synapseclient.models.services.storable_entity.create_access_requirements_if_none"
         ) as intercepted:
             # WHEN I store the file
-            await file.store_async(parent=project_model)
+            await file.store_async(parent=project_model, synapse_client=self.syn)
             self.schedule_for_cleanup(file.id)
 
             # THEN I expect the file to be restricted
@@ -997,7 +1011,9 @@ class TestFileStore:
         file.activity = activity
 
         # WHEN I store the file
-        file_copy_object = await file.store_async(parent=project_model)
+        file_copy_object = await file.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(file.id)
 
         # THEN I expect the file to be stored
@@ -1060,7 +1076,7 @@ class TestChangeMetadata:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.name is not None
@@ -1069,13 +1085,15 @@ class TestChangeMetadata:
 
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
-        await file.change_metadata_async(name=new_filename)
+        await file.change_metadata_async(name=new_filename, synapse_client=self.syn)
 
         # THEN I expect only the file name to have been updated
         assert file.file_handle.file_name == current_download_as
         assert file.name == new_filename
         assert file.content_type == CONTENT_TYPE
-        file_copy = await File(id=file.id, download_file=False).get_async()
+        file_copy = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
         assert file_copy.file_handle.file_name == current_download_as
         assert file_copy.name == new_filename
         assert file_copy.content_type == CONTENT_TYPE
@@ -1084,7 +1102,7 @@ class TestChangeMetadata:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.name is not None
@@ -1094,14 +1112,18 @@ class TestChangeMetadata:
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
         await file.change_metadata_async(
-            download_as=new_filename, content_type=CONTENT_TYPE_JSON
+            download_as=new_filename,
+            content_type=CONTENT_TYPE_JSON,
+            synapse_client=self.syn,
         )
 
         # THEN I expect the file download name to have been updated
         assert file.file_handle.file_name == new_filename
         assert file.name == current_filename
         assert file.content_type == CONTENT_TYPE_JSON
-        file_copy = await File(id=file.id, download_file=False).get_async()
+        file_copy = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
         assert file_copy.file_handle.file_name == new_filename
         assert file_copy.name == current_filename
         assert file_copy.content_type == CONTENT_TYPE_JSON
@@ -1110,7 +1132,7 @@ class TestChangeMetadata:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.name is not None
@@ -1119,14 +1141,19 @@ class TestChangeMetadata:
         # WHEN I change the files metadata
         new_filename = f"my_new_file_name_{str(uuid.uuid4())}.txt"
         await file.change_metadata_async(
-            name=new_filename, download_as=new_filename, content_type=CONTENT_TYPE_JSON
+            name=new_filename,
+            download_as=new_filename,
+            content_type=CONTENT_TYPE_JSON,
+            synapse_client=self.syn,
         )
 
         # THEN I expect the file download name, entity name, and content type to have been updated
         assert file.file_handle.file_name == new_filename
         assert file.name == new_filename
         assert file.content_type == CONTENT_TYPE_JSON
-        file_copy = await File(id=file.id, download_file=False).get_async()
+        file_copy = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
         assert file_copy.file_handle.file_name == new_filename
         assert file_copy.name == new_filename
         assert file_copy.content_type == CONTENT_TYPE_JSON
@@ -1161,12 +1188,12 @@ class TestFrom:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
 
         # WHEN I get the file by id
-        file_copy = await File.from_id_async(file.id)
+        file_copy = await File.from_id_async(file.id, synapse_client=self.syn)
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
@@ -1175,13 +1202,13 @@ class TestFrom:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
 
         # WHEN I get the file by path
-        file_copy = await File.from_path_async(file.path)
+        file_copy = await File.from_path_async(file.path, synapse_client=self.syn)
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
@@ -1215,45 +1242,49 @@ class TestDelete:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
 
         # WHEN I delete the file
-        await file.delete_async()
+        await file.delete_async(synapse_client=self.syn)
 
         # THEN I expect the file to be deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await file.get_async()
+            await file.get_async(synapse_client=self.syn)
         assert f"404 Client Error: Entity {file.id} is in trash can." in str(e.value)
 
     async def test_delete_specific_version(
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.version_number == 1
 
         # AND I update the file
         file.description = "new description"
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         assert file.version_number == 2
 
         # WHEN I delete the file for a specific version
-        await File(id=file.id, version_number=1).delete_async(version_only=True)
+        await File(id=file.id, version_number=1).delete_async(
+            version_only=True, synapse_client=self.syn
+        )
 
         # THEN I expect the file to be deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await File(id=file.id, version_number=1).get_async()
+            await File(id=file.id, version_number=1).get_async(synapse_client=self.syn)
         assert (
             f"404 Client Error: Cannot find a node with id {file.id} and version 1"
             in str(e.value)
         )
 
         # AND the second version to still exist
-        file_copy = await File(id=file.id, version_number=2).get_async()
+        file_copy = await File(id=file.id, version_number=2).get_async(
+            synapse_client=self.syn
+        )
         assert file_copy.id == file.id
 
 
@@ -1286,13 +1317,13 @@ class TestGet:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
 
         # WHEN I get the file by path
-        file_copy = await File(path=file.path).get_async()
+        file_copy = await File(path=file.path).get_async(synapse_client=self.syn)
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
@@ -1301,14 +1332,14 @@ class TestGet:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
         path_for_file = file.path
 
         # WHEN I get the file by id
-        file_copy = await File(id=file.id).get_async()
+        file_copy = await File(id=file.id).get_async(synapse_client=self.syn)
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
@@ -1318,16 +1349,18 @@ class TestGet:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.version_number == 1
 
         # WHEN I update the file
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # AND I get the file by version
-        file_copy = await File(id=file.id, version_number=1).get_async()
+        file_copy = await File(id=file.id, version_number=1).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect the file to be returned
         assert file_copy.id == file.id
@@ -1337,7 +1370,7 @@ class TestGet:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
@@ -1346,7 +1379,7 @@ class TestGet:
         # AND I store a second file in another location
         filename = utils.make_bogus_uuid_file()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         file_2 = await File(
             path=filename,
             name=file.name,
@@ -1355,14 +1388,18 @@ class TestGet:
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_2.id)
 
         # AND I change the download name of the second file to the first file
-        await file_2.change_metadata_async(download_as=file.name)
+        await file_2.change_metadata_async(
+            download_as=file.name, synapse_client=self.syn
+        )
 
         # WHEN I get the file with the default collision of `keep.both`
-        file_2 = await File(id=file_2.id, path=os.path.dirname(file.path)).get_async()
+        file_2 = await File(id=file_2.id, path=os.path.dirname(file.path)).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect both files to exist
         assert file.path != file_2.path
@@ -1378,7 +1415,7 @@ class TestGet:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
@@ -1389,7 +1426,7 @@ class TestGet:
         filename = utils.make_bogus_uuid_file()
         file_2_md5 = utils.md5_for_file(filename).hexdigest()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         file_2 = await File(
             path=filename,
             name=file.name,
@@ -1398,7 +1435,7 @@ class TestGet:
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_2.id)
 
         # AND I change the download name of the second file to the first file
@@ -1409,7 +1446,7 @@ class TestGet:
             id=file_2.id,
             path=os.path.dirname(file.path),
             if_collision="overwrite.local",
-        ).get_async()
+        ).get_async(synapse_client=self.syn)
 
         # THEN I expect only the newer file to exist
         assert os.path.exists(file_2.path)
@@ -1420,7 +1457,7 @@ class TestGet:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
@@ -1431,7 +1468,7 @@ class TestGet:
         filename = utils.make_bogus_uuid_file()
         file_2_md5 = utils.md5_for_file(filename).hexdigest()
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         file_2 = await File(
             path=filename,
             name=file.name,
@@ -1440,7 +1477,7 @@ class TestGet:
             version_comment=VERSION_COMMENT,
             version_label=str(uuid.uuid4()),
             parent_id=folder.id,
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_2.id)
 
         # AND I change the download name of the second file to the first file
@@ -1451,7 +1488,7 @@ class TestGet:
             id=file_2.id,
             path=os.path.dirname(file.path),
             if_collision="keep.local",
-        ).get_async()
+        ).get_async(synapse_client=self.syn)
 
         # THEN I expect only the newer file to exist
         assert file_2.path is None
@@ -1463,21 +1500,21 @@ class TestGet:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy_async(parent_id=folder.id)
+        file_copy = await file.copy_async(parent_id=folder.id, synapse_client=self.syn)
 
         # WHEN I get the file by path and limit the search to the folder
         file_by_path = await File(
             path=file.path, synapse_container_limit=folder.id, download_file=False
-        ).get_async()
+        ).get_async(synapse_client=self.syn)
 
         # THEN I expect the file in the folder to be returned
         assert file_by_path.id == file_copy.id
@@ -1485,7 +1522,7 @@ class TestGet:
         # WHEN I get the file by path and limit the search to the project
         file_by_path = await File(
             path=file.path, synapse_container_limit=file.parent_id, download_file=False
-        ).get_async()
+        ).get_async(synapse_client=self.syn)
 
         # THEN I expect the file at the project level to be returned
         assert file.id == file_by_path.id
@@ -1520,20 +1557,24 @@ class TestCopy:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy_async(parent_id=folder.id)
+        file_copy = await file.copy_async(parent_id=folder.id, synapse_client=self.syn)
 
         # WHEN I get both files by ID:
-        file_1 = await File(id=file.id, download_file=False).get_async()
-        file_2 = await File(id=file_copy.id, download_file=False).get_async()
+        file_1 = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
+        file_2 = await File(id=file_copy.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect the paths to be the same file
         assert file_1.path == file_2.path
@@ -1542,7 +1583,7 @@ class TestCopy:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
@@ -1569,17 +1610,21 @@ class TestCopy:
         }
         file.activity = activity
         file.annotations = annotations_for_my_file
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy_async(parent_id=folder.id)
+        file_copy = await file.copy_async(parent_id=folder.id, synapse_client=self.syn)
 
         # WHEN I get both files by ID:
-        file_1 = await File(id=file.id, download_file=False).get_async()
-        file_2 = await File(id=file_copy.id, download_file=False).get_async()
+        file_1 = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
+        file_2 = await File(id=file_copy.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect the activities and annotations to be the same
         assert file_1.annotations == file_2.annotations
@@ -1589,7 +1634,7 @@ class TestCopy:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
@@ -1616,17 +1661,23 @@ class TestCopy:
         }
         file.activity = activity
         file.annotations = annotations_for_my_file
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
-        file_copy = await file.copy_async(parent_id=folder.id, copy_annotations=False)
+        file_copy = await file.copy_async(
+            parent_id=folder.id, copy_annotations=False, synapse_client=self.syn
+        )
 
         # WHEN I get both files by ID:
-        file_1 = await File(id=file.id, download_file=False).get_async()
-        file_2 = await File(id=file_copy.id, download_file=False).get_async()
+        file_1 = await File(id=file.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
+        file_2 = await File(id=file_copy.id, download_file=False).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN I expect the activities to be the same and annotations on the second to be None
         assert file_1.annotations != file_2.annotations
@@ -1637,7 +1688,7 @@ class TestCopy:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
@@ -1664,22 +1715,25 @@ class TestCopy:
         }
         file.activity = activity
         file.annotations = annotations_for_my_file
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
 
         # AND I store a copy of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
         file_copy = await file.copy_async(
-            parent_id=folder.id, copy_annotations=False, copy_activity=None
+            parent_id=folder.id,
+            copy_annotations=False,
+            copy_activity=None,
+            synapse_client=self.syn,
         )
 
         # WHEN I get both files by ID:
         file_1 = await File(id=file.id, download_file=False).get_async(
-            include_activity=True
+            include_activity=True, synapse_client=self.syn
         )
         file_2 = await File(id=file_copy.id, download_file=False).get_async(
-            include_activity=True
+            include_activity=True, synapse_client=self.syn
         )
 
         # THEN I expect the activities to be the same and annotations on the second to be None
@@ -1692,7 +1746,7 @@ class TestCopy:
         self, file: File, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         # GIVEN a file stored in synapse
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         schedule_for_cleanup(file.id)
         assert file.id is not None
         assert file.path is not None
@@ -1703,16 +1757,19 @@ class TestCopy:
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
         file.path = filename
-        await file.store_async()
+        await file.store_async(synapse_client=self.syn)
         assert file.version_number == 2
         second_first_md5 = utils.md5_for_file(file.path).hexdigest()
 
         # WHEN I store a copy of the first version_number of the file in a folder
         folder = Folder(parent_id=file.parent_id, name=str(uuid.uuid4()))
-        await folder.store_async()
+        await folder.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
         file_copy = await File(id=file.id, version_number=1).copy_async(
-            parent_id=folder.id, copy_annotations=False, copy_activity=None
+            parent_id=folder.id,
+            copy_annotations=False,
+            copy_activity=None,
+            synapse_client=self.syn,
         )
 
         # THEN I expect the first version of the file to have been stored

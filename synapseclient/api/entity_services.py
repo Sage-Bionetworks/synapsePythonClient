@@ -22,8 +22,9 @@ async def post_entity(
         request: The request for the entity matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
         generated_by: The ID of the activity to associate with the entity.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         The requested entity matching
@@ -55,8 +56,9 @@ async def put_entity(
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Entity.html>
         new_version: If true, a new version of the entity will be created.
         generated_by: The ID of the activity to associate with the entity.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         The requested entity bundle matching
@@ -84,8 +86,9 @@ async def get_entity(
     """
     Arguments:
         entity_id: The ID of the entity.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         The requested entity bundle matching
@@ -113,8 +116,9 @@ async def get_upload_destination(
 
     Arguments:
         entity_id: The ID of the entity.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         The upload destination.
@@ -138,8 +142,9 @@ async def get_upload_destination_location(
     Arguments:
         entity_id: The ID of the entity.
         location: A storage location ID of the upload destination.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         The upload destination.
@@ -162,8 +167,9 @@ async def create_access_requirements_if_none(
 
     Arguments:
         entity_id: The ID of the entity.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
     """
     from synapseclient import Synapse
 
@@ -195,8 +201,9 @@ async def delete_entity_generated_by(
     """
     Arguments:
         entity_id: The ID of the entity.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns: None
     """
@@ -219,8 +226,9 @@ async def get_entity_path(
 
     Arguments:
         entity_id: The ID of the entity.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         Entity paths matching:
@@ -245,8 +253,9 @@ async def get_entities_by_md5(
 
     Arguments:
         md5: The MD5 of the entity.
-        synapse_client: If not passed in or None this will use the last client from
-            the `.login()` method.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                insance from the Synapse class constructor.
 
     Returns:
         Paginated results of:
