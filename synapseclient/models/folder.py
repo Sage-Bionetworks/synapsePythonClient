@@ -442,7 +442,7 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         if not new_folder_id:
             raise SynapseError("Failed to copy folder.")
         folder_copy = await (
-            await Folder(id=new_folder_id).get_async(synapse_client=syn)
+            await Folder(id=new_folder_id).get_async(synapse_client=synapse_client)
         ).sync_from_synapse_async(
             download_file=False,
             synapse_client=synapse_client,
