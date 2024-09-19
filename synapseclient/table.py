@@ -440,21 +440,27 @@ def _csv_to_pandas_df(
 
     line_terminator = str(os.linesep)
 
+    pandas_args = {
+        "dtype": dtype,
+        "sep": separator,
+        "quotechar": quote_char,
+        "escapechar": escape_char,
+        "header": 0 if contain_headers else None,
+        "skiprows": lines_to_skip,
+        **kwargs,
+    }
+    pandas_args.update(kwargs)
+    
     # assign line terminator only if for single character
     # line terminators (e.g. not '\r\n') 'cause pandas doesn't
     # longer line terminators. See: <https://github.com/pydata/pandas/issues/3501>
     # "ValueError: Only length-1 line terminators supported"
     df = pd.read_csv(
         filepath,
-        dtype=dtype,
-        sep=separator,
         lineterminator=line_terminator if len(line_terminator) == 1 else None,
-        quotechar=quote_char,
-        escapechar=escape_char,
-        header=0 if contain_headers else None,
-        skiprows=lines_to_skip,
-        **kwargs,
-    )
+        **pandas_args
+        )
+    
     # parse date columns if exists
     if date_columns:
         df = _convert_df_date_cols_to_datetime(df, date_columns)
