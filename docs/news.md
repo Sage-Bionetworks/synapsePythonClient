@@ -9,6 +9,18 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.5.1 (2024-09-19)
+### Highlights
+- **Telemetry auto instrumentation:**
+    - By employing the usage of the [opentelemetry-python-contrib](https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation)
+    we are able to take advantage of the support for auto instrumenting several
+    libraries in use by this client. This telemetry data is paramount for exceptional
+    observability. Check out the [readme for a quickstart](https://github.com/Sage-Bionetworks/synapsePythonClient/blob/master/README.md#opentelemetry-otel).
+- `owner_id` (Or the ID of the logged in profile) is available on logged in Synapse instance via `syn.credentials.owner_id`
+
+### Bug Fixes
+-  \[[FDS-2386](https://sagebionetworks.jira.com/browse/FDS-2386)\] - Keep track of Entity class instances throughout SynapseStorage lifecycle
+
 ## 4.5.0 (2024-09-09)
 ### Highlights
 - **Improved handling of pre-authorized requests:**
