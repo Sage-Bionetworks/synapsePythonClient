@@ -1,9 +1,9 @@
 """Unit test for synapseclient.table"""
 import csv
 import io
+import json
 import math
 import os
-import json
 import shutil
 import tempfile
 import time
@@ -41,9 +41,9 @@ from synapseclient.table import (
     Table,
     TableQueryResult,
     _convert_df_date_cols_to_datetime,
+    _csv_to_pandas_df,
     _get_view_type_mask,
     _get_view_type_mask_for_deprecated_type,
-    _csv_to_pandas_df,
     as_table_columns,
     build_table,
     cast_values,
@@ -252,15 +252,14 @@ def test_convert_df_date_cols_to_datetime() -> None:
     test_df2 = _convert_df_date_cols_to_datetime(test_df, date_columns)
     assert_frame_equal(test_df2, expected_date_df)
 
+
 def test_csv_to_pandas_df_no_kwargs():
     # GIVEN a pandas DataFrame (CSV file stand-in)
-    expected_df = pd.DataFrame({
-        'col1': [1, 2, 3],
-        'col2': ['a', 'b', 'c'],
-        'col3': [True, False, True]
-    })
+    expected_df = pd.DataFrame(
+        {"col1": [1, 2, 3], "col2": ["a", "b", "c"], "col3": [True, False, True]}
+    )
 
-    with patch.object(pd, 'read_csv', return_value=expected_df) as mock_read_csv:        
+    with patch.object(pd, "read_csv", return_value=expected_df) as mock_read_csv:
         # WHEN I call _csv_to_pandas_df with default parameters
         df = _csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -272,9 +271,9 @@ def test_csv_to_pandas_df_no_kwargs():
             date_columns=None,
             list_columns=None,
             rowIdAndVersionInIndex=True,
-            dtype=None
+            dtype=None,
         )
-        
+
         # THEN I expect pandas.read_csv was called with default arguments
         mock_read_csv.assert_called_once_with(
             "dummy_path.csv",
@@ -284,26 +283,20 @@ def test_csv_to_pandas_df_no_kwargs():
             escapechar=synapseclient.table.DEFAULT_ESCAPSE_CHAR,
             header=0,
             skiprows=0,
-            lineterminator='\n'
+            lineterminator="\n",
         )
-        
+
         # AND I expect the returned DataFrame to be the same as the original DataFrame (file)
         pd.testing.assert_frame_equal(df, expected_df)
 
 
-def test_csv_to_pandas_df_with_kwargs() -> None:    
+def test_csv_to_pandas_df_with_kwargs() -> None:
     # GIVEN a pandas DataFrame (CSV file stand-in)
-    expected_df = pd.DataFrame({
-        'col1': [1, 2, 3],
-        'col2': ['a', 'b', 'c']
-    })
+    expected_df = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
 
-    with patch.object(pd, 'read_csv', return_value=expected_df) as mock_read_csv:
+    with patch.object(pd, "read_csv", return_value=expected_df) as mock_read_csv:
         # WHEN I call _csv_to_pandas_df with custom keyword arguments
-        kwargs = {
-            "escapechar": "\\",
-            "keep_default_na": False
-        }
+        kwargs = {"escapechar": "\\", "keep_default_na": False}
         df = _csv_to_pandas_df(
             filepath="dummy_path.csv",
             separator=synapseclient.table.DEFAULT_SEPARATOR,
@@ -315,33 +308,35 @@ def test_csv_to_pandas_df_with_kwargs() -> None:
             list_columns=None,
             rowIdAndVersionInIndex=True,
             dtype=None,
-            **kwargs
+            **kwargs,
         )
-        
+
         # THEN I expect pandas.read_csv was called with the keyword arguments
         mock_read_csv.assert_called_once_with(
             "dummy_path.csv",
             dtype=None,
             sep=synapseclient.table.DEFAULT_SEPARATOR,
             quotechar=synapseclient.table.DEFAULT_QUOTE_CHARACTER,
-            escapechar='\\',
+            escapechar="\\",
             header=0,
             skiprows=0,
             keep_default_na=False,
-            lineterminator='\n'
+            lineterminator="\n",
         )
-        
+
         # AND I expect the returned DataFrame to match the expected DataFrame
         pd.testing.assert_frame_equal(df, expected_df)
 
-def test_csv_to_pandas_df_calls_convert_date_cols():    
+
+def test_csv_to_pandas_df_calls_convert_date_cols():
     # GIVEN a pandas DataFrame (CSV file stand-in) with a date column
-    expected_df = pd.DataFrame({
-        'col1': [1, 2, 3],
-        'date_col': ['2021-01-01', '2021-01-02', '2021-01-03']
-    })
-    
-    with patch.object(pd, 'read_csv', return_value=expected_df), patch.object(synapseclient.table, '_convert_df_date_cols_to_datetime') as mock_convert_dates:
+    expected_df = pd.DataFrame(
+        {"col1": [1, 2, 3], "date_col": ["2021-01-01", "2021-01-02", "2021-01-03"]}
+    )
+
+    with patch.object(pd, "read_csv", return_value=expected_df), patch.object(
+        synapseclient.table, "_convert_df_date_cols_to_datetime"
+    ) as mock_convert_dates:
         # WHEN I call _csv_to_pandas_df with date_columns specified
         _csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -350,29 +345,32 @@ def test_csv_to_pandas_df_calls_convert_date_cols():
             escape_char=synapseclient.table.DEFAULT_ESCAPSE_CHAR,
             contain_headers=True,
             lines_to_skip=0,
-            date_columns=['date_col'],  # Specify date column
+            date_columns=["date_col"],  # Specify date column
             list_columns=None,
             rowIdAndVersionInIndex=True,
-            dtype=None
+            dtype=None,
         )
-        
+
         # THEN I expect _convert_df_date_cols_to_datetime to be called with the expected DataFrame and date columns
-        mock_convert_dates.assert_called_once_with(expected_df, ['date_col'])
+        mock_convert_dates.assert_called_once_with(expected_df, ["date_col"])
+
 
 def test_csv_to_pandas_df_handles_list_columns():
     # GIVEN a pandas DataFrame (CSV file stand-in) with a list column
-    initial_df = pd.DataFrame({
-        'col1': [1, 2, 3],
-        'list_col': ['[1, 2, 3]', '[4, 5, 6]', '[7, 8, 9]']
-    })
+    initial_df = pd.DataFrame(
+        {"col1": [1, 2, 3], "list_col": ["[1, 2, 3]", "[4, 5, 6]", "[7, 8, 9]"]}
+    )
 
     # AND a pandas DataFrame (expected result) with the list column converted to a list
-    expected_final_df = pd.DataFrame({
-        'col1': [1, 2, 3],
-        'list_col': [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
-    })
+    expected_final_df = pd.DataFrame(
+        {"col1": [1, 2, 3], "list_col": [[1, 2, 3], [4, 5, 6], [7, 8, 9]]}
+    )
 
-    with patch.object(pd, 'read_csv', return_value=initial_df), patch.object(synapseclient.table, '_convert_df_date_cols_to_datetime'), patch.object(pd.Series, 'apply', return_value=expected_final_df['list_col']) as mock_apply:
+    with patch.object(pd, "read_csv", return_value=initial_df), patch.object(
+        synapseclient.table, "_convert_df_date_cols_to_datetime"
+    ), patch.object(
+        pd.Series, "apply", return_value=expected_final_df["list_col"]
+    ) as mock_apply:
         # WHEN I call _csv_to_pandas_df with list_columns specified
         result_df = synapseclient.table._csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -382,9 +380,9 @@ def test_csv_to_pandas_df_handles_list_columns():
             contain_headers=True,
             lines_to_skip=0,
             date_columns=None,
-            list_columns=['list_col'],  # Specify list column
+            list_columns=["list_col"],  # Specify list column
             rowIdAndVersionInIndex=True,
-            dtype=None
+            dtype=None,
         )
 
         # THEN I expect json.loads to be applied to the list column
@@ -393,22 +391,28 @@ def test_csv_to_pandas_df_handles_list_columns():
         # AND I expect the returned DataFrame to match the expected DataFrame
         pd.testing.assert_frame_equal(result_df, expected_final_df)
 
+
 def test_csv_to_pandas_df_handles_row_id_and_version():
     # GIVEN a pandas DataFrame (CSV file stand-in) with ROW_ID and ROW_VERSION columns
-    initial_df = pd.DataFrame({
-        'ROW_ID': [1, 2, 3],
-        'ROW_VERSION': [1, 1, 2],
-        'col1': ['a', 'b', 'c'],
-        'col2': [10, 20, 30]
-    })
+    initial_df = pd.DataFrame(
+        {
+            "ROW_ID": [1, 2, 3],
+            "ROW_VERSION": [1, 1, 2],
+            "col1": ["a", "b", "c"],
+            "col2": [10, 20, 30],
+        }
+    )
 
     # AND a pandas DataFrame (expected result) with the ROW_ID and ROW_VERSION columns removed
-    expected_final_df = pd.DataFrame({
-        'col1': ['a', 'b', 'c'],
-        'col2': [10, 20, 30]
-    }, index=['1_1', '2_1', '3_2'])  # Index format: ROW_ID_ROW_VERSION
+    expected_final_df = pd.DataFrame(
+        {"col1": ["a", "b", "c"], "col2": [10, 20, 30]}, index=["1_1", "2_1", "3_2"]
+    )  # Index format: ROW_ID_ROW_VERSION
 
-    with patch.object(pd, 'read_csv', return_value=initial_df), patch.object(synapseclient.table, 'row_labels_from_id_and_version', return_value=['1_1', '2_1', '3_2']) as mock_row_labels:
+    with patch.object(pd, "read_csv", return_value=initial_df), patch.object(
+        synapseclient.table,
+        "row_labels_from_id_and_version",
+        return_value=["1_1", "2_1", "3_2"],
+    ) as mock_row_labels:
         # WHEN I call _csv_to_pandas_df with rowIdAndVersionInIndex=True
         result_df = synapseclient.table._csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -420,7 +424,7 @@ def test_csv_to_pandas_df_handles_row_id_and_version():
             date_columns=None,
             list_columns=None,
             rowIdAndVersionInIndex=True,
-            dtype=None
+            dtype=None,
         )
 
         # THEN I expect row_labels_from_id_and_version to be called once
@@ -430,7 +434,7 @@ def test_csv_to_pandas_df_handles_row_id_and_version():
         pd.testing.assert_frame_equal(result_df, expected_final_df)
 
         # AND I expect the index of the result_df to be as expected
-        assert list(result_df.index) == ['1_1', '2_1', '3_2']
+        assert list(result_df.index) == ["1_1", "2_1", "3_2"]
 
 
 def test_schema() -> None:

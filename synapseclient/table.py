@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 from builtins import zip
-from typing import Dict, List, Tuple, TypeVar, Union, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
@@ -408,7 +408,7 @@ def _csv_to_pandas_df(
     rowIdAndVersionInIndex: bool = True,
     dtype: Optional[Dict[str, Any]] = None,
     **kwargs,
-) -> "pd.DataFrame":
+):
     """
     Convert a csv file to a pandas dataframe
 
