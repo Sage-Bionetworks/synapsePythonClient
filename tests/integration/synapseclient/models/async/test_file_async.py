@@ -4,9 +4,12 @@ import asyncio
 import os
 import uuid
 from typing import Callable
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
+import httpcore
 import pytest
+from httpcore._backends.anyio import AnyIOStream
+from pytest_mock import MockerFixture
 
 from synapseclient import Synapse
 from synapseclient.core import utils
@@ -81,6 +84,82 @@ class TestFileStore:
         assert file.file_handle.bucket_name is not None
         assert file.file_handle.key is not None
         assert file.file_handle.external_url is None
+
+    async def test_store_in_project_with_read_error(
+        self,
+        project_model: Project,
+        file: File,
+        mocker: MockerFixture,
+    ) -> None:
+        # GIVEN a file
+        file.name = str(uuid.uuid4())
+
+        # AND spy/mocks to simulate a read error
+        spy_tls_stream = mocker.spy(httpcore._backends.anyio.AnyIOStream, "start_tls")
+        logger_warning_spy = mocker.spy(self.syn.logger, "warning")
+        original_read = httpcore._backends.anyio.AnyIOStream.read
+        call_count = 0
+
+        async def new_read(*args, **kwargs) -> bytes:
+            nonlocal call_count
+            async_network_stream: httpcore.AsyncNetworkStream = (
+                spy_tls_stream.spy_return
+            )
+            call_count = call_count + 1
+            # This is very brittle, however, I do not see data to determine what the
+            # read is. In this case the 7th call is going to be the HTTP POST to create
+            # the entity.
+            if call_count == 7:
+                return b""
+            return await original_read(async_network_stream, *args, **kwargs)
+
+        # WHEN I store the file
+        with patch(
+            "httpcore._backends.anyio.AnyIOStream.read",
+            new_callable=AsyncMock,
+            side_effect=new_read,
+        ) as mock_read:
+            mock_read.return_value = b""
+            file_copy_object = await file.store_async(
+                parent=project_model, synapse_client=self.syn
+            )
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored
+        assert file.id is not None
+        assert file_copy_object.id is not None
+        assert file_copy_object == file
+        assert file.parent_id == project_model.id
+        assert file.content_type == CONTENT_TYPE
+        assert file.version_comment == VERSION_COMMENT
+        assert file.version_label is not None
+        assert file.version_number == 1
+        assert file.created_by is not None
+        assert file.created_on is not None
+        assert file.modified_by is not None
+        assert file.modified_on is not None
+        assert file.data_file_handle_id is not None
+        assert file.file_handle is not None
+        assert file.file_handle.id is not None
+        assert file.file_handle.etag is not None
+        assert file.file_handle.created_by is not None
+        assert file.file_handle.created_on is not None
+        assert file.file_handle.modified_on is not None
+        assert file.file_handle.concrete_type is not None
+        assert file.file_handle.content_type is not None
+        assert file.file_handle.content_md5 is not None
+        assert file.file_handle.file_name is not None
+        assert file.file_handle.storage_location_id is not None
+        assert file.file_handle.content_size is not None
+        assert file.file_handle.status is not None
+        assert file.file_handle.bucket_name is not None
+        assert file.file_handle.key is not None
+        assert file.file_handle.external_url is None
+
+        # AND the temporary warning is present:
+        logger_warning_spy.assert_called_once_with(
+            "This is a temporary exception to recieving an HTTP 409 conflict error - Retrieving the state of the object in Synapse. If an error is not printed after this, assume the operation was successful (SYNSD-1233)."
+        )
 
     async def test_activity_store_then_delete(
         self, project_model: Project, file: File
