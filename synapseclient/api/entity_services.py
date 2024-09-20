@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from async_lru import alru_cache
 
 from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.retry import RETRYABLE_CONNECTION_EXCEPTIONS_NO_READ_ISSUES
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -42,7 +43,12 @@ async def post_entity(
 
     try:
         return await client.rest_post_async(
-            uri="/entity", body=json.dumps(request), params=params
+            uri="/entity",
+            body=json.dumps(request),
+            params=params,
+            retry_policy={
+                "retry_exceptions": RETRYABLE_CONNECTION_EXCEPTIONS_NO_READ_ISSUES
+            },
         )
     except SynapseHTTPError:
         if "name" in request and "parentId" in request:
