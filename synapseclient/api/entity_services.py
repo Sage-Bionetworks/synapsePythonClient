@@ -2,10 +2,14 @@
 <https://rest-docs.synapse.org/rest/#org.sagebionetworks.repo.web.controller.EntityController>
 """
 
+import asyncio
 import json
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from async_lru import alru_cache
+
+from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.retry import RETRYABLE_CONNECTION_EXCEPTIONS_NO_READ_ISSUES
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -36,9 +40,45 @@ async def post_entity(
     params = {}
     if generated_by:
         params["generatedBy"] = generated_by
-    return await client.rest_post_async(
-        uri="/entity", body=json.dumps(request), params=params
-    )
+
+    try:
+        return await client.rest_post_async(
+            uri="/entity",
+            body=json.dumps(request),
+            params=params,
+            retry_policy={
+                "retry_exceptions": RETRYABLE_CONNECTION_EXCEPTIONS_NO_READ_ISSUES
+            },
+        )
+    except SynapseHTTPError:
+        if "name" in request and "parentId" in request:
+            loop = asyncio.get_event_loop()
+            entity_id = await loop.run_in_executor(
+                None,
+                lambda: Synapse.get_client(synapse_client=synapse_client).findEntityId(
+                    name=request["name"],
+                    parent=request["parentId"],
+                ),
+            )
+            if not entity_id:
+                raise
+
+            client.logger.warning(
+                "This is a temporary exception to recieving an HTTP 409 conflict error - Retrieving the state of the object in Synapse. If an error is not printed after this, assume the operation was successful (SYNSD-1233)."
+            )
+            existing_instance = await get_entity(
+                entity_id, synapse_client=synapse_client
+            )
+            # Loop over the request params and if any of them do not match the existing instance, raise the error
+            for key, value in request.items():
+                if key not in existing_instance or existing_instance[key] != value:
+                    client.logger.error(
+                        f"Failed temporary HTTP 409 logic check because {key} not in instance in Synapse or value does not match: [Existing: {existing_instance[key]}, Expected: {value}]."
+                    )
+                    raise
+            return existing_instance
+        else:
+            raise
 
 
 async def put_entity(

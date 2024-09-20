@@ -73,6 +73,21 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
     "SSLZeroReturnError",
 ]
 
+RETRYABLE_CONNECTION_EXCEPTIONS_NO_READ_ISSUES = [
+    "ChunkedEncodingError",
+    "ConnectionError",
+    "ConnectionResetError",
+    "Timeout",
+    "timeout",
+    # HTTPX Specific connection exceptions:
+    "RemoteProtocolError",
+    "TimeoutException",
+    "ConnectError",
+    "ConnectTimeout",
+    # SSL Specific exceptions:
+    "SSLZeroReturnError",
+]
+
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
 
 
