@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 from builtins import zip
-from typing import Dict, List, Tuple, TypeVar, Union
+from typing import Dict, List, Tuple, TypeVar, Union, Optional, Any
 
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
@@ -397,18 +397,18 @@ def _convert_df_date_cols_to_datetime(
 
 
 def _csv_to_pandas_df(
-    filepath,
-    separator=DEFAULT_SEPARATOR,
-    quote_char=DEFAULT_QUOTE_CHARACTER,
-    escape_char=DEFAULT_ESCAPSE_CHAR,
-    contain_headers=True,
-    lines_to_skip=0,
-    date_columns=None,
-    list_columns=None,
-    rowIdAndVersionInIndex=True,
-    dtype=None,
+    filepath: str,
+    separator: str = DEFAULT_SEPARATOR,
+    quote_char: str = DEFAULT_QUOTE_CHARACTER,
+    escape_char: str = DEFAULT_ESCAPSE_CHAR,
+    contain_headers: bool = True,
+    lines_to_skip: int = 0,
+    date_columns: Optional[List[str]] = None,
+    list_columns: Optional[List[str]] = None,
+    rowIdAndVersionInIndex: bool = True,
+    dtype: Optional[Dict[str, Any]] = None,
     **kwargs,
-):
+) -> "pd.DataFrame":
     """
     Convert a csv file to a pandas dataframe
 
