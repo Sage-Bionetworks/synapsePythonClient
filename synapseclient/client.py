@@ -6299,6 +6299,7 @@ class Synapse(object):
         Returns:
             JSON encoding of response
         """
+        self.logger.debug(f"Sending {method} request to {uri}")
         uri, headers = self._build_uri_and_headers(
             uri, endpoint=endpoint, headers=headers
         )
