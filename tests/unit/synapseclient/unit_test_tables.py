@@ -288,7 +288,8 @@ def test_csv_to_pandas_df_no_kwargs():
             lineterminator=None,
         )
 
-        # AND I expect the returned DataFrame to be the same as the original DataFrame (file)
+        # AND I expect the returned DataFrame to be 
+        # the same as the original DataFrame (file)
         pd.testing.assert_frame_equal(df, expected_df)
 
 
@@ -355,7 +356,8 @@ def test_csv_to_pandas_df_calls_convert_date_cols():
             dtype=None,
         )
 
-        # THEN I expect _convert_df_date_cols_to_datetime to be called with the expected DataFrame and date columns
+        # THEN I expect _convert_df_date_cols_to_datetime to be 
+        # called with the expected DataFrame and date columns
         mock_convert_dates.assert_called_once_with(expected_df, ["date_col"])
 
 
@@ -407,7 +409,8 @@ def test_csv_to_pandas_df_handles_row_id_and_version():
         }
     )
 
-    # AND a pandas DataFrame (expected result) with the ROW_ID and ROW_VERSION columns removed
+    # AND a pandas DataFrame (expected result) 
+    # with the ROW_ID and ROW_VERSION columns removed
     expected_final_df = pd.DataFrame(
         {"col1": ["a", "b", "c"], "col2": [10, 20, 30]}, index=["1_1", "2_1", "3_2"]
     )  # Index format: ROW_ID_ROW_VERSION
@@ -434,7 +437,8 @@ def test_csv_to_pandas_df_handles_row_id_and_version():
         # THEN I expect row_labels_from_id_and_version to be called once
         mock_row_labels.assert_called_once()
 
-        # AND I expect the returned DataFrame to match the expected DataFrame with the ROW_ID and ROW_VERSION columns removed
+        # AND I expect the returned DataFrame to match the expected 
+        # DataFrame with the ROW_ID and ROW_VERSION columns removed
         pd.testing.assert_frame_equal(result_df, expected_final_df)
 
         # AND I expect the index of the result_df to be as expected
