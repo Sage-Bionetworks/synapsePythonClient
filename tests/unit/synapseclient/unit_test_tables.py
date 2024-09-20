@@ -259,7 +259,9 @@ def test_csv_to_pandas_df_no_kwargs():
         {"col1": [1, 2, 3], "col2": ["a", "b", "c"], "col3": [True, False, True]}
     )
 
-    with patch.object(pd, "read_csv", return_value=expected_df) as mock_read_csv:
+    with patch.object(
+        pd, "read_csv", return_value=expected_df
+    ) as mock_read_csv, patch.object(os, "linesep", "\r\n"):
         # WHEN I call _csv_to_pandas_df with default parameters
         df = _csv_to_pandas_df(
             filepath="dummy_path.csv",
@@ -283,7 +285,7 @@ def test_csv_to_pandas_df_no_kwargs():
             escapechar=synapseclient.table.DEFAULT_ESCAPSE_CHAR,
             header=0,
             skiprows=0,
-            lineterminator="\n",
+            lineterminator=None,
         )
 
         # AND I expect the returned DataFrame to be the same as the original DataFrame (file)
@@ -294,7 +296,9 @@ def test_csv_to_pandas_df_with_kwargs() -> None:
     # GIVEN a pandas DataFrame (CSV file stand-in)
     expected_df = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
 
-    with patch.object(pd, "read_csv", return_value=expected_df) as mock_read_csv:
+    with patch.object(
+        pd, "read_csv", return_value=expected_df
+    ) as mock_read_csv, patch.object(os, "linesep", "\r\n"):
         # WHEN I call _csv_to_pandas_df with custom keyword arguments
         kwargs = {"escapechar": "\\", "keep_default_na": False}
         df = _csv_to_pandas_df(
@@ -321,7 +325,7 @@ def test_csv_to_pandas_df_with_kwargs() -> None:
             header=0,
             skiprows=0,
             keep_default_na=False,
-            lineterminator="\n",
+            lineterminator=None,
         )
 
         # AND I expect the returned DataFrame to match the expected DataFrame
