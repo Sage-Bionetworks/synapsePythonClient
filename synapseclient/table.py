@@ -447,7 +447,6 @@ def _csv_to_pandas_df(
         "escapechar": escape_char,
         "header": 0 if contain_headers else None,
         "skiprows": lines_to_skip,
-        **kwargs,
     }
     pandas_args.update(kwargs)
 
