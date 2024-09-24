@@ -415,14 +415,20 @@ def _csv_to_pandas_df(
     Arguments:
         filepath: The path to the file.
         separator: The separator for the file, Defaults to `DEFAULT_SEPARATOR`.
+                    Passed as `sep` to pandas. If `sep` is supplied as a `kwarg`
+                    it will be used instead of this `separator` argument.
         quote_char: The quote character for the file,
-          Defaults to `DEFAULT_QUOTE_CHARACTER`.
+                    Defaults to `DEFAULT_QUOTE_CHARACTER`. 
+                    Passed as `quotechar` to pandas. If `quotechar` is supplied as a `kwarg`
+                    it will be used instead of this `quote_char` argument.
         escape_char: The escape character for the file,
                     Defaults to `DEFAULT_ESCAPSE_CHAR`.
-                    contain_headers: Whether the file contains headers,
+        contain_headers: Whether the file contains headers,
                     Defaults to `True`.
         lines_to_skip: The number of lines to skip at the beginning of the file,
-                        Defaults to `0`.
+                        Defaults to `0`. Passed as `skiprows` to pandas. 
+                        If `skiprows` is supplied as a `kwarg`
+                        it will be used instead of this `lines_to_skip` argument.
         date_columns: The names of the date columns in the file
         list_columns: The names of the list columns in the file
         rowIdAndVersionInIndex: Whether the file contains rowId and
@@ -2430,6 +2436,12 @@ class CsvFileTable(TableAbstractBaseClass):
         includeRowIdAndRowVersion=None,
         headers=None,
     ):
+        """Initialize a CsvFileTable object.
+
+        Note: Some arguments provided to this constructor are passed to pandas.read_csv()
+        including `quoteCharacter`, `escapeCharacter`, `lineEnd`, and `separator`.
+        These arguments can be overwritten by passing `pandas.read_csv` kwargs to `asDataFrame`.
+        """
         self.filepath = filepath
 
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
@@ -2485,6 +2497,11 @@ class CsvFileTable(TableAbstractBaseClass):
         **kwargs,
     ):
         """Convert query result to a Pandas DataFrame.
+
+        Note: Class attributes  `quoteCharacter`, `escapeCharacter`, `lineEnd`, and `separator`
+        are used as `quotechar`, `escapechar`, `lineterminator`, and `sep` in `pandas.read_csv`
+        within this method. If you want to override these values, you can do so by passing the
+        appropriate keyword arguments to this method.
 
         Arguments:
             rowIdAndVersionInIndex: Make the dataframe index consist of the
