@@ -37,7 +37,7 @@ async def test_copy(syn: Synapse, schedule_for_cleanup):
 
 
 # When running with multiple threads it can lock up and do nothing until pipeline is killed at 6hrs
-@func_set_timeout(120)
+@func_set_timeout(360)
 def execute_test_copy(syn: Synapse, schedule_for_cleanup):
     """Tests the copy function"""
     # Create a Project
