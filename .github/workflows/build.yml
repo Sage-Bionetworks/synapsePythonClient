@@ -62,7 +62,7 @@ jobs:
       - name: get-dependencies-location
         shell: bash
         run: |
-          SITE_PACKAGES_LOCATION=$(python -c "from sysconfig import get_python_lib; print(get_python_lib())")
+          SITE_PACKAGES_LOCATION=$(python -c "from sysconfig import get_path; print(get_path('purelib'))")
           SITE_BIN_DIR=$(python3 -c "import os; import platform; import sysconfig; pre = sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
           echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
           echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
