@@ -458,7 +458,7 @@ class TestCopyAccessRestriction:
                 call("/entity/{}/accessRequirement".format(self.file_ent.id)),
                 call("/entity/{}/permissions".format(self.file_ent.id)),
             ]
-            patch_rest_get.has_calls(calls)
+            patch_rest_get.assert_has_calls(calls=calls, any_order=True)
 
 
 class TestCopy:
