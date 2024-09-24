@@ -418,7 +418,7 @@ def _csv_to_pandas_df(
                     Passed as `sep` to pandas. If `sep` is supplied as a `kwarg`
                     it will be used instead of this `separator` argument.
         quote_char: The quote character for the file,
-                    Defaults to `DEFAULT_QUOTE_CHARACTER`. 
+                    Defaults to `DEFAULT_QUOTE_CHARACTER`.
                     Passed as `quotechar` to pandas. If `quotechar` is supplied as a `kwarg`
                     it will be used instead of this `quote_char` argument.
         escape_char: The escape character for the file,
@@ -426,7 +426,7 @@ def _csv_to_pandas_df(
         contain_headers: Whether the file contains headers,
                     Defaults to `True`.
         lines_to_skip: The number of lines to skip at the beginning of the file,
-                        Defaults to `0`. Passed as `skiprows` to pandas. 
+                        Defaults to `0`. Passed as `skiprows` to pandas.
                         If `skiprows` is supplied as a `kwarg`
                         it will be used instead of this `lines_to_skip` argument.
         date_columns: The names of the date columns in the file
