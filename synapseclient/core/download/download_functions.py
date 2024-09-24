@@ -991,7 +991,7 @@ def resolve_download_path_collisions(
 
     download_path = utils.normalize_path(os.path.join(download_location, file_name))
     # resolve collision
-    if os.path.exists(path=download_path):
+    if os.path.exists(download_path):
         if if_collision == COLLISION_OVERWRITE_LOCAL:
             pass  # Let the download proceed and overwrite the local file.
         elif if_collision == COLLISION_KEEP_LOCAL:
