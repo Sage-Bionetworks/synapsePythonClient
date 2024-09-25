@@ -1,6 +1,6 @@
 import json
 
-import importlib_resources
+import importlib.resources
 import requests  # ensure user-agent is set to track Synapse Python client usage
 
 from .activity import Activity
@@ -31,7 +31,7 @@ from .table import (
 from .team import Team, TeamMember, UserGroupHeader, UserProfile
 from .wiki import Wiki
 
-ref = importlib_resources.files(__name__).joinpath("synapsePythonClient")
+ref = importlib.resources.files(__name__).joinpath("synapsePythonClient")
 with ref.open("r") as fp:
     __version__ = json.load(fp)["latestVersion"]
 
