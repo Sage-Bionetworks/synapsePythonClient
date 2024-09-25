@@ -93,7 +93,7 @@ copied to forks).
 #### Installing the Python Client in a virtual environment with pipenv
 Perform the following one-time steps to set up your local environment.
 
-1. This package uses Python, if you have not already, please install [pyenv](https://github.com/pyenv/pyenv#installation) to manage your Python versions. Versions supported by this package are all versions >=3.8 and <=3.11. If you do not install `pyenv` make sure that Python and `pip` are installed correctly and have been added to your PATH by running `python3 --version` and `pip3 --version`. If your installation was successful, your terminal will return the versions of Python and `pip` that you installed.  **Note**: If you have `pyenv` it will install a specific version of Python for you.
+1. This package uses Python, if you have not already, please install [pyenv](https://github.com/pyenv/pyenv#installation) to manage your Python versions. Versions supported by this package are all versions >=3.9 and <=3.12. If you do not install `pyenv` make sure that Python and `pip` are installed correctly and have been added to your PATH by running `python3 --version` and `pip3 --version`. If your installation was successful, your terminal will return the versions of Python and `pip` that you installed.  **Note**: If you have `pyenv` it will install a specific version of Python for you.
 
 2. Install `pipenv` by running `pip install pipenv`.
     - If you already have `pipenv` installed, ensure that the version is >=2023.9.8 to avoid compatibility issues.

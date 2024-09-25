@@ -120,7 +120,7 @@ def syncFromSynapse(
             downloaded, no manifest file will be created.
         ifcollision: Determines how to handle file collisions. Maybe
                      "overwrite.local", "keep.local", or "keep.both".
-        allFiles: Deprecated and not to be used. This will be removed in v5.0.0.
+        allFiles: Deprecated and not to be used. This will be removed in v6.0.0.
         followLink: Determines whether the link returns the target Entity.
         manifest: Determines whether creating manifest file automatically. The
                   optional values here (`all`, `root`, `suppress`).
@@ -221,7 +221,7 @@ def syncFromSynapse(
     # implementation of this function with the public signature invoking itself. now
     # that this isn't a recursive any longer we don't need allFiles as a parameter
     # (especially on the public signature) but it is retained for now for backwards
-    # compatibility with external invokers. To be removed in v5.0.0.
+    # compatibility with external invokers. To be removed in v6.0.0.
     if allFiles is not None:
         allFiles.extend(synapse_files)
         synapse_files = allFiles
@@ -584,7 +584,7 @@ class _SyncUploader:
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 5.0.0. This is being replaced by `generate_manifest`.",
+    reason="To be removed in 6.0.0. This is being replaced by `generate_manifest`.",
 )
 def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
     """Generates a manifest file based on a list of entities objects.
@@ -609,7 +609,7 @@ def generateManifest(syn, allFiles, filename, provenance_cache=None) -> None:
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 5.0.0. This is being replaced by `_extract_entity_metadata_for_file`.",
+    reason="To be removed in 6.0.0. This is being replaced by `_extract_entity_metadata_for_file`.",
 )
 def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
     """
@@ -666,7 +666,7 @@ def _extract_file_entity_metadata(syn, allFiles, *, provenance_cache=None):
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 5.0.0. This is being replaced by `_get_entity_provenance_dict_for_file`.",
+    reason="To be removed in 6.0.0. This is being replaced by `_get_entity_provenance_dict_for_file`.",
 )
 def _get_file_entity_provenance_dict(syn, entity):
     """

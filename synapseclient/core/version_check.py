@@ -11,7 +11,7 @@ Print release notes for installed version of client:
 
 """
 
-import importlib.resources
+import importlib_resources
 import json
 import re
 import sys
@@ -165,12 +165,9 @@ def _version_tuple(version, levels=2):
 
 def _get_version_info(version_url=_VERSION_URL):
     if version_url is None:
-        # ref = importlib_resources.files("synapseclient").joinpath("synapsePythonClient")
-        # with ref.open("r") as fp:
-        #     pkg_metadata = json.loads(fp.read())
-        # TODO: switch to the above after python 3.8 is deprecated
-        with importlib.resources.path(__name__, "synapsePythonClient") as ref:
-            pkg_metadata = json.load(ref)
+        ref = importlib_resources.files("synapseclient").joinpath("synapsePythonClient")
+        with ref.open("r") as fp:
+            pkg_metadata = json.loads(fp.read())
         return pkg_metadata
     else:
         headers = {"Accept": "application/json; charset=UTF-8"}
