@@ -1,6 +1,6 @@
+import importlib.resources
 import json
 
-import importlib.resources
 import requests  # ensure user-agent is set to track Synapse Python client usage
 
 from .activity import Activity
