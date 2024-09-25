@@ -101,7 +101,7 @@ jobs:
           pytest -sv --cov-append --cov=. --cov-report xml tests/unit
       - name: Check for Secret availability
         id: secret-check
-        if: ${{ (contains(fromJSON('["3.8"]'), matrix.python) || contains(fromJSON('["3.12"]'), matrix.python)) }}
+        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.12"]'), matrix.python) }}
         # perform secret check & put boolean result as an output
         shell: bash
         run: |
