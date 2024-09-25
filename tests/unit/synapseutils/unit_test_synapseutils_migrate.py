@@ -2171,7 +2171,7 @@ def test_verify_storage_location_ownership():
     with pytest.raises(ValueError) as ex:
         _verify_storage_location_ownership(syn, storage_location_id)
     assert "Error verifying" in str(ex.value)
-    assert syn.restGET.called_with("/storageLocation/{}".format(storage_location_id))
+    syn.restGET.assert_called_with(f"/storageLocation/{storage_location_id}")
 
 
 def test__verify_index_settings__retrieve_index_settings():

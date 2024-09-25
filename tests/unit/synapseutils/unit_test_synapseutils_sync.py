@@ -315,7 +315,9 @@ def test_sync_from_synapse_folder_contains_one_file(syn: Synapse) -> None:
     ):
         result = synapseutils.syncFromSynapse(syn, folder)
         assert [file] == result
-        patch_syn_get_children.called_with(folder["id"])
+        patch_syn_get_children.assert_called_with(
+            parent=folder["id"], includeTypes=["folder", "file"]
+        )
 
 
 def test_sync_from_synapse_project_contains_empty_folder(syn: Synapse) -> None:

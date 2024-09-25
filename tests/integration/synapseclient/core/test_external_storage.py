@@ -423,15 +423,12 @@ class TestExernalStorage:
         ) = await self._configure_storage_location(external_object_store=True)
 
         try:
-            with (
-                mock.patch(
-                    "synapseclient.core.upload.upload_functions_async._get_aws_credentials",
-                    return_value=get_aws_env()[1],
-                ),
-                mock.patch(
-                    "synapseclient.core.download.download_functions._get_aws_credentials",
-                    return_value=get_aws_env()[1],
-                ),
+            with mock.patch(
+                "synapseclient.core.upload.upload_functions_async._get_aws_credentials",
+                return_value=get_aws_env()[1],
+            ), mock.patch(
+                "synapseclient.core.download.download_functions._get_aws_credentials",
+                return_value=get_aws_env()[1],
             ):
                 # WHEN we save a file to that location
                 upload_file = utils.make_bogus_uuid_file()
