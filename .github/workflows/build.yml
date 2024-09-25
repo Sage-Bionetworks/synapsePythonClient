@@ -101,7 +101,7 @@ jobs:
           pytest -sv --cov-append --cov=. --cov-report xml tests/unit
       - name: Check for Secret availability
         id: secret-check
-        if: ${{ contains(fromJSON('["3.8"]'), matrix.python) || contains(fromJSON('["3.12"]'), matrix.python) || contains(fromJSON('["3.12"]'), matrix.python) }}
+        if: ${{ (contains(fromJSON('["3.8"]'), matrix.python) || contains(fromJSON('["3.12"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
         # perform secret check & put boolean result as an output
         shell: bash
         run: |
@@ -402,7 +402,7 @@ jobs:
         os: [ubuntu-20.04, macos-12, windows-2022]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-        python: ['3.9', '3.10', '3.11', '3.12']
+        python: [3.8, '3.9', '3.10', '3.11']
 
     runs-on: ${{ matrix.os }}
 
