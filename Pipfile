@@ -7,7 +7,7 @@ verify_ssl = true
 synapseclient = {file = ".", editable = true, path = "."}
 
 [requires]
-python_version = "3.11.3"
+python_version = "3.12.6"
 
 [dev-packages]
 synapseclient = {file = ".", editable = true, path = ".", extras = ["dev", "tests", "pandas", "pysftp", "boto3", "docs"]}
