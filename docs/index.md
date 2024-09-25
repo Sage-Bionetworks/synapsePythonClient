@@ -2,14 +2,14 @@
 
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.org/project/synapseclient/)
 
-### **Notice for the upcoming v6.0 release:**
+### **Notice for the upcoming v5.0 release:**
 
-- The upcoming v6.0 release will include a number of breaking changes. Take a look at
+- The upcoming v5.0 release will include a number of breaking changes. Take a look at
 this [pubpub](https://sagebionetworks.pubpub.org/pub/828a3x4k/release/1) article
 detailing some of the changes.
 - A release date has not been set. A number of these changes will be available within
 the 5.x.x versions hidden behind optional feature flags or different import paths. Any
-breaking changes will not be included until v6.0.
+breaking changes will not be included until v5.0.
 
 The `synapseclient` package provides an interface to [Synapse](http://www.synapse.org), a collaborative, open-source research platform that allows teams to share data, track analyses, and collaborate, providing support for:
 

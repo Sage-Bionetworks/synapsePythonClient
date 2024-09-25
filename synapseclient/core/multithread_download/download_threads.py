@@ -40,7 +40,7 @@ _thread_local = _threading.local()
 @contextmanager
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 def shared_executor(executor):
@@ -55,7 +55,7 @@ def shared_executor(executor):
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 class DownloadRequest(NamedTuple):
@@ -81,7 +81,7 @@ class DownloadRequest(NamedTuple):
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 class TransferStatus(object):
@@ -111,7 +111,7 @@ class TransferStatus(object):
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 class PresignedUrlInfo(NamedTuple):
@@ -131,7 +131,7 @@ class PresignedUrlInfo(NamedTuple):
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 class PresignedUrlProvider(object):
@@ -183,7 +183,7 @@ class PresignedUrlProvider(object):
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 def _generate_chunk_ranges(
@@ -209,7 +209,7 @@ def _generate_chunk_ranges(
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 def _pre_signed_url_expiration_time(url: str) -> datetime:
@@ -233,7 +233,7 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 def _get_new_session() -> Session:
@@ -253,7 +253,7 @@ def _get_new_session() -> Session:
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 def _get_file_size(url: str, debug: bool) -> int:
@@ -275,7 +275,7 @@ def _get_file_size(url: str, debug: bool) -> int:
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 def download_file(
@@ -318,7 +318,7 @@ def download_file(
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 def _get_thread_session():
@@ -336,7 +336,7 @@ def _get_thread_session():
 
 @deprecated(
     version="4.4.0",
-    reason="To be removed in 6.0.0. "
+    reason="To be removed in 5.0.0. "
     "Moved to synapseclient/core/download/download_async.py",
 )
 class _MultithreadedDownloader:
@@ -365,7 +365,7 @@ class _MultithreadedDownloader:
 
     @deprecated(
         version="4.4.0",
-        reason="To be removed in 6.0.0. "
+        reason="To be removed in 5.0.0. "
         "Moved to synapseclient/core/download/download_async.py",
     )
     def download_file(self, request: DownloadRequest) -> None:
