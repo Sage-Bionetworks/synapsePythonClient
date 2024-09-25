@@ -11,11 +11,11 @@ Print release notes for installed version of client:
 
 """
 
+import importlib.resources
 import json
 import re
 import sys
 
-import importlib_resources
 import requests
 
 import synapseclient
@@ -165,7 +165,7 @@ def _version_tuple(version, levels=2):
 
 def _get_version_info(version_url=_VERSION_URL):
     if version_url is None:
-        ref = importlib_resources.files("synapseclient").joinpath("synapsePythonClient")
+        ref = importlib.resources.files("synapseclient").joinpath("synapsePythonClient")
         with ref.open("r") as fp:
             pkg_metadata = json.loads(fp.read())
         return pkg_metadata
