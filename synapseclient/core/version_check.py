@@ -11,11 +11,11 @@ Print release notes for installed version of client:
 
 """
 
-import importlib_resources
 import json
 import re
 import sys
 
+import importlib_resources
 import requests
 
 import synapseclient
