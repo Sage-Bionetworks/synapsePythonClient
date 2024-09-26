@@ -253,7 +253,7 @@ jobs:
 
     runs-on: ubuntu-20.04
 
-    # if: github.event_name == 'release'
+    if: github.event_name == 'release'
 
     outputs:
       sdist-package-name: ${{ steps.build-package.outputs.sdist-package-name }}
