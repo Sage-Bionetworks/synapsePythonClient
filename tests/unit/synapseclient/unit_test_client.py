@@ -2995,6 +2995,38 @@ def test_get_submission_with_annotations(syn: Synapse) -> None:
         assert evaluation_id == response["evaluationId"]
 
 
+@pytest.mark.parametrize("submission_id", ["123", 123])
+def test_get_submission_valid_id(syn: Synapse, submission_id) -> None:
+    evaluation_id = (98765,)
+
+    submission = {
+        "evaluationId": evaluation_id,
+        "entityId": submission_id,
+        "versionNumber": 1,
+        "entityBundleJSON": json.dumps({}),
+    }
+    with patch.object(syn, "restGET") as restGET, patch.object(
+        syn, "_getWithEntityBundle"
+    ) as get_entity:
+        restGET.return_value = submission
+        syn.getSubmission(submission_id)
+        restGET.assert_called_once_with(f"/evaluation/submission/{submission_id}")
+        get_entity.assert_called_once_with(
+            entityBundle={},
+            entity=submission_id,
+            submission=str(submission_id),
+        )
+
+
+@pytest.mark.parametrize("submission_id", ["123.0", 123.0])
+def test_get_submission_invalid_id(syn: Synapse, submission_id) -> None:
+    with pytest.raises(
+        ValueError,
+        match=f"Invalid submission ID: {submission_id}. ID can either be an integer or a string with no decimals.",
+    ):
+        syn.getSubmission(submission_id)
+
+
 class TestTableSnapshot:
     def test__create_table_snapshot(self, syn: Synapse) -> None:
         """Testing creating table snapshots"""

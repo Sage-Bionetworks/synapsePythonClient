@@ -100,6 +100,13 @@ def test_id_of() -> None:
         assert utils.id_of(foo) == "123"
 
 
+def test_validate_submission_id() -> None:
+    assert utils.validate_submission_id("123") == "123"
+    assert utils.validate_submission_id(123) == "123"
+    pytest.raises(ValueError, utils.validate_submission_id, "123.0")
+    pytest.raises(ValueError, utils.validate_submission_id, 123.0)
+
+
 # TODO: Add a test for is_synapse_id_str(...)
 # https://sagebionetworks.jira.com/browse/SYNPY-1425
 

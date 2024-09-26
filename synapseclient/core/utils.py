@@ -242,6 +242,32 @@ def id_of(obj: typing.Union[str, collections.abc.Mapping, numbers.Number]) -> st
     raise ValueError("Invalid parameters: couldn't find id of " + str(obj))
 
 
+def validate_submission_id(submission_id: typing.Union[str, int]) -> str:
+    """
+    Ensures that a given submission ID is either an integer or a string that
+    can be converted to an integer. Version notation is not supported for submission
+    IDs, therefore decimals are not allowed.
+
+    Arguments:
+        submission_id: The submission ID to validate
+
+    Returns:
+        The submission ID as a string
+
+    Raises:
+        ValueError: if the submission ID is invalid
+
+    """
+    if isinstance(submission_id, int):
+        return str(submission_id)
+    elif isinstance(submission_id, str) and submission_id.isdigit():
+        return submission_id
+    else:
+        raise ValueError(
+            f"Invalid submission ID: {submission_id}. ID can either be an integer or a string with no decimals."
+        )
+
+
 def concrete_type_of(obj: collections.abc.Mapping):
     """
     Return the concrete type of an object representing a Synapse entity.
