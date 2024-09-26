@@ -4853,7 +4853,9 @@ class Synapse(object):
 
         return submission
 
-    def getSubmissionStatus(self, submission: typing.Union[str, int]) -> SubmissionStatus:
+    def getSubmissionStatus(
+        self, submission: typing.Union[str, int]
+    ) -> SubmissionStatus:
         """
         Downloads the status of a Submission.
 
