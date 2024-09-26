@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM python:3.9-slim
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
 RUN apt-get update \
