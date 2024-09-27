@@ -1,6 +1,6 @@
 {
   "client": "synapsePythonClient",
-  "latestVersion": "4.5.0",
+  "latestVersion": "4.5.0-synsd-1233",
   "blacklist": [
     "0.0.0",
     "0.4.1",
