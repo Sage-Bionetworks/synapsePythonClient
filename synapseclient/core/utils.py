@@ -272,7 +272,7 @@ def validate_submission_id(
     elif isinstance(submission_id, collections.abc.Mapping):
         syn_id = _get_from_members_items_or_properties(submission_id, "id")
         if syn_id is not None:
-            return str((float(syn_id)))
+            return validate_submission_id(syn_id)
     else:
         int_submission_id = int(float(submission_id))
         LOGGER.warning(

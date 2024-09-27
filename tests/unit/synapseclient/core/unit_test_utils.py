@@ -101,25 +101,27 @@ def test_id_of() -> None:
         assert utils.id_of(foo) == "123"
 
 
-def test_validate_submission_id(caplog) -> None:
-    # Test 1: Test valid inputs
-    assert utils.validate_submission_id("123") == "123"
-    assert utils.validate_submission_id(123) == "123"
+@pytest.mark.parametrize(
+    "input_value, expected_output, expected_warning",
+    [
+        # Test 1: Valid inputs
+        ("123", "123", None),
+        (123, "123", None),
+        ({"id": "222"}, "222", None),
 
-    # Test 2: Test invalid inputs get corrected
+        # Test 2: Invalid inputs that should be corrected
+        ("123.0", "123", "Submission ID '123.0' contains decimals which are not supported"),
+        (123.0, "123", "Submission ID '123.0' contains decimals which are not supported"),
+        ({"id": "999.222"}, "999", "Submission ID '999.222' contains decimals which are not supported"),
+    ]
+)
+def test_validate_submission_id(input_value, expected_output, expected_warning, caplog):
     with caplog.at_level(logging.WARNING):
-        assert utils.validate_submission_id("123.0") == "123"
-        assert (
-            "Submission ID '123.0' contains decimals which are not supported"
-            in caplog.text
-        )
-    with caplog.at_level(logging.WARNING):
-        assert utils.validate_submission_id(123.0) == "123"
-        assert (
-            "Submission ID '123.0' contains decimals which are not supported"
-            in caplog.text
-        )
-
+        assert utils.validate_submission_id(input_value) == expected_output
+        if expected_warning:
+            assert expected_warning in caplog.text
+        else:
+            assert not caplog.text
 
 # TODO: Add a test for is_synapse_id_str(...)
 # https://sagebionetworks.jira.com/browse/SYNPY-1425
