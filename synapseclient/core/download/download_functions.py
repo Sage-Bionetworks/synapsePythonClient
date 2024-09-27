@@ -743,7 +743,10 @@ def download_from_url(
             )
 
             try:
-                url_has_expiration = "Expires" in urllib_urlparse.urlparse(url).query
+                url_query = urllib_urlparse.urlparse(url).query
+                url_has_expiration = (
+                    "Expires" in url_query and "X-Amz-Expires" in url_query
+                )
                 url_is_expired = False
                 if url_has_expiration:
                     url_is_expired = datetime.datetime.now(
@@ -773,8 +776,9 @@ def download_from_url(
                 exceptions._raise_for_status(response, verbose=client.debug)
             except SynapseHTTPError as err:
                 if err.response.status_code == 403:
+                    url_query = urllib_urlparse.urlparse(url).query
                     url_has_expiration = (
-                        "Expires" in urllib_urlparse.urlparse(url).query
+                        "Expires" in url_query and "X-Amz-Expires" in url_query
                     )
                     url_is_expired = False
                     if url_has_expiration:
