@@ -9,6 +9,7 @@ import os
 import tempfile
 import urllib.request as urllib_request
 import uuid
+import typing
 from pathlib import Path
 from unittest.mock import ANY, AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
@@ -2995,36 +2996,60 @@ def test_get_submission_with_annotations(syn: Synapse) -> None:
         assert evaluation_id == response["evaluationId"]
 
 
-@pytest.mark.parametrize("submission_id", ["123", 123])
-def test_get_submission_valid_id(syn: Synapse, submission_id) -> None:
-    evaluation_id = (98765,)
+def run_submission_test(syn: Synapse, submission_id: typing.Union[str, int], expected_id: str, should_warn: bool = False, caplog=None) -> None:
+    """
+    Common code for test_get_submission_valid_id and test_get_submission_invalid_id.
+    Generates a dummy submission dictionary for regression testing, mocks the API calls,
+    and validates the expected output for getSubmission. For invalid submission IDs, this
+    will check that a warning was logged for the user before transforming their input.
 
+    Arguments:
+        syn: Synapse object
+        submission_id: Submission ID to test
+        expected_id: Submission ID that should be returned
+        should_warn: Whether or not a warning should be logged
+        caplog: pytest caplog fixture
+
+    Returns:
+        None
+
+    """
+    evaluation_id = (98765,)
     submission = {
         "evaluationId": evaluation_id,
         "entityId": submission_id,
         "versionNumber": 1,
         "entityBundleJSON": json.dumps({}),
     }
-    with patch.object(syn, "restGET") as restGET, patch.object(
-        syn, "_getWithEntityBundle"
-    ) as get_entity:
+
+    with patch.object(syn, "restGET") as restGET, patch.object(syn, "_getWithEntityBundle") as get_entity:
         restGET.return_value = submission
-        syn.getSubmission(submission_id)
-        restGET.assert_called_once_with(f"/evaluation/submission/{submission_id}")
+
+        if should_warn:
+            with caplog.at_level(logging.WARNING):
+                syn.getSubmission(submission_id)
+                assert f"Submission ID '{submission_id}' contains decimals which are not supported" in caplog.text
+        else:
+            syn.getSubmission(submission_id)
+
+        restGET.assert_called_once_with(f"/evaluation/submission/{expected_id}")
         get_entity.assert_called_once_with(
             entityBundle={},
             entity=submission_id,
-            submission=str(submission_id),
+            submission=str(expected_id),
         )
 
 
-@pytest.mark.parametrize("submission_id", ["123.0", 123.0])
-def test_get_submission_invalid_id(syn: Synapse, submission_id) -> None:
-    with pytest.raises(
-        ValueError,
-        match=f"Invalid submission ID: {submission_id}. ID can either be an integer or a string with no decimals.",
-    ):
-        syn.getSubmission(submission_id)
+@pytest.mark.parametrize("submission_id, expected_id", [("123", "123"), (123, "123")])
+def test_get_submission_valid_id(syn: Synapse, submission_id, expected_id) -> None:
+    """ Test getSubmission with valid submission ID """
+    run_submission_test(syn, submission_id, expected_id)
+
+
+@pytest.mark.parametrize("submission_id, expected_id", [("123.0", "123"), (123.0, "123")])
+def test_get_submission_invalid_id(syn: Synapse, submission_id, expected_id, caplog) -> None:
+    """ Test getSubmission with invalid submission ID """
+    run_submission_test(syn, submission_id, expected_id, should_warn=True, caplog=caplog)
 
 
 class TestTableSnapshot:
