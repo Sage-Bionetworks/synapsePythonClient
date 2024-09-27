@@ -4808,7 +4808,9 @@ class Synapse(object):
             if next_page_token is None:
                 break
 
-    def getSubmission(self, id: typing.Union[str, int], **kwargs) -> Submission:
+    def getSubmission(
+        self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
+    ) -> Submission:
         """
         Gets a [synapseclient.evaluation.Submission][] object by its id.
 

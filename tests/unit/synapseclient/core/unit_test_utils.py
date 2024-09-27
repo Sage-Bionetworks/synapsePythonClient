@@ -105,14 +105,20 @@ def test_validate_submission_id(caplog) -> None:
     # Test 1: Test valid inputs
     assert utils.validate_submission_id("123") == "123"
     assert utils.validate_submission_id(123) == "123"
-    
+
     # Test 2: Test invalid inputs get corrected
     with caplog.at_level(logging.WARNING):
         assert utils.validate_submission_id("123.0") == "123"
-        assert "Submission ID '123.0' contains decimals which are not supported" in caplog.text
+        assert (
+            "Submission ID '123.0' contains decimals which are not supported"
+            in caplog.text
+        )
     with caplog.at_level(logging.WARNING):
         assert utils.validate_submission_id(123.0) == "123"
-        assert "Submission ID '123.0' contains decimals which are not supported" in caplog.text
+        assert (
+            "Submission ID '123.0' contains decimals which are not supported"
+            in caplog.text
+        )
 
 
 # TODO: Add a test for is_synapse_id_str(...)

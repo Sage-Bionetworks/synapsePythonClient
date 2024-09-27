@@ -27,10 +27,11 @@ import warnings
 import zipfile
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, TypeVar
-from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 import requests
 from opentelemetry import trace
+
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder, Project
@@ -53,6 +54,7 @@ SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
 LOGGER_NAME = DEFAULT_LOGGER_NAME
 LOGGER = logging.getLogger(LOGGER_NAME)
 logging.getLogger("py.warnings").handlers = LOGGER.handlers
+
 
 def md5_for_file(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
@@ -248,7 +250,9 @@ def id_of(obj: typing.Union[str, collections.abc.Mapping, numbers.Number]) -> st
     raise ValueError("Invalid parameters: couldn't find id of " + str(obj))
 
 
-def validate_submission_id(submission_id: typing.Union[str, int]) -> str:
+def validate_submission_id(
+    submission_id: typing.Union[str, int, collections.abc.Mapping]
+) -> str:
     """
     Ensures that a given submission ID is either an integer or a string that
     can be converted to an integer. Version notation is not supported for submission
@@ -265,6 +269,10 @@ def validate_submission_id(submission_id: typing.Union[str, int]) -> str:
         return str(submission_id)
     elif isinstance(submission_id, str) and submission_id.isdigit():
         return submission_id
+    elif isinstance(submission_id, collections.abc.Mapping):
+        syn_id = _get_from_members_items_or_properties(submission_id, "id")
+        if syn_id is not None:
+            return str((float(syn_id)))
     else:
         int_submission_id = int(float(submission_id))
         LOGGER.warning(

@@ -7,9 +7,9 @@ import json
 import logging
 import os
 import tempfile
+import typing
 import urllib.request as urllib_request
 import uuid
-import typing
 from pathlib import Path
 from unittest.mock import ANY, AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
@@ -2996,7 +2996,13 @@ def test_get_submission_with_annotations(syn: Synapse) -> None:
         assert evaluation_id == response["evaluationId"]
 
 
-def run_submission_test(syn: Synapse, submission_id: typing.Union[str, int], expected_id: str, should_warn: bool = False, caplog=None) -> None:
+def run_submission_test(
+    syn: Synapse,
+    submission_id: typing.Union[str, int],
+    expected_id: str,
+    should_warn: bool = False,
+    caplog=None,
+) -> None:
     """
     Common code for test_get_submission_valid_id and test_get_submission_invalid_id.
     Generates a dummy submission dictionary for regression testing, mocks the API calls,
@@ -3022,13 +3028,18 @@ def run_submission_test(syn: Synapse, submission_id: typing.Union[str, int], exp
         "entityBundleJSON": json.dumps({}),
     }
 
-    with patch.object(syn, "restGET") as restGET, patch.object(syn, "_getWithEntityBundle") as get_entity:
+    with patch.object(syn, "restGET") as restGET, patch.object(
+        syn, "_getWithEntityBundle"
+    ) as get_entity:
         restGET.return_value = submission
 
         if should_warn:
             with caplog.at_level(logging.WARNING):
                 syn.getSubmission(submission_id)
-                assert f"Submission ID '{submission_id}' contains decimals which are not supported" in caplog.text
+                assert (
+                    f"Submission ID '{submission_id}' contains decimals which are not supported"
+                    in caplog.text
+                )
         else:
             syn.getSubmission(submission_id)
 
@@ -3042,14 +3053,20 @@ def run_submission_test(syn: Synapse, submission_id: typing.Union[str, int], exp
 
 @pytest.mark.parametrize("submission_id, expected_id", [("123", "123"), (123, "123")])
 def test_get_submission_valid_id(syn: Synapse, submission_id, expected_id) -> None:
-    """ Test getSubmission with valid submission ID """
+    """Test getSubmission with valid submission ID"""
     run_submission_test(syn, submission_id, expected_id)
 
 
-@pytest.mark.parametrize("submission_id, expected_id", [("123.0", "123"), (123.0, "123")])
-def test_get_submission_invalid_id(syn: Synapse, submission_id, expected_id, caplog) -> None:
-    """ Test getSubmission with invalid submission ID """
-    run_submission_test(syn, submission_id, expected_id, should_warn=True, caplog=caplog)
+@pytest.mark.parametrize(
+    "submission_id, expected_id", [("123.0", "123"), (123.0, "123")]
+)
+def test_get_submission_invalid_id(
+    syn: Synapse, submission_id, expected_id, caplog
+) -> None:
+    """Test getSubmission with invalid submission ID"""
+    run_submission_test(
+        syn, submission_id, expected_id, should_warn=True, caplog=caplog
+    )
 
 
 class TestTableSnapshot:
