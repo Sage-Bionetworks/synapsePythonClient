@@ -4812,10 +4812,11 @@ class Synapse(object):
         self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
     ) -> Submission:
         """
-        Gets a [synapseclient.evaluation.Submission][] object by its id.
+        Gets a [synapseclient.evaluation.Submission][] object based on a given ID
+        or previous [synapseclient.evaluation.Submission][] object.
 
         Arguments:
-            id: The id of the submission to retrieve
+            id: The ID of the submission to retrieve or a [synapseclient.evaluation.Submission][] object
 
         Returns:
             A [synapseclient.evaluation.Submission][] object
@@ -4856,13 +4857,13 @@ class Synapse(object):
         return submission
 
     def getSubmissionStatus(
-        self, submission: typing.Union[str, int]
+        self, submission: typing.Union[str, int, collections.abc.Mapping]
     ) -> SubmissionStatus:
         """
-        Downloads the status of a Submission.
+        Downloads the status of a Submission given its ID or previous [synapseclient.evaluation.Submission][] object.
 
         Arguments:
-            submission: The submission to lookup
+            submission: The submission to lookup (ID or [synapseclient.evaluation.Submission][] object)
 
         Returns:
             A [synapseclient.evaluation.SubmissionStatus][] object
