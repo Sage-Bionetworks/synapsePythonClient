@@ -110,7 +110,7 @@ async def test_evaluations(syn: Synapse, project: Project):
         submissions = syn.getSubmissions(ev, limit=num_of_submissions - 1)
         for submission in submissions:
             assert re.match("Submission \\d+", submission["name"])
-            status = syn.getSubmissionStatus(submission.get("id"))
+            status = syn.getSubmissionStatus(submission)
             if submission["name"] == "Submission 01":
                 status.status = "INVALID"
             else:
