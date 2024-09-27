@@ -11,6 +11,7 @@ import gc
 import hashlib
 import importlib
 import inspect
+import logging
 import numbers
 import os
 import platform
@@ -26,6 +27,7 @@ import warnings
 import zipfile
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, TypeVar
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 import requests
 from opentelemetry import trace
@@ -47,6 +49,10 @@ tracer = trace.get_tracer("synapseclient")
 
 SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
 
+# Set up logging
+LOGGER_NAME = DEFAULT_LOGGER_NAME
+LOGGER = logging.getLogger(LOGGER_NAME)
+logging.getLogger("py.warnings").handlers = LOGGER.handlers
 
 def md5_for_file(
     filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
@@ -254,18 +260,18 @@ def validate_submission_id(submission_id: typing.Union[str, int]) -> str:
     Returns:
         The submission ID as a string
 
-    Raises:
-        ValueError: if the submission ID is invalid
-
     """
     if isinstance(submission_id, int):
         return str(submission_id)
     elif isinstance(submission_id, str) and submission_id.isdigit():
         return submission_id
     else:
-        raise ValueError(
-            f"Invalid submission ID: {submission_id}. ID can either be an integer or a string with no decimals."
+        int_submission_id = int(float(submission_id))
+        LOGGER.warning(
+            f"Submission ID '{submission_id}' contains decimals which are not supported. "
+            f"Submission ID will be converted to '{int_submission_id}'."
         )
+        return str(int_submission_id)
 
 
 def concrete_type_of(obj: collections.abc.Mapping):
