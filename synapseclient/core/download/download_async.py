@@ -214,6 +214,7 @@ def _generate_chunk_ranges(
 def _pre_signed_url_expiration_time(url: str) -> datetime:
     """
     Returns time at which a presigned url will expire
+    for an AWS S3 pre-signed url
 
     Arguments:
         url: A pre-signed download url from AWS
