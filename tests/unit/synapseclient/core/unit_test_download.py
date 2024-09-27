@@ -835,11 +835,13 @@ class TestDownloadFromUrl:
 
     async def test_download_expired_url(self, syn: Synapse) -> None:
         url = (
-            "http://www.ayy.lmao/filerino.txt?Expires=0&X-Amz-Date=20240509T180000Z"
+            "http://www.ayy.lmao/filerino.txt?Expires=0"
+            "X-Amz-Date=20240509T180000Z"
             "&X-Amz-Expires=1000"
         )
         new_url = (
-            "http://www.ayy.lmao/new_url.txt?Expires=1715000000&X-Amz-Date=20240509T180000Z"
+            "http://www.ayy.lmao/new_url.txt?Expires=1715000000"
+            "X-Amz-Date=20240509T180000Z"
             "&X-Amz-Expires=1000"
         )
         contents = "\n".join(str(i) for i in range(1000))
