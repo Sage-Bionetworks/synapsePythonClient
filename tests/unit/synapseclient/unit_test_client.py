@@ -3036,10 +3036,7 @@ def run_submission_test(
         if should_warn:
             with caplog.at_level(logging.WARNING):
                 syn.getSubmission(submission_id)
-                assert (
-                    f"contains decimals which are not supported"
-                    in caplog.text
-                )
+                assert f"contains decimals which are not supported" in caplog.text
         else:
             syn.getSubmission(submission_id)
 
@@ -3051,14 +3048,23 @@ def run_submission_test(
         )
 
 
-@pytest.mark.parametrize("submission_id, expected_id", [("123", "123"), (123, "123"), ({"id": 123}, "123"), ({"id": "123"}, "123")])
+@pytest.mark.parametrize(
+    "submission_id, expected_id",
+    [("123", "123"), (123, "123"), ({"id": 123}, "123"), ({"id": "123"}, "123")],
+)
 def test_get_submission_valid_id(syn: Synapse, submission_id, expected_id) -> None:
     """Test getSubmission with valid submission ID"""
     run_submission_test(syn, submission_id, expected_id)
 
 
 @pytest.mark.parametrize(
-    "submission_id, expected_id", [("123.0", "123"), (123.0, "123"), ({"id": 123.0}, "123"), ({"id": "123.0"}, "123")]
+    "submission_id, expected_id",
+    [
+        ("123.0", "123"),
+        (123.0, "123"),
+        ({"id": 123.0}, "123"),
+        ({"id": "123.0"}, "123"),
+    ],
 )
 def test_get_submission_invalid_id(
     syn: Synapse, submission_id, expected_id, caplog
