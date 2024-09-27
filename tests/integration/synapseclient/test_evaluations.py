@@ -66,7 +66,7 @@ async def test_evaluations(syn: Synapse, project: Project):
             assert p in permissions
 
         # Test getSubmissions with no Submissions (SYNR-453)
-        submissions = syn.getSubmissions(ev.get("id"))
+        submissions = syn.getSubmissions(ev)
         assert len(list(submissions)) == 0
 
         # Increase this to fully test paging by getEvaluationSubmissions
@@ -107,7 +107,7 @@ async def test_evaluations(syn: Synapse, project: Project):
         ]
 
         # Score the submissions
-        submissions = syn.getSubmissions(ev.get("id"), limit=num_of_submissions - 1)
+        submissions = syn.getSubmissions(ev, limit=num_of_submissions - 1)
         for submission in submissions:
             assert re.match("Submission \\d+", submission["name"])
             status = syn.getSubmissionStatus(submission.get("id"))
@@ -119,7 +119,7 @@ async def test_evaluations(syn: Synapse, project: Project):
 
         # Annotate the submissions
         bogosity = {}
-        submissions = syn.getSubmissions(ev.get("id"))
+        submissions = syn.getSubmissions(ev)
         b = 123
         for submission, status in syn.getSubmissionBundles(ev):
             bogosity[submission.id] = b
