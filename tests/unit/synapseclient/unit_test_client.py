@@ -2996,7 +2996,7 @@ def test_get_submission_with_annotations(syn: Synapse) -> None:
         assert evaluation_id == response["evaluationId"]
 
 
-def run_submission_test(
+def run_get_submission_test(
     syn: Synapse,
     submission_id: typing.Union[str, int],
     expected_id: str,
@@ -3054,7 +3054,7 @@ def run_submission_test(
 )
 def test_get_submission_valid_id(syn: Synapse, submission_id, expected_id) -> None:
     """Test getSubmission with valid submission ID"""
-    run_submission_test(syn, submission_id, expected_id)
+    run_get_submission_test(syn, submission_id, expected_id)
 
 
 @pytest.mark.parametrize(
@@ -3070,7 +3070,7 @@ def test_get_submission_invalid_id(
     syn: Synapse, submission_id, expected_id, caplog
 ) -> None:
     """Test getSubmission with invalid submission ID"""
-    run_submission_test(
+    run_get_submission_test(
         syn, submission_id, expected_id, should_warn=True, caplog=caplog
     )
 
