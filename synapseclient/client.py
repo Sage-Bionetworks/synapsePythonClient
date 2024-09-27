@@ -286,6 +286,7 @@ class Synapse(object):
         requests_session_storage: httpx.Client = None,
         asyncio_event_loop: asyncio.AbstractEventLoop = None,
         cache_client: bool = True,
+        max_concurrent_file_transfers: int = None,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -315,11 +316,14 @@ class Synapse(object):
                              When working in a multi-user environment it is
                              recommended to set this to False, or use
                              `Synapse.allow_client_caching(False)`.
+            max_concurrent_file_transfers: The maximum number of concurrent file
+                transfers that can be executed at the same time.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
         """
         self._requests_session = requests_session or requests.Session()
+        self._max_concurrent_file_transfers = max_concurrent_file_transfers
 
         # `requests_session_async_synapse` and the thread pools are being stored in
         # a dict based on the current running event loop. This is to ensure that the
@@ -498,7 +502,11 @@ class Synapse(object):
             return self._parallel_file_transfer_semaphore[asyncio_event_loop]
 
         self._parallel_file_transfer_semaphore.update(
-            {asyncio_event_loop: asyncio.Semaphore(max(self.max_threads * 2, 1))}
+            {
+                asyncio_event_loop: asyncio.Semaphore(
+                    self._max_concurrent_file_transfers or max(self.max_threads * 2, 1)
+                )
+            }
         )
 
         return self._parallel_file_transfer_semaphore[asyncio_event_loop]
