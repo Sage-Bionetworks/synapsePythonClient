@@ -274,7 +274,12 @@ def validate_submission_id(
         if syn_id is not None:
             return validate_submission_id(syn_id)
     else:
-        int_submission_id = int(float(submission_id))
+        try:
+            int_submission_id = int(float(submission_id))
+        except ValueError:
+            raise ValueError(
+                f"Submission ID '{submission_id}' is not a valid submission ID. Please use digits only."
+            )
         LOGGER.warning(
             f"Submission ID '{submission_id}' contains decimals which are not supported. "
             f"Submission ID will be converted to '{int_submission_id}'."

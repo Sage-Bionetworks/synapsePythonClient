@@ -135,6 +135,15 @@ def test_validate_submission_id(input_value, expected_output, expected_warning, 
             assert not caplog.text
 
 
+def test_validate_submission_id_letters_input() -> None:
+    letters_input = "syn123"
+    expected_error = f"Submission ID '{letters_input}' is not a valid submission ID. Please use digits only."
+    with pytest.raises(ValueError) as err:
+        utils.validate_submission_id(letters_input)
+
+    assert str(err.value) == expected_error
+
+
 # TODO: Add a test for is_synapse_id_str(...)
 # https://sagebionetworks.jira.com/browse/SYNPY-1425
 
