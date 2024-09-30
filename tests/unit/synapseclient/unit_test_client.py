@@ -60,6 +60,7 @@ from synapseclient.core.logging_setup import (
 )
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.upload import upload_functions
+from synapseclient.evaluation import Submission, SubmissionStatus
 
 GET_FILE_HANDLE_FOR_DOWNLOAD = (
     "synapseclient.core.download.download_functions.get_file_handle_for_download_async"
@@ -3073,6 +3074,77 @@ def test_get_submission_invalid_id(
     run_get_submission_test(
         syn, submission_id, expected_id, should_warn=True, caplog=caplog
     )
+
+
+def test_get_submission_and_submission_status_interchangeability(
+    syn: Synapse, caplog
+) -> None:
+    """Test interchangeability of getSubmission and getSubmissionStatus."""
+
+    # Establish some dummy variables to work with
+    evaluation_id = 98765
+    submission_id = 9745366.0
+    expected_submission_id = "9745366"
+
+    # Establish an expected return for `getSubmissionStatus`
+    submission_status_return = {
+        "id": expected_submission_id,
+        "etag": "000",
+        "status": "RECEIVED",
+    }
+
+    # Establish an expected return for `getSubmission`
+    submission_return = {
+        "id": expected_submission_id,
+        "evaluationId": evaluation_id,
+        "entityId": expected_submission_id,
+        "versionNumber": 1,
+        "entityBundleJSON": json.dumps({}),
+    }
+
+    # Let's mock all the API calls made within these two methods
+    with patch.object(syn, "restGET") as restGET, patch.object(
+        Submission, "getURI"
+    ) as get_submission_uri, patch.object(
+        SubmissionStatus, "getURI"
+    ) as get_status_uri, patch.object(
+        syn, "_getWithEntityBundle"
+    ):
+        get_submission_uri.return_value = (
+            f"/evaluation/submission/{expected_submission_id}"
+        )
+        get_status_uri.return_value = (
+            f"/evaluation/submission/{expected_submission_id}/status"
+        )
+
+        # Establish a return for all the calls to restGET we will be making in this test
+        restGET.side_effect = [
+            # Step 1 call to `getSubmission`
+            submission_return,
+            # Step 2 call to `getSubmissionStatus`
+            submission_status_return,
+        ]
+
+        # Step 1: Call `getSubmission` with float ID
+        restGET.return_value = submission_return
+        submission_result = syn.getSubmission(submission_id)
+
+        # Step 2: Call `getSubmissionStatus` with the `Submission` object from above
+        restGET.reset_mock()
+        restGET.return_value = submission_status_return
+        submission_status_result = syn.getSubmissionStatus(submission_result)
+
+        # Validate that getSubmission and getSubmissionStatus are called with correct URIs
+        # in `getURI` calls
+        get_submission_uri.assert_called_once_with(expected_submission_id)
+        get_status_uri.assert_called_once_with(expected_submission_id)
+
+        # Validate final output is as expected
+        assert (
+            submission_result["id"]
+            == submission_status_result["id"]
+            == expected_submission_id
+        )
 
 
 class TestTableSnapshot:
