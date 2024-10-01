@@ -53,7 +53,6 @@ SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
 # Set up logging
 LOGGER_NAME = DEFAULT_LOGGER_NAME
 LOGGER = logging.getLogger(LOGGER_NAME)
-logging.getLogger("py.warnings").handlers = LOGGER.handlers
 
 
 def md5_for_file(
