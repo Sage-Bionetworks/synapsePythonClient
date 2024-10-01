@@ -133,6 +133,7 @@ class TestPresignedUrlProvider:
             "&X-Amz-Expires=86400"
             "&X-Amz-SignedHeaders=host"
             "&X-Amz-Signature=signature-value"
+            "&Expires=1715000000"
         )
 
         expected = (
