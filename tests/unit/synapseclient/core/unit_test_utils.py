@@ -1,6 +1,7 @@
 # unit tests for utils.py
 
 import base64
+import logging
 import os
 import re
 import tempfile
@@ -98,6 +99,49 @@ def test_id_of() -> None:
     for attr_name in id_attr_names:
         foo = Foo(attr_name, 123)
         assert utils.id_of(foo) == "123"
+
+
+@pytest.mark.parametrize(
+    "input_value, expected_output, expected_warning",
+    [
+        # Test 1: Valid inputs
+        ("123", "123", None),
+        (123, "123", None),
+        ({"id": "222"}, "222", None),
+        # Test 2: Invalid inputs that should be corrected
+        (
+            "123.0",
+            "123",
+            "Submission ID '123.0' contains decimals which are not supported",
+        ),
+        (
+            123.0,
+            "123",
+            "Submission ID '123.0' contains decimals which are not supported",
+        ),
+        (
+            {"id": "999.222"},
+            "999",
+            "Submission ID '999.222' contains decimals which are not supported",
+        ),
+    ],
+)
+def test_validate_submission_id(input_value, expected_output, expected_warning, caplog):
+    with caplog.at_level(logging.WARNING):
+        assert utils.validate_submission_id(input_value) == expected_output
+        if expected_warning:
+            assert expected_warning in caplog.text
+        else:
+            assert not caplog.text
+
+
+def test_validate_submission_id_letters_input() -> None:
+    letters_input = "syn123"
+    expected_error = f"Submission ID '{letters_input}' is not a valid submission ID. Please use digits only."
+    with pytest.raises(ValueError) as err:
+        utils.validate_submission_id(letters_input)
+
+    assert str(err.value) == expected_error
 
 
 # TODO: Add a test for is_synapse_id_str(...)

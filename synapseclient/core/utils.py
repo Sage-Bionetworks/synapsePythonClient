@@ -11,6 +11,7 @@ import gc
 import hashlib
 import importlib
 import inspect
+import logging
 import numbers
 import os
 import platform
@@ -30,6 +31,8 @@ from typing import TYPE_CHECKING, TypeVar
 import requests
 from opentelemetry import trace
 
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
+
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder, Project
 
@@ -46,6 +49,10 @@ BUFFER_SIZE = 8 * KB
 tracer = trace.get_tracer("synapseclient")
 
 SLASH_PREFIX_REGEX = re.compile(r"\/[A-Za-z]:")
+
+# Set up logging
+LOGGER_NAME = DEFAULT_LOGGER_NAME
+LOGGER = logging.getLogger(LOGGER_NAME)
 
 
 def md5_for_file(
@@ -240,6 +247,43 @@ def id_of(obj: typing.Union[str, collections.abc.Mapping, numbers.Number]) -> st
             return str(syn_id)
 
     raise ValueError("Invalid parameters: couldn't find id of " + str(obj))
+
+
+def validate_submission_id(
+    submission_id: typing.Union[str, int, collections.abc.Mapping]
+) -> str:
+    """
+    Ensures that a given submission ID is either an integer or a string that
+    can be converted to an integer. Version notation is not supported for submission
+    IDs, therefore decimals are not allowed.
+
+    Arguments:
+        submission_id: The submission ID to validate
+
+    Returns:
+        The submission ID as a string
+
+    """
+    if isinstance(submission_id, int):
+        return str(submission_id)
+    elif isinstance(submission_id, str) and submission_id.isdigit():
+        return submission_id
+    elif isinstance(submission_id, collections.abc.Mapping):
+        syn_id = _get_from_members_items_or_properties(submission_id, "id")
+        if syn_id is not None:
+            return validate_submission_id(syn_id)
+    else:
+        try:
+            int_submission_id = int(float(submission_id))
+        except ValueError:
+            raise ValueError(
+                f"Submission ID '{submission_id}' is not a valid submission ID. Please use digits only."
+            )
+        LOGGER.warning(
+            f"Submission ID '{submission_id}' contains decimals which are not supported. "
+            f"Submission ID will be converted to '{int_submission_id}'."
+        )
+        return str(int_submission_id)
 
 
 def concrete_type_of(obj: collections.abc.Mapping):

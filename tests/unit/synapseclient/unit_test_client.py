@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import tempfile
+import typing
 import urllib.request as urllib_request
 import uuid
 from pathlib import Path
@@ -59,6 +60,7 @@ from synapseclient.core.logging_setup import (
 )
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.upload import upload_functions
+from synapseclient.evaluation import Submission, SubmissionStatus
 
 GET_FILE_HANDLE_FOR_DOWNLOAD = (
     "synapseclient.core.download.download_functions.get_file_handle_for_download_async"
@@ -2993,6 +2995,156 @@ def test_get_submission_with_annotations(syn: Synapse) -> None:
             submission=str(submission_id),
         )
         assert evaluation_id == response["evaluationId"]
+
+
+def run_get_submission_test(
+    syn: Synapse,
+    submission_id: typing.Union[str, int],
+    expected_id: str,
+    should_warn: bool = False,
+    caplog=None,
+) -> None:
+    """
+    Common code for test_get_submission_valid_id and test_get_submission_invalid_id.
+    Generates a dummy submission dictionary for regression testing, mocks the API calls,
+    and validates the expected output for getSubmission. For invalid submission IDs, this
+    will check that a warning was logged for the user before transforming their input.
+
+    Arguments:
+        syn: Synapse object
+        submission_id: Submission ID to test
+        expected_id: Submission ID that should be returned
+        should_warn: Whether or not a warning should be logged
+        caplog: pytest caplog fixture
+
+    Returns:
+        None
+
+    """
+    evaluation_id = (98765,)
+    submission = {
+        "evaluationId": evaluation_id,
+        "entityId": submission_id,
+        "versionNumber": 1,
+        "entityBundleJSON": json.dumps({}),
+    }
+
+    with patch.object(syn, "restGET") as restGET, patch.object(
+        syn, "_getWithEntityBundle"
+    ) as get_entity:
+        restGET.return_value = submission
+
+        if should_warn:
+            with caplog.at_level(logging.WARNING):
+                syn.getSubmission(submission_id)
+                assert f"contains decimals which are not supported" in caplog.text
+        else:
+            syn.getSubmission(submission_id)
+
+        restGET.assert_called_once_with(f"/evaluation/submission/{expected_id}")
+        get_entity.assert_called_once_with(
+            entityBundle={},
+            entity=submission_id,
+            submission=str(expected_id),
+        )
+
+
+@pytest.mark.parametrize(
+    "submission_id, expected_id",
+    [("123", "123"), (123, "123"), ({"id": 123}, "123"), ({"id": "123"}, "123")],
+)
+def test_get_submission_valid_id(syn: Synapse, submission_id, expected_id) -> None:
+    """Test getSubmission with valid submission ID"""
+    run_get_submission_test(syn, submission_id, expected_id)
+
+
+@pytest.mark.parametrize(
+    "submission_id, expected_id",
+    [
+        ("123.0", "123"),
+        (123.0, "123"),
+        ({"id": 123.0}, "123"),
+        ({"id": "123.0"}, "123"),
+    ],
+)
+def test_get_submission_invalid_id(
+    syn: Synapse, submission_id, expected_id, caplog
+) -> None:
+    """Test getSubmission with invalid submission ID"""
+    run_get_submission_test(
+        syn, submission_id, expected_id, should_warn=True, caplog=caplog
+    )
+
+
+def test_get_submission_and_submission_status_interchangeability(
+    syn: Synapse, caplog
+) -> None:
+    """Test interchangeability of getSubmission and getSubmissionStatus."""
+
+    # Establish some dummy variables to work with
+    evaluation_id = 98765
+    submission_id = 9745366.0
+    expected_submission_id = "9745366"
+
+    # Establish an expected return for `getSubmissionStatus`
+    submission_status_return = {
+        "id": expected_submission_id,
+        "etag": "000",
+        "status": "RECEIVED",
+    }
+
+    # Establish an expected return for `getSubmission`
+    submission_return = {
+        "id": expected_submission_id,
+        "evaluationId": evaluation_id,
+        "entityId": expected_submission_id,
+        "versionNumber": 1,
+        "entityBundleJSON": json.dumps({}),
+    }
+
+    # Let's mock all the API calls made within these two methods
+    with patch.object(syn, "restGET") as restGET, patch.object(
+        Submission, "getURI"
+    ) as get_submission_uri, patch.object(
+        SubmissionStatus, "getURI"
+    ) as get_status_uri, patch.object(
+        syn, "_getWithEntityBundle"
+    ):
+        get_submission_uri.return_value = (
+            f"/evaluation/submission/{expected_submission_id}"
+        )
+        get_status_uri.return_value = (
+            f"/evaluation/submission/{expected_submission_id}/status"
+        )
+
+        # Establish a return for all the calls to restGET we will be making in this test
+        restGET.side_effect = [
+            # Step 1 call to `getSubmission`
+            submission_return,
+            # Step 2 call to `getSubmissionStatus`
+            submission_status_return,
+        ]
+
+        # Step 1: Call `getSubmission` with float ID
+        restGET.return_value = submission_return
+        submission_result = syn.getSubmission(submission_id)
+
+        # Step 2: Call `getSubmissionStatus` with the `Submission` object from above
+        restGET.reset_mock()
+        restGET.return_value = submission_status_return
+        submission_status_result = syn.getSubmissionStatus(submission_result)
+
+        # Validate that getSubmission and getSubmissionStatus are called with correct URIs
+        # in `getURI` calls
+        get_submission_uri.assert_called_once_with(expected_submission_id)
+        get_status_uri.assert_called_once_with(expected_submission_id)
+
+        # Validate final output is as expected
+        assert (
+            submission_result["id"]
+            == submission_status_result["id"]
+            == expected_submission_id
+        )
 
 
 class TestTableSnapshot:

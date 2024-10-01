@@ -114,6 +114,7 @@ from synapseclient.core.utils import (
     is_integer,
     is_json,
     require_param,
+    validate_submission_id,
 )
 from synapseclient.core.version_check import version_check
 
@@ -4807,12 +4808,15 @@ class Synapse(object):
             if next_page_token is None:
                 break
 
-    def getSubmission(self, id, **kwargs):
+    def getSubmission(
+        self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
+    ) -> Submission:
         """
-        Gets a [synapseclient.evaluation.Submission][] object by its id.
+        Gets a [synapseclient.evaluation.Submission][] object based on a given ID
+        or previous [synapseclient.evaluation.Submission][] object.
 
         Arguments:
-            id: The id of the submission to retrieve
+            id: The ID of the submission to retrieve or a [synapseclient.evaluation.Submission][] object
 
         Returns:
             A [synapseclient.evaluation.Submission][] object
@@ -4823,7 +4827,7 @@ class Synapse(object):
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
         """
 
-        submission_id = id_of(id)
+        submission_id = validate_submission_id(id)
         uri = Submission.getURI(submission_id)
         submission = Submission(**self.restGET(uri))
 
@@ -4852,18 +4856,20 @@ class Synapse(object):
 
         return submission
 
-    def getSubmissionStatus(self, submission):
+    def getSubmissionStatus(
+        self, submission: typing.Union[str, int, collections.abc.Mapping]
+    ) -> SubmissionStatus:
         """
-        Downloads the status of a Submission.
+        Downloads the status of a Submission given its ID or previous [synapseclient.evaluation.Submission][] object.
 
         Arguments:
-            submission: The submission to lookup
+            submission: The submission to lookup (ID or [synapseclient.evaluation.Submission][] object)
 
         Returns:
             A [synapseclient.evaluation.SubmissionStatus][] object
         """
 
-        submission_id = id_of(submission)
+        submission_id = validate_submission_id(submission)
         uri = SubmissionStatus.getURI(submission_id)
         val = self.restGET(uri)
         return SubmissionStatus(**val)
