@@ -9,6 +9,25 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.6.0 (2024-10-04)
+
+### Highlights
+- Patching an issue present in `4.5.1` that broke downloads from google bucket files.
+- Support for python 3.12
+- Drop support for python 3.8
+
+### Bug Fixes
+-  \[[SYNPY-1521](https://sagebionetworks.jira.com/browse/SYNPY-1521)\] - Adding a kwargs that is already defined as a argument will cause an error for asDataFrame()
+-  \[[SYNPY-1524](https://sagebionetworks.jira.com/browse/SYNPY-1524)\] - GHCR publish is still using Python 3.8
+-  \[[SYNPY-1525](https://sagebionetworks.jira.com/browse/SYNPY-1525)\] - KeyError: 'X-Amz-Date' when trying to download HTAN data
+
+### Stories
+-  \[[SYNPY-1513](https://sagebionetworks.jira.com/browse/SYNPY-1513)\] - Strip out trailing ".0" in getSubmission call to avoid sending .0 to the API
+-  \[[SYNPY-1517](https://sagebionetworks.jira.com/browse/SYNPY-1517)\] - Deprecate support for Python 3.8, update `pandas` dependency versions
+-  \[[SYNPY-1520](https://sagebionetworks.jira.com/browse/SYNPY-1520)\] - Support Python 3.12
+-  \[[SYNPY-1522](https://sagebionetworks.jira.com/browse/SYNPY-1522)\] - update installation instructions
+-  \[[SYNPY-1529](https://sagebionetworks.jira.com/browse/SYNPY-1529)\] - Release python client v4.6.0
+
 ## 4.5.1 (2024-09-19)
 ### Highlights
 - **Telemetry auto instrumentation:**
