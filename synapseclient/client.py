@@ -335,7 +335,7 @@ class Synapse(object):
 
         httpx_timeout = httpx.Timeout(70, pool=None)
         self._requests_session_storage = requests_session_storage or httpx.Client(
-            timeout=httpx_timeout
+            limits=httpx.Limits(max_connections=5), timeout=httpx_timeout
         )
 
         cache_root_dir = (
@@ -427,7 +427,7 @@ class Synapse(object):
         self._requests_session_async_synapse.update(
             {
                 asyncio_event_loop: httpx.AsyncClient(
-                    limits=httpx.Limits(max_connections=25),
+                    limits=httpx.Limits(max_connections=5),
                     timeout=httpx_timeout,
                 )
             }
