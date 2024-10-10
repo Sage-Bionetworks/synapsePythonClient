@@ -96,7 +96,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
             credentials.owner_id = profile.get("ownerId", None)
             current_span = trace.get_current_span()
             if current_span.is_recording():
-                current_span.set_attribute("user.id", syn.credentials.owner_id)
+                current_span.set_attribute("user.id", credentials.owner_id)
 
             return credentials
 
