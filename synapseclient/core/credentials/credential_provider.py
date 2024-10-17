@@ -7,6 +7,8 @@ import abc
 import os
 from typing import TYPE_CHECKING, Dict, Tuple, Union
 
+from opentelemetry import trace
+
 from synapseclient.api import get_config_authentication
 from synapseclient.core.credentials.cred_data import (
     SynapseAuthTokenCredentials,
@@ -92,6 +94,9 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
             credentials.username = profile_username
             credentials.displayname = profile_displayname
             credentials.owner_id = profile.get("ownerId", None)
+            current_span = trace.get_current_span()
+            if current_span.is_recording():
+                current_span.set_attribute("user.id", credentials.owner_id)
 
             return credentials
 
