@@ -43,17 +43,17 @@ another desired directory exists.
 
 #### First let's set up some constants we'll use in this script
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=5-20}
+{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=5-19}
 ```
 
 #### Next we'll create an instance of the Project we are going to sync
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=23}
+{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=20-22}
 ```
 
 #### Finally we'll sync the project from synapse to your local machine
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=25-30}
+{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=23-28}
 ```
 
 <details class="example">
@@ -84,7 +84,7 @@ Downloading  [####################]100.00%   4.0bytes/4.0bytes (1.6kB/s) fileD.t
 Following the same set of steps let's sync a specific folder
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=33-37}
+{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=30-36}
 ```
 
 <details class="example">
@@ -109,7 +109,7 @@ Using `sync_from_synapse` will load into memory the state of all Folders and Fil
 retrieved from Synapse. This will allow you to loop over the contents of your container.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=40-47}
+{!docs/tutorials/python/tutorial_scripts/download_data_in_bulk.py!lines=37-47}
 ```
 
 <details class="example">
