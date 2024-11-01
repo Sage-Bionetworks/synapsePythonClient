@@ -130,15 +130,24 @@ plugins:
       default_handler: python
       handlers:
         python:
+          import:
+          - https://docs.python.org/3/objects.inv
+          - https://python-markdown.github.io/objects.inv
           options:
             members_order: source
             show_if_no_docstring: False
             show_root_heading: True
             show_category_heading: True
+            show_symbol_type_heading: True
+            show_symbol_type_toc: True
             docstring_style: google
             docstring_section_style: spacy
             filters:
               - "!^_"
+            separate_signature: True
+            show_signature_annotations: True
+            signature_crossrefs: True
+
   - autorefs
   - termynal:
       prompt_literal_start:
