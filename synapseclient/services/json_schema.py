@@ -103,9 +103,9 @@ class JsonSchemaVersion:
     ):
         """Create JSON schema version
 
-        Args:
-            json_schema_body (dict): JSON schema body
-            dry_run (bool, optional): Do not store to Synapse. Defaults to False.
+        Arguments:
+            json_schema_body: JSON schema body
+            dry_run: Do not store to Synapse. Defaults to False.
         """
         uri = f"{self.organization.name}-{self.name}"
         if self.semantic_version:
@@ -140,8 +140,8 @@ class JsonSchemaVersion:
     def bind_to_object(self, synapse_id: str):
         """Bind schema to an entity
 
-        Args:
-            synapse_id (str): Synapse Id to bind json schema to.
+        Arguments:
+            synapse_id: Synapse Id to bind json schema to.
         """
 
         self.must_get()
@@ -251,10 +251,10 @@ class JsonSchema:
     ):
         """Create JSON schema
 
-        Args:
-            json_schema_body (dict): JSON schema body
-            semantic_version (str, optional): Version of JSON schema. Defaults to None.
-            dry_run (bool, optional): Do not store to Synapse. Defaults to False.
+        Arguments:
+            json_schema_body: JSON schema body
+            semantic_version: Version of JSON schema. Defaults to None.
+            dry_run: Do not store to Synapse. Defaults to False.
 
         Returns:
             JSON schema
@@ -378,10 +378,10 @@ class JsonSchemaOrganization:
     ):
         """Set ACL of JSON schema organization
 
-        Args:
-            principal_ids (Sequence[int]): List of Synapse user or team ids.
-            access_type (Sequence[str], optional): Access control list. Defaults to ["CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE"]. Defaults to DEFAULT_ACCESS.
-            etag (str, optional): Etag. Defaults to None.
+        Arguments:
+            principal_ids: List of Synapse user or team ids.
+            access_type: Access control list. Defaults to ["CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE"]. Defaults to DEFAULT_ACCESS.
+            etag: Etag. Defaults to None.
         """
         self.must_get()
         if etag is None:
@@ -402,10 +402,10 @@ class JsonSchemaOrganization:
     ):
         """Update ACL of JSON schema organization
 
-        Args:
-            principal_ids (Sequence[int]): List of Synapse user or team ids.
-            access_type (Sequence[str], optional): Access control list. Defaults to ["CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE"]. Defaults to DEFAULT_ACCESS.
-            etag (str, optional): Etag. Defaults to None.
+        Arguments:
+            principal_ids: List of Synapse user or team ids.
+            access_type: Access control list. Defaults to ["CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE"]. Defaults to DEFAULT_ACCESS.
+            etag: Etag. Defaults to None.
         """
         self.must_get()
         principal_ids = set(principal_ids)
@@ -439,9 +439,9 @@ class JsonSchemaOrganization:
     def get_json_schema(self, json_schema_name: str, raw: bool = False):
         """Get JSON schema
 
-        Args:
-            json_schema_name (str): Name of JSON schema.
-            raw (bool, optional): Return raw JSON schema. Defaults to False.
+        Arguments:
+            json_schema_name: Name of JSON schema.
+            raw: Return raw JSON schema. Defaults to False.
         """
         self.must_get()
         if json_schema_name not in self._json_schemas:
@@ -461,11 +461,11 @@ class JsonSchemaOrganization:
     ):
         """Create JSON schema
 
-        Args:
-            json_schema_body (dict): JSON schema dict
-            name (str, optional): Name of JSON schema. Defaults to None.
-            semantic_version (str, optional): Version of JSON schema. Defaults to None.
-            dry_run (bool, optional): Don't store to Synapse. Defaults to False.
+        Arguments:
+            json_schema_body: JSON schema dict
+            name: Name of JSON schema. Defaults to None.
+            semantic_version: Version of JSON schema. Defaults to None.
+            dry_run: Don't store to Synapse. Defaults to False.
         """
         if name:
             uri = f"{self.name}-{name}"
@@ -539,8 +539,8 @@ class JsonSchemaService:
     def create_organization(self, organization_name: str):
         """Create a new organization
 
-        Args:
-            organization_name (str): JSON schema organization name
+        Arguments:
+            organization_name: JSON schema organization name
         """
         request_body = {"organizationName": organization_name}
         response = self.synapse.restPOST(
@@ -552,8 +552,8 @@ class JsonSchemaService:
     def get_organization(self, organization_name: str):
         """Get a organization
 
-        Args:
-            organization_name (str): JSON schema organization name
+        Arguments:
+            organization_name: JSON schema organization name
         """
         response = self.synapse.restGET(
             f"/schema/organization?name={organization_name}"
@@ -572,7 +572,7 @@ class JsonSchemaService:
     def delete_organization(self, organization_id: str):
         """Delete organization
 
-        Args:
+        Arguments:
             organization_id: JSON schema organization Id
         """
         response = self.synapse.restDELETE(f"/schema/organization/{organization_id}")
@@ -582,7 +582,7 @@ class JsonSchemaService:
     def get_organization_acl(self, organization_id: str):
         """Get ACL associated with Organization
 
-        Args:
+        Arguments:
             organization_id: JSON schema organization Id
         """
         response = self.synapse.restGET(f"/schema/organization/{organization_id}/acl")
@@ -597,10 +597,10 @@ class JsonSchemaService:
     ):
         """Update ACL associated with Organization
 
-        Args:
-            organization_id (str): JSON schema organization Id
-            resource_access (Sequence[Mapping[str, Sequence[str]]]): Resource access array
-            etag (str): Etag
+        Arguments:
+            organization_id: JSON schema organization Id
+            resource_access: Resource access array
+            etag: Etag
         """
         request_body = {"resourceAccess": resource_access, "etag": etag}
         response = self.synapse.restPUT(
@@ -611,7 +611,7 @@ class JsonSchemaService:
     def list_json_schemas(self, organization_name: str):
         """List JSON schemas for an organization
 
-        Args:
+        Arguments:
             organization_name: JSON schema organization name
         """
         request_body = {"organizationName": organization_name}
@@ -621,7 +621,7 @@ class JsonSchemaService:
     def list_json_schema_versions(self, organization_name: str, json_schema_name: str):
         """List version information for each JSON schema
 
-        Args:
+        Arguments:
             organization_name: JSON schema organization name
             json_schema_name:  JSON schema name
         """
@@ -636,7 +636,7 @@ class JsonSchemaService:
     def create_json_schema(self, json_schema_body: dict, dry_run: bool = False):
         """Create a JSON schema
 
-        Args:
+        Arguments:
             json_schema_body: JSON schema body
             dry_run:          Don't store to Synapse. Default to False.
         """
@@ -651,7 +651,7 @@ class JsonSchemaService:
     def get_json_schema_body(self, json_schema_uri: str):
         """Get registered JSON schema with its $id
 
-        Args:
+        Arguments:
             json_schema_uri: JSON schema URI
         """
         response = self.synapse.restGET(f"/schema/type/registered/{json_schema_uri}")
@@ -661,7 +661,7 @@ class JsonSchemaService:
     def delete_json_schema(self, json_schema_uri: str):
         """Delete the given schema using its $id
 
-        Args:
+        Arguments:
             json_schema_uri: JSON schema URI
         """
         response = self.synapse.restDELETE(f"/schema/type/registered/{json_schema_uri}")
@@ -671,7 +671,7 @@ class JsonSchemaService:
     def json_schema_validation(self, json_schema_uri: str):
         """Use a JSON schema for validation
 
-        Args:
+        Arguments:
             json_schema_uri: JSON schema URI
         """
         request_body = {
@@ -689,7 +689,7 @@ class JsonSchemaService:
     def bind_json_schema_to_entity(self, synapse_id: str, json_schema_uri: str):
         """Bind a JSON schema to an entity
 
-        Args:
+        Arguments:
             synapse_id:      Synapse Id
             json_schema_uri: JSON schema URI
         """
@@ -703,7 +703,7 @@ class JsonSchemaService:
     def get_json_schema_from_entity(self, synapse_id: str):
         """Get bound schema from entity
 
-        Args:
+        Arguments:
             synapse_id:      Synapse Id
         """
         response = self.synapse.restGET(f"/entity/{synapse_id}/schema/binding")
@@ -713,7 +713,7 @@ class JsonSchemaService:
     def delete_json_schema_from_entity(self, synapse_id: str):
         """Delete bound schema from entity
 
-        Args:
+        Arguments:
             synapse_id:      Synapse Id
         """
         response = self.synapse.restDELETE(f"/entity/{synapse_id}/schema/binding")
@@ -723,7 +723,7 @@ class JsonSchemaService:
     def validate_entity_with_json_schema(self, synapse_id: str):
         """Get validation results of an entity against bound JSON schema
 
-        Args:
+        Arguments:
             synapse_id:      Synapse Id
         """
         response = self.synapse.restGET(f"/entity/{synapse_id}/schema/validation")
@@ -734,7 +734,7 @@ class JsonSchemaService:
         """Get the summary statistic of json schema validation results for
         a container entity
 
-        Args:
+        Arguments:
             synapse_id:      Synapse Id
         """
         response = self.synapse.restGET(
@@ -747,7 +747,7 @@ class JsonSchemaService:
         """Get a single page of invalid JSON schema validation results for a container Entity
         (Project or Folder).
 
-        Args:
+        Arguments:
             synapse_id:      Synapse Id
         """
         request_body = {"containerId": synapse_id}
@@ -761,7 +761,7 @@ class JsonSchemaService:
     def bind_json_schema(self, json_schema_uri: str, entity: Union[str, Entity]):
         """Bind a JSON schema to an entity
 
-        Args:
+        Arguments:
             json_schema_uri: JSON schema URI
             entity:          Synapse Entity or Synapse Id
         """
@@ -772,7 +772,7 @@ class JsonSchemaService:
     def get_json_schema(self, entity: Union[str, Entity]):
         """Get a JSON schema associated to an Entity
 
-        Args:
+        Arguments:
             entity:          Synapse Entity or Synapse Id
         """
         synapse_id = id_of(entity)
@@ -782,7 +782,7 @@ class JsonSchemaService:
     def unbind_json_schema(self, entity: Union[str, Entity]):
         """Unbind a JSON schema from an entity
 
-        Args:
+        Arguments:
             entity:          Synapse Entity or Synapse Id
         """
         synapse_id = id_of(entity)
@@ -792,7 +792,7 @@ class JsonSchemaService:
     def validate(self, entity: Union[str, Entity]):
         """Validate an entity based on the bound JSON schema
 
-        Args:
+        Arguments:
             entity:          Synapse Entity or Synapse Id
         """
         synapse_id = id_of(entity)
@@ -802,7 +802,7 @@ class JsonSchemaService:
     def validation_stats(self, entity: Union[str, Entity]):
         """Get validation statistics of an entity based on the bound JSON schema
 
-        Args:
+        Arguments:
             entity:          Synapse Entity or Synapse Id
         """
         synapse_id = id_of(entity)
@@ -812,7 +812,7 @@ class JsonSchemaService:
     def validate_children(self, entity: Union[str, Entity]):
         """Validate an entity and it's children based on the bound JSON schema
 
-        Args:
+        Arguments:
             entity:          Synapse Entity or Synapse Id of a project or folder.
         """
         synapse_id = id_of(entity)
