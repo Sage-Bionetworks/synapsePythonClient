@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from functools import wraps
-from typing import Mapping, Sequence, Union, Optional
+from typing import Mapping, Optional, Sequence, Union
 
 from synapseclient.client import Synapse
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseHTTPError
@@ -274,7 +274,7 @@ class JsonSchema:
 
 class JsonSchemaOrganization:
     """Json Schema Organization
-     
+
     Attributes:
         name: Name of JSON schema organization
     """
