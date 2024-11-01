@@ -1,6 +1,4 @@
 """
-## Overview
-
 The ``synapseutils`` package provides both higher level beta functions as well as utilities for interacting with
 [Synapse](http://www.synapse.org).  The behavior of these functions are subject to change.
 
