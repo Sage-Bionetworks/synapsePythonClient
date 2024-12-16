@@ -279,7 +279,6 @@ async def with_retry_async(
                 response_message = _get_message(response)
                 retry = True
                 logger.debug("retrying on status code: %s" % str(response.status_code))
-                # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
                 logger.debug(str(response_message))
                 if (response.status_code == 429) and (wait > 10):
                     logger.warning("%s...\n" % response_message)
