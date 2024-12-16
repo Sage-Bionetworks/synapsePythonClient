@@ -553,7 +553,7 @@ async def download_by_file_handle(
             exc_info = sys.exc_info()
             ex.progress = 0 if not hasattr(ex, "progress") else ex.progress
             syn.logger.debug(
-                f"\n[{synapse_id}:{os.path.basename(downloaded_path)}]: Retrying "
+                f"\n[{synapse_id}]: Retrying "
                 f"download on error: [{exc_info[0]}] after progressing {ex.progress} bytes",
                 exc_info=True,
             )  # this will include stack trace

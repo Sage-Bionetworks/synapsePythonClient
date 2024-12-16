@@ -55,7 +55,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
 
-    async def worker(
+    async def _worker(
         self,
         queue: asyncio.Queue,
         failure_strategy: FailureStrategy,
@@ -323,7 +323,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         if create_workers:
             for _ in range(max(syn.max_threads * 2, 1)):
                 task = asyncio.create_task(
-                    self.worker(
+                    self._worker(
                         queue=queue,
                         failure_strategy=failure_strategy,
                         synapse_client=syn,
