@@ -28,6 +28,7 @@ from synapseclient.core.retry import (
     DEFAULT_MAX_BACK_OFF_ASYNC,
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
+    with_retry_async,
     with_retry_time_based,
 )
 from synapseclient.core.transfer_bar import get_or_create_download_progress_bar
@@ -232,24 +233,28 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     return return_data
 
 
-async def _get_file_size_wrapper(syn: "Synapse", url: str, debug: bool) -> int:
+async def _get_file_size_wrapper(
+    syn: "Synapse", url_provider: PresignedUrlProvider, debug: bool
+) -> int:
     """
     Gets the size of the file located at url
 
     Arguments:
         syn: The synapseclient
-        url: The pre-signed url of the file
+        url_provider: A URL provider for the presigned urls
         debug: A boolean to specify if debug mode is on
 
     Returns:
         The size of the file in bytes
     """
+
+    url_info = await url_provider.get_info_async()
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         syn._get_thread_pool_executor(asyncio_event_loop=loop),
         _get_file_size,
         syn,
-        url,
+        url_info.url,
         debug,
     )
 
@@ -306,9 +311,15 @@ class _MultithreadedDownloader:
         """
         url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
 
-        url_info = await url_provider.get_info_async()
-        file_size = await _get_file_size_wrapper(
-            syn=self._syn, url=url_info.url, debug=self._download_request.debug
+        file_size = await with_retry_async(
+            function=lambda: _get_file_size_wrapper(
+                syn=self._syn,
+                url_provider=url_provider,
+                debug=self._download_request.debug,
+            ),
+            verbose=self._download_request.debug,
+            retry_status_codes=[403, 429, 500, 502, 503, 504],
+            log_for_retry=True,
         )
         self._progress_bar = get_or_create_download_progress_bar(
             file_size=file_size,
