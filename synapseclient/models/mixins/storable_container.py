@@ -2,7 +2,7 @@
 
 import asyncio
 import os
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, NoReturn, Optional, Union
 
 from typing_extensions import Self
 
@@ -16,6 +16,7 @@ from synapseclient.core.constants.concrete_types import (
 )
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
 from synapseclient.core.exceptions import SynapseError
+from synapseclient.core.transfer_bar import shared_download_progress_bar
 from synapseclient.models.protocols.storable_container_protocol import (
     StorableContainerSynchronousProtocol,
 )
@@ -56,18 +57,31 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
     async def worker(
         self,
-        name: str,
         queue: asyncio.Queue,
         failure_strategy: FailureStrategy,
         synapse_client: Synapse,
-    ):
+    ) -> NoReturn:
+        """
+        Coroutine that will process the queue of work items. This will process the
+        work items until the queue is empty. This will be used to download files in
+        parallel.
+
+        Arguments:
+            queue: The queue of work items to process.
+            failure_strategy: Determines how to handle failures when retrieving items
+                out of the queue and an exception occurs.
+            synapse_client: The Synapse client to use to download the files.
+        """
         while True:
             # Get a "work item" out of the queue.
             work_item = await queue.get()
 
-            print(f"{name} working on {work_item}. File queue Size: {queue.qsize()}")
-
-            result = await work_item
+            try:
+                result = await work_item
+            except asyncio.CancelledError as ex:
+                raise ex
+            except Exception as ex:
+                result = ex
 
             self._resolve_sync_from_synapse_result(
                 result=result,
@@ -75,7 +89,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 synapse_client=synapse_client,
             )
 
-            # Notify the queue that the "work item" has been processed.
             queue.task_done()
 
     @otel_trace_method(
@@ -250,10 +263,47 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         """
         syn = Synapse.get_client(synapse_client=synapse_client)
+        custom_message = "Syncing from Synapse" if not download_file else None
+        with shared_download_progress_bar(
+            file_size=1, synapse_client=syn, custom_message=custom_message
+        ):
+            return await self._sync_from_synapse_async(
+                path=path,
+                recursive=recursive,
+                download_file=download_file,
+                if_collision=if_collision,
+                failure_strategy=failure_strategy,
+                include_activity=include_activity,
+                follow_link=follow_link,
+                link_hops=link_hops,
+                queue=queue,
+                synapse_client=syn,
+            )
+
+    async def _sync_from_synapse_async(
+        self: Self,
+        path: Optional[str] = None,
+        recursive: bool = True,
+        download_file: bool = True,
+        if_collision: str = COLLISION_OVERWRITE_LOCAL,
+        failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        include_activity: bool = True,
+        follow_link: bool = False,
+        link_hops: int = 1,
+        queue: asyncio.Queue = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Self:
+        """Function wrapped by sync_from_synapse_async in order to allow a context
+        manager to be used to handle the progress bar.
+
+        All arguments are passed through from the wrapper function.
+        """
+        syn = Synapse.get_client(synapse_client=synapse_client)
         if not self._last_persistent_instance:
             await self.get_async(synapse_client=syn)
         syn.logger.info(
-            f"Syncing {self.__class__.__name__} ({self.id}:{self.name}) from Synapse."
+            f"[{self.id}:{self.name}]: Syncing {self.__class__.__name__} from Synapse."
         )
         path = os.path.expanduser(path) if path else None
 
@@ -269,6 +319,18 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         create_workers = not queue
 
         queue = queue or asyncio.Queue()
+        worker_tasks = []
+        if create_workers:
+            for _ in range(max(syn.max_threads * 2, 1)):
+                task = asyncio.create_task(
+                    self.worker(
+                        queue=queue,
+                        failure_strategy=failure_strategy,
+                        synapse_client=syn,
+                    )
+                )
+                worker_tasks.append(task)
+
         pending_tasks = []
         self.folders = []
         self.files = []
@@ -298,26 +360,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 synapse_client=syn,
             )
 
-        # After all folders have been resolved start the file download process:
-        # Create three worker tasks to process the queue concurrently.
         if create_workers:
-            worker_tasks = []
-            for i in range(max(syn.max_threads * 2, 1)):
-                task = asyncio.create_task(
-                    self.worker(
-                        name=f"worker-{i}",
-                        queue=queue,
-                        failure_strategy=failure_strategy,
-                        synapse_client=syn,
-                    )
-                )
-                worker_tasks.append(task)
-
-            # Wait until the queue is fully processed.
-            await queue.join()
-
-            for task in worker_tasks:
-                task.cancel()
+            try:
+                # Wait until the queue is fully processed.
+                await queue.join()
+            finally:
+                for task in worker_tasks:
+                    task.cancel()
 
         return self
 
@@ -456,7 +505,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         )
         if new_resolved_path and not os.path.exists(new_resolved_path):
             os.makedirs(new_resolved_path)
-        await folder.sync_from_synapse_async(
+        await folder._sync_from_synapse_async(
             recursive=recursive,
             download_file=download_file,
             path=new_resolved_path,
@@ -694,17 +743,21 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             # already been updated to append the new objects.
             pass
         elif isinstance(result, BaseException):
-            Synapse.get_client(synapse_client=synapse_client).logger.exception(result)
+            if failure_strategy is not None:
+                Synapse.get_client(synapse_client=synapse_client).logger.exception(
+                    result
+                )
 
-            if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
-                raise result
+                if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
+                    raise result
         else:
             exception = SynapseError(
                 f"Unknown failure retrieving children of Folder ({self.id}): {type(result)}",
                 result,
             )
-            Synapse.get_client(synapse_client=synapse_client).logger.exception(
-                exception
-            )
-            if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
-                raise exception
+            if failure_strategy is not None:
+                Synapse.get_client(synapse_client=synapse_client).logger.exception(
+                    exception
+                )
+                if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
+                    raise exception

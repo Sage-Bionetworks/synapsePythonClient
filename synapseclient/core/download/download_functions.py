@@ -146,6 +146,7 @@ async def download_file_entity(
         if_collision=if_collision,
         synapse_cache_location=synapse_cache_location,
         cached_file_path=cached_file_path,
+        entity_id=entity.id,
         synapse_client=client,
     )
     if download_path is None:
@@ -157,9 +158,13 @@ async def download_file_entity(
             if not os.path.exists(download_location):
                 os.makedirs(download_location)
             client.logger.info(
-                f"Copying existing file from {cached_file_path} to {download_path}"
+                f"[{entity.id}:{file_name}]: Copying existing file from {cached_file_path} to {download_path}"
             )
             shutil.copy(cached_file_path, download_path)
+        else:
+            client.logger.info(
+                f"[{entity.id}:{file_name}]: Found existing file at {download_path}, skipping download."
+            )
 
     else:  # download the file from URL (could be a local file)
         object_type = "FileEntity" if submission is None else "SubmissionAttachment"
@@ -257,6 +262,7 @@ async def download_file_entity_model(
         if_collision=if_collision,
         synapse_cache_location=synapse_cache_location,
         cached_file_path=cached_file_path,
+        entity_id=file.id,
         synapse_client=client,
     )
     if download_path is None:
@@ -268,9 +274,13 @@ async def download_file_entity_model(
             if not os.path.exists(download_location):
                 os.makedirs(download_location)
             client.logger.info(
-                f"Copying existing file from {cached_file_path} to {download_path}"
+                f"[{file.id}:{file_name}]: Copying existing file from {cached_file_path} to {download_path}"
             )
             shutil.copy(cached_file_path, download_path)
+        else:
+            client.logger.info(
+                f"[{file.id}:{file_name}]: Found existing file at {download_path}, skipping download."
+            )
 
     else:  # download the file from URL (could be a local file)
         object_type = "FileEntity" if submission is None else "SubmissionAttachment"
@@ -526,7 +536,9 @@ async def download_by_file_handle(
                     ),
                 )
 
-            syn.logger.info(f"Downloaded {synapse_id} to {downloaded_path}")
+            syn.logger.info(
+                f"[{synapse_id}:{os.path.basename(downloaded_path)}]: Downloaded to {downloaded_path}"
+            )
             syn.cache.add(
                 file_handle["id"], downloaded_path, file_handle.get("contentMd5", None)
             )
@@ -541,7 +553,8 @@ async def download_by_file_handle(
             exc_info = sys.exc_info()
             ex.progress = 0 if not hasattr(ex, "progress") else ex.progress
             syn.logger.debug(
-                f"\nRetrying download on error: [{exc_info[0]}] after progressing {ex.progress} bytes",
+                f"\n[{synapse_id}:{os.path.basename(downloaded_path)}]: Retrying "
+                f"download on error: [{exc_info[0]}] after progressing {ex.progress} bytes",
                 exc_info=True,
             )  # this will include stack trace
             if ex.progress == 0:  # No progress was made reduce remaining retries.
@@ -669,7 +682,9 @@ def download_from_url(
     actual_md5 = None
     redirect_count = 0
     delete_on_md5_mismatch = True
-    client.logger.debug(f"Downloading from {url} to {destination}")
+    client.logger.debug(
+        f"[{entity_id}:{os.path.basename(destination)}]: Downloading from {url} to {destination}"
+    )
     while redirect_count < REDIRECT_LIMIT:
         redirect_count += 1
         scheme = urllib_urlparse.urlparse(url).scheme
@@ -854,7 +869,8 @@ def download_from_url(
                     )
                     increment_progress_bar(n=transferred, progress_bar=progress_bar)
                     client.logger.debug(
-                        f"Resuming partial download to {temp_destination}. "
+                        f"[{entity_id}:{os.path.basename(destination)}]: Resuming "
+                        f"partial download to {temp_destination}. "
                         f"{previously_transferred}/{to_be_transferred} bytes already "
                         "transferred."
                     )
@@ -894,7 +910,8 @@ def download_from_url(
                 # verify that the file was completely downloaded and retry if it is not complete
                 if to_be_transferred > 0 and transferred < to_be_transferred:
                     client.logger.warning(
-                        "\nRetrying download because the connection ended early.\n"
+                        f"\n[{entity_id}:{os.path.basename(destination)}]: "
+                        "Retrying download because the connection ended early.\n"
                     )
                     continue
 
@@ -903,7 +920,10 @@ def download_from_url(
                 shutil.move(temp_destination, destination)
                 break
         else:
-            client.logger.error(f"Unable to download URLs of type {scheme}")
+            client.logger.error(
+                f"[{entity_id}:{os.path.basename(destination)}]: "
+                f"Unable to download URLs of type {scheme}"
+            )
             return None
 
     else:  # didn't break out of loop
@@ -949,6 +969,7 @@ def resolve_download_path_collisions(
     if_collision: str,
     synapse_cache_location: str,
     cached_file_path: str,
+    entity_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
@@ -964,6 +985,7 @@ def resolve_download_path_collisions(
                                 May be "overwrite.local", "keep.local", or "keep.both".
         synapse_cache_location: The location in .synapseCache where the file would be
                                 corresponding to its FileHandleId.
+        entity_id:              The entity id
         cached_file_path:      The file path of the cached copy
 
     Raises:
@@ -1000,7 +1022,8 @@ def resolve_download_path_collisions(
             pass  # Let the download proceed and overwrite the local file.
         elif if_collision == COLLISION_KEEP_LOCAL:
             client.logger.info(
-                f"Found existing file at {download_path}, skipping download."
+                f"[{entity_id}:{os.path.basename(download_path)}]: Found existing "
+                f"file at {download_path}, skipping download."
             )
 
             # Don't want to overwrite the local file.
