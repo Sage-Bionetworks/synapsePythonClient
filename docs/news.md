@@ -12,6 +12,15 @@ breaking changes will not be included until v5.0.
 ## 4.6.0 (2024-10-04)
 
 ### Highlights
+- Additional retry logic for downloading of files to support more stability and durability of long-running download processes
+
+### Bug Fixes
+-  \[[SYNPY-1548](https://sagebionetworks.jira.com/browse/SYNPY-1548)\] - Concurrent file downloads hitting http 403
+
+
+## 4.6.0 (2024-10-04)
+
+### Highlights
 - Patching an issue present in `4.5.1` that broke downloads from google bucket files.
 - Support for python 3.12
 - Drop support for python 3.8
