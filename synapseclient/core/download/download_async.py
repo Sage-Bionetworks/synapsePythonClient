@@ -26,6 +26,7 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry_time_based,
+    with_retry_time_based_async,
 )
 from synapseclient.core.transfer_bar import get_or_create_download_progress_bar
 
@@ -271,10 +272,15 @@ class _MultithreadedDownloader:
         """
         url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
 
-        file_size = await _get_file_size_wrapper(
-            syn=self._syn,
-            url_provider=url_provider,
-            debug=self._download_request.debug,
+        file_size = await with_retry_time_based_async(
+            function=lambda: _get_file_size_wrapper(
+                syn=self._syn,
+                url_provider=url_provider,
+                debug=self._download_request.debug,
+            ),
+            retry_status_codes=[403],
+            retry_max_wait_before_failure=30,
+            read_response_content=False,
         )
         self._progress_bar = get_or_create_download_progress_bar(
             file_size=file_size,
