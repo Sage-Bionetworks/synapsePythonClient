@@ -140,6 +140,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             link_hops: The number of hops to follow the link. A number of 1 is used to
                 prevent circular references. There is nothing in place to prevent
                 infinite loops. Be careful if setting this above 1.
+            queue: An optional queue to use to download files in parallel.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -542,6 +543,8 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
 
         Arguments:
+            child: Child entity to build a task for
+            queue: A queue to use to download files in parallel.
             recursive: Whether or not to recursively get the entire hierarchy of the
                 folder and sub-folders.
             download_file: Whether to download the files found or not.
