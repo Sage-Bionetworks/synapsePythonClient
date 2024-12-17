@@ -919,7 +919,7 @@ def download_from_url(
                 break
         else:
             client.logger.error(
-                f"[{entity_id}]: " f"Unable to download URLs of type {scheme}"
+                f"[{entity_id}]: Unable to download URLs of type {scheme}"
             )
             return None
 
