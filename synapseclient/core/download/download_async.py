@@ -222,7 +222,7 @@ def _get_file_size(
     Gets the size of the file located at url
 
     Arguments:
-        url: The pre-signed url of the file
+        url_provider: A URL provider for the presigned urls
         debug: A boolean to specify if debug mode is on
 
     Returns:
