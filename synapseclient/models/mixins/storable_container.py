@@ -2,7 +2,7 @@
 
 import asyncio
 import os
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, NoReturn, Optional, Union
 
 from typing_extensions import Self
 
@@ -55,6 +55,42 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
 
+    async def _worker(
+        self,
+        queue: asyncio.Queue,
+        failure_strategy: FailureStrategy,
+        synapse_client: Synapse,
+    ) -> NoReturn:
+        """
+        Coroutine that will process the queue of work items. This will process the
+        work items until the queue is empty. This will be used to download files in
+        parallel.
+
+        Arguments:
+            queue: The queue of work items to process.
+            failure_strategy: Determines how to handle failures when retrieving items
+                out of the queue and an exception occurs.
+            synapse_client: The Synapse client to use to download the files.
+        """
+        while True:
+            # Get a "work item" out of the queue.
+            work_item = await queue.get()
+
+            try:
+                result = await work_item
+            except asyncio.CancelledError as ex:
+                raise ex
+            except Exception as ex:
+                result = ex
+
+            self._resolve_sync_from_synapse_result(
+                result=result,
+                failure_strategy=failure_strategy,
+                synapse_client=synapse_client,
+            )
+
+            queue.task_done()
+
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__.__name__}_sync_from_synapse: {self.id}"
     )
@@ -68,6 +104,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         include_activity: bool = True,
         follow_link: bool = False,
         link_hops: int = 1,
+        queue: asyncio.Queue = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -239,6 +276,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 include_activity=include_activity,
                 follow_link=follow_link,
                 link_hops=link_hops,
+                queue=queue,
                 synapse_client=syn,
             )
 
@@ -252,6 +290,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         include_activity: bool = True,
         follow_link: bool = False,
         link_hops: int = 1,
+        queue: asyncio.Queue = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -277,6 +316,21 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             ),
         )
 
+        create_workers = not queue
+
+        queue = queue or asyncio.Queue()
+        worker_tasks = []
+        if create_workers:
+            for _ in range(max(syn.max_threads * 2, 1)):
+                task = asyncio.create_task(
+                    self._worker(
+                        queue=queue,
+                        failure_strategy=failure_strategy,
+                        synapse_client=syn,
+                    )
+                )
+                worker_tasks.append(task)
+
         pending_tasks = []
         self.folders = []
         self.files = []
@@ -294,6 +348,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     include_activity=include_activity,
                     follow_link=follow_link,
                     link_hops=link_hops,
+                    queue=queue,
                 )
             )
 
@@ -304,6 +359,14 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 failure_strategy=failure_strategy,
                 synapse_client=syn,
             )
+
+        if create_workers:
+            try:
+                # Wait until the queue is fully processed.
+                await queue.join()
+            finally:
+                for task in worker_tasks:
+                    task.cancel()
 
         return self
 
@@ -419,6 +482,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     async def _wrap_recursive_get_children(
         self,
         folder: "Folder",
+        queue: asyncio.Queue,
         recursive: bool = False,
         path: Optional[str] = None,
         download_file: bool = False,
@@ -451,11 +515,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             follow_link=follow_link,
             link_hops=link_hops,
             synapse_client=synapse_client,
+            queue=queue,
         )
 
     def _create_task_for_child(
         self,
         child,
+        queue: asyncio.Queue,
         recursive: bool = False,
         path: Optional[str] = None,
         download_file: bool = False,
@@ -525,6 +591,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                             follow_link=follow_link,
                             link_hops=link_hops,
                             synapse_client=synapse_client,
+                            queue=queue,
                         )
                     )
                 )
@@ -546,17 +613,14 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             if if_collision:
                 file.if_collision = if_collision
 
-            pending_tasks.append(
-                asyncio.create_task(
-                    wrap_coroutine(
-                        file.get_async(
-                            include_activity=include_activity,
-                            synapse_client=synapse_client,
-                        )
+            queue.put_nowait(
+                wrap_coroutine(
+                    file.get_async(
+                        include_activity=include_activity,
+                        synapse_client=synapse_client,
                     )
                 )
             )
-
         elif link_hops > 0 and synapse_id and child_type == LINK_ENTITY:
             pending_tasks.append(
                 asyncio.create_task(
@@ -572,6 +636,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                             include_activity=include_activity,
                             follow_link=follow_link,
                             link_hops=link_hops - 1,
+                            queue=queue,
                         )
                     )
                 )
@@ -582,6 +647,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     async def _follow_link(
         self,
         child,
+        queue: asyncio.Queue,
         recursive: bool = False,
         path: Optional[str] = None,
         download_file: bool = False,
@@ -634,6 +700,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             include_activity=include_activity,
             follow_link=follow_link,
             link_hops=link_hops,
+            queue=queue,
             synapse_client=synapse_client,
         )
         for task in asyncio.as_completed(pending_tasks):
