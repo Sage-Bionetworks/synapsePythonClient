@@ -408,8 +408,8 @@ def test_sync_from_synapse_download_file_is_false(syn: Synapse) -> None:
         new_callable=AsyncMock,
         side_effect=[
             mocked_project_rest_api_dict(),
-            mocked_folder_rest_api_dict(),
             mocked_file_rest_api_dict(),
+            mocked_folder_rest_api_dict(),
         ],
     ), patch(
         "synapseclient.models.file.get_from_entity_factory",
@@ -505,8 +505,8 @@ def test_sync_from_synapse_manifest_is_all(
         new_callable=AsyncMock,
         side_effect=[
             mock_project_dict(),
-            mock_folder_dict(),
             mock_file_dict(syn_id=SYN_123),
+            mock_folder_dict(),
             mock_file_dict(syn_id=SYN_789),
         ],
     ), patch(
@@ -514,8 +514,8 @@ def test_sync_from_synapse_manifest_is_all(
         new_callable=AsyncMock,
         side_effect=[
             mocked_project_rest_api_dict(),
-            mocked_folder_rest_api_dict(),
             mocked_file_rest_api_dict(syn_id=SYN_123),
+            mocked_folder_rest_api_dict(),
             mocked_file_rest_api_dict(syn_id=SYN_789),
         ],
     ), patch(
@@ -662,8 +662,8 @@ def test_sync_from_synapse_manifest_is_root(
         new_callable=AsyncMock,
         side_effect=[
             mock_project_dict(),
-            mock_folder_dict(),
             mock_file_dict(syn_id=SYN_123),
+            mock_folder_dict(),
             mock_file_dict(syn_id=SYN_789),
         ],
     ), patch(
@@ -671,8 +671,8 @@ def test_sync_from_synapse_manifest_is_root(
         new_callable=AsyncMock,
         side_effect=[
             mocked_project_rest_api_dict(),
-            mocked_folder_rest_api_dict(),
             mocked_file_rest_api_dict(syn_id=SYN_123),
+            mocked_folder_rest_api_dict(),
             mocked_file_rest_api_dict(syn_id=SYN_789),
         ],
     ), patch(
@@ -784,8 +784,8 @@ def test_sync_from_synapse_manifest_is_suppress(
         new_callable=AsyncMock,
         side_effect=[
             mock_project_dict(),
-            mock_folder_dict(),
             mock_file_dict(syn_id=SYN_123),
+            mock_folder_dict(),
             mock_file_dict(syn_id=SYN_789),
         ],
     ), patch(
@@ -793,8 +793,8 @@ def test_sync_from_synapse_manifest_is_suppress(
         new_callable=AsyncMock,
         side_effect=[
             mocked_project_rest_api_dict(),
-            mocked_folder_rest_api_dict(),
             mocked_file_rest_api_dict(syn_id=SYN_123),
+            mocked_folder_rest_api_dict(),
             mocked_file_rest_api_dict(syn_id=SYN_789),
         ],
     ), patch(

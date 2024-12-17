@@ -66,13 +66,17 @@ def increment_progress_bar(n: int, progress_bar: Union[tqdm, None]) -> None:
 
 @contextmanager
 def shared_download_progress_bar(
-    file_size: int, *, synapse_client: Optional["Synapse"] = None
+    file_size: int,
+    custom_message: str = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
 ):
     """An outside process that will eventually trigger a download through this module
     can configure a shared Progress Bar by running its code within this context manager.
 
     Arguments:
         file_size: The size of the file being downloaded.
+        custom_message: A custom message to display on the progress bar instead of default.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -86,22 +90,28 @@ def shared_download_progress_bar(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
     with logging_redirect_tqdm(loggers=[syn.logger]):
-        get_or_create_download_progress_bar(file_size=file_size, synapse_client=syn)
+        get_or_create_download_progress_bar(
+            file_size=file_size, custom_message=custom_message, synapse_client=syn
+        )
         try:
             yield
         finally:
             _thread_local.progress_bar_download_context_managed = False
-            if _thread_local.progress_bar_download:
-                _thread_local.progress_bar_download.close()
-                _thread_local.progress_bar_download.refresh()
-                del _thread_local.progress_bar_download
+            close_download_progress_bar()
 
 
-def close_download_progress_bar() -> None:
-    """Handle closing the download progress bar if it is not context managed."""
-    if not _is_context_managed_download_bar():
+def close_download_progress_bar(force_close: bool = False) -> None:
+    """Handle closing the download progress bar if it is not context managed. This will
+    also only close the progress bar if there are no other downloads sharing it."""
+    if force_close or not _is_context_managed_download_bar():
         progress_bar: tqdm = getattr(_thread_local, "progress_bar_download", None)
-        if progress_bar is not None:
+        transfer_count: int = getattr(_thread_local, "transfer_count", 0)
+        transfer_count -= 1
+        if transfer_count < 0:
+            transfer_count = 0
+
+        _thread_local.transfer_count = transfer_count
+        if progress_bar is not None and not transfer_count:
             progress_bar.close()
             progress_bar.refresh()
             del _thread_local.progress_bar_download
@@ -113,7 +123,11 @@ def _is_context_managed_download_bar() -> bool:
 
 
 def get_or_create_download_progress_bar(
-    file_size: int, postfix: str = None, *, synapse_client: Optional["Synapse"] = None
+    file_size: int,
+    postfix: str = None,
+    custom_message: str = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Union[tqdm, None]:
     """Return the existing progress bar if it exists, otherwise create a new one.
 
@@ -132,11 +146,15 @@ def get_or_create_download_progress_bar(
     if syn.silent:
         return None
 
+    transfer_count: int = getattr(_thread_local, "transfer_count", 0)
+    transfer_count += 1
+    _thread_local.transfer_count = transfer_count
+
     progress_bar: tqdm = getattr(_thread_local, "progress_bar_download", None)
     if progress_bar is None:
         progress_bar = tqdm(
             total=file_size,
-            desc="Downloading files",
+            desc=custom_message or "Downloading files",
             unit="B",
             unit_scale=True,
             smoothing=0,

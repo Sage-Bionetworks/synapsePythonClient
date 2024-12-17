@@ -16,10 +16,7 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 
-from synapseclient.api.file_services import (
-    get_file_handle_for_download,
-    get_file_handle_for_download_async,
-)
+from synapseclient.api.file_services import get_file_handle_for_download
 from synapseclient.core.exceptions import (
     SynapseDownloadAbortedException,
     _raise_for_status_httpx,
@@ -29,6 +26,7 @@ from synapseclient.core.retry import (
     RETRYABLE_CONNECTION_ERRORS,
     RETRYABLE_CONNECTION_EXCEPTIONS,
     with_retry_time_based,
+    with_retry_time_based_async,
 )
 from synapseclient.core.transfer_bar import get_or_create_download_progress_bar
 
@@ -110,24 +108,6 @@ class PresignedUrlProvider:
     # offset parameter used to buffer url expiration checks, time in seconds
     _TIME_BUFFER: datetime.timedelta = datetime.timedelta(seconds=5)
 
-    async def get_info_async(self) -> PresignedUrlInfo:
-        """
-        Using async, returns the cached info if it's not expired, otherwise
-        retrieves a new pre-signed url and returns that.
-
-        Returns:
-            Information about a retrieved presigned-url from either the cache or a
-            new request
-        """
-        if not self._cached_info or (
-            datetime.datetime.now(tz=datetime.timezone.utc)
-            + PresignedUrlProvider._TIME_BUFFER
-            >= self._cached_info.expiration_utc
-        ):
-            self._cached_info = await self._get_pre_signed_info_async()
-
-        return self._cached_info
-
     def get_info(self) -> PresignedUrlInfo:
         """
         Using a thread lock, returns the cached info if it's not expired, otherwise
@@ -155,27 +135,6 @@ class PresignedUrlProvider:
             Information about a retrieved presigned-url from a new request.
         """
         response = get_file_handle_for_download(
-            file_handle_id=self.request.file_handle_id,
-            synapse_id=self.request.object_id,
-            entity_type=self.request.object_type,
-            synapse_client=self.client,
-        )
-        file_name = response["fileHandle"]["fileName"]
-        pre_signed_url = response["preSignedURL"]
-        return PresignedUrlInfo(
-            file_name=file_name,
-            url=pre_signed_url,
-            expiration_utc=_pre_signed_url_expiration_time(pre_signed_url),
-        )
-
-    async def _get_pre_signed_info_async(self) -> PresignedUrlInfo:
-        """
-        Make an HTTP request to get a pre-signed url to download a file.
-
-        Returns:
-            Information about a retrieved presigned-url from a new request.
-        """
-        response = await get_file_handle_for_download_async(
             file_handle_id=self.request.file_handle_id,
             synapse_id=self.request.object_id,
             entity_type=self.request.object_type,
@@ -232,40 +191,47 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     return return_data
 
 
-async def _get_file_size_wrapper(syn: "Synapse", url: str, debug: bool) -> int:
+async def _get_file_size_wrapper(
+    syn: "Synapse", url_provider: PresignedUrlProvider, debug: bool
+) -> int:
     """
     Gets the size of the file located at url
 
     Arguments:
         syn: The synapseclient
-        url: The pre-signed url of the file
+        url_provider: A URL provider for the presigned urls
         debug: A boolean to specify if debug mode is on
 
     Returns:
         The size of the file in bytes
     """
+
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         syn._get_thread_pool_executor(asyncio_event_loop=loop),
         _get_file_size,
         syn,
-        url,
+        url_provider,
         debug,
     )
 
 
-def _get_file_size(syn: "Synapse", url: str, debug: bool) -> int:
+def _get_file_size(
+    syn: "Synapse", presigned_url_provider: PresignedUrlProvider, debug: bool
+) -> int:
     """
     Gets the size of the file located at url
 
     Arguments:
-        url: The pre-signed url of the file
+        url_provider: A URL provider for the presigned urls
         debug: A boolean to specify if debug mode is on
 
     Returns:
         The size of the file in bytes
     """
-    with syn._requests_session_storage.stream("GET", url) as response:
+    with syn._requests_session_storage.stream(
+        method="GET", url=presigned_url_provider.get_info().url
+    ) as response:
         _raise_for_status_httpx(
             response=response,
             logger=syn.logger,
@@ -306,9 +272,15 @@ class _MultithreadedDownloader:
         """
         url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
 
-        url_info = await url_provider.get_info_async()
-        file_size = await _get_file_size_wrapper(
-            syn=self._syn, url=url_info.url, debug=self._download_request.debug
+        file_size = await with_retry_time_based_async(
+            function=lambda: _get_file_size_wrapper(
+                syn=self._syn,
+                url_provider=url_provider,
+                debug=self._download_request.debug,
+            ),
+            retry_status_codes=[403],
+            retry_max_wait_before_failure=30,
+            read_response_content=False,
         )
         self._progress_bar = get_or_create_download_progress_bar(
             file_size=file_size,
