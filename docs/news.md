@@ -17,6 +17,8 @@ breaking changes will not be included until v5.0.
 ### Bug Fixes
 -  \[[SYNPY-1548](https://sagebionetworks.jira.com/browse/SYNPY-1548)\] - Concurrent file downloads hitting http 403
 
+### Stories
+-  \[[SYNPY-1423](https://sagebionetworks.jira.com/browse/SYNPY-1423)\] - Update mkdocstrings dependency for 1.8.0
 
 ## 4.6.0 (2024-10-04)
 
