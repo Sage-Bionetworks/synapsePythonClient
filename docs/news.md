@@ -9,7 +9,7 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
-## 4.6.0 (2024-10-04)
+## 4.6.1 (2024-12-17)
 
 ### Highlights
 - Additional retry logic for downloading of files to support more stability and durability of long-running download processes
