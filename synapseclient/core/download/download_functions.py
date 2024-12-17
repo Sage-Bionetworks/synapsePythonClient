@@ -146,7 +146,7 @@ async def download_file_entity(
         if_collision=if_collision,
         synapse_cache_location=synapse_cache_location,
         cached_file_path=cached_file_path,
-        entity_id=entity.id,
+        entity_id=getattr(entity, "id", None),
         synapse_client=client,
     )
     if download_path is None:
@@ -158,12 +158,14 @@ async def download_file_entity(
             if not os.path.exists(download_location):
                 os.makedirs(download_location)
             client.logger.info(
-                f"[{entity.id}:{file_name}]: Copying existing file from {cached_file_path} to {download_path}"
+                f"[{getattr(entity, 'id', None)}:{file_name}]: Copying existing "
+                f"file from {cached_file_path} to {download_path}"
             )
             shutil.copy(cached_file_path, download_path)
         else:
             client.logger.info(
-                f"[{entity.id}:{file_name}]: Found existing file at {download_path}, skipping download."
+                f"[{getattr(entity, 'id', None)}:{file_name}]: Found existing file "
+                f"at {download_path}, skipping download."
             )
 
     else:  # download the file from URL (could be a local file)
@@ -536,9 +538,7 @@ async def download_by_file_handle(
                     ),
                 )
 
-            syn.logger.info(
-                f"[{synapse_id}:{os.path.basename(downloaded_path)}]: Downloaded to {downloaded_path}"
-            )
+            syn.logger.info(f"[{synapse_id}]: Downloaded to {downloaded_path}")
             syn.cache.add(
                 file_handle["id"], downloaded_path, file_handle.get("contentMd5", None)
             )
@@ -682,9 +682,7 @@ def download_from_url(
     actual_md5 = None
     redirect_count = 0
     delete_on_md5_mismatch = True
-    client.logger.debug(
-        f"[{entity_id}:{os.path.basename(destination)}]: Downloading from {url} to {destination}"
-    )
+    client.logger.debug(f"[{entity_id}]: Downloading from {url} to {destination}")
     while redirect_count < REDIRECT_LIMIT:
         redirect_count += 1
         scheme = urllib_urlparse.urlparse(url).scheme
@@ -869,7 +867,7 @@ def download_from_url(
                     )
                     increment_progress_bar(n=transferred, progress_bar=progress_bar)
                     client.logger.debug(
-                        f"[{entity_id}:{os.path.basename(destination)}]: Resuming "
+                        f"[{entity_id}]: Resuming "
                         f"partial download to {temp_destination}. "
                         f"{previously_transferred}/{to_be_transferred} bytes already "
                         "transferred."
@@ -910,7 +908,7 @@ def download_from_url(
                 # verify that the file was completely downloaded and retry if it is not complete
                 if to_be_transferred > 0 and transferred < to_be_transferred:
                     client.logger.warning(
-                        f"\n[{entity_id}:{os.path.basename(destination)}]: "
+                        f"\n[{entity_id}]: "
                         "Retrying download because the connection ended early.\n"
                     )
                     continue
@@ -921,8 +919,7 @@ def download_from_url(
                 break
         else:
             client.logger.error(
-                f"[{entity_id}:{os.path.basename(destination)}]: "
-                f"Unable to download URLs of type {scheme}"
+                f"[{entity_id}]: " f"Unable to download URLs of type {scheme}"
             )
             return None
 
@@ -1022,7 +1019,7 @@ def resolve_download_path_collisions(
             pass  # Let the download proceed and overwrite the local file.
         elif if_collision == COLLISION_KEEP_LOCAL:
             client.logger.info(
-                f"[{entity_id}:{os.path.basename(download_path)}]: Found existing "
+                f"[{entity_id}]: Found existing "
                 f"file at {download_path}, skipping download."
             )
 
