@@ -466,12 +466,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
             table = Table(
                 name="my_table",
                 parent_id="syn1234",
-            ).get()
+            ).get(include_columns=True)
 
             # You may also get the table by id:
             table = Table(
                 id="syn4567"
-            ).get()
+            ).get(include_columns=True)
 
             table.columns["my_old_column"].name = "my_new_column"
 
@@ -483,19 +483,17 @@ class Table(TableSynchronousProtocol, AccessControllable):
             # After the data is stored in synapse you'll be able to use the new key to access the column entry
             print(table.columns["my_new_column"])
 
-    Example: Replacing all columns with a list of columns
-        Using the `set_columns()` method you may replace all columns in a table with a
-        new list of columns.
+    Example: Create a table with a list of columns
+        A list of columns may be passed in when creating a new table. The order of the
+        columns in the list will be the order they are stored in Synapse. If the table
+        already exists and you create the Table instance in this way the columns will
+        be appended to the end of the existing columns.
 
             from synapseclient import Synapse
             from synapseclient.models import Column, ColumnType, Table
 
             syn = Synapse()
             syn.login()
-
-            table = Table(
-                id="syn1234"
-            ).get()
 
             columns = [
                 Column(name="my_string_column", column_type=ColumnType.STRING),
@@ -504,11 +502,16 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 Column(name="my_boolean_column", column_type=ColumnType.BOOLEAN),
             ]
 
-            table.set_columns(columns=columns)
+            table = Table(
+                name="my_table",
+                parent_id="syn1234",
+                columns=columns
+            )
+
             table.store()
 
 
-    Example: Replacing all columns with a dictionary of columns
+    Example: Creating a table with a dictionary of columns
         When specifying a number of columns via a dict setting the `name` attribute
         on the `Column` object is optional. When it is not specified it will be
         pulled from the key of the dict.
@@ -534,7 +537,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
             table.store()
 
-    Example: Replacing all columns with an OrderedDict of columns
+    Example: Creating a table with an OrderedDict of columns
         When specifying a number of columns via a dict setting the `name` attribute
         on the `Column` object is optional. When it is not specified it will be
         pulled from the key of the dict.
@@ -559,7 +562,6 @@ class Table(TableSynchronousProtocol, AccessControllable):
             )
 
             table.store()
-
     """
 
     id: Optional[str] = None
