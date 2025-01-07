@@ -429,7 +429,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             # Prints out the stored data about this specific column
             print(table.columns["my_string_column"])
 
-    Example: Create a table with a new columns
+    Example: Create a table with columns
         This example shows how you may create a new table with a list of columns.
 
             from synapseclient import Synapse
