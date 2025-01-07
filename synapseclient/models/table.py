@@ -1098,6 +1098,9 @@ class Table(TableSynchronousProtocol, AccessControllable):
             index: The index to insert the column at. If not passed in the column will
                 be added to the end of the list.
         """
+        if index is not None:
+            raise NotImplementedError("Index is not yet implemented")
+
         if isinstance(column, list):
             for col in column:
                 self.columns[col.name] = col
