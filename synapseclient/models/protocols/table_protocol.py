@@ -143,7 +143,6 @@ class TableSynchronousProtocol(Protocol):
 
         Arguments:
             query: The query to run.
-            result_format: The format of the results. Defaults to CsvResultFormat().
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
