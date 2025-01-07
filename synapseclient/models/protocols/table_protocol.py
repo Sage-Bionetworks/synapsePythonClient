@@ -101,7 +101,7 @@ class TableSynchronousProtocol(Protocol):
         """
         return self
 
-    def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
+    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Delete the table from synapse.
 
         Arguments:
