@@ -9,7 +9,7 @@ from typing_extensions import Self
 from synapseclient import Synapse
 
 if TYPE_CHECKING:
-    from synapseclient.models.table import Table
+    from synapseclient.models.table import Row, Table
 
 
 class ColumnSynchronousProtocol(Protocol):
@@ -74,6 +74,24 @@ class TableSynchronousProtocol(Protocol):
 
         Returns:
             None
+        """
+        return None
+
+    def delete_rows(
+        self, rows: List["Row"], *, synapse_client: Optional[Synapse] = None
+    ) -> None:
+        """Delete rows from a table.
+
+        Arguments:
+            rows: The rows to delete.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        # TODO: Add example of how to delete rows
         """
         return None
 
