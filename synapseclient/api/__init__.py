@@ -38,6 +38,7 @@ from .file_services import (
     put_file_multipart_add,
     put_file_multipart_complete,
 )
+from .table_services import get_columns
 
 __all__ = [
     # annotations
@@ -78,4 +79,6 @@ __all__ = [
     "get_transfer_config",
     # entity_factory
     "get_from_entity_factory",
+    # columns
+    "get_columns",
 ]

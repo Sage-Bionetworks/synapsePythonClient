@@ -34,7 +34,7 @@ from opentelemetry import trace
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import File, Folder, Project, Table
 
 R = TypeVar("R")
 
@@ -1376,10 +1376,10 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 
 def merge_dataclass_entities(
-    source: typing.Union["Project", "Folder", "File"],
-    destination: typing.Union["Project", "Folder", "File"],
+    source: typing.Union["Project", "Folder", "File", "Table"],
+    destination: typing.Union["Project", "Folder", "File", "Table"],
     fields_to_ignore: typing.List[str] = None,
-) -> typing.Union["Project", "Folder", "File"]:
+) -> typing.Union["Project", "Folder", "File", "Table"]:
     """
     Utility function to merge two dataclass entities together. This is used when we are
     upserting an entity from the Synapse service with the requested changes.

@@ -75,8 +75,9 @@ nav:
       - Core: reference/core.md
       - REST Apis: reference/rest_apis.md
       - Experimental:
-          - Object-Orientated Models: reference/oop/models.md
-          - Async Object-Orientated Models: reference/oop/models_async.md
+        - Object-Orientated Models: reference/oop/models.md
+        - Async Object-Orientated Models: reference/oop/models_async.md
+        - Table refactor: reference/oop/table_refactor.md
   - Further Reading:
       - Home: explanations/home.md
       - Domain Models of Synapse: explanations/domain_models_of_synapse.md
@@ -120,6 +121,8 @@ theme:
     - toc.follow
     - navigation.tabs
     - navigation.tabs.sticky
+    - navigation.instant
+    - navigation.instant.progress
 
 extra_css:
   - css/custom.css
