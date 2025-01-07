@@ -38,6 +38,16 @@ from .file_services import (
     put_file_multipart_add,
     put_file_multipart_complete,
 )
+from .agent_services import (
+    register_agent,
+    get_agent,
+    start_session,
+    get_session,
+    update_session,
+    send_prompt,
+    get_response,
+    get_trace,
+)
 
 __all__ = [
     # annotations
@@ -78,4 +88,13 @@ __all__ = [
     "get_transfer_config",
     # entity_factory
     "get_from_entity_factory",
+    # agent_services
+    "register_agent",
+    "get_agent",
+    "start_session",
+    "get_session",
+    "update_session",
+    "send_prompt",
+    "get_response",
+    "get_trace",
 ]
