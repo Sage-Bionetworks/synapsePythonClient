@@ -397,8 +397,10 @@ class Table(TableSynchronousProtocol, AccessControllable):
         - DATE
 
         The determination of the column type is based on the data that is passed in
-        using the pandas function `infer_dtype`. If you need a more specific column
-        type, or need to add options to the colums follow the examples below.
+        using the pandas function
+        [infer_dtype](https://pandas.pydata.org/docs/reference/api/pandas.api.types.infer_dtype.html).
+        If you need a more specific column type, or need to add options to the colums
+        follow the examples below.
 
             import pandas as pd
 
@@ -895,7 +897,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         """Store non-row information about a table including the columns and annotations.
 
         Arguments:
-            dry_run: If True, will not actually store the table but will return log to
+            dry_run: If True, will not actually store the table but will log to
                 the console what would have been stored.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
