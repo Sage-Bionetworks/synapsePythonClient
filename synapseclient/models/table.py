@@ -1147,14 +1147,14 @@ class Table(TableSynchronousProtocol, AccessControllable):
         **Warning**: This will act as a destructive operation if your Table class
         instance has interacted with Synapse via a `.get()` or `.store()` operation.
         The columns you pass in will replace all columns in the table with the columns
-        in the list. If you
+        in the list.
 
 
-        In order to rename a column you should change the name attribute of the Column
-        object rather than call this function. The next time you store the table the
-        column will be updated in Synapse with the new name and the key in the
-        `.columns` OrderedDict will be updated. See examples on the Table class for
-        more information.
+        If you'd like to rename a column you should change the name attribute of the
+        Column object rather than call this function. The next time you store the table
+        the column will be updated in Synapse with the new name and the key in the
+        `.columns` OrderedDict will be updated. See the example labeled
+        `Rename an existing column` on the Table class for more information.
 
         Arguments:
             columns: The new columns to replace the existing columns with. This may be:
@@ -1177,7 +1177,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
                 table = Table(
                     id="syn1234"
-                ).get()
+                ).get(include_columns=True)
 
                 columns = [
                     Column(name="my_string_column", column_type=ColumnType.STRING),
@@ -1202,7 +1202,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
                 table = Table(
                     id="syn1234"
-                ).get()
+                ).get(include_columns=True)
 
                 columns = {
                     "my_string_column": Column(column_type=ColumnType.STRING),
@@ -1225,7 +1225,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
                 table = Table(
                     id="syn1234"
-                ).get()
+                ).get(include_columns=True)
 
                 columns = OrderedDict({
                     "my_string_column": Column(column_type=ColumnType.STRING),
