@@ -70,7 +70,7 @@ async def get_agent(
 
 async def start_session(
     access_level: str,
-    registration_id: str,
+    agent_registration_id: str,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -78,7 +78,7 @@ async def start_session(
 
     Arguments:
         access_level: The access level of the agent.
-        registration_id: The ID of the agent registration to start the session for.
+        agent_registration_id: The ID of the agent registration to start the session for.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -89,8 +89,8 @@ async def start_session(
 
     # Request matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/CreateAgentSessionRequest.html>
     request = {
-        "accessLevel": access_level,
-        "agentRegistrationId": registration_id,
+        "agentAccessLevel": access_level,
+        "agentRegistrationId": agent_registration_id,
     }
     return await client.rest_post_async(uri="/agent/session", body=json.dumps(request))
 
@@ -140,7 +140,7 @@ async def update_session(
     # Request matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/UpdateAgentSessionRequest.html>
     request = {
         "sessionId": id,
-        "accessLevel": access_level,
+        "agentAccessLevel": access_level,
     }
     return await client.rest_put_async(
         uri=f"/agent/session/{id}", body=json.dumps(request)
@@ -189,7 +189,9 @@ async def get_response(
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
-    Gets the response to a prompt.
+    Gets the response to a prompt. If the response is not ready, the endpoint will return a reponse matching
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html>.
+    In this case, the response retrieval is retried every second until the response is ready or a timeout is reached.
 
     Arguments:
         prompt_id: The token of the prompt to get the response for.
@@ -200,9 +202,6 @@ async def get_response(
     Returns:
         The response matching
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentChatResponse.html>
-        If the reponse is ready.
-        Else, it will return a reponse matching
-            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html>
 
     Raises:
         TimeoutError: If the response is not ready after 1 minute
@@ -220,9 +219,11 @@ async def get_response(
             )
 
         response = await client.rest_get_async(uri=f"/agent/chat/async/get/{prompt_id}")
-        if response.get("jobState") != "PROCESSING":
-            return response
-        await asyncio.sleep(0.5)
+        if response.get("jobState") == "PROCESSING":
+            await asyncio.sleep(1)
+            continue
+
+        return response
 
 
 async def get_trace(
