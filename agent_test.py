@@ -1,17 +1,17 @@
 import asyncio
-from synapseclient import Synapse
 import json
-from synapseclient.api import (
-    register_agent,
-    get_agent,
-    start_session,
-    get_session,
-    update_session,
-    send_prompt,
-    get_response,
-    get_trace,
-)
 
+from synapseclient import Synapse
+from synapseclient.api import (
+    get_agent,
+    get_response,
+    get_session,
+    get_trace,
+    register_agent,
+    send_prompt,
+    start_session,
+    update_session,
+)
 
 AWS_AGENT_ID = "APLZVUZ4HR"
 

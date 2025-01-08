@@ -1,4 +1,14 @@
 # These are all of the models that are used by the Synapse client.
+from .agent_services import (
+    get_agent,
+    get_response,
+    get_session,
+    get_trace,
+    register_agent,
+    send_prompt,
+    start_session,
+    update_session,
+)
 from .annotations import set_annotations, set_annotations_async
 from .configuration_services import (
     get_client_authenticated_s3_profile,
@@ -37,16 +47,6 @@ from .file_services import (
     post_file_multipart_presigned_urls,
     put_file_multipart_add,
     put_file_multipart_complete,
-)
-from .agent_services import (
-    register_agent,
-    get_agent,
-    start_session,
-    get_session,
-    update_session,
-    send_prompt,
-    get_response,
-    get_trace,
 )
 
 __all__ = [
