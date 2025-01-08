@@ -13,6 +13,7 @@ client.
         - query
         - store_rows
         - delete_rows
+        - snapshot
         - delete_column
         - add_column
         - reorder_column

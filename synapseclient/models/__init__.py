@@ -8,7 +8,6 @@ from synapseclient.models.services import FailureStrategy
 from synapseclient.models.table import (
     Column,
     ColumnType,
-    CsvResultFormat,
     FacetType,
     Row,
     RowsetResultFormat,

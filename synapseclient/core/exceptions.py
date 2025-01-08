@@ -2,12 +2,15 @@
 as handling error cases for HTTP requests."""
 
 import logging
+import re
 from typing import Union
 
 import httpx
 import requests
 
 from synapseclient.core import utils
+
+BEARER_TOKEN_PATTERN = re.compile(r"\'Bearer \S+\'")
 
 
 class SynapseError(Exception):
@@ -175,6 +178,7 @@ def _raise_for_status(response, verbose=False):
                 # Append the request sent
                 message += f"\n\n{REQUEST_PREFIX}\n{response.request.url} {response.request.method}"
                 message += f"\n{HEADERS_PREFIX}{response.request.headers}"
+                message = re.sub(BEARER_TOKEN_PATTERN, "'Bearer <redacted>'", message)
                 message += f"\n{BODY_PREFIX}{response.request.body}"
             except:  # noqa
                 message += f"\n{UNABLE_TO_APPEND_REQUEST}"
@@ -273,6 +277,7 @@ def _raise_for_status_httpx(
                 # Append the request sent
                 message += f"\n\n{REQUEST_PREFIX}\n{response.request.url} {response.request.method}"
                 message += f"\n{HEADERS_PREFIX}{response.request.headers}"
+                message = re.sub(BEARER_TOKEN_PATTERN, "'Bearer <redacted>'", message)
                 message += f"\n{BODY_PREFIX}{response.request.content}"
             except Exception:  # noqa
                 logger.exception(UNABLE_TO_APPEND_REQUEST)
