@@ -1,19 +1,20 @@
-from enum import Enum
-from typing import Dict, Optional, List
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional
+
 from synapseclient import Synapse
 from synapseclient.api import (
-    register_agent,
     get_agent,
-    start_session,
-    get_session,
-    update_session,
-    send_prompt,
     get_response,
+    get_session,
     get_trace,
+    register_agent,
+    send_prompt,
+    start_session,
+    update_session,
 )
-from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.async_utils import otel_trace_method
 
 
 class AgentType(Enum):
@@ -84,7 +85,7 @@ class AgentSession:
     access_level: Optional[AgentSessionAccessLevel] = (
         AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
     )
-    """The access level of the agent session. 
+    """The access level of the agent session.
         One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
         Defaults to PUBLICLY_ACCESSIBLE.
     """
@@ -346,8 +347,6 @@ class Agent:
             registration_id=self.registration_id,
             synapse_client=syn,
         )
-        print(agent_response)
-        breakpoint()
         return self.fill_from_dict(agent_response)
 
     @otel_trace_method(
@@ -412,6 +411,11 @@ class Agent:
             If no session is currently active, a new session will be started.
 
         Arguments:
+            session_id: The ID of the session to send the prompt to. If None, the current session will be used.
+            prompt: The prompt to send to the agent.
+            enable_trace: Whether to enable trace for the prompt.
+            newer_than: The timestamp to get trace results newer than. Defaults to None (all results).
+            print_response: Whether to print the response to the console.
             synapse_client: The Synapse client to use for the request. If None, the default client will be used.
         """
         syn = Synapse.get_client(synapse_client=synapse_client)
@@ -419,13 +423,11 @@ class Agent:
         if session_id:
             if session_id not in self.sessions:
                 await self.get_session_async(session_id=session_id, synapse_client=syn)
-            session = self.sessions[session_id]
         else:
             if not self.current_session:
                 await self.start_session_async(synapse_client=syn)
-            session = self.sessions[self.current_session]
 
-        await session.prompt_async(
+        await self.sessions[self.current_session].prompt_async(
             prompt=prompt,
             enable_trace=enable_trace,
             newer_than=newer_than,
