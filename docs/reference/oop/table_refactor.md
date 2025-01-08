@@ -22,6 +22,9 @@ client.
         - get_acl
         - set_permissions
 
+::: synapseclient.models.table.SchemaStorageStrategy
+::: synapseclient.models.table.ColumnExpansionStrategy
+
 ::: synapseclient.models.FacetType
 ::: synapseclient.models.ColumnType
 ::: synapseclient.models.table.JsonSubColumn

@@ -303,6 +303,63 @@ class Column(ColumnSynchronousProtocol):
         return self
 
 
+class SchemaStorageStrategy(str, Enum):
+    """Enum used"""
+
+    INFER_FROM_DATA = "INFER_FROM_DATA"
+    """
+    (Default)
+    Allow the data to define which columns are created on the Synapse table
+    automatically. The limitation with this behavior is that the columns created may
+    only be of the following types:
+
+    - STRING
+    - LARGETEXT
+    - INTEGER
+    - DOUBLE
+    - BOOLEAN
+    - DATE
+
+    The determination of the column type is based on the data that is passed in
+    using the pandas function
+    [infer_dtype](https://pandas.pydata.org/docs/reference/api/pandas.api.types.infer_dtype.html).
+    If you need a more specific column type, or need to add options to the colums
+    follow the examples shown in the [Table][synapseclient.models.Table] class.
+
+
+    The columns created as a result of this strategy will be appended to the end of the
+    existing columns if the table already exists.
+    """
+
+
+class ColumnExpansionStrategy(str, Enum):
+    """
+    Determines how to automate the expansion of columns based on the data
+    that is being stored. The options given allow cells with a limit on the length of
+    content (Such as strings) or cells with a limit on the number of values (Such as
+    lists) to be expanded to a larger size if the data being stored exceeds the limit.
+    """
+
+    AUTO_EXPAND_CONTENT_AND_LIST_LENGTH = "AUTO_EXPAND_CONTENT_AND_LIST_LENGTH"
+    """
+    (Default)
+    Automatically expand both the content length and list length of columns if the data
+    being stored exceeds the limit.
+    """
+
+    AUTO_EXPAND_CONTENT_LENGTH = "AUTO_EXPAND_CONTENT_LENGTH"
+    """
+    Automatically expand the content length of columns if the data being stored exceeds
+    the limit.
+    """
+
+    AUTO_EXPAND_LIST_LENGTH = "AUTO_EXPAND_LIST_LENGTH"
+    """
+    Automatically expand the list length of columns if the data being stored exceeds
+    the limit.
+    """
+
+
 @dataclass()
 @async_to_sync
 class Table(TableSynchronousProtocol, AccessControllable):
@@ -805,6 +862,8 @@ class Table(TableSynchronousProtocol, AccessControllable):
     async def store_rows_async(
         self,
         values: Union[str, List[Dict[str, Any]], Dict[str, Any], pd.DataFrame],
+        schema_storage_strategy: SchemaStorageStrategy = SchemaStorageStrategy.INFER_FROM_DATA,
+        column_expansion_strategy: ColumnExpansionStrategy = ColumnExpansionStrategy.AUTO_EXPAND_CONTENT_AND_LIST_LENGTH,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
@@ -819,6 +878,34 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
+            schema_storage_strategy: Determines how to automate the creation of columns
+                based on the data that is being stored. If you want to have full
+                control over the schema you may set this to `None` and create
+                the columns manually.
+
+                The limitation with this behavior is that the columns created may only
+                be of the following types:
+
+                - STRING
+                - LARGETEXT
+                - INTEGER
+                - DOUBLE
+                - BOOLEAN
+                - DATE
+
+                The determination is based on how this pandas function infers the
+                data type: [infer_dtype](https://pandas.pydata.org/docs/reference/api/pandas.api.types.infer_dtype.html)
+
+            column_expansion_strategy: Determines how to automate the expansion of
+                columns based on the data that is being stored. The options given allow
+                cells with a limit on the length of content (Such as strings) or cells
+                with a limit on the number of values (Such as lists) to be expanded to
+                a larger size if the data being stored exceeds the limit. If you want to
+                have full control over the schema you may set this to `None` and create
+                the columns manually.
+
+                TODO: When implementing this feature more verbose documentation on exactly what columns types may be expanded
+
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -827,10 +914,13 @@ class Table(TableSynchronousProtocol, AccessControllable):
             None
         """
         client = Synapse.get_client(synapse_client=synapse_client)
-        client.logger.info(
-            f"Checking for changes to the schema of table: {self.name or self.id}"
-        )
-        await self.store_async(synapse_client=synapse_client)
+
+        # TODO: Implement logic to handle schema changes and expansion of columns
+        if schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA:
+            client.logger.info(
+                f"Checking for changes to the schema of table: {self.name or self.id}"
+            )
+            await self.store_async(synapse_client=synapse_client)
 
         client.logger.info(f"Storing rows for table {self.name or self.id}")
 
@@ -880,7 +970,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         Returns:
             None
 
-        # TODO: Add example of how to delete rows
+        TODO: Add example of how to delete rows
         """
         rows_to_delete = []
         for row in rows:
