@@ -420,9 +420,12 @@ class Agent:
         """
         syn = Synapse.get_client(synapse_client=synapse_client)
 
+        # TODO: Iron this out. It's a little confusing.
         if session_id:
             if session_id not in self.sessions:
                 await self.get_session_async(session_id=session_id, synapse_client=syn)
+            else:
+                self.current_session = session_id
         else:
             if not self.current_session:
                 await self.start_session_async(synapse_client=syn)
@@ -440,4 +443,5 @@ class Agent:
     )
     def get_chat_history(self) -> List[AgentPrompt]:
         """Gets the chat history for the current session."""
+        # TODO: Is this the best way to do this?
         return self.sessions[self.current_session].chat_history
