@@ -862,8 +862,8 @@ class Table(TableSynchronousProtocol, AccessControllable):
     async def store_rows_async(
         self,
         values: Union[str, List[Dict[str, Any]], Dict[str, Any], pd.DataFrame],
-        schema_storage_strategy: SchemaStorageStrategy = SchemaStorageStrategy.INFER_FROM_DATA,
-        column_expansion_strategy: ColumnExpansionStrategy = ColumnExpansionStrategy.AUTO_EXPAND_CONTENT_AND_LIST_LENGTH,
+        schema_storage_strategy: SchemaStorageStrategy = None,
+        column_expansion_strategy: ColumnExpansionStrategy = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:

@@ -75,10 +75,7 @@ class TableSynchronousProtocol(Protocol):
                 - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
-            schema_storage_strategy:
-                (Default): SchemaStorageStrategy.INFER_FROM_DATA
-
-                Determines how to automate the creation of columns
+            schema_storage_strategy: Determines how to automate the creation of columns
                 based on the data that is being stored. If you want to have full
                 control over the schema you may set this to `None` and create
                 the columns manually.
@@ -96,10 +93,7 @@ class TableSynchronousProtocol(Protocol):
                 The determination is based on how this pandas function infers the
                 data type: [infer_dtype](https://pandas.pydata.org/docs/reference/api/pandas.api.types.infer_dtype.html)
 
-            column_expansion_strategy:
-                (Default): ColumnExpansionStrategy.AUTO_EXPAND_CONTENT_AND_LIST_LENGTH
-
-                Determines how to automate the expansion of
+            column_expansion_strategy: Determines how to automate the expansion of
                 columns based on the data that is being stored. The options given allow
                 cells with a limit on the length of content (Such as strings) or cells
                 with a limit on the number of values (Such as lists) to be expanded to
