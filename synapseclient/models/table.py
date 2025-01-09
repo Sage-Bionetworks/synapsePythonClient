@@ -971,7 +971,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 syn.login()
 
                 async def main():
-                    await Table.delete_rows_async(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
+                    await Table(id="syn1234").delete_rows_async(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
 
                 asyncio.run(main())
         """

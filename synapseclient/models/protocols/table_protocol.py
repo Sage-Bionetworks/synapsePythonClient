@@ -141,7 +141,7 @@ class TableSynchronousProtocol(Protocol):
                 syn = Synapse()
                 syn.login()
 
-                Table.delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
+                Table(id="syn1234").delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
         """
         return pd.DataFrame()
 
