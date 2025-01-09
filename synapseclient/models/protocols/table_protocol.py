@@ -166,6 +166,42 @@ class TableSynchronousProtocol(Protocol):
 
         Returns:
             The Table instance stored in synapse.
+
+        Example: Getting metadata about a table using id
+            Get a table by ID and print out the columns and activity. `include_columns`
+            and `include_activity` are optional arguments that default to False. When
+            you need to update existing columns or activity you will need to set these
+            to True, make the changes, and then call the `.store()` method.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                table = Table(id="syn4567").get(include_columns=True, include_activity=True)
+                print(table)
+                print(table.columns)
+                print(table.activity)
+
+
+        Example: Getting metadata about a table using name and parent_id
+            Get a table by name/parent_id and print out the columns and activity.
+            `include_columns` and `include_activity` are optional arguments that
+            default to False. When you need to update existing columns or activity you
+            will need to set these to True, make the changes, and then call the
+            `.store()` method.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                table = Table(name="my_table", parent_id="syn1234").get(include_columns=True, include_activity=True)
+                print(table)
+                print(table.columns)
+                print(table.activity)
         """
         return self
 
@@ -179,6 +215,16 @@ class TableSynchronousProtocol(Protocol):
 
         Returns:
             None
+
+        Example: Deleting a table
+            Deleting a table is only supported by the ID of the table.
+
+                from synapseclient import Synapse
+
+                syn = Synapse()
+                syn.login()
+
+                Table(id="syn4567").delete()
         """
         return None
 
@@ -192,13 +238,29 @@ class TableSynchronousProtocol(Protocol):
         returned as a Pandas DataFrame.
 
         Arguments:
-            query: The query to run.
+            query: The query to run. The query must be valid syntax that Synapse can
+                understand. See this document that describes the expected syntax of the
+                query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             The results of the query as a Pandas DataFrame.
+
+        Example: Querying for data
+            This example shows how you may query for data in a table and print out the
+            results.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                results = Table.query(query="SELECT * FROM syn1234")
+                print(results)
         """
         return pd.DataFrame()
 

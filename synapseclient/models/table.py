@@ -1125,6 +1125,49 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         Returns:
             The Table instance stored in synapse.
+
+        Example: Getting metadata about a table using id
+            Get a table by ID and print out the columns and activity. `include_columns`
+            and `include_activity` are optional arguments that default to False. When
+            you need to update existing columns or activity you will need to set these
+            to True, make the changes, and then call the `.store()` method.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    table = await Table(id="syn4567").get_async(include_columns=True, include_activity=True)
+                    print(table)
+                    print(table.columns)
+                    print(table.activity)
+
+                asyncio.run(main())
+
+        Example: Getting metadata about a table using name and parent_id
+            Get a table by name/parent_id and print out the columns and activity.
+            `include_columns` and `include_activity` are optional arguments that
+            default to False. When you need to update existing columns or activity you
+            will need to set these to True, make the changes, and then call the
+            `.store()` method.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    table = await Table(name="my_table", parent_id="syn1234").get_async(include_columns=True, include_activity=True)
+                    print(table)
+                    print(table.columns)
+                    print(table.activity)
+
+                asyncio.run(main())
         """
         if not self.id and self.name and self.parent_id:
             raise NotImplementedError(
@@ -1169,6 +1212,20 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         Returns:
             None
+
+        Example: Deleting a table
+            Deleting a table is only supported by the ID of the table.
+
+                import asyncio
+                from synapseclient import Synapse
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    await Table(id="syn4567").delete_async()
+
+                asyncio.run(main())
         """
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(
@@ -1188,6 +1245,47 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         Arguments:
             name: The name of the column to delete.
+
+        Returns:
+            None
+
+        Example: Deleting a column
+            This example shows how you may delete a column from a table and then store
+            the change back in Synapse.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                table = Table(
+                    id="syn1234"
+                ).get(include_columns=True)
+
+                table.delete_column(name="my_column")
+                table.store()
+
+        Example: Deleting a column (async)
+            This example shows how you may delete a column from a table and then store
+            the change back in Synapse.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    table = await Table(
+                        id="syn1234"
+                    ).get_async(include_columns=True)
+
+                    table.delete_column(name="my_column")
+                    table.store_async()
+
+                asyncio.run(main())
         """
         # TODO: _columns_to_delete is not used at the moment, it will be used when swapping to use this synapse API: <https://rest-docs.synapse.org/rest/POST/entity/id/table/transaction/async/start.html>
         self._columns_to_delete[name.name] = name
@@ -1211,6 +1309,144 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 Column objects.
             index: The index to insert the column at. If not passed in the column will
                 be added to the end of the list.
+
+        Returns:
+            None
+
+        Example: Adding a single column
+            This example shows how you may add a single column to a table and then store
+            the change back in Synapse.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Column, ColumnType, Table
+
+                syn = Synapse()
+                syn.login()
+
+                table = Table(
+                    id="syn1234"
+                ).get(include_columns=True)
+
+                table.add_column(
+                    Column(name="my_column", column_type=ColumnType.STRING)
+                )
+                table.store()
+
+
+        Example: Adding multiple columns
+            This example shows how you may add multiple columns to a table and then store
+            the change back in Synapse.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Column, ColumnType, Table
+
+                syn = Synapse()
+                syn.login()
+
+                table = Table(
+                    id="syn1234"
+                ).get(include_columns=True)
+
+                table.add_column([
+                    Column(name="my_column", column_type=ColumnType.STRING),
+                    Column(name="my_column2", column_type=ColumnType.INTEGER),
+                ])
+                table.store()
+
+        Example: Adding a column at a specific index
+            This example shows how you may add a column at a specific index to a table
+            and then store the change back in Synapse. If the index is out of bounds the
+            column will be added to the end of the list.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Column, ColumnType, Table
+
+                syn = Synapse()
+                syn.login()
+
+                table = Table(
+                    id="syn1234"
+                ).get(include_columns=True)
+
+                table.add_column(
+                    Column(name="my_column", column_type=ColumnType.STRING),
+                    # Add the column at the beginning of the list
+                    index=0
+                )
+                table.store()
+
+        Example: Adding a single column (async)
+            This example shows how you may add a single column to a table and then store
+            the change back in Synapse.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Column, ColumnType, Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    table = await Table(
+                        id="syn1234"
+                    ).get_async(include_columns=True)
+
+                    table.add_column(
+                        Column(name="my_column", column_type=ColumnType.STRING)
+                    )
+                    table.store_async()
+
+                asyncio.run(main())
+
+        Example: Adding multiple columns (async)
+            This example shows how you may add multiple columns to a table and then store
+            the change back in Synapse.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Column, ColumnType, Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    table = await Table(
+                        id="syn1234"
+                    ).get_async(include_columns=True)
+
+                    table.add_column([
+                        Column(name="my_column", column_type=ColumnType.STRING),
+                        Column(name="my_column2", column_type=ColumnType.INTEGER),
+                    ])
+                    table.store_async()
+
+                asyncio.run(main())
+
+        Example: Adding a column at a specific index (async)
+            This example shows how you may add a column at a specific index to a table
+            and then store the change back in Synapse. If the index is out of bounds the
+            column will be added to the end of the list.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Column, ColumnType, Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    table = await Table(
+                        id="syn1234"
+                    ).get_async(include_columns=True)
+
+                    table.add_column(
+                        Column(name="my_column", column_type=ColumnType.STRING),
+                        # Add the column at the beginning of the list
+                        index=0
+                    )
+                    table.store_async()
+
+                asyncio.run(main())
         """
         if index is not None:
             raise NotImplementedError("Index is not yet implemented")
@@ -1234,6 +1470,50 @@ class Table(TableSynchronousProtocol, AccessControllable):
         Arguments:
             name: The name of the column to reorder.
             index: The index to move the column to starting with 0.
+
+        Returns:
+            None
+
+        Example: Reordering a column
+            This example shows how you may reorder a column in a table and then store
+            the change back in Synapse.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Column, ColumnType, Table
+
+                syn = Synapse()
+                syn.login()
+
+                table = Table(
+                    id="syn1234"
+                ).get(include_columns=True)
+
+                # Move the column to the beginning of the list
+                table.reorder_column(name="my_column", index=0)
+                table.store()
+
+
+        Example: Reordering a column (async)
+            This example shows how you may reorder a column in a table and then store
+            the change back in Synapse.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Column, ColumnType, Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    table = await Table(
+                        id="syn1234"
+                    ).get_async(include_columns=True)
+
+                    # Move the column to the beginning of the list
+                    table.reorder_column(name="my_column", index=0)
+                    table.store_async()
+
+                asyncio.run(main())
         """
 
         column_to_reorder = self.columns.pop(name, None)
@@ -1366,13 +1646,33 @@ class Table(TableSynchronousProtocol, AccessControllable):
         returned as a Pandas DataFrame.
 
         Arguments:
-            query: The query to run.
+            query: The query to run. The query must be valid syntax that Synapse can
+                understand. See this document that describes the expected syntax of the
+                query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             The results of the query as a Pandas DataFrame.
+
+        Example: Querying for data
+            This example shows how you may query for data in a table and print out the
+            results.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    results = await Table.query_async(query="SELECT * FROM syn1234")
+                    print(results)
+
+                asyncio.run(main())
         """
         # TODO: Implement similar logic to synapseclient/table.py::CsvFileTable::from_table_query and what it can handle
         # It should handle for any of the arguments available there in order to support correctly reading in the CSV
