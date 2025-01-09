@@ -110,9 +110,8 @@ class TableSynchronousProtocol(Protocol):
         """
         return None
 
-    @staticmethod
     def delete_rows(
-        query: str, table_id: str, *, synapse_client: Optional[Synapse] = None
+        self, query: str, *, synapse_client: Optional[Synapse] = None
     ) -> pd.DataFrame:
         """
         Delete rows from a table given a query to select rows. The query at a
@@ -126,7 +125,6 @@ class TableSynchronousProtocol(Protocol):
                 must select the `ROW_ID` and `ROW_VERSION` columns. See this document
                 that describes the expected syntax of the query:
                 <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
-            table_id: The ID of the table to delete rows from.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.

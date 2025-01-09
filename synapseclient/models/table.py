@@ -938,9 +938,8 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         raise NotImplementedError("This method is not yet implemented")
 
-    @staticmethod
     async def delete_rows_async(
-        query: str, table_id: str, *, synapse_client: Optional[Synapse] = None
+        self, query: str, *, synapse_client: Optional[Synapse] = None
     ) -> pd.DataFrame:
         """
         Delete rows from a table given a query to select rows. The query at a
@@ -954,7 +953,6 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 must select the `ROW_ID` and `ROW_VERSION` columns. See this document
                 that describes the expected syntax of the query:
                 <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
-            table_id: The ID of the table to delete rows from.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -991,7 +989,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             None,
             lambda: delete_rows(
                 syn=Synapse.get_client(synapse_client=synapse_client),
-                table_id=table_id,
+                table_id=self.id,
                 row_id_vers_list=rows_to_delete,
             ),
         )
