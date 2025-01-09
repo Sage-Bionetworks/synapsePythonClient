@@ -9,7 +9,6 @@ from synapseclient.models.table import (
     Column,
     ColumnType,
     FacetType,
-    Row,
     RowsetResultFormat,
     Table,
 )
@@ -32,7 +31,6 @@ __all__ = [
     "FacetType",
     "CsvResultFormat",
     "RowsetResultFormat",
-    "Row",
     "Team",
     "TeamMember",
     "UserProfile",

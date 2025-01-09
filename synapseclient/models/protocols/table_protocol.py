@@ -11,7 +11,6 @@ from synapseclient import Synapse
 if TYPE_CHECKING:
     from synapseclient.models.table import (
         ColumnExpansionStrategy,
-        Row,
         SchemaStorageStrategy,
         Table,
     )
@@ -111,23 +110,42 @@ class TableSynchronousProtocol(Protocol):
         """
         return None
 
+    @staticmethod
     def delete_rows(
-        self, rows: List["Row"], *, synapse_client: Optional[Synapse] = None
-    ) -> None:
-        """Delete rows from a table.
+        query: str, table_id: str, *, synapse_client: Optional[Synapse] = None
+    ) -> pd.DataFrame:
+        """
+        Delete rows from a table given a query to select rows. The query at a
+        minimum must select the `ROW_ID` and `ROW_VERSION` columns. If you want to
+        inspect the data that will be deleted ahead of time you may use the
+        `.query` method to get the data.
+
 
         Arguments:
-            rows: The rows to delete.
+            query: The query to select the rows to delete. The query at a minimum
+                must select the `ROW_ID` and `ROW_VERSION` columns. See this document
+                that describes the expected syntax of the query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            table_id: The ID of the table to delete rows from.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
-            None
+            The results of your query for the rows that were deleted from the table.
 
-        TODO: Add example of how to delete rows
+        Example: Selecting a row to delete
+            This example shows how you may select a row to delete from a table.
+
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                Table.delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
         """
-        return None
+        return pd.DataFrame()
 
     def get(
         self,
