@@ -409,7 +409,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             In YYYY-MM-DD-Thh:mm:ss.sssZ format
         modified_by: The ID of the user that last modified this table.
         version_number: (Read Only) The version number issued to this version on the
-            object. Use this the `.snapshot()` method to create a new version of the
+            object. Use this `.snapshot()` method to create a new version of the
             table.
         version_label: (Read Only) The version label for this table. Use the
             `.snapshot()` method to create a new version of the table.
@@ -695,15 +695,15 @@ class Table(TableSynchronousProtocol, AccessControllable):
     """The ID of the user that last modified this table."""
 
     version_number: Optional[int] = field(default=None, compare=False)
-    """(Read Only) The version number issued to this version on the object. Use this the
+    """(Read Only) The version number issued to this version on the object. Use this
     `.snapshot()` method to create a new version of the table."""
 
     version_label: Optional[str] = None
-    """(Read Only) The version label for this table. Use this the `.snapshot()` method
+    """(Read Only) The version label for this table. Use this `.snapshot()` method
     to create a new version of the table."""
 
     version_comment: Optional[str] = None
-    """(Read Only) The version comment for this table. Use this the `.snapshot()` method
+    """(Read Only) The version comment for this table. Use this `.snapshot()` method
     to create a new version of the table."""
 
     is_latest_version: Optional[bool] = field(default=None, compare=False)
