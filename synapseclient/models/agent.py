@@ -14,7 +14,11 @@ from synapseclient.api import (
     start_session,
     update_session,
 )
-from synapseclient.core.async_utils import otel_trace_method
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.models.protocols.agent_protocol import (
+    AgentSessionSynchronousProtocol,
+    AgentSynchronousProtocol,
+)
 
 
 class AgentType(str, Enum):
@@ -71,7 +75,8 @@ class AgentPrompt:
 
 # TODO Add example usage to the docstring
 @dataclass
-class AgentSession:
+@async_to_sync
+class AgentSession(AgentSessionSynchronousProtocol):
     """Represents a [Synapse Agent Session](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentSession.html)
 
     Attributes:
@@ -259,7 +264,8 @@ class AgentSession:
 
 # TODO Add example usage to the docstring
 @dataclass
-class Agent:
+@async_to_sync
+class Agent(AgentSynchronousProtocol):
     """Represents a [Synapse Agent Registration](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentRegistration.html)
 
     Attributes:
@@ -364,6 +370,7 @@ class Agent:
         synapse_client: Optional[Synapse] = None,
     ) -> "AgentSession":
         """Starts an agent session.
+        Adds the session to the Agent's sessions dictionary and sets it as the current session.
 
         Arguments:
             access_level: The access level of the agent session.
@@ -389,6 +396,17 @@ class Agent:
     async def get_session_async(
         self, session_id: str, *, synapse_client: Optional[Synapse] = None
     ) -> "AgentSession":
+        """Gets an existing agent session.
+        Adds the session to the Agent's sessions dictionary and sets it as the current session.
+
+        Arguments:
+            session_id: The ID of the session to get.
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
+
+        Returns:
+            The existing AgentSession object.
+        """
         session = await AgentSession(id=session_id).get_async(
             synapse_client=synapse_client
         )
@@ -400,7 +418,7 @@ class Agent:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Prompt_Agent_Session: {self.registration_id}"
     )
-    async def prompt(
+    async def prompt_async(
         self,
         prompt: str,
         enable_trace: bool = False,
