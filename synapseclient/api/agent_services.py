@@ -39,10 +39,9 @@ async def register_agent(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    request = {
-        "awsAgentId": cloud_agent_id,
-        "awsAliasId": cloud_alias_id if cloud_alias_id else "TSTALIASID",
-    }
+    request = {"awsAgentId": cloud_agent_id}
+    if cloud_alias_id:
+        request["awsAliasId"] = cloud_alias_id
     return await client.rest_put_async(
         uri="/agent/registration", body=json.dumps(request)
     )

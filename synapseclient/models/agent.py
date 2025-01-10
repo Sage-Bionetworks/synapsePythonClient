@@ -238,6 +238,7 @@ class AgentSession:
                 newer_than=newer_than,
                 synapse_client=synapse_client,
             )
+            # TODO: This is a bit hacky. Do we need to parse the page instead?
             trace = trace_response["page"][0]["message"]
 
         self.chat_history.append(
@@ -264,7 +265,7 @@ class Agent:
     Attributes:
         cloud_agent_id: The unique ID of the agent in the cloud provider.
         cloud_alias_id: The alias ID of the agent in the cloud provider.
-                    In the Synapse API, this defaults to 'TSTALIASID'.
+                    Defaults to 'TSTALIASID' in the Synapse API.
         synapse_registration_id: The ID number of the agent assigned by Synapse.
         registered_on: The date the agent was registered.
         type: The type of agent.
@@ -274,7 +275,9 @@ class Agent:
     """The unique ID of the agent in the cloud provider."""
 
     cloud_alias_id: Optional[str] = None
-    """The alias ID of the agent in the cloud provider. In the Synapse API, this defaults to 'TSTALIASID'."""
+    """The alias ID of the agent in the cloud provider.
+        Defaults to 'TSTALIASID' in the Synapse API.
+    """
 
     registration_id: Optional[int] = None
     """The ID number of the agent assigned by Synapse."""
@@ -384,7 +387,7 @@ class Agent:
         method_to_trace_name=lambda self, **kwargs: f"Get_Agent_Session: {self.registration_id}"
     )
     async def get_session_async(
-        self, *, session_id: str, synapse_client: Optional[Synapse] = None
+        self, session_id: str, *, synapse_client: Optional[Synapse] = None
     ) -> "AgentSession":
         session = await AgentSession(id=session_id).get_async(
             synapse_client=synapse_client
@@ -399,12 +402,12 @@ class Agent:
     )
     async def prompt(
         self,
-        *,
         prompt: str,
         enable_trace: bool = False,
         print_response: bool = False,
         session: Optional[AgentSession] = None,
         newer_than: Optional[int] = None,
+        *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """Sends a prompt to the agent for the current session.
@@ -438,9 +441,6 @@ class Agent:
             synapse_client=synapse_client,
         )
 
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Get_Agent_Session_Chat_History: {self.registration_id}"
-    )
     def get_chat_history(self) -> Union[List[AgentPrompt], None]:
         """Gets the chat history for the current session."""
         return self.current_session.chat_history if self.current_session else None
