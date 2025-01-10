@@ -55,6 +55,102 @@ class TableSynchronousProtocol(Protocol):
         """
         return self
 
+    def upsert_rows(
+        self,
+        values: pd.DataFrame,
+        upsert_columns: List[str],
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        This method allows you to perform an `upsert` (Update and Insert) for a row.
+        This means that you may update a row with only the data that you want to change.
+        When supplied with a row that does not match the given `upsert_columns` a new
+        row will be inserted. If you want to replace a row entirely you may use the
+        `.store_rows()` method. See that method for more information.
+
+
+        Using the `upsert_columns` argument you may specify which columns to use to
+        determine if a row already exists. If a row exists with the same values in the
+        columns specified in this list the row will be updated. If a row does not exist
+        it will be inserted.
+
+
+        Limitations:
+
+        - The `upsert_columns` argument must contain at least one column.
+        - The `upsert_columns` argument must contain columns that are not a LIST type.
+        - The values used as the `upsert_columns` must be unique in the table. If there
+            are multiple rows with the same values in the `upsert_columns` the behavior
+            is that an exception will be raised.
+        - The columns used in `upsert_columns` cannot contain updated values. Since
+            the values in these columns are used to determine if a row exists, they
+            cannot be updated in the same transaction.
+
+
+        Arguments:
+            values: Supports storing data from the following sources:
+
+                - A string holding the path to a CSV file
+                - A list of lists (or tuples) where each element is a row
+                - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            upsert_columns: The columns to use to determine if a row already exists. If
+                a row exists with the same values in the columns specified in this list
+                the row will be updated. If a row does not exist it will be inserted.
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+
+        TODO: Add an example for deleting data out of a cell
+
+        TODO: Add an example/support for skipping over cells in the table. Suppose I want to update row 1 `col2`, and row 2 `col3`, but I don't want to specify the data for row 1 `col3` and row 2 `col2`. Should this be supported?
+
+
+        Example: Updating 2 rows and inserting 1 row
+            In this given example we have a table with the following data:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+
+            The following code will update the first row's `col2` to `22`, update the
+            second row's `col3` to `33`, and insert a new row:
+
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+                import pandas as pd
+
+                syn = Synapse()
+                syn.login()
+
+                table = Table(id="syn123").get(include_columns=True)
+
+                df = pd.DataFrame({
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [22, 2, 3],
+                    'col3': [1, 33, 3],
+                })
+
+                table.upsert_rows(values=df, upsert_columns=["col1"])
+
+                main()
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 22   | 1    |
+            | B    | 2    | 33   |
+            | C    | 3    | 3    |
+
+        """
+        return None
+
     def store_rows(
         self,
         values: Union[str, List[Dict[str, Any]], Dict[str, Any], pd.DataFrame],

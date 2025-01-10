@@ -12,6 +12,7 @@ client.
         - delete
         - query
         - store_rows
+        - upsert_rows
         - delete_rows
         - snapshot
         - delete_column
