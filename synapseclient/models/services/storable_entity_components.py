@@ -4,10 +4,9 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.models import Annotations
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project, Table
+    from synapseclient.models import File, Folder, Project, Table, Annotations
 
 
 class FailureStrategy(Enum):
