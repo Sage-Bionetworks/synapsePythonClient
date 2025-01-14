@@ -3,7 +3,7 @@ import json
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional, Self
+from typing import Any, Dict, Optional
 
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
@@ -25,7 +25,9 @@ class AsynchronousCommunicator:
         """
         raise NotImplementedError("to_synapse_request must be implemented.")
 
-    def fill_from_dict(self, synapse_response: Dict[str, str]) -> Self:
+    def fill_from_dict(
+        self, synapse_response: Dict[str, str]
+    ) -> "AsynchronousCommunicator":
         """
         Converts a response from the REST API into this dataclass.
 
@@ -59,7 +61,7 @@ class AsynchronousCommunicator:
         post_exchange_args: Optional[Dict[str, Any]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Self:
+    ) -> "AsynchronousCommunicator":
         """Send the job to the Asynchronous Job service and wait for it to complete.
 
         This is a placeholder for any additional logic that needs to be run after the exchange with Synapse.
