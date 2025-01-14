@@ -18,12 +18,19 @@ class AsynchronousCommunicator:
     """Mixin to handle communication with the Synapse Asynchronous Job service."""
 
     def to_synapse_request(self) -> None:
-        """Converts the request to a request expected of the Synapse REST API."""
+        """Converts the request to a request expected of the Synapse REST API.
+
+        This is a placeholder for any additional logic that needs to be run before the exchange with Synapse.
+        It must be overridden by subclasses if needed.
+        """
         raise NotImplementedError("to_synapse_request must be implemented.")
 
     def fill_from_dict(self, synapse_response: Dict[str, str]) -> Self:
         """
         Converts a response from the REST API into this dataclass.
+
+        This is a placeholder for any additional logic that needs to be run after the exchange with Synapse.
+        It must be overridden by subclasses if needed.
 
         Arguments:
             synapse_response: The response from the REST API.
@@ -36,7 +43,15 @@ class AsynchronousCommunicator:
     async def _post_exchange_async(
         self, synapse_client: Optional[Synapse] = None, **kwargs
     ) -> None:
-        """Any additional logic to run after the exchange with Synapse."""
+        """Any additional logic to run after the exchange with Synapse.
+
+        This is a placeholder for any additional logic that needs to be run after the exchange with Synapse.
+        It must be overridden by subclasses if needed.
+
+        Arguments:
+            synapse_client: The Synapse client to use for the request.
+            **kwargs: Additional arguments to pass to the request.
+        """
         pass
 
     async def send_job_and_wait_async(
@@ -45,9 +60,22 @@ class AsynchronousCommunicator:
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
-        """Send the job to the Asynchronous Job service and wait for it to complete."""
+        """Send the job to the Asynchronous Job service and wait for it to complete.
+
+        This is a placeholder for any additional logic that needs to be run after the exchange with Synapse.
+        It must be overridden by subclasses if needed.
+
+        Arguments:
+            post_exchange_args: Additional arguments to pass to the request.
+            synapse_client: The Synapse client to use for the request.
+
+        Returns:
+            An instance of this class.
+        """
         result = await send_job_and_wait_async(
-            request=self.to_synapse_request(), synapse_client=synapse_client
+            request=self.to_synapse_request(),
+            request_type=self.concrete_type,
+            synapse_client=synapse_client,
         )
         self.fill_from_dict(synapse_response=result)
         await self._post_exchange_async(
@@ -197,6 +225,7 @@ class AsynchronousJobStatus:
 
 async def send_job_and_wait_async(
     request: Dict[str, Any],
+    request_type: str,
     endpoint: str = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -225,7 +254,7 @@ async def send_job_and_wait_async(
         "jobId": job_id,
         **await get_job_async(
             job_id=job_id,
-            request_type=AGENT_CHAT_REQUEST,
+            request_type=request_type,
             synapse_client=synapse_client,
             endpoint=endpoint,
         ),
