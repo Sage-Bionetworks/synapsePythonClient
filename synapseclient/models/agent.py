@@ -101,7 +101,8 @@ class AgentPrompt(AsynchronousCommunicator):
         Returns:
             The AgentPrompt object.
         """
-        self.id = synapse_response.get("sessionId", None)
+        self.id = synapse_response.get("jobId", None)
+        self.session_id = synapse_response.get("sessionId", None)
         self.response = synapse_response.get("responseText", None)
         return self
 

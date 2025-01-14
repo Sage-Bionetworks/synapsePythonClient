@@ -221,12 +221,15 @@ async def send_job_and_wait_async(
         SynapseTimeoutError: If the job does not complete within the timeout.
     """
     job_id = await send_job_async(request=request, synapse_client=synapse_client)
-    return await get_job_async(
-        job_id=job_id,
-        request_type=AGENT_CHAT_REQUEST,
-        synapse_client=synapse_client,
-        endpoint=endpoint,
-    )
+    return {
+        "jobId": job_id,
+        **await get_job_async(
+            job_id=job_id,
+            request_type=AGENT_CHAT_REQUEST,
+            synapse_client=synapse_client,
+            endpoint=endpoint,
+        ),
+    }
 
 
 async def send_job_async(
