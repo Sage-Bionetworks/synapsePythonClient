@@ -17,8 +17,6 @@ ASYNC_JOB_URIS = {
 class AsynchronousCommunicator:
     """Mixin to handle communication with the Synapse Asynchronous Job service."""
 
-    concrete_type: str
-
     def to_synapse_request(self) -> None:
         """Converts the request to a request expected of the Synapse REST API."""
         raise NotImplementedError("to_synapse_request must be implemented.")
