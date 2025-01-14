@@ -6,11 +6,9 @@ from typing import Dict, List, Optional, Union
 from synapseclient import Synapse
 from synapseclient.api import (
     get_agent,
-    get_response,
     get_session,
     get_trace,
     register_agent,
-    send_prompt,
     start_session,
     update_session,
 )
@@ -19,6 +17,9 @@ from synapseclient.models.protocols.agent_protocol import (
     AgentSessionSynchronousProtocol,
     AgentSynchronousProtocol,
 )
+from synapseclient.models.mixins.asynchronous_job import AsynchronousJob
+
+from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
 
 
 class AgentType(str, Enum):
@@ -60,6 +61,8 @@ class AgentPrompt:
         trace: The trace of the agent session.
     """
 
+    concrete_type: str = AGENT_CHAT_REQUEST
+
     id: Optional[str] = None
     """The unique ID of the agent prompt."""
 
@@ -76,7 +79,7 @@ class AgentPrompt:
 # TODO Add example usage to the docstring
 @dataclass
 @async_to_sync
-class AgentSession(AgentSessionSynchronousProtocol):
+class AgentSession(AgentSessionSynchronousProtocol, AsynchronousJob):
     """Represents a [Synapse Agent Session](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentSession.html)
 
     Attributes:
@@ -94,9 +97,9 @@ class AgentSession(AgentSessionSynchronousProtocol):
     id: Optional[str] = None
     """The unique ID of the agent session. Can only be used by the user that created it."""
 
-    access_level: Optional[
-        AgentSessionAccessLevel
-    ] = AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
+    access_level: Optional[AgentSessionAccessLevel] = (
+        AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
+    )
     """The access level of the agent session.
         One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
         Defaults to PUBLICLY_ACCESSIBLE.
@@ -223,16 +226,17 @@ class AgentSession(AgentSessionSynchronousProtocol):
             newer_than: The timestamp to get trace results newer than. Defaults to None (all results).
             synapse_client: The Synapse client to use for the request. If None, the default client will be used.
         """
-        prompt_response = await send_prompt(
-            id=self.id,
+        prompt_id = await self.send_job_async(
+            request_type=AGENT_CHAT_REQUEST,
+            session_id=self.id,
             prompt=prompt,
             enable_trace=enable_trace,
             synapse_client=synapse_client,
         )
-        prompt_id = prompt_response["token"]
 
-        answer_response = await get_response(
-            prompt_id=prompt_id,
+        answer_response = await self.get_job_async(
+            job_id=prompt_id,
+            request_type=AGENT_CHAT_REQUEST,
             synapse_client=synapse_client,
         )
         response = answer_response["responseText"]
@@ -243,7 +247,6 @@ class AgentSession(AgentSessionSynchronousProtocol):
                 newer_than=newer_than,
                 synapse_client=synapse_client,
             )
-            # TODO: This is a bit hacky. Do we need to parse the page instead?
             trace = trace_response["page"][0]["message"]
 
         self.chat_history.append(

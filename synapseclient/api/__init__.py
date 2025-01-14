@@ -1,11 +1,9 @@
 # These are all of the models that are used by the Synapse client.
 from .agent_services import (
     get_agent,
-    get_response,
     get_session,
     get_trace,
     register_agent,
-    send_prompt,
     start_session,
     update_session,
 )
@@ -94,7 +92,5 @@ __all__ = [
     "start_session",
     "get_session",
     "update_session",
-    "send_prompt",
-    "get_response",
     "get_trace",
 ]
