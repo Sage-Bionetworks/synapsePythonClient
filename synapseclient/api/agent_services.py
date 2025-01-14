@@ -2,15 +2,11 @@
 <https://rest-docs.synapse.org/rest/#org.sagebionetworks.repo.web.controller.AgentController>
 """
 
-import asyncio
 import json
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-
-from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
-from synapseclient.core.exceptions import SynapseTimeoutError
 
 
 async def register_agent(

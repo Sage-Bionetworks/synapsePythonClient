@@ -13,13 +13,12 @@ from synapseclient.api import (
     update_session,
 )
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
+from synapseclient.models.mixins.asynchronous_job import AsynchronousJob
 from synapseclient.models.protocols.agent_protocol import (
     AgentSessionSynchronousProtocol,
     AgentSynchronousProtocol,
 )
-from synapseclient.models.mixins.asynchronous_job import AsynchronousJob
-
-from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
 
 
 class AgentType(str, Enum):
@@ -97,9 +96,9 @@ class AgentSession(AgentSessionSynchronousProtocol, AsynchronousJob):
     id: Optional[str] = None
     """The unique ID of the agent session. Can only be used by the user that created it."""
 
-    access_level: Optional[AgentSessionAccessLevel] = (
-        AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
-    )
+    access_level: Optional[
+        AgentSessionAccessLevel
+    ] = AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
     """The access level of the agent session.
         One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
         Defaults to PUBLICLY_ACCESSIBLE.

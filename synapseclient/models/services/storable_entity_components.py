@@ -6,7 +6,7 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project, Table, Annotations
+    from synapseclient.models import Annotations, File, Folder, Project, Table
 
 
 class FailureStrategy(Enum):

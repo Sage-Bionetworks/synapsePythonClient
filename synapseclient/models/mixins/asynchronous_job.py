@@ -2,13 +2,11 @@ import asyncio
 import json
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Dict, Any
-from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
-
-from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
-
 from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
+from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
+from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
