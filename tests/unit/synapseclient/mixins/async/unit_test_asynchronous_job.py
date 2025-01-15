@@ -20,7 +20,7 @@ from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 
 from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
 
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 
 class TestSendJobAsync:
@@ -59,12 +59,13 @@ class TestSendJobAsync:
 
     async def test_send_job_async_when_request_is_valid(self) -> None:
         with (
-            patch.object(
-                Synapse, "get_client", return_value=self.syn
+            patch(
+                "synapseclient.Synapse.get_client",
+                return_value=self.syn,
             ) as mock_get_client,
-            patch.object(
-                Synapse,
-                "rest_post_async",
+            patch(
+                "synapseclient.Synapse.rest_post_async",
+                new_callable=AsyncMock,
                 return_value={"token": "123"},
             ) as mock_rest_post_async,
         ):
@@ -111,9 +112,9 @@ class TestGetJobAsync:
 
     async def test_get_job_async_when_job_fails(self) -> None:
         with (
-            patch.object(
-                Synapse,
-                "rest_get_async",
+            patch(
+                "synapseclient.Synapse.rest_get_async",
+                new_callable=AsyncMock,
                 return_value={},
             ) as mock_rest_get_async,
             patch.object(
@@ -149,9 +150,9 @@ class TestGetJobAsync:
 
     async def test_get_job_async_when_job_times_out(self) -> None:
         with (
-            patch.object(
-                Synapse,
-                "rest_get_async",
+            patch(
+                "synapseclient.Synapse.rest_get_async",
+                new_callable=AsyncMock,
                 return_value={},
             ) as mock_rest_get_async,
             patch.object(
@@ -193,14 +194,14 @@ class TestSendJobAndWaitAsync:
 
     async def test_send_job_and_wait_async(self) -> None:
         with (
-            patch.object(
-                asynchronous_job,
-                "send_job_async",
+            patch(
+                "synapseclient.models.mixins.asynchronous_job.send_job_async",
+                new_callable=AsyncMock,
                 return_value=self.job_id,
             ) as mock_send_job_async,
-            patch.object(
-                asynchronous_job,
-                "get_job_async",
+            patch(
+                "synapseclient.models.mixins.asynchronous_job.get_job_async",
+                new_callable=AsyncMock,
                 return_value={
                     "key": "value",
                 },
