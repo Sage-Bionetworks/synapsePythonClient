@@ -24,7 +24,7 @@ from synapseclient.models.protocols.agent_protocol import (
 class AgentType(str, Enum):
     """
     Enum representing the type of agent as defined in
-        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentType.html>
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentType.html>
 
     - BASELINE is a default agent provided by Synapse.
     - CUSTOM is a custom agent that has been registered by a user.
@@ -37,7 +37,7 @@ class AgentType(str, Enum):
 class AgentSessionAccessLevel(str, Enum):
     """
     Enum representing the access level of the agent session as defined in
-        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentAccessLevel.html>
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentAccessLevel.html>
 
     - PUBLICLY_ACCESSIBLE: The agent can only access publicly accessible data.
     - READ_YOUR_PRIVATE_DATA: The agent can read the user's private data.
@@ -96,7 +96,7 @@ class AgentPrompt(AsynchronousCommunicator):
         Converts a response from the REST API into this dataclass.
 
         Arguments:
-            agent_prompt: The response from the REST API.
+            synapse_response: The response from the REST API.
 
         Returns:
             The AgentPrompt object.
@@ -146,9 +146,9 @@ class AgentSession(AgentSessionSynchronousProtocol):
     id: Optional[str] = None
     """The unique ID of the agent session. Can only be used by the user that created it."""
 
-    access_level: Optional[
-        AgentSessionAccessLevel
-    ] = AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
+    access_level: Optional[AgentSessionAccessLevel] = (
+        AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
+    )
     """The access level of the agent session.
         One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
         Defaults to PUBLICLY_ACCESSIBLE.
@@ -484,14 +484,10 @@ class Agent(AgentSynchronousProtocol):
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
         """
-        # TODO: Iron this out. Make sure we cover all cases.
         if session:
-            if session.id not in self.sessions:
-                await self.get_session_async(
-                    session_id=session.id, synapse_client=synapse_client
-                )
-            else:
-                self.current_session = session
+            await self.get_session_async(
+                session_id=session.id, synapse_client=synapse_client
+            )
         else:
             if not self.current_session:
                 await self.start_session_async(synapse_client=synapse_client)

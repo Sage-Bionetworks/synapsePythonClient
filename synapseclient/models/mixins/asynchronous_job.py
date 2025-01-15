@@ -18,11 +18,7 @@ class AsynchronousCommunicator:
     """Mixin to handle communication with the Synapse Asynchronous Job service."""
 
     def to_synapse_request(self) -> None:
-        """Converts the request to a request expected of the Synapse REST API.
-
-        This is a placeholder for any additional logic that needs to be run before the exchange with Synapse.
-        It must be overridden by subclasses if needed.
-        """
+        """Converts the request to a request expected of the Synapse REST API."""
         raise NotImplementedError("to_synapse_request must be implemented.")
 
     def fill_from_dict(
@@ -30,9 +26,6 @@ class AsynchronousCommunicator:
     ) -> "AsynchronousCommunicator":
         """
         Converts a response from the REST API into this dataclass.
-
-        This is a placeholder for any additional logic that needs to be run after the exchange with Synapse.
-        It must be overridden by subclasses if needed.
 
         Arguments:
             synapse_response: The response from the REST API.
@@ -47,9 +40,6 @@ class AsynchronousCommunicator:
     ) -> None:
         """Any additional logic to run after the exchange with Synapse.
 
-        This is a placeholder for any additional logic that needs to be run after the exchange with Synapse.
-        It must be overridden by subclasses if needed.
-
         Arguments:
             synapse_client: The Synapse client to use for the request.
             **kwargs: Additional arguments to pass to the request.
@@ -63,9 +53,6 @@ class AsynchronousCommunicator:
         synapse_client: Optional[Synapse] = None,
     ) -> "AsynchronousCommunicator":
         """Send the job to the Asynchronous Job service and wait for it to complete.
-
-        This is a placeholder for any additional logic that needs to be run after the exchange with Synapse.
-        It must be overridden by subclasses if needed.
 
         Arguments:
             post_exchange_args: Additional arguments to pass to the request.
@@ -341,7 +328,6 @@ async def get_job_async(
         )
         job_status = AsynchronousJobStatus().fill_from_dict(async_job_status=result)
         if job_status.state == AsynchronousJobState.PROCESSING:
-            # TODO: Is this adequate to determine if the endpoint tracks progress?
             progress_tracking = any(
                 [
                     job_status.progress_message,
