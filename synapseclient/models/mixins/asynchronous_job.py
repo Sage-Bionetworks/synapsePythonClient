@@ -289,6 +289,8 @@ async def get_job_async(
     job_id: str,
     request_type: str,
     endpoint: str = None,
+    sleep: int = 1,
+    timeout: int = 60,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
@@ -299,6 +301,9 @@ async def get_job_async(
         job_id: The ID of the job to get.
         request_type: The type of the job.
         endpoint: The endpoint to use for the request. Defaults to None.
+        sleep: The number of seconds to wait between requests. Defaults to 1.
+        timeout: The number of seconds to wait for the job to complete or progress
+            before raising a SynapseTimeoutError. Defaults to 60.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -309,19 +314,17 @@ async def get_job_async(
 
     Raises:
         SynapseError: If the job fails.
-        SynapseTimeoutError: If the job does not complete within the timeout.
+        SynapseTimeoutError: If the job does not complete or progress within the timeout interval.
     """
     client = Synapse.get_client(synapse_client=synapse_client)
     start_time = asyncio.get_event_loop().time()
-    SLEEP = 1
-    TIMEOUT = 60
 
     last_message = ""
     last_progress = 0
     last_total = 1
     progressed = False
 
-    while asyncio.get_event_loop().time() - start_time < TIMEOUT:
+    while asyncio.get_event_loop().time() - start_time < timeout:
         result = await client.rest_get_async(
             uri=f"{ASYNC_JOB_URIS[request_type]}/get/{job_id}",
             endpoint=endpoint,
@@ -351,11 +354,10 @@ async def get_job_async(
                     isBytes=False,
                 )
                 start_time = asyncio.get_event_loop().time()
-            await asyncio.sleep(SLEEP)
+            await asyncio.sleep(sleep)
         elif job_status.state == AsynchronousJobState.FAILED:
             raise SynapseError(
                 f"{job_status.error_message}\n{job_status.error_details}",
-                async_job_status=job_status.id,
             )
         else:
             break
