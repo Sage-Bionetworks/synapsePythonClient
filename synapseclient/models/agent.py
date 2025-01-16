@@ -125,7 +125,6 @@ class AgentPrompt(AsynchronousCommunicator):
             self.trace = trace_response["page"][0]["message"]
 
 
-# TODO Add example usage to the docstring
 @dataclass
 @async_to_sync
 class AgentSession(AgentSessionSynchronousProtocol):
@@ -347,7 +346,6 @@ class AgentSession(AgentSessionSynchronousProtocol):
                 print(f"TRACE:\n{agent_prompt.trace}")
 
 
-# TODO Add example usage to the docstring
 @dataclass
 @async_to_sync
 class Agent(AgentSynchronousProtocol):
