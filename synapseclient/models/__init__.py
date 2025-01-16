@@ -2,9 +2,9 @@
 from synapseclient.models.activity import Activity, UsedEntity, UsedURL
 from synapseclient.models.agent import (
     Agent,
+    AgentPrompt,
     AgentSession,
     AgentSessionAccessLevel,
-    AgentPrompt,
 )
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.file import File, FileHandle

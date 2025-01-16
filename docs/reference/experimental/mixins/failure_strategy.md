@@ -1,0 +1,3 @@
+# FailureStrategy
+
+::: synapseclient.models.FailureStrategy

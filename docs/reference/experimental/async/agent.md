@@ -1,5 +1,7 @@
 # Agent
 
+## API reference
+
 ::: synapseclient.models.Agent
     options:
         members:
