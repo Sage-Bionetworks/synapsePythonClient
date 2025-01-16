@@ -75,6 +75,10 @@ nav:
       - Core: reference/core.md
       - REST Apis: reference/rest_apis.md
       - Experimental:
+          - Synchronous:
+              - Agent: reference/experimental/sync/agent.md
+          - Asynchronous:
+              - Agent: reference/experimental/async/agent.md
           - Object-Orientated Models: reference/oop/models.md
           - Async Object-Orientated Models: reference/oop/models_async.md
   - Further Reading:
