@@ -141,14 +141,62 @@ class AgentSession(AgentSessionSynchronousProtocol):
         agent_registration_id: The registration ID of the agent that will be used for this session.
         etag: The etag of the agent session.
 
+    Note: It is recommended to use the `Agent` class to start and get sessions,
+    but you are free to use this class directly if you wish.
+
+    Example: Start a session and send a prompt.
+
+        from synapseclient import Synapse
+        from synapseclient.models.agent import AgentSession, AgentSessionAccessLevel
+
+        syn = Synapse()
+        syn.login()
+
+        my_session = AgentSession(agent_registration_id=my_agent_registration_id).start(
+            synapse_client=syn
+        )
+        my_session.prompt(
+            prompt="Hello",
+            enable_trace=True,
+            print_response=True,
+            synapse_client=syn,
+        )
+
+    Example: Get an existing session and send a prompt.
+
+        from synapseclient import Synapse
+        from synapseclient.models.agent import AgentSession, AgentSessionAccessLevel
+
+        syn = Synapse()
+        syn.login()
+
+        my_session = AgentSession(id="my_session_id").get(synapse_client=syn)
+        my_session.prompt(
+            prompt="Hello",
+            enable_trace=True,
+            print_response=True,
+            synapse_client=syn,
+        )
+
+    Example: Update the access level of an existing session.
+
+        from synapseclient import Synapse
+        from synapseclient.models.agent import AgentSession, AgentSessionAccessLevel
+
+        syn = Synapse()
+        syn.login()
+
+        my_session = AgentSession(id="my_session_id").get(synapse_client=syn)
+        my_session.access_level = AgentSessionAccessLevel.READ_YOUR_PRIVATE_DATA
+        my_session.update(synapse_client=syn)
     """
 
     id: Optional[str] = None
     """The unique ID of the agent session. Can only be used by the user that created it."""
 
-    access_level: Optional[
-        AgentSessionAccessLevel
-    ] = AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
+    access_level: Optional[AgentSessionAccessLevel] = (
+        AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
+    )
     """The access level of the agent session.
         One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
         Defaults to PUBLICLY_ACCESSIBLE.
@@ -312,6 +360,68 @@ class Agent(AgentSynchronousProtocol):
         synapse_registration_id: The ID number of the agent assigned by Synapse.
         registered_on: The date the agent was registered.
         type: The type of agent.
+
+    Example: Chat with the baseline Synapse Agent
+
+    You can chat with the same agent which is available in the Synapse UI at https://www.synapse.org/Chat:default.
+    By default, this "baseline" agent is used when a registration ID is not provided. In the background,
+    the Agent class will start a session and set that new session as the current session if one is not already set.
+
+        syn = Synapse()
+        syn.login()
+
+        my_agent = Agent().start_session(synapse_client=syn)
+        my_agent.prompt(
+            prompt="Can you tell me about the AD Knowledge Portal dataset?",
+            enable_trace=True,
+            print_response=True,
+        )
+
+    Example: Register and chat with a custom agent **Only available for internal users (Sage Bionetworks employees)**
+
+    Alternatively, you can register a custom agent and chat with it provided you have already created it.
+
+        syn = Synapse()
+        syn.login(silent=True)
+
+        my_agent = Agent(cloud_agent_id=AWS_AGENT_ID)
+        my_agent.register(synapse_client=syn)
+
+        my_agent.prompt(
+            prompt="Hello",
+        enable_trace=True,
+        print_response=True,
+        synapse_client=syn,
+    )
+
+    Advanced Example: Start and prompt multiple sessions
+
+    Here, we connect to a custom agent and start one session with the prompt "Hello". In the background,
+    this first session is being set as the current session and future prompts will be sent to this session
+    by default. If we want to send a prompt to a different session, we can do so by starting it and calling
+    prompt again, but with our new session as an argument. We now have two sessions, both stored in the
+    my_agent.sessions dictionary. After the second prompt, my_second_session is now the current session.
+
+        syn = Synapse()
+        syn.login()
+
+        my_agent = Agent(registration_id=my_registration_id).get(synapse_client=syn)
+
+        my_agent.prompt(
+            prompt="Hello",
+            enable_trace=True,
+            print_response=True,
+            synapse_client=syn,
+        )
+
+        my_second_session = my_agent.start_session(synapse_client=syn)
+        my_agent.prompt(
+            prompt="Hello again",
+            enable_trace=True,
+            print_response=True,
+            session=my_second_session,
+            synapse_client=syn,
+        )
     """
 
     cloud_agent_id: Optional[str] = None
@@ -360,7 +470,7 @@ class Agent(AgentSynchronousProtocol):
     async def register_async(
         self, *, synapse_client: Optional[Synapse] = None
     ) -> "Agent":
-        """Registers an agent with the Synapse API. If agent exists, it will be retrieved.
+        """Registers an agent with the Synapse API. If agent already exists, it will be retrieved.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
