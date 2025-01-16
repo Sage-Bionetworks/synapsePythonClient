@@ -146,9 +146,9 @@ class AgentSession(AgentSessionSynchronousProtocol):
     id: Optional[str] = None
     """The unique ID of the agent session. Can only be used by the user that created it."""
 
-    access_level: Optional[AgentSessionAccessLevel] = (
-        AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
-    )
+    access_level: Optional[
+        AgentSessionAccessLevel
+    ] = AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
     """The access level of the agent session.
         One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
         Defaults to PUBLICLY_ACCESSIBLE.
@@ -212,7 +212,7 @@ class AgentSession(AgentSessionSynchronousProtocol):
             agent_registration_id=self.agent_registration_id,
             synapse_client=synapse_client,
         )
-        return self.fill_from_dict(session_response)
+        return self.fill_from_dict(synapse_agent_session=session_response)
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Get_Session: {self.id}"
@@ -260,7 +260,7 @@ class AgentSession(AgentSessionSynchronousProtocol):
             access_level=self.access_level,
             synapse_client=synapse_client,
         )
-        return self.fill_from_dict(session_response)
+        return self.fill_from_dict(synapse_agent_session=session_response)
 
     @otel_trace_method(method_to_trace_name=lambda self, **kwargs: f"Prompt: {self.id}")
     async def prompt_async(
@@ -284,12 +284,12 @@ class AgentSession(AgentSessionSynchronousProtocol):
                     instance from the Synapse class constructor.
         """
 
-        agent_prompt = AgentPrompt(
+        agent_prompt = await AgentPrompt(
             prompt=prompt, session_id=self.id, enable_trace=enable_trace
-        )
-        await agent_prompt.send_job_and_wait_async(
+        ).send_job_and_wait_async(
             synapse_client=synapse_client, post_exchange_args={"newer_than": newer_than}
         )
+
         self.chat_history.append(agent_prompt)
 
         if print_response:
@@ -376,7 +376,7 @@ class Agent(AgentSynchronousProtocol):
             cloud_alias_id=self.cloud_alias_id,
             synapse_client=syn,
         )
-        return self.fill_from_dict(agent_response)
+        return self.fill_from_dict(agent_registration=agent_response)
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Get_Agent: {self.registration_id}"
@@ -397,7 +397,7 @@ class Agent(AgentSynchronousProtocol):
             registration_id=self.registration_id,
             synapse_client=syn,
         )
-        return self.fill_from_dict(agent_response)
+        return self.fill_from_dict(agent_registration=agent_response)
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Start_Agent_Session: {self.registration_id}"

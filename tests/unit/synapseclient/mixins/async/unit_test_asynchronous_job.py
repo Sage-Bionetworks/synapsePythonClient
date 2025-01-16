@@ -1,26 +1,23 @@
 """Unit tests for Asynchronous Job logic."""
 
-import pytest
-
 import asyncio
 import json
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from synapseclient import Synapse
-
+from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
+from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 from synapseclient.models.mixins import asynchronous_job
 from synapseclient.models.mixins.asynchronous_job import (
-    send_job_async,
+    ASYNC_JOB_URIS,
+    AsynchronousJobState,
+    AsynchronousJobStatus,
     get_job_async,
     send_job_and_wait_async,
-    AsynchronousJobStatus,
-    AsynchronousJobState,
-    ASYNC_JOB_URIS,
+    send_job_async,
 )
-from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
-
-from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
-
-from unittest.mock import patch, AsyncMock
 
 
 class TestSendJobAsync:
