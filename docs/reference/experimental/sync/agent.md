@@ -21,3 +21,14 @@
         - get_session
         - prompt
         - get_chat_history
+---
+::: synapseclient.models.AgentSession
+    options:
+        members:
+            - start
+            - get
+            - update
+            - prompt
+---
+::: synapseclient.models.AgentPrompt
+---
