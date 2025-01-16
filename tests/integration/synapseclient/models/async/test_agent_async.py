@@ -3,14 +3,13 @@
 import pytest
 
 from synapseclient import Synapse
+from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
 from synapseclient.models.agent import (
     Agent,
-    AgentSession,
     AgentPrompt,
+    AgentSession,
     AgentSessionAccessLevel,
 )
-from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
-
 
 AGENT_AWS_ID = "QOTV3KQM1X"
 AGENT_REGISTRATION_ID = "29"
