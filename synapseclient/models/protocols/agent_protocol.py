@@ -46,7 +46,15 @@ class AgentSessionSynchronousProtocol(Protocol):
         """
         return self
 
-    def prompt(self, *, synapse_client: Optional[Synapse] = None) -> None:
+    def prompt(
+        self,
+        prompt: str,
+        enable_trace: bool = False,
+        print_response: bool = False,
+        newer_than: Optional[int] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
         """Sends a prompt to the agent and adds the response to the AgentSession's chat history.
 
         Arguments:
