@@ -22,6 +22,7 @@
 ---
 ::: synapseclient.models.AgentPrompt
     options:
+        inherited_members: true
         members:
             - send_job_and_wait_async
 ---

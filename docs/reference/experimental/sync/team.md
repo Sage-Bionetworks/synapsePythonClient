@@ -16,10 +16,10 @@
     options:
         inherited_members: true
         members:
-        - create
-        - delete
-        - from_id
-        - from_name
-        - members
-        - invite
-        - open_invitations
+          - create
+          - delete
+          - from_id
+          - from_name
+          - members
+          - invite
+          - open_invitations

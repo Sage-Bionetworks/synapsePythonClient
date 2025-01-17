@@ -16,9 +16,9 @@
     options:
       inherited_members: true
       members:
-      - from_parent
-      - store
-      - delete
+        - from_parent
+        - store
+        - delete
 ---
 ::: synapseclient.models.UsedEntity
     options:

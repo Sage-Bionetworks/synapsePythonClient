@@ -25,6 +25,7 @@
 ---
 ::: synapseclient.models.AgentSession
     options:
+        inherited_members: true
         members:
             - start
             - get
@@ -32,4 +33,6 @@
             - prompt
 ---
 ::: synapseclient.models.AgentPrompt
+    options:
+        inherited_members: true
 ---
