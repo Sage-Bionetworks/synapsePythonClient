@@ -53,13 +53,47 @@ class AsynchronousCommunicator:
         synapse_client: Optional[Synapse] = None,
     ) -> "AsynchronousCommunicator":
         """Send the job to the Asynchronous Job service and wait for it to complete.
+        Intended to be called by a class inheriting from this mixin to start a job
+        in the Synapse API and wait for it to complete. The inheriting class needs to
+        represent an asynchronous job request and response and include all necessary attributes.
+        This was initially implemented to be used in the AgentPrompt class which can be used
+        as an example.
 
         Arguments:
             post_exchange_args: Additional arguments to pass to the request.
-            synapse_client: The Synapse client to use for the request.
+            synapse_client: If not passed in and caching was not disabled by
+                    `Synapse.allow_client_caching(False)` this will use the last created
+                    instance from the Synapse class constructor.
 
         Returns:
             An instance of this class.
+
+        Example: Using this function
+            This function was initially implemented to be used in the AgentPrompt class
+            to send a prompt to an AI agent and wait for the response. It can also be used
+            in any other class that needs to use an Asynchronous Job.
+
+            The inheriting class (AgentPrompt) will typically not be used directly, but rather
+            through a higher level class (AgentSession), but this example shows how you would
+            use this function.
+
+                from synapseclient import Synapse
+                from synapseclient.models.agent import AgentPrompt
+
+                syn = Synapse()
+                syn.login()
+
+                agent_prompt = AgentPrompt(
+                    id=None,
+                    session_id="123",
+                    prompt="Hello",
+                    response=None,
+                    enable_trace=True,
+                    trace=None,
+                )
+                # This will fill the id, response, and trace
+                # attributes with the response from the API
+                agent_prompt.send_job_and_wait_async()
         """
         result = await send_job_and_wait_async(
             request=self.to_synapse_request(),
@@ -195,7 +229,11 @@ class AsynchronousJobStatus:
         Returns:
             A AsynchronousJobStatus object.
         """
-        self.state = async_job_status.get("jobState", None)
+        self.state = (
+            AsynchronousJobState(async_job_status.get("jobState"))
+            if async_job_status.get("jobState")
+            else None
+        )
         self.canceling = async_job_status.get("jobCanceling", None)
         self.request_body = async_job_status.get("requestBody", None)
         self.response_body = async_job_status.get("responseBody", None)
