@@ -5,8 +5,12 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.models.agent import Agent, AgentSession, AgentSessionAccessLevel
 
+# These are the ID values for a "Hello World" agent registered on Synapse.
+# The Bedrock agent is hosted on Sage Bionetworks AWS infrastructure.
+# CFN Template:
+# https://raw.githubusercontent.com/Sage-Bionetworks-Workflows/dpe-agents/refs/heads/main/client_integration_test/template.json
 CLOUD_AGENT_ID = "QOTV3KQM1X"
-AGENT_REGISTRATION_ID = 29
+AGENT_REGISTRATION_ID = "29"
 
 
 class TestAgentSession:
@@ -57,8 +61,10 @@ class TestAgentSession:
         agent_session.access_level = AgentSessionAccessLevel.READ_YOUR_PRIVATE_DATA
         agent_session.update(synapse_client=self.syn)
         # THEN I expect the access level to be updated
+        updated_session = AgentSession(id=agent_session.id).get(synapse_client=self.syn)
         assert (
-            agent_session.access_level == AgentSessionAccessLevel.READ_YOUR_PRIVATE_DATA
+            updated_session.access_level
+            == AgentSessionAccessLevel.READ_YOUR_PRIVATE_DATA
         )
 
     def test_prompt(self) -> None:
@@ -83,9 +89,9 @@ class TestAgent:
 
     def get_test_agent(self) -> Agent:
         return Agent(
-            cloud_agent_id="QOTV3KQM1X",
+            cloud_agent_id=CLOUD_AGENT_ID,
             cloud_alias_id="TSTALIASID",
-            registration_id="29",
+            registration_id=AGENT_REGISTRATION_ID,
             registered_on="2025-01-16T18:57:35.680Z",
             type="CUSTOM",
             sessions={},
