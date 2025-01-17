@@ -17,7 +17,8 @@ class AgentSessionSynchronousProtocol(Protocol):
         """Starts an agent session.
 
         Arguments:
-            synapse_client: The Synapse client to use for the request. If None, the default client will be used.
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
 
         Returns:
             The new AgentSession object.
@@ -28,7 +29,8 @@ class AgentSessionSynchronousProtocol(Protocol):
         """Gets an existing agent session.
 
         Arguments:
-            synapse_client: The Synapse client to use for the request. If None, the default client will be used.
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
 
         Returns:
             The existing AgentSession object.
@@ -39,7 +41,8 @@ class AgentSessionSynchronousProtocol(Protocol):
         """Updates an existing agent session.
 
         Arguments:
-            synapse_client: The Synapse client to use for the request. If None, the default client will be used.
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
 
         Returns:
             The updated AgentSession object.
@@ -61,8 +64,10 @@ class AgentSessionSynchronousProtocol(Protocol):
             prompt: The prompt to send to the agent.
             enable_trace: Whether to enable trace for the prompt.
             print_response: Whether to print the response to the console.
-            newer_than: The timestamp to get trace results newer than. Defaults to None (all results).
-            synapse_client: The Synapse client to use for the request. If None, the default client will be used.
+            newer_than: The timestamp to get trace results newer than.
+                Defaults to None (all results).
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
         """
         return None
 
@@ -75,7 +80,8 @@ class AgentSynchronousProtocol(Protocol):
         """Registers an agent with the Synapse API. If agent exists, it will be retrieved.
 
         Arguments:
-            synapse_client: The Synapse client to use for the request. If None, the default client will be used.
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
 
         Returns:
             The registered or existing Agent object.
@@ -86,7 +92,8 @@ class AgentSynchronousProtocol(Protocol):
         """Gets an existing agent.
 
         Arguments:
-            synapse_client: The Synapse client to use for the request. If None, the default client will be used.
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
 
         Returns:
             The existing Agent object.
@@ -103,9 +110,10 @@ class AgentSynchronousProtocol(Protocol):
         Adds the session to the Agent's sessions dictionary and sets it as the current session.
         Arguments:
             access_level: The access level of the agent session.
-                Must be one of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
-                Defaults to PUBLICLY_ACCESSIBLE.
-            synapse_client: The Synapse client to use for the request. If None, the default client will be used.
+                Must be one of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA,
+                or WRITE_YOUR_PRIVATE_DATA. Defaults to PUBLICLY_ACCESSIBLE.
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
 
         Returns:
             The new AgentSession object.
@@ -145,8 +153,11 @@ class AgentSynchronousProtocol(Protocol):
             prompt: The prompt to send to the agent.
             enable_trace: Whether to enable trace for the prompt.
             print_response: Whether to print the response to the console.
-            session_id: The ID of the session to send the prompt to. If None, the current session will be used.
-            newer_than: The timestamp to get trace results newer than. Defaults to None (all results).
-            synapse_client: The Synapse client to use for the request. If None, the default client will be used.
+            session_id: The ID of the session to send the prompt to.
+                If None, the current session will be used.
+            newer_than: The timestamp to get trace results newer than.
+                Defaults to None (all results).
+            synapse_client: The Synapse client to use for the request.
+                If None, the default client will be used.
         """
         return None

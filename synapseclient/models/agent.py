@@ -131,13 +131,16 @@ class AgentSession(AgentSessionSynchronousProtocol):
     """Represents a [Synapse Agent Session](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/agent/AgentSession.html)
 
     Attributes:
-        id: The unique ID of the agent session. Can only be used by the user that created it.
+        id: The unique ID of the agent session.
+            Can only be used by the user that created it.
         access_level: The access level of the agent session.
-            One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
+            One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA,
+            or WRITE_YOUR_PRIVATE_DATA.
         started_on: The date the agent session was started.
         started_by: The ID of the user who started the agent session.
         modified_on: The date the agent session was last modified.
-        agent_registration_id: The registration ID of the agent that will be used for this session.
+        agent_registration_id: The registration ID of the agent that will
+            be used for this session.
         etag: The etag of the agent session.
 
     Note: It is recommended to use the `Agent` class to start and get sessions,
@@ -191,14 +194,15 @@ class AgentSession(AgentSessionSynchronousProtocol):
     """
 
     id: Optional[str] = None
-    """The unique ID of the agent session. Can only be used by the user that created it."""
+    """The unique ID of the agent session.
+    Can only be used by the user that created it."""
 
     access_level: Optional[
         AgentSessionAccessLevel
     ] = AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
     """The access level of the agent session.
-        One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
-        Defaults to PUBLICLY_ACCESSIBLE.
+        One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or
+        WRITE_YOUR_PRIVATE_DATA. Defaults to PUBLICLY_ACCESSIBLE.
     """
 
     started_on: Optional[datetime] = None
@@ -319,14 +323,15 @@ class AgentSession(AgentSessionSynchronousProtocol):
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
-        """Sends a prompt to the agent and adds the response to the AgentSession's chat history.
-        A session must be started before sending a prompt.
+        """Sends a prompt to the agent and adds the response to the AgentSession's
+        chat history. A session must be started before sending a prompt.
 
         Arguments:
             prompt: The prompt to send to the agent.
             enable_trace: Whether to enable trace for the prompt.
             print_response: Whether to print the response to the console.
-            newer_than: The timestamp to get trace results newer than. Defaults to None (all results).
+            newer_than: The timestamp to get trace results newer than.
+                Defaults to None (all results).
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
@@ -362,9 +367,11 @@ class Agent(AgentSynchronousProtocol):
 
     Example: Chat with the baseline Synapse Agent
 
-    You can chat with the same agent which is available in the Synapse UI at https://www.synapse.org/Chat:default.
-    By default, this "baseline" agent is used when a registration ID is not provided. In the background,
-    the Agent class will start a session and set that new session as the current session if one is not already set.
+    You can chat with the same agent which is available in the Synapse UI
+    at https://www.synapse.org/Chat:default. By default, this "baseline" agent
+    is used when a registration ID is not provided. In the background,
+    the Agent class will start a session and set that new session as the
+    current session if one is not already set.
 
         syn = Synapse()
         syn.login()
@@ -376,9 +383,11 @@ class Agent(AgentSynchronousProtocol):
             print_response=True,
         )
 
-    Example: Register and chat with a custom agent **Only available for internal users (Sage Bionetworks employees)**
+    Example: Register and chat with a custom agent
+    **Only available for internal users (Sage Bionetworks employees)**
 
-    Alternatively, you can register a custom agent and chat with it provided you have already created it.
+    Alternatively, you can register a custom agent and chat with it provided
+    you have already created it.
 
         syn = Synapse()
         syn.login(silent=True)
@@ -395,11 +404,13 @@ class Agent(AgentSynchronousProtocol):
 
     Advanced Example: Start and prompt multiple sessions
 
-    Here, we connect to a custom agent and start one session with the prompt "Hello". In the background,
-    this first session is being set as the current session and future prompts will be sent to this session
-    by default. If we want to send a prompt to a different session, we can do so by starting it and calling
-    prompt again, but with our new session as an argument. We now have two sessions, both stored in the
-    my_agent.sessions dictionary. After the second prompt, my_second_session is now the current session.
+    Here, we connect to a custom agent and start one session with the prompt "Hello".
+    In the background, this first session is being set as the current session
+    and future prompts will be sent to this session by default. If we want to send a
+    prompt to a different session, we can do so by starting it and calling prompt again,
+    but with our new session as an argument. We now have two sessions, both stored in the
+    my_agent.sessions dictionary. After the second prompt, my_second_session is now
+    the current session.
 
         syn = Synapse()
         syn.login()
@@ -469,7 +480,8 @@ class Agent(AgentSynchronousProtocol):
     async def register_async(
         self, *, synapse_client: Optional[Synapse] = None
     ) -> "Agent":
-        """Registers an agent with the Synapse API. If agent already exists, it will be retrieved.
+        """Registers an agent with the Synapse API.
+        If agent already exists, it will be retrieved.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -524,7 +536,8 @@ class Agent(AgentSynchronousProtocol):
 
         Arguments:
             access_level: The access level of the agent session.
-                Must be one of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or WRITE_YOUR_PRIVATE_DATA.
+                Must be one of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA,
+                or WRITE_YOUR_PRIVATE_DATA.
                 Defaults to PUBLICLY_ACCESSIBLE.
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
@@ -548,7 +561,8 @@ class Agent(AgentSynchronousProtocol):
         self, session_id: str, *, synapse_client: Optional[Synapse] = None
     ) -> "AgentSession":
         """Gets an existing agent session.
-        Adds the session to the Agent's sessions dictionary and sets it as the current session.
+        Adds the session to the Agent's sessions dictionary and
+        sets it as the current session.
 
         Arguments:
             session_id: The ID of the session to get.
@@ -587,7 +601,8 @@ class Agent(AgentSynchronousProtocol):
             prompt: The prompt to send to the agent.
             enable_trace: Whether to enable trace for the prompt.
             print_response: Whether to print the response to the console.
-            session_id: The ID of the session to send the prompt to. If None, the current session will be used.
+            session_id: The ID of the session to send the prompt to.
+                If None, the current session will be used.
             newer_than: The timestamp to get trace results newer than. Defaults to None (all results).
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created

@@ -83,7 +83,8 @@ class TestAgentSession:
         assert new_session == agent_session
 
     async def test_update(self) -> None:
-        # GIVEN an agent session with a valid agent registration id and access level set
+        # GIVEN an agent session with a valid agent
+        # registration id and access level set
         agent_session = AgentSession(
             agent_registration_id=AGENT_REGISTRATION_ID,
             access_level=AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE,

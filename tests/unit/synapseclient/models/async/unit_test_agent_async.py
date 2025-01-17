@@ -73,7 +73,8 @@ class TestAgentPrompt:
             new_callable=AsyncMock,
             return_value=self.trace_response,
         ) as mock_get_trace:
-            # WHEN I call _post_exchange_async on an initialized AgentPrompt with enable_trace=True
+            # WHEN I call _post_exchange_async on an
+            # initialized AgentPrompt with enable_trace=True
             await self.agent_prompt._post_exchange_async(synapse_client=self.syn)
             # THEN the mock_get_trace should have been called with the correct arguments
             mock_get_trace.assert_called_once_with(
@@ -91,7 +92,8 @@ class TestAgentPrompt:
             return_value=self.trace_response,
         ) as mock_get_trace:
             self.agent_prompt.enable_trace = False
-            # WHEN I call _post_exchange_async on an initialized AgentPrompt with enable_trace=False
+            # WHEN I call _post_exchange_async on an
+            # initialized AgentPrompt with enable_trace=False
             await self.agent_prompt._post_exchange_async(synapse_client=self.syn)
             # THEN the mock_get_trace should not have been called
             mock_get_trace.assert_not_called()
@@ -122,7 +124,8 @@ class TestAgentPrompt:
             await self.agent_prompt.send_job_and_wait_async(
                 post_exchange_args={"foo": "bar"}, synapse_client=self.syn
             )
-            # THEN the mock_send_job_and_wait_async should have been called with the correct arguments
+            # THEN the mock_send_job_and_wait_async should
+            # have been called with the correct arguments
             mock_send_job_and_wait_async.assert_called_once_with(
                 request=mock_to_synapse_request.return_value,
                 request_type=self.agent_prompt.concrete_type,
@@ -325,9 +328,11 @@ class TestAgentSession:
                 newer_than=0,
                 synapse_client=self.syn,
             )
-            # THEN the result should be an AgentPrompt with the correct values appended to the chat history
+            # THEN the result should be an AgentPrompt with the correct
+            # values appended to the chat history
             assert self.test_prompt_trace_enabled in self.test_session.chat_history
-            # AND send_job_and_wait_async should have been called once with the correct arguments
+            # AND send_job_and_wait_async should have
+            # been called once with the correct arguments
             mock_send_job_and_wait_async.assert_called_once_with(
                 synapse_client=self.syn, post_exchange_args={"newer_than": 0}
             )
@@ -356,9 +361,11 @@ class TestAgentSession:
                 newer_than=0,
                 synapse_client=self.syn,
             )
-            # THEN the result should be an AgentPrompt with the correct values appended to the chat history
+            # THEN the result should be an AgentPrompt with the
+            # correct values appended to the chat history
             assert self.test_prompt_trace_disabled in self.test_session.chat_history
-            # AND send_job_and_wait_async should have been called once with the correct arguments
+            # AND send_job_and_wait_async should have been
+            # called once with the correct arguments
             mock_send_job_and_wait_async.assert_called_once_with(
                 synapse_client=self.syn, post_exchange_args={"newer_than": 0}
             )

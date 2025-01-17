@@ -91,9 +91,10 @@ class CallersContext(str, Enum):
     """Enum representing information about a web service call:
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/auth/CallersContext.html>
 
-    - SESSION_ID: Each web service request is issued a unique session ID (UUID) that is included in the call's access record.
-            Events that are triggered by a web service request should include the session ID so that they can be linked to
-            each other and the call's access record.
+    - SESSION_ID: Each web service request is issued a unique session ID (UUID)
+        that is included in the call's access record.
+        Events that are triggered by a web service request should include the session ID
+        so that they can be linked to each other and the call's access record.
     """
 
     SESSION_ID = "SESSION_ID"
@@ -107,9 +108,11 @@ class AsynchronousJobStatus:
     Attributes:
         state: The state of the job. Either PROCESSING, FAILED, or COMPLETE.
         canceling: Whether the job has been requested to be cancelled.
-        request_body: The body of an Asynchronous job request. Will be one of the models described here:
+        request_body: The body of an Asynchronous job request.
+            Will be one of the models described here:
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousRequestBody.html>
-        response_body: The body of an Asynchronous job response. Will be one of the models described here:
+        response_body: The body of an Asynchronous job response.
+            Will be one of the models described here:
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousResponseBody.html>
         etag: The etag of the job status. Changes whenever the status changes.
         id: The ID if the job issued when this job was started.
@@ -118,8 +121,8 @@ class AsynchronousJobStatus:
         changed_on: The date-time when the status of this job was last changed.
         progress_message: The current message of the progress tracker.
         progress_current: A value indicating how much progress has been made.
-                I.e. a value of 50 indicates that 50% of the work has been
-                completed if progress_total is 100.
+            I.e. a value of 50 indicates that 50% of the work has been
+            completed if progress_total is 100.
         progress_total: A value indicating the total amount of work to complete.
         exception: The exception that needs to be thrown if the job fails.
         error_message: A one-line error message when the job fails.

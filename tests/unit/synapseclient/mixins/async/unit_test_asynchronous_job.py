@@ -120,7 +120,10 @@ class TestGetJobAsync:
         ):
             with pytest.raises(
                 SynapseError,
-                match=f"{self.failed_job_status.error_message}\n{self.failed_job_status.error_details}",
+                match=(
+                    f"{self.failed_job_status.error_message}\n"
+                    f"{self.failed_job_status.error_details}"
+                ),
             ):
                 # WHEN I call get_job_async
                 # AND the job fails in the Synapse API
