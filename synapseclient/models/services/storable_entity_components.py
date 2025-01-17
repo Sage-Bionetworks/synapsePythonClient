@@ -6,7 +6,7 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError
 
 if TYPE_CHECKING:
-    from synapseclient.models import Annotations, File, Folder, Project, Table
+    from synapseclient.models import File, Folder, Project, Table
 
 
 class FailureStrategy(Enum):
@@ -242,6 +242,8 @@ async def _store_activity_and_annotations(
             or last_persistent_instance.annotations != root_resource.annotations
         )
     ):
+        from synapseclient.models import Annotations
+
         result = await Annotations(
             id=root_resource.id,
             etag=root_resource.etag,
