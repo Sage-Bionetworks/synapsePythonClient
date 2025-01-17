@@ -16,12 +16,12 @@
     options:
         inherited_members: true
         members:
-        - register
-        - get
-        - start_session
-        - get_session
-        - prompt
-        - get_chat_history
+            - register
+            - get
+            - start_session
+            - get_session
+            - prompt
+            - get_chat_history
 ---
 ::: synapseclient.models.AgentSession
     options:
