@@ -14,6 +14,7 @@
 
 ::: synapseclient.models.Agent
     options:
+        inherited_members: true
         members:
         - register
         - get
