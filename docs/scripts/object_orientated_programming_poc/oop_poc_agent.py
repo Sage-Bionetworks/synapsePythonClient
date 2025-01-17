@@ -2,12 +2,18 @@
 The purpose of this script is to demonstrate how to use the new OOP interface for Synapse AI Agents.
 
 1. Register and send a prompt to a custom agent
-2. Get a baseline agent instance and send a prompt to it
+2. Send a prompt to the baseline Synapse Agent
+3. Conduct more than one session with the same agent
+4. Start a new session with a custom agent and send a prompt to it
+5. Start a new session with the baseline Synapse Agent and send a prompt to it
+6. Start a new session with a custom agent and then update what the agent has access to
 """
 
 import synapseclient
 from synapseclient.models import Agent, AgentSession, AgentSessionAccessLevel
 
+# IDs for a bedrock agent with the instructions:
+# "You are a test agent that when greeted with: 'hello' will always response with: 'world'"
 CLOUD_AGENT_ID = "QOTV3KQM1X"
 AGENT_REGISTRATION_ID = 29
 
