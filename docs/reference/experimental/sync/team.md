@@ -14,6 +14,7 @@
 
 ::: synapseclient.models.Team
     options:
+        inherited_members: true
         members:
         - create
         - delete

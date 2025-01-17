@@ -14,6 +14,7 @@
 
 ::: synapseclient.models.Activity
     options:
+      inherited_members: true
       members:
       - from_parent
       - store
