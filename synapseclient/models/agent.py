@@ -204,9 +204,9 @@ class AgentSession(AgentSessionSynchronousProtocol):
     """The unique ID of the agent session.
     Can only be used by the user that created it."""
 
-    access_level: Optional[AgentSessionAccessLevel] = (
-        AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
-    )
+    access_level: Optional[
+        AgentSessionAccessLevel
+    ] = AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
     """The access level of the agent session.
         One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or
         WRITE_YOUR_PRIVATE_DATA. Defaults to PUBLICLY_ACCESSIBLE.
