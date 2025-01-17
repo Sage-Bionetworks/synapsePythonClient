@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 async def register_agent(
     cloud_agent_id: str,
     cloud_alias_id: Optional[str] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -44,7 +45,9 @@ async def register_agent(
 
 
 async def get_agent(
-    registration_id: str, synapse_client: Optional["Synapse"] = None
+    registration_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
     Gets information about an existing agent registration.
@@ -68,6 +71,7 @@ async def get_agent(
 async def start_session(
     access_level: str,
     agent_registration_id: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -95,6 +99,7 @@ async def start_session(
 
 async def get_session(
     id: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -119,6 +124,7 @@ async def get_session(
 async def update_session(
     id: str,
     access_level: str,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """
@@ -148,6 +154,7 @@ async def update_session(
 
 async def get_trace(
     prompt_id: str,
+    *,
     newer_than: Optional[int] = None,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
