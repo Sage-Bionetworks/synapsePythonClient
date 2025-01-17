@@ -4,6 +4,7 @@
 
 ::: synapseclient.models.UserProfile
     options:
+      inherited_members: true
       members:
       - get_async
       - from_id_async
