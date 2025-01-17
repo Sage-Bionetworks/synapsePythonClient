@@ -1,6 +1,5 @@
 """Unit tests for Asynchronous Job logic."""
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -9,7 +8,6 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
 from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
-from synapseclient.models.mixins import asynchronous_job
 from synapseclient.models.mixins.asynchronous_job import (
     ASYNC_JOB_URIS,
     AsynchronousJobState,

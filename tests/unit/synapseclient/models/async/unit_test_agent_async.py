@@ -1,6 +1,5 @@
 """Unit tests for Asynchronous methods in Agent, AgentSession, and AgentPrompt classes."""
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
