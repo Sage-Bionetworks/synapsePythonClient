@@ -3,7 +3,7 @@
 ## Example Script:
 
 <details class="quote">
-  <summary>Working with a Synapse Agent</summary>
+  <summary>Working with Synapse agents</summary>
 
 ```python
 {!docs/scripts/object_orientated_programming_poc/oop_poc_agent.py!}
