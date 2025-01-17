@@ -320,6 +320,7 @@ class AgentSession(AgentSessionSynchronousProtocol):
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """Sends a prompt to the agent and adds the response to the AgentSession's chat history.
+        A session must be started before sending a prompt.
 
         Arguments:
             prompt: The prompt to send to the agent.
@@ -368,7 +369,7 @@ class Agent(AgentSynchronousProtocol):
         syn = Synapse()
         syn.login()
 
-        my_agent = Agent().start_session(synapse_client=syn)
+        my_agent = Agent()
         my_agent.prompt(
             prompt="Can you tell me about the AD Knowledge Portal dataset?",
             enable_trace=True,

@@ -5,8 +5,8 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.models.agent import Agent, AgentSession, AgentSessionAccessLevel
 
-AGENT_AWS_ID = "QOTV3KQM1X"
-AGENT_REGISTRATION_ID = "29"
+CLOUD_AGENT_ID = "QOTV3KQM1X"
+AGENT_REGISTRATION_ID = 29
 
 
 class TestAgentSession:
@@ -32,7 +32,7 @@ class TestAgentSession:
         assert result_session.started_on is not None
         assert result_session.started_by is not None
         assert result_session.modified_on is not None
-        assert result_session.agent_registration_id == AGENT_REGISTRATION_ID
+        assert result_session.agent_registration_id == str(AGENT_REGISTRATION_ID)
         assert result_session.etag is not None
         assert result_session.chat_history == []
 
@@ -98,7 +98,7 @@ class TestAgent:
 
     def test_register(self) -> None:
         # GIVEN an Agent with a valid agent AWS id
-        agent = Agent(cloud_agent_id=AGENT_AWS_ID)
+        agent = Agent(cloud_agent_id=CLOUD_AGENT_ID)
         # WHEN I register the agent
         agent.register(synapse_client=self.syn)
         # THEN I expect the agent to be registered
