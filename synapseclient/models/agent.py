@@ -199,9 +199,9 @@ class AgentSession(AgentSessionSynchronousProtocol):
     """The unique ID of the agent session.
     Can only be used by the user that created it."""
 
-    access_level: Optional[
-        AgentSessionAccessLevel
-    ] = AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
+    access_level: Optional[AgentSessionAccessLevel] = (
+        AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE
+    )
     """The access level of the agent session.
         One of PUBLICLY_ACCESSIBLE, READ_YOUR_PRIVATE_DATA, or
         WRITE_YOUR_PRIVATE_DATA. Defaults to PUBLICLY_ACCESSIBLE.
@@ -338,20 +338,18 @@ class AgentSession(AgentSessionSynchronousProtocol):
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
         """
-
         agent_prompt = await AgentPrompt(
             prompt=prompt, session_id=self.id, enable_trace=enable_trace
         ).send_job_and_wait_async(
             synapse_client=synapse_client, post_exchange_args={"newer_than": newer_than}
         )
-
         self.chat_history.append(agent_prompt)
-
         if print_response:
-            synapse_client.logger.info(f"PROMPT:\n{prompt}\n")
-            synapse_client.logger.info(f"RESPONSE:\n{agent_prompt.response}\n")
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.info(f"PROMPT:\n{prompt}\n")
+            client.logger.info(f"RESPONSE:\n{agent_prompt.response}\n")
             if enable_trace:
-                synapse_client.logger.info(f"TRACE:\n{agent_prompt.trace}")
+                client.logger.info(f"TRACE:\n{agent_prompt.trace}")
 
 
 @dataclass
