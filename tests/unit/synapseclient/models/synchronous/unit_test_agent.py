@@ -218,10 +218,10 @@ class TestAgentSession:
                 "synapseclient.models.agent.AgentPrompt.send_job_and_wait_async",
                 return_value=self.test_prompt_trace_enabled,
             ) as mock_send_job_and_wait_async,
-            patch(
-                "synapseclient.models.agent.print",
-                side_effect=print,
-            ) as mock_print,
+            patch.object(
+                self.syn.logger,
+                "info",
+            ) as mock_logger_info,
         ):
             # GIVEN an existing AgentSession
             # WHEN I call prompt with trace enabled and print_response enabled
@@ -239,7 +239,7 @@ class TestAgentSession:
                 synapse_client=self.syn, post_exchange_args={"newer_than": 0}
             )
             # AND the trace should be printed
-            mock_print.assert_called_with(
+            mock_logger_info.assert_called_with(
                 f"TRACE:\n{self.test_prompt_trace_enabled.trace}"
             )
 
@@ -249,10 +249,10 @@ class TestAgentSession:
                 "synapseclient.models.agent.AgentPrompt.send_job_and_wait_async",
                 return_value=self.test_prompt_trace_disabled,
             ) as mock_send_job_and_wait_async,
-            patch(
-                "synapseclient.models.agent.print",
-                side_effect=print,
-            ) as mock_print,
+            patch.object(
+                self.syn.logger,
+                "info",
+            ) as mock_logger_info,
         ):
             # WHEN I call prompt with trace disabled and print_response disabled
             self.test_session.prompt(
@@ -269,7 +269,7 @@ class TestAgentSession:
                 synapse_client=self.syn, post_exchange_args={"newer_than": 0}
             )
             # AND print should not have been called
-            mock_print.assert_not_called()
+            mock_logger_info.assert_not_called()
 
 
 class TestAgent:

@@ -153,13 +153,10 @@ class AgentSession(AgentSessionSynchronousProtocol):
             from synapseclient import Synapse
             from synapseclient.models.agent import AgentSession, AgentSessionAccessLevel
 
-
-            AGENT_REGISTRATION_ID = 0  # replace with your custom agent's registration id
-
             syn = Synapse()
             syn.login()
 
-            my_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID).start()
+            my_session = AgentSession(agent_registration_id="foo").start()
             my_session.prompt(
                 prompt="Hello",
                 enable_trace=True,
@@ -173,12 +170,10 @@ class AgentSession(AgentSessionSynchronousProtocol):
             from synapseclient import Synapse
             from synapseclient.models.agent import AgentSession, AgentSessionAccessLevel
 
-            SESSION_ID = "my_session_id"  # replace with your existing session's ID
-
             syn = Synapse()
             syn.login()
 
-            my_session = AgentSession(id=SESSION_ID).get()
+            my_session = AgentSession(id="foo").get()
             my_session.prompt(
                 prompt="Hello",
                 enable_trace=True,
@@ -195,7 +190,7 @@ class AgentSession(AgentSessionSynchronousProtocol):
             syn = Synapse()
             syn.login()
 
-            my_session = AgentSession(id="my_session_id").get()
+            my_session = AgentSession(id="foo").get()
             my_session.access_level = AgentSessionAccessLevel.READ_YOUR_PRIVATE_DATA
             my_session.update()
     """
@@ -353,10 +348,10 @@ class AgentSession(AgentSessionSynchronousProtocol):
         self.chat_history.append(agent_prompt)
 
         if print_response:
-            print(f"PROMPT:\n{prompt}\n")
-            print(f"RESPONSE:\n{agent_prompt.response}\n")
+            synapse_client.logger.info(f"PROMPT:\n{prompt}\n")
+            synapse_client.logger.info(f"RESPONSE:\n{agent_prompt.response}\n")
             if enable_trace:
-                print(f"TRACE:\n{agent_prompt.trace}")
+                synapse_client.logger.info(f"TRACE:\n{agent_prompt.trace}")
 
 
 @dataclass
@@ -368,9 +363,11 @@ class Agent(AgentSynchronousProtocol):
         cloud_agent_id: The unique ID of the agent in the cloud provider.
         cloud_alias_id: The alias ID of the agent in the cloud provider.
                     Defaults to 'TSTALIASID' in the Synapse API.
-        synapse_registration_id: The ID number of the agent assigned by Synapse.
+        registration_id: The ID number of the agent assigned by Synapse.
         registered_on: The date the agent was registered.
         type: The type of agent.
+        sessions: A dictionary of AgentSession objects, keyed by session ID.
+        current_session: The current session. Prompts will be sent to this session by default.
 
     Example: Chat with the baseline Synapse Agent
         You can chat with the same agent which is available in the Synapse UI
@@ -378,6 +375,9 @@ class Agent(AgentSynchronousProtocol):
         is used when a registration ID is not provided. In the background,
         the Agent class will start a session and set that new session as the
         current session if one is not already set.
+
+            from synapseclient import Synapse
+            from synapseclient.models.agent import Agent
 
             syn = Synapse()
             syn.login()
@@ -395,17 +395,20 @@ class Agent(AgentSynchronousProtocol):
         Alternatively, you can register a custom agent and chat with it provided
         you have already created it.
 
-            syn = Synapse()
-            syn.login(silent=True)
+            from synapseclient import Synapse
+            from synapseclient.models.agent import Agent
 
-            my_agent = Agent(cloud_agent_id=AWS_AGENT_ID)
+            syn = Synapse()
+            syn.login()
+
+            my_agent = Agent(cloud_agent_id="foo")
             my_agent.register()
 
             my_agent.prompt(
                 prompt="Hello",
-            enable_trace=True,
-            print_response=True,
-        )
+                enable_trace=True,
+                print_response=True,
+            )
 
     Advanced Example: Start and prompt multiple sessions
         Here, we connect to a custom agent and start one session with the prompt "Hello".
@@ -419,7 +422,7 @@ class Agent(AgentSynchronousProtocol):
             syn = Synapse()
             syn.login()
 
-            my_agent = Agent(registration_id=my_registration_id).get()
+            my_agent = Agent(registration_id="foo").get()
 
             my_agent.prompt(
                 prompt="Hello",
@@ -473,7 +476,11 @@ class Agent(AgentSynchronousProtocol):
         self.cloud_alias_id = agent_registration.get("awsAliasId", None)
         self.registration_id = agent_registration.get("agentRegistrationId", None)
         self.registered_on = agent_registration.get("registeredOn", None)
-        self.type = agent_registration.get("type", None)
+        self.type = (
+            AgentType(agent_registration.get("type"))
+            if agent_registration.get("type", None)
+            else None
+        )
         return self
 
     @otel_trace_method(
@@ -607,6 +614,21 @@ class Agent(AgentSynchronousProtocol):
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
+
+        Example: Prompt the baseline Synapse Agent to add annotations to a file on Synapse
+            The baseline Synpase Agent can be used to add annotations to files.
+
+            from synapseclient import Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            my_agent = Agent()
+            my_agent.prompt(
+                prompt="Add the annotation 'test' to the file 'syn123456789'",
+                enable_trace=True,
+                print_response=True,
+            )
         """
         if session:
             await self.get_session_async(
