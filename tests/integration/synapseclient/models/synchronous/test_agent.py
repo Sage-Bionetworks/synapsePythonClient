@@ -120,6 +120,13 @@ class TestAgent:
         expected_agent = self.get_test_agent()
         assert agent == expected_agent
 
+    def test_get_no_registration_id(self) -> None:
+        # GIVEN an Agent with no registration id
+        agent = Agent()
+        # WHEN I get the agent, I expect a ValueError to be raised
+        with pytest.raises(ValueError, match="Registration ID is required"):
+            agent.get(synapse_client=self.syn)
+
     def test_start_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(

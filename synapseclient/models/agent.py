@@ -641,7 +641,7 @@ class Agent(AgentSynchronousProtocol):
             The existing Agent object.
 
         Example: Get and chat with an existing agent
-            Retrieve an existing agent by providing the agent's registration ID and calling `get()`.
+            Retrieve an existing custom agent by providing the agent's registration ID and calling `get_async()`.
             Then, send a prompt to the agent.
 
                 import asyncio
@@ -661,6 +661,13 @@ class Agent(AgentSynchronousProtocol):
 
                 asyncio.run(main())
         """
+        if not self.registration_id:
+            raise ValueError(
+                "Registration ID is required to retrieve a custom agent. "
+                "If you are trying to use the baseline agent, you do not need to "
+                "use `get` or `get_async`. Instead, simply create an `Agent` object "
+                "and start prompting `my_agent = Agent(); my_agent.prompt(...)`.",
+            )
         agent_response = await get_agent(
             registration_id=self.registration_id,
             synapse_client=synapse_client,
