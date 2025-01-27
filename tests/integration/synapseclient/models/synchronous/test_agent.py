@@ -20,7 +20,7 @@ class TestAgentSession:
     def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_start(self) -> None:
+    async def test_start(self) -> None:
         # GIVEN an agent session with a valid agent registration id
         agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
 
@@ -40,7 +40,7 @@ class TestAgentSession:
         assert result_session.etag is not None
         assert result_session.chat_history == []
 
-    def test_get(self) -> None:
+    async def test_get(self) -> None:
         # GIVEN an agent session with a valid agent registration id
         agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
         # WHEN I start a session
@@ -49,7 +49,7 @@ class TestAgentSession:
         new_session = AgentSession(id=agent_session.id).get(synapse_client=self.syn)
         assert new_session == agent_session
 
-    def test_update(self) -> None:
+    async def test_update(self) -> None:
         # GIVEN an agent session with a valid agent registration id and access level set
         agent_session = AgentSession(
             agent_registration_id=AGENT_REGISTRATION_ID,
@@ -67,7 +67,7 @@ class TestAgentSession:
             == AgentSessionAccessLevel.READ_YOUR_PRIVATE_DATA
         )
 
-    def test_prompt(self) -> None:
+    async def test_prompt(self) -> None:
         # GIVEN an agent session with a valid agent registration id
         agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
         # WHEN I start a session
@@ -102,7 +102,7 @@ class TestAgent:
     def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_register(self) -> None:
+    async def test_register(self) -> None:
         # GIVEN an Agent with a valid agent AWS id
         agent = Agent(cloud_agent_id=CLOUD_AGENT_ID)
         # WHEN I register the agent
@@ -111,7 +111,7 @@ class TestAgent:
         expected_agent = self.get_test_agent()
         assert agent == expected_agent
 
-    def test_get(self) -> None:
+    async def test_get(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=AGENT_REGISTRATION_ID)
         # WHEN I get the agent
@@ -120,14 +120,14 @@ class TestAgent:
         expected_agent = self.get_test_agent()
         assert agent == expected_agent
 
-    def test_get_no_registration_id(self) -> None:
+    async def test_get_no_registration_id(self) -> None:
         # GIVEN an Agent with no registration id
         agent = Agent()
         # WHEN I get the agent, I expect a ValueError to be raised
         with pytest.raises(ValueError, match="Registration ID is required"):
             agent.get(synapse_client=self.syn)
 
-    def test_start_session(self) -> None:
+    async def test_start_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
@@ -139,7 +139,7 @@ class TestAgent:
         # AND I expect the session to be in the sessions dictionary
         assert agent.sessions[agent.current_session.id] == agent.current_session
 
-    def test_get_session(self) -> None:
+    async def test_get_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
@@ -153,7 +153,7 @@ class TestAgent:
         # AND I expect it to be the current session
         assert existing_session == agent.current_session
 
-    def test_prompt_with_session(self) -> None:
+    async def test_prompt_with_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
@@ -173,7 +173,7 @@ class TestAgent:
         # AND I expect the current session to be the session provided
         assert agent.current_session.id == session.id
 
-    def test_prompt_no_session(self) -> None:
+    async def test_prompt_no_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
