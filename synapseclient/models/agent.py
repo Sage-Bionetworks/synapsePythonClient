@@ -661,7 +661,7 @@ class Agent(AgentSynchronousProtocol):
 
                 asyncio.run(main())
         """
-        if not self.registration_id:
+        if self.registration_id is None:
             raise ValueError(
                 "Registration ID is required to retrieve a custom agent. "
                 "If you are trying to use the baseline agent, you do not need to "
