@@ -630,7 +630,8 @@ class Agent(AgentSynchronousProtocol):
         method_to_trace_name=lambda self, **kwargs: f"Get_Agent: {self.registration_id}"
     )
     async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> "Agent":
-        """Gets an existing agent.
+        """Gets an existing custom agent. There is no need to use this method
+        if you are trying to use the baseline agent.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
