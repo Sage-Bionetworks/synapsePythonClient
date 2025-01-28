@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.models import Annotations
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder, Project, Table
@@ -243,6 +242,8 @@ async def _store_activity_and_annotations(
             or last_persistent_instance.annotations != root_resource.annotations
         )
     ):
+        from synapseclient.models import Annotations
+
         result = await Annotations(
             id=root_resource.id,
             etag=root_resource.etag,
