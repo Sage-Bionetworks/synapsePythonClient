@@ -332,11 +332,15 @@ class AgentSynchronousProtocol(Protocol):
             The baseline Synpase Agent can be used to add annotations to files.
 
             from synapseclient import Synapse
+            from synapseclient.models import Agent, AgentSessionAccessLevel
 
             syn = Synapse()
             syn.login()
 
             my_agent = Agent()
+            my_agent.start_session(
+                access_level=AgentSessionAccessLevel.WRITE_YOUR_PRIVATE_DATA
+            )
             my_agent.prompt(
                 prompt="Add the annotation 'test' to the file 'syn123456789'",
                 enable_trace=True,
