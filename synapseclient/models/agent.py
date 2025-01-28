@@ -647,7 +647,7 @@ class Agent(AgentSynchronousProtocol):
 
                 import asyncio
                 from synapseclient import Synapse
-                from synapseclient.models.agent import Agent
+                from synapseclient.models import Agent, AgentSessionAccessLevel
 
                 syn = Synapse()
                 syn.login()

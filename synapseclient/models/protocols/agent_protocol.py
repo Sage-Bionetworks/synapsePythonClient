@@ -332,6 +332,7 @@ class AgentSynchronousProtocol(Protocol):
             The baseline Synpase Agent can be used to add annotations to files.
 
             from synapseclient import Synapse
+            from synapseclient.models import Agent, AgentSessionAccessLevel
 
             syn = Synapse()
             syn.login()
