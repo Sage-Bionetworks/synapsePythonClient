@@ -838,6 +838,9 @@ class Agent(AgentSynchronousProtocol):
 
                 async def main():
                     my_agent = Agent()
+                    await my_agent.start_session_async(
+                        access_level=AgentSessionAccessLevel.WRITE_YOUR_PRIVATE_DATA
+                    )
                     await my_agent.prompt_async(
                         prompt="Add the annotation 'test' to the file 'syn123456789'",
                         enable_trace=True,
