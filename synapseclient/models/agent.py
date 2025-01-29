@@ -826,8 +826,8 @@ class Agent(AgentSynchronousProtocol):
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
 
-        Example: Prompt the baseline Synapse Agent to add annotations to a file on Synapse
-            The baseline Synpase Agent can be used to add annotations to files.
+        Example: Prompt the baseline Synapse Agent.
+            The baseline Synapse Agent is equivilent to the Agent available in the Synapse UI.
 
                 import asyncio
                 from synapseclient import Synapse
@@ -838,11 +838,8 @@ class Agent(AgentSynchronousProtocol):
 
                 async def main():
                     my_agent = Agent()
-                    await my_agent.start_session_async(
-                        access_level=AgentSessionAccessLevel.WRITE_YOUR_PRIVATE_DATA
-                    )
                     await my_agent.prompt_async(
-                        prompt="Add the annotation 'test' to the file 'syn123456789'",
+                        prompt="Can you tell me about the AD Knowledge Portal dataset?",
                         enable_trace=True,
                         print_response=True,
                     )
