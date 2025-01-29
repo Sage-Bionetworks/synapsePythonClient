@@ -1363,9 +1363,152 @@ class Table(TableSynchronousProtocol, AccessControllable):
         Returns:
             None
 
-        # TODO: Add example for creating new rows
-        # TODO: Add example for updating rows
-        # TODO: Add example for creating and updating rows in the same call
+        Example: Inserting rows into a table that already has columns
+            This example shows how you may insert rows into a table.
+
+            Suppose we have a table with the following columns:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+
+            The following code will insert rows into the table:
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Table
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    data_to_insert = {
+                        'col1': ['A', 'B', 'C'],
+                        'col2': [1, 2, 3],
+                        'col3': [1, 2, 3],
+                    }
+
+                    await Table(id="syn1234").store_rows_async(values=data_to_insert)
+
+                asyncio.run(main())
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+        Example: Inserting rows into a table that does not have columns
+            This example shows how you may insert rows into a table that does not have
+            columns. The columns will be inferred from the data that is being stored.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Table, SchemaStorageStrategy
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    data_to_insert = {
+                        'col1': ['A', 'B', 'C'],
+                        'col2': [1, 2, 3],
+                        'col3': [1, 2, 3],
+                    }
+
+                    await Table(id="syn1234").store_rows_async(
+                        values=data_to_insert,
+                        schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
+                    )
+
+                asyncio.run(main())
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+        Example: Using the dry_run option with a SchemaStorageStrategy of INFER_FROM_DATA
+            This example shows how you may use the `dry_run` option with the
+            `SchemaStorageStrategy` set to `INFER_FROM_DATA`. This will show you the
+            actions that would be taken, but not actually perform the actions.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Table, SchemaStorageStrategy
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    data_to_insert = {
+                        'col1': ['A', 'B', 'C'],
+                        'col2': [1, 2, 3],
+                        'col3': [1, 2, 3],
+                    }
+
+                    await Table(id="syn1234").store_rows_async(
+                        values=data_to_insert,
+                        dry_run=True,
+                        schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
+                    )
+
+                asyncio.run(main())
+
+            The result of running this action will print to the console the actions that
+            would be taken, but not actually perform the actions.
+
+        Example: Updating rows in a table
+            This example shows how you may query for data in a table, update the data,
+            and then store the updated rows back in Synapse.
+
+            Suppose we have a table that has the following data:
+
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+            Behind the scenese the tables also has `ROW_ID` and `ROW_VERSION` columns
+            which are used to identify the row that is being updated. These columns
+            are not shown in the table above, but is included in the data that is
+            returned when querying the table. If you add data that does not have these
+            columns the data will be treated as new rows to be inserted.
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Table, query_async
+
+                syn = Synapse()
+                syn.login()
+
+                async def main():
+                    query_results = await query_async(query="select * from syn1234 where col1 in ('A', 'B')")
+
+                    # Update `col2` of the row where `col1` is `A` to `22`
+                    query_results.loc[query_results['col1'] == 'A', 'col2'] = 22
+
+                    # Update `col3` of the row where `col1` is `B` to `33`
+                    query_results.loc[query_results['col1'] == 'B', 'col3'] = 33
+
+                    await Table(id="syn1234").store_rows_async(values=query_results)
+
+                asyncio.run(main())
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 22   | 1    |
+            | B    | 2    | 33   |
+            | C    | 3    | 3    |
+
         """
         original_values = values
         if isinstance(values, dict):
@@ -2415,7 +2558,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             None,
             lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
                 query=query,
-                includeRowIdAndRowVersion=False,
+                includeRowIdAndRowVersion=True,
             ),
         )
         return results.asDataFrame(rowIdAndVersionInIndex=False)
