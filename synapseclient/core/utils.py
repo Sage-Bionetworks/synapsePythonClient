@@ -25,7 +25,7 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, fields, is_dataclass
 from typing import TYPE_CHECKING, TypeVar
 
 import requests
@@ -34,7 +34,7 @@ from opentelemetry import trace
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project, Table
+    from synapseclient.models import Column, File, Folder, Project, Table
 
 R = TypeVar("R")
 
@@ -1376,8 +1376,8 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 
 def merge_dataclass_entities(
-    source: typing.Union["Project", "Folder", "File", "Table"],
-    destination: typing.Union["Project", "Folder", "File", "Table"],
+    source: typing.Union["Project", "Folder", "File", "Table", "Column"],
+    destination: typing.Union["Project", "Folder", "File", "Table", "Column"],
     fields_to_ignore: typing.List[str] = None,
 ) -> typing.Union["Project", "Folder", "File", "Table"]:
     """
@@ -1388,6 +1388,8 @@ def merge_dataclass_entities(
         source: The source entity to merge from.
         destination: The destination entity to merge into.
         fields_to_ignore: A list of fields to ignore when merging.
+        fields_to_persist_to_last_instance: A list of fields to persist to the last
+            instance attribute of the destination entity if it exists.
 
     Returns:
         The destination entity with the merged values.
@@ -1415,9 +1417,43 @@ def merge_dataclass_entities(
                 **(value or {}),
                 **destination_dict[key],
             }
+        elif key == "columns":
+            source_columns = getattr(source, key)
+            destination_columns = getattr(destination, key)
+
+            for source_column_key, source_column_value in source_columns.items():
+                if source_column_key not in destination_columns:
+                    destination_columns[source_column_key] = source_column_value
+                else:
+                    destination_columns[source_column_key] = merge_dataclass_entities(
+                        source=source_column_value,
+                        destination=destination_columns[source_column_key],
+                        fields_to_ignore=["id"],
+                    )
 
     # Update destination's fields with the merged dictionary
     for key, value in modified_items.items():
         setattr(destination, key, value)
 
     return destination
+
+
+def log_dataclass_diff(
+    logger: logging.Logger,
+    prefix: str,
+    obj1,
+    obj2,
+    fields_to_ignore: typing.List[str] = None,
+):
+    if type(obj1) != type(obj2):
+        logger.info("Objects are of different types, not logging a diff.")
+        return
+
+    for field in fields(obj1):
+        if fields_to_ignore and field.name in fields_to_ignore:
+            continue
+        else:
+            value1 = getattr(obj1, field.name)
+            value2 = getattr(obj2, field.name)
+            if value1 != value2:
+                logger.info(f"{prefix}{field.name}: {value1} -> {value2}")

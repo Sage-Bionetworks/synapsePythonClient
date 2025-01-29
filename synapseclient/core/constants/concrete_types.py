@@ -35,7 +35,7 @@ EXTERNAL_OBJECT_STORE_FILE_HANDLE = (
 EXTERNAL_FILE_HANDLE = "org.sagebionetworks.repo.model.file.ExternalFileHandle"
 S3_FILE_HANDLE = "org.sagebionetworks.repo.model.file.S3FileHandle"
 
-# Concrete types for TableUpdateResponse
+# Concrete types for Tables
 ROW_REFERENCE_SET_RESULTS = (
     "org.sagebionetworks.repo.model.table.RowReferenceSetResults"
 )
@@ -43,6 +43,13 @@ ENTITY_UPDATE_RESULTS = "org.sagebionetworks.repo.model.table.EntityUpdateResult
 TABLE_SCHEMA_CHANGE_RESPONSE = (
     "org.sagebionetworks.repo.model.table.TableSchemaChangeResponse"
 )
+TABLE_SCHEMA_CHANGE_REQUEST = (
+    "org.sagebionetworks.repo.model.table.TableSchemaChangeRequest"
+)
+TABLE_UPDATE_TRANSACTION_REQUEST = (
+    "org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest"
+)
+UPLOAD_TO_TABLE_REQUEST = "org.sagebionetworks.repo.model.table.UploadToTableRequest"
 UPLOAD_TO_TABLE_RESULT = "org.sagebionetworks.repo.model.table.UploadToTableResult"
 
 PARTIAL_ROW_SET = "org.sagebionetworks.repo.model.table.PartialRowSet"
@@ -51,6 +58,7 @@ APPENDABLE_ROWSET_REQUEST = (
 )
 
 COLUMN_MODEL = "org.sagebionetworks.repo.model.table.ColumnModel"
+COLUMN_CHANGE = "org.sagebionetworks.repo.model.table.ColumnChange"
 
 # EntityTypes
 FILE_ENTITY = "org.sagebionetworks.repo.model.FileEntity"
