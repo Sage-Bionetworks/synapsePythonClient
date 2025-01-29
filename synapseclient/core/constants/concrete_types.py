@@ -68,3 +68,6 @@ MULTIPART_UPLOAD_COPY_REQUEST = (
 # Activity/Provenance
 USED_URL = "org.sagebionetworks.repo.model.provenance.UsedURL"
 USED_ENTITY = "org.sagebionetworks.repo.model.provenance.UsedEntity"
+
+# Agent
+AGENT_CHAT_REQUEST = "org.sagebionetworks.repo.model.agent.AgentChatRequest"
