@@ -16,7 +16,6 @@ from synapseclient.models.table import (
     ColumnExpansionStrategy,
     ColumnType,
     FacetType,
-    RowsetResultFormat,
     SchemaStorageStrategy,
     Table,
 )
@@ -34,8 +33,6 @@ __all__ = [
     "Project",
     "Annotations",
     "FacetType",
-    "CsvResultFormat",
-    "RowsetResultFormat",
     "Team",
     "TeamMember",
     "UserProfile",
