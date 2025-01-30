@@ -615,7 +615,7 @@ class TestUpsertRows:
         # WHEN I upsert rows to the table based on the first column
         await table.upsert_rows_async(
             values=modified_data_for_table,
-            upsert_columns=["column_string"],
+            primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
@@ -677,7 +677,7 @@ class TestUpsertRows:
         # WHEN I upsert rows to the table based on the first column
         await table.upsert_rows_async(
             values=modified_data_for_table,
-            upsert_columns=["column_string"],
+            primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
@@ -743,7 +743,7 @@ class TestUpsertRows:
         # WHEN I upsert rows to the table based on the first column
         await table.upsert_rows_async(
             values=modified_data_for_table,
-            upsert_columns=["column_string", "column_key_2"],
+            primary_keys=["column_string", "column_key_2"],
             synapse_client=self.syn,
         )
 
@@ -814,7 +814,7 @@ class TestUpsertRows:
         # WHEN I upsert rows to the table based on the first column
         await table.upsert_rows_async(
             values=data_that_will_not_match_to_any_rows,
-            upsert_columns=["column_string", "column_key_2"],
+            primary_keys=["column_string", "column_key_2"],
             synapse_client=self.syn,
         )
 
@@ -1019,9 +1019,7 @@ class TestUpsertRows:
                     ],
                 }
             )
-            # schema = self.syn.get(entity=table.id)
-            # modified_table = synTable(schema=schema, values=data_for_table)
-            # modified_table = self.syn.store(modified_table)
+
             await table.store_rows_async(
                 values=data_for_table,
                 schema_storage_strategy=None,
@@ -1151,13 +1149,15 @@ class TestUpsertRows:
             # WHEN I upsert rows to the table based on the first column
             await table.upsert_rows_async(
                 values=modified_data_for_table,
-                upsert_columns=["column_string"],
+                primary_keys=["column_string"],
                 synapse_client=self.syn,
             )
 
             # AND I query the table
             results = await query_async(
-                f"SELECT * FROM {table.id}", synapse_client=self.syn
+                f"SELECT * FROM {table.id}",
+                synapse_client=self.syn,
+                include_row_id_and_row_version=False,
             )
 
             # THEN the data in the columns should match
@@ -1466,7 +1466,7 @@ class TestUpsertRows:
             ]
             await table.upsert_rows_async(
                 values=modified_data_for_table,
-                upsert_columns=upsert_columns,
+                primary_keys=upsert_columns,
                 synapse_client=self.syn,
             )
 

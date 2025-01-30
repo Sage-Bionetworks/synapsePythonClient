@@ -525,10 +525,8 @@ class Table(TableSynchronousProtocol, AccessControllable):
             table = Table(
                 name="my_table",
                 parent_id="syn1234",
-            )
+            ).store()
 
-            # The call to `store_rows` will also call `.store()` on the table too,
-            # meaning if the table does not exist it will be created.
             table.store_rows(values=my_data, schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA)
 
             # Prints out the stored data about this specific column
@@ -948,7 +946,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
     async def upsert_rows_async(
         self,
         values: pd.DataFrame,
-        upsert_columns: List[str],
+        primary_keys: List[str],
         dry_run: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
@@ -957,11 +955,11 @@ class Table(TableSynchronousProtocol, AccessControllable):
         """
         This method allows you to perform an `upsert` (Update and Insert) for row(s).
         This means that you may update a row with only the data that you want to change.
-        When supplied with a row that does not match the given `upsert_columns` a new
+        When supplied with a row that does not match the given `primary_keys` a new
         row will be inserted.
 
 
-        Using the `upsert_columns` argument you may specify which columns to use to
+        Using the `primary_keys` argument you may specify which columns to use to
         determine if a row already exists. If a row exists with the same values in the
         columns specified in this list the row will be updated. If a row does not exist
         it will be inserted.
@@ -972,13 +970,13 @@ class Table(TableSynchronousProtocol, AccessControllable):
         - The number of rows that may be upserted in a single call should be
             limited. Additional work is planned to support batching
             the calls automatically for you.
-        - The `upsert_columns` argument must contain at least one column.
-        - The `upsert_columns` argument cannot contain columns that are a LIST type.
-        - The `upsert_columns` argument cannot contain columns that are a JSON type.
-        - The values used as the `upsert_columns` must be unique in the table. If there
-            are multiple rows with the same values in the `upsert_columns` the behavior
+        - The `primary_keys` argument must contain at least one column.
+        - The `primary_keys` argument cannot contain columns that are a LIST type.
+        - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The values used as the `primary_keys` must be unique in the table. If there
+            are multiple rows with the same values in the `primary_keys` the behavior
             is that an exception will be raised.
-        - The columns used in `upsert_columns` cannot contain updated values. Since
+        - The columns used in `primary_keys` cannot contain updated values. Since
             the values in these columns are used to determine if a row exists, they
             cannot be updated in the same transaction.
 
@@ -990,7 +988,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
-            upsert_columns: The columns to use to determine if a row already exists. If
+            primary_keys: The columns to use to determine if a row already exists. If
                 a row exists with the same values in the columns specified in this list
                 the row will be updated. If a row does not exist it will be inserted.
 
@@ -1035,7 +1033,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
                         'col3': [1, 33, 3],
                     }
 
-                    await table.upsert_rows_async(values=df, upsert_columns=["col1"])
+                    await table.upsert_rows_async(values=df, primary_keys=["col1"])
 
                 asyncio.run(main())
 
@@ -1075,7 +1073,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
                         'col3': [1, None],
                     }
 
-                    await table.upsert_rows_async(values=df, upsert_columns=["col1"])
+                    await table.upsert_rows_async(values=df, primary_keys=["col1"])
 
                 asyncio.run(main())
 
@@ -1113,7 +1111,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             f"SELECT ROW_ID, {', '.join(all_columns_from_df)} FROM {self.id} WHERE "
         )
         where_statements = []
-        for upsert_column in upsert_columns:
+        for upsert_column in primary_keys:
             column_model = self.columns[upsert_column]
             if (
                 column_model.column_type
@@ -1127,7 +1125,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 or column_model.column_type == ColumnType.JSON
             ):
                 raise ValueError(
-                    f"Column type {column_model.column_type} is not supported for upsert_columns"
+                    f"Column type {column_model.column_type} is not supported for primary_keys"
                 )
             elif column_model.column_type in (
                 ColumnType.STRING,
@@ -1182,9 +1180,9 @@ class Table(TableSynchronousProtocol, AccessControllable):
             # row_etag = row["ROW_ETAG"]
             partial_change_values = {}
 
-            # Find the matching row in `values` that matches the row in `results` for the upsert_columns
-            matching_conditions = values[upsert_columns[0]] == row[upsert_columns[0]]
-            for col in upsert_columns[1:]:
+            # Find the matching row in `values` that matches the row in `results` for the primary_keys
+            matching_conditions = values[primary_keys[0]] == row[primary_keys[0]]
+            for col in primary_keys[1:]:
                 matching_conditions &= values[col] == row[col]
             matching_row = values.loc[matching_conditions]
 
@@ -1582,6 +1580,11 @@ class Table(TableSynchronousProtocol, AccessControllable):
         if dry_run:
             return
 
+        if not self.id:
+            raise ValueError(
+                "The table must have an ID to store rows, or the table could not be found from the given name/parent_id."
+            )
+
         # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
         if isinstance(original_values, str):
             file_handle_id = await multipart_upload_file_async(
@@ -1946,7 +1949,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
     )
     async def get_async(
         self,
-        include_columns: bool = False,
+        include_columns: bool = True,
         include_activity: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
@@ -1955,9 +1958,9 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         Arguments:
             include_columns: If True, will include fully filled column objects in the
-                `.columns` attribute. When False, the columns will not be filled in.
+                `.columns` attribute. Defaults to True.
             include_activity: If True the activity will be included in the file
-                if it exists.
+                if it exists. Defaults to False.
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -1968,9 +1971,10 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         Example: Getting metadata about a table using id
             Get a table by ID and print out the columns and activity. `include_columns`
-            and `include_activity` are optional arguments that default to False. When
-            you need to update existing columns or activity you will need to set these
-            to True, make the changes, and then call the `.store_async()` method.
+            defaults to True and `include_activity` defaults to False. When you need to
+            update existing columns or activity these need to be set to True during the
+            `get_async` call, then you'll make the changes, and finally call the
+            `.store_async()` method.
 
                 import asyncio
                 from synapseclient import Synapse
@@ -1980,8 +1984,10 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 syn.login()
 
                 async def main():
-                    table = await Table(id="syn4567").get_async(include_columns=True, include_activity=True)
+                    table = await Table(id="syn4567").get_async(include_activity=True)
                     print(table)
+
+                    # Columns are retrieved by default
                     print(table.columns)
                     print(table.activity)
 
@@ -1989,10 +1995,10 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         Example: Getting metadata about a table using name and parent_id
             Get a table by name/parent_id and print out the columns and activity.
-            `include_columns` and `include_activity` are optional arguments that
-            default to False. When you need to update existing columns or activity you
-            will need to set these to True, make the changes, and then call the
-            `.store_async()` method.
+            `include_columns` defaults to True and `include_activity` defaults to
+            False. When you need to update existing columns or activity these need to
+            be set to True during the `get_async` call, then you'll make the changes,
+            and finally call the `.store_async()` method.
 
                 import asyncio
                 from synapseclient import Synapse
@@ -2507,6 +2513,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         query: str,
         # TODO: Implement part_mask - Should this go into a different method because getting this information while downloading as a CSV is not supported?
         part_mask: str = None,
+        include_row_id_and_row_version: bool = True,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> pd.DataFrame:
@@ -2519,6 +2526,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 query:
                 <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
             part_mask: Still determining how this will be implemented - Ignore for now
+            include_row_id_and_row_version: If True the `ROW_ID` and `ROW_VERSION`
+                columns will be returned in the DataFrame. These columns are required
+                if using the query results to update rows in the table. These columns
+                are the primary keys used by Synapse to uniquely identify rows in the
+                table.
+
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -2558,7 +2571,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
             None,
             lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
                 query=query,
-                includeRowIdAndRowVersion=True,
+                includeRowIdAndRowVersion=include_row_id_and_row_version,
             ),
         )
         return results.asDataFrame(rowIdAndVersionInIndex=False)
