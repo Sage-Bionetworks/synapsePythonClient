@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 from builtins import zip
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
@@ -43,9 +43,6 @@ from synapseclient.core.utils import from_unix_epoch_time, id_of, itersubclasses
 
 from .entity import Entity, Folder, Project, entity_type_to_class
 from .evaluation import Evaluation
-
-if TYPE_CHECKING:
-    from synapseclient import Synapse
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
@@ -273,41 +270,6 @@ def row_labels_from_rows(rows):
             for row in rows
         ]
     )
-
-
-def cast_value(value: Any, column_type: str):
-    if value is None or value == "":
-        return None
-    elif column_type in {
-        "STRING",
-        "ENTITYID",
-        "FILEHANDLEID",
-        "LARGETEXT",
-        "USERID",
-        "LINK",
-    }:
-        return value
-    elif column_type == "DOUBLE":
-        return float(value)
-    elif column_type == "INTEGER":
-        return int(value)
-    elif column_type == "BOOLEAN":
-        return to_boolean(value)
-    elif column_type == "DATE":
-        return from_unix_epoch_time(value)
-    elif column_type in {
-        "STRING_LIST",
-        "INTEGER_LIST",
-        "BOOLEAN_LIST",
-        "ENTITYID_LIST",
-        "USERID_LIST",
-    }:
-        return json.loads(value)
-    elif column_type == "DATE_LIST":
-        return json.loads(value, parse_int=from_unix_epoch_time)
-    else:
-        # default to string for unknown column type
-        return value
 
 
 def cast_values(values, headers):
@@ -1563,9 +1525,7 @@ class PartialRowset(AppendableRowset):
     """
 
     @classmethod
-    def from_mapping(
-        cls, mapping, originalQueryResult, name_to_column_id, row_etags, table_id
-    ):
+    def from_mapping(cls, mapping, originalQueryResult):
         """
         Creates a PartialRowset
 
@@ -1580,7 +1540,7 @@ class PartialRowset(AppendableRowset):
             raise ValueError("mapping must be a supported Mapping type such as 'dict'")
 
         try:
-            name_to_column_id = name_to_column_id or {
+            name_to_column_id = {
                 col.name: col.id for col in originalQueryResult.headers if "id" in col
             }
         except AttributeError:
@@ -1592,15 +1552,11 @@ class PartialRowset(AppendableRowset):
 
         # row_ids in the originalQueryResult are not guaranteed to be in ascending order
         # iterate over all etags but only map the row_ids used for this partial update to their etags
-        row_etags = (
-            {
-                row_id: etag
-                for row_id, row_version, etag in originalQueryResult.iter_row_metadata()
-                if row_id in row_ids and etag is not None
-            }
-            if row_etags is None
-            else row_etags
-        )
+        row_etags = {
+            row_id: etag
+            for row_id, row_version, etag in originalQueryResult.iter_row_metadata()
+            if row_id in row_ids and etag is not None
+        }
 
         partial_rows = [
             PartialRow(
@@ -1612,7 +1568,7 @@ class PartialRowset(AppendableRowset):
             for row_id, row_changes in mapping.items()
         ]
 
-        return cls(table_id or originalQueryResult.tableId, partial_rows)
+        return cls(originalQueryResult.tableId, partial_rows)
 
     def __init__(self, schema, rows):
         super(PartialRowset, self).__init__(schema)
@@ -2199,7 +2155,7 @@ class CsvFileTable(TableAbstractBaseClass):
     @classmethod
     def from_table_query(
         cls,
-        synapse: "Synapse",
+        synapse,
         query,
         quoteCharacter='"',
         escapeCharacter="\\",
