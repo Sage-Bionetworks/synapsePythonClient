@@ -338,9 +338,6 @@ class AgentSynchronousProtocol(Protocol):
             syn.login()
 
             my_agent = Agent()
-            my_agent.start_session(
-                access_level=AgentSessionAccessLevel.WRITE_YOUR_PRIVATE_DATA
-            )
             my_agent.prompt(
                 prompt="Can you tell me about the AD Knowledge Portal dataset?",
                 enable_trace=True,

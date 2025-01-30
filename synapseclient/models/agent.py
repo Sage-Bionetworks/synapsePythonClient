@@ -838,9 +838,6 @@ class Agent(AgentSynchronousProtocol):
 
                 async def main():
                     my_agent = Agent()
-                    await my_agent.start_session_async(
-                        access_level=AgentSessionAccessLevel.WRITE_YOUR_PRIVATE_DATA
-                    )
                     await my_agent.prompt_async(
                         prompt="Can you tell me about the AD Knowledge Portal dataset?",
                         enable_trace=True,
