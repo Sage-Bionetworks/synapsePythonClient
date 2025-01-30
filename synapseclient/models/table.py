@@ -532,30 +532,6 @@ class Table(TableSynchronousProtocol, AccessControllable):
             # Prints out the stored data about this specific column
             print(table.columns["my_string_column"])
 
-    Example: Create a table with columns
-        This example shows how you may create a new table with a list of columns.
-
-            from synapseclient import Synapse
-            from synapseclient.models import Column, ColumnType, Table
-
-            syn = Synapse()
-            syn.login()
-
-            columns = [
-                Column(name="my_string_column", column_type=ColumnType.STRING),
-                Column(name="my_integer_column", column_type=ColumnType.INTEGER),
-                Column(name="my_double_column", column_type=ColumnType.DOUBLE),
-                Column(name="my_boolean_column", column_type=ColumnType.BOOLEAN),
-            ]
-
-            table = Table(
-                name="my_table",
-                parent_id="syn1234",
-                columns=columns
-            )
-
-            table.store()
-
     Example: Rename an existing column
         This examples shows how you may retrieve a table from synapse, rename a column,
         and then store the table back in synapse.
@@ -569,12 +545,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
             table = Table(
                 name="my_table",
                 parent_id="syn1234",
-            ).get(include_columns=True)
+            ).get()
 
             # You may also get the table by id:
             table = Table(
                 id="syn4567"
-            ).get(include_columns=True)
+            ).get()
 
             table.columns["my_old_column"].name = "my_new_column"
 
@@ -645,6 +621,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         on the `Column` object is optional. When it is not specified it will be
         pulled from the key of the dict.
 
+            from collections import OrderedDict
             from synapseclient import Synapse
             from synapseclient.models import Column, ColumnType, Table
 
