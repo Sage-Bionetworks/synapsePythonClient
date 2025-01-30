@@ -384,7 +384,7 @@ class AgentSession(AgentSessionSynchronousProtocol):
         newer_than: Optional[int] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> None:
+    ) -> AgentPrompt:
         """Sends a prompt to the agent and adds the response to the AgentSession's
         chat history. A session must be started before sending a prompt.
 
@@ -431,6 +431,7 @@ class AgentSession(AgentSessionSynchronousProtocol):
             client.logger.info(f"RESPONSE:\n{agent_prompt.response}\n")
             if enable_trace:
                 client.logger.info(f"TRACE:\n{agent_prompt.trace}")
+        return agent_prompt
 
 
 @dataclass
@@ -811,7 +812,7 @@ class Agent(AgentSynchronousProtocol):
         newer_than: Optional[int] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> None:
+    ) -> AgentPrompt:
         """Sends a prompt to the agent for the current session.
             If no session is currently active, a new session will be started.
 
@@ -908,7 +909,7 @@ class Agent(AgentSynchronousProtocol):
             if not self.current_session:
                 await self.start_session_async(synapse_client=synapse_client)
 
-        await self.current_session.prompt_async(
+        return await self.current_session.prompt_async(
             prompt=prompt,
             enable_trace=enable_trace,
             newer_than=newer_than,
