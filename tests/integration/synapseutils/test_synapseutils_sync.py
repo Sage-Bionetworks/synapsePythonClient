@@ -2096,7 +2096,7 @@ class TestSyncFromSynapse:
         │   ├── file1 (uploaded)
         │   └── file2 (uploaded)
         └── folder_with_links - This is the folder we are syncing from
-            ├── link_to_folder_with_files -> ../folder_with_files
+            └── link_to_folder_with_files -> ../folder_with_files
         """
         # GIVEN a folder
         folder_with_files = await Folder(
