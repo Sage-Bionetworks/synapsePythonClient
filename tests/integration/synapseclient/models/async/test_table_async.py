@@ -1450,7 +1450,7 @@ class TestUpsertRows:
             )
 
             # WHEN I upsert rows to the table based on all columns except the first one and list based columns
-            upsert_columns = [
+            primary_keys = [
                 "column_double",
                 "column_integer",
                 "column_boolean",
@@ -1466,13 +1466,15 @@ class TestUpsertRows:
             ]
             await table.upsert_rows_async(
                 values=modified_data_for_table,
-                primary_keys=upsert_columns,
+                primary_keys=primary_keys,
                 synapse_client=self.syn,
             )
 
             # AND I query the table
             results = await query_async(
-                f"SELECT * FROM {table.id}", synapse_client=self.syn
+                f"SELECT * FROM {table.id}",
+                synapse_client=self.syn,
+                include_row_id_and_row_version=False,
             )
 
             # THEN the data in the columns should match
