@@ -686,6 +686,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             or not (entity := entity_bundle.get("entity", None))
             or not (links_to := entity.get("linksTo", None))
             or not (link_class_name := entity.get("linksToClassName", None))
+            or not (link_target_name := entity.get("name", None))
             or not (link_target_id := links_to.get("targetId", None))
         ):
             return
@@ -693,6 +694,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         pending_tasks = self._create_task_for_child(
             child={
                 "id": link_target_id,
+                "name": link_target_name,
                 "type": link_class_name,
             },
             recursive=recursive,

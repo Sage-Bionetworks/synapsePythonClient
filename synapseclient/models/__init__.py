@@ -1,5 +1,11 @@
 # These are all of the models that are used by the Synapse client.
 from synapseclient.models.activity import Activity, UsedEntity, UsedURL
+from synapseclient.models.agent import (
+    Agent,
+    AgentPrompt,
+    AgentSession,
+    AgentSessionAccessLevel,
+)
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
@@ -38,4 +44,8 @@ __all__ = [
     "TeamMember",
     "UserProfile",
     "UserPreference",
+    "Agent",
+    "AgentSession",
+    "AgentSessionAccessLevel",
+    "AgentPrompt",
 ]

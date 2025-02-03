@@ -1,4 +1,12 @@
 # These are all of the models that are used by the Synapse client.
+from .agent_services import (
+    get_agent,
+    get_session,
+    get_trace,
+    register_agent,
+    start_session,
+    update_session,
+)
 from .annotations import set_annotations, set_annotations_async
 from .configuration_services import (
     get_client_authenticated_s3_profile,
@@ -78,4 +86,11 @@ __all__ = [
     "get_transfer_config",
     # entity_factory
     "get_from_entity_factory",
+    # agent_services
+    "register_agent",
+    "get_agent",
+    "start_session",
+    "get_session",
+    "update_session",
+    "get_trace",
 ]
