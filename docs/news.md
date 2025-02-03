@@ -9,21 +9,6 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
-## 4.7.0 (2025-01-31)
-
-### Highlights
-- **Added functionality for interacting with Synapse Agents:**
-    - The new `Agent` OOP model allows you to chat with the baseline Synapse Agent,
-    register and chat with custom Synapse Agents, manage multiple chat sessions and more.
-    - See the `Agent` documentation for more details and example code to get started.
-
-### Bug Fixes
--  \[[SYNPY-1557](https://sagebionetworks.jira.com/browse/SYNPY-1557)\] - Synapse get recursive link download issue
-
-### Stories
--  \[[SYNPY-1544](https://sagebionetworks.jira.com/browse/SYNPY-1544)\] - Create Synapse Agent OOP Model
--  \[[SYNPY-1566](https://sagebionetworks.jira.com/browse/SYNPY-1566)\] - Release python client v4.7.0
-
 ## 4.6.1 (2024-12-17)
 
 ### Highlights

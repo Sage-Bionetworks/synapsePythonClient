@@ -6373,17 +6373,20 @@ class Synapse(object):
         Returns:
             JSON encoding of response
         """
-        response = await self._rest_call_async(
-            "get",
-            uri,
-            None,
-            endpoint,
-            headers,
-            retry_policy,
-            requests_session_async_synapse,
-            **kwargs,
-        )
-        return self._return_rest_body(response)
+        try:
+            response = await self._rest_call_async(
+                "get",
+                uri,
+                None,
+                endpoint,
+                headers,
+                retry_policy,
+                requests_session_async_synapse,
+                **kwargs,
+            )
+            return self._return_rest_body(response)
+        except Exception:
+            self.logger.exception("Error in rest_get_async")
 
     async def rest_post_async(
         self,

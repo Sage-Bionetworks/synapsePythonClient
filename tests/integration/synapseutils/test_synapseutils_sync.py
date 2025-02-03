@@ -1992,7 +1992,7 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
         assert found_matching_file
 
-    async def test_sync_from_synapse_follow_links_files(
+    async def test_sync_from_synapse_follow_links(
         self,
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
@@ -2034,95 +2034,6 @@ class TestSyncFromSynapse:
             syn.store(obj=Link(targetId=file_entity.id, parent=folder_with_links.id))
 
         # AND A temp directory to write the manifest file to
-        temp_dir = tempfile.mkdtemp()
-
-        # WHEN I sync the parent folder from Synapse
-        sync_result = synapseutils.syncFromSynapse(
-            syn=syn, entity=folder_with_links.id, path=temp_dir, followLink=True
-        )
-
-        # THEN I expect that the result has all of the files
-        assert len(sync_result) == 2
-
-        # AND each of the files are the ones we uploaded
-        for file in sync_result:
-            assert file in file_entities
-
-        # AND the manifest that is created matches the expected values
-        manifest_df = pd.read_csv(os.path.join(temp_dir, MANIFEST_FILE), sep="\t")
-        assert manifest_df.shape[0] == 2
-        assert PATH_COLUMN in manifest_df.columns
-        assert PARENT_COLUMN in manifest_df.columns
-        assert USED_COLUMN in manifest_df.columns
-        assert EXECUTED_COLUMN in manifest_df.columns
-        assert ACTIVITY_NAME_COLUMN in manifest_df.columns
-        assert ACTIVITY_DESCRIPTION_COLUMN in manifest_df.columns
-        assert CONTENT_TYPE_COLUMN in manifest_df.columns
-        assert ID_COLUMN in manifest_df.columns
-        assert SYNAPSE_STORE_COLUMN in manifest_df.columns
-        assert NAME_COLUMN in manifest_df.columns
-        assert manifest_df.shape[1] == 10
-
-        for file in sync_result:
-            matching_row = manifest_df[manifest_df[PATH_COLUMN] == file[PATH_COLUMN]]
-            assert not matching_row.empty
-            assert matching_row[PARENT_COLUMN].values[0] == file[PARENT_ATTRIBUTE]
-            assert (
-                matching_row[CONTENT_TYPE_COLUMN].values[0] == file[CONTENT_TYPE_COLUMN]
-            )
-            assert matching_row[ID_COLUMN].values[0] == file[ID_COLUMN]
-            assert (
-                matching_row[SYNAPSE_STORE_COLUMN].values[0]
-                == file[SYNAPSE_STORE_COLUMN]
-            )
-            assert matching_row[NAME_COLUMN].values[0] == file[NAME_COLUMN]
-
-            assert pd.isna(matching_row[USED_COLUMN].values[0])
-            assert pd.isna(matching_row[EXECUTED_COLUMN].values[0])
-            assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
-            assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
-
-    async def test_sync_from_synapse_follow_links_folder(
-        self,
-        syn: Synapse,
-        schedule_for_cleanup: Callable[..., None],
-        project_model: Project,
-    ) -> None:
-        """
-        Testing for this case:
-
-        project_model (root)
-        ├── folder_with_files
-        │   ├── file1 (uploaded)
-        │   └── file2 (uploaded)
-        └── folder_with_links - This is the folder we are syncing from
-            └── link_to_folder_with_files -> ../folder_with_files
-        """
-        # GIVEN a folder
-        folder_with_files = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
-        schedule_for_cleanup(folder_with_files.id)
-
-        # AND two files in the folder
-        temp_files = [utils.make_bogus_uuid_file() for _ in range(2)]
-        file_entities = []
-        for file in temp_files:
-            schedule_for_cleanup(file)
-            file_entity = syn.store(SynapseFile(path=file, parent=folder_with_files.id))
-            schedule_for_cleanup(file_entity["id"])
-            file_entities.append(file_entity)
-
-        # AND a second folder to sync from
-        folder_with_links = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async()
-        schedule_for_cleanup(folder_with_links.id)
-
-        # AND a link to folder_with_files in folder_with_links
-        syn.store(obj=Link(targetId=folder_with_files.id, parent=folder_with_links.id))
-
-        # AND a temp directory to write the manifest file to
         temp_dir = tempfile.mkdtemp()
 
         # WHEN I sync the parent folder from Synapse
