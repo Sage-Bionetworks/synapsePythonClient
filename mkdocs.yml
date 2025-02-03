@@ -75,8 +75,28 @@ nav:
       - Core: reference/core.md
       - REST Apis: reference/rest_apis.md
       - Experimental:
-          - Object-Orientated Models: reference/oop/models.md
-          - Async Object-Orientated Models: reference/oop/models_async.md
+          - Agent: reference/experimental/sync/agent.md
+          - Project: reference/experimental/sync/project.md
+          - Folder: reference/experimental/sync/folder.md
+          - File: reference/experimental/sync/file.md
+          - Table: reference/experimental/sync/table.md
+          - Activity: reference/experimental/sync/activity.md
+          - Team: reference/experimental/sync/team.md
+          - UserProfile: reference/experimental/sync/user_profile.md
+          - Asynchronous:
+              - Agent: reference/experimental/async/agent.md
+              - Project: reference/experimental/async/project.md
+              - Folder: reference/experimental/async/folder.md
+              - File: reference/experimental/async/file.md
+              - Table: reference/experimental/async/table.md
+              - Activity: reference/experimental/async/activity.md
+              - Team: reference/experimental/async/team.md
+              - UserProfile: reference/experimental/async/user_profile.md
+          - Mixins:
+              - AccessControllable: reference/experimental/mixins/access_controllable.md
+              - StorableContainer: reference/experimental/mixins/storable_container.md
+              - AsynchronousCommunicator: reference/experimental/mixins/asynchronous_communicator.md
+              - FailureStrategy: reference/experimental/mixins/failure_strategy.md
   - Further Reading:
       - Home: explanations/home.md
       - Domain Models of Synapse: explanations/domain_models_of_synapse.md
