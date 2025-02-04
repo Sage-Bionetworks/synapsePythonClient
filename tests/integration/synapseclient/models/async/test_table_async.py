@@ -1602,3 +1602,42 @@ class TestDeleteRows:
 
         # AND 3 rows should exist on the table
         assert len(results) == 3
+
+
+class TestColumnModifications:
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    async def test_column_rename(self, project_model: Project) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        old_column_name = "column_string"
+        old_table_instance = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[Column(name=old_column_name, column_type=ColumnType.STRING)],
+        )
+        old_table_instance = await old_table_instance.store_async(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(old_table_instance.id)
+
+        # WHEN I rename the column
+        new_column_name = "new_column_string"
+        old_table_instance.columns[old_column_name].name = new_column_name
+
+        # AND I store the table
+        await old_table_instance.store_async(synapse_client=self.syn)
+
+        # THEN the column name should be updated on the existing table instance
+        assert old_table_instance.columns[new_column_name] is not None
+        assert old_column_name not in old_table_instance.columns
+
+        # AND the new column name should be reflected in the Synapse table
+        new_table_instance = await Table(id=old_table_instance.id).get_async(
+            synapse_client=self.syn
+        )
+        assert new_table_instance.columns[new_column_name] is not None
+        assert old_column_name not in new_table_instance.columns

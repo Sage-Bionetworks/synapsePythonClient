@@ -1907,6 +1907,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 uri=uri, request=transaction_request.to_synapse_request()
             )
 
+            # Replace the columns after a schema change in case any column names were updated
+            updated_columns = OrderedDict()
+            for column in self.columns.values():
+                updated_columns[column.name] = column
+            self.columns = updated_columns
+
         re_read_required = await store_entity_components(
             root_resource=self,
             synapse_client=synapse_client,
