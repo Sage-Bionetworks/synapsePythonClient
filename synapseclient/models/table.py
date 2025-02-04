@@ -1654,8 +1654,8 @@ class Table(TableSynchronousProtocol, AccessControllable):
         )
 
         rows_to_delete = []
-        for row in results_from_query:
-            rows_to_delete.append([row.row_id, row.version_number])
+        for _, row in results_from_query.iterrows():
+            rows_to_delete.append([row["ROW_ID"], row["ROW_VERSION"]])
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(
             None,
