@@ -349,6 +349,62 @@ class TestRowStorage:
             results["column_string"], data_for_table["column_string"]
         )
 
+    async def test_update_rows_from_csv_infer_columns_no_column_updates(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a table with no columns defined
+        table_name = str(uuid.uuid4())
+        table = Table(name=table_name, parent_id=project_model.id)
+
+        # AND data for a column stored to CSV
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3"],
+            }
+        )
+        filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        data_for_table.to_csv(filepath, index=False)
+
+        # AND the table is stored in Synapse
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND Rows are stored into Synapse with the INFER_FROM_DATA schema storage strategy
+        await table.store_rows_async(
+            values=filepath,
+            schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
+            synapse_client=self.syn,
+        )
+        assert table.id is not None
+
+        # AND a query of the data
+        query_results = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+
+        # WHEN I update the rows with new data
+        query_results.loc[
+            query_results["column_string"] == "value1", "column_string"
+        ] = "value11"
+        query_results.loc[
+            query_results["column_string"] == "value3", "column_string"
+        ] = "value33"
+
+        # AND I store the rows back to Synapse
+        await Table(id=table.id).store_rows_async(
+            values=query_results,
+            schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
+            synapse_client=self.syn,
+        )
+
+        # THEN the data should be stored in Synapse, and match the updated data
+        updated_results_from_table = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+        pd.testing.assert_series_equal(
+            updated_results_from_table["column_string"], query_results["column_string"]
+        )
+
     async def test_store_rows_from_csv_no_columns(self, project_model: Project) -> None:
         # GIVEN a table with no columns defined
         table_name = str(uuid.uuid4())

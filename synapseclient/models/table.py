@@ -63,6 +63,16 @@ DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
 DEFAULT_ESCAPSE_CHAR = "\\"
 
+# Taken from <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/blob/cce01ec2c9f8ae44dabe957ca70e87942431aff5/lib/models/src/main/java/org/sagebionetworks/repo/model/table/TableConstants.java#L77>
+RESERVED_COLUMN_NAMES = [
+    "ROW_ID",
+    "ROW_VERSION",
+    "ROW_ETAG",
+    "ROW_BENEFACTOR",
+    "ROW_SEARCH_CONTENT",
+    "ROW_HASH_CODE",
+]
+
 
 class FacetType(str, Enum):
     """Set to one of the enumerated values to indicate a column should be treated as
@@ -1243,7 +1253,6 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 values=rows_to_insert_df, synapse_client=synapse_client
             )
 
-    # TODO: Polish docstring
     async def store_rows_async(
         self,
         values: Union[str, Dict[str, Any], pd.DataFrame],
@@ -2898,6 +2907,8 @@ def infer_column_type_from_data(values: pd.DataFrame) -> List[Column]:
 
     cols = list()
     for col in df:
+        if not col or col.upper() in RESERVED_COLUMN_NAMES:
+            continue
         inferred_type = infer_dtype(df[col], skipna=True)
         column_type = PANDAS_TABLE_TYPE.get(inferred_type, "STRING")
         if column_type == "STRING":
