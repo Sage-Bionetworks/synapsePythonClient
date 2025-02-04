@@ -1641,3 +1641,44 @@ class TestColumnModifications:
         )
         assert new_table_instance.columns[new_column_name] is not None
         assert old_column_name not in new_table_instance.columns
+
+    async def test_delete_column(self, project_model: Project) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        old_column_name = "column_string"
+        column_to_keep = "column_to_keep"
+        old_table_instance = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name=old_column_name, column_type=ColumnType.STRING),
+                Column(name=column_to_keep, column_type=ColumnType.STRING),
+            ],
+        )
+        old_table_instance = await old_table_instance.store_async(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(old_table_instance.id)
+
+        # WHEN I delete the column
+        old_table_instance.delete_column(name=old_column_name)
+
+        # AND I store the table
+        await old_table_instance.store_async(synapse_client=self.syn)
+
+        # THEN the column should be removed from the table instance
+        assert old_column_name not in old_table_instance.columns
+
+        # AND the column to keep should still be in the table instance
+        assert column_to_keep in old_table_instance.columns
+        assert len(old_table_instance.columns.values()) == 1
+
+        # AND the column should be removed from the Synapse table
+        new_table_instance = await Table(id=old_table_instance.id).get_async(
+            synapse_client=self.syn
+        )
+        assert old_column_name not in new_table_instance.columns
+
+        # AND the column to keep should still be in the Synapse table
+        assert column_to_keep in new_table_instance.columns
+        assert len(new_table_instance.columns.values()) == 1

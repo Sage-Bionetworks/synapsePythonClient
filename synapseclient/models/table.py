@@ -1740,6 +1740,10 @@ class Table(TableSynchronousProtocol, AccessControllable):
                         ColumnChange(old_column_id=old_id, new_column_id=column.id)
                     )
 
+        if self._columns_to_delete:
+            for column in self._columns_to_delete.values():
+                column_changes.append(ColumnChange(old_column_id=column.id))
+
         order_of_existing_columns = (
             [column.id for column in self._last_persistent_instance.columns.values()]
             if self._last_persistent_instance and self._last_persistent_instance.columns
@@ -2689,9 +2693,7 @@ class ColumnChange:
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
-        assert (
-            self.new_column_id is not None
-        ), "Columns should not be removed unless explictly calling the `delete_column` method on the Table instance. If you are encountering this please report a bug to"
+
         return {
             "concreteType": self.concrete_type,
             "oldColumnId": self.old_column_id,
