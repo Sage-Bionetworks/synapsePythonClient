@@ -13,11 +13,10 @@ from synapseclient.models.project import Project
 from synapseclient.models.services import FailureStrategy
 from synapseclient.models.table import (
     Column,
+    ColumnExpansionStrategy,
     ColumnType,
-    CsvResultFormat,
     FacetType,
-    Row,
-    RowsetResultFormat,
+    SchemaStorageStrategy,
     Table,
 )
 from synapseclient.models.team import Team, TeamMember
@@ -33,13 +32,7 @@ __all__ = [
     "Folder",
     "Project",
     "Annotations",
-    "Table",
-    "Column",
-    "ColumnType",
     "FacetType",
-    "CsvResultFormat",
-    "RowsetResultFormat",
-    "Row",
     "Team",
     "TeamMember",
     "UserProfile",
@@ -48,4 +41,16 @@ __all__ = [
     "AgentSession",
     "AgentSessionAccessLevel",
     "AgentPrompt",
+    # Table models
+    "SchemaStorageStrategy",
+    "ColumnExpansionStrategy",
+    "Table",
+    "Column",
+    "ColumnType",
+    "query_async",
+    "query",
 ]
+
+# Static methods to expose as functions
+query_async = Table.query_async
+query = Table.query

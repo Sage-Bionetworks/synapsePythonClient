@@ -945,7 +945,7 @@ class TestAclOnTable:
     async def test_get_acl_default(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_default_permissions"
-        table_with_default_permissions = await table.store_schema_async()
+        table_with_default_permissions = await table.store_async()
         self.schedule_for_cleanup(table_with_default_permissions.id)
 
         # AND the user that created the table
@@ -972,7 +972,7 @@ class TestAclOnTable:
     async def test_get_acl_minimal_permissions_on_entity(self, table: Table) -> None:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_read_permissions_on_project"
-        project_with_minimal_permissions = await table.store_schema_async()
+        project_with_minimal_permissions = await table.store_async()
         self.schedule_for_cleanup(project_with_minimal_permissions.id)
 
         # AND the user that created the table
@@ -1010,7 +1010,7 @@ class TestAclOnTable:
         table.name = (
             str(uuid.uuid4()) + "test_get_acl_through_team_assigned_to_user_and_project"
         )
-        table_with_permissions_through_single_team = await table.store_schema_async()
+        table_with_permissions_through_single_team = await table.store_async()
 
         # AND the user that created the table
         p1 = await UserProfile().get_async(synapse_client=self.syn)
@@ -1070,7 +1070,7 @@ class TestAclOnTable:
             str(uuid.uuid4())
             + "test_get_acl_through_two_teams_assigned_to_user_and_project"
         )
-        table_with_permissions_through_multiple_teams = await table.store_schema_async()
+        table_with_permissions_through_multiple_teams = await table.store_async()
 
         # AND the user that created the table
         p1 = await UserProfile().get_async(synapse_client=self.syn)
@@ -1142,7 +1142,7 @@ class TestAclOnTable:
         # GIVEN a table created with default permissions of administrator
         table.name = str(uuid.uuid4()) + "test_get_acl_for_project_with_registered_user"
         table_with_permissions_for_public_and_authenticated_users = (
-            await table.store_schema_async()
+            await table.store_async()
         )
 
         self.schedule_for_cleanup(
