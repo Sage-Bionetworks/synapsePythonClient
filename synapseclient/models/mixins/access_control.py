@@ -109,9 +109,18 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 READ, DOWNLOAD, UPDATE, DELETE, CHANGE_PERMISSIONS.
 
                 **Defaults to ['READ', 'DOWNLOAD']**
-            modify_benefactor: Set as True when modifying a benefactor's ACL
-            warn_if_inherits: Set as False, when creating a new ACL. Trying to modify
-                the ACL of an Entity that inherits its ACL will result in a warning
+            modify_benefactor: Set as True when modifying a benefactor's ACL. The term
+                'benefactor' is used to indicate which Entity an Entity inherits its
+                ACL from. For example, a newly created Project will be its own
+                benefactor, while a new FileEntity's benefactor will start off as its
+                containing Project. If the entity already has local sharing settings
+                the benefactor would be itself. It may also be the immediate parent,
+                somewhere in the parent tree, or the project itself.
+            warn_if_inherits: When `modify_benefactor` is True, this does not have any
+                effect. When `modify_benefactor` is False, and `warn_if_inherits` is
+                True, a warning log message is produced if the benefactor for the
+                entity you passed into the function is not itself, i.e., it's the
+                parent folder, or another entity in the parent tree.
             overwrite: By default this function overwrites existing permissions for
                 the specified user. Set this flag to False to add new permissions
                 non-destructively.
