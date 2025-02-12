@@ -1264,11 +1264,14 @@ class Table(TableSynchronousProtocol, AccessControllable):
         **kwargs,
     ) -> None:
         """
-        Add or update rows in Synapse from the sources defined below. This method
-        works on a full row replacement in the case of an update. What this means is
+        Add or update rows in Synapse from the sources defined below. In most cases the
+        result of this function call will append rows to the table. In the case of an
+        update this method works on a full row replacement. What this means is
         that you may not do a partial update of a row. If you want to update a row
         you must pass in all the data for that row, or the data for the columns not
         provided will be set to null.
+
+        If you'd like to update a row see the example `Updating rows in a table` below.
 
         If you'd like to perform an `upsert` or partial update of a row you may use
         the `.upsert_rows()` method. See that method for more information.
@@ -3124,3 +3127,119 @@ def _convert_pandas_row_to_python_types(
         return cell
     else:
         return cell
+
+
+# def pandas_df_to_csv(
+#     cls,
+#     schema,
+#     df,
+#     filepath=None,
+#     etag=None,
+#     quoteCharacter='"',
+#     escapeCharacter="\\",
+#     lineEnd=str(os.linesep),
+#     separator=",",
+#     header=True,
+#     includeRowIdAndRowVersion=None,
+#     headers=None,
+#     **kwargs,
+# ):
+#     # infer columns from data frame if not specified
+#     if not headers:
+#         cols = as_table_columns(df)
+#         headers = [SelectColumn.from_column(col) for col in cols]
+
+#     # if the schema has no columns, use the inferred columns
+#     if isinstance(schema, Schema) and not schema.has_columns():
+#         schema.addColumns(cols)
+
+#     # convert row names in the format [row_id]_[version] or [row_id]_[version]_[etag] back to columns
+#     # etag is essentially a UUID
+#     etag_pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}"
+#     row_id_version_pattern = re.compile(r"(\d+)_(\d+)(_(" + etag_pattern + r"))?")
+
+#     row_id = []
+#     row_version = []
+#     row_etag = []
+#     for row_name in df.index.values:
+#         m = row_id_version_pattern.match(str(row_name))
+#         row_id.append(m.group(1) if m else None)
+#         row_version.append(m.group(2) if m else None)
+#         row_etag.append(m.group(4) if m else None)
+
+#     # include row ID and version, if we're asked to OR if it's encoded in row names
+#     if includeRowIdAndRowVersion or (
+#         includeRowIdAndRowVersion is None and any(row_id)
+#     ):
+#         df2 = df.copy()
+
+#         cls._insert_dataframe_column_if_not_exist(df2, 0, "ROW_ID", row_id)
+#         cls._insert_dataframe_column_if_not_exist(
+#             df2, 1, "ROW_VERSION", row_version
+#         )
+#         if any(row_etag):
+#             cls._insert_dataframe_column_if_not_exist(df2, 2, "ROW_ETAG", row_etag)
+
+#         df = df2
+#         includeRowIdAndRowVersion = True
+
+#     f = None
+#     try:
+#         if not filepath:
+#             temp_dir = tempfile.mkdtemp()
+#             filepath = os.path.join(temp_dir, "table.csv")
+
+#         f = io.open(filepath, mode="w", encoding="utf-8", newline="")
+
+#         test_import_pandas()
+#         import pandas as pd
+
+#         if isinstance(schema, Schema):
+#             for col in schema.columns_to_store:
+#                 if col["columnType"] == "DATE":
+
+#                     def _trailing_date_time_millisecond(t):
+#                         if isinstance(t, str):
+#                             return t[:-3]
+
+#                     df[col.name] = pd.to_datetime(
+#                         df[col.name], errors="coerce"
+#                     ).dt.strftime("%s%f")
+#                     df[col.name] = df[col.name].apply(
+#                         lambda x: _trailing_date_time_millisecond(x)
+#                     )
+
+#         df.to_csv(
+#             f,
+#             index=False,
+#             sep=separator,
+#             header=header,
+#             quotechar=quoteCharacter,
+#             escapechar=escapeCharacter,
+#             lineterminator=lineEnd,
+#             na_rep=kwargs.get("na_rep", ""),
+#             float_format="%.12g",
+#         )
+#         # NOTE: reason for flat_format='%.12g':
+#         # pandas automatically converts int columns into float64 columns when some cells in the column have no
+#         # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
+#         # a float into a INTEGER(synapse table type) column. Using the 'g' will strip off '.0' from whole number
+#         # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
+#         # use '%.12g'.c
+#         # see SYNPY-267.
+#     finally:
+#         if f:
+#             f.close()
+
+#     return cls(
+#         schema=schema,
+#         filepath=filepath,
+#         etag=etag,
+#         quoteCharacter=quoteCharacter,
+#         escapeCharacter=escapeCharacter,
+#         lineEnd=lineEnd,
+#         separator=separator,
+#         header=header,
+#         includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+#         headers=headers,
+#     )
