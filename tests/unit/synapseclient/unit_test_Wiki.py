@@ -76,3 +76,12 @@ def test_wiki_with_none_attachments(syn: Synapse):
     with patch.object(syn, "restPOST"):
         w = Wiki(owner="syn1", markdown="markdown", attachments=None)
         syn.store(w)
+
+
+def test_wiki_with_empty_string_parent_wiki_id(syn: Synapse):
+    # WHEN a wiki is created with an empty string parentWikiId
+    with patch.object(syn, "restPOST"):
+        w = Wiki(owner="syn1", markdown="markdown", parentWikiId="")
+        # THEN the parentWikiId is set to None
+        assert w.parentWikiId is None
+        syn.store(w)

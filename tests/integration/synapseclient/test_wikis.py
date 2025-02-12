@@ -126,3 +126,18 @@ async def test_wiki_version(syn, project):
     w2 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=1)
     assert "version 2" in w2.title
     assert "version 2" in w2.markdown
+
+
+async def test_wiki_with_empty_string_parent_wiki_id(syn, project):
+    # WHEN a wiki is created with an empty string parentWikiId
+    # THEN it is still able to be stored
+    syn.store(
+        Wiki(
+            title="This is the title",
+            owner=project,
+            markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!",
+            parentWikiId="",
+        )
+    )
+    # AND there is no parentWikiId to check in the wiki object
+    # because it is not returned by the API when it is not set
