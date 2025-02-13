@@ -11,10 +11,11 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Self, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from pandas.api.types import infer_dtype
+from typing_extensions import Self
 
 from synapseclient import Column as Synapse_Column
 from synapseclient import Synapse

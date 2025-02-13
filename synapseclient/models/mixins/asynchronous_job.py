@@ -3,7 +3,9 @@ import json
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional, Self
+from typing import Any, Dict, Optional
+
+from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
