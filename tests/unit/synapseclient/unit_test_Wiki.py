@@ -26,9 +26,12 @@ def test_Wiki__with_markdown_file():
                     adkflajsl;kfjasd;lfkjsal;kfajslkfjasdlkfj
                     """
     markdown_path = "/somewhere/over/the/rainbow.txt"
-    with patch(
-        "synapseclient.wiki.open", mock_open(read_data=markdown_data), create=True
-    ) as mocked_open, patch("os.path.isfile", return_value=True):
+    with (
+        patch(
+            "synapseclient.wiki.open", mock_open(read_data=markdown_data), create=True
+        ) as mocked_open,
+        patch("os.path.isfile", return_value=True),
+    ):
         # method under test
         wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
@@ -44,9 +47,10 @@ def test_Wiki__markdown_and_markdownFile_both_defined():
 
 def test_Wiki__markdown_is_None_markdownFile_defined():
     markdown_path = "/somewhere/over/the/rainbow.txt"
-    with patch(
-        "synapseclient.wiki.open", mock_open(), create=True
-    ) as mocked_open, patch("os.path.isfile", return_value=True):
+    with (
+        patch("synapseclient.wiki.open", mock_open(), create=True) as mocked_open,
+        patch("os.path.isfile", return_value=True),
+    ):
         # method under test
         Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
@@ -76,3 +80,18 @@ def test_wiki_with_none_attachments(syn: Synapse):
     with patch.object(syn, "restPOST"):
         w = Wiki(owner="syn1", markdown="markdown", attachments=None)
         syn.store(w)
+
+
+def test_wiki_with_empty_string_parent_wiki_id(syn: Synapse):
+    with patch.object(syn, "restPOST") as mock_restPOST:
+        # WHEN a wiki is created with an empty string parentWikiId
+        w = Wiki(owner="syn1", markdown="markdown", parentWikiId="")
+        # THEN the parentWikiId is set to None
+        assert w.parentWikiId is None
+        # WHEN the wiki is stored
+        syn.store(w)
+        # THEN the parentWikiId is set to None in the request
+        mock_restPOST.assert_called_once_with(
+            "/entity/syn1/wiki",
+            '{"markdown": "markdown", "parentWikiId": null, "attachmentFileHandleIds": []}',
+        )

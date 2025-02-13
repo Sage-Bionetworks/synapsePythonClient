@@ -4996,7 +4996,7 @@ class Synapse(object):
                 if createOrUpdate and (
                     (
                         err.response.status_code == 400
-                        and "DuplicateKeyException" in err.message
+                        and "DuplicateKeyException" in err.response.text
                     )
                     or err.response.status_code == 409
                 ):

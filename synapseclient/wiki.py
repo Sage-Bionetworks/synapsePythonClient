@@ -122,6 +122,11 @@ class Wiki(DictObject):
                 kwargs["attachmentFileHandleIds"].append(handle)
             del kwargs["fileHandles"]
 
+        # if parentWikiId is a falsey value (empty string, None, etc),
+        # standardize it to None
+        if "parentWikiId" in kwargs and not kwargs["parentWikiId"]:
+            kwargs["parentWikiId"] = None
+
         super(Wiki, self).__init__(kwargs)
         self.ownerId = id_of(self.owner)
         del self["owner"]
