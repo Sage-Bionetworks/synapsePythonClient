@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 from pytest_mock import MockerFixture
 
+import synapseclient.models.mixins.asynchronous_job as asynchronous_job_module
 import synapseclient.models.table as table_module
 from synapseclient import Evaluation, Synapse
 from synapseclient.core import utils
@@ -431,7 +432,7 @@ class TestRowStorage:
 
         # THEN the table data should fail to be inserted
         assert (
-            "400 Client Error: \nThe first line is expected to be a header but the values do not match the names of of the columns of the table (column_string is not a valid column name or id). Header row: column_string"
+            "400 Client Error: The first line is expected to be a header but the values do not match the names of of the columns of the table (column_string is not a valid column name or id). Header row: column_string"
             in str(e.value)
         )
 
@@ -500,7 +501,7 @@ class TestRowStorage:
         # AND the table exists in Synapse
         table = await table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_async_update = mocker.spy(self.syn, "_waitForAsync")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
@@ -522,9 +523,9 @@ class TestRowStorage:
         spy_csv_file_conversion.assert_called_once()
 
         # AND the schema should not have been updated
-        assert len(spy_async_update.call_args.kwargs["request"]["changes"]) == 1
+        assert len(spy_send_job.call_args.kwargs["request"]["changes"]) == 1
         assert (
-            spy_async_update.call_args.kwargs["request"]["changes"][0]["concreteType"]
+            spy_send_job.call_args.kwargs["request"]["changes"][0]["concreteType"]
             == concrete_types.UPLOAD_TO_TABLE_REQUEST
         )
 
@@ -555,7 +556,7 @@ class TestRowStorage:
         # AND the table exists in Synapse
         table = await table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_async_update = mocker.spy(self.syn, "_waitForAsync")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
@@ -575,13 +576,13 @@ class TestRowStorage:
         spy_csv_file_conversion.assert_called_once()
 
         # AND the schema should not have been updated
-        assert len(spy_async_update.call_args.kwargs["request"]["changes"]) == 2
+        assert len(spy_send_job.call_args.kwargs["request"]["changes"]) == 2
         assert (
-            spy_async_update.call_args.kwargs["request"]["changes"][0]["concreteType"]
+            spy_send_job.call_args.kwargs["request"]["changes"][0]["concreteType"]
             == concrete_types.TABLE_SCHEMA_CHANGE_REQUEST
         )
         assert (
-            spy_async_update.call_args.kwargs["request"]["changes"][1]["concreteType"]
+            spy_send_job.call_args.kwargs["request"]["changes"][1]["concreteType"]
             == concrete_types.UPLOAD_TO_TABLE_REQUEST
         )
 
@@ -628,7 +629,7 @@ class TestRowStorage:
 
         # THEN the table data should fail to be inserted
         assert (
-            "400 Client Error: \nThe first line is expected to be a header but the values do not match the names of of the columns of the table (column_key_2 is not a valid column name or id). Header row: column_string,column_key_2"
+            "400 Client Error: The first line is expected to be a header but the values do not match the names of of the columns of the table (column_key_2 is not a valid column name or id). Header row: column_string,column_key_2"
             in str(e.value)
         )
 
@@ -949,8 +950,6 @@ class TestUpsertRows:
         )
         table = await table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        # TODO: Add a spy for the partial changeset to verify number of changes
-        spy_async_update = mocker.spy(self.syn, "_waitForAsync")
 
         # AND A bogus file
         path = utils.make_bogus_data_file()
@@ -1260,8 +1259,6 @@ class TestUpsertRows:
         )
         table = await table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        # TODO: Add a spy for the partial changeset to verify number of changes
-        spy_async_update = mocker.spy(self.syn, "_waitForAsync")
 
         # AND A bogus file
         path = utils.make_bogus_data_file()

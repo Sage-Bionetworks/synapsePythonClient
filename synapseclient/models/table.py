@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Self, Union
 
 import pandas as pd
 from pandas.api.types import infer_dtype
@@ -35,6 +35,7 @@ from synapseclient.core.utils import (
     merge_dataclass_entities,
 )
 from synapseclient.models import Activity, Annotations
+from synapseclient.models.mixins import AsynchronousCommunicator
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.protocols.table_protocol import (
     ColumnSynchronousProtocol,
@@ -1159,7 +1160,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
         results = await Table.query_async(
             query=select_statement, synapse_client=synapse_client
         )
-        partial_changes_objects_to_rename: List[PartialRow] = []
+        rows_to_update_df: List[PartialRow] = []
         indexs_of_original_df_with_changes = []
         for _, row in results.iterrows():
             row_id = row["ROW_ID"]
@@ -1207,7 +1208,7 @@ class Table(TableSynchronousProtocol, AccessControllable):
                         for partial_change_key, partial_change_value in partial_change_values.items()
                     ],
                 )
-                partial_changes_objects_to_rename.append(partial_chage)
+                rows_to_update_df.append(partial_chage)
                 indexs_of_original_df_with_changes.append(matching_row.index[0])
 
         rows_to_insert_df = values.loc[
@@ -1216,13 +1217,13 @@ class Table(TableSynchronousProtocol, AccessControllable):
 
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(
-            f"[{self.id}:{self.name}]: Found {len(partial_changes_objects_to_rename)}"
+            f"[{self.id}:{self.name}]: Found {len(rows_to_update_df)}"
             f" rows to update and {len(rows_to_insert_df)} rows to insert"
         )
 
         if client.logger.isEnabledFor(logging.DEBUG):
             client.logger.debug(
-                f"[{self.id}:{self.name}]: Rows to update: {partial_changes_objects_to_rename}"
+                f"[{self.id}:{self.name}]: Rows to update: {rows_to_update_df}"
             )
             client.logger.debug(
                 f"[{self.id}:{self.name}]: Rows to insert: {rows_to_insert_df}"
@@ -1231,27 +1232,28 @@ class Table(TableSynchronousProtocol, AccessControllable):
         if dry_run:
             return
 
-        if partial_changes_objects_to_rename:
-            partial_row_set = PartialRowSet(
-                table_id=self.id, rows=partial_changes_objects_to_rename
-            )
+        appendable_rowset_request = None
+        if rows_to_update_df:
+            partial_row_set = PartialRowSet(table_id=self.id, rows=rows_to_update_df)
             appendable_rowset_request = AppendableRowSetRequest(
                 entity_id=self.id, to_append=partial_row_set
-            )
-            # TODO: Convert this over to use the `AsynchronousCommunicator` mixin when available (https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1152)
-            # TODO: Look into making a change here that allows the `TableUpdateTransactionRequest` to also execute any inserts to the table within the same transaction. Currently data will be upserted first, and then inserted.
-            uri = f"/entity/{self.id}/table/transaction/async"
-            transaction_request = TableUpdateTransactionRequest(
-                entity_id=self.id, changes=[appendable_rowset_request]
-            )
-            client._waitForAsync(
-                uri=uri, request=transaction_request.to_synapse_request()
             )
 
         if not rows_to_insert_df.empty:
             await self.store_rows_async(
-                values=rows_to_insert_df, synapse_client=synapse_client
+                values=rows_to_insert_df,
+                additional_changes=[appendable_rowset_request]
+                if appendable_rowset_request
+                else None,
+                synapse_client=synapse_client,
             )
+        else:
+            await TableUpdateTransaction(
+                entity_id=self.id,
+                changes=[appendable_rowset_request]
+                if appendable_rowset_request
+                else None,
+            ).send_job_and_wait_async(synapse_client=client)
 
     async def store_rows_async(
         self,
@@ -1259,6 +1261,13 @@ class Table(TableSynchronousProtocol, AccessControllable):
         schema_storage_strategy: SchemaStorageStrategy = None,
         column_expansion_strategy: ColumnExpansionStrategy = None,
         dry_run: bool = False,
+        additional_changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
@@ -1342,6 +1351,12 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 would be taken, such as creating a new column, updating a column, or
                 updating table metadata. This is useful for debugging and understanding
                 what actions would be taken without actually performing them.
+
+            additional_changes: Additional changes to the table that should execute
+                within the same transaction as appending or updating rows. This is used
+                as a part of the `upsert_rows` method call to allow for the updating of
+                rows and the updating of the table schema in the same transaction. In
+                most cases you will not need to use this argument.
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -1538,6 +1553,8 @@ class Table(TableSynchronousProtocol, AccessControllable):
                 f"[{self.id}:{self.name}]: Dry run enabled. No changes will be made."
             )
 
+        schema_change_request = None
+
         if schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA:
             infered_columns = infer_column_type_from_data(values=values)
 
@@ -1562,9 +1579,9 @@ class Table(TableSynchronousProtocol, AccessControllable):
                     ):
                         column_instance.maximum_size = infered_column.maximum_size
 
-        schema_change_request = await self._generate_schema_change_request(
-            dry_run=dry_run, synapse_client=synapse_client
-        )
+            schema_change_request = await self._generate_schema_change_request(
+                dry_run=dry_run, synapse_client=synapse_client
+            )
 
         if dry_run:
             return
@@ -1582,41 +1599,39 @@ class Table(TableSynchronousProtocol, AccessControllable):
             upload_request = UploadToTableRequest(
                 table_id=self.id, upload_file_handle_id=file_handle_id, update_etag=None
             )
-            uri = f"/entity/{self.id}/table/transaction/async"
             changes = []
             if schema_change_request:
                 changes.append(schema_change_request)
+            if additional_changes:
+                changes.extend(additional_changes)
             changes.append(upload_request)
-            # TODO: Convert this over to use the `AsynchronousCommunicator` mixin when available (https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1152)
-            transaction_request = TableUpdateTransactionRequest(
+
+            await TableUpdateTransaction(
                 entity_id=self.id, changes=changes
-            )
-            client._waitForAsync(
-                uri=uri, request=transaction_request.to_synapse_request()
-            )
+            ).send_job_and_wait_async(synapse_client=client)
         elif isinstance(values, pd.DataFrame):
-            # TODO: Remove file after upload
             filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
-            # TODO: Support everything from `from_data_frame` to_csv call
-            values.to_csv(filepath, index=False)
-            file_handle_id = await multipart_upload_file_async(
-                syn=client, file_path=filepath, content_type="text/csv"
-            )
+            try:
+                # TODO: Support everything from `from_data_frame` to_csv call
+                values.to_csv(filepath, index=False)
+                file_handle_id = await multipart_upload_file_async(
+                    syn=client, file_path=filepath, content_type="text/csv"
+                )
+            finally:
+                os.remove(filepath)
             upload_request = UploadToTableRequest(
                 table_id=self.id, upload_file_handle_id=file_handle_id, update_etag=None
             )
-            uri = f"/entity/{self.id}/table/transaction/async"
-            # TODO: Convert this over to use the `AsynchronousCommunicator` mixin when available (https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1152)
             changes = []
             if schema_change_request:
                 changes.append(schema_change_request)
+            if additional_changes:
+                changes.extend(additional_changes)
             changes.append(upload_request)
-            transaction_request = TableUpdateTransactionRequest(
+
+            await TableUpdateTransaction(
                 entity_id=self.id, changes=changes
-            )
-            client._waitForAsync(
-                uri=uri, request=transaction_request.to_synapse_request()
-            )
+            ).send_job_and_wait_async(synapse_client=client)
         else:
             raise ValueError(
                 "Don't know how to make tables from values of type %s." % type(values)
@@ -1914,14 +1929,9 @@ class Table(TableSynchronousProtocol, AccessControllable):
             return self
 
         if schema_change_request:
-            uri = f"/entity/{self.id}/table/transaction/async"
-            transaction_request = TableUpdateTransactionRequest(
+            await TableUpdateTransaction(
                 entity_id=self.id, changes=[schema_change_request]
-            )
-            # TODO: Convert this over to use the `AsynchronousCommunicator` mixin when available (https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1152)
-            client._waitForAsync(
-                uri=uri, request=transaction_request.to_synapse_request()
-            )
+            ).send_job_and_wait_async(synapse_client=client)
 
             # Replace the columns after a schema change in case any column names were updated
             updated_columns = OrderedDict()
@@ -2862,14 +2872,20 @@ class UploadToTableRequest:
 
 
 @dataclass
-class TableUpdateTransactionRequest:
+class TableUpdateTransaction(AsynchronousCommunicator):
     """
     A request to update a table. This is used to update a table with a set of changes.
+
+    After calling the `send_job_and_wait_async` method the `results` attribute will be
+    filled in based off <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>.
     """
 
     entity_id: str
     changes: List[Union[TableSchemaChangeRequest, UploadToTableRequest]]
     concrete_type: str = concrete_types.TABLE_UPDATE_TRANSACTION_REQUEST
+    results: Optional[List[Dict[str, Any]]] = None
+    """This will be an array of
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>."""
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
@@ -2878,6 +2894,19 @@ class TableUpdateTransactionRequest:
             "entityId": self.entity_id,
             "changes": [change.to_synapse_request() for change in self.changes],
         }
+
+    def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API that matches <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>
+
+        Returns:
+            An instance of this class.
+        """
+        self.results = synapse_response.get("results", None)
+        return self
 
 
 def infer_column_type_from_data(values: pd.DataFrame) -> List[Column]:

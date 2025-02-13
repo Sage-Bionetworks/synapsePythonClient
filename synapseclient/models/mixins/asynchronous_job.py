@@ -3,14 +3,18 @@ import json
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Self
 
 from synapseclient import Synapse
-from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
+from synapseclient.core.constants.concrete_types import (
+    AGENT_CHAT_REQUEST,
+    TABLE_UPDATE_TRANSACTION_REQUEST,
+)
 from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
+    TABLE_UPDATE_TRANSACTION_REQUEST: "/entity/{entityId}/table/transaction/async",
 }
 
 
@@ -21,9 +25,7 @@ class AsynchronousCommunicator:
         """Converts the request to a request expected of the Synapse REST API."""
         raise NotImplementedError("to_synapse_request must be implemented.")
 
-    def fill_from_dict(
-        self, synapse_response: Dict[str, str]
-    ) -> "AsynchronousCommunicator":
+    def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
         """
         Converts a response from the REST API into this dataclass.
 
@@ -51,7 +53,7 @@ class AsynchronousCommunicator:
         post_exchange_args: Optional[Dict[str, Any]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> "AsynchronousCommunicator":
+    ) -> "Self":
         """Send the job to the Asynchronous Job service and wait for it to complete.
         Intended to be called by a class inheriting from this mixin to start a job
         in the Synapse API and wait for it to complete. The inheriting class needs to
@@ -101,6 +103,8 @@ class AsynchronousCommunicator:
             synapse_client=synapse_client,
         )
         self.fill_from_dict(synapse_response=result)
+        if not post_exchange_args:
+            post_exchange_args = {}
         await self._post_exchange_async(
             **post_exchange_args, synapse_client=synapse_client
         )
@@ -320,8 +324,14 @@ async def send_job_async(
         raise ValueError(f"Unsupported request type: {request_type}")
 
     client = Synapse.get_client(synapse_client=synapse_client)
+    uri = ASYNC_JOB_URIS[request_type]
+    if "{entityId}" in uri:
+        if "entityId" not in request:
+            raise ValueError(f"Attempting to send job with missing id in uri: {uri}")
+        uri = uri.format(entityId=request["entityId"])
+
     response = await client.rest_post_async(
-        uri=f"{ASYNC_JOB_URIS[request_type]}/start", body=json.dumps(request)
+        uri=f"{uri}/start", body=json.dumps(request)
     )
     return response["token"]
 
