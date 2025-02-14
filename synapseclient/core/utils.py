@@ -26,7 +26,7 @@ import uuid
 import warnings
 import zipfile
 from dataclasses import asdict, fields, is_dataclass
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, List, TypeVar
 
 import requests
 from opentelemetry import trace
@@ -35,6 +35,7 @@ from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 if TYPE_CHECKING:
     from synapseclient.models import Column, File, Folder, Project, Table
+    from synapseclient.models.dataset import EntityRef
 
 R = TypeVar("R")
 
@@ -1430,6 +1431,14 @@ def merge_dataclass_entities(
                         destination=destination_columns[source_column_key],
                         fields_to_ignore=["id"],
                     )
+        elif key == "items":
+            source_items: List["EntityRef"] = getattr(source, key)
+            destination_items: List["EntityRef"] = getattr(destination, key)
+            destination_item_synapse_ids = [item.id for item in destination_items]
+
+            for source_item in source_items:
+                if source_item.id not in destination_item_synapse_ids:
+                    destination_items.append(source_item)
 
     # Update destination's fields with the merged dictionary
     for key, value in modified_items.items():

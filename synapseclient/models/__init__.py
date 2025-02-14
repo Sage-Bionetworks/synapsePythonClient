@@ -7,18 +7,19 @@ from synapseclient.models.agent import (
     AgentSessionAccessLevel,
 )
 from synapseclient.models.annotations import Annotations
+from synapseclient.models.dataset import Dataset
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
-from synapseclient.models.project import Project
-from synapseclient.models.services import FailureStrategy
-from synapseclient.models.table import (
+from synapseclient.models.mixins.table_operator import (
     Column,
     ColumnExpansionStrategy,
     ColumnType,
     FacetType,
     SchemaStorageStrategy,
-    Table,
 )
+from synapseclient.models.project import Project
+from synapseclient.models.services import FailureStrategy
+from synapseclient.models.table import Table
 from synapseclient.models.team import Team, TeamMember
 from synapseclient.models.user import UserPreference, UserProfile
 
@@ -49,6 +50,8 @@ __all__ = [
     "ColumnType",
     "query_async",
     "query",
+    # Dataset model
+    "Dataset",
 ]
 
 # Static methods to expose as functions

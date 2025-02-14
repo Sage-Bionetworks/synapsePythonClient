@@ -8,13 +8,20 @@ import pytest
 from pytest_mock import MockerFixture
 
 import synapseclient.models.mixins.asynchronous_job as asynchronous_job_module
-import synapseclient.models.table as table_module
+import synapseclient.models.mixins.table_operator as table_module
 from synapseclient import Evaluation, Synapse
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Column, ColumnType, File, Project, Table, query_async
-from synapseclient.models.table import SchemaStorageStrategy
+from synapseclient.models import (
+    Column,
+    ColumnType,
+    File,
+    Project,
+    SchemaStorageStrategy,
+    Table,
+    query_async,
+)
 
 
 class TestTableCreation:
