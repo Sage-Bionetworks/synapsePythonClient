@@ -394,22 +394,24 @@ class TableOperator(TableOperatorSynchronousProtocol):
             `get_async` call, then you'll make the changes, and finally call the
             `.store_async()` method.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    table = await Table(id="syn4567").get_async(include_activity=True)
-                    print(table)
+            async def main():
+                table = await Table(id="syn4567").get_async(include_activity=True)
+                print(table)
 
-                    # Columns are retrieved by default
-                    print(table.columns)
-                    print(table.activity)
+                # Columns are retrieved by default
+                print(table.columns)
+                print(table.activity)
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
         Example: Getting metadata about a table using name and parent_id
             Get a table by name/parent_id and print out the columns and activity.
@@ -418,20 +420,22 @@ class TableOperator(TableOperatorSynchronousProtocol):
             be set to True during the `get_async` call, then you'll make the changes,
             and finally call the `.store_async()` method.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    table = await Table(name="my_table", parent_id="syn1234").get_async(include_columns=True, include_activity=True)
-                    print(table)
-                    print(table.columns)
-                    print(table.activity)
+            async def main():
+                table = await Table(name="my_table", parent_id="syn1234").get_async(include_columns=True, include_activity=True)
+                print(table)
+                print(table.columns)
+                print(table.activity)
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
         """
         if not (self.id or (self.name and self.parent_id)):
             raise ValueError(
@@ -479,16 +483,18 @@ class TableOperator(TableOperatorSynchronousProtocol):
         Example: Deleting a table
             Deleting a table is only supported by the ID of the table.
 
-                import asyncio
-                from synapseclient import Synapse
+            ```python
+            import asyncio
+            from synapseclient import Synapse
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    await Table(id="syn4567").delete_async()
+            async def main():
+                await Table(id="syn4567").delete_async()
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
         """
         if not (self.id or (self.name and self.parent_id)):
             raise ValueError(
@@ -524,39 +530,43 @@ class TableOperator(TableOperatorSynchronousProtocol):
             This example shows how you may delete a column from a table and then store
             the change back in Synapse.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(
-                    id="syn1234"
-                ).get(include_columns=True)
+            table = Table(
+                id="syn1234"
+            ).get(include_columns=True)
 
-                table.delete_column(name="my_column")
-                table.store()
+            table.delete_column(name="my_column")
+            table.store()
+            ```
 
         Example: Deleting a column (async)
             This example shows how you may delete a column from a table and then store
             the change back in Synapse.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    table = await Table(
-                        id="syn1234"
-                    ).get_async(include_columns=True)
+            async def main():
+                table = await Table(
+                    id="syn1234"
+                ).get_async(include_columns=True)
 
-                    table.delete_column(name="my_column")
-                    table.store_async()
+                table.delete_column(name="my_column")
+                table.store_async()
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
         """
         if not self._last_persistent_instance:
             raise ValueError(
@@ -600,136 +610,148 @@ class TableOperator(TableOperatorSynchronousProtocol):
             This example shows how you may add a single column to a table and then store
             the change back in Synapse.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(
-                    id="syn1234"
-                ).get(include_columns=True)
+            table = Table(
+                id="syn1234"
+            ).get(include_columns=True)
 
-                table.add_column(
-                    Column(name="my_column", column_type=ColumnType.STRING)
-                )
-                table.store()
+            table.add_column(
+                Column(name="my_column", column_type=ColumnType.STRING)
+            )
+            table.store()
+            ```
 
 
         Example: Adding multiple columns
             This example shows how you may add multiple columns to a table and then store
             the change back in Synapse.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(
-                    id="syn1234"
-                ).get(include_columns=True)
+            table = Table(
+                id="syn1234"
+            ).get(include_columns=True)
 
-                table.add_column([
-                    Column(name="my_column", column_type=ColumnType.STRING),
-                    Column(name="my_column2", column_type=ColumnType.INTEGER),
-                ])
-                table.store()
+            table.add_column([
+                Column(name="my_column", column_type=ColumnType.STRING),
+                Column(name="my_column2", column_type=ColumnType.INTEGER),
+            ])
+            table.store()
+            ```
 
         Example: Adding a column at a specific index
             This example shows how you may add a column at a specific index to a table
             and then store the change back in Synapse. If the index is out of bounds the
             column will be added to the end of the list.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(
-                    id="syn1234"
-                ).get(include_columns=True)
+            table = Table(
+                id="syn1234"
+            ).get(include_columns=True)
 
-                table.add_column(
-                    Column(name="my_column", column_type=ColumnType.STRING),
-                    # Add the column at the beginning of the list
-                    index=0
-                )
-                table.store()
+            table.add_column(
+                Column(name="my_column", column_type=ColumnType.STRING),
+                # Add the column at the beginning of the list
+                index=0
+            )
+            table.store()
+            ```
 
         Example: Adding a single column (async)
             This example shows how you may add a single column to a table and then store
             the change back in Synapse.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    table = await Table(
-                        id="syn1234"
-                    ).get_async(include_columns=True)
+            async def main():
+                table = await Table(
+                    id="syn1234"
+                ).get_async(include_columns=True)
 
-                    table.add_column(
-                        Column(name="my_column", column_type=ColumnType.STRING)
-                    )
-                    table.store_async()
+                table.add_column(
+                    Column(name="my_column", column_type=ColumnType.STRING)
+                )
+                table.store_async()
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
         Example: Adding multiple columns (async)
             This example shows how you may add multiple columns to a table and then store
             the change back in Synapse.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    table = await Table(
-                        id="syn1234"
-                    ).get_async(include_columns=True)
+            async def main():
+                table = await Table(
+                    id="syn1234"
+                ).get_async(include_columns=True)
 
-                    table.add_column([
-                        Column(name="my_column", column_type=ColumnType.STRING),
-                        Column(name="my_column2", column_type=ColumnType.INTEGER),
-                    ])
-                    table.store_async()
+                table.add_column([
+                    Column(name="my_column", column_type=ColumnType.STRING),
+                    Column(name="my_column2", column_type=ColumnType.INTEGER),
+                ])
+                table.store_async()
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
         Example: Adding a column at a specific index (async)
             This example shows how you may add a column at a specific index to a table
             and then store the change back in Synapse. If the index is out of bounds the
             column will be added to the end of the list.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    table = await Table(
-                        id="syn1234"
-                    ).get_async(include_columns=True)
+            async def main():
+                table = await Table(
+                    id="syn1234"
+                ).get_async(include_columns=True)
 
-                    table.add_column(
-                        Column(name="my_column", column_type=ColumnType.STRING),
-                        # Add the column at the beginning of the list
-                        index=0
-                    )
-                    table.store_async()
+                table.add_column(
+                    Column(name="my_column", column_type=ColumnType.STRING),
+                    # Add the column at the beginning of the list
+                    index=0
+                )
+                table.store_async()
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
         """
         if not self._last_persistent_instance:
             raise ValueError(
@@ -765,42 +787,46 @@ class TableOperator(TableOperatorSynchronousProtocol):
             This example shows how you may reorder a column in a table and then store
             the change back in Synapse.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(
-                    id="syn1234"
-                ).get(include_columns=True)
+            table = Table(
+                id="syn1234"
+            ).get(include_columns=True)
 
-                # Move the column to the beginning of the list
-                table.reorder_column(name="my_column", index=0)
-                table.store()
+            # Move the column to the beginning of the list
+            table.reorder_column(name="my_column", index=0)
+            table.store()
+            ```
 
 
         Example: Reordering a column (async)
             This example shows how you may reorder a column in a table and then store
             the change back in Synapse.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    table = await Table(
-                        id="syn1234"
-                    ).get_async(include_columns=True)
+            async def main():
+                table = await Table(
+                    id="syn1234"
+                ).get_async(include_columns=True)
 
-                    # Move the column to the beginning of the list
-                    table.reorder_column(name="my_column", index=0)
-                    table.store_async()
+                # Move the column to the beginning of the list
+                table.reorder_column(name="my_column", index=0)
+                table.store_async()
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
         """
         if not self._last_persistent_instance:
             raise ValueError(
@@ -887,73 +913,79 @@ class TableOperator(TableOperatorSynchronousProtocol):
         Example: Replacing all columns with a list of columns
             .
 
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(
-                    id="syn1234"
-                ).get(include_columns=True)
+            table = Table(
+                id="syn1234"
+            ).get(include_columns=True)
 
-                columns = [
-                    Column(name="my_string_column", column_type=ColumnType.STRING),
-                    Column(name="my_integer_column", column_type=ColumnType.INTEGER),
-                    Column(name="my_double_column", column_type=ColumnType.DOUBLE),
-                    Column(name="my_boolean_column", column_type=ColumnType.BOOLEAN),
-                ]
+            columns = [
+                Column(name="my_string_column", column_type=ColumnType.STRING),
+                Column(name="my_integer_column", column_type=ColumnType.INTEGER),
+                Column(name="my_double_column", column_type=ColumnType.DOUBLE),
+                Column(name="my_boolean_column", column_type=ColumnType.BOOLEAN),
+            ]
 
-                table.set_columns(columns=columns)
-                table.store()
+            table.set_columns(columns=columns)
+            table.store()
+            ```
 
         Example: Replacing all columns with a dictionary of columns
             When specifying a number of columns via a dict setting the `name` attribute
             on the `Column` object is optional. When it is not specified it will be
             pulled from the key of the dict.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(
-                    id="syn1234"
-                ).get(include_columns=True)
+            table = Table(
+                id="syn1234"
+            ).get(include_columns=True)
 
-                columns = {
-                    "my_string_column": Column(column_type=ColumnType.STRING),
-                    "my_integer_column": Column(column_type=ColumnType.INTEGER),
-                    "my_double_column": Column(column_type=ColumnType.DOUBLE),
-                    "my_boolean_column": Column(column_type=ColumnType.BOOLEAN),
-                }
+            columns = {
+                "my_string_column": Column(column_type=ColumnType.STRING),
+                "my_integer_column": Column(column_type=ColumnType.INTEGER),
+                "my_double_column": Column(column_type=ColumnType.DOUBLE),
+                "my_boolean_column": Column(column_type=ColumnType.BOOLEAN),
+            }
 
-                table.set_columns(columns=columns)
-                table.store()
+            table.set_columns(columns=columns)
+            table.store()
+            ```
 
         Example: Replacing all columns with an OrderedDict of columns
             .
 
-                from synapseclient import Synapse
-                from synapseclient.models import Column, ColumnType, Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(
-                    id="syn1234"
-                ).get(include_columns=True)
+            table = Table(
+                id="syn1234"
+            ).get(include_columns=True)
 
-                columns = OrderedDict({
-                    "my_string_column": Column(column_type=ColumnType.STRING),
-                    "my_integer_column": Column(column_type=ColumnType.INTEGER),
-                    "my_double_column": Column(column_type=ColumnType.DOUBLE),
-                    "my_boolean_column": Column(column_type=ColumnType.BOOLEAN),
-                })
+            columns = OrderedDict({
+                "my_string_column": Column(column_type=ColumnType.STRING),
+                "my_integer_column": Column(column_type=ColumnType.INTEGER),
+                "my_double_column": Column(column_type=ColumnType.DOUBLE),
+                "my_boolean_column": Column(column_type=ColumnType.BOOLEAN),
+            })
 
-                table.set_columns(columns=columns)
-                table.store()
+            table.set_columns(columns=columns)
+            table.store()
+            ```
         """
         if not self._last_persistent_instance:
             raise ValueError(
@@ -997,18 +1029,20 @@ class TableOperator(TableOperatorSynchronousProtocol):
             This example shows how you may query for data in a table and print out the
             results.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    results = await Table.query_async(query="SELECT * FROM syn1234")
-                    print(results)
+            async def main():
+                results = await Table.query_async(query="SELECT * FROM syn1234")
+                print(results)
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
         """
         # TODO: Implement similar logic to synapseclient/table.py::CsvFileTable::from_table_query and what it can handle
         # It should handle for any of the arguments available there in order to support correctly reading in the CSV
@@ -1110,7 +1144,7 @@ class PartialRowSet:
 class AppendableRowSetRequest:
     """
     A request to append rows to a table. This is used to append rows to a table. This
-    request is used in the `TableUpdateTransactionRequest` to indicate what rows should
+    request is used in the `TableUpdateTransaction` to indicate what rows should
     be upserted in the table.
     """
 
@@ -1131,7 +1165,7 @@ class AppendableRowSetRequest:
 class UploadToTableRequest:
     """
     A request to upload a file to a table. This is used to insert any rows via a CSV
-    file into a table. This request is used in the `TableUpdateTransactionRequest`.
+    file into a table. This request is used in the `TableUpdateTransaction`.
     """
 
     table_id: str
@@ -1185,7 +1219,7 @@ class ColumnChange:
 class TableSchemaChangeRequest:
     """
     A request to change the schema of a table. This is used to change the columns in a
-    table. This request is used in the `TableUpdateTransactionRequest` to indicate what
+    table. This request is used in the `TableUpdateTransaction` to indicate what
     changes should be made to the columns in the table.
     """
 
@@ -1258,7 +1292,7 @@ class FacetType(str, Enum):
 
 class ColumnType(str, Enum):
     """The column type determines the type of data that can be stored in a column.
-    Switching between types (using a transaction with TableUpdateTransactionRequest
+    Switching between types (using a transaction with TableUpdateTransaction
     in the "changes" list) is generally allowed except for switching to "_LIST"
     suffixed types. In such cases, a new column must be created and data must be
     copied over manually"""
@@ -1377,7 +1411,7 @@ class JsonSubColumn:
 
     column_type: ColumnType
     """The column type determines the type of data that can be stored in a column.
-    Switching between types (using a transaction with TableUpdateTransactionRequest
+    Switching between types (using a transaction with TableUpdateTransaction
     in the "changes" list) is generally allowed except for switching to "_LIST" suffixed
     types. In such cases, a new column must be created and data must be copied
     over manually"""
@@ -1417,7 +1451,7 @@ class Column(ColumnSynchronousProtocol):
 
     column_type: Optional[ColumnType] = None
     """The column type determines the type of data that can be stored in a column.
-    Switching between types (using a transaction with TableUpdateTransactionRequest
+    Switching between types (using a transaction with TableUpdateTransaction
     in the "changes" list) is generally allowed except for switching to "_LIST"
     suffixed types. In such cases, a new column must be created and data must be
     copied over manually"""
@@ -1688,27 +1722,29 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             The following code will update the first row's `col2` to `22`, update the
             second row's `col3` to `33`, and insert a new row:
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table
-                import pandas as pd
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
+            import pandas as pd
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
 
-                async def main():
-                    table = await Table(id="syn123").get_async(include_columns=True)
+            async def main():
+                table = await Table(id="syn123").get_async(include_columns=True)
 
-                    df = {
-                        'col1': ['A', 'B', 'C'],
-                        'col2': [22, 2, 3],
-                        'col3': [1, 33, 3],
-                    }
+                df = {
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [22, 2, 3],
+                    'col3': [1, 33, 3],
+                }
 
-                    await table.upsert_rows_async(values=df, primary_keys=["col1"])
+                await table.upsert_rows_async(values=df, primary_keys=["col1"])
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
             The resulting table will look like this:
 
@@ -1729,26 +1765,28 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             The following code will update the first row's `col2` to `22`, update the
             second row's `col3` to `33`, and insert a new row:
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
 
-                async def main():
-                    table = await Table(id="syn123").get_async(include_columns=True)
+            async def main():
+                table = await Table(id="syn123").get_async(include_columns=True)
 
-                    df = {
-                        'col1': ['A', 'B'],
-                        'col2': [None, 2],
-                        'col3': [1, None],
-                    }
+                df = {
+                    'col1': ['A', 'B'],
+                    'col2': [None, 2],
+                    'col3': [1, None],
+                }
 
-                    await table.upsert_rows_async(values=df, primary_keys=["col1"])
+                await table.upsert_rows_async(values=df, primary_keys=["col1"])
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
 
             The resulting table will look like this:
@@ -2066,23 +2104,25 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
             The following code will insert rows into the table:
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    data_to_insert = {
-                        'col1': ['A', 'B', 'C'],
-                        'col2': [1, 2, 3],
-                        'col3': [1, 2, 3],
-                    }
+            async def main():
+                data_to_insert = {
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [1, 2, 3],
+                    'col3': [1, 2, 3],
+                }
 
-                    await Table(id="syn1234").store_rows_async(values=data_to_insert)
+                await Table(id="syn1234").store_rows_async(values=data_to_insert)
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
             The resulting table will look like this:
 
@@ -2096,26 +2136,28 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             This example shows how you may insert rows into a table that does not have
             columns. The columns will be inferred from the data that is being stored.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table, SchemaStorageStrategy
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    data_to_insert = {
-                        'col1': ['A', 'B', 'C'],
-                        'col2': [1, 2, 3],
-                        'col3': [1, 2, 3],
-                    }
+            async def main():
+                data_to_insert = {
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [1, 2, 3],
+                    'col3': [1, 2, 3],
+                }
 
-                    await Table(id="syn1234").store_rows_async(
-                        values=data_to_insert,
-                        schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
-                    )
+                await Table(id="syn1234").store_rows_async(
+                    values=data_to_insert,
+                    schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
+                )
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
             The resulting table will look like this:
 
@@ -2130,27 +2172,29 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             `SchemaStorageStrategy` set to `INFER_FROM_DATA`. This will show you the
             actions that would be taken, but not actually perform the actions.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table, SchemaStorageStrategy
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    data_to_insert = {
-                        'col1': ['A', 'B', 'C'],
-                        'col2': [1, 2, 3],
-                        'col3': [1, 2, 3],
-                    }
+            async def main():
+                data_to_insert = {
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [1, 2, 3],
+                    'col3': [1, 2, 3],
+                }
 
-                    await Table(id="syn1234").store_rows_async(
-                        values=data_to_insert,
-                        dry_run=True,
-                        schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
-                    )
+                await Table(id="syn1234").store_rows_async(
+                    values=data_to_insert,
+                    dry_run=True,
+                    schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
+                )
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
             The result of running this action will print to the console the actions that
             would be taken, but not actually perform the actions.
@@ -2174,25 +2218,27 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             returned when querying the table. If you add data that does not have these
             columns the data will be treated as new rows to be inserted.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table, query_async
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, query_async
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    query_results = await query_async(query="select * from syn1234 where col1 in ('A', 'B')")
+            async def main():
+                query_results = await query_async(query="select * from syn1234 where col1 in ('A', 'B')")
 
-                    # Update `col2` of the row where `col1` is `A` to `22`
-                    query_results.loc[query_results['col1'] == 'A', 'col2'] = 22
+                # Update `col2` of the row where `col1` is `A` to `22`
+                query_results.loc[query_results['col1'] == 'A', 'col2'] = 22
 
-                    # Update `col3` of the row where `col1` is `B` to `33`
-                    query_results.loc[query_results['col1'] == 'B', 'col3'] = 33
+                # Update `col3` of the row where `col1` is `B` to `33`
+                query_results.loc[query_results['col1'] == 'B', 'col3'] = 33
 
-                    await Table(id="syn1234").store_rows_async(values=query_results)
+                await Table(id="syn1234").store_rows_async(values=query_results)
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
             The resulting table will look like this:
 
@@ -2354,17 +2400,19 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         Example: Selecting a row to delete
             This example shows how you may select a row to delete from a table.
 
-                import asyncio
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                async def main():
-                    await Table(id="syn1234").delete_rows_async(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
+            async def main():
+                await Table(id="syn1234").delete_rows_async(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
         """
         client = Synapse.get_client(synapse_client=synapse_client)
         results_from_query = await TableOperator.query_async(
@@ -2413,10 +2461,12 @@ def infer_column_type_from_data(values: pd.DataFrame) -> List[Column]:
 
     Example:
 
+        ```python
         import pandas as pd
 
         df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
         cols = infer_column_type_from_data(df)
+        ```
     """
 
     if isinstance(values, pd.DataFrame):

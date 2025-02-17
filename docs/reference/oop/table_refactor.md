@@ -23,24 +23,24 @@ client.
         - get_acl
         - set_permissions
 
-::: synapseclient.models.table.SchemaStorageStrategy
-::: synapseclient.models.table.ColumnExpansionStrategy
+::: synapseclient.models.mixins.table_operator.SchemaStorageStrategy
+::: synapseclient.models.mixins.table_operator.ColumnExpansionStrategy
 
-::: synapseclient.models.FacetType
+::: synapseclient.models.mixins.table_operator.FacetType
 ::: synapseclient.models.ColumnType
-::: synapseclient.models.table.JsonSubColumn
+::: synapseclient.models.mixins.table_operator.JsonSubColumn
 
 ::: synapseclient.models.Column
     options:
         members:
 
-::: synapseclient.models.table.ColumnChange
-::: synapseclient.models.table.PartialRow
-::: synapseclient.models.table.PartialRowSet
-::: synapseclient.models.table.TableSchemaChangeRequest
-::: synapseclient.models.table.AppendableRowSetRequest
-::: synapseclient.models.table.UploadToTableRequest
-::: synapseclient.models.table.TableUpdateTransactionRequest
-::: synapseclient.models.table.CsvTableDescriptor
-::: synapseclient.models.table.infer_column_type_from_data
-::: synapseclient.models.table.csv_to_pandas_df
+::: synapseclient.models.mixins.table_operator.ColumnChange
+::: synapseclient.models.mixins.table_operator.PartialRow
+::: synapseclient.models.mixins.table_operator.PartialRowSet
+::: synapseclient.models.mixins.table_operator.TableSchemaChangeRequest
+::: synapseclient.models.mixins.table_operator.AppendableRowSetRequest
+::: synapseclient.models.mixins.table_operator.UploadToTableRequest
+::: synapseclient.models.mixins.table_operator.TableUpdateTransaction
+::: synapseclient.models.mixins.table_operator.CsvTableDescriptor
+::: synapseclient.models.mixins.table_operator.infer_column_type_from_data
+::: synapseclient.models.mixins.table_operator.csv_to_pandas_df

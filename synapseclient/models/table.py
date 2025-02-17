@@ -127,62 +127,66 @@ class Table(
         If you need a more specific column type, or need to add options to the colums
         follow the examples below.
 
-            import pandas as pd
+        ```python
+        import pandas as pd
 
-            from synapseclient import Synapse
-            from synapseclient.models import Table, SchemaStorageStrategy
+        from synapseclient import Synapse
+        from synapseclient.models import Table, SchemaStorageStrategy
 
-            syn = Synapse()
-            syn.login()
+        syn = Synapse()
+        syn.login()
 
-            my_data = pd.DataFrame(
-                {
-                    "my_string_column": ["a", "b", "c", "d"],
-                    "my_integer_column": [1, 2, 3, 4],
-                    "my_double_column": [1.0, 2.0, 3.0, 4.0],
-                    "my_boolean_column": [True, False, True, False],
-                }
-            )
+        my_data = pd.DataFrame(
+            {
+                "my_string_column": ["a", "b", "c", "d"],
+                "my_integer_column": [1, 2, 3, 4],
+                "my_double_column": [1.0, 2.0, 3.0, 4.0],
+                "my_boolean_column": [True, False, True, False],
+            }
+        )
 
-            table = Table(
-                name="my_table",
-                parent_id="syn1234",
-            ).store()
+        table = Table(
+            name="my_table",
+            parent_id="syn1234",
+        ).store()
 
-            table.store_rows(values=my_data, schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA)
+        table.store_rows(values=my_data, schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA)
 
-            # Prints out the stored data about this specific column
-            print(table.columns["my_string_column"])
+        # Prints out the stored data about this specific column
+        print(table.columns["my_string_column"])
+        ```
 
     Example: Rename an existing column
         This examples shows how you may retrieve a table from synapse, rename a column,
         and then store the table back in synapse.
 
-            from synapseclient import Synapse
-            from synapseclient.models import Table
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Table
 
-            syn = Synapse()
-            syn.login()
+        syn = Synapse()
+        syn.login()
 
-            table = Table(
-                name="my_table",
-                parent_id="syn1234",
-            ).get()
+        table = Table(
+            name="my_table",
+            parent_id="syn1234",
+        ).get()
 
-            # You may also get the table by id:
-            table = Table(
-                id="syn4567"
-            ).get()
+        # You may also get the table by id:
+        table = Table(
+            id="syn4567"
+        ).get()
 
-            table.columns["my_old_column"].name = "my_new_column"
+        table.columns["my_old_column"].name = "my_new_column"
 
-            # Before the data is stored in synapse you'll still be able to use the old key to access the column entry
-            print(table.columns["my_old_column"])
+        # Before the data is stored in synapse you'll still be able to use the old key to access the column entry
+        print(table.columns["my_old_column"])
 
-            table.store()
+        table.store()
 
-            # After the data is stored in synapse you'll be able to use the new key to access the column entry
-            print(table.columns["my_new_column"])
+        # After the data is stored in synapse you'll be able to use the new key to access the column entry
+        print(table.columns["my_new_column"])
+        ```
 
     Example: Create a table with a list of columns
         A list of columns may be passed in when creating a new table. The order of the
@@ -190,26 +194,28 @@ class Table(
         already exists and you create the Table instance in this way the columns will
         be appended to the end of the existing columns.
 
-            from synapseclient import Synapse
-            from synapseclient.models import Column, ColumnType, Table
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Column, ColumnType, Table
 
-            syn = Synapse()
-            syn.login()
+        syn = Synapse()
+        syn.login()
 
-            columns = [
-                Column(name="my_string_column", column_type=ColumnType.STRING),
-                Column(name="my_integer_column", column_type=ColumnType.INTEGER),
-                Column(name="my_double_column", column_type=ColumnType.DOUBLE),
-                Column(name="my_boolean_column", column_type=ColumnType.BOOLEAN),
-            ]
+        columns = [
+            Column(name="my_string_column", column_type=ColumnType.STRING),
+            Column(name="my_integer_column", column_type=ColumnType.INTEGER),
+            Column(name="my_double_column", column_type=ColumnType.DOUBLE),
+            Column(name="my_boolean_column", column_type=ColumnType.BOOLEAN),
+        ]
 
-            table = Table(
-                name="my_table",
-                parent_id="syn1234",
-                columns=columns
-            )
+        table = Table(
+            name="my_table",
+            parent_id="syn1234",
+            columns=columns
+        )
 
-            table.store()
+        table.store()
+        ```
 
 
     Example: Creating a table with a dictionary of columns
@@ -217,53 +223,57 @@ class Table(
         on the `Column` object is optional. When it is not specified it will be
         pulled from the key of the dict.
 
-            from synapseclient import Synapse
-            from synapseclient.models import Column, ColumnType, Table
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Column, ColumnType, Table
 
-            syn = Synapse()
-            syn.login()
+        syn = Synapse()
+        syn.login()
 
-            columns = {
-                "my_string_column": Column(column_type=ColumnType.STRING),
-                "my_integer_column": Column(column_type=ColumnType.INTEGER),
-                "my_double_column": Column(column_type=ColumnType.DOUBLE),
-                "my_boolean_column": Column(column_type=ColumnType.BOOLEAN),
-            }
+        columns = {
+            "my_string_column": Column(column_type=ColumnType.STRING),
+            "my_integer_column": Column(column_type=ColumnType.INTEGER),
+            "my_double_column": Column(column_type=ColumnType.DOUBLE),
+            "my_boolean_column": Column(column_type=ColumnType.BOOLEAN),
+        }
 
-            table = Table(
-                name="my_table",
-                parent_id="syn1234",
-                columns=columns
-            )
+        table = Table(
+            name="my_table",
+            parent_id="syn1234",
+            columns=columns
+        )
 
-            table.store()
+        table.store()
+        ```
 
     Example: Creating a table with an OrderedDict of columns
         When specifying a number of columns via a dict setting the `name` attribute
         on the `Column` object is optional. When it is not specified it will be
         pulled from the key of the dict.
 
-            from collections import OrderedDict
-            from synapseclient import Synapse
-            from synapseclient.models import Column, ColumnType, Table
+        ```python
+        from collections import OrderedDict
+        from synapseclient import Synapse
+        from synapseclient.models import Column, ColumnType, Table
 
-            syn = Synapse()
-            syn.login()
+        syn = Synapse()
+        syn.login()
 
-            columns = OrderedDict({
-                "my_string_column": Column(column_type=ColumnType.STRING),
-                "my_integer_column": Column(column_type=ColumnType.INTEGER),
-                "my_double_column": Column(column_type=ColumnType.DOUBLE),
-                "my_boolean_column": Column(column_type=ColumnType.BOOLEAN),
-            })
+        columns = OrderedDict({
+            "my_string_column": Column(column_type=ColumnType.STRING),
+            "my_integer_column": Column(column_type=ColumnType.INTEGER),
+            "my_double_column": Column(column_type=ColumnType.DOUBLE),
+            "my_boolean_column": Column(column_type=ColumnType.BOOLEAN),
+        })
 
-            table = Table(
-                name="my_table",
-                parent_id="syn1234",
-                columns=columns
-            )
+        table = Table(
+            name="my_table",
+            parent_id="syn1234",
+            columns=columns
+        )
 
-            table.store()
+        table.store()
+        ```
     """
 
     id: Optional[str] = None
@@ -544,22 +554,24 @@ class Table(
         Example: Creating a snapshot of a table
             Comment and label are optional, but filled in for this example.
 
-                import asyncio
-                from synapseclient.models import Table
-                from synapseclient import Synapse
+            ```python
+            import asyncio
+            from synapseclient.models import Table
+            from synapseclient import Synapse
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
 
-                async def main():
-                    my_table = Table(id="syn1234")
-                    await my_table.snapshot_async(
-                        comment="This is a new snapshot comment",
-                        label="3This is a unique label"
-                    )
+            async def main():
+                my_table = Table(id="syn1234")
+                await my_table.snapshot_async(
+                    comment="This is a new snapshot comment",
+                    label="3This is a unique label"
+                )
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
         Example: Including the activity (Provenance) in the snapshot and not pulling it forward to the new `in-progress` version of the table.
             By default this method is set up to include the activity in the snapshot and
@@ -571,24 +583,26 @@ class Table(
             See the [activity][synapseclient.models.Activity] attribute on the Table
             class for more information on how to interact with the activity.
 
-                import asyncio
-                from synapseclient.models import Table
-                from synapseclient import Synapse
+            ```python
+            import asyncio
+            from synapseclient.models import Table
+            from synapseclient import Synapse
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
 
-                async def main():
-                    my_table = Table(id="syn1234")
-                    await my_table.snapshot_async(
-                        comment="This is a new snapshot comment",
-                        label="This is a unique label",
-                        include_activity=True,
-                        associate_activity_to_new_version=False
-                    )
+            async def main():
+                my_table = Table(id="syn1234")
+                await my_table.snapshot_async(
+                    comment="This is a new snapshot comment",
+                    label="This is a unique label",
+                    include_activity=True,
+                    associate_activity_to_new_version=False
+                )
 
-                asyncio.run(main())
+            asyncio.run(main())
+            ```
 
         Returns:
             A dictionary that matches: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SnapshotResponse.html>
