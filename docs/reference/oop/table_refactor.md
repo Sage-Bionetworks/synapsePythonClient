@@ -18,7 +18,6 @@ client.
         - delete_column
         - add_column
         - reorder_column
-        - set_columns
         - get_permissions
         - get_acl
         - set_permissions

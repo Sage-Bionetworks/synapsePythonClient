@@ -44,31 +44,28 @@ class Table(
             - A dictionary where the key is the name of the column and the value is the Column object
             - An OrderedDict where the key is the name of the column and the value is the Column object
 
-            After the Table object is created the columns attribute will be an OrderedDict. If
-            you wish to replace the columns after the Table is constructed you may do so by
-            calling the `.set_columns()` method. For example:
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import Column, ColumnType, Table
-
-            syn = Synapse()
-            syn.login()
-
-            # Initialize the table with a list of columns
-            table = Table(name="my_table", columns=[Column(name="my_column", column_type=ColumnType.STRING)])
-
-            # Replace the columns with a different list of columns
-            table.set_columns(columns=[Column(name="my_new_column", column_type=ColumnType.STRING)])
-            table.store()
-            ```
-
-
             The order of the columns will be the order they are stored in Synapse. If you need
             to reorder the columns the recommended approach is to use the `.reorder_column()`
             method. Additionally, you may add, and delete columns using the `.add_column()`,
             and `.delete_column()` methods on your table class instance.
 
+            You may modify the attributes of the Column object to change the column
+            type, name, or other attributes. For example suppose I'd like to change a
+            column from a INTEGER to a DOUBLE. I can do so by changing the column type
+            attribute of the Column object. The next time you store the table the column
+            will be updated in Synapse with the new type.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table, Column, ColumnType
+
+            syn = Synapse()
+            syn.login()
+
+            table = Table(id="syn1234").get()
+            table.columns["my_column"].column_type = ColumnType.DOUBLE
+            table.store()
+            ```
 
             Note that the keys in this dictionary should match the column names as they are in
             Synapse. However, know that the name attribute of the Column object is used for
@@ -303,31 +300,28 @@ class Table(
     - A dictionary where the key is the name of the column and the value is the Column object
     - An OrderedDict where the key is the name of the column and the value is the Column object
 
-    After the Table object is created the columns attribute will be an OrderedDict. If
-    you wish to replace the columns after the Table is constructed you may do so by
-    calling the `.set_columns()` method. For example:
-
-    ```python
-    from synapseclient import Synapse
-    from synapseclient.models import Column, ColumnType, Table
-
-    syn = Synapse()
-    syn.login()
-
-    # Initialize the table with a list of columns
-    table = Table(name="my_table", columns=[Column(name="my_column", column_type=ColumnType.STRING)])
-
-    # Replace the columns with a different list of columns
-    table.set_columns(columns=[Column(name="my_new_column", column_type=ColumnType.STRING)])
-    table.store()
-    ```
-
-
     The order of the columns will be the order they are stored in Synapse. If you need
     to reorder the columns the recommended approach is to use the `.reorder_column()`
     method. Additionally, you may add, and delete columns using the `.add_column()`,
     and `.delete_column()` methods on your table class instance.
 
+    You may modify the attributes of the Column object to change the column
+    type, name, or other attributes. For example suppose I'd like to change a
+    column from a INTEGER to a DOUBLE. I can do so by changing the column type
+    attribute of the Column object. The next time you store the table the column
+    will be updated in Synapse with the new type.
+
+    ```python
+    from synapseclient import Synapse
+    from synapseclient.models import Table, Column, ColumnType
+
+    syn = Synapse()
+    syn.login()
+
+    table = Table(id="syn1234").get()
+    table.columns["my_column"].column_type = ColumnType.DOUBLE
+    table.store()
+    ```
 
     Note that the keys in this dictionary should match the column names as they are in
     Synapse. However, know that the name attribute of the Column object is used for
