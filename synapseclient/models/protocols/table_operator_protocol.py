@@ -63,16 +63,18 @@ class TableOperatorSynchronousProtocol(Protocol):
             you need to update existing columns or activity you will need to set these
             to True, make the changes, and then call the `.store()` method.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(id="syn4567").get(include_columns=True, include_activity=True)
-                print(table)
-                print(table.columns)
-                print(table.activity)
+            table = Table(id="syn4567").get(include_columns=True, include_activity=True)
+            print(table)
+            print(table.columns)
+            print(table.activity)
+            ```
 
 
         Example: Getting metadata about a table using name and parent_id
@@ -82,16 +84,18 @@ class TableOperatorSynchronousProtocol(Protocol):
             will need to set these to True, make the changes, and then call the
             `.store()` method.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                table = Table(name="my_table", parent_id="syn1234").get(include_columns=True, include_activity=True)
-                print(table)
-                print(table.columns)
-                print(table.activity)
+            table = Table(name="my_table", parent_id="syn1234").get(include_columns=True, include_activity=True)
+            print(table)
+            print(table.columns)
+            print(table.activity)
+            ```
         """
         return self
 
@@ -109,12 +113,15 @@ class TableOperatorSynchronousProtocol(Protocol):
         Example: Deleting a table
             Deleting a table is only supported by the ID of the table.
 
-                from synapseclient import Synapse
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                Table(id="syn4567").delete()
+            Table(id="syn4567").delete()
+            ```
         """
         return None
 
@@ -143,14 +150,16 @@ class TableOperatorSynchronousProtocol(Protocol):
             This example shows how you may query for data in a table and print out the
             results.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                results = Table.query(query="SELECT * FROM syn1234")
-                print(results)
+            results = Table.query(query="SELECT * FROM syn1234")
+            print(results)
+            ```
         """
         return pd.DataFrame()
 
@@ -228,23 +237,25 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             The following code will update the first row's `col2` to `22`, update the
             second row's `col3` to `33`, and insert a new row:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Table
-                import pandas as pd
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+            import pandas as pd
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
 
-                table = Table(id="syn123").get(include_columns=True)
+            table = Table(id="syn123").get(include_columns=True)
 
-                df = {
-                    'col1': ['A', 'B', 'C'],
-                    'col2': [22, 2, 3],
-                    'col3': [1, 33, 3],
-                }
+            df = {
+                'col1': ['A', 'B', 'C'],
+                'col2': [22, 2, 3],
+                'col3': [1, 33, 3],
+            }
 
-                table.upsert_rows(values=df, primary_keys=["col1"])
+            table.upsert_rows(values=df, primary_keys=["col1"])
+            ```
 
 
             The resulting table will look like this:
@@ -266,22 +277,24 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             The following code will update the first row's `col2` to `22`, update the
             second row's `col3` to `33`, and insert a new row:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
 
-                table = Table(id="syn123").get(include_columns=True)
+            table = Table(id="syn123").get(include_columns=True)
 
-                df = {
-                    'col1': ['A', 'B'],
-                    'col2': [None, 2],
-                    'col3': [1, None],
-                }
+            df = {
+                'col1': ['A', 'B'],
+                'col2': [None, 2],
+                'col3': [1, None],
+            }
 
-                table.upsert_rows(values=df, primary_keys=["col1"])
+            table.upsert_rows(values=df, primary_keys=["col1"])
+            ```
 
 
 
@@ -339,7 +352,6 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 a larger size if the data being stored exceeds the limit. If you want to
                 have full control over the schema you may set this to `None` and create
                 the columns manually.
-                TODO: When implementing this feature more verbose documentation on exactly what columns types may be expanded
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -375,12 +387,14 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         Example: Selecting a row to delete
             This example shows how you may select a row to delete from a table.
 
-                from synapseclient import Synapse
-                from synapseclient.models import Table
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                Table(id="syn1234").delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
+            Table(id="syn1234").delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
+            ```
         """
         return pd.DataFrame()

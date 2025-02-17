@@ -70,16 +70,16 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
         created_by: The ID of the user that created this dataset.
         modified_by: The ID of the user that last modified this dataset.
         parent_id: The ID of the Entity that is the parent of this dataset.
-        columns: The columns of this table. This is an ordered dictionary where the key is the
+        columns: The columns of this dataset. This is an ordered dictionary where the key is the
             name of the column and the value is the Column object. When creating a new instance
-            of a Table object you may pass any of the following types as the `columns` argument:
+            of a Dataset object you may pass any of the following types as the `columns` argument:
 
             - A list of Column objects
             - A dictionary where the key is the name of the column and the value is the Column object
             - An OrderedDict where the key is the name of the column and the value is the Column object
 
-            After the Table object is created the columns attribute will be an OrderedDict. If
-            you wish to replace the columns after the Table is constructed you may do so by
+            After the Dataset object is created the columns attribute will be an OrderedDict. If
+            you wish to replace the columns after the Dataset is constructed you may do so by
             calling the `.set_columns()` method. For example:
 
             ```python
@@ -101,7 +101,7 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
             The order of the columns will be the order they are stored in Synapse. If you need
             to reorder the columns the recommended approach is to use the `.reorder_column()`
             method. Additionally, you may add, and delete columns using the `.add_column()`,
-            and `.delete_column()` methods on your table class instance.
+            and `.delete_column()` methods on your dataset class instance.
 
 
             Note that the keys in this dictionary should match the column names as they are in
@@ -109,7 +109,7 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
             all interactions with the Synapse API. The OrderedDict key is purely for the usage
             of this interface. For example, if you wish to rename a column you may do so by
             changing the name attribute of the Column object. The key in the OrderedDict does
-            not need to be changed. The next time you store the table the column will be updated
+            not need to be changed. The next time you store the dataset the column will be updated
             in Synapse with the new name and the key in the OrderedDict will be updated.
         version_number: The version number issued to this version on the object.
         version_label: The version label for this dataset.
@@ -212,38 +212,38 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
         Union[List[Column], OrderedDict[str, Column], Dict[str, Column]]
     ] = field(default_factory=OrderedDict, compare=False)
     """
-    The columns of this table. This is an ordered dictionary where the key is the
+    The columns of this dataset. This is an ordered dictionary where the key is the
     name of the column and the value is the Column object. When creating a new instance
-    of a Table object you may pass any of the following types as the `columns` argument:
+    of a Dataset object you may pass any of the following types as the `columns` argument:
 
     - A list of Column objects
     - A dictionary where the key is the name of the column and the value is the Column object
     - An OrderedDict where the key is the name of the column and the value is the Column object
 
-    After the Table object is created the columns attribute will be an OrderedDict. If
-    you wish to replace the columns after the Table is constructed you may do so by
+    After the Dataset object is created the columns attribute will be an OrderedDict. If
+    you wish to replace the columns after the Dataset is constructed you may do so by
     calling the `.set_columns()` method. For example:
 
     ```python
     from synapseclient import Synapse
-    from synapseclient.models import Column, ColumnType, Table
+    from synapseclient.models import Column, ColumnType, Dataset
 
     syn = Synapse()
     syn.login()
 
-    # Initialize the table with a list of columns
-    table = Table(name="my_table", columns=[Column(name="my_column", column_type=ColumnType.STRING)])
+    # Initialize the dataset with a list of columns
+    dataset = Dataset(name="my_dataset", columns=[Column(name="my_column", column_type=ColumnType.STRING)])
 
     # Replace the columns with a different list of columns
-    table.set_columns(columns=[Column(name="my_new_column", column_type=ColumnType.STRING)])
-    table.store()
+    dataset.set_columns(columns=[Column(name="my_new_column", column_type=ColumnType.STRING)])
+    dataset.store()
     ```
 
 
     The order of the columns will be the order they are stored in Synapse. If you need
     to reorder the columns the recommended approach is to use the `.reorder_column()`
     method. Additionally, you may add, and delete columns using the `.add_column()`,
-    and `.delete_column()` methods on your table class instance.
+    and `.delete_column()` methods on your dataset class instance.
 
 
     Note that the keys in this dictionary should match the column names as they are in
@@ -251,13 +251,13 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
     all interactions with the Synapse API. The OrderedDict key is purely for the usage
     of this interface. For example, if you wish to rename a column you may do so by
     changing the name attribute of the Column object. The key in the OrderedDict does
-    not need to be changed. The next time you store the table the column will be updated
+    not need to be changed. The next time you store the dataset the column will be updated
     in Synapse with the new name and the key in the OrderedDict will be updated.
     """
 
     _columns_to_delete: Optional[Dict[str, Column]] = field(default_factory=dict)
     """
-    Columns to delete when the table is stored. The key in this dict is the ID of the
+    Columns to delete when the dataset is stored. The key in this dict is the ID of the
     column to delete. The value is the Column object that represents the column to
     delete.
     """
@@ -344,7 +344,7 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
             synapse_table: The data coming from the Synapse API
 
         Returns:
-            The Table object instance.
+            The Dataset object instance.
         """
         self.id = entity.get("id", None)
         self.name = entity.get("name", None)

@@ -21,6 +21,7 @@ from typing_extensions import Self
 from synapseclient import Column as Synapse_Column
 from synapseclient import Synapse
 from synapseclient.api import (
+    delete_entity,
     get_columns,
     get_from_entity_factory,
     post_columns,
@@ -87,6 +88,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
     name: None = None
     parent_id: None = None
     activity: None = None
+    version_number: None = None
     _last_persistent_instance: None = None
     _columns_to_delete: Dict = None
 
@@ -503,13 +505,10 @@ class TableOperator(TableOperatorSynchronousProtocol):
 
         entity_id = await get_id(entity=self, synapse_client=synapse_client)
 
-        # TODO: Convert over to functions that are async
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).delete(
-                obj=entity_id
-            ),
+        await delete_entity(
+            entity_id=entity_id,
+            version_number=self.version_number,
+            synapse_client=synapse_client,
         )
 
     def delete_column(self, name: str) -> None:
@@ -694,7 +693,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
                 table.add_column(
                     Column(name="my_column", column_type=ColumnType.STRING)
                 )
-                table.store_async()
+                await table.store_async()
 
             asyncio.run(main())
             ```
@@ -720,7 +719,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     Column(name="my_column", column_type=ColumnType.STRING),
                     Column(name="my_column2", column_type=ColumnType.INTEGER),
                 ])
-                table.store_async()
+                await table.store_async()
 
             asyncio.run(main())
             ```
@@ -748,7 +747,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     # Add the column at the beginning of the list
                     index=0
                 )
-                table.store_async()
+                await table.store_async()
 
             asyncio.run(main())
             ```
@@ -1725,7 +1724,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table
+            from synapseclient.models import Table # Also works with `Dataset`
             import pandas as pd
 
             syn = Synapse()
@@ -1768,7 +1767,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table
+            from synapseclient.models import Table # Also works with `Dataset`
 
             syn = Synapse()
             syn.login()
@@ -2107,7 +2106,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table
+            from synapseclient.models import Table # Also works with `Dataset`
 
             syn = Synapse()
             syn.login()
@@ -2139,7 +2138,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table, SchemaStorageStrategy
+            from synapseclient.models import Table, SchemaStorageStrategy # Also works with `Dataset`
 
             syn = Synapse()
             syn.login()
@@ -2175,7 +2174,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table, SchemaStorageStrategy
+            from synapseclient.models import Table, SchemaStorageStrategy # Also works with `Dataset`
 
             syn = Synapse()
             syn.login()
@@ -2221,7 +2220,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table, query_async
+            from synapseclient.models import Table, query_async # Also works with `Dataset`
 
             syn = Synapse()
             syn.login()
@@ -2403,7 +2402,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table
+            from synapseclient.models import Table # Also works with `Dataset`
 
             syn = Synapse()
             syn.login()

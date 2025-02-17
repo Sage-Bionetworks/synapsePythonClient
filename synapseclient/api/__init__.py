@@ -24,6 +24,7 @@ from .entity_bundle_services_v2 import (
 from .entity_factory import get_from_entity_factory
 from .entity_services import (
     create_access_requirements_if_none,
+    delete_entity,
     delete_entity_generated_by,
     get_entities_by_md5,
     get_entity,
@@ -73,6 +74,7 @@ __all__ = [
     "get_entity",
     "put_entity",
     "post_entity",
+    "delete_entity",
     "get_upload_destination",
     "get_upload_destination_location",
     "create_access_requirements_if_none",
