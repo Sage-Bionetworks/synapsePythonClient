@@ -50,6 +50,8 @@ __all__ = [
     "ColumnType",
     "query_async",
     "query",
+    "query_part_mask_async",
+    "query_part_mask",
     # Dataset model
     "Dataset",
 ]
@@ -57,3 +59,5 @@ __all__ = [
 # Static methods to expose as functions
 query_async = Table.query_async
 query = Table.query
+query_part_mask_async = Table.query_part_mask_async
+query_part_mask = Table.query_part_mask

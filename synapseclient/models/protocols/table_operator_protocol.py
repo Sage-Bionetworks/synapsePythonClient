@@ -10,6 +10,12 @@ from synapseclient import Synapse
 
 if TYPE_CHECKING:
     from synapseclient.models import ColumnExpansionStrategy, SchemaStorageStrategy
+    from synapseclient.models.mixins.table_operator import (
+        AppendableRowSetRequest,
+        QueryResultBundle,
+        TableSchemaChangeRequest,
+        UploadToTableRequest,
+    )
 
 
 class TableOperatorSynchronousProtocol(Protocol):
@@ -20,11 +26,23 @@ class TableOperatorSynchronousProtocol(Protocol):
 
     def store(
         self, dry_run: bool = False, *, synapse_client: Optional[Synapse] = None
-    ) -> Self:
+    ) -> "Self":
         """Store non-row information about a table including the columns and annotations.
 
+
+        Note the following behavior for the order of columns:
+
+        - If a column is added via the `add_column` method it will be added at the
+            index you specify, or at the end of the columns list.
+        - If column(s) are added during the contruction of your `Table` instance, ie.
+            `Table(columns=[Column(name="foo")])`, they will be added at the begining
+            of the columns list.
+        - If you use the `store_rows` method and the `schema_storage_strategy` is set to
+            `INFER_FROM_DATA` the columns will be added at the end of the columns list.
+
+
         Arguments:
-            dry_run: If True, will not actually store the table but will return log to
+            dry_run: If True, will not actually store the table but will log to
                 the console what would have been stored.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -100,7 +118,9 @@ class TableOperatorSynchronousProtocol(Protocol):
         return self
 
     def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
-        """Delete the table from synapse.
+        """Delete the entity from synapse. This is not version specific. If you'd like
+        to delete a specific version of the entity you must use the
+        [synapseclient.api.delete_entity][] function directly.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -128,8 +148,11 @@ class TableOperatorSynchronousProtocol(Protocol):
     @staticmethod
     def query(
         query: str,
+        include_row_id_and_row_version: bool = True,
+        convert_to_datetime: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
+        **kwargs,
     ) -> pd.DataFrame:
         """Query for data on a table stored in Synapse. The results will always be
         returned as a Pandas DataFrame.
@@ -139,6 +162,19 @@ class TableOperatorSynchronousProtocol(Protocol):
                 understand. See this document that describes the expected syntax of the
                 query:
                 <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            include_row_id_and_row_version: If True the `ROW_ID` and `ROW_VERSION`
+                columns will be returned in the DataFrame. These columns are required
+                if using the query results to update rows in the table. These columns
+                are the primary keys used by Synapse to uniquely identify rows in the
+                table.
+            convert_to_datetime: If set to True, will convert all Synapse DATE columns
+                from UNIX timestamp integers into UTC datetime objects
+
+        **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
+                    https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+                    for complete list of supported arguments. This is exposed as
+                    internally the query downloads a CSV from Synapse and then loads
+                    it into a dataframe.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -152,16 +188,81 @@ class TableOperatorSynchronousProtocol(Protocol):
 
             ```python
             from synapseclient import Synapse
-            from synapseclient.models import Table # Also works with `Dataset`
+            from synapseclient.models import query_async
 
             syn = Synapse()
             syn.login()
 
-            results = Table.query(query="SELECT * FROM syn1234")
+            results = query(query="SELECT * FROM syn1234")
             print(results)
             ```
         """
         return pd.DataFrame()
+
+    @staticmethod
+    def query_part_mask(
+        query: str,
+        part_mask: int,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "QueryResultBundle":
+        """Query for data on a table stored in Synapse. This is a more advanced use case
+        of the `query` function that allows you to determine what addiitional metadata
+        about the table or query should also be returned. If you do not need this
+        additional information then you are better off using the `query` function.
+
+        The query for this method uses this Rest API:
+        <https://rest-docs.synapse.org/rest/POST/entity/id/table/query/async/start.html>
+
+        Arguments:
+            query: The query to run. The query must be valid syntax that Synapse can
+                understand. See this document that describes the expected syntax of the
+                query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            part_mask: The bitwise OR of the part mask values you want to return in the
+                results. The following list of part masks are implemented to be returned
+                in the results:
+
+                - Query Results (queryResults) = 0x1
+                - Query Count (queryCount) = 0x2
+                - The sum of the file sizes (sumFileSizesBytes) = 0x40
+                - The last updated on date of the table (lastUpdatedOn) = 0x80
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The results of the query as a Pandas DataFrame.
+
+        Example: Querying for data with a part mask
+            This example shows how to use the bitwise `OR` of Python to combine the
+            part mask values and then use that to query for data in a table and print
+            out the results.
+
+            In this case we are getting the results of the query, the count of rows, and
+            the last updated on date of the table.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import query_part_mask_async
+
+            syn = Synapse()
+            syn.login()
+
+            QUERY_RESULTS = 0x1
+            QUERY_COUNT = 0x2
+            LAST_UPDATED_ON = 0x80
+
+            # Combine the part mask values using bitwise OR
+            part_mask = QUERY_RESULTS | QUERY_COUNT | LAST_UPDATED_ON
+
+            result = query_part_mask(query="SELECT * FROM syn1234", part_mask=part_mask)
+            print(result)
+            ```
+        """
+        return None
 
 
 class TableRowOperatorSynchronousProtocol(Protocol):
@@ -308,23 +409,54 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         """
         return None
 
-    def store_rows(
+    async def store_rows_async(
         self,
-        values: Union[str, List[Dict[str, Any]], Dict[str, Any], pd.DataFrame],
+        values: Union[str, Dict[str, Any], pd.DataFrame],
         schema_storage_strategy: "SchemaStorageStrategy" = None,
         column_expansion_strategy: "ColumnExpansionStrategy" = None,
+        dry_run: bool = False,
+        additional_changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
         *,
         synapse_client: Optional[Synapse] = None,
+        read_csv_kwargs: Optional[Dict[str, Any]] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
-        Takes in values from the sources defined below and stores the rows to Synapse.
+        Add or update rows in Synapse from the sources defined below. In most cases the
+        result of this function call will append rows to the table. In the case of an
+        update this method works on a full row replacement. What this means is
+        that you may not do a partial update of a row. If you want to update a row
+        you must pass in all the data for that row, or the data for the columns not
+        provided will be set to null.
+
+        If you'd like to update a row see the example `Updating rows in a table` below.
+
+        If you'd like to perform an `upsert` or partial update of a row you may use
+        the `.upsert_rows()` method. See that method for more information.
+
+
+        Note the following behavior for the order of columns:
+
+        - If a column is added via the `add_column` method it will be added at the
+            index you specify, or at the end of the columns list.
+        - If column(s) are added during the contruction of your `Table` instance, ie.
+            `Table(columns=[Column(name="foo")])`, they will be added at the begining
+            of the columns list.
+        - If you use the `store_rows` method and the `schema_storage_strategy` is set to
+            `INFER_FROM_DATA` the columns will be added at the end of the columns list.
+
 
         Arguments:
             values: Supports storing data from the following sources:
 
-                - A string holding the path to a CSV file
-                - A list of lists (or tuples) where each element is a row
-                - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
+                - A string holding the path to a CSV file. If the `schema_storage_strategy` is set to `None` the data will be uploaded as is. If `schema_storage_strategy` is set to `INFER_FROM_DATA` the data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
+                - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
             schema_storage_strategy: Determines how to automate the creation of columns
@@ -345,20 +477,199 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 The determination is based on how this pandas function infers the
                 data type: [infer_dtype](https://pandas.pydata.org/docs/reference/api/pandas.api.types.infer_dtype.html)
 
+                This may also only set the `name`, `column_type`, and `maximum_size` of
+                the column when the column is created. If this is used to update the
+                column the `maxium_size` will only be updated depending on the
+                value of `column_expansion_strategy`. The other attributes of the
+                column will be set to the default values on create, or remain the same
+                if the column already exists.
+
+
+                The usage of this feature will never delete a column, shrink a column,
+                or change the type of a column that already exists. If you need to
+                change any of these attributes you must do so after getting the table
+                via a `.get()` call, updating the columns as needed, then calling
+                `.store()` on the table.
+
             column_expansion_strategy: Determines how to automate the expansion of
                 columns based on the data that is being stored. The options given allow
-                cells with a limit on the length of content (Such as strings) or cells
-                with a limit on the number of values (Such as lists) to be expanded to
-                a larger size if the data being stored exceeds the limit. If you want to
-                have full control over the schema you may set this to `None` and create
-                the columns manually.
+                cells with a limit on the length of content (Such as strings) to be
+                expanded to a larger size if the data being stored exceeds the limit.
+                If you want to have full control over the schema you may set this to
+                `None` and create the columns manually. String type columns are the only
+                ones that support this feature.
+
+            dry_run: Log the actions that would be taken, but do not actually perform
+                the actions. This will not print out the data that would be stored or
+                modified as a result of this action. It will print out the actions that
+                would be taken, such as creating a new column, updating a column, or
+                updating table metadata. This is useful for debugging and understanding
+                what actions would be taken without actually performing them.
+
+            additional_changes: Additional changes to the table that should execute
+                within the same transaction as appending or updating rows. This is used
+                as a part of the `upsert_rows` method call to allow for the updating of
+                rows and the updating of the table schema in the same transaction. In
+                most cases you will not need to use this argument.
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
+            read_csv_kwargs: Additional arguments to pass to the `pd.read_csv` function
+                when reading in a CSV file. This is only used when the `values` argument
+                is a string holding the path to a CSV file and you have set the
+                `schema_storage_strategy` to `INFER_FROM_DATA`. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
+                for complete list of supported arguments.
+
+            to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+                function when writing the data to a CSV file. This is only used when
+                the `values` argument is a Pandas DataFrame. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
+                for complete list of supported arguments.
+
         Returns:
             None
+
+        Example: Inserting rows into a table that already has columns
+            This example shows how you may insert rows into a table.
+
+            Suppose we have a table with the following columns:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+
+            The following code will insert rows into the table:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            data_to_insert = {
+                'col1': ['A', 'B', 'C'],
+                'col2': [1, 2, 3],
+                'col3': [1, 2, 3],
+            }
+
+            Table(id="syn1234").store_rows(values=data_to_insert)
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+        Example: Inserting rows into a table that does not have columns
+            This example shows how you may insert rows into a table that does not have
+            columns. The columns will be inferred from the data that is being stored.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            data_to_insert = {
+                'col1': ['A', 'B', 'C'],
+                'col2': [1, 2, 3],
+                'col3': [1, 2, 3],
+            }
+
+            Table(id="syn1234").store_rows(
+                values=data_to_insert,
+                schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
+            )
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+        Example: Using the dry_run option with a SchemaStorageStrategy of INFER_FROM_DATA
+            This example shows how you may use the `dry_run` option with the
+            `SchemaStorageStrategy` set to `INFER_FROM_DATA`. This will show you the
+            actions that would be taken, but not actually perform the actions.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            data_to_insert = {
+                'col1': ['A', 'B', 'C'],
+                'col2': [1, 2, 3],
+                'col3': [1, 2, 3],
+            }
+
+            Table(id="syn1234").store_rows(
+                values=data_to_insert,
+                dry_run=True,
+                schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
+            )
+            ```
+
+            The result of running this action will print to the console the actions that
+            would be taken, but not actually perform the actions.
+
+        Example: Updating rows in a table
+            This example shows how you may query for data in a table, update the data,
+            and then store the updated rows back in Synapse.
+
+            Suppose we have a table that has the following data:
+
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+            Behind the scenese the tables also has `ROW_ID` and `ROW_VERSION` columns
+            which are used to identify the row that is being updated. These columns
+            are not shown in the table above, but is included in the data that is
+            returned when querying the table. If you add data that does not have these
+            columns the data will be treated as new rows to be inserted.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table, query # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            query_results = query(query="select * from syn1234 where col1 in ('A', 'B')")
+
+            # Update `col2` of the row where `col1` is `A` to `22`
+            query_results.loc[query_results['col1'] == 'A', 'col2'] = 22
+
+            # Update `col3` of the row where `col1` is `B` to `33`
+            query_results.loc[query_results['col1'] == 'B', 'col3'] = 33
+
+            Table(id="syn1234").store_rows(values=query_results)
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 22   | 1    |
+            | B    | 2    | 33   |
+            | C    | 3    | 3    |
+
         """
         return None
 

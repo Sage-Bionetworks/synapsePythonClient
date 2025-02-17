@@ -78,6 +78,42 @@ RESERVED_COLUMN_NAMES = [
 ]
 
 
+@dataclass
+class SumFileSizes:
+    sum_file_size_bytes: int
+    """The sum of the file size in bytes."""
+
+    greater_than: bool
+    """When true, the actual sum of the files sizes is greater than the value provided with 'sum_file_size_bytes'. When false, the actual sum of the files sizes is equals the value provided with 'sum_file_size_bytes'"""
+
+
+@dataclass
+class QueryResultBundle:
+    """
+    The result of querying Synapse with an included `part_mask`. This class contains a
+    subnet of the available items that may be returned by specifying a `part_mask`.
+
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
+    """
+
+    result: pd.DataFrame
+    """The result of the query"""
+
+    count: Optional[int] = None
+    """The total number of rows that match the query. Use mask = 0x2 to include in the
+    bundle."""
+
+    sum_file_sizes: Optional[SumFileSizes] = None
+    """The sum of the file size for all files in the given view query. Use mask = 0x40
+    to include in the bundle."""
+
+    last_updated_on: Optional[str] = None
+    """The date-time when this table/view was last updated. Note: Since views are
+    eventually consistent a view might still be out-of-date even if it was recently
+    updated. Use mask = 0x80 to include in the bundle."""
+
+
 @async_to_sync
 class TableOperator(TableOperatorSynchronousProtocol):
     """Mixin that extends the functionality of any `table` like entities in Synapse
@@ -399,7 +435,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table
+            from synapseclient.models import Table # Also works with `Dataset`
 
             syn = Synapse()
             syn.login()
@@ -425,7 +461,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table
+            from synapseclient.models import Table # Also works with `Dataset`
 
             syn = Synapse()
             syn.login()
@@ -509,7 +545,6 @@ class TableOperator(TableOperatorSynchronousProtocol):
 
         await delete_entity(
             entity_id=entity_id,
-            version_number=self.version_number,
             synapse_client=synapse_client,
         )
 
@@ -882,11 +917,11 @@ class TableOperator(TableOperatorSynchronousProtocol):
     @staticmethod
     async def query_async(
         query: str,
-        # TODO: Implement part_mask - Should this go into a different method because getting this information while downloading as a CSV is not supported?
-        part_mask: str = None,
         include_row_id_and_row_version: bool = True,
+        convert_to_datetime: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
+        **kwargs,
     ) -> pd.DataFrame:
         """Query for data on a table stored in Synapse. The results will always be
         returned as a Pandas DataFrame.
@@ -896,13 +931,19 @@ class TableOperator(TableOperatorSynchronousProtocol):
                 understand. See this document that describes the expected syntax of the
                 query:
                 <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
-            part_mask: Still determining how this will be implemented - Ignore for now
             include_row_id_and_row_version: If True the `ROW_ID` and `ROW_VERSION`
                 columns will be returned in the DataFrame. These columns are required
                 if using the query results to update rows in the table. These columns
                 are the primary keys used by Synapse to uniquely identify rows in the
                 table.
+            convert_to_datetime: If set to True, will convert all Synapse DATE columns
+                from UNIX timestamp integers into UTC datetime objects
 
+        **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
+                    https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+                    for complete list of supported arguments. This is exposed as
+                    internally the query downloads a CSV from Synapse and then loads
+                    it into a dataframe.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -917,29 +958,28 @@ class TableOperator(TableOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table
+            from synapseclient.models import query_async
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                results = await Table.query_async(query="SELECT * FROM syn1234")
+                results = await query_async(query="SELECT * FROM syn1234")
                 print(results)
 
             asyncio.run(main())
             ```
         """
-        # TODO: Implement similar logic to synapseclient/table.py::CsvFileTable::from_table_query and what it can handle
-        # It should handle for any of the arguments available there in order to support correctly reading in the CSV
-        # TODO: Additionally - the logic present in synapseclient/table.py::CsvFileTable::asDataFrame should be considered and implemented as well
-        # TODO: Lastly - When a query is executed both single-threaded and multi-threaded downloads of the CSV result should not write a file to disk, instead write the bytes to a BytesIO object and then use that object instead of a filepath
-        # TODO: Also support writing the CSV to disk if the user wants to do that
         loop = asyncio.get_event_loop()
 
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(f"Running query: {query}")
 
-        # TODO: Implementation should not download as CSV, but left as a placeholder for now
+        # TODO: Implementation should not download CSV to disk, instead the ideal
+        # solution will load the result into BytesIO and then pass that to
+        # pandas.read_csv. During implmentation a determination on how large of a CSV
+        # that can be loaded from Memory will be needed. When that limit is reached we
+        # should continue to force the download of those results to disk.
         results = await loop.run_in_executor(
             None,
             lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
@@ -947,7 +987,103 @@ class TableOperator(TableOperatorSynchronousProtocol):
                 includeRowIdAndRowVersion=include_row_id_and_row_version,
             ),
         )
-        return results.asDataFrame(rowIdAndVersionInIndex=False)
+        return results.asDataFrame(
+            rowIdAndVersionInIndex=False,
+            convert_to_datetime=convert_to_datetime,
+            **kwargs,
+        )
+
+    @staticmethod
+    async def query_part_mask_async(
+        query: str,
+        part_mask: int,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> QueryResultBundle:
+        """Query for data on a table stored in Synapse. This is a more advanced use case
+        of the `query` function that allows you to determine what addiitional metadata
+        about the table or query should also be returned. If you do not need this
+        additional information then you are better off using the `query` function.
+
+        The query for this method uses this Rest API:
+        <https://rest-docs.synapse.org/rest/POST/entity/id/table/query/async/start.html>
+
+        Arguments:
+            query: The query to run. The query must be valid syntax that Synapse can
+                understand. See this document that describes the expected syntax of the
+                query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            part_mask: The bitwise OR of the part mask values you want to return in the
+                results. The following list of part masks are implemented to be returned
+                in the results:
+
+                - Query Results (queryResults) = 0x1
+                - Query Count (queryCount) = 0x2
+                - The sum of the file sizes (sumFileSizesBytes) = 0x40
+                - The last updated on date of the table (lastUpdatedOn) = 0x80
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The results of the query as a Pandas DataFrame.
+
+        Example: Querying for data with a part mask
+            This example shows how to use the bitwise `OR` of Python to combine the
+            part mask values and then use that to query for data in a table and print
+            out the results.
+
+            In this case we are getting the results of the query, the count of rows, and
+            the last updated on date of the table.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import query_part_mask_async
+
+            syn = Synapse()
+            syn.login()
+
+            QUERY_RESULTS = 0x1
+            QUERY_COUNT = 0x2
+            LAST_UPDATED_ON = 0x80
+
+            # Combine the part mask values using bitwise OR
+            part_mask = QUERY_RESULTS | QUERY_COUNT | LAST_UPDATED_ON
+
+
+            async def main():
+                result = await query_part_mask_async(query="SELECT * FROM syn1234", part_mask=part_mask)
+                print(result)
+
+            asyncio.run(main())
+            ```
+        """
+        loop = asyncio.get_event_loop()
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+        client.logger.info(f"Running query: {query}")
+
+        results = await loop.run_in_executor(
+            None,
+            lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
+                query=query,
+                resultsAs="rowset",
+                partMask=part_mask,
+            ),
+        )
+
+        as_df = await loop.run_in_executor(
+            None,
+            lambda: results.asDataFrame(rowIdAndVersionInIndex=False),
+        )
+        return QueryResultBundle(
+            result=as_df,
+            count=results.count,
+            sum_file_sizes=results.sumFileSizes,
+            last_updated_on=results.lastUpdatedOn,
+        )
 
 
 @dataclass
@@ -1500,10 +1636,11 @@ class ColumnExpansionStrategy(str, Enum):
 # TODO: Determine if Datasets, and other table type things have all this functionality
 @async_to_sync
 class TableRowOperator(TableRowOperatorSynchronousProtocol):
-    id: None = None
-    name: None = None
-    parent_id: None = None
+    id: str = None
+    name: str = None
+    parent_id: str = None
     activity: None = None
+    columns: OrderedDict = None
     _last_persistent_instance: None = None
     _columns_to_delete: None = None
 
@@ -1884,7 +2021,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         ] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-        **kwargs,
+        read_csv_kwargs: Optional[Dict[str, Any]] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Add or update rows in Synapse from the sources defined below. In most cases the
@@ -1975,6 +2113,19 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+
+            read_csv_kwargs: Additional arguments to pass to the `pd.read_csv` function
+                when reading in a CSV file. This is only used when the `values` argument
+                is a string holding the path to a CSV file and you have set the
+                `schema_storage_strategy` to `INFER_FROM_DATA`. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
+                for complete list of supported arguments.
+
+            to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+                function when writing the data to a CSV file. This is only used when
+                the `values` argument is a Pandas DataFrame. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
+                for complete list of supported arguments.
 
         Returns:
             None
@@ -2141,7 +2292,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             isinstance(values, str)
             and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
         ):
-            values = csv_to_pandas_df(filepath=values, **kwargs)
+            values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
         elif isinstance(values, pd.DataFrame) or isinstance(values, str):
             # We don't need to convert a DF, and CSVs will be uploaded as is
             pass
@@ -2234,8 +2385,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         elif isinstance(values, pd.DataFrame):
             filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
             try:
-                # TODO: Support everything from `from_data_frame` to_csv call
-                values.to_csv(filepath, index=False)
+                values.to_csv(filepath, index=False, **(to_csv_kwargs or {}))
                 file_handle_id = await multipart_upload_file_async(
                     syn=client, file_path=filepath, content_type="text/csv"
                 )
@@ -2581,119 +2731,3 @@ def _convert_pandas_row_to_python_types(
         return cell
     else:
         return cell
-
-
-# def pandas_df_to_csv(
-#     cls,
-#     schema,
-#     df,
-#     filepath=None,
-#     etag=None,
-#     quoteCharacter='"',
-#     escapeCharacter="\\",
-#     lineEnd=str(os.linesep),
-#     separator=",",
-#     header=True,
-#     includeRowIdAndRowVersion=None,
-#     headers=None,
-#     **kwargs,
-# ):
-#     # infer columns from data frame if not specified
-#     if not headers:
-#         cols = as_table_columns(df)
-#         headers = [SelectColumn.from_column(col) for col in cols]
-
-#     # if the schema has no columns, use the inferred columns
-#     if isinstance(schema, Schema) and not schema.has_columns():
-#         schema.addColumns(cols)
-
-#     # convert row names in the format [row_id]_[version] or [row_id]_[version]_[etag] back to columns
-#     # etag is essentially a UUID
-#     etag_pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}"
-#     row_id_version_pattern = re.compile(r"(\d+)_(\d+)(_(" + etag_pattern + r"))?")
-
-#     row_id = []
-#     row_version = []
-#     row_etag = []
-#     for row_name in df.index.values:
-#         m = row_id_version_pattern.match(str(row_name))
-#         row_id.append(m.group(1) if m else None)
-#         row_version.append(m.group(2) if m else None)
-#         row_etag.append(m.group(4) if m else None)
-
-#     # include row ID and version, if we're asked to OR if it's encoded in row names
-#     if includeRowIdAndRowVersion or (
-#         includeRowIdAndRowVersion is None and any(row_id)
-#     ):
-#         df2 = df.copy()
-
-#         cls._insert_dataframe_column_if_not_exist(df2, 0, "ROW_ID", row_id)
-#         cls._insert_dataframe_column_if_not_exist(
-#             df2, 1, "ROW_VERSION", row_version
-#         )
-#         if any(row_etag):
-#             cls._insert_dataframe_column_if_not_exist(df2, 2, "ROW_ETAG", row_etag)
-
-#         df = df2
-#         includeRowIdAndRowVersion = True
-
-#     f = None
-#     try:
-#         if not filepath:
-#             temp_dir = tempfile.mkdtemp()
-#             filepath = os.path.join(temp_dir, "table.csv")
-
-#         f = io.open(filepath, mode="w", encoding="utf-8", newline="")
-
-#         test_import_pandas()
-#         import pandas as pd
-
-#         if isinstance(schema, Schema):
-#             for col in schema.columns_to_store:
-#                 if col["columnType"] == "DATE":
-
-#                     def _trailing_date_time_millisecond(t):
-#                         if isinstance(t, str):
-#                             return t[:-3]
-
-#                     df[col.name] = pd.to_datetime(
-#                         df[col.name], errors="coerce"
-#                     ).dt.strftime("%s%f")
-#                     df[col.name] = df[col.name].apply(
-#                         lambda x: _trailing_date_time_millisecond(x)
-#                     )
-
-#         df.to_csv(
-#             f,
-#             index=False,
-#             sep=separator,
-#             header=header,
-#             quotechar=quoteCharacter,
-#             escapechar=escapeCharacter,
-#             lineterminator=lineEnd,
-#             na_rep=kwargs.get("na_rep", ""),
-#             float_format="%.12g",
-#         )
-#         # NOTE: reason for flat_format='%.12g':
-#         # pandas automatically converts int columns into float64 columns when some cells in the column have no
-#         # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
-#         # a float into a INTEGER(synapse table type) column. Using the 'g' will strip off '.0' from whole number
-#         # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
-#         # use '%.12g'.c
-#         # see SYNPY-267.
-#     finally:
-#         if f:
-#             f.close()
-
-#     return cls(
-#         schema=schema,
-#         filepath=filepath,
-#         etag=etag,
-#         quoteCharacter=quoteCharacter,
-#         escapeCharacter=escapeCharacter,
-#         lineEnd=lineEnd,
-#         separator=separator,
-#         header=header,
-#         includeRowIdAndRowVersion=includeRowIdAndRowVersion,
-#         headers=headers,
-#     )
