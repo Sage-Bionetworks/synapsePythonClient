@@ -11,11 +11,20 @@ from synapseclient.models.dataset import Dataset
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
 from synapseclient.models.mixins.table_operator import (
+    AppendableRowSetRequest,
     Column,
+    ColumnChange,
     ColumnExpansionStrategy,
     ColumnType,
+    CsvTableDescriptor,
     FacetType,
+    JsonSubColumn,
+    PartialRow,
+    PartialRowSet,
     SchemaStorageStrategy,
+    TableSchemaChangeRequest,
+    TableUpdateTransaction,
+    UploadToTableRequest,
 )
 from synapseclient.models.project import Project
 from synapseclient.models.services import FailureStrategy
@@ -33,7 +42,6 @@ __all__ = [
     "Folder",
     "Project",
     "Annotations",
-    "FacetType",
     "Team",
     "TeamMember",
     "UserProfile",
@@ -48,10 +56,20 @@ __all__ = [
     "Table",
     "Column",
     "ColumnType",
+    "FacetType",
+    "JsonSubColumn",
     "query_async",
     "query",
     "query_part_mask_async",
     "query_part_mask",
+    "ColumnChange",
+    "PartialRow",
+    "PartialRowSet",
+    "TableSchemaChangeRequest",
+    "AppendableRowSetRequest",
+    "UploadToTableRequest",
+    "TableUpdateTransaction",
+    "CsvTableDescriptor",
     # Dataset model
     "Dataset",
 ]

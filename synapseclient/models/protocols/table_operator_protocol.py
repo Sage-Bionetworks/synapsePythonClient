@@ -170,8 +170,8 @@ class TableOperatorSynchronousProtocol(Protocol):
             convert_to_datetime: If set to True, will convert all Synapse DATE columns
                 from UNIX timestamp integers into UTC datetime objects
 
-        **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
-                    https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+            **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
+                    <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
                     for complete list of supported arguments. This is exposed as
                     internally the query downloads a CSV from Synapse and then loads
                     it into a dataframe.
@@ -307,7 +307,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         Arguments:
             values: Supports storing data from the following sources:
 
-                - A string holding the path to a CSV file. Tthe data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
+                - A string holding the path to a CSV file. Tthe data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_operator.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
                 - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
@@ -409,7 +409,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         """
         return None
 
-    async def store_rows_async(
+    def store_rows(
         self,
         values: Union[str, Dict[str, Any], pd.DataFrame],
         schema_storage_strategy: "SchemaStorageStrategy" = None,
@@ -455,7 +455,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         Arguments:
             values: Supports storing data from the following sources:
 
-                - A string holding the path to a CSV file. If the `schema_storage_strategy` is set to `None` the data will be uploaded as is. If `schema_storage_strategy` is set to `INFER_FROM_DATA` the data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
+                - A string holding the path to a CSV file. If the `schema_storage_strategy` is set to `None` the data will be uploaded as is. If `schema_storage_strategy` is set to `INFER_FROM_DATA` the data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_operator.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
                 - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
