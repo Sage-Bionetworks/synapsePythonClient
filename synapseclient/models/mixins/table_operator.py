@@ -793,14 +793,40 @@ class TableOperator(TableOperatorSynchronousProtocol):
             raise ValueError(
                 "This method is only supported after interacting with Synapse via a `.get()` or `.store()` operation"
             )
-        if index is not None:
-            raise NotImplementedError("Index is not yet implemented")
 
-        if isinstance(column, list):
-            for col in column:
-                self.columns[col.name] = col
+        if index is not None:
+            if isinstance(column, list):
+                columns_to_insert = []
+                for i, col in enumerate(column):
+                    if col.name in self.columns:
+                        raise ValueError(f"Duplicate column name: {col.name}")
+                    columns_to_insert.append((col.name, col))
+                insert_index = min(index + i, len(self.columns))
+                self.columns = OrderedDict(
+                    list(self.columns.items())[:insert_index]
+                    + columns_to_insert
+                    + list(self.columns.items())[insert_index:]
+                )
+            else:
+                if column.name in self.columns:
+                    raise ValueError(f"Duplicate column name: {column.name}")
+                insert_index = min(index, len(self.columns))
+                self.columns = OrderedDict(
+                    list(self.columns.items())[:insert_index]
+                    + [(column.name, column)]
+                    + list(self.columns.items())[insert_index:]
+                )
+
         else:
-            self.columns[column.name] = column
+            if isinstance(column, list):
+                for col in column:
+                    if col.name in self.columns:
+                        raise ValueError(f"Duplicate column name: {col.name}")
+                    self.columns[col.name] = col
+            else:
+                if column.name in self.columns:
+                    raise ValueError(f"Duplicate column name: {column.name}")
+                self.columns[column.name] = column
 
     def reorder_column(self, name: str, index: int) -> None:
         """Reorder a column in the table. Note that this does not store the column in
@@ -891,23 +917,36 @@ class TableOperator(TableOperatorSynchronousProtocol):
             return OrderedDict()
 
         if isinstance(columns, list):
-            return OrderedDict((column.name, column) for column in columns)
+            results = OrderedDict()
+            for column in columns:
+                results[column.name] = column
+                if column.name in results:
+                    raise ValueError(f"Duplicate column name: {column.name}")
+            return results
         elif isinstance(columns, dict):
             results = OrderedDict()
             for key, column in columns.items():
                 if column.name:
+                    if column.name in results:
+                        raise ValueError(f"Duplicate column name: {column.name}")
                     results[column.name] = column
                 else:
                     column.name = key
+                    if key in results:
+                        raise ValueError(f"Duplicate column name: {key}")
                     results[key] = column
             return results
         elif isinstance(columns, OrderedDict):
             results = OrderedDict()
             for key, column in columns.items():
                 if column.name:
+                    if column.name in results:
+                        raise ValueError(f"Duplicate column name: {column.name}")
                     results[column.name] = column
                 else:
                     column.name = key
+                    if key in results:
+                        raise ValueError(f"Duplicate column name: {key}")
                     results[key] = column
             return results
 
@@ -2385,7 +2424,16 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         elif isinstance(values, pd.DataFrame):
             filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
             try:
-                values.to_csv(filepath, index=False, **(to_csv_kwargs or {}))
+                values.to_csv(
+                    filepath, index=False, float_format="%.12g", **(to_csv_kwargs or {})
+                )
+                # NOTE: reason for flat_format='%.12g':
+                # pandas automatically converts int columns into float64 columns when some cells in the column have no
+                # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
+                # a float into a INTEGER(synapse table type) column. Using the 'g' will strip off '.0' from whole number
+                # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
+                # use '%.12g'.c
+                # see SYNPY-267.
                 file_handle_id = await multipart_upload_file_async(
                     syn=client, file_path=filepath, content_type="text/csv"
                 )
@@ -2445,6 +2493,24 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
             async def main():
                 await Table(id="syn1234").delete_rows_async(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
+
+            asyncio.run(main())
+            ```
+
+        Example: Selecting all rows that contain a null value
+            This example shows how you may select a row to delete from a table where
+            a column has a null value.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await Table(id="syn1234").delete_rows_async(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo is null")
 
             asyncio.run(main())
             ```
@@ -2517,6 +2583,11 @@ def infer_column_type_from_data(values: pd.DataFrame) -> List[Column]:
         if not col or col.upper() in RESERVED_COLUMN_NAMES:
             continue
         inferred_type = infer_dtype(df[col], skipna=True)
+        if inferred_type == "floating":
+            # Check if the column is integers, assuming that the row may be an integer or null
+            if df[col].apply(lambda x: pd.isna(x) or float(x).is_integer()).all():
+                inferred_type = "integer"
+
         column_type = PANDAS_TABLE_TYPE.get(inferred_type, "STRING")
         if column_type == "STRING":
             maxStrLen = df[col].str.len().max()

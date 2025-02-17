@@ -707,5 +707,19 @@ class TableRowOperatorSynchronousProtocol(Protocol):
 
             Table(id="syn1234").delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
             ```
+
+        Example: Selecting all rows that contain a null value
+            This example shows how you may select a row to delete from a table where
+            a column has a null value.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            Table(id="syn1234").delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo is null")
+            ```
         """
         return pd.DataFrame()
