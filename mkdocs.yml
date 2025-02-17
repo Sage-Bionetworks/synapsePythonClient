@@ -84,6 +84,7 @@ nav:
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
           - Table refactor: reference/oop/table_refactor.md
+          - Functional Interfaces: reference/experimental/functional_interfaces.md
           - Asynchronous:
               - Agent: reference/experimental/async/agent.md
               - Project: reference/experimental/async/project.md

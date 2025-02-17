@@ -469,10 +469,12 @@ class TableOperator(TableOperatorSynchronousProtocol):
         return self
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Table_Delete: {self.name}"
+        method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Delete: {self.name}"
     )
     async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
-        """Delete the table from synapse.
+        """Delete the entity from synapse. This is not version specific. If you'd like
+        to delete a specific version of the entity you must use the
+        [synapseclient.api.delete_entity][] function directly.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by

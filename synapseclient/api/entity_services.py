@@ -235,6 +235,42 @@ async def delete_entity(
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
+    Example: Delete the entity `syn123`:
+        This will delete all versions of the entity.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import delete_entity
+
+        syn = Synapse()
+        syn.login()
+
+
+        async def main():
+            await delete_entity(entity_id="syn123")
+
+        asyncio.run(main())
+        ```
+
+    Example: Delete a specific version of the entity `syn123`:
+        This will delete version `3` of the entity.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import delete_entity
+
+        syn = Synapse()
+        syn.login()
+
+
+        async def main():
+            await delete_entity(entity_id="syn123", version_number=3)
+
+        asyncio.run(main())
+        ```
+
     Returns: None
     """
     from synapseclient import Synapse
