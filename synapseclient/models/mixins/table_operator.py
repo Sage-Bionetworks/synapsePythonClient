@@ -1037,8 +1037,6 @@ class TableOperator(TableOperatorSynchronousProtocol):
 
         if client.logger.isEnabledFor(logging.DEBUG):
             client.logger.debug(f"Running query: {query}")
-        else:
-            client.logger.info("Running query")
 
         # TODO: Implementation should not download CSV to disk, instead the ideal
         # solution will load the result into BytesIO and then pass that to
@@ -2100,6 +2098,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 if current_chunk_size + row_size > chunk_size_limit:
                     chunked_rows_to_update.append(chunk)
                     chunk = []
+                    current_chunk_size = 0
                 chunk.append(row)
                 current_chunk_size += row_size
 
