@@ -781,6 +781,69 @@ class TestUpsertRows:
         # AND 3 additional rows exist on the table
         assert len(results) == 6
 
+    async def test_upsert_with_updates_and_insertions_single_row_per_interaction(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_key_2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for a column already stored in Synapse
+        data_for_table = pd.DataFrame(
+            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
+        )
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+
+        # AND data I want to upsert the rows to
+        modified_data_for_table = pd.DataFrame(
+            {
+                "column_string": [
+                    "value1",
+                    "value2",
+                    "value3",
+                    "value4",
+                    "value5",
+                    "value6",
+                ],
+                "column_key_2": [4, 5, 6, 7, 8, 9],
+            }
+        )
+
+        # WHEN I upsert rows to the table based on the first column
+        await table.upsert_rows_async(
+            values=modified_data_for_table,
+            primary_keys=["column_string"],
+            synapse_client=self.syn,
+            rows_per_request=1,
+        )
+
+        # AND I query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"], modified_data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["column_key_2"], modified_data_for_table["column_key_2"]
+        )
+
+        # AND 3 additional rows exist on the table
+        assert len(results) == 6
+
     async def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())

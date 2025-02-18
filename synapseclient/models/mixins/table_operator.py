@@ -1756,8 +1756,12 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         Limitations:
 
         - The number of rows that may be upserted in a single call should be
-            limited. Additional work is planned to support batching
-            the calls automatically for you.
+            kept to a minimum. There is significant overhead in the request to
+            Synapse for each row that is upserted. If you are upserting a large
+            number of rows a better approach may be to query for the data you want
+            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
+            update the data in Synapse. Any rows you want to insert may be added
+            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method.
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
@@ -1884,7 +1888,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         """
         test_import_pandas()
-        from pandas import DataFrame, concat, isna
+        from pandas import DataFrame, isna
 
         if not self._last_persistent_instance:
             await self.get_async(include_columns=True, synapse_client=synapse_client)
@@ -1912,7 +1916,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         all_columns_from_df = [f'"{column}"' for column in values.columns]
         all_results = []
         for individual_df in values_list:
-            # TODO: Chunk this up into smaller queries. Running this when upserting 1 million rows causes an HTTP 403 to be raised from Synapse
             select_statement = "SELECT ROW_ID, "
 
             if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
@@ -1989,62 +1992,70 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             )
             all_results.append(results)
 
-        merged_results = concat(all_results)
-
         rows_to_update_df: List[PartialRow] = []
-        indexs_of_original_df_with_changes = []
         contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
-        for row in merged_results.itertuples(index=False):
-            row_etag = None
+        indexs_of_original_df_with_changes = []
+        index_of_values_list = 0
+        for result in all_results:
+            for row in result.itertuples(index=False):
+                row_etag = None
 
-            if contains_etag:
-                row_etag = row.ROW_ETAG
+                if contains_etag:
+                    row_etag = row.ROW_ETAG
 
-            partial_change_values = {}
+                partial_change_values = {}
 
-            # Find the matching row in `values` that matches the row in `results` for the primary_keys
-            matching_conditions = values[primary_keys[0]] == getattr(
-                row, primary_keys[0]
-            )
-            for col in primary_keys[1:]:
-                matching_conditions &= values[col] == getattr(row, col)
-            matching_row = values.loc[matching_conditions]
+                # Find the matching row in `values` that matches the row in `results` for the primary_keys
+                matching_conditions = values_list[index_of_values_list][
+                    primary_keys[0]
+                ] == getattr(row, primary_keys[0])
+                for col in primary_keys[1:]:
+                    matching_conditions &= values_list[index_of_values_list][
+                        col
+                    ] == getattr(row, col)
+                matching_row = values_list[index_of_values_list].loc[
+                    matching_conditions
+                ]
 
-            # Determines which cells need to be updated
-            for column in values.columns:
-                if len(matching_row[column].values) > 1:
-                    raise ValueError(
-                        f"The values for the keys being upserted must be unique in the table: [{matching_row}]"
-                    )
-
-                if len(matching_row[column].values) == 0:
-                    continue
-                column_id = self.columns[column].id
-                column_type = self.columns[column].column_type
-                cell_value = matching_row[column].values[0]
-                if cell_value != getattr(row, column):
-                    if (
-                        isinstance(cell_value, list) and len(cell_value) > 0
-                    ) or not isna(cell_value):
-                        partial_change_values[
-                            column_id
-                        ] = _convert_pandas_row_to_python_types(
-                            cell=cell_value, column_type=column_type
+                # Determines which cells need to be updated
+                for column in values_list[index_of_values_list].columns:
+                    if len(matching_row[column].values) > 1:
+                        raise ValueError(
+                            f"The values for the keys being upserted must be unique in the table: [{matching_row}]"
                         )
-                    else:
-                        partial_change_values[column_id] = None
 
-                if partial_change_values != {}:
-                    partial_change = PartialRow(
-                        row_id=row.ROW_ID,
-                        etag=row_etag,
-                        values=[
-                            {"key": partial_change_key, "value": partial_change_value}
-                            for partial_change_key, partial_change_value in partial_change_values.items()
-                        ],
-                    )
-                    rows_to_update_df.append(partial_change)
-                    indexs_of_original_df_with_changes.append(matching_row.index[0])
+                    if len(matching_row[column].values) == 0:
+                        continue
+                    column_id = self.columns[column].id
+                    column_type = self.columns[column].column_type
+                    cell_value = matching_row[column].values[0]
+                    if cell_value != getattr(row, column):
+                        if (
+                            isinstance(cell_value, list) and len(cell_value) > 0
+                        ) or not isna(cell_value):
+                            partial_change_values[
+                                column_id
+                            ] = _convert_pandas_row_to_python_types(
+                                cell=cell_value, column_type=column_type
+                            )
+                        else:
+                            partial_change_values[column_id] = None
+
+                    if partial_change_values != {}:
+                        partial_change = PartialRow(
+                            row_id=row.ROW_ID,
+                            etag=row_etag,
+                            values=[
+                                {
+                                    "key": partial_change_key,
+                                    "value": partial_change_value,
+                                }
+                                for partial_change_key, partial_change_value in partial_change_values.items()
+                            ],
+                        )
+                        rows_to_update_df.append(partial_change)
+                        indexs_of_original_df_with_changes.append(matching_row.index[0])
+            index_of_values_list += 1
 
         rows_to_insert_df = values.loc[
             ~values.index.isin(indexs_of_original_df_with_changes)

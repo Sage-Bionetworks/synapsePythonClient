@@ -290,12 +290,15 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         columns specified in this list the row will be updated. If a row does not exist
         it will be inserted.
 
-
         Limitations:
 
         - The number of rows that may be upserted in a single call should be
-            limited. Additional work is planned to support batching
-            the calls automatically for you.
+            kept to a minimum. There is significant overhead in the request to
+            Synapse for each row that is upserted. If you are upserting a large
+            number of rows a better approach may be to query for the data you want
+            to update, update the data, then use the [store_rows][synapseclient.models.protocols.table_operator_protocol.TableRowOperatorSynchronousProtocol.store_rows_async] method to
+            update the data in Synapse. Any rows you want to insert may be added
+            to the DataFrame that is passed to the [store_rows][synapseclient.models.protocols.table_operator_protocol.TableRowOperatorSynchronousProtocol.store_rows_async] method.
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
