@@ -3,7 +3,6 @@ or querying for data."""
 
 import asyncio
 import json
-import logging
 import os
 import tempfile
 import uuid
@@ -1736,7 +1735,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         primary_keys: List[str],
         dry_run: bool = False,
         *,
-        rows_per_request: int = 10000,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -1755,13 +1753,23 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         Limitations:
 
+        - The request to update, and the request to insert data does not occur in a
+            single transaction. This means that the update of data may succeed, but the
+            insert of data may fail. Additionally, as noted in the limitation below, if
+            data is chunked up into multiple requests you may find that a portion of
+            your data is updated, but another portion is not.
         - The number of rows that may be upserted in a single call should be
-            kept to a minimum. There is significant overhead in the request to
-            Synapse for each row that is upserted. If you are upserting a large
+            kept to a minimum (< 10,000). There is significant overhead in the request
+            to Synapse for each row that is upserted. If you are upserting a large
             number of rows a better approach may be to query for the data you want
             to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
             update the data in Synapse. Any rows you want to insert may be added
             to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method.
+        - When upserting mnay rows the requests to Synapse will be chunked into smaller
+            requests. The limit is 2MB per request. This chunking will happen
+            automatically and should not be a concern for most users. If you are
+            having issues with the request being too large you may lower the
+            number of rows you are trying to upsert, or note the above limitation.
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
@@ -1908,14 +1916,33 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 "Don't know how to make tables from values of type %s." % type(values)
             )
 
-        values_list = []
-        # Split up the `values` DataFrame into smaller DataFrames chunked to the size of `rows_per_request`
-        for i in range(0, len(values), rows_per_request):
-            values_list.append(values[i : i + rows_per_request])
+        client = Synapse.get_client(synapse_client=synapse_client)
+        chunk_list = []
+
+        current_chunk_size = 0
+        chunk = []
+        last_chunk_index = 0
+
+        # Split the values into chunks that are less than 1.8MB. This is due to a
+        # limitation on the Synapse rest API where that limits the maximum size of a
+        # PartialRow change.
+        for index, row in values.iterrows():
+            row_size = row.memory_usage(deep=True)
+            if current_chunk_size + row_size > 1.8 * 1024 * 1024:
+                chunk_list.append(values[index : index + last_chunk_index])
+                chunk = []
+                current_chunk_size = 0
+                last_chunk_index = index
+            chunk.append(row)
+            current_chunk_size += row_size
+        if chunk:
+            chunk_list.append(values[last_chunk_index:])
 
         all_columns_from_df = [f'"{column}"' for column in values.columns]
-        all_results = []
-        for individual_df in values_list:
+        contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
+        indexs_of_original_df_with_changes = []
+        total_row_count_updated = 0
+        for individual_chunk in chunk_list:
             select_statement = "SELECT ROW_ID, "
 
             if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
@@ -1950,14 +1977,14 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 ):
                     values_for_where_statement = [
                         f"'{value}'"
-                        for value in individual_df[upsert_column]
+                        for value in individual_chunk[upsert_column]
                         if value is not None
                     ]
 
                 elif column_model.column_type == ColumnType.BOOLEAN:
                     include_true = False
                     include_false = False
-                    for value in individual_df[upsert_column]:
+                    for value in individual_chunk[upsert_column]:
                         if value is None:
                             continue
                         if value:
@@ -1975,7 +2002,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 else:
                     values_for_where_statement = [
                         str(value)
-                        for value in individual_df[upsert_column]
+                        for value in individual_chunk[upsert_column]
                         if value is not None
                     ]
                 if not values_for_where_statement:
@@ -1990,14 +2017,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             results = await self.query_async(
                 query=select_statement, synapse_client=synapse_client
             )
-            all_results.append(results)
 
-        rows_to_update: List[PartialRow] = []
-        contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
-        indexs_of_original_df_with_changes = []
-        index_of_values_list = 0
-        for result in all_results:
-            for row in result.itertuples(index=False):
+            rows_to_update: List[PartialRow] = []
+            for row in results.itertuples(index=False):
                 row_etag = None
 
                 if contains_etag:
@@ -2006,19 +2028,15 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 partial_change_values = {}
 
                 # Find the matching row in `values` that matches the row in `results` for the primary_keys
-                matching_conditions = values_list[index_of_values_list][
-                    primary_keys[0]
-                ] == getattr(row, primary_keys[0])
+                matching_conditions = individual_chunk[primary_keys[0]] == getattr(
+                    row, primary_keys[0]
+                )
                 for col in primary_keys[1:]:
-                    matching_conditions &= values_list[index_of_values_list][
-                        col
-                    ] == getattr(row, col)
-                matching_row = values_list[index_of_values_list].loc[
-                    matching_conditions
-                ]
+                    matching_conditions &= individual_chunk[col] == getattr(row, col)
+                matching_row = individual_chunk.loc[matching_conditions]
 
                 # Determines which cells need to be updated
-                for column in values_list[index_of_values_list].columns:
+                for column in individual_chunk.columns:
                     if len(matching_row[column].values) > 1:
                         raise ValueError(
                             f"The values for the keys being upserted must be unique in the table: [{matching_row}]"
@@ -2042,6 +2060,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             partial_change_values[column_id] = None
 
                 if partial_change_values != {}:
+                    total_row_count_updated += 1
                     partial_change = PartialRow(
                         row_id=row.ROW_ID,
                         etag=row_etag,
@@ -2055,57 +2074,35 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     )
                     rows_to_update.append(partial_change)
                     indexs_of_original_df_with_changes.append(matching_row.index[0])
-            index_of_values_list += 1
+
+            if not dry_run and rows_to_update:
+                change = AppendableRowSetRequest(
+                    entity_id=self.id,
+                    to_append=PartialRowSet(
+                        table_id=self.id,
+                        rows=rows_to_update,
+                    ),
+                )
+                await TableUpdateTransaction(
+                    entity_id=self.id,
+                    changes=[change],
+                ).send_job_and_wait_async(synapse_client=client)
 
         rows_to_insert_df = values.loc[
             ~values.index.isin(indexs_of_original_df_with_changes)
         ]
 
-        client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(
-            f"[{self.id}:{self.name}]: Found {len(rows_to_update)}"
+            f"[{self.id}:{self.name}]: Found {total_row_count_updated}"
             f" rows to update and {len(rows_to_insert_df)} rows to insert"
         )
-
-        if client.logger.isEnabledFor(logging.DEBUG):
-            client.logger.debug(
-                f"[{self.id}:{self.name}]: Rows to update: {rows_to_update}"
-            )
-            client.logger.debug(
-                f"[{self.id}:{self.name}]: Rows to insert: {rows_to_insert_df}"
-            )
-
-        if dry_run:
-            return
-
-        appendable_rowset_requests = []
-        if rows_to_update:
-            for i in range(0, len(rows_to_update), rows_per_request):
-                appendable_rowset_requests.append(
-                    AppendableRowSetRequest(
-                        entity_id=self.id,
-                        to_append=PartialRowSet(
-                            table_id=self.id,
-                            rows=rows_to_update[i : i + rows_per_request],
-                        ),
-                    )
-                )
 
         if not rows_to_insert_df.empty:
             await self.store_rows_async(
                 values=rows_to_insert_df,
-                additional_changes=appendable_rowset_requests
-                if appendable_rowset_requests
-                else None,
+                dry_run=dry_run,
                 synapse_client=synapse_client,
             )
-        else:
-            await TableUpdateTransaction(
-                entity_id=self.id,
-                changes=appendable_rowset_requests
-                if appendable_rowset_requests
-                else None,
-            ).send_job_and_wait_async(synapse_client=client)
 
     async def store_rows_async(
         self,
