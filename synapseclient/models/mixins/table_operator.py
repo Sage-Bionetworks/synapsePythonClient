@@ -4,6 +4,7 @@ or querying for data."""
 import asyncio
 import json
 import os
+import sys
 import tempfile
 import uuid
 from collections import OrderedDict
@@ -1735,6 +1736,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         primary_keys: List[str],
         dry_run: bool = False,
         *,
+        rows_per_query: int = 10000,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -1799,10 +1801,10 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 set the log level to DEBUG by setting the debug flag when creating
                 your Synapse class instance like: `syn = Synapse(debug=True)`.
 
-            rows_per_request: The number of rows to send in a single request. This is
-                used to prevent the request from being too large. The default is 10,000
-                rows. If you are having issues with the request being too large you may
-                lower this number.
+            rows_per_query: The number of rows that will be queries from Synapse per
+                request. Since we need to query for the data that is being updated
+                this will determine the number of rows that are queried at a time.
+                The default is 10,000 rows.
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -1917,28 +1919,11 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             )
 
         client = Synapse.get_client(synapse_client=synapse_client)
+
+        rows_to_update: List[PartialRow] = []
         chunk_list = []
-
-        current_chunk_size = 0
-        chunk = []
-        last_chunk_index = 0
-
-        # Split the values into chunks that are less than 1.8MB. This is due to a
-        # limitation on the Synapse rest API where that limits the maximum size of a
-        # PartialRow change.
-        for index, row in values.iterrows():
-            row_size = row.memory_usage(index=False, deep=False)
-            if current_chunk_size + row_size > 1.8 * 1024 * 1024:
-                chunk_list.append(
-                    values[last_chunk_index : last_chunk_index + len(chunk)]
-                )
-                chunk = []
-                current_chunk_size = 0
-                last_chunk_index = index
-            chunk.append(row)
-            current_chunk_size += row_size
-        if chunk:
-            chunk_list.append(values[last_chunk_index:])
+        for i in range(0, len(values), rows_per_query):
+            chunk_list.append(values[i : i + rows_per_query])
 
         all_columns_from_df = [f'"{column}"' for column in values.columns]
         contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
@@ -2020,7 +2005,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 query=select_statement, synapse_client=synapse_client
             )
 
-            rows_to_update: List[PartialRow] = []
             for row in results.itertuples(index=False):
                 row_etag = None
 
@@ -2077,12 +2061,28 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     rows_to_update.append(partial_change)
                     indexs_of_original_df_with_changes.append(matching_row.index[0])
 
-            if not dry_run and rows_to_update:
+        if not dry_run and rows_to_update:
+            chunked_rows_to_update = []
+            chunk_size_limit = 1.8 * 1024 * 1024  # 1.8MB
+            current_chunk_size = 0
+            chunk = []
+            for row in rows_to_update:
+                row_size = sys.getsizeof(row)
+                if current_chunk_size + row_size > chunk_size_limit:
+                    chunked_rows_to_update.append(chunk)
+                    chunk = []
+                chunk.append(row)
+                current_chunk_size += row_size
+
+            if chunk:
+                chunked_rows_to_update.append(chunk)
+
+            for chunked_row_to_update in chunked_rows_to_update:
                 change = AppendableRowSetRequest(
                     entity_id=self.id,
                     to_append=PartialRowSet(
                         table_id=self.id,
-                        rows=rows_to_update,
+                        rows=chunked_row_to_update,
                     ),
                 )
                 await TableUpdateTransaction(
