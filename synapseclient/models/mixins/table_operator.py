@@ -1993,20 +1993,21 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         rows_to_update_df: List[PartialRow] = []
         indexs_of_original_df_with_changes = []
-        for _, row in merged_results.iterrows():
-            row_id = row["ROW_ID"]
-
+        contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
+        for row in merged_results.itertuples(index=False):
             row_etag = None
 
-            if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
-                row_etag = row["ROW_ETAG"]
+            if contains_etag:
+                row_etag = row.ROW_ETAG
 
             partial_change_values = {}
 
             # Find the matching row in `values` that matches the row in `results` for the primary_keys
-            matching_conditions = values[primary_keys[0]] == row[primary_keys[0]]
+            matching_conditions = values[primary_keys[0]] == getattr(
+                row, primary_keys[0]
+            )
             for col in primary_keys[1:]:
-                matching_conditions &= values[col] == row[col]
+                matching_conditions &= values[col] == getattr(row, col)
             matching_row = values.loc[matching_conditions]
 
             # Determines which cells need to be updated
@@ -2021,7 +2022,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 column_id = self.columns[column].id
                 column_type = self.columns[column].column_type
                 cell_value = matching_row[column].values[0]
-                if cell_value != row[column]:
+                if cell_value != getattr(row, column):
                     if (
                         isinstance(cell_value, list) and len(cell_value) > 0
                     ) or not isna(cell_value):
@@ -2033,17 +2034,17 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     else:
                         partial_change_values[column_id] = None
 
-            if partial_change_values != {}:
-                partial_chage = PartialRow(
-                    row_id=row_id,
-                    etag=row_etag,
-                    values=[
-                        {"key": partial_change_key, "value": partial_change_value}
-                        for partial_change_key, partial_change_value in partial_change_values.items()
-                    ],
-                )
-                rows_to_update_df.append(partial_chage)
-                indexs_of_original_df_with_changes.append(matching_row.index[0])
+                if partial_change_values != {}:
+                    partial_change = PartialRow(
+                        row_id=row.ROW_ID,
+                        etag=row_etag,
+                        values=[
+                            {"key": partial_change_key, "value": partial_change_value}
+                            for partial_change_key, partial_change_value in partial_change_values.items()
+                        ],
+                    )
+                    rows_to_update_df.append(partial_change)
+                    indexs_of_original_df_with_changes.append(matching_row.index[0])
 
         rows_to_insert_df = values.loc[
             ~values.index.isin(indexs_of_original_df_with_changes)
