@@ -2063,7 +2063,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         if not dry_run and rows_to_update:
             chunked_rows_to_update = []
-            chunk_size_limit = 1.8 * 1024 * 1024  # 1.8MB
+            chunk_size_limit = 1.5 * 1024 * 1024  # 1.5MB
             current_chunk_size = 0
             chunk = []
             for row in rows_to_update:
@@ -2085,6 +2085,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         rows=chunked_row_to_update,
                     ),
                 )
+                print(f"The size of the change is: {sys.getsizeof(change)}")
                 await TableUpdateTransaction(
                     entity_id=self.id,
                     changes=[change],
