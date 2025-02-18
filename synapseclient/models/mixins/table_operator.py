@@ -1736,6 +1736,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         primary_keys: List[str],
         dry_run: bool = False,
         *,
+        rows_per_request: int = 10000,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -1785,6 +1786,11 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 be updated and inserted you may set the `dry_run` argument to True and
                 set the log level to DEBUG by setting the debug flag when creating
                 your Synapse class instance like: `syn = Synapse(debug=True)`.
+
+            rows_per_request: The number of rows to send in a single request. This is
+                used to prevent the request from being too large. The default is 10,000
+                rows. If you are having issues with the request being too large you may
+                lower this number.
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -1878,7 +1884,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         """
         test_import_pandas()
-        from pandas import DataFrame, isna
+        from pandas import DataFrame, concat, isna
 
         if not self._last_persistent_instance:
             await self.get_async(include_columns=True, synapse_client=synapse_client)
@@ -1898,80 +1904,96 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 "Don't know how to make tables from values of type %s." % type(values)
             )
 
+        values_list = []
+        # Split up the `values` DataFrame into smaller DataFrames chunked to the size of `rows_per_request`
+        for i in range(0, len(values), rows_per_request):
+            values_list.append(values[i : i + rows_per_request])
+
         all_columns_from_df = [f'"{column}"' for column in values.columns]
+        all_results = []
+        for individual_df in values_list:
+            # TODO: Chunk this up into smaller queries. Running this when upserting 1 million rows causes an HTTP 403 to be raised from Synapse
+            select_statement = "SELECT ROW_ID, "
 
-        # TODO: Chunk this up into smaller queries. Running this when upserting 1 million rows causes an HTTP 403 to be raised from Synapse
-        select_statement = "SELECT ROW_ID, "
+            if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
+                select_statement += "ROW_ETAG, "
 
-        if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
-            select_statement += "ROW_ETAG, "
-
-        select_statement += f"{', '.join(all_columns_from_df)} FROM {self.id} WHERE "
-        where_statements = []
-        for upsert_column in primary_keys:
-            column_model = self.columns[upsert_column]
-            if (
-                column_model.column_type
-                in (
-                    ColumnType.STRING_LIST,
-                    ColumnType.INTEGER_LIST,
-                    ColumnType.BOOLEAN_LIST,
-                    ColumnType.ENTITYID_LIST,
-                    ColumnType.USERID_LIST,
-                )
-                or column_model.column_type == ColumnType.JSON
-            ):
-                raise ValueError(
-                    f"Column type {column_model.column_type} is not supported for primary_keys"
-                )
-            elif column_model.column_type in (
-                ColumnType.STRING,
-                ColumnType.MEDIUMTEXT,
-                ColumnType.LARGETEXT,
-                ColumnType.LINK,
-                ColumnType.ENTITYID,
-            ):
-                values_for_where_statement = [
-                    f"'{value}'" for value in values[upsert_column] if value is not None
-                ]
-
-            elif column_model.column_type == ColumnType.BOOLEAN:
-                include_true = False
-                include_false = False
-                for value in values[upsert_column]:
-                    if value is None:
-                        continue
-                    if value:
-                        include_true = True
-                    else:
-                        include_false = True
-                    if include_true and include_false:
-                        break
-                if include_true and include_false:
-                    values_for_where_statement = ["'true'", "'false'"]
-                elif include_true:
-                    values_for_where_statement = ["'true'"]
-                elif include_false:
-                    values_for_where_statement = ["'false'"]
-            else:
-                values_for_where_statement = [
-                    str(value) for value in values[upsert_column] if value is not None
-                ]
-            if not values_for_where_statement:
-                continue
-            where_statements.append(
-                f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
+            select_statement += (
+                f"{', '.join(all_columns_from_df)} FROM {self.id} WHERE "
             )
+            where_statements = []
+            for upsert_column in primary_keys:
+                column_model = self.columns[upsert_column]
+                if (
+                    column_model.column_type
+                    in (
+                        ColumnType.STRING_LIST,
+                        ColumnType.INTEGER_LIST,
+                        ColumnType.BOOLEAN_LIST,
+                        ColumnType.ENTITYID_LIST,
+                        ColumnType.USERID_LIST,
+                    )
+                    or column_model.column_type == ColumnType.JSON
+                ):
+                    raise ValueError(
+                        f"Column type {column_model.column_type} is not supported for primary_keys"
+                    )
+                elif column_model.column_type in (
+                    ColumnType.STRING,
+                    ColumnType.MEDIUMTEXT,
+                    ColumnType.LARGETEXT,
+                    ColumnType.LINK,
+                    ColumnType.ENTITYID,
+                ):
+                    values_for_where_statement = [
+                        f"'{value}'"
+                        for value in individual_df[upsert_column]
+                        if value is not None
+                    ]
 
-        where_statement = " AND ".join(where_statements)
-        select_statement += where_statement
+                elif column_model.column_type == ColumnType.BOOLEAN:
+                    include_true = False
+                    include_false = False
+                    for value in individual_df[upsert_column]:
+                        if value is None:
+                            continue
+                        if value:
+                            include_true = True
+                        else:
+                            include_false = True
+                        if include_true and include_false:
+                            break
+                    if include_true and include_false:
+                        values_for_where_statement = ["'true'", "'false'"]
+                    elif include_true:
+                        values_for_where_statement = ["'true'"]
+                    elif include_false:
+                        values_for_where_statement = ["'false'"]
+                else:
+                    values_for_where_statement = [
+                        str(value)
+                        for value in individual_df[upsert_column]
+                        if value is not None
+                    ]
+                if not values_for_where_statement:
+                    continue
+                where_statements.append(
+                    f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
+                )
 
-        results = await self.query_async(
-            query=select_statement, synapse_client=synapse_client
-        )
+            where_statement = " AND ".join(where_statements)
+            select_statement += where_statement
+
+            results = await self.query_async(
+                query=select_statement, synapse_client=synapse_client
+            )
+            all_results.append(results)
+
+        merged_results = concat(all_results)
+
         rows_to_update_df: List[PartialRow] = []
         indexs_of_original_df_with_changes = []
-        for _, row in results.iterrows():
+        for _, row in merged_results.iterrows():
             row_id = row["ROW_ID"]
 
             row_etag = None
@@ -2428,6 +2450,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 "The table must have an ID to store rows, or the table could not be found from the given name/parent_id."
             )
 
+        # TODO: Support batching values up to a certain size
         # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
         if isinstance(original_values, str):
             file_handle_id = await multipart_upload_file_async(
@@ -2449,6 +2472,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         elif isinstance(values, DataFrame):
             filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
             try:
+                # TODO: Support batching values up to a certain size
                 values.to_csv(
                     filepath, index=False, float_format="%.12g", **(to_csv_kwargs or {})
                 )
