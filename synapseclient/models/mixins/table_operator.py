@@ -1927,7 +1927,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         # limitation on the Synapse rest API where that limits the maximum size of a
         # PartialRow change.
         for index, row in values.iterrows():
-            row_size = row.memory_usage(deep=True)
+            row_size = row.memory_usage(index=False, deep=False)
             if current_chunk_size + row_size > 1.8 * 1024 * 1024:
                 chunk_list.append(
                     values[last_chunk_index : last_chunk_index + len(chunk)]
