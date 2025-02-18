@@ -1929,7 +1929,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         for index, row in values.iterrows():
             row_size = row.memory_usage(deep=True)
             if current_chunk_size + row_size > 1.8 * 1024 * 1024:
-                chunk_list.append(values[index : index + last_chunk_index])
+                chunk_list.append(
+                    values[last_chunk_index : last_chunk_index + len(chunk)]
+                )
                 chunk = []
                 current_chunk_size = 0
                 last_chunk_index = index
