@@ -88,7 +88,8 @@ def test_import_pandas():
             """\n\nThe pandas package is required for this function!\n
         Most functions in the synapseclient package don't require the
         installation of pandas, but some do. Please refer to the installation
-        instructions at: http://pandas.pydata.org/.
+        instructions at: http://pandas.pydata.org/ or
+        https://python-docs.synapse.org/tutorials/installation/#installation-guide-for-pypi-users.
         \n\n\n"""
         )
     # catch other errors (see SYNPY-177)
