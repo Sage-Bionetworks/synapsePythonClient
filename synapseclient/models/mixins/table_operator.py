@@ -2041,20 +2041,20 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         else:
                             partial_change_values[column_id] = None
 
-                    if partial_change_values != {}:
-                        partial_change = PartialRow(
-                            row_id=row.ROW_ID,
-                            etag=row_etag,
-                            values=[
-                                {
-                                    "key": partial_change_key,
-                                    "value": partial_change_value,
-                                }
-                                for partial_change_key, partial_change_value in partial_change_values.items()
-                            ],
-                        )
-                        rows_to_update_df.append(partial_change)
-                        indexs_of_original_df_with_changes.append(matching_row.index[0])
+                if partial_change_values != {}:
+                    partial_change = PartialRow(
+                        row_id=row.ROW_ID,
+                        etag=row_etag,
+                        values=[
+                            {
+                                "key": partial_change_key,
+                                "value": partial_change_value,
+                            }
+                            for partial_change_key, partial_change_value in partial_change_values.items()
+                        ],
+                    )
+                    rows_to_update_df.append(partial_change)
+                    indexs_of_original_df_with_changes.append(matching_row.index[0])
             index_of_values_list += 1
 
         rows_to_insert_df = values.loc[
