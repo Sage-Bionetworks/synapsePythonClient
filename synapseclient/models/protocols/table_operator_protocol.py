@@ -1,9 +1,8 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, TypeVar, Union
 
-import pandas as pd
 from typing_extensions import Self
 
 from synapseclient import Synapse
@@ -16,6 +15,8 @@ if TYPE_CHECKING:
         TableSchemaChangeRequest,
         UploadToTableRequest,
     )
+
+DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 
 class TableOperatorSynchronousProtocol(Protocol):
@@ -153,7 +154,7 @@ class TableOperatorSynchronousProtocol(Protocol):
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
-    ) -> pd.DataFrame:
+    ) -> DATA_FRAME_TYPE:
         """Query for data on a table stored in Synapse. The results will always be
         returned as a Pandas DataFrame.
 
@@ -197,7 +198,9 @@ class TableOperatorSynchronousProtocol(Protocol):
             print(results)
             ```
         """
-        return pd.DataFrame()
+        from pandas import DataFrame
+
+        return DataFrame()
 
     @staticmethod
     def query_part_mask(
@@ -268,7 +271,7 @@ class TableOperatorSynchronousProtocol(Protocol):
 class TableRowOperatorSynchronousProtocol(Protocol):
     def upsert_rows(
         self,
-        values: pd.DataFrame,
+        values: DATA_FRAME_TYPE,
         primary_keys: List[str],
         dry_run: bool = False,
         *,
@@ -411,7 +414,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
 
     def store_rows(
         self,
-        values: Union[str, Dict[str, Any], pd.DataFrame],
+        values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
         schema_storage_strategy: "SchemaStorageStrategy" = None,
         column_expansion_strategy: "ColumnExpansionStrategy" = None,
         dry_run: bool = False,
@@ -675,7 +678,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
 
     def delete_rows(
         self, query: str, *, synapse_client: Optional[Synapse] = None
-    ) -> pd.DataFrame:
+    ) -> DATA_FRAME_TYPE:
         """
         Delete rows from a table given a query to select rows. The query at a
         minimum must select the `ROW_ID` and `ROW_VERSION` columns. If you want to
@@ -722,4 +725,6 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             Table(id="syn1234").delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo is null")
             ```
         """
-        return pd.DataFrame()
+        from pandas import DataFrame
+
+        return DataFrame()

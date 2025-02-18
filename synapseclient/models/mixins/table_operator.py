@@ -12,10 +12,8 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import Enum
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
-import pandas as pd
-from pandas.api.types import infer_dtype
 from typing_extensions import Self
 
 from synapseclient import Column as Synapse_Column
@@ -77,6 +75,26 @@ RESERVED_COLUMN_NAMES = [
     "ROW_HASH_CODE",
 ]
 
+DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
+SERIES_TYPE = TypeVar("pd.Series")
+
+
+def test_import_pandas():
+    try:
+        import pandas as pd  # noqa F401
+    # used to catch when pandas isn't installed
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            """\n\nThe pandas package is required for this function!\n
+        Most functions in the synapseclient package don't require the
+        installation of pandas, but some do. Please refer to the installation
+        instructions at: http://pandas.pydata.org/.
+        \n\n\n"""
+        )
+    # catch other errors (see SYNPY-177)
+    except:  # noqa
+        raise
+
 
 @dataclass
 class SumFileSizes:
@@ -97,7 +115,7 @@ class QueryResultBundle:
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
 
-    result: pd.DataFrame
+    result: "DATA_FRAME_TYPE"
     """The result of the query"""
 
     count: Optional[int] = None
@@ -961,7 +979,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
-    ) -> pd.DataFrame:
+    ) -> DATA_FRAME_TYPE:
         """Query for data on a table stored in Synapse. The results will always be
         returned as a Pandas DataFrame.
 
@@ -1713,7 +1731,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
     async def upsert_rows_async(
         self,
-        values: pd.DataFrame,
+        values: DATA_FRAME_TYPE,
         primary_keys: List[str],
         dry_run: bool = False,
         *,
@@ -1858,6 +1876,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             | B    | 2    |      |
 
         """
+        test_import_pandas()
+        from pandas import DataFrame, isna
+
         if not self._last_persistent_instance:
             await self.get_async(include_columns=True, synapse_client=synapse_client)
         if not self.columns:
@@ -1866,10 +1887,10 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             )
 
         if isinstance(values, dict):
-            values = pd.DataFrame(values)
+            values = DataFrame(values)
         elif isinstance(values, str):
             values = csv_to_pandas_df(filepath=values, **kwargs)
-        elif isinstance(values, pd.DataFrame) or isinstance(values, str):
+        elif isinstance(values, DataFrame) or isinstance(values, str):
             values = values.copy()
         else:
             raise ValueError(
@@ -1980,7 +2001,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 if cell_value != row[column]:
                     if (
                         isinstance(cell_value, list) and len(cell_value) > 0
-                    ) or not pd.isna(cell_value):
+                    ) or not isna(cell_value):
                         partial_change_values[
                             column_id
                         ] = _convert_pandas_row_to_python_types(
@@ -2047,7 +2068,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
     async def store_rows_async(
         self,
-        values: Union[str, Dict[str, Any], pd.DataFrame],
+        values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
         schema_storage_strategy: SchemaStorageStrategy = None,
         column_expansion_strategy: ColumnExpansionStrategy = None,
         dry_run: bool = False,
@@ -2324,15 +2345,18 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             | C    | 3    | 3    |
 
         """
+        test_import_pandas()
+        from pandas import DataFrame
+
         original_values = values
         if isinstance(values, dict):
-            values = pd.DataFrame(values)
+            values = DataFrame(values)
         elif (
             isinstance(values, str)
             and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
         ):
             values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
-        elif isinstance(values, pd.DataFrame) or isinstance(values, str):
+        elif isinstance(values, DataFrame) or isinstance(values, str):
             # We don't need to convert a DF, and CSVs will be uploaded as is
             pass
         else:
@@ -2421,7 +2445,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             await TableUpdateTransaction(
                 entity_id=self.id, changes=changes
             ).send_job_and_wait_async(synapse_client=client)
-        elif isinstance(values, pd.DataFrame):
+        elif isinstance(values, DataFrame):
             filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
             try:
                 values.to_csv(
@@ -2460,7 +2484,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
     # TODO: Determine if it is possible to delete rows from a `Dataset` entity, or if it's only possible to delete the rows by setting the `items` attribute and storing the entity
     async def delete_rows_async(
         self, query: str, *, synapse_client: Optional[Synapse] = None
-    ) -> pd.DataFrame:
+    ) -> DATA_FRAME_TYPE:
         """
         Delete rows from a table given a query to select rows. The query at a
         minimum must select the `ROW_ID` and `ROW_VERSION` columns. If you want to
@@ -2548,7 +2572,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         return results_from_query
 
 
-def infer_column_type_from_data(values: pd.DataFrame) -> List[Column]:
+def infer_column_type_from_data(values: DATA_FRAME_TYPE) -> List[Column]:
     """
     Return a list of Synapse table [Column][synapseclient.models.table.Column] objects
     that correspond to the columns in the given values.
@@ -2569,8 +2593,11 @@ def infer_column_type_from_data(values: pd.DataFrame) -> List[Column]:
         cols = infer_column_type_from_data(df)
         ```
     """
+    test_import_pandas()
+    from pandas import DataFrame, isna
+    from pandas.api.types import infer_dtype
 
-    if isinstance(values, pd.DataFrame):
+    if isinstance(values, DataFrame):
         df = values
     else:
         raise ValueError(
@@ -2585,7 +2612,7 @@ def infer_column_type_from_data(values: pd.DataFrame) -> List[Column]:
         inferred_type = infer_dtype(df[col], skipna=True)
         if inferred_type == "floating":
             # Check if the column is integers, assuming that the row may be an integer or null
-            if df[col].apply(lambda x: pd.isna(x) or float(x).is_integer()).all():
+            if df[col].apply(lambda x: isna(x) or float(x).is_integer()).all():
                 inferred_type = "integer"
 
         column_type = PANDAS_TABLE_TYPE.get(inferred_type, "STRING")
@@ -2614,8 +2641,8 @@ def infer_column_type_from_data(values: pd.DataFrame) -> List[Column]:
 
 
 def _convert_df_date_cols_to_datetime(
-    df: pd.DataFrame, date_columns: List
-) -> pd.DataFrame:
+    df: DATA_FRAME_TYPE, date_columns: List
+) -> DATA_FRAME_TYPE:
     """
     Convert date columns with epoch time to date time in UTC timezone
 
@@ -2626,7 +2653,9 @@ def _convert_df_date_cols_to_datetime(
     Returns:
         A dataframe with epoch time converted to date time in UTC timezone
     """
+    test_import_pandas()
     import numpy as np
+    from pandas import to_datetime
 
     # find columns that are in date_columns list but not in dataframe
     diff_cols = list(set(date_columns) - set(df.columns))
@@ -2639,7 +2668,7 @@ def _convert_df_date_cols_to_datetime(
             "Cannot convert epoch time to integer. Please make sure that the date columns that you specified contain valid epoch time value"
         )
     df[date_columns] = df[date_columns].apply(
-        lambda x: pd.to_datetime(x, unit="ms", utc=True)
+        lambda x: to_datetime(x, unit="ms", utc=True)
     )
     return df
 
@@ -2693,6 +2722,8 @@ def csv_to_pandas_df(
     Returns:
         A pandas dataframe
     """
+    test_import_pandas()
+    from pandas import read_csv
 
     line_terminator = str(os.linesep)
 
@@ -2710,7 +2741,7 @@ def csv_to_pandas_df(
     # line terminators (e.g. not '\r\n') 'cause pandas doesn't
     # longer line terminators. See: <https://github.com/pydata/pandas/issues/3501>
     # "ValueError: Only length-1 line terminators supported"
-    df = pd.read_csv(
+    df = read_csv(
         filepath,
         lineterminator=line_terminator if len(line_terminator) == 1 else None,
         **pandas_args,
@@ -2748,7 +2779,7 @@ def csv_to_pandas_df(
 
 
 def _convert_pandas_row_to_python_types(
-    cell: Union[pd.Series, str, List], column_type: ColumnType
+    cell: Union[SERIES_TYPE, str, List], column_type: ColumnType
 ) -> Union[List, datetime, float, int, bool, str]:
     """
     Handle the conversion of a cell item to a Python type based on the column type.
