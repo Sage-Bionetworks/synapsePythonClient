@@ -959,6 +959,7 @@ def printTransferProgress(
     isBytes: bool = True,
     dt: float = None,
     previouslyTransferred: int = 0,
+    logger: logging.Logger = None,
 ):
     """Prints a progress bar
 
@@ -1015,8 +1016,12 @@ def printTransferProgress(
         postfix,
         status,
     )
-    sys.stdout.write(text)
-    sys.stdout.flush()
+    # Used for backwards compatability if anyone happens to be using this function
+    if logger:
+        logger.info(text)
+    else:
+        sys.stdout.write(text)
+        sys.stdout.flush()
 
 
 def humanizeBytes(num_bytes):
