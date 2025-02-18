@@ -1992,7 +1992,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             )
             all_results.append(results)
 
-        rows_to_update_df: List[PartialRow] = []
+        rows_to_update: List[PartialRow] = []
         contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
         indexs_of_original_df_with_changes = []
         index_of_values_list = 0
@@ -2053,7 +2053,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             for partial_change_key, partial_change_value in partial_change_values.items()
                         ],
                     )
-                    rows_to_update_df.append(partial_change)
+                    rows_to_update.append(partial_change)
                     indexs_of_original_df_with_changes.append(matching_row.index[0])
             index_of_values_list += 1
 
@@ -2063,13 +2063,13 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(
-            f"[{self.id}:{self.name}]: Found {len(rows_to_update_df)}"
+            f"[{self.id}:{self.name}]: Found {len(rows_to_update)}"
             f" rows to update and {len(rows_to_insert_df)} rows to insert"
         )
 
         if client.logger.isEnabledFor(logging.DEBUG):
             client.logger.debug(
-                f"[{self.id}:{self.name}]: Rows to update: {rows_to_update_df}"
+                f"[{self.id}:{self.name}]: Rows to update: {rows_to_update}"
             )
             client.logger.debug(
                 f"[{self.id}:{self.name}]: Rows to insert: {rows_to_insert_df}"
@@ -2078,26 +2078,32 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         if dry_run:
             return
 
-        appendable_rowset_request = None
-        if rows_to_update_df:
-            partial_row_set = PartialRowSet(table_id=self.id, rows=rows_to_update_df)
-            appendable_rowset_request = AppendableRowSetRequest(
-                entity_id=self.id, to_append=partial_row_set
-            )
+        appendable_rowset_requests = []
+        if rows_to_update:
+            for i in range(0, len(rows_to_update), rows_per_request):
+                appendable_rowset_requests.append(
+                    AppendableRowSetRequest(
+                        entity_id=self.id,
+                        to_append=PartialRowSet(
+                            table_id=self.id,
+                            rows=rows_to_update[i : i + rows_per_request],
+                        ),
+                    )
+                )
 
         if not rows_to_insert_df.empty:
             await self.store_rows_async(
                 values=rows_to_insert_df,
-                additional_changes=[appendable_rowset_request]
-                if appendable_rowset_request
+                additional_changes=appendable_rowset_requests
+                if appendable_rowset_requests
                 else None,
                 synapse_client=synapse_client,
             )
         else:
             await TableUpdateTransaction(
                 entity_id=self.id,
-                changes=[appendable_rowset_request]
-                if appendable_rowset_request
+                changes=appendable_rowset_requests
+                if appendable_rowset_requests
                 else None,
             ).send_job_and_wait_async(synapse_client=client)
 
