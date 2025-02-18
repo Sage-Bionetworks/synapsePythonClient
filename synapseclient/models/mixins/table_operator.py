@@ -2067,7 +2067,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             current_chunk_size = 0
             chunk = []
             for row in rows_to_update:
-                row_size = sys.getsizeof(row)
+                row_size = sys.getsizeof(row.to_synapse_request())
                 if current_chunk_size + row_size > chunk_size_limit:
                     chunked_rows_to_update.append(chunk)
                     chunk = []
@@ -2085,7 +2085,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         rows=chunked_row_to_update,
                     ),
                 )
-                print(f"The size of the change is: {sys.getsizeof(change)}")
+                print(
+                    f"The size of the change is: {sys.getsizeof(change.to_synapse_request())}"
+                )
                 await TableUpdateTransaction(
                     entity_id=self.id,
                     changes=[change],
