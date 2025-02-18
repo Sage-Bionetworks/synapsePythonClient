@@ -266,7 +266,7 @@ class TestTableCreation:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        data_for_table.to_csv(filepath, index=False)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
         table = await table.store_async(synapse_client=self.syn)
@@ -324,11 +324,13 @@ class TestRowStorage:
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
             {
-                "column_string": ["value1", "value2", "value3"],
+                "column_string": ["value1", "value2", "value3", "value4"],
+                "integer_string": [1, 2, 3, None],
+                "float_string": [1.1, 2.2, 3.3, None],
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        data_for_table.to_csv(filepath, index=False)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
         table = await table.store_async(synapse_client=self.syn)
@@ -356,6 +358,12 @@ class TestRowStorage:
         pd.testing.assert_series_equal(
             results["column_string"], data_for_table["column_string"]
         )
+        pd.testing.assert_series_equal(
+            results["integer_string"], data_for_table["integer_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["float_string"], data_for_table["float_string"]
+        )
 
     async def test_update_rows_from_csv_infer_columns_no_column_updates(
         self, project_model: Project
@@ -371,7 +379,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        data_for_table.to_csv(filepath, index=False)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # AND the table is stored in Synapse
         table = await table.store_async(synapse_client=self.syn)
@@ -425,7 +433,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        data_for_table.to_csv(filepath, index=False)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
         table = await table.store_async(synapse_client=self.syn)
@@ -454,17 +462,23 @@ class TestRowStorage:
         table = Table(
             name=table_name,
             parent_id=project_model.id,
-            columns=[Column(name="column_string", column_type=ColumnType.STRING)],
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="integer_column", column_type=ColumnType.INTEGER),
+                Column(name="float_column", column_type=ColumnType.DOUBLE),
+            ],
         )
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
             {
-                "column_string": ["value1", "value2", "value3"],
+                "column_string": ["value1", "value2", "value3", "value4"],
+                "integer_column": [1, 2, 3, None],
+                "float_column": [1.1, 2.2, 3.3, None],
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        data_for_table.to_csv(filepath, index=False)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
         table = await table.store_async(synapse_client=self.syn)
@@ -489,6 +503,12 @@ class TestRowStorage:
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
             results["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["integer_column"], data_for_table["integer_column"]
+        )
+        pd.testing.assert_series_equal(
+            results["float_column"], data_for_table["float_column"]
         )
 
     async def test_store_rows_on_existing_table_with_schema_storage_strategy(
@@ -517,7 +537,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        data_for_table.to_csv(filepath, index=False)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with a schema storage strategy
         await table.store_rows_async(
@@ -570,7 +590,7 @@ class TestRowStorage:
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        data_for_table.to_csv(filepath, index=False)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with a schema storage strategy
         await table.store_rows_async(
@@ -626,7 +646,7 @@ class TestRowStorage:
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        data_for_table.to_csv(filepath, index=False)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with no schema storage strategy
         with pytest.raises(SynapseHTTPError) as e:

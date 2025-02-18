@@ -919,9 +919,9 @@ class TableOperator(TableOperatorSynchronousProtocol):
         if isinstance(columns, list):
             results = OrderedDict()
             for column in columns:
-                results[column.name] = column
                 if column.name in results:
                     raise ValueError(f"Duplicate column name: {column.name}")
+                results[column.name] = column
             return results
         elif isinstance(columns, dict):
             results = OrderedDict()
