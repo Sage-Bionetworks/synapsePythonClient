@@ -33,6 +33,7 @@ from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
 from synapseclient.core.utils import (
+    MB,
     delete_none_keys,
     log_dataclass_diff,
     merge_dataclass_entities,
@@ -1742,6 +1743,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         dry_run: bool = False,
         *,
         rows_per_query: int = 10000,
+        update_size_mb: int = 1.5 * MB,
+        insert_size_mb: int = 900 * MB,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -1810,6 +1813,12 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 request. Since we need to query for the data that is being updated
                 this will determine the number of rows that are queried at a time.
                 The default is 10,000 rows.
+
+            update_size_mb: The maximum size of the request that will be sent to Synapse
+                when updating rows of data. The default is 1.5MB.
+
+            insert_size_mb: The maximum size of the request that will be sent to Synapse
+                when inserting rows of data. The default is 900MB.
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -2090,12 +2099,11 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         if not dry_run and rows_to_update:
             chunked_rows_to_update = []
-            chunk_size_limit = 1.5 * 1024 * 1024  # 1.5MB
             current_chunk_size = 0
             chunk = []
             for row in rows_to_update:
                 row_size = sys.getsizeof(row.to_synapse_request())
-                if current_chunk_size + row_size > chunk_size_limit:
+                if current_chunk_size + row_size > update_size_mb:
                     chunked_rows_to_update.append(chunk)
                     chunk = []
                     current_chunk_size = 0
@@ -2135,6 +2143,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             await self.store_rows_async(
                 values=rows_to_insert_df,
                 dry_run=dry_run,
+                insert_size_mb=insert_size_mb,
                 synapse_client=synapse_client,
             )
 
@@ -2152,9 +2161,11 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ]
         ] = None,
         *,
-        synapse_client: Optional[Synapse] = None,
+        insert_size_mb: int = 900 * MB,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
+        synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
         Add or update rows in Synapse from the sources defined below. In most cases the
@@ -2242,9 +2253,24 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 rows and the updating of the table schema in the same transaction. In
                 most cases you will not need to use this argument.
 
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
+            insert_size_mb: The maximum size of data that will be stored to Synapse
+                within a single transaction. The API have a limit of 1GB, but the
+                default is set to 900 MB to allow for some overhead in the request. The
+                implication of this limit is that when you are storing a CSV that is
+                larger than this limit the data will be chunked into smaller requests
+                by writing a portion of the data to a temporary file that is cleaned up
+                after upload. Due to this batching it also means that the entire
+                upload is not atomic. Storing a dataframe is also subject to this limit
+                and will be chunked into smaller requests if the size exceeds this
+                limit. Dataframes are converted to CSV files before being uploaded to
+                Synapse regardless of the size of the dataframe, but depending on the
+                size of the dataframe the data may be chunked into smaller requests.
+
+            csv_table_descriptor: When passing in a CSV file this will allow you to
+                specify the format of the CSV file. This is only used when the `values`
+                argument is a string holding the path to a CSV file. See
+                [CsvTableDescriptor][synapseclient.models.CsvTableDescriptor]
+                for more information.
 
             read_csv_kwargs: Additional arguments to pass to the `pd.read_csv` function
                 when reading in a CSV file. This is only used when the `values` argument
@@ -2258,6 +2284,10 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 the `values` argument is a Pandas DataFrame. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
                 for complete list of supported arguments.
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Returns:
             None
@@ -2499,57 +2529,139 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 "The table must have an ID to store rows, or the table could not be found from the given name/parent_id."
             )
 
-        # TODO: Support batching values up to a certain size
-        # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
         if isinstance(original_values, str):
-            file_handle_id = await multipart_upload_file_async(
-                syn=client, file_path=original_values, content_type="text/csv"
-            )
-            upload_request = UploadToTableRequest(
-                table_id=self.id, upload_file_handle_id=file_handle_id, update_etag=None
-            )
-            changes = []
-            if schema_change_request:
-                changes.append(schema_change_request)
-            if additional_changes:
-                changes.extend(additional_changes)
-            changes.append(upload_request)
+            file_size = os.path.getsize(original_values)
+            if file_size > insert_size_mb:
+                applied_additional_changes = False
+                with open(file=original_values, mode="r", encoding="utf-8") as f:
+                    header = f.readline()
+                    chunk = f.readlines(insert_size_mb)
+                    while chunk:
+                        try:
+                            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                                temp_file.write(header)
+                                temp_file.writelines(chunk)
+                                temp_file.close()
+                                # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
+                                file_handle_id = await multipart_upload_file_async(
+                                    syn=client,
+                                    file_path=temp_file.name,
+                                    content_type="text/csv",
+                                )
+                        finally:
+                            os.remove(temp_file.name)
 
-            await TableUpdateTransaction(
-                entity_id=self.id, changes=changes
-            ).send_job_and_wait_async(synapse_client=client)
-        elif isinstance(values, DataFrame):
-            filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
-            try:
-                # TODO: Support batching values up to a certain size
-                values.to_csv(
-                    filepath, index=False, float_format="%.12g", **(to_csv_kwargs or {})
-                )
-                # NOTE: reason for flat_format='%.12g':
-                # pandas automatically converts int columns into float64 columns when some cells in the column have no
-                # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
-                # a float into a INTEGER(synapse table type) column. Using the 'g' will strip off '.0' from whole number
-                # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
-                # use '%.12g'.c
-                # see SYNPY-267.
+                        upload_request = UploadToTableRequest(
+                            table_id=self.id,
+                            upload_file_handle_id=file_handle_id,
+                            update_etag=None,
+                        )
+                        if csv_table_descriptor:
+                            upload_request.csv_table_descriptor = csv_table_descriptor
+                        changes = []
+                        if not applied_additional_changes:
+                            applied_additional_changes = True
+                            if schema_change_request:
+                                changes.append(schema_change_request)
+                            if additional_changes:
+                                changes.extend(additional_changes)
+                        changes.append(upload_request)
+
+                        await TableUpdateTransaction(
+                            entity_id=self.id, changes=changes
+                        ).send_job_and_wait_async(synapse_client=client)
+
+                        chunk = f.readlines(insert_size_mb)
+
+            else:
                 file_handle_id = await multipart_upload_file_async(
-                    syn=client, file_path=filepath, content_type="text/csv"
+                    syn=client, file_path=original_values, content_type="text/csv"
                 )
-            finally:
-                os.remove(filepath)
-            upload_request = UploadToTableRequest(
-                table_id=self.id, upload_file_handle_id=file_handle_id, update_etag=None
-            )
-            changes = []
-            if schema_change_request:
-                changes.append(schema_change_request)
-            if additional_changes:
-                changes.extend(additional_changes)
-            changes.append(upload_request)
+                upload_request = UploadToTableRequest(
+                    table_id=self.id,
+                    upload_file_handle_id=file_handle_id,
+                    update_etag=None,
+                )
+                if csv_table_descriptor:
+                    upload_request.csv_table_descriptor = csv_table_descriptor
+                changes = []
+                if schema_change_request:
+                    changes.append(schema_change_request)
+                if additional_changes:
+                    changes.extend(additional_changes)
+                changes.append(upload_request)
 
-            await TableUpdateTransaction(
-                entity_id=self.id, changes=changes
-            ).send_job_and_wait_async(synapse_client=client)
+                await TableUpdateTransaction(
+                    entity_id=self.id, changes=changes
+                ).send_job_and_wait_async(synapse_client=client)
+        elif isinstance(values, DataFrame):
+            applied_additional_changes = False
+
+            async def _upload_df_chunk(
+                chunk: DataFrame, apply_additional_changes: bool
+            ) -> None:
+                filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
+                try:
+                    chunk.to_csv(
+                        filepath,
+                        index=False,
+                        float_format="%.12g",
+                        **(to_csv_kwargs or {}),
+                    )
+                    # NOTE: reason for flat_format='%.12g':
+                    # pandas automatically converts int columns into float64 columns when some cells in the column have no
+                    # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
+                    # a float into a INTEGER(synapse table type) column. Using the 'g' will strip off '.0' from whole number
+                    # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
+                    # use '%.12g'.c
+                    # see SYNPY-267.
+                    file_handle_id = await multipart_upload_file_async(
+                        syn=client, file_path=filepath, content_type="text/csv"
+                    )
+                finally:
+                    os.remove(filepath)
+                upload_request = UploadToTableRequest(
+                    table_id=self.id,
+                    upload_file_handle_id=file_handle_id,
+                    update_etag=None,
+                )
+                changes = []
+                if apply_additional_changes:
+                    if schema_change_request:
+                        changes.append(schema_change_request)
+                    if additional_changes:
+                        changes.extend(additional_changes)
+                changes.append(upload_request)
+
+                await TableUpdateTransaction(
+                    entity_id=self.id, changes=changes
+                ).send_job_and_wait_async(synapse_client=client)
+
+            current_chunk_size = 0
+            last_chunk_index = 0
+            has_additional_rows = False
+            for index, row in values.iterrows():
+                # Applying a 10% buffer to the row size to account for the overhead of the request
+                row_size = row.memory_usage(deep=False, index=False) * 1.1
+                if current_chunk_size + row_size >= insert_size_mb:
+                    await _upload_df_chunk(
+                        chunk=values[index : index + last_chunk_index],
+                        apply_additional_changes=not applied_additional_changes,
+                    )
+                    applied_additional_changes = True
+                    current_chunk_size = 0
+                    last_chunk_index = index
+                    has_additional_rows = False
+                else:
+                    has_additional_rows = True
+                current_chunk_size += row_size
+            if has_additional_rows:
+                await _upload_df_chunk(
+                    chunk=values[last_chunk_index:],
+                    apply_additional_changes=not applied_additional_changes,
+                )
+                applied_additional_changes = True
+
         else:
             raise ValueError(
                 "Don't know how to make tables from values of type %s." % type(values)

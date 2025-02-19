@@ -6,11 +6,13 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, TypeVar, 
 from typing_extensions import Self
 
 from synapseclient import Synapse
+from synapseclient.core.utils import MB
 
 if TYPE_CHECKING:
     from synapseclient.models import ColumnExpansionStrategy, SchemaStorageStrategy
     from synapseclient.models.mixins.table_operator import (
         AppendableRowSetRequest,
+        CsvTableDescriptor,
         QueryResultBundle,
         TableSchemaChangeRequest,
         UploadToTableRequest,
@@ -292,13 +294,23 @@ class TableRowOperatorSynchronousProtocol(Protocol):
 
         Limitations:
 
+        - The request to update, and the request to insert data does not occur in a
+            single transaction. This means that the update of data may succeed, but the
+            insert of data may fail. Additionally, as noted in the limitation below, if
+            data is chunked up into multiple requests you may find that a portion of
+            your data is updated, but another portion is not.
         - The number of rows that may be upserted in a single call should be
-            kept to a minimum. There is significant overhead in the request to
-            Synapse for each row that is upserted. If you are upserting a large
+            kept to a minimum (< 10,000). There is significant overhead in the request
+            to Synapse for each row that is upserted. If you are upserting a large
             number of rows a better approach may be to query for the data you want
-            to update, update the data, then use the [store_rows][synapseclient.models.protocols.table_operator_protocol.TableRowOperatorSynchronousProtocol.store_rows_async] method to
+            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
             update the data in Synapse. Any rows you want to insert may be added
-            to the DataFrame that is passed to the [store_rows][synapseclient.models.protocols.table_operator_protocol.TableRowOperatorSynchronousProtocol.store_rows_async] method.
+            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method.
+        - When upserting mnay rows the requests to Synapse will be chunked into smaller
+            requests. The limit is 2MB per request. This chunking will happen
+            automatically and should not be a concern for most users. If you are
+            having issues with the request being too large you may lower the
+            number of rows you are trying to upsert, or note the above limitation.
         - The `primary_keys` argument must contain at least one column.
         - The `primary_keys` argument cannot contain columns that are a LIST type.
         - The `primary_keys` argument cannot contain columns that are a JSON type.
@@ -327,6 +339,12 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 be updated and inserted you may set the `dry_run` argument to True and
                 set the log level to DEBUG by setting the debug flag when creating
                 your Synapse class instance like: `syn = Synapse(debug=True)`.
+
+            update_size_mb: The maximum size of the request that will be sent to Synapse
+                when updating rows of data. The default is 1.5MB.
+
+            insert_size_mb: The maximum size of the request that will be sent to Synapse
+                when inserting rows of data. The default is 900MB.
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -429,9 +447,11 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             ]
         ] = None,
         *,
-        synapse_client: Optional[Synapse] = None,
+        insert_size_mb: int = 900 * MB,
+        csv_table_descriptor: Optional["CsvTableDescriptor"] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
+        synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
         Add or update rows in Synapse from the sources defined below. In most cases the
@@ -512,15 +532,24 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 updating table metadata. This is useful for debugging and understanding
                 what actions would be taken without actually performing them.
 
-            additional_changes: Additional changes to the table that should execute
-                within the same transaction as appending or updating rows. This is used
-                as a part of the `upsert_rows` method call to allow for the updating of
-                rows and the updating of the table schema in the same transaction. In
-                most cases you will not need to use this argument.
+            insert_size_mb: The maximum size of data that will be stored to Synapse
+                within a single transaction. The API have a limit of 1GB, but the
+                default is set to 900 MB to allow for some overhead in the request. The
+                implication of this limit is that when you are storing a CSV that is
+                larger than this limit the data will be chunked into smaller requests
+                by writing a portion of the data to a temporary file that is cleaned up
+                after upload. Due to this batching it also means that the entire
+                upload is not atomic. Storing a dataframe is also subject to this limit
+                and will be chunked into smaller requests if the size exceeds this
+                limit. Dataframes are converted to CSV files before being uploaded to
+                Synapse regardless of the size of the dataframe, but depending on the
+                size of the dataframe the data may be chunked into smaller requests.
 
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
+            csv_table_descriptor: When passing in a CSV file this will allow you to
+                specify the format of the CSV file. This is only used when the `values`
+                argument is a string holding the path to a CSV file. See
+                [CsvTableDescriptor][synapseclient.models.CsvTableDescriptor]
+                for more information.
 
             read_csv_kwargs: Additional arguments to pass to the `pd.read_csv` function
                 when reading in a CSV file. This is only used when the `values` argument
@@ -534,6 +563,10 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 the `values` argument is a Pandas DataFrame. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
                 for complete list of supported arguments.
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Returns:
             None
