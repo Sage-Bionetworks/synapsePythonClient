@@ -1190,7 +1190,7 @@ class PartialRow:
     """
 
     row_id: str
-    values: Dict[str, Any]
+    values: List[Dict[str, Any]]
     etag: Optional[str] = None
 
     def to_synapse_request(self):
@@ -1206,7 +1206,7 @@ class PartialRow:
     def size(self) -> int:
         """Returns the size of the PartialRow in bytes."""
         return (
-            sys.getsizeof(self.values)
+            sum(sys.getsizeof(value) for value in self.values)
             + sys.getsizeof(self.row_id)
             + sys.getsizeof(self.etag)
         )
