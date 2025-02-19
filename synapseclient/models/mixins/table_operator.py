@@ -2558,7 +2558,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     chunk = f.readlines(insert_size_byte)
                     while chunk:
                         try:
-                            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                            with tempfile.NamedTemporaryFile(
+                                delete=False, suffix=".csv"
+                            ) as temp_file:
                                 temp_file.write(header)
                                 temp_file.writelines(chunk)
                                 temp_file.close()
@@ -2620,26 +2622,30 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             async def _upload_df_chunk(
                 chunk: DataFrame, apply_additional_changes: bool
             ) -> None:
-                filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
                 try:
-                    chunk.to_csv(
-                        filepath,
-                        index=False,
-                        float_format="%.12g",
-                        **(to_csv_kwargs or {}),
-                    )
-                    # NOTE: reason for flat_format='%.12g':
-                    # pandas automatically converts int columns into float64 columns when some cells in the column have no
-                    # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
-                    # a float into a INTEGER(synapse table type) column. Using the 'g' will strip off '.0' from whole number
-                    # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
-                    # use '%.12g'.c
-                    # see SYNPY-267.
-                    file_handle_id = await multipart_upload_file_async(
-                        syn=client, file_path=filepath, content_type="text/csv"
-                    )
+                    with tempfile.NamedTemporaryFile(
+                        delete=False, suffix=".csv"
+                    ) as temp_file:
+                        chunk.to_csv(
+                            temp_file.name,
+                            index=False,
+                            float_format="%.12g",
+                            **(to_csv_kwargs or {}),
+                        )
+                        # NOTE: reason for flat_format='%.12g':
+                        # pandas automatically converts int columns into float64 columns when some cells in the column have no
+                        # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
+                        # a float into a INTEGER(synapse table type) column. Using the 'g' will strip off '.0' from whole number
+                        # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
+                        # use '%.12g'.c
+                        # see SYNPY-267.
+                        file_handle_id = await multipart_upload_file_async(
+                            syn=client,
+                            file_path=temp_file.name,
+                            content_type="text/csv",
+                        )
                 finally:
-                    os.remove(filepath)
+                    os.remove(temp_file.name)
                 upload_request = UploadToTableRequest(
                     table_id=self.id,
                     upload_file_handle_id=file_handle_id,
