@@ -2085,27 +2085,42 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         indexs_of_original_df_with_changes.append(matching_row.index[0])
 
                 if not dry_run and rows_to_update:
-                    chunked_rows_to_update = []
                     current_chunk_size = 0
                     chunk = []
                     for row in rows_to_update:
                         row_size = sys.getsizeof(row.to_synapse_request())
                         if current_chunk_size + row_size > update_size_mb:
-                            chunked_rows_to_update.append(chunk)
+                            change = AppendableRowSetRequest(
+                                entity_id=self.id,
+                                to_append=PartialRowSet(
+                                    table_id=self.id,
+                                    rows=chunk,
+                                ),
+                            )
+
+                            request = TableUpdateTransaction(
+                                entity_id=self.id,
+                                changes=[change],
+                            )
+
+                            # TODO: Temporary logic for debugging
+                            size_of_request = sys.getsizeof(row.to_synapse_request())
+                            client.logger.info(
+                                f"Updating {len(chunk)} rows with a size of {size_of_request} bytes"
+                            )
+
+                            await request.send_job_and_wait_async(synapse_client=client)
                             chunk = []
                             current_chunk_size = 0
                         chunk.append(row)
                         current_chunk_size += row_size
 
                     if chunk:
-                        chunked_rows_to_update.append(chunk)
-
-                    for chunked_row_to_update in chunked_rows_to_update:
                         change = AppendableRowSetRequest(
                             entity_id=self.id,
                             to_append=PartialRowSet(
                                 table_id=self.id,
-                                rows=chunked_row_to_update,
+                                rows=chunk,
                             ),
                         )
 
