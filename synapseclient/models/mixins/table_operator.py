@@ -1966,7 +1966,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 desc="Querying & Updating rows",
                 unit_scale=True,
                 smoothing=0,
-                postfix=f"Over {len(chunk_list)} chunks",
             )
             for individual_chunk in chunk_list:
                 select_statement = "SELECT ROW_ID, "
@@ -2122,6 +2121,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             )
 
                             await request.send_job_and_wait_async(synapse_client=client)
+                            progress_bar.update(len(chunk))
                             chunk = []
                             current_chunk_size = 0
                         chunk.append(row)
@@ -2140,9 +2140,11 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             entity_id=self.id,
                             changes=[change],
                         ).send_job_and_wait_async(synapse_client=client)
+                        progress_bar.update(len(chunk))
+                elif dry_run:
+                    progress_bar.update(len(rows_to_update))
 
                 rows_to_update: List[PartialRow] = []
-                progress_bar.update(len(individual_chunk))
             progress_bar.close()
 
         rows_to_insert_df = values.loc[
