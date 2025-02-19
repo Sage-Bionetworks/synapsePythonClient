@@ -1203,6 +1203,14 @@ class PartialRow:
         delete_none_keys(result)
         return result
 
+    def size(self) -> int:
+        """Returns the size of the PartialRow in bytes."""
+        return (
+            sys.getsizeof(self.values)
+            + sys.getsizeof(self.row_id)
+            + sys.getsizeof(self.etag)
+        )
+
 
 @dataclass
 class PartialRowSet:
@@ -1333,7 +1341,9 @@ class TableUpdateTransaction(AsynchronousCommunicator):
     """
 
     entity_id: str
-    changes: List[Union[TableSchemaChangeRequest, UploadToTableRequest]]
+    changes: List[
+        Union[TableSchemaChangeRequest, UploadToTableRequest, AppendableRowSetRequest]
+    ]
     concrete_type: str = concrete_types.TABLE_UPDATE_TRANSACTION_REQUEST
     results: Optional[List[Dict[str, Any]]] = None
     """This will be an array of
@@ -2090,7 +2100,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     current_chunk_size = 0
                     chunk = []
                     for row in rows_to_update:
-                        row_size = sys.getsizeof(row.to_synapse_request())
+                        row_size = row.size()
                         if current_chunk_size + row_size > update_size_byte:
                             change = AppendableRowSetRequest(
                                 entity_id=self.id,
@@ -2103,12 +2113,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             request = TableUpdateTransaction(
                                 entity_id=self.id,
                                 changes=[change],
-                            )
-
-                            # TODO: Temporary logic for debugging
-                            size_of_request = sys.getsizeof(row.to_synapse_request())
-                            client.logger.info(
-                                f"Updating {len(chunk)} rows with a size of {size_of_request} bytes"
                             )
 
                             await request.send_job_and_wait_async(synapse_client=client)
