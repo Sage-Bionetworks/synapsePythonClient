@@ -2145,6 +2145,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     progress_bar.update(len(rows_to_update))
 
                 rows_to_update: List[PartialRow] = []
+            progress_bar.update(progress_bar.total - progress_bar.n)
+            progress_bar.refresh()
             progress_bar.close()
 
         rows_to_insert_df = values.loc[
