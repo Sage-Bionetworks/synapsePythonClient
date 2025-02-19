@@ -277,6 +277,9 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         primary_keys: List[str],
         dry_run: bool = False,
         *,
+        rows_per_query: int = 50000,
+        update_size_mb: int = 1.5 * MB,
+        insert_size_mb: int = 900 * MB,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -300,7 +303,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             data is chunked up into multiple requests you may find that a portion of
             your data is updated, but another portion is not.
         - The number of rows that may be upserted in a single call should be
-            kept to a minimum (< 10,000). There is significant overhead in the request
+            kept to a minimum (< 50,000). There is significant overhead in the request
             to Synapse for each row that is upserted. If you are upserting a large
             number of rows a better approach may be to query for the data you want
             to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
@@ -339,6 +342,11 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 be updated and inserted you may set the `dry_run` argument to True and
                 set the log level to DEBUG by setting the debug flag when creating
                 your Synapse class instance like: `syn = Synapse(debug=True)`.
+
+            rows_per_query: The number of rows that will be queries from Synapse per
+                request. Since we need to query for the data that is being updated
+                this will determine the number of rows that are queried at a time.
+                The default is 50,000 rows.
 
             update_size_mb: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.5MB.
