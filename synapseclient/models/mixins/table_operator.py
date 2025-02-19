@@ -2558,20 +2558,29 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     chunk = f.readlines(insert_size_byte)
                     while chunk:
                         try:
+                            file_path = None
+                            temp_dir = client.cache.get_cache_dir(
+                                file_handle_id=111111111
+                            )
+                            os.makedirs(temp_dir, exist_ok=True)
                             with tempfile.NamedTemporaryFile(
-                                delete=False, suffix=".csv"
+                                delete=False,
+                                prefix="chunked_csv_for_synapse_store_rows",
+                                suffix=".csv",
+                                dir=temp_dir,
                             ) as temp_file:
+                                file_path = temp_file.name
                                 temp_file.write(header)
                                 temp_file.writelines(chunk)
                                 temp_file.close()
                                 # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
                                 file_handle_id = await multipart_upload_file_async(
                                     syn=client,
-                                    file_path=temp_file.name,
+                                    file_path=file_path,
                                     content_type="text/csv",
                                 )
                         finally:
-                            os.remove(temp_file.name)
+                            os.remove(file_path)
 
                         upload_request = UploadToTableRequest(
                             table_id=self.id,
@@ -2622,10 +2631,21 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             async def _upload_df_chunk(
                 chunk: DataFrame, apply_additional_changes: bool
             ) -> None:
-                try:
-                    with tempfile.NamedTemporaryFile(
-                        delete=False, suffix=".csv"
-                    ) as temp_file:
+                # When creating this temporary file we are using the cache directory
+                # as the staging location for the file upload. This is because it
+                # will allow for the purge cache function to clean up files that
+                # end up getting left here. It is also to account for the fact that
+                # the temp directory may not have enough disk space to hold a file
+                # we need to upload (As is the case on EC2 instances)
+                temp_dir = client.cache.get_cache_dir(file_handle_id=111111111)
+                os.makedirs(temp_dir, exist_ok=True)
+                with tempfile.NamedTemporaryFile(
+                    delete=False,
+                    prefix="chunked_csv_for_synapse_store_rows",
+                    suffix=".csv",
+                    dir=temp_dir,
+                ) as temp_file:
+                    try:
                         chunk.to_csv(
                             temp_file.name,
                             index=False,
@@ -2639,13 +2659,15 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
                         # use '%.12g'.c
                         # see SYNPY-267.
+
+                        # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
                         file_handle_id = await multipart_upload_file_async(
                             syn=client,
                             file_path=temp_file.name,
                             content_type="text/csv",
                         )
-                finally:
-                    os.remove(temp_file.name)
+                    finally:
+                        os.remove(temp_file.name)
                 upload_request = UploadToTableRequest(
                     table_id=self.id,
                     upload_file_handle_id=file_handle_id,
