@@ -1951,7 +1951,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         client = Synapse.get_client(synapse_client=synapse_client)
 
         rows_to_update: List[PartialRow] = []
-        chunk_list = []
+        chunk_list: List[DataFrame] = []
         for i in range(0, len(values), rows_per_query):
             chunk_list.append(values[i : i + rows_per_query])
 
@@ -2143,6 +2143,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         progress_bar.update(len(chunk))
                 elif dry_run:
                     progress_bar.update(len(rows_to_update))
+                progress_bar.update(len(individual_chunk.index) - len(rows_to_update))
 
                 rows_to_update: List[PartialRow] = []
             progress_bar.update(progress_bar.total - progress_bar.n)
