@@ -278,8 +278,8 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         dry_run: bool = False,
         *,
         rows_per_query: int = 50000,
-        update_size_mb: int = 1.5 * MB,
-        insert_size_mb: int = 900 * MB,
+        update_size_byte: int = 1.5 * MB,
+        insert_size_byte: int = 900 * MB,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -348,10 +348,10 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 this will determine the number of rows that are queried at a time.
                 The default is 50,000 rows.
 
-            update_size_mb: The maximum size of the request that will be sent to Synapse
+            update_size_byte: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.5MB.
 
-            insert_size_mb: The maximum size of the request that will be sent to Synapse
+            insert_size_byte: The maximum size of the request that will be sent to Synapse
                 when inserting rows of data. The default is 900MB.
 
             synapse_client: If not passed in and caching was not disabled by
@@ -455,7 +455,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             ]
         ] = None,
         *,
-        insert_size_mb: int = 900 * MB,
+        insert_size_byte: int = 900 * MB,
         csv_table_descriptor: Optional["CsvTableDescriptor"] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
@@ -540,7 +540,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 updating table metadata. This is useful for debugging and understanding
                 what actions would be taken without actually performing them.
 
-            insert_size_mb: The maximum size of data that will be stored to Synapse
+            insert_size_byte: The maximum size of data that will be stored to Synapse
                 within a single transaction. The API have a limit of 1GB, but the
                 default is set to 900 MB to allow for some overhead in the request. The
                 implication of this limit is that when you are storing a CSV that is

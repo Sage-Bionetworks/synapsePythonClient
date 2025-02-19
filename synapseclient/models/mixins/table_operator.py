@@ -1743,8 +1743,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         dry_run: bool = False,
         *,
         rows_per_query: int = 50000,
-        update_size_mb: int = 1.5 * MB,
-        insert_size_mb: int = 900 * MB,
+        update_size_byte: int = 1.5 * MB,
+        insert_size_byte: int = 900 * MB,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -1814,10 +1814,10 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 this will determine the number of rows that are queried at a time.
                 The default is 50,000 rows.
 
-            update_size_mb: The maximum size of the request that will be sent to Synapse
+            update_size_byte: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.5MB.
 
-            insert_size_mb: The maximum size of the request that will be sent to Synapse
+            insert_size_byte: The maximum size of the request that will be sent to Synapse
                 when inserting rows of data. The default is 900MB.
 
             synapse_client: If not passed in and caching was not disabled by
@@ -1925,6 +1925,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             values = DataFrame(values)
         elif isinstance(values, str):
             values = csv_to_pandas_df(filepath=values, **kwargs)
+        elif isinstance(values, DataFrame):
+            pass
         else:
             raise ValueError(
                 "Don't know how to make tables from values of type %s." % type(values)
@@ -2089,7 +2091,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     chunk = []
                     for row in rows_to_update:
                         row_size = sys.getsizeof(row.to_synapse_request())
-                        if current_chunk_size + row_size > update_size_mb:
+                        if current_chunk_size + row_size > update_size_byte:
                             change = AppendableRowSetRequest(
                                 entity_id=self.id,
                                 to_append=PartialRowSet(
@@ -2146,7 +2148,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             await self.store_rows_async(
                 values=rows_to_insert_df,
                 dry_run=dry_run,
-                insert_size_mb=insert_size_mb,
+                insert_size_byte=insert_size_byte,
                 synapse_client=synapse_client,
             )
 
@@ -2164,7 +2166,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ]
         ] = None,
         *,
-        insert_size_mb: int = 900 * MB,
+        insert_size_byte: int = 900 * MB,
         csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
@@ -2256,7 +2258,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 rows and the updating of the table schema in the same transaction. In
                 most cases you will not need to use this argument.
 
-            insert_size_mb: The maximum size of data that will be stored to Synapse
+            insert_size_byte: The maximum size of data that will be stored to Synapse
                 within a single transaction. The API have a limit of 1GB, but the
                 default is set to 900 MB to allow for some overhead in the request. The
                 implication of this limit is that when you are storing a CSV that is
@@ -2534,11 +2536,11 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         if isinstance(original_values, str):
             file_size = os.path.getsize(original_values)
-            if file_size > insert_size_mb:
+            if file_size > insert_size_byte:
                 applied_additional_changes = False
                 with open(file=original_values, mode="r", encoding="utf-8") as f:
                     header = f.readline()
-                    chunk = f.readlines(insert_size_mb)
+                    chunk = f.readlines(insert_size_byte)
                     while chunk:
                         try:
                             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -2574,7 +2576,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             entity_id=self.id, changes=changes
                         ).send_job_and_wait_async(synapse_client=client)
 
-                        chunk = f.readlines(insert_size_mb)
+                        chunk = f.readlines(insert_size_byte)
 
             else:
                 file_handle_id = await multipart_upload_file_async(
@@ -2646,7 +2648,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             for index, row in values.iterrows():
                 # Applying a 10% buffer to the row size to account for the overhead of the request
                 row_size = row.memory_usage(deep=False, index=False) * 1.1
-                if current_chunk_size + row_size >= insert_size_mb:
+                if current_chunk_size + row_size >= insert_size_byte:
                     await _upload_df_chunk(
                         chunk=values[index : index + last_chunk_index],
                         apply_additional_changes=not applied_additional_changes,
