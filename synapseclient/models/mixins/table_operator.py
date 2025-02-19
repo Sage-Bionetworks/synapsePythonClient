@@ -5,7 +5,6 @@ import asyncio
 import json
 import logging
 import os
-import sys
 import tempfile
 import uuid
 from collections import OrderedDict
@@ -1204,12 +1203,19 @@ class PartialRow:
         return result
 
     def size(self) -> int:
-        """Returns the size of the PartialRow in bytes."""
-        return (
-            sum(sys.getsizeof(value) for value in self.values)
-            + sys.getsizeof(self.row_id)
-            + sys.getsizeof(self.etag)
-        )
+        """
+        Returns the size of the PartialRow in bytes. This is not an exact size but
+        follows the calculation as used in the Rest API:
+
+        <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/blob/8bf7f60c46b76625c0d4be33fafc5cf896e50b36/lib/lib-table-cluster/src/main/java/org/sagebionetworks/table/cluster/utils/TableModelUtils.java#L952-L965>
+        """
+        char_count = 0
+        if self.values:
+            for value in self.values:
+                char_count += len(value["key"])
+                if value["value"] is not None:
+                    char_count += len(str(value["value"]))
+        return 4 * char_count
 
 
 @dataclass
@@ -1753,7 +1759,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         dry_run: bool = False,
         *,
         rows_per_query: int = 50000,
-        update_size_byte: int = 1.5 * MB,
+        update_size_byte: int = 1.9 * MB,
         insert_size_byte: int = 900 * MB,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
@@ -1825,7 +1831,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 The default is 50,000 rows.
 
             update_size_byte: The maximum size of the request that will be sent to Synapse
-                when updating rows of data. The default is 1.5MB.
+                when updating rows of data. The default is 1.9MB.
 
             insert_size_byte: The maximum size of the request that will be sent to Synapse
                 when inserting rows of data. The default is 900MB.

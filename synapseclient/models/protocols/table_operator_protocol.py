@@ -278,7 +278,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         dry_run: bool = False,
         *,
         rows_per_query: int = 50000,
-        update_size_byte: int = 1.5 * MB,
+        update_size_byte: int = 1.9 * MB,
         insert_size_byte: int = 900 * MB,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
@@ -349,7 +349,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 The default is 50,000 rows.
 
             update_size_byte: The maximum size of the request that will be sent to Synapse
-                when updating rows of data. The default is 1.5MB.
+                when updating rows of data. The default is 1.9MB.
 
             insert_size_byte: The maximum size of the request that will be sent to Synapse
                 when inserting rows of data. The default is 900MB.
