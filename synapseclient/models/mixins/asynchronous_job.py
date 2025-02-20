@@ -53,6 +53,7 @@ class AsynchronousCommunicator:
     async def send_job_and_wait_async(
         self,
         post_exchange_args: Optional[Dict[str, Any]] = None,
+        timeout: int = 60,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
@@ -65,6 +66,8 @@ class AsynchronousCommunicator:
 
         Arguments:
             post_exchange_args: Additional arguments to pass to the request.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 60.
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
@@ -102,6 +105,7 @@ class AsynchronousCommunicator:
         result = await send_job_and_wait_async(
             request=self.to_synapse_request(),
             request_type=self.concrete_type,
+            timeout=timeout,
             synapse_client=synapse_client,
         )
         self.fill_from_dict(synapse_response=result)
@@ -263,6 +267,7 @@ async def send_job_and_wait_async(
     request: Dict[str, Any],
     request_type: str,
     endpoint: str = None,
+    timeout: int = 60,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
@@ -273,6 +278,8 @@ async def send_job_and_wait_async(
     Arguments:
         request: A request matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousRequestBody.html>.
         endpoint: The endpoint to use for the request. Defaults to None.
+        timeout: The number of seconds to wait for the job to complete or progress
+            before raising a SynapseTimeoutError. Defaults to 60.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -293,6 +300,7 @@ async def send_job_and_wait_async(
             request_type=request_type,
             synapse_client=synapse_client,
             endpoint=endpoint,
+            timeout=timeout,
         ),
     }
 
@@ -370,14 +378,14 @@ async def get_job_async(
         SynapseTimeoutError: If the job does not complete or progress within the timeout interval.
     """
     client = Synapse.get_client(synapse_client=synapse_client)
-    start_time = asyncio.get_event_loop().time()
+    start_time = time.time()
 
     last_message = ""
     last_progress = 0
     last_total = 1
     progressed = False
 
-    while asyncio.get_event_loop().time() - start_time < timeout:
+    while time.time() - start_time < timeout:
         result = await client.rest_get_async(
             uri=f"{ASYNC_JOB_URIS[request_type]}/get/{job_id}",
             endpoint=endpoint,
@@ -406,7 +414,7 @@ async def get_job_async(
                     prefix=last_message,
                     isBytes=False,
                 )
-                start_time = asyncio.get_event_loop().time()
+                start_time = time.time()
             await asyncio.sleep(sleep)
         elif job_status.state == AsynchronousJobState.FAILED:
             raise SynapseError(
@@ -416,7 +424,7 @@ async def get_job_async(
             break
     else:
         raise SynapseTimeoutError(
-            f"Timeout waiting for query results: {time.time() - start_time} seconds"
+            f"Timeout waiting for results: {time.time() - start_time} seconds"
         )
 
     return result

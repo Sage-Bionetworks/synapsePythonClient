@@ -2,9 +2,9 @@
 or querying for data."""
 
 import asyncio
+import csv
 import json
 import logging
-import math
 import os
 import tempfile
 import uuid
@@ -2644,23 +2644,39 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         if file_size > insert_size_byte:
             applied_additional_changes = False
             with open(file=path_to_csv, mode="r", encoding="utf-8") as f:
-                header = f.readline().encode()
-                loop_iteration = 0
+                csv_table_descriptor = csv_table_descriptor or CsvTableDescriptor()
+                reader = csv.reader(
+                    f,
+                    delimiter=csv_table_descriptor.separator,
+                    escapechar=csv_table_descriptor.escape_character,
+                    lineterminator=csv_table_descriptor.line_end,
+                    quotechar=csv_table_descriptor.quote_character,
+                )
+                header = next(reader)
                 temp_dir = client.cache.get_cache_dir(file_handle_id=111111111)
                 with tempfile.NamedTemporaryFile(
                     prefix="chunked_csv_for_synapse_store_rows",
                     suffix=".csv",
                     dir=temp_dir,
+                    mode="w+",
+                    encoding="utf-8",
                 ) as temp_file:
                     try:
-                        temp_file.write(header)
-                        while chunk := f.readlines(math.ceil(insert_size_byte / 10)):
-                            if not chunk:
-                                break
+                        csv_writer = csv.writer(
+                            temp_file,
+                            delimiter=csv_table_descriptor.separator,
+                            escapechar=csv_table_descriptor.escape_character,
+                            lineterminator=csv_table_descriptor.line_end,
+                            quotechar=csv_table_descriptor.quote_character,
+                        )
 
-                            loop_iteration += 1
-                            temp_file.writelines([line.encode() for line in chunk])
-                            if loop_iteration % 10 == 0:
+                        csv_writer.writerow(header)
+                        current_bytes_written = 0
+                        for row in reader:
+                            current_bytes_written += csv_writer.writerow(row)
+
+                            if current_bytes_written >= insert_size_byte:
+                                current_bytes_written = 0
                                 temp_file.flush()
                                 # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
                                 file_handle_id = await multipart_upload_file_async(
@@ -2670,7 +2686,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                                 )
                                 temp_file.truncate(0)
                                 temp_file.seek(0)
-                                temp_file.write(header)
+                                csv_writer.writerow(header)
 
                                 upload_request = UploadToTableRequest(
                                     table_id=self.id,
@@ -2692,7 +2708,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
                                 await TableUpdateTransaction(
                                     entity_id=self.id, changes=changes
-                                ).send_job_and_wait_async(synapse_client=client)
+                                ).send_job_and_wait_async(
+                                    synapse_client=client, timeout=600
+                                )
 
                         # If there is any data except the header, upload it
                         if temp_file.tell() > 1:
@@ -2724,7 +2742,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
                             await TableUpdateTransaction(
                                 entity_id=self.id, changes=changes
-                            ).send_job_and_wait_async(synapse_client=client)
+                            ).send_job_and_wait_async(
+                                synapse_client=client, timeout=600
+                            )
                     finally:
                         temp_file.close()
         else:
