@@ -2799,7 +2799,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             if additional_changes:
                 changes.extend(additional_changes)
 
-            _send_update(table_descriptor=csv_table_descriptor, changes=changes)
+            await _send_update(table_descriptor=csv_table_descriptor, changes=changes)
 
             progress_bar = tqdm(
                 total=file_size,
