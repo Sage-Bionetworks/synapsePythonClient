@@ -2623,12 +2623,13 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ]
         ] = None,
     ) -> None:
+        # TODO: Add integration test around this portion of the code
         file_size = os.path.getsize(path_to_csv)
         if file_size > insert_size_byte:
             applied_additional_changes = False
             with open(file=path_to_csv, mode="r", encoding="utf-8") as f:
-                header = f.readline()
-                chunk = f.readlines(insert_size_byte)
+                header = f.readline().encode()
+                chunk = [line.encode() for line in f.readlines(insert_size_byte)]
                 file_path = None
                 temp_dir = client.cache.get_cache_dir(file_handle_id=111111111)
                 os.makedirs(temp_dir, exist_ok=True)
@@ -2644,6 +2645,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             temp_file.write(header)
                             temp_file.writelines(chunk)
                             temp_file.close()
+
                             # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
                             file_handle_id = await multipart_upload_file_async(
                                 syn=client,
@@ -2673,7 +2675,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         entity_id=self.id, changes=changes
                     ).send_job_and_wait_async(synapse_client=client)
 
-                    chunk = f.readlines(insert_size_byte)
+                    chunk = [line.encode() for line in f.readlines(insert_size_byte)]
 
         else:
             file_handle_id = await multipart_upload_file_async(
