@@ -86,6 +86,7 @@ import psutil
 import requests
 from opentelemetry import trace
 from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 from synapseclient.api import (
     AddPartResponse,
@@ -684,15 +685,16 @@ async def multipart_upload_file_async(
         """Return the nth chunk of a file."""
         return get_file_chunk(file_path, part_number, part_size)
 
-    return await _multipart_upload_async(
-        syn,
-        dest_file_name,
-        upload_request,
-        part_fn,
-        md5_fn_util,
-        force_restart=force_restart,
-        storage_str=storage_str,
-    )
+    with logging_redirect_tqdm(loggers=[syn.logger]):
+        return await _multipart_upload_async(
+            syn,
+            dest_file_name,
+            upload_request,
+            part_fn,
+            md5_fn_util,
+            force_restart=force_restart,
+            storage_str=storage_str,
+        )
 
 
 async def _multipart_upload_async(
@@ -813,14 +815,15 @@ async def multipart_upload_string_async(
     part_size = get_part_size(
         part_size or DEFAULT_PART_SIZE, file_size, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS
     )
-    return await _multipart_upload_async(
-        syn,
-        dest_file_name,
-        upload_request,
-        part_fn,
-        md5_fn_util,
-        force_restart=force_restart,
-    )
+    with logging_redirect_tqdm(loggers=[syn.logger]):
+        return await _multipart_upload_async(
+            syn,
+            dest_file_name,
+            upload_request,
+            part_fn,
+            md5_fn_util,
+            force_restart=force_restart,
+        )
 
 
 async def multipart_copy_async(
@@ -864,11 +867,12 @@ async def multipart_copy_async(
         "storageLocationId": storage_location_id,
     }
 
-    return await _multipart_upload_async(
-        syn,
-        dest_file_name,
-        upload_request,
-        copy_part_request_body_provider_fn,
-        copy_md5_fn,
-        force_restart=force_restart,
-    )
+    with logging_redirect_tqdm(loggers=[syn.logger]):
+        return await _multipart_upload_async(
+            syn,
+            dest_file_name,
+            upload_request,
+            copy_part_request_body_provider_fn,
+            copy_md5_fn,
+            force_restart=force_restart,
+        )

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import Enum
 from io import BytesIO
-from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -1753,6 +1753,228 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
     def has_columns_changed(self) -> bool:
         """Used to satisfy the usage in this mixin from the parent class."""
 
+    def _construct_select_statement_for_upsert(
+        self,
+        df: DATA_FRAME_TYPE,
+        all_columns_from_df: List[str],
+        primary_keys: List[str],
+    ) -> str:
+        """
+        Create the select statement for a given DataFrame. This is used to select data
+        from Synapse to determine if a row already exists in the table. This is used
+        in the upsert method to determine if a row should be updated or inserted.
+
+        Arguments:
+            df: The DataFrame that contains the data to be upserted.
+            all_columns_from_df: A list of all the columns in the DataFrame.
+            primary_keys: A list of the columns that are used to determine if a row
+                already exists in the table.
+
+        Returns:
+            The select statement that can be used to query Synapse to determine if a row
+            already exists in the
+        """
+
+        select_statement = "SELECT ROW_ID, "
+
+        if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
+            select_statement += "ROW_ETAG, "
+
+        select_statement += f"{', '.join(all_columns_from_df)} FROM {self.id} WHERE "
+        where_statements = []
+        for upsert_column in primary_keys:
+            column_model = self.columns[upsert_column]
+            if (
+                column_model.column_type
+                in (
+                    ColumnType.STRING_LIST,
+                    ColumnType.INTEGER_LIST,
+                    ColumnType.BOOLEAN_LIST,
+                    ColumnType.ENTITYID_LIST,
+                    ColumnType.USERID_LIST,
+                )
+                or column_model.column_type == ColumnType.JSON
+            ):
+                raise ValueError(
+                    f"Column type {column_model.column_type} is not supported for primary_keys"
+                )
+            elif column_model.column_type in (
+                ColumnType.STRING,
+                ColumnType.MEDIUMTEXT,
+                ColumnType.LARGETEXT,
+                ColumnType.LINK,
+                ColumnType.ENTITYID,
+            ):
+                values_for_where_statement = [
+                    f"'{value}'" for value in df[upsert_column] if value is not None
+                ]
+
+            elif column_model.column_type == ColumnType.BOOLEAN:
+                include_true = False
+                include_false = False
+                for value in df[upsert_column]:
+                    if value is None:
+                        continue
+                    if value:
+                        include_true = True
+                    else:
+                        include_false = True
+                    if include_true and include_false:
+                        break
+                if include_true and include_false:
+                    values_for_where_statement = ["'true'", "'false'"]
+                elif include_true:
+                    values_for_where_statement = ["'true'"]
+                elif include_false:
+                    values_for_where_statement = ["'false'"]
+            else:
+                values_for_where_statement = [
+                    str(value) for value in df[upsert_column] if value is not None
+                ]
+            if not values_for_where_statement:
+                continue
+            where_statements.append(
+                f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
+            )
+
+        where_statement = " AND ".join(where_statements)
+        select_statement += where_statement
+        return select_statement
+
+    def _construct_partial_rows_for_upsert(
+        self,
+        results: DATA_FRAME_TYPE,
+        chunk_to_check_for_upsert: DATA_FRAME_TYPE,
+        primary_keys: List[str],
+        contains_etag: bool,
+    ) -> Tuple[List[PartialRow], List[int]]:
+        """
+        Handles the construction of the PartialRow objects that will be used to update
+        rows in Synapse. This method is used in the upsert method to determine which
+        rows need to be updated.
+
+        Arguments:
+            results: The DataFrame that contains the data that was queried from Synapse.
+            chunk_to_check_for_upsert: The DataFrame that contains the data that is
+                being upserted.
+            primary_keys: A list of the columns that are used to determine if a row
+                already exists in the table.
+
+        Returns:
+            A tuple containing a list of PartialRow objects that will be used to update
+            rows in Synapse, and a list of the indexs of the rows in the original
+            DataFrame that have changes.
+        """
+
+        from pandas import isna
+
+        rows_to_update: List[PartialRow] = []
+        indexs_of_original_df_with_changes = []
+        for row in results.itertuples(index=False):
+            row_etag = None
+
+            if contains_etag:
+                row_etag = row.ROW_ETAG
+
+            partial_change_values = {}
+
+            # Find the matching row in `values` that matches the row in `results` for the primary_keys
+            matching_conditions = chunk_to_check_for_upsert[primary_keys[0]] == getattr(
+                row, primary_keys[0]
+            )
+            for col in primary_keys[1:]:
+                matching_conditions &= chunk_to_check_for_upsert[col] == getattr(
+                    row, col
+                )
+            matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
+
+            # Determines which cells need to be updated
+            for column in chunk_to_check_for_upsert.columns:
+                if len(matching_row[column].values) > 1:
+                    raise ValueError(
+                        f"The values for the keys being upserted must be unique in the table: [{matching_row}]"
+                    )
+
+                if len(matching_row[column].values) == 0:
+                    continue
+                column_id = self.columns[column].id
+                column_type = self.columns[column].column_type
+                cell_value = matching_row[column].values[0]
+                if cell_value != getattr(row, column):
+                    if (
+                        isinstance(cell_value, list) and len(cell_value) > 0
+                    ) or not isna(cell_value):
+                        partial_change_values[
+                            column_id
+                        ] = _convert_pandas_row_to_python_types(
+                            cell=cell_value, column_type=column_type
+                        )
+                    else:
+                        partial_change_values[column_id] = None
+
+            if partial_change_values:
+                partial_change = PartialRow(
+                    row_id=row.ROW_ID,
+                    etag=row_etag,
+                    values=[
+                        {
+                            "key": partial_change_key,
+                            "value": partial_change_value,
+                        }
+                        for partial_change_key, partial_change_value in partial_change_values.items()
+                    ],
+                )
+                rows_to_update.append(partial_change)
+                indexs_of_original_df_with_changes.append(matching_row.index[0])
+        return rows_to_update, indexs_of_original_df_with_changes
+
+    async def _push_row_updates_to_synapse(
+        self,
+        rows_to_update: List[PartialRow],
+        update_size_byte: int,
+        progress_bar: tqdm,
+        client: Synapse,
+    ) -> None:
+        current_chunk_size = 0
+        chunk = []
+        for row in rows_to_update:
+            row_size = row.size()
+            if current_chunk_size + row_size > update_size_byte:
+                change = AppendableRowSetRequest(
+                    entity_id=self.id,
+                    to_append=PartialRowSet(
+                        table_id=self.id,
+                        rows=chunk,
+                    ),
+                )
+
+                request = TableUpdateTransaction(
+                    entity_id=self.id,
+                    changes=[change],
+                )
+
+                await request.send_job_and_wait_async(synapse_client=client)
+                progress_bar.update(len(chunk))
+                chunk = []
+                current_chunk_size = 0
+            chunk.append(row)
+            current_chunk_size += row_size
+
+        if chunk:
+            change = AppendableRowSetRequest(
+                entity_id=self.id,
+                to_append=PartialRowSet(
+                    table_id=self.id,
+                    rows=chunk,
+                ),
+            )
+
+            await TableUpdateTransaction(
+                entity_id=self.id,
+                changes=[change],
+            ).send_job_and_wait_async(synapse_client=client)
+            progress_bar.update(len(chunk))
+
     async def upsert_rows_async(
         self,
         values: DATA_FRAME_TYPE,
@@ -1929,7 +2151,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         """
         test_import_pandas()
-        from pandas import DataFrame, isna
+        from pandas import DataFrame
 
         if not self._last_persistent_instance:
             await self.get_async(include_columns=True, synapse_client=synapse_client)
@@ -1969,179 +2191,35 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 smoothing=0,
             )
             for individual_chunk in chunk_list:
-                select_statement = "SELECT ROW_ID, "
-
-                if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
-                    select_statement += "ROW_ETAG, "
-
-                select_statement += (
-                    f"{', '.join(all_columns_from_df)} FROM {self.id} WHERE "
+                select_statement = self._construct_select_statement_for_upsert(
+                    df=individual_chunk,
+                    all_columns_from_df=all_columns_from_df,
+                    primary_keys=primary_keys,
                 )
-                where_statements = []
-                for upsert_column in primary_keys:
-                    column_model = self.columns[upsert_column]
-                    if (
-                        column_model.column_type
-                        in (
-                            ColumnType.STRING_LIST,
-                            ColumnType.INTEGER_LIST,
-                            ColumnType.BOOLEAN_LIST,
-                            ColumnType.ENTITYID_LIST,
-                            ColumnType.USERID_LIST,
-                        )
-                        or column_model.column_type == ColumnType.JSON
-                    ):
-                        raise ValueError(
-                            f"Column type {column_model.column_type} is not supported for primary_keys"
-                        )
-                    elif column_model.column_type in (
-                        ColumnType.STRING,
-                        ColumnType.MEDIUMTEXT,
-                        ColumnType.LARGETEXT,
-                        ColumnType.LINK,
-                        ColumnType.ENTITYID,
-                    ):
-                        values_for_where_statement = [
-                            f"'{value}'"
-                            for value in individual_chunk[upsert_column]
-                            if value is not None
-                        ]
-
-                    elif column_model.column_type == ColumnType.BOOLEAN:
-                        include_true = False
-                        include_false = False
-                        for value in individual_chunk[upsert_column]:
-                            if value is None:
-                                continue
-                            if value:
-                                include_true = True
-                            else:
-                                include_false = True
-                            if include_true and include_false:
-                                break
-                        if include_true and include_false:
-                            values_for_where_statement = ["'true'", "'false'"]
-                        elif include_true:
-                            values_for_where_statement = ["'true'"]
-                        elif include_false:
-                            values_for_where_statement = ["'false'"]
-                    else:
-                        values_for_where_statement = [
-                            str(value)
-                            for value in individual_chunk[upsert_column]
-                            if value is not None
-                        ]
-                    if not values_for_where_statement:
-                        continue
-                    where_statements.append(
-                        f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
-                    )
-
-                where_statement = " AND ".join(where_statements)
-                select_statement += where_statement
 
                 results = await self.query_async(
                     query=select_statement, synapse_client=synapse_client
                 )
 
-                for row in results.itertuples(index=False):
-                    row_etag = None
-
-                    if contains_etag:
-                        row_etag = row.ROW_ETAG
-
-                    partial_change_values = {}
-
-                    # Find the matching row in `values` that matches the row in `results` for the primary_keys
-                    matching_conditions = individual_chunk[primary_keys[0]] == getattr(
-                        row, primary_keys[0]
-                    )
-                    for col in primary_keys[1:]:
-                        matching_conditions &= individual_chunk[col] == getattr(
-                            row, col
-                        )
-                    matching_row = individual_chunk.loc[matching_conditions]
-
-                    # Determines which cells need to be updated
-                    for column in individual_chunk.columns:
-                        if len(matching_row[column].values) > 1:
-                            raise ValueError(
-                                f"The values for the keys being upserted must be unique in the table: [{matching_row}]"
-                            )
-
-                        if len(matching_row[column].values) == 0:
-                            continue
-                        column_id = self.columns[column].id
-                        column_type = self.columns[column].column_type
-                        cell_value = matching_row[column].values[0]
-                        if cell_value != getattr(row, column):
-                            if (
-                                isinstance(cell_value, list) and len(cell_value) > 0
-                            ) or not isna(cell_value):
-                                partial_change_values[
-                                    column_id
-                                ] = _convert_pandas_row_to_python_types(
-                                    cell=cell_value, column_type=column_type
-                                )
-                            else:
-                                partial_change_values[column_id] = None
-
-                    if partial_change_values != {}:
-                        total_row_count_updated += 1
-                        partial_change = PartialRow(
-                            row_id=row.ROW_ID,
-                            etag=row_etag,
-                            values=[
-                                {
-                                    "key": partial_change_key,
-                                    "value": partial_change_value,
-                                }
-                                for partial_change_key, partial_change_value in partial_change_values.items()
-                            ],
-                        )
-                        rows_to_update.append(partial_change)
-                        indexs_of_original_df_with_changes.append(matching_row.index[0])
+                (
+                    rows_to_update,
+                    indexes_with_updates,
+                ) = self._construct_partial_rows_for_upsert(
+                    results=results,
+                    chunk_to_check_for_upsert=individual_chunk,
+                    primary_keys=primary_keys,
+                    contains_etag=contains_etag,
+                )
+                total_row_count_updated += len(rows_to_update)
+                indexs_of_original_df_with_changes.extend(indexes_with_updates)
 
                 if not dry_run and rows_to_update:
-                    current_chunk_size = 0
-                    chunk = []
-                    for row in rows_to_update:
-                        row_size = row.size()
-                        if current_chunk_size + row_size > update_size_byte:
-                            change = AppendableRowSetRequest(
-                                entity_id=self.id,
-                                to_append=PartialRowSet(
-                                    table_id=self.id,
-                                    rows=chunk,
-                                ),
-                            )
-
-                            request = TableUpdateTransaction(
-                                entity_id=self.id,
-                                changes=[change],
-                            )
-
-                            await request.send_job_and_wait_async(synapse_client=client)
-                            progress_bar.update(len(chunk))
-                            chunk = []
-                            current_chunk_size = 0
-                        chunk.append(row)
-                        current_chunk_size += row_size
-
-                    if chunk:
-                        change = AppendableRowSetRequest(
-                            entity_id=self.id,
-                            to_append=PartialRowSet(
-                                table_id=self.id,
-                                rows=chunk,
-                            ),
-                        )
-
-                        await TableUpdateTransaction(
-                            entity_id=self.id,
-                            changes=[change],
-                        ).send_job_and_wait_async(synapse_client=client)
-                        progress_bar.update(len(chunk))
+                    await self._push_row_updates_to_synapse(
+                        rows_to_update=rows_to_update,
+                        update_size_byte=update_size_byte,
+                        progress_bar=progress_bar,
+                        client=client,
+                    )
                 elif dry_run:
                     progress_bar.update(len(rows_to_update))
                 progress_bar.update(len(individual_chunk.index) - len(rows_to_update))
@@ -2167,6 +2245,52 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 insert_size_byte=insert_size_byte,
                 synapse_client=synapse_client,
             )
+
+    def _infer_columns_from_data(
+        self,
+        values: DATA_FRAME_TYPE,
+        column_expansion_strategy: ColumnExpansionStrategy,
+    ) -> None:
+        """
+        Infer the columns from the data that is being stored. This method is used
+        when the `schema_storage_strategy` is set to `INFER_FROM_DATA`.
+
+        Arguments:
+            values: The data that is being stored. This data will be used to infer the
+                columns that are created in Synapse.
+            column_expansion_strategy: Determines how to automate the expansion of
+                columns based on the data that is being stored. The options given
+                allow cells with a limit on the length of content (Such as strings)
+                to be expanded to a larger size if the data being stored exceeds the
+                limit. A limit to list length is also enforced in Synapse by automatic
+                expansion for lists is not yet supported through this interface.
+
+        Returns:
+            None, but the columns on the table will be updated to reflect the inferred
+            columns from the data that is being stored.
+        """
+        infered_columns = infer_column_type_from_data(values=values)
+
+        modified_ordered_dict = OrderedDict()
+        for column in self.columns.values():
+            modified_ordered_dict[column.name] = column
+        self.columns = modified_ordered_dict
+
+        for infered_column in infered_columns:
+            column_instance = self.columns.get(infered_column.name, None)
+            if column_instance is None:
+                self.columns[infered_column.name] = infered_column
+            else:
+                if (
+                    column_expansion_strategy is not None
+                    and (
+                        column_expansion_strategy
+                        == ColumnExpansionStrategy.AUTO_EXPAND_CONTENT_LENGTH
+                    )
+                    and (infered_column.maximum_size or 0)
+                    > (column_instance.maximum_size or 1)
+                ):
+                    column_instance.maximum_size = infered_column.maximum_size
 
     async def store_rows_async(
         self,
@@ -2531,28 +2655,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         schema_change_request = None
 
         if schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA:
-            infered_columns = infer_column_type_from_data(values=values)
-
-            modified_ordered_dict = OrderedDict()
-            for column in self.columns.values():
-                modified_ordered_dict[column.name] = column
-            self.columns = modified_ordered_dict
-
-            for infered_column in infered_columns:
-                column_instance = self.columns.get(infered_column.name, None)
-                if column_instance is None:
-                    self.columns[infered_column.name] = infered_column
-                else:
-                    if (
-                        column_expansion_strategy is not None
-                        and (
-                            column_expansion_strategy
-                            == ColumnExpansionStrategy.AUTO_EXPAND_CONTENT_LENGTH
-                        )
-                        and (infered_column.maximum_size or 0)
-                        > (column_instance.maximum_size or 1)
-                    ):
-                        column_instance.maximum_size = infered_column.maximum_size
+            self._infer_columns_from_data(
+                values=values, column_expansion_strategy=column_expansion_strategy
+            )
 
             schema_change_request = await self._generate_schema_change_request(
                 dry_run=dry_run, synapse_client=synapse_client
@@ -2567,14 +2672,15 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             )
 
         if isinstance(original_values, str):
-            await self._chunk_and_upload_csv(
-                path_to_csv=original_values,
-                insert_size_byte=insert_size_byte,
-                csv_table_descriptor=csv_table_descriptor,
-                schema_change_request=schema_change_request,
-                client=client,
-                additional_changes=additional_changes,
-            )
+            with logging_redirect_tqdm(loggers=[client.logger]):
+                await self._chunk_and_upload_csv(
+                    path_to_csv=original_values,
+                    insert_size_byte=insert_size_byte,
+                    csv_table_descriptor=csv_table_descriptor,
+                    schema_change_request=schema_change_request,
+                    client=client,
+                    additional_changes=additional_changes,
+                )
         elif isinstance(values, DataFrame):
             # When creating this temporary file we are using the cache directory
             # as the staging location for the file upload. This is because it
@@ -2608,14 +2714,15 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     # use '%.12g'.c
                     # see SYNPY-267.
 
-                    await self._chunk_and_upload_csv(
-                        path_to_csv=temp_file.name,
-                        insert_size_byte=insert_size_byte,
-                        csv_table_descriptor=csv_table_descriptor,
-                        schema_change_request=schema_change_request,
-                        client=client,
-                        additional_changes=additional_changes,
-                    )
+                    with logging_redirect_tqdm(loggers=[client.logger]):
+                        await self._chunk_and_upload_csv(
+                            path_to_csv=temp_file.name,
+                            insert_size_byte=insert_size_byte,
+                            csv_table_descriptor=csv_table_descriptor,
+                            schema_change_request=schema_change_request,
+                            client=client,
+                            additional_changes=additional_changes,
+                        )
                 finally:
                     temp_file.close()
 
@@ -2639,10 +2746,68 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ]
         ] = None,
     ) -> None:
+        async def _send_update(
+            table_descriptor: CsvTableDescriptor,
+            file_handle_id: str = None,
+            changes: List[
+                Union[
+                    "TableSchemaChangeRequest",
+                    "UploadToTableRequest",
+                    "AppendableRowSetRequest",
+                ]
+            ] = None,
+        ) -> None:
+            """
+            Construct the request to send to Synapse to update the table with the
+            given file handle ID.
+
+            This will also send the schema change request, or any additional changes
+            that are passed in to the method.
+
+            Arguments:
+                table_descriptor: The descriptor for the CSV file that is being uploaded.
+                file_handle_id: The file handle ID that is being uploaded to Synapse.
+                changes: Additional changes to the table that should
+                    execute within the same transaction as appending or updating rows.
+            """
+            all_changes = []
+            if changes:
+                all_changes.extend(changes)
+
+            if file_handle_id:
+                upload_request = UploadToTableRequest(
+                    table_id=self.id,
+                    upload_file_handle_id=file_handle_id,
+                    update_etag=None,
+                )
+                if table_descriptor:
+                    upload_request.csv_table_descriptor = table_descriptor
+                all_changes.append(upload_request)
+
+            if all_changes:
+                await TableUpdateTransaction(
+                    entity_id=self.id, changes=all_changes
+                ).send_job_and_wait_async(synapse_client=client, timeout=600)
+
         # TODO: Add integration test around this portion of the code
         file_size = os.path.getsize(path_to_csv)
         if file_size > insert_size_byte:
-            applied_additional_changes = False
+            # Apply schema changes before breaking apart and uploading the file
+            changes = []
+            if schema_change_request:
+                changes.append(schema_change_request)
+            if additional_changes:
+                changes.extend(additional_changes)
+
+            _send_update(table_descriptor=csv_table_descriptor, changes=changes)
+
+            progress_bar = tqdm(
+                total=file_size,
+                desc="Splitting CSV and uploading chunks",
+                unit_scale=True,
+                smoothing=0,
+                unit="B",
+            )
             with open(file=path_to_csv, mode="r", encoding="utf-8") as f:
                 csv_table_descriptor = csv_table_descriptor or CsvTableDescriptor()
                 reader = csv.reader(
@@ -2676,7 +2841,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             current_bytes_written += csv_writer.writerow(row)
 
                             if current_bytes_written >= insert_size_byte:
-                                current_bytes_written = 0
                                 temp_file.flush()
                                 # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
                                 file_handle_id = await multipart_upload_file_async(
@@ -2688,29 +2852,12 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                                 temp_file.seek(0)
                                 csv_writer.writerow(header)
 
-                                upload_request = UploadToTableRequest(
-                                    table_id=self.id,
-                                    upload_file_handle_id=file_handle_id,
-                                    update_etag=None,
+                                await _send_update(
+                                    table_descriptor=csv_table_descriptor,
+                                    file_handle_id=file_handle_id,
                                 )
-                                if csv_table_descriptor:
-                                    upload_request.csv_table_descriptor = (
-                                        csv_table_descriptor
-                                    )
-                                changes = []
-                                if not applied_additional_changes:
-                                    applied_additional_changes = True
-                                    if schema_change_request:
-                                        changes.append(schema_change_request)
-                                    if additional_changes:
-                                        changes.extend(additional_changes)
-                                changes.append(upload_request)
-
-                                await TableUpdateTransaction(
-                                    entity_id=self.id, changes=changes
-                                ).send_job_and_wait_async(
-                                    synapse_client=client, timeout=600
-                                )
+                                progress_bar.update(current_bytes_written)
+                                current_bytes_written = 0
 
                         # If there is any data except the header, upload it
                         if temp_file.tell() > 1:
@@ -2722,52 +2869,32 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                                 content_type="text/csv",
                             )
 
-                            upload_request = UploadToTableRequest(
-                                table_id=self.id,
-                                upload_file_handle_id=file_handle_id,
-                                update_etag=None,
+                            await _send_update(
+                                table_descriptor=csv_table_descriptor,
+                                file_handle_id=file_handle_id,
                             )
-                            if csv_table_descriptor:
-                                upload_request.csv_table_descriptor = (
-                                    csv_table_descriptor
-                                )
-                            changes = []
-                            if not applied_additional_changes:
-                                applied_additional_changes = True
-                                if schema_change_request:
-                                    changes.append(schema_change_request)
-                                if additional_changes:
-                                    changes.extend(additional_changes)
-                            changes.append(upload_request)
-
-                            await TableUpdateTransaction(
-                                entity_id=self.id, changes=changes
-                            ).send_job_and_wait_async(
-                                synapse_client=client, timeout=600
-                            )
+                            progress_bar.update(current_bytes_written)
                     finally:
                         temp_file.close()
+            progress_bar.update(progress_bar.total - progress_bar.n)
+            progress_bar.refresh()
+            progress_bar.close()
         else:
             file_handle_id = await multipart_upload_file_async(
                 syn=client, file_path=path_to_csv, content_type="text/csv"
             )
-            upload_request = UploadToTableRequest(
-                table_id=self.id,
-                upload_file_handle_id=file_handle_id,
-                update_etag=None,
-            )
-            if csv_table_descriptor:
-                upload_request.csv_table_descriptor = csv_table_descriptor
+
             changes = []
             if schema_change_request:
                 changes.append(schema_change_request)
             if additional_changes:
                 changes.extend(additional_changes)
-            changes.append(upload_request)
 
-            await TableUpdateTransaction(
-                entity_id=self.id, changes=changes
-            ).send_job_and_wait_async(synapse_client=client)
+            await _send_update(
+                table_descriptor=csv_table_descriptor,
+                file_handle_id=file_handle_id,
+                changes=changes,
+            )
 
     # TODO: Determine if it is possible to delete rows from a `Dataset` entity, or if it's only possible to delete the rows by setting the `items` attribute and storing the entity
     async def delete_rows_async(
