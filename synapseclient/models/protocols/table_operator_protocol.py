@@ -191,7 +191,7 @@ class TableOperatorSynchronousProtocol(Protocol):
 
             ```python
             from synapseclient import Synapse
-            from synapseclient.models import query_async
+            from synapseclient.models import query
 
             syn = Synapse()
             syn.login()
@@ -249,9 +249,8 @@ class TableOperatorSynchronousProtocol(Protocol):
             the last updated on date of the table.
 
             ```python
-            import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import query_part_mask_async
+            from synapseclient.models import query_part_mask
 
             syn = Synapse()
             syn.login()
@@ -306,9 +305,9 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             kept to a minimum (< 50,000). There is significant overhead in the request
             to Synapse for each row that is upserted. If you are upserting a large
             number of rows a better approach may be to query for the data you want
-            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
+            to update, update the data, then use the [store_rows][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows] method to
             update the data in Synapse. Any rows you want to insert may be added
-            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method.
+            to the DataFrame that is passed to the [store_rows][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows] method.
         - When upserting mnay rows the requests to Synapse will be chunked into smaller
             requests. The limit is 2MB per request. This chunking will happen
             automatically and should not be a concern for most users. If you are
@@ -484,6 +483,22 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             of the columns list.
         - If you use the `store_rows` method and the `schema_storage_strategy` is set to
             `INFER_FROM_DATA` the columns will be added at the end of the columns list.
+
+
+        **Limitations:**
+
+        - Synapse limits the number of rows that may be stored in a single request to
+            a CSV file that is 1GB. If you are storing a CSV file that is larger than
+            this limit the data will be chunked into smaller requests by writing a
+            portion of the data to a temporary file that is cleaned up after upload.
+            Due to this batching it also means that the entire upload is not atomic.
+            The file will be written to the Synapse cache directory
+            (default is `~/.synapseCache`) and will be deleted after the upload is
+            complete. Storing a dataframe is also subject to this limit and will be
+            chunked into smaller requests if the size exceeds this limit. Dataframes
+            are converted to CSV files before being uploaded to Synapse regardless of
+            the size of the dataframe, but depending on the size of the dataframe the
+            data may be chunked into smaller requests.
 
 
         Arguments:

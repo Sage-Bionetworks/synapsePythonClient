@@ -4,6 +4,7 @@ or querying for data."""
 import asyncio
 import json
 import logging
+import math
 import os
 import tempfile
 import uuid
@@ -2212,6 +2213,22 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             `INFER_FROM_DATA` the columns will be added at the end of the columns list.
 
 
+        **Limitations:**
+
+        - Synapse limits the number of rows that may be stored in a single request to
+            a CSV file that is 1GB. If you are storing a CSV file that is larger than
+            this limit the data will be chunked into smaller requests by writing a
+            portion of the data to a temporary file that is cleaned up after upload.
+            Due to this batching it also means that the entire upload is not atomic.
+            The file will be written to the Synapse cache directory
+            (default is `~/.synapseCache`) and will be deleted after the upload is
+            complete. Storing a dataframe is also subject to this limit and will be
+            chunked into smaller requests if the size exceeds this limit. Dataframes
+            are converted to CSV files before being uploaded to Synapse regardless of
+            the size of the dataframe, but depending on the size of the dataframe the
+            data may be chunked into smaller requests.
+
+
 
         Arguments:
             values: Supports storing data from the following sources:
@@ -2568,7 +2585,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             temp_dir = client.cache.get_cache_dir(file_handle_id=111111111)
             os.makedirs(temp_dir, exist_ok=True)
             with tempfile.NamedTemporaryFile(
-                delete=False,
                 prefix="chunked_csv_for_synapse_store_rows",
                 suffix=".csv",
                 dir=temp_dir,
@@ -2601,7 +2617,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         additional_changes=additional_changes,
                     )
                 finally:
-                    os.remove(temp_file.name)
+                    temp_file.close()
 
         else:
             raise ValueError(
@@ -2629,54 +2645,88 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             applied_additional_changes = False
             with open(file=path_to_csv, mode="r", encoding="utf-8") as f:
                 header = f.readline().encode()
-                chunk = [line.encode() for line in f.readlines(insert_size_byte)]
-                file_path = None
+                loop_iteration = 0
                 temp_dir = client.cache.get_cache_dir(file_handle_id=111111111)
-                os.makedirs(temp_dir, exist_ok=True)
-                while chunk:
-                    with tempfile.NamedTemporaryFile(
-                        delete=False,
-                        prefix="chunked_csv_for_synapse_store_rows",
-                        suffix=".csv",
-                        dir=temp_dir,
-                    ) as temp_file:
-                        try:
-                            file_path = temp_file.name
-                            temp_file.write(header)
-                            temp_file.writelines(chunk)
-                            temp_file.close()
+                with tempfile.NamedTemporaryFile(
+                    prefix="chunked_csv_for_synapse_store_rows",
+                    suffix=".csv",
+                    dir=temp_dir,
+                ) as temp_file:
+                    try:
+                        temp_file.write(header)
+                        while chunk := f.readlines(math.ceil(insert_size_byte / 10)):
+                            if not chunk:
+                                break
 
+                            loop_iteration += 1
+                            temp_file.writelines([line.encode() for line in chunk])
+                            if loop_iteration % 10 == 0:
+                                temp_file.flush()
+                                # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
+                                file_handle_id = await multipart_upload_file_async(
+                                    syn=client,
+                                    file_path=temp_file.name,
+                                    content_type="text/csv",
+                                )
+                                temp_file.truncate(0)
+                                temp_file.seek(0)
+                                temp_file.write(header)
+
+                                upload_request = UploadToTableRequest(
+                                    table_id=self.id,
+                                    upload_file_handle_id=file_handle_id,
+                                    update_etag=None,
+                                )
+                                if csv_table_descriptor:
+                                    upload_request.csv_table_descriptor = (
+                                        csv_table_descriptor
+                                    )
+                                changes = []
+                                if not applied_additional_changes:
+                                    applied_additional_changes = True
+                                    if schema_change_request:
+                                        changes.append(schema_change_request)
+                                    if additional_changes:
+                                        changes.extend(additional_changes)
+                                changes.append(upload_request)
+
+                                await TableUpdateTransaction(
+                                    entity_id=self.id, changes=changes
+                                ).send_job_and_wait_async(synapse_client=client)
+
+                        # If there is any data except the header, upload it
+                        if temp_file.tell() > 1:
+                            temp_file.flush()
                             # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
                             file_handle_id = await multipart_upload_file_async(
                                 syn=client,
-                                file_path=file_path,
+                                file_path=temp_file.name,
                                 content_type="text/csv",
                             )
-                        finally:
-                            os.remove(file_path)
 
-                    upload_request = UploadToTableRequest(
-                        table_id=self.id,
-                        upload_file_handle_id=file_handle_id,
-                        update_etag=None,
-                    )
-                    if csv_table_descriptor:
-                        upload_request.csv_table_descriptor = csv_table_descriptor
-                    changes = []
-                    if not applied_additional_changes:
-                        applied_additional_changes = True
-                        if schema_change_request:
-                            changes.append(schema_change_request)
-                        if additional_changes:
-                            changes.extend(additional_changes)
-                    changes.append(upload_request)
+                            upload_request = UploadToTableRequest(
+                                table_id=self.id,
+                                upload_file_handle_id=file_handle_id,
+                                update_etag=None,
+                            )
+                            if csv_table_descriptor:
+                                upload_request.csv_table_descriptor = (
+                                    csv_table_descriptor
+                                )
+                            changes = []
+                            if not applied_additional_changes:
+                                applied_additional_changes = True
+                                if schema_change_request:
+                                    changes.append(schema_change_request)
+                                if additional_changes:
+                                    changes.extend(additional_changes)
+                            changes.append(upload_request)
 
-                    await TableUpdateTransaction(
-                        entity_id=self.id, changes=changes
-                    ).send_job_and_wait_async(synapse_client=client)
-
-                    chunk = [line.encode() for line in f.readlines(insert_size_byte)]
-
+                            await TableUpdateTransaction(
+                                entity_id=self.id, changes=changes
+                            ).send_job_and_wait_async(synapse_client=client)
+                    finally:
+                        temp_file.close()
         else:
             file_handle_id = await multipart_upload_file_async(
                 syn=client, file_path=path_to_csv, content_type="text/csv"
