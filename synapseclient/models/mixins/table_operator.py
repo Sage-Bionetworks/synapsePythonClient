@@ -1953,7 +1953,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     changes=[change],
                 )
 
-                await request.send_job_and_wait_async(synapse_client=client)
+                await request.send_job_and_wait_async(
+                    synapse_client=client, timeout=600
+                )
                 progress_bar.update(len(chunk))
                 chunk = []
                 current_chunk_size = 0
