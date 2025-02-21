@@ -419,6 +419,10 @@ class TableOperator(TableOperatorSynchronousProtocol):
             for column in self.columns.values():
                 updated_columns[column.name] = column
             self.columns = updated_columns
+            await self.get_async(
+                include_columns=False,
+                synapse_client=synapse_client,
+            )
 
         re_read_required = await store_entity_components(
             root_resource=self,

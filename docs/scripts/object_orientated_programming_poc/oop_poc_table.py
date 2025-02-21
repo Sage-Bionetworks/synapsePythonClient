@@ -16,7 +16,7 @@ import string
 from datetime import date, datetime, timedelta, timezone
 
 import synapseclient
-from synapseclient.models import Column, ColumnType, CsvResultFormat, Row, Table
+from synapseclient.models import Column, ColumnType, Table
 
 PROJECT_ID = "syn52948289"
 
@@ -92,7 +92,7 @@ def store_table():
         annotations=annotations_for_my_table,
     )
 
-    table = table.store_schema()
+    table = table.store()
 
     print("Table created:")
     print(table)
@@ -107,7 +107,7 @@ def store_table():
 
     # Updating annotations on my table ===============================================
     copy_of_table.annotations["my_key_string"] = ["new", "values", "here"]
-    stored_table = copy_of_table.store_schema()
+    stored_table = copy_of_table.store()
     print("Table updated:")
     print(stored_table)
 
@@ -116,31 +116,24 @@ def store_table():
     path_to_csv = os.path.join(os.path.expanduser("~/temp"), f"{name_of_csv}.csv")
     write_random_csv_with_data(path_to_csv)
 
-    csv_path = copy_of_table.store_rows_from_csv(csv_path=path_to_csv)
+    copy_of_table.store_rows(values=path_to_csv)
 
-    print("Stored data to table from CSV:")
-    print(csv_path)
+    print("Stored data to table from CSV")
 
     # Querying for data from a table =================================================
-    destination_csv_location = os.path.expanduser("~/temp/my_query_results")
-
     table_id_to_query = copy_of_table.id
-    Table.query(
-        query=f"SELECT * FROM {table_id_to_query}",
-        result_format=CsvResultFormat(download_location=destination_csv_location),
-    )
+    dataframe_from_query = Table.query(query=f"SELECT * FROM {table_id_to_query}")
 
-    print(f"Created results at: {destination_csv_location}")
+    print(f"Got results: {dataframe_from_query}")
 
-    # Deleting rows from a table =====================================================
-    copy_of_table.delete_rows(rows=[Row(row_id=1)])
+    # Deleting a row from the table =====================================================
+    copy_of_table.delete_rows(query=f"SELECT * from {table_id_to_query} LIMIT 1")
 
     # Deleting a table ===============================================================
     table_to_delete = Table(
         name="my_test_table_I_want_to_delete",
-        columns=columns,
         parent_id=PROJECT_ID,
-    ).store_schema()
+    ).store()
 
     table_to_delete.delete()
 
