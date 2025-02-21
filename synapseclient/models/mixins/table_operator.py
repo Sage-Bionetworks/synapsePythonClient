@@ -1863,7 +1863,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         chunk_to_check_for_upsert: DATA_FRAME_TYPE,
         primary_keys: List[str],
         contains_etag: bool,
-    ) -> Tuple[List[PartialRow], List[int]]:
+    ) -> Tuple[List[PartialRow], List[int], List[int]]:
         """
         Handles the construction of the PartialRow objects that will be used to update
         rows in Synapse. This method is used in the upsert method to determine which
@@ -1878,14 +1878,16 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         Returns:
             A tuple containing a list of PartialRow objects that will be used to update
-            rows in Synapse, and a list of the indexs of the rows in the original
-            DataFrame that have changes.
+            rows in Synapse, a list of the indexs of the rows in the original
+            DataFrame that have changes, and a list of the indexs of the rows in the
+            original DataFrame that do not have changes.
         """
 
         from pandas import isna
 
         rows_to_update: List[PartialRow] = []
         indexs_of_original_df_with_changes = []
+        indexs_of_original_df_without_changes = []
         for row in results.itertuples(index=False):
             row_etag = None
 
@@ -1942,7 +1944,13 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 )
                 rows_to_update.append(partial_change)
                 indexs_of_original_df_with_changes.append(matching_row.index[0])
-        return rows_to_update, indexs_of_original_df_with_changes
+            else:
+                indexs_of_original_df_without_changes.append(matching_row.index[0])
+        return (
+            rows_to_update,
+            indexs_of_original_df_with_changes,
+            indexs_of_original_df_without_changes,
+        )
 
     async def _push_row_updates_to_synapse(
         self,
@@ -2049,6 +2057,44 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             the values in these columns are used to determine if a row exists, they
             cannot be updated in the same transaction.
 
+        The following is a Sequence Diagram that describces the upsert process at a
+        high level:
+
+        ```mermaid
+        sequenceDiagram
+            participant User
+            participant Table
+            participant Synapse
+
+            User->>Table: upsert_rows()
+
+            loop Query and Process Updates in Chunks (rows_per_query)
+                Table->>Synapse: Query existing rows using primary keys
+                Synapse-->>Table: Return matching rows
+                Note Over Table: Create partial row updates
+
+                loop For results from query
+                    Note Over Table: Sum row/chunk size
+                    alt Chunk size exceeds update_size_byte
+                        Table->>Synapse: Push update chunk
+                        Synapse-->>Table: Acknowledge update
+                    end
+                    Table->>Table: Add row to chunk
+                end
+
+                alt Remaining updates exist
+                    Table->>Synapse: Push final update chunk
+                    Synapse-->>Table: Acknowledge update
+                end
+            end
+
+            alt New rows exist
+                Table->>Table: Identify new rows for insertion
+                Table->>Table: Call `store_rows()` function
+            end
+
+            Table-->>User: Upsert complete
+        ```
 
         Arguments:
             values: Supports storing data from the following sources:
@@ -2206,7 +2252,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         all_columns_from_df = [f'"{column}"' for column in values.columns]
         contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
-        indexs_of_original_df_with_changes = []
+        indexes_of_original_df_with_changes = []
+        indexes_of_original_df_with_no_changes = []
         total_row_count_updated = 0
 
         with logging_redirect_tqdm(loggers=[client.logger]):
@@ -2230,6 +2277,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 (
                     rows_to_update,
                     indexes_with_updates,
+                    indexes_without_updates,
                 ) = self._construct_partial_rows_for_upsert(
                     results=results,
                     chunk_to_check_for_upsert=individual_chunk,
@@ -2237,7 +2285,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     contains_etag=contains_etag,
                 )
                 total_row_count_updated += len(rows_to_update)
-                indexs_of_original_df_with_changes.extend(indexes_with_updates)
+                indexes_of_original_df_with_changes.extend(indexes_with_updates)
+                indexes_of_original_df_with_no_changes.extend(indexes_without_updates)
 
                 if not dry_run and rows_to_update:
                     await self._push_row_updates_to_synapse(
@@ -2257,7 +2306,10 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             progress_bar.close()
 
         rows_to_insert_df = values.loc[
-            ~values.index.isin(indexs_of_original_df_with_changes)
+            ~values.index.isin(
+                indexes_of_original_df_with_changes
+                + indexes_of_original_df_with_no_changes
+            )
         ]
 
         client.logger.info(
@@ -2419,7 +2471,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
             Table-->>User: Upload complete
         ```
-
 
         Arguments:
             values: Supports storing data from the following sources:

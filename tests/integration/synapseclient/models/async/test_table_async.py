@@ -828,7 +828,7 @@ class TestUpsertRows:
                     "value5",
                     "value6",
                 ],
-                "column_key_2": [4, 5, 6, 7, 8, 9],
+                "column_key_2": [1, 5, 6, 7, 8, 9],
             }
         )
 

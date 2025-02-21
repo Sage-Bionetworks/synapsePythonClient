@@ -323,6 +323,44 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             the values in these columns are used to determine if a row exists, they
             cannot be updated in the same transaction.
 
+        The following is a Sequence Diagram that describces the upsert process at a
+        high level:
+
+        ```mermaid
+        sequenceDiagram
+            participant User
+            participant Table
+            participant Synapse
+
+            User->>Table: upsert_rows()
+
+            loop Query and Process Updates in Chunks (rows_per_query)
+                Table->>Synapse: Query existing rows using primary keys
+                Synapse-->>Table: Return matching rows
+                Note Over Table: Create partial row updates
+
+                loop For results from query
+                    Note Over Table: Sum row/chunk size
+                    alt Chunk size exceeds update_size_byte
+                        Table->>Synapse: Push update chunk
+                        Synapse-->>Table: Acknowledge update
+                    end
+                    Table->>Table: Add row to chunk
+                end
+
+                alt Remaining updates exist
+                    Table->>Synapse: Push final update chunk
+                    Synapse-->>Table: Acknowledge update
+                end
+            end
+
+            alt New rows exist
+                Table->>Table: Identify new rows for insertion
+                Table->>Table: Call `store_rows()` function
+            end
+
+            Table-->>User: Upsert complete
+        ```
 
         Arguments:
             values: Supports storing data from the following sources:
@@ -500,6 +538,44 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             the size of the dataframe, but depending on the size of the dataframe the
             data may be chunked into smaller requests.
 
+        The following is a Sequence Daigram that describes the process noted in the
+        limitation above. It shows how the data is chunked into smaller requests when
+        the data exceeds the limit of 1GB, and how the data is written to a temporary
+        file that is cleaned up after upload.
+
+        ```mermaid
+        sequenceDiagram
+            participant User
+            participant Table
+            participant CSVHandler
+            participant FileSystem
+            participant Synapse
+
+            User->>Table: store_rows(values)
+            Table->>CSVHandler: Convert values to CSV (if Dict or DataFrame)
+            CSVHandler->>Table: Return CSV path
+
+            alt CSV size > 1GB
+                loop Split and Upload CSV
+                    Table->>CSVHandler: Split CSV into smaller chunks
+                    CSVHandler->>FileSystem: Write chunk to local file
+                    FileSystem->>Table: Return file path
+                    Table->>Synapse: Upload CSV chunk using file path
+                    Synapse-->>Table: Return `file_handle_id`
+                    Table->>FileSystem: Truncate file for next chunk
+                    Table->>Synapse: Send 'TableUpdateTransaction' to append/update rows
+                    Synapse-->>Table: Transaction result
+                end
+                Table->>FileSystem: Delete temporary file
+            else
+                Table->>Synapse: Upload CSV without splitting
+                Synapse-->>Table: Return `file_handle_id`
+                Table->>Synapse: Send `TableUpdateTransaction' to append/update rows
+                Synapse-->>Table: Transaction result
+            end
+
+            Table-->>User: Upload complete
+        ```
 
         Arguments:
             values: Supports storing data from the following sources:

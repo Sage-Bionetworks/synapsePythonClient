@@ -3555,7 +3555,11 @@ class TestSilentCommandAndLogger:
             "transferred", "toBeTransferred", "Downloading ", mock_kwargs
         )
         mock_ctp.printTransferProgress.assert_called_once_with(
-            "transferred", "toBeTransferred", "Downloading ", mock_kwargs
+            "transferred",
+            "toBeTransferred",
+            "Downloading ",
+            mock_kwargs,
+            logger=self.syn.logger,
         )
 
 

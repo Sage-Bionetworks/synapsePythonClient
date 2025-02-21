@@ -160,7 +160,7 @@ class TestGetJobAsync:
             ) as mock_fill_from_dict,
         ):
             with pytest.raises(
-                SynapseTimeoutError, match="Timeout waiting for query results:"
+                SynapseTimeoutError, match="Timeout waiting for results:"
             ):
                 # WHEN I call get_job_async
                 # AND the job does not complete or progress within the timeout interval
@@ -228,6 +228,8 @@ class TestSendJobAndWaitAsync:
                 request_type=self.request_type,
                 synapse_client=self.syn,
                 endpoint=None,
+                timeout=60,
+                request=self.good_request,
             )
 
 
