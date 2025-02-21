@@ -15,12 +15,14 @@ from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
     Column,
+    ColumnExpansionStrategy,
     ColumnType,
     File,
     Project,
     SchemaStorageStrategy,
     Table,
     query_async,
+    query_part_mask_async,
 )
 
 
@@ -566,6 +568,77 @@ class TestRowStorage:
             results["column_string"], data_for_table["column_string"]
         )
 
+    async def test_store_rows_on_existing_table_with_expanding_string_column(
+        self, mocker: MockerFixture, project_model: Project
+    ) -> None:
+        # SPYs
+        spy_csv_file_conversion = mocker.spy(table_module, "csv_to_pandas_df")
+
+        # GIVEN a table with a column defined
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(
+                    name="column_string", column_type=ColumnType.STRING, maximum_size=10
+                )
+            ],
+        )
+
+        # AND the table exists in Synapse
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+
+        # AND data for a column stored to CSV
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": [
+                    "long_string_value_over_maximum_size1",
+                    "long_string_value_over_maximum_size2",
+                    "long_string_value_over_maximum_size3",
+                ],
+            }
+        )
+        filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
+
+        # WHEN I store rows to the table with a schema storage strategy
+        await table.store_rows_async(
+            values=filepath,
+            schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
+            column_expansion_strategy=ColumnExpansionStrategy.AUTO_EXPAND_CONTENT_LENGTH,
+            synapse_client=self.syn,
+        )
+
+        # THEN the spy should have been called
+        spy_csv_file_conversion.assert_called_once()
+
+        # AND the schema should have been updated before the data is stored
+        assert len(spy_send_job.call_args.kwargs["request"]["changes"]) == 2
+        assert (
+            spy_send_job.call_args.kwargs["request"]["changes"][0]["concreteType"]
+            == concrete_types.TABLE_SCHEMA_CHANGE_REQUEST
+        )
+        assert (
+            spy_send_job.call_args.kwargs["request"]["changes"][1]["concreteType"]
+            == concrete_types.UPLOAD_TO_TABLE_REQUEST
+        )
+
+        # AND I can query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+
+        # AND the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"], data_for_table["column_string"]
+        )
+
+        # AND the column should have been expanded
+        assert table.columns["column_string"].maximum_size == 54
+
     async def test_store_rows_on_existing_table_adding_column(
         self, mocker: MockerFixture, project_model: Project
     ) -> None:
@@ -719,8 +792,8 @@ class TestUpsertRows:
         # AND no additional rows exist on the table
         assert len(results) == 3
 
-    async def test_upsert_with_updates_and_insertions(
-        self, project_model: Project
+    async def test_upsert_with_updates_and_insertions_as_csv(
+        self, project_model: Project, mocker: MockerFixture
     ) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
@@ -742,6 +815,209 @@ class TestUpsertRows:
         await table.store_rows_async(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+
+        # AND data I want to upsert the rows to
+        modified_data_for_table = pd.DataFrame(
+            {
+                "column_string": [
+                    "value1",
+                    "value2",
+                    "value3",
+                    "value4",
+                    "value5",
+                    "value6",
+                ],
+                "column_key_2": [4, 5, 6, 7, 8, 9],
+            }
+        )
+
+        filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        modified_data_for_table.to_csv(filepath, index=False, float_format="%.12g")
+
+        # WHEN I upsert rows to the table based on the first column
+        await table.upsert_rows_async(
+            values=filepath,
+            primary_keys=["column_string"],
+            synapse_client=self.syn,
+        )
+
+        # AND I query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"], modified_data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["column_key_2"], modified_data_for_table["column_key_2"]
+        )
+
+        # AND 3 additional rows exist on the table
+        assert len(results) == 6
+
+        # AND the spy should have been called in single batches for update and insert operations
+        assert spy_send_job.call_count == 2
+
+    async def test_upsert_with_updates_and_insertions_as_dict(
+        self, project_model: Project, mocker: MockerFixture
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_key_2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for a column already stored in Synapse
+        data_for_table = pd.DataFrame(
+            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
+        )
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+
+        # AND data I want to upsert the rows to
+        modified_data_for_table = {
+            "column_string": [
+                "value1",
+                "value2",
+                "value3",
+                "value4",
+                "value5",
+                "value6",
+            ],
+            "column_key_2": [4, 5, 6, 7, 8, 9],
+        }
+
+        # WHEN I upsert rows to the table based on the first column
+        await table.upsert_rows_async(
+            values=modified_data_for_table,
+            primary_keys=["column_string"],
+            synapse_client=self.syn,
+        )
+
+        # AND I query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"],
+            pd.DataFrame(modified_data_for_table)["column_string"],
+        )
+        pd.testing.assert_series_equal(
+            results["column_key_2"],
+            pd.DataFrame(modified_data_for_table)["column_key_2"],
+        )
+
+        # AND 3 additional rows exist on the table
+        assert len(results) == 6
+
+        # AND the spy should have been called in single batches for update and insert operations
+        assert spy_send_job.call_count == 2
+
+    async def test_upsert_with_dry_run(
+        self, project_model: Project, mocker: MockerFixture
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_key_2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for a column already stored in Synapse
+        data_for_table = pd.DataFrame(
+            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
+        )
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+
+        # AND data I want to upsert the rows to
+        modified_data_for_table = pd.DataFrame(
+            {
+                "column_string": [
+                    "value1",
+                    "value2",
+                    "value3",
+                    "value4",
+                    "value5",
+                    "value6",
+                ],
+                "column_key_2": [4, 5, 6, 7, 8, 9],
+            }
+        )
+
+        # WHEN I upsert rows to the table based on the first column
+        await table.upsert_rows_async(
+            values=modified_data_for_table,
+            primary_keys=["column_string"],
+            dry_run=True,
+            synapse_client=self.syn,
+        )
+
+        # AND I query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+
+        # THEN the table should not contain any modified data from the original state
+        pd.testing.assert_series_equal(
+            results["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["column_key_2"], data_for_table["column_key_2"]
+        )
+
+        # AND the 3 original rows should exist on the table
+        assert len(results) == 3
+
+        # AND the spy should have not been called for update/insert operations
+        assert spy_send_job.call_count == 0
+
+    async def test_upsert_with_updates_and_insertions(
+        self, project_model: Project, mocker: MockerFixture
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_key_2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for a column already stored in Synapse
+        data_for_table = pd.DataFrame(
+            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
+        )
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data I want to upsert the rows to
         modified_data_for_table = pd.DataFrame(
@@ -781,8 +1057,11 @@ class TestUpsertRows:
         # AND 3 additional rows exist on the table
         assert len(results) == 6
 
+        # AND the spy should have been called in single batches for update and insert operations
+        assert spy_send_job.call_count == 2
+
     async def test_upsert_with_updates_and_insertions_single_row_per_interaction(
-        self, project_model: Project
+        self, project_model: Project, mocker: MockerFixture
     ) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
@@ -792,20 +1071,32 @@ class TestUpsertRows:
             columns=[
                 Column(name="column_string", column_type=ColumnType.STRING),
                 Column(name="column_key_2", column_type=ColumnType.INTEGER),
+                Column(
+                    name="large_string",
+                    column_type=ColumnType.STRING,
+                    maximum_size=1000,
+                ),
             ],
         )
         table = await table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
+        large_string_a = "A" * 1000
         data_for_table = pd.DataFrame(
-            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_key_2": [1, 2, 3],
+                "large_string": [large_string_a, large_string_a, large_string_a],
+            }
         )
         await table.store_rows_async(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data I want to upsert the rows to
+        large_string_b = "B" * 1000
         modified_data_for_table = pd.DataFrame(
             {
                 "column_string": [
@@ -817,6 +1108,14 @@ class TestUpsertRows:
                     "value6",
                 ],
                 "column_key_2": [4, 5, 6, 7, 8, 9],
+                "large_string": [
+                    large_string_b,
+                    large_string_b,
+                    large_string_b,
+                    large_string_b,
+                    large_string_b,
+                    large_string_b,
+                ],
             }
         )
 
@@ -826,6 +1125,8 @@ class TestUpsertRows:
             primary_keys=["column_string"],
             synapse_client=self.syn,
             rows_per_request=1,
+            update_size_byte=1 * utils.KB,
+            insert_size_byte=1 * utils.KB,
         )
 
         # AND I query the table
@@ -840,9 +1141,15 @@ class TestUpsertRows:
         pd.testing.assert_series_equal(
             results["column_key_2"], modified_data_for_table["column_key_2"]
         )
+        pd.testing.assert_series_equal(
+            results["large_string"], modified_data_for_table["large_string"]
+        )
 
         # AND 3 additional rows exist on the table
         assert len(results) == 6
+
+        # AND the spy should have been called in multiple batches for update and insert operations
+        assert spy_send_job.call_count == 6
 
     async def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
@@ -1825,3 +2132,119 @@ class TestColumnModifications:
         # AND the column to keep should still be in the Synapse table
         assert column_to_keep in new_table_instance.columns
         assert len(new_table_instance.columns.values()) == 1
+
+
+class TestQuerying:
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    async def test_part_mask_query_everything(self, project_model: Project) -> None:
+        # GIVEN a table with a column defined
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="integer_column", column_type=ColumnType.INTEGER),
+                Column(name="float_column", column_type=ColumnType.DOUBLE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for the table stored in synapse
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3", "value4"],
+                "integer_column": [1, 2, 3, None],
+                "float_column": [1.1, 2.2, 3.3, None],
+            }
+        )
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+
+        # WHEN I query the table with a part mask
+        QUERY_RESULTS = 0x1
+        QUERY_COUNT = 0x2
+        SUM_FILE_SIZE_BYTES = 0x40
+        LAST_UPDATED_ON = 0x80
+        part_mask = QUERY_RESULTS | QUERY_COUNT | SUM_FILE_SIZE_BYTES | LAST_UPDATED_ON
+
+        results = await query_part_mask_async(
+            query=f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            part_mask=part_mask,
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results.result["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results.result["integer_column"], data_for_table["integer_column"]
+        )
+        pd.testing.assert_series_equal(
+            results.result["float_column"], data_for_table["float_column"]
+        )
+
+        # AND the part mask should be reflected in the results
+        assert results.count == 4
+        assert results.sum_file_sizes is not None
+        assert results.sum_file_sizes.greater_than is not None
+        assert results.sum_file_sizes.sum_file_size_bytes is not None
+        assert results.last_updated_on is not None
+
+    async def test_part_mask_query_results_only(self, project_model: Project) -> None:
+        # GIVEN a table with a column defined
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="integer_column", column_type=ColumnType.INTEGER),
+                Column(name="float_column", column_type=ColumnType.DOUBLE),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for the table stored in synapse
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3", "value4"],
+                "integer_column": [1, 2, 3, None],
+                "float_column": [1.1, 2.2, 3.3, None],
+            }
+        )
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+
+        # WHEN I query the table with a part mask
+        QUERY_RESULTS = 0x1
+        results = await query_part_mask_async(
+            query=f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            part_mask=QUERY_RESULTS,
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results.result["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results.result["integer_column"], data_for_table["integer_column"]
+        )
+        pd.testing.assert_series_equal(
+            results.result["float_column"], data_for_table["float_column"]
+        )
+
+        # AND the part mask should be reflected in the results
+        assert results.count is None
+        assert results.sum_file_sizes is None
+        assert results.last_updated_on is None

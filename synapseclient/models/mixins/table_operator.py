@@ -134,7 +134,8 @@ class QueryResultBundle:
     last_updated_on: Optional[str] = None
     """The date-time when this table/view was last updated. Note: Since views are
     eventually consistent a view might still be out-of-date even if it was recently
-    updated. Use mask = 0x80 to include in the bundle."""
+    updated. Use mask = 0x80 to include in the bundle. This is returned in the
+    ISO8601 format like `2000-01-01T00:00:00.000Z`."""
 
 
 @async_to_sync
@@ -1155,7 +1156,12 @@ class TableOperator(TableOperatorSynchronousProtocol):
         return QueryResultBundle(
             result=as_df,
             count=results.count,
-            sum_file_sizes=results.sumFileSizes,
+            sum_file_sizes=SumFileSizes(
+                sum_file_size_bytes=results.sumFileSizes.get("sumFileSizesBytes", None),
+                greater_than=results.sumFileSizes.get("greaterThan", None),
+            )
+            if results.sumFileSizes
+            else None,
             last_updated_on=results.lastUpdatedOn,
         )
 
@@ -2375,6 +2381,45 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             data may be chunked into smaller requests.
 
 
+        The following is a Sequence Daigram that describes the process noted in the
+        limitation above. It shows how the data is chunked into smaller requests when
+        the data exceeds the limit of 1GB, and how the data is written to a temporary
+        file that is cleaned up after upload.
+
+        ```mermaid
+        sequenceDiagram
+            participant User
+            participant Table
+            participant CSVHandler
+            participant FileSystem
+            participant Synapse
+
+            User->>Table: store_rows(values)
+            Table->>CSVHandler: Convert values to CSV (if Dict or DataFrame)
+            CSVHandler->>Table: Return CSV path
+
+            alt CSV size > 1GB
+                loop Split and Upload CSV
+                    Table->>CSVHandler: Split CSV into smaller chunks
+                    CSVHandler->>FileSystem: Write chunk to local file
+                    FileSystem->>Table: Return file path
+                    Table->>Synapse: Upload CSV chunk using file path
+                    Synapse-->>Table: Return `file_handle_id`
+                    Table->>FileSystem: Truncate file for next chunk
+                    Table->>Synapse: Send 'TableUpdateTransaction' to append/update rows
+                    Synapse-->>Table: Transaction result
+                end
+                Table->>FileSystem: Delete temporary file
+            else
+                Table->>Synapse: Upload CSV without splitting
+                Synapse-->>Table: Return `file_handle_id`
+                Table->>Synapse: Send `TableUpdateTransaction' to append/update rows
+                Synapse-->>Table: Transaction result
+            end
+
+            Table-->>User: Upload complete
+        ```
+
 
         Arguments:
             values: Supports storing data from the following sources:
@@ -2822,7 +2867,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     entity_id=self.id, changes=all_changes
                 ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
 
-        # TODO: Add integration test around this portion of the code
         file_size = os.path.getsize(path_to_csv)
         if file_size > insert_size_byte:
             # Apply schema changes before breaking apart and uploading the file

@@ -301,6 +301,7 @@ async def send_job_and_wait_async(
             synapse_client=synapse_client,
             endpoint=endpoint,
             timeout=timeout,
+            request=request,
         ),
     }
 
@@ -352,6 +353,7 @@ async def get_job_async(
     endpoint: str = None,
     sleep: int = 1,
     timeout: int = 60,
+    request: Dict[str, Any] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
@@ -365,6 +367,8 @@ async def get_job_async(
         sleep: The number of seconds to wait between requests. Defaults to 1.
         timeout: The number of seconds to wait for the job to complete or progress
             before raising a SynapseTimeoutError. Defaults to 60.
+        request: The original request that was sent to the server that created the job.
+            Required if the request type is one that requires additional information.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -386,8 +390,15 @@ async def get_job_async(
     progressed = False
 
     while time.time() - start_time < timeout:
+        uri = ASYNC_JOB_URIS[request_type]
+        if "{entityId}" in uri:
+            if not request:
+                raise ValueError("Attempting to get job with missing request.")
+            if "entityId" not in request:
+                raise ValueError(f"Attempting to get job with missing id in uri: {uri}")
+            uri = uri.format(entityId=request["entityId"])
         result = await client.rest_get_async(
-            uri=f"{ASYNC_JOB_URIS[request_type]}/get/{job_id}",
+            uri=f"{uri}/get/{job_id}",
             endpoint=endpoint,
         )
         job_status = AsynchronousJobStatus().fill_from_dict(async_job_status=result)
