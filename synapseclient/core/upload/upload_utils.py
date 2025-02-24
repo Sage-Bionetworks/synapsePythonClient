@@ -2,9 +2,13 @@
 
 import math
 import re
+from io import StringIO
+from typing import Union
 
 
-def get_file_chunk(file_path: str, part_number: int, chunk_size: int) -> bytes:
+def get_file_chunk(
+    file_path: Union[str, StringIO], part_number: int, chunk_size: int
+) -> bytes:
     """Read the nth chunk from the file.
 
     Arguments:
@@ -12,9 +16,13 @@ def get_file_chunk(file_path: str, part_number: int, chunk_size: int) -> bytes:
         part_number: The part number.
         chunk_size: The size of the chunk.
     """
-    with open(file_path, "rb") as f:
-        f.seek((part_number - 1) * chunk_size)
-        return f.read(chunk_size)
+    if isinstance(file_path, StringIO):
+        file_path.seek((part_number - 1) * chunk_size)
+        return file_path.read(chunk_size)
+    else:
+        with open(file_path, "rb") as f:
+            f.seek((part_number - 1) * chunk_size)
+            return f.read(chunk_size)
 
 
 def get_data_chunk(data: bytes, part_number: int, chunk_size: int) -> bytes:

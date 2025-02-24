@@ -12,7 +12,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import Enum
-from io import BytesIO
+from io import BytesIO, StringIO
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from tqdm import tqdm
@@ -2954,66 +2954,58 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     quotechar=csv_table_descriptor.quote_character,
                 )
                 header = next(reader)
-                temp_dir = client.cache.get_cache_dir(file_handle_id=111111111)
-                with tempfile.NamedTemporaryFile(
-                    prefix="chunked_csv_for_synapse_store_rows",
-                    suffix=".csv",
-                    dir=temp_dir,
-                    mode="w+",
-                    encoding="utf-8",
-                ) as temp_file:
-                    try:
-                        csv_writer = csv.writer(
-                            temp_file,
-                            delimiter=csv_table_descriptor.separator,
-                            escapechar=csv_table_descriptor.escape_character,
-                            lineterminator=csv_table_descriptor.line_end,
-                            quotechar=csv_table_descriptor.quote_character,
+                bytes_io_file = StringIO()
+                csv_writer = csv.writer(
+                    bytes_io_file,
+                    delimiter=csv_table_descriptor.separator,
+                    escapechar=csv_table_descriptor.escape_character,
+                    lineterminator=csv_table_descriptor.line_end,
+                    quotechar=csv_table_descriptor.quote_character,
+                )
+
+                csv_writer.writerow(header)
+                current_bytes_written = 0
+                has_data = False
+                for row in reader:
+                    current_bytes_written += csv_writer.writerow(row)
+                    has_data = True
+
+                    if current_bytes_written >= insert_size_byte:
+                        file_handle_id = await multipart_upload_file_async(
+                            syn=client,
+                            file_path=bytes_io_file,
+                            content_type="text/csv",
+                            dest_file_name="chunked_csv_for_synapse_store_rows.csv",
                         )
-
+                        bytes_io_file.truncate(0)
+                        bytes_io_file.seek(0)
                         csv_writer.writerow(header)
+                        has_data = False
+
+                        await _send_update(
+                            table_descriptor=csv_table_descriptor,
+                            file_handle_id=file_handle_id,
+                            job_timeout=job_timeout,
+                        )
+                        progress_bar.update(current_bytes_written)
                         current_bytes_written = 0
-                        for row in reader:
-                            current_bytes_written += csv_writer.writerow(row)
 
-                            if current_bytes_written >= insert_size_byte:
-                                temp_file.flush()
-                                # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
-                                file_handle_id = await multipart_upload_file_async(
-                                    syn=client,
-                                    file_path=temp_file.name,
-                                    content_type="text/csv",
-                                )
-                                temp_file.truncate(0)
-                                temp_file.seek(0)
-                                csv_writer.writerow(header)
+                # If there is any data except the header, upload it
+                if has_data:
+                    file_handle_id = await multipart_upload_file_async(
+                        syn=client,
+                        file_path=bytes_io_file,
+                        content_type="text/csv",
+                        dest_file_name="chunked_csv_for_synapse_store_rows.csv",
+                    )
 
-                                await _send_update(
-                                    table_descriptor=csv_table_descriptor,
-                                    file_handle_id=file_handle_id,
-                                    job_timeout=job_timeout,
-                                )
-                                progress_bar.update(current_bytes_written)
-                                current_bytes_written = 0
+                    await _send_update(
+                        table_descriptor=csv_table_descriptor,
+                        file_handle_id=file_handle_id,
+                        job_timeout=job_timeout,
+                    )
+                    progress_bar.update(current_bytes_written)
 
-                        # If there is any data except the header, upload it
-                        if temp_file.tell() > 1:
-                            temp_file.flush()
-                            # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
-                            file_handle_id = await multipart_upload_file_async(
-                                syn=client,
-                                file_path=temp_file.name,
-                                content_type="text/csv",
-                            )
-
-                            await _send_update(
-                                table_descriptor=csv_table_descriptor,
-                                file_handle_id=file_handle_id,
-                                job_timeout=job_timeout,
-                            )
-                            progress_bar.update(current_bytes_written)
-                    finally:
-                        temp_file.close()
             progress_bar.update(progress_bar.total - progress_bar.n)
             progress_bar.refresh()
             progress_bar.close()

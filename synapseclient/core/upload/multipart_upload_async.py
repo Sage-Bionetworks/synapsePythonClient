@@ -69,6 +69,7 @@ import os
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
+from io import BytesIO, StringIO
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -166,7 +167,7 @@ class UploadAttemptAsync:
     def __init__(
         self,
         syn: "Synapse",
-        dest_file_name: str,
+        dest_file_name: Union[str, BytesIO],
         upload_request_payload: Dict[str, Any],
         part_request_body_provider_fn: Union[None, Callable[[int], bytes]],
         md5_fn: Callable[[bytes, httpx.Response], str],
@@ -350,7 +351,9 @@ class UploadAttemptAsync:
                     total=part_count,
                     desc=self._storage_str or "Copying",
                     unit_scale=True,
-                    postfix=self._dest_file_name,
+                    postfix=self._dest_file_name
+                    if isinstance(self._dest_file_name, str)
+                    else None,
                     smoothing=0,
                 )
                 self._progress_bar.update(completed_part_count)
@@ -367,7 +370,9 @@ class UploadAttemptAsync:
                     desc=self._storage_str or "Uploading",
                     unit="B",
                     unit_scale=True,
-                    postfix=self._dest_file_name,
+                    postfix=self._dest_file_name
+                    if isinstance(self._dest_file_name, str)
+                    else None,
                     smoothing=0,
                 )
                 self._progress_bar.update(previously_transferred)
@@ -607,7 +612,7 @@ class UploadAttemptAsync:
 
 async def multipart_upload_file_async(
     syn: "Synapse",
-    file_path: str,
+    file_path: Union[str, StringIO],
     dest_file_name: str = None,
     content_type: str = None,
     part_size: int = None,
@@ -648,12 +653,17 @@ async def multipart_upload_file_async(
         }
     )
 
-    if not os.path.exists(file_path):
+    if not isinstance(file_path, StringIO) and not os.path.exists(file_path):
         raise IOError(f'File "{file_path}" not found.')
-    if os.path.isdir(file_path):
+    if not isinstance(file_path, StringIO) and os.path.isdir(file_path):
         raise IOError(f'File "{file_path}" is a directory.')
 
-    file_size = os.path.getsize(file_path)
+    if isinstance(file_path, StringIO):
+        file_path.seek(0, os.SEEK_END)
+        file_size = file_path.tell()
+        file_path.seek(0)
+    else:
+        file_size = os.path.getsize(file_path)
     if not dest_file_name:
         dest_file_name = os.path.basename(file_path)
 

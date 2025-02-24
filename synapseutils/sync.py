@@ -1157,6 +1157,7 @@ def syncToSynapse(
         unit="B",
         unit_scale=True,
         smoothing=0,
+        leave=None,
     )
     with upload_shared_progress_bar(progress_bar):
         if sendMessages:
