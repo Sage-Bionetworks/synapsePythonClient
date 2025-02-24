@@ -3,6 +3,7 @@ or querying for data."""
 
 import asyncio
 import csv
+import hashlib
 import json
 import logging
 import os
@@ -31,7 +32,10 @@ from synapseclient.api import (
 )
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
+from synapseclient.core.upload.multipart_upload_async import (
+    multipart_upload_file_async,
+    stream_multipart_upload_async,
+)
 from synapseclient.core.utils import (
     MB,
     delete_none_keys,
@@ -2963,23 +2967,49 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     quotechar=csv_table_descriptor.quote_character,
                 )
 
-                csv_writer.writerow(header)
+                md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
+                header_byte_length = csv_writer.writerow(header)
+                bytes_io_file.flush()
+                bytes_io_file.seek(0)
+                encoded_header = bytes_io_file.read().encode("utf-8")
+                md5_hashlib.update(encoded_header)
+                bytes_io_file.seek(0)
+                total_bytes_written = 0
                 current_bytes_written = 0
                 has_data = False
+
                 for row in reader:
+                    # TODO: Check the performance of this section
+                    bytes_io_file.truncate(0)
+                    bytes_io_file.seek(0)
                     current_bytes_written += csv_writer.writerow(row)
+                    bytes_io_file.flush()
+                    bytes_io_file.seek(0)
+                    md5_hashlib.update(bytes_io_file.read().encode("utf-8"))
+                    # Overwrite the bytes IO file as a hack to find the boundry we are going to be uploading
+                    bytes_io_file.seek(0)
                     has_data = True
 
                     if current_bytes_written >= insert_size_byte:
-                        file_handle_id = await multipart_upload_file_async(
+                        bytes_io_file.truncate(0)
+                        bytes_io_file.seek(0)
+                        bytes_io_file.flush()
+                        file_handle_id = await stream_multipart_upload_async(
                             syn=client,
-                            file_path=bytes_io_file,
+                            bytes_to_prepend=encoded_header,
                             content_type="text/csv",
                             dest_file_name="chunked_csv_for_synapse_store_rows.csv",
+                            file_size_bytes=current_bytes_written + header_byte_length,
+                            path_to_original_file=path_to_csv,
+                            bytes_to_skip=total_bytes_written,
+                            header_bytes_offset=header_byte_length,
+                            md5=md5_hashlib.hexdigest(),
+                            original_file_size=file_size,
                         )
                         bytes_io_file.truncate(0)
                         bytes_io_file.seek(0)
-                        csv_writer.writerow(header)
+                        md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
+                        md5_hashlib.update(encoded_header)
                         has_data = False
 
                         await _send_update(
@@ -2988,15 +3018,25 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                             job_timeout=job_timeout,
                         )
                         progress_bar.update(current_bytes_written)
+                        total_bytes_written += current_bytes_written
                         current_bytes_written = 0
 
                 # If there is any data except the header, upload it
                 if has_data:
-                    file_handle_id = await multipart_upload_file_async(
+                    bytes_io_file.truncate(0)
+                    bytes_io_file.seek(0)
+                    bytes_io_file.flush()
+                    file_handle_id = await stream_multipart_upload_async(
                         syn=client,
-                        file_path=bytes_io_file,
+                        bytes_to_prepend=encoded_header,
                         content_type="text/csv",
                         dest_file_name="chunked_csv_for_synapse_store_rows.csv",
+                        path_to_original_file=path_to_csv,
+                        file_size_bytes=current_bytes_written + header_byte_length,
+                        bytes_to_skip=total_bytes_written,
+                        header_bytes_offset=header_byte_length,
+                        md5=md5_hashlib.hexdigest(),
+                        original_file_size=file_size,
                     )
 
                     await _send_update(

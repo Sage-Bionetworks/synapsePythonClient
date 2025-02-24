@@ -110,6 +110,7 @@ from synapseclient.core.upload.upload_utils import (
     copy_part_request_body_provider_fn,
     get_data_chunk,
     get_file_chunk,
+    get_in_memory_csv_chunk,
     get_part_size,
 )
 from synapseclient.core.utils import MB
@@ -608,6 +609,82 @@ class UploadAttemptAsync:
                 else:
                     raise
         return response
+
+
+# TODO: Change to another function
+
+
+async def stream_multipart_upload_async(
+    syn: "Synapse",
+    bytes_to_prepend: bytes,
+    dest_file_name: str,
+    content_type: str,
+    md5: str,
+    part_size: int = None,
+    storage_location_id: str = None,
+    preview: bool = True,
+    force_restart: bool = False,
+    storage_str: str = None,
+    file_size_bytes: int = None,
+    bytes_to_skip: int = None,
+    path_to_original_file: str = None,
+    header_bytes_offset: int = None,
+    original_file_size: int = None,
+) -> str:
+    trace.get_current_span().set_attributes(
+        {
+            "synapse.storage_location_id": (
+                storage_location_id if storage_location_id is not None else ""
+            )
+        }
+    )
+
+    file_size = file_size_bytes
+    md5_hex = md5
+
+    part_size = min(
+        get_part_size(
+            part_size or DEFAULT_PART_SIZE,
+            file_size,
+            MIN_PART_SIZE,
+            MAX_NUMBER_OF_PARTS,
+        ),
+        file_size,
+    )
+
+    upload_request = {
+        "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
+        "contentType": content_type,
+        "contentMD5Hex": md5_hex,
+        "fileName": dest_file_name,
+        "fileSizeBytes": file_size,
+        "generatePreview": preview,
+        "partSizeBytes": part_size,
+        "storageLocationId": storage_location_id,
+    }
+
+    def part_fn(part_number: int) -> bytes:
+        """Return the nth chunk of a file."""
+        return get_in_memory_csv_chunk(
+            bytes_to_prepend=bytes_to_prepend,
+            part_number=part_number,
+            chunk_size=part_size,
+            header_bytes_offset=header_bytes_offset,
+            byte_offset=bytes_to_skip,
+            path_to_original_file=path_to_original_file,
+            file_size=original_file_size,
+        )
+
+    with logging_redirect_tqdm(loggers=[syn.logger]):
+        return await _multipart_upload_async(
+            syn,
+            dest_file_name,
+            upload_request,
+            part_fn,
+            md5_fn_util,
+            force_restart=force_restart,
+            storage_str=storage_str,
+        )
 
 
 async def multipart_upload_file_async(

@@ -6,6 +6,44 @@ from io import StringIO
 from typing import Union
 
 
+def get_in_memory_csv_chunk(
+    bytes_to_prepend: bytes,
+    part_number: int,
+    chunk_size: int,
+    header_bytes_offset: int,
+    byte_offset: int,
+    path_to_original_file: str,
+    file_size: int,
+) -> bytes:
+    """Read the nth chunk from the file.
+
+    Arguments:
+        file_path: The path to the file.
+        part_number: The part number.
+        chunk_size: The size of the chunk.
+    """
+    header_bytes = None
+    if bytes_to_prepend and part_number == 1:
+        header_bytes = bytes_to_prepend
+
+    with open(path_to_original_file, "rb") as f:
+        # header_bytes_offset = len(header_bytes) if header_bytes else 0
+        total_offset = byte_offset + ((part_number - 1) * chunk_size)
+        # print(f"total_offset: {total_offset}")
+        max_bytes_to_read = min((file_size - total_offset), chunk_size)
+        # print(f"max_bytes_to_read: {max_bytes_to_read}")
+        if header_bytes:
+            f.seek(total_offset + header_bytes_offset)
+            # print(f"header_bytes_offset: {header_bytes_offset}")
+            # print(f"includes header, reading {max_bytes_to_read - header_bytes_offset} bytes")
+            res = header_bytes + f.read(max_bytes_to_read - header_bytes_offset)
+            return res
+        else:
+            f.seek(total_offset)
+            res = f.read(max_bytes_to_read)
+            return res
+
+
 def get_file_chunk(
     file_path: Union[str, StringIO], part_number: int, chunk_size: int
 ) -> bytes:
@@ -16,13 +54,9 @@ def get_file_chunk(
         part_number: The part number.
         chunk_size: The size of the chunk.
     """
-    if isinstance(file_path, StringIO):
-        file_path.seek((part_number - 1) * chunk_size)
-        return file_path.read(chunk_size)
-    else:
-        with open(file_path, "rb") as f:
-            f.seek((part_number - 1) * chunk_size)
-            return f.read(chunk_size)
+    with open(file_path, "rb") as f:
+        f.seek((part_number - 1) * chunk_size)
+        return f.read(chunk_size)
 
 
 def get_data_chunk(data: bytes, part_number: int, chunk_size: int) -> bytes:
