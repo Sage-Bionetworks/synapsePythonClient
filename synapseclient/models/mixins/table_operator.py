@@ -32,6 +32,7 @@ from synapseclient.api import (
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.upload.multipart_upload_async import (
+    multipart_upload_dataframe_async,
     multipart_upload_file_async,
     multipart_upload_partial_file_async,
 )
@@ -2814,50 +2815,16 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     job_timeout=job_timeout,
                 )
         elif isinstance(values, DataFrame):
-            # When creating this temporary file we are using the cache directory
-            # as the staging location for the file upload. This is because it
-            # will allow for the purge cache function to clean up files that
-            # end up getting left here. It is also to account for the fact that
-            # the temp directory may not have enough disk space to hold a file
-            # we need to upload (As is the case on EC2 instances)
-            temp_dir = client.cache.get_cache_dir(file_handle_id=111111111)
-            os.makedirs(temp_dir, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                prefix="chunked_csv_for_synapse_store_rows",
-                suffix=".csv",
-                dir=temp_dir,
-            ) as temp_file:
-                try:
-                    # TODO: This portion of the code should be updated to support uploading a file from memory using BytesIO (Ticket to be created)
-                    # TODO: The way that the dataframe is split up is also needed. As of right now we are writing the CSV, and then letting the CSV
-                    # TODO: upload process take over. However, if we are uploading from memory, then we don't have the ability to write to a file, and then
-                    # TODO: upload that file. We need to be able to split the dataframe into chunks, and then upload those chunks to Synapse.
-                    values.to_csv(
-                        temp_file.name,
-                        index=False,
-                        float_format="%.12g",
-                        **(to_csv_kwargs or {}),
-                    )
-                    # NOTE: reason for flat_format='%.12g':
-                    # pandas automatically converts int columns into float64 columns when some cells in the column have no
-                    # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
-                    # a float into a INTEGER(synapse table type) column. Using the 'g' will strip off '.0' from whole number
-                    # values. pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we
-                    # use '%.12g'.c
-                    # see SYNPY-267.
-
-                    with logging_redirect_tqdm(loggers=[client.logger]):
-                        await self._chunk_and_upload_csv(
-                            path_to_csv=temp_file.name,
-                            insert_size_byte=insert_size_byte,
-                            csv_table_descriptor=csv_table_descriptor,
-                            schema_change_request=schema_change_request,
-                            client=client,
-                            additional_changes=additional_changes,
-                            job_timeout=job_timeout,
-                        )
-                finally:
-                    temp_file.close()
+            with logging_redirect_tqdm(loggers=[client.logger]):
+                await self._chunk_and_upload_df(
+                    df=values,
+                    insert_size_byte=insert_size_byte,
+                    csv_table_descriptor=csv_table_descriptor,
+                    schema_change_request=schema_change_request,
+                    client=client,
+                    additional_changes=additional_changes,
+                    job_timeout=job_timeout,
+                )
 
         else:
             raise ValueError(
@@ -2911,7 +2878,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 entity_id=self.id, changes=all_changes
             ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
 
-    async def _stream_and_update(
+    async def _stream_and_update_from_disk(
         self,
         client: Synapse,
         encoded_header: bytes,
@@ -2958,6 +2925,56 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             )
             progress_bar.update(size_of_chunk)
 
+    async def _stream_and_update_from_df(
+        self,
+        client: Synapse,
+        df: DATA_FRAME_TYPE,
+        header: bytes,
+        line_start: int,
+        line_end: int,
+        size_of_chunk: int,
+        byte_chunk_offset: int,
+        md5: str,
+        csv_table_descriptor: CsvTableDescriptor,
+        job_timeout: int,
+        progress_bar: tqdm,
+        wait_for_update_semaphore: asyncio.Semaphore,
+        changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
+    ) -> None:
+        """
+        TODO
+        """
+        file_handle_id = await multipart_upload_dataframe_async(
+            syn=client,
+            df=df,
+            content_type="text/csv",
+            dest_file_name="chunked_csv_for_synapse_store_rows.csv",
+            partial_file_size_bytes=size_of_chunk,
+            bytes_to_skip=byte_chunk_offset,
+            md5=md5,
+            line_start=line_start,
+            line_end=line_end,
+            bytes_to_prepend=header,
+        )
+        # We are using a semaphore here because large tables can take a very long time
+        # for the update to complete. This will allow us to wait for the update to
+        # complete before moving on to the next chunk.
+        async with wait_for_update_semaphore:
+            await self._send_update(
+                client=client,
+                table_descriptor=csv_table_descriptor,
+                file_handle_id=file_handle_id,
+                job_timeout=job_timeout,
+                changes=changes,
+            )
+            progress_bar.update(size_of_chunk)
+
     async def _chunk_and_upload_csv(
         self,
         path_to_csv: str,
@@ -2992,9 +3009,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             job_timeout: The maximum amount of time to wait for a job to complete.
             additional_changes: Additional changes to the table that should execute
         """
-
-        file_size = os.path.getsize(path_to_csv)
-        if file_size > insert_size_byte:
+        if (file_size := os.path.getsize(path_to_csv)) > insert_size_byte:
             # Apply schema changes before breaking apart and uploading the file
             changes = []
             if schema_change_request:
@@ -3062,7 +3077,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 for byte_chunk_offset, size_of_chunk, md5 in chunks_to_upload:
                     update_tasks.append(
                         asyncio.create_task(
-                            self._stream_and_update(
+                            self._stream_and_update_from_disk(
                                 client=client,
                                 encoded_header=header_line,
                                 size_of_chunk=size_of_chunk,
@@ -3103,6 +3118,148 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 changes=changes,
                 job_timeout=job_timeout,
             )
+
+    async def _chunk_and_upload_df(
+        self,
+        df: Union[str, DATA_FRAME_TYPE],
+        insert_size_byte: int,
+        csv_table_descriptor: CsvTableDescriptor,
+        schema_change_request: TableSchemaChangeRequest,
+        client: Synapse,
+        job_timeout: int,
+        additional_changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        TODO: Refactor docstring
+        """
+        # Loop over the rows of the DF to determine the size/boundries we'll be uploading
+
+        chunks_to_upload = []
+        size_of_chunk = 0
+        previous_chunk_byte_offset = 0
+        buffer = BytesIO()
+        total_df_bytes = 0
+        size_of_header = 0
+        header_line = None
+        md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
+        line_start_index_for_chunk = 0
+        line_end_index_for_chunk = 0
+        for start in range(0, len(df), 100):
+            end = start + 100
+            line_end_index_for_chunk = end
+            buffer.seek(0)
+            buffer.truncate(0)
+            df.iloc[start:end].to_csv(
+                buffer,
+                header=(start == 0),
+                index=False,
+                float_format="%.12g",
+                **(to_csv_kwargs or {}),
+            )
+            total_df_bytes += buffer.tell()
+            size_of_chunk += buffer.tell()
+
+            if start == 0:
+                buffer.seek(0)
+                header_line = buffer.readline()
+                size_of_header = len(header_line)
+                previous_chunk_byte_offset = size_of_header
+            md5_hashlib.update(buffer.getvalue())
+
+            if size_of_chunk >= insert_size_byte:
+                chunks_to_upload.append(
+                    (
+                        previous_chunk_byte_offset,
+                        size_of_chunk,
+                        md5_hashlib.hexdigest(),
+                        line_start_index_for_chunk,
+                        line_end_index_for_chunk,
+                    )
+                )
+                previous_chunk_byte_offset = size_of_header
+                size_of_chunk = 0
+                line_start_index_for_chunk = line_end_index_for_chunk
+                md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
+        if size_of_chunk > 0:
+            chunks_to_upload.append(
+                (
+                    previous_chunk_byte_offset,
+                    size_of_chunk,
+                    md5_hashlib.hexdigest(),
+                    line_start_index_for_chunk,
+                    line_end_index_for_chunk,
+                )
+            )
+
+        client.logger.info(
+            f"[{self.id}:{self.name}]: Found {len(chunks_to_upload)} chunks to upload into table"
+        )
+        progress_bar = tqdm(
+            total=total_df_bytes,
+            desc="Splitting DataFrame and uploading chunks",
+            unit_scale=True,
+            smoothing=0,
+            unit="B",
+        )
+
+        # Apply schema changes before breaking apart and uploading the file
+        changes = []
+        if schema_change_request:
+            changes.append(schema_change_request)
+        if additional_changes:
+            changes.extend(additional_changes)
+
+        # Apply changes right away when there are multiple chunks. This is to prevent
+        # going over service limits depending on the additiona changes.
+        if len(chunks_to_upload) > 1:
+            await self._send_update(
+                client=client,
+                table_descriptor=csv_table_descriptor,
+                changes=changes,
+                job_timeout=job_timeout,
+            )
+            changes = None
+
+        update_tasks = []
+        wait_for_update_semaphore = asyncio.Semaphore(value=1)
+        for (
+            byte_chunk_offset,
+            size_of_chunk,
+            md5,
+            line_start,
+            line_end,
+        ) in chunks_to_upload:
+            update_tasks.append(
+                asyncio.create_task(
+                    self._stream_and_update_from_df(
+                        client=client,
+                        size_of_chunk=size_of_chunk,
+                        byte_chunk_offset=byte_chunk_offset,
+                        md5=md5,
+                        csv_table_descriptor=csv_table_descriptor,
+                        job_timeout=job_timeout,
+                        progress_bar=progress_bar,
+                        wait_for_update_semaphore=wait_for_update_semaphore,
+                        line_start=line_start,
+                        line_end=line_end,
+                        df=df,
+                        header=header_line,
+                        changes=changes,
+                    )
+                )
+            )
+
+        await asyncio.gather(*update_tasks)
+        progress_bar.update(progress_bar.total - progress_bar.n)
+        progress_bar.refresh()
+        progress_bar.close()
 
     # TODO: Determine if it is possible to delete rows from a `Dataset` entity, or if it's only possible to delete the rows by setting the `items` attribute and storing the entity
     async def delete_rows_async(
