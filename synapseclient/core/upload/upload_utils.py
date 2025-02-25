@@ -29,7 +29,7 @@ def get_in_memory_csv_chunk(
     with open(path_to_original_file, "rb") as f:
         total_offset = byte_offset + ((part_number - 1) * chunk_size)
         max_bytes_to_read = min((file_size - total_offset), chunk_size)
-        f.seek(total_offset)
+        f.seek(total_offset - 1)
 
         if header_bytes:
             res = header_bytes + f.read(max_bytes_to_read)

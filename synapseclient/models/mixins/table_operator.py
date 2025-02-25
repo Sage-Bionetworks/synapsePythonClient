@@ -2924,6 +2924,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         csv_table_descriptor: CsvTableDescriptor,
         job_timeout: int,
         progress_bar: tqdm,
+        wait_for_update_semaphore: asyncio.Semaphore,
     ) -> None:
         file_handle_id = await stream_multipart_upload_async(
             syn=client,
@@ -2937,13 +2938,14 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             md5=md5,
             original_file_size=file_size,
         )
-        await self._send_update(
-            client=client,
-            table_descriptor=csv_table_descriptor,
-            file_handle_id=file_handle_id,
-            job_timeout=job_timeout,
-        )
-        progress_bar.update(size_of_chunk)
+        async with wait_for_update_semaphore:
+            await self._send_update(
+                client=client,
+                table_descriptor=csv_table_descriptor,
+                file_handle_id=file_handle_id,
+                job_timeout=job_timeout,
+            )
+            progress_bar.update(size_of_chunk)
 
     async def _chunk_and_upload_csv(
         self,
@@ -3022,7 +3024,11 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     )
 
                 update_tasks = []
+                wait_for_update_semaphore = asyncio.Semaphore(value=1)
                 for byte_chunk_offset, size_of_chunk, md5 in chunks_to_upload:
+                    client.logger.info(
+                        f"Uploading chunk of size: {size_of_chunk}, offset: {byte_chunk_offset}, md5: {md5}"
+                    )
                     update_tasks.append(
                         asyncio.create_task(
                             self._stream_and_update(
@@ -3037,6 +3043,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                                 csv_table_descriptor=csv_table_descriptor,
                                 job_timeout=job_timeout,
                                 progress_bar=progress_bar,
+                                wait_for_update_semaphore=wait_for_update_semaphore,
                             )
                         )
                     )
