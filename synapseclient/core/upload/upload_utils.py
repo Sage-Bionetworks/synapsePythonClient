@@ -31,10 +31,11 @@ def get_in_memory_csv_chunk(
 
     with open(path_to_original_file, "rb") as f:
         total_offset = byte_offset + ((part_number - 1) * chunk_size)
-        client.logger.info(f"Part number: {part_number}, total_offset: {total_offset}")
 
         max_bytes_to_read = min((file_size - total_offset), chunk_size)
-        client.logger.info(f"max_bytes_to_read: {max_bytes_to_read}")
+        client.logger.info(
+            f"Part number: {part_number}, total_offset: {total_offset}, max_bytes_to_read: {max_bytes_to_read}"
+        )
         f.seek(total_offset - 1)
 
         if header_bytes:
