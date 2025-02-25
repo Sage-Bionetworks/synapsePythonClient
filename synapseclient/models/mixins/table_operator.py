@@ -2984,51 +2984,40 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 smoothing=0,
                 unit="B",
             )
-            with open(file=path_to_csv, mode="r", encoding="utf-8") as f:
+            with open(file=path_to_csv, mode="rb") as f:
                 header_line = f.readline()
-                encoded_header = header_line.encode()
                 size_of_header = len(header_line)
                 file_size = size_of_header
                 md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
-                md5_hashlib.update(encoded_header)
+                md5_hashlib.update(header_line)
                 chunks_to_upload = []
-                # current_line_index = 1
                 size_of_chunk = 0
-                # line_index_offset = 0
                 previous_chunk_byte_offset = size_of_header
                 while chunk := f.readlines(8 * MB):
                     for line in chunk:
-                        encoded_line = line.encode()
-                        md5_hashlib.update(encoded_line)
+                        md5_hashlib.update(line)
                         size_of_chunk += len(line)
                         file_size += size_of_chunk
-                        # line_index_offset += 1
                         if size_of_chunk >= insert_size_byte:
                             chunks_to_upload.append(
                                 (
                                     previous_chunk_byte_offset,
                                     size_of_chunk,
                                     md5_hashlib.hexdigest(),
-                                    # current_line_index,
-                                    # line_index_offset,
                                 )
                             )
-                            # current_line_index += line_index_offset
                             previous_chunk_byte_offset += size_of_chunk
                             size_of_chunk = 0
-                            # line_index_offset = 0
                             md5_hashlib = hashlib.new(
                                 "md5", usedforsecurity=False
                             )  # nosec
-                            md5_hashlib.update(encoded_header)
+                            md5_hashlib.update(header_line)
                 if size_of_chunk:
                     chunks_to_upload.append(
                         (
                             previous_chunk_byte_offset,
                             size_of_chunk,
                             md5_hashlib.hexdigest(),
-                            # current_line_index,
-                            # line_index_offset,
                         )
                     )
 
@@ -3038,7 +3027,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         asyncio.create_task(
                             self._stream_and_update(
                                 client=client,
-                                encoded_header=encoded_header,
+                                encoded_header=header_line,
                                 size_of_chunk=size_of_chunk,
                                 path_to_csv=path_to_csv,
                                 byte_chunk_offset=byte_chunk_offset,
