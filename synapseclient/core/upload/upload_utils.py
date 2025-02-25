@@ -32,14 +32,13 @@ def get_in_memory_csv_chunk(
         # print(f"total_offset: {total_offset}")
         max_bytes_to_read = min((file_size - total_offset), chunk_size)
         # print(f"max_bytes_to_read: {max_bytes_to_read}")
+        f.seek(total_offset)
         if header_bytes:
-            f.seek(total_offset + header_bytes_offset)
             # print(f"header_bytes_offset: {header_bytes_offset}")
             # print(f"includes header, reading {max_bytes_to_read - header_bytes_offset} bytes")
-            res = header_bytes + f.read(max_bytes_to_read - header_bytes_offset)
+            res = header_bytes + f.read(max_bytes_to_read)
             return res
         else:
-            f.seek(total_offset)
             res = f.read(max_bytes_to_read)
             return res
 

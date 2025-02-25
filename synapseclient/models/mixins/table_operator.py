@@ -2,7 +2,6 @@
 or querying for data."""
 
 import asyncio
-import csv
 import hashlib
 import json
 import logging
@@ -13,7 +12,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import Enum
-from io import BytesIO, StringIO
+from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from tqdm import tqdm
@@ -2865,6 +2864,87 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 "Don't know how to make tables from values of type %s." % type(values)
             )
 
+    async def _send_update(
+        self,
+        client: Synapse,
+        table_descriptor: CsvTableDescriptor,
+        job_timeout: int,
+        file_handle_id: str = None,
+        changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
+    ) -> None:
+        """
+        Construct the request to send to Synapse to update the table with the
+        given file handle ID.
+
+        This will also send the schema change request, or any additional changes
+        that are passed in to the method.
+
+        Arguments:
+            table_descriptor: The descriptor for the CSV file that is being uploaded.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+            file_handle_id: The file handle ID that is being uploaded to Synapse.
+            changes: Additional changes to the table that should
+                execute within the same transaction as appending or updating rows.
+        """
+        all_changes = []
+        if changes:
+            all_changes.extend(changes)
+
+        if file_handle_id:
+            upload_request = UploadToTableRequest(
+                table_id=self.id,
+                upload_file_handle_id=file_handle_id,
+                update_etag=None,
+            )
+            if table_descriptor:
+                upload_request.csv_table_descriptor = table_descriptor
+            all_changes.append(upload_request)
+
+        if all_changes:
+            await TableUpdateTransaction(
+                entity_id=self.id, changes=all_changes
+            ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
+
+    async def _stream_and_update(
+        self,
+        client: Synapse,
+        encoded_header: bytes,
+        size_of_chunk: int,
+        path_to_csv: str,
+        byte_chunk_offset: int,
+        size_of_header: int,
+        md5: str,
+        file_size: int,
+        csv_table_descriptor: CsvTableDescriptor,
+        job_timeout: int,
+        progress_bar: tqdm,
+    ) -> None:
+        file_handle_id = await stream_multipart_upload_async(
+            syn=client,
+            bytes_to_prepend=encoded_header,
+            content_type="text/csv",
+            dest_file_name="chunked_csv_for_synapse_store_rows.csv",
+            file_size_bytes=size_of_chunk,
+            path_to_original_file=path_to_csv,
+            bytes_to_skip=byte_chunk_offset,
+            header_bytes_offset=size_of_header,
+            md5=md5,
+            original_file_size=file_size,
+        )
+        await self._send_update(
+            client=client,
+            table_descriptor=csv_table_descriptor,
+            file_handle_id=file_handle_id,
+            job_timeout=job_timeout,
+        )
+        progress_bar.update(size_of_chunk)
+
     async def _chunk_and_upload_csv(
         self,
         path_to_csv: str,
@@ -2881,51 +2961,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ]
         ] = None,
     ) -> None:
-        async def _send_update(
-            table_descriptor: CsvTableDescriptor,
-            job_timeout: int,
-            file_handle_id: str = None,
-            changes: List[
-                Union[
-                    "TableSchemaChangeRequest",
-                    "UploadToTableRequest",
-                    "AppendableRowSetRequest",
-                ]
-            ] = None,
-        ) -> None:
-            """
-            Construct the request to send to Synapse to update the table with the
-            given file handle ID.
-
-            This will also send the schema change request, or any additional changes
-            that are passed in to the method.
-
-            Arguments:
-                table_descriptor: The descriptor for the CSV file that is being uploaded.
-                job_timeout: The maximum amount of time to wait for a job to complete.
-                file_handle_id: The file handle ID that is being uploaded to Synapse.
-                changes: Additional changes to the table that should
-                    execute within the same transaction as appending or updating rows.
-            """
-            all_changes = []
-            if changes:
-                all_changes.extend(changes)
-
-            if file_handle_id:
-                upload_request = UploadToTableRequest(
-                    table_id=self.id,
-                    upload_file_handle_id=file_handle_id,
-                    update_etag=None,
-                )
-                if table_descriptor:
-                    upload_request.csv_table_descriptor = table_descriptor
-                all_changes.append(upload_request)
-
-            if all_changes:
-                await TableUpdateTransaction(
-                    entity_id=self.id, changes=all_changes
-                ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
-
         file_size = os.path.getsize(path_to_csv)
         if file_size > insert_size_byte:
             # Apply schema changes before breaking apart and uploading the file
@@ -2935,7 +2970,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             if additional_changes:
                 changes.extend(additional_changes)
 
-            await _send_update(
+            await self._send_update(
+                client=client,
                 table_descriptor=csv_table_descriptor,
                 changes=changes,
                 job_timeout=job_timeout,
@@ -2949,102 +2985,77 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 unit="B",
             )
             with open(file=path_to_csv, mode="r", encoding="utf-8") as f:
-                csv_table_descriptor = csv_table_descriptor or CsvTableDescriptor()
-                reader = csv.reader(
-                    f,
-                    delimiter=csv_table_descriptor.separator,
-                    escapechar=csv_table_descriptor.escape_character,
-                    lineterminator=csv_table_descriptor.line_end,
-                    quotechar=csv_table_descriptor.quote_character,
-                )
-                header = next(reader)
-                bytes_io_file = StringIO()
-                csv_writer = csv.writer(
-                    bytes_io_file,
-                    delimiter=csv_table_descriptor.separator,
-                    escapechar=csv_table_descriptor.escape_character,
-                    lineterminator=csv_table_descriptor.line_end,
-                    quotechar=csv_table_descriptor.quote_character,
-                )
-
+                header_line = f.readline()
+                encoded_header = header_line.encode()
+                size_of_header = len(header_line)
+                file_size = size_of_header
                 md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
-                header_byte_length = csv_writer.writerow(header)
-                bytes_io_file.flush()
-                bytes_io_file.seek(0)
-                encoded_header = bytes_io_file.read().encode("utf-8")
                 md5_hashlib.update(encoded_header)
-                bytes_io_file.seek(0)
-                total_bytes_written = 0
-                current_bytes_written = 0
-                has_data = False
-
-                for row in reader:
-                    # TODO: Check the performance of this section
-                    bytes_io_file.truncate(0)
-                    bytes_io_file.seek(0)
-                    current_bytes_written += csv_writer.writerow(row)
-                    bytes_io_file.flush()
-                    bytes_io_file.seek(0)
-                    md5_hashlib.update(bytes_io_file.read().encode("utf-8"))
-                    # Overwrite the bytes IO file as a hack to find the boundry we are going to be uploading
-                    bytes_io_file.seek(0)
-                    has_data = True
-
-                    if current_bytes_written >= insert_size_byte:
-                        bytes_io_file.truncate(0)
-                        bytes_io_file.seek(0)
-                        bytes_io_file.flush()
-                        file_handle_id = await stream_multipart_upload_async(
-                            syn=client,
-                            bytes_to_prepend=encoded_header,
-                            content_type="text/csv",
-                            dest_file_name="chunked_csv_for_synapse_store_rows.csv",
-                            file_size_bytes=current_bytes_written + header_byte_length,
-                            path_to_original_file=path_to_csv,
-                            bytes_to_skip=total_bytes_written,
-                            header_bytes_offset=header_byte_length,
-                            md5=md5_hashlib.hexdigest(),
-                            original_file_size=file_size,
+                chunks_to_upload = []
+                # current_line_index = 1
+                size_of_chunk = 0
+                # line_index_offset = 0
+                previous_chunk_byte_offset = size_of_header
+                while chunk := f.readlines(8 * MB):
+                    for line in chunk:
+                        encoded_line = line.encode()
+                        md5_hashlib.update(encoded_line)
+                        size_of_chunk += len(line)
+                        file_size += size_of_chunk
+                        # line_index_offset += 1
+                        if size_of_chunk >= insert_size_byte:
+                            chunks_to_upload.append(
+                                (
+                                    previous_chunk_byte_offset,
+                                    size_of_chunk,
+                                    md5_hashlib.hexdigest(),
+                                    # current_line_index,
+                                    # line_index_offset,
+                                )
+                            )
+                            # current_line_index += line_index_offset
+                            previous_chunk_byte_offset += size_of_chunk
+                            size_of_chunk = 0
+                            # line_index_offset = 0
+                            md5_hashlib = hashlib.new(
+                                "md5", usedforsecurity=False
+                            )  # nosec
+                            md5_hashlib.update(encoded_header)
+                if size_of_chunk:
+                    chunks_to_upload.append(
+                        (
+                            previous_chunk_byte_offset,
+                            size_of_chunk,
+                            md5_hashlib.hexdigest(),
+                            # current_line_index,
+                            # line_index_offset,
                         )
-                        bytes_io_file.truncate(0)
-                        bytes_io_file.seek(0)
-                        md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
-                        md5_hashlib.update(encoded_header)
-                        has_data = False
-
-                        await _send_update(
-                            table_descriptor=csv_table_descriptor,
-                            file_handle_id=file_handle_id,
-                            job_timeout=job_timeout,
-                        )
-                        progress_bar.update(current_bytes_written)
-                        total_bytes_written += current_bytes_written
-                        current_bytes_written = 0
-
-                # If there is any data except the header, upload it
-                if has_data:
-                    bytes_io_file.truncate(0)
-                    bytes_io_file.seek(0)
-                    bytes_io_file.flush()
-                    file_handle_id = await stream_multipart_upload_async(
-                        syn=client,
-                        bytes_to_prepend=encoded_header,
-                        content_type="text/csv",
-                        dest_file_name="chunked_csv_for_synapse_store_rows.csv",
-                        path_to_original_file=path_to_csv,
-                        file_size_bytes=current_bytes_written + header_byte_length,
-                        bytes_to_skip=total_bytes_written,
-                        header_bytes_offset=header_byte_length,
-                        md5=md5_hashlib.hexdigest(),
-                        original_file_size=file_size,
                     )
 
-                    await _send_update(
-                        table_descriptor=csv_table_descriptor,
-                        file_handle_id=file_handle_id,
-                        job_timeout=job_timeout,
+                update_tasks = []
+                for byte_chunk_offset, size_of_chunk, md5 in chunks_to_upload:
+                    update_tasks.append(
+                        asyncio.create_task(
+                            self._stream_and_update(
+                                client=client,
+                                encoded_header=encoded_header,
+                                size_of_chunk=size_of_chunk,
+                                path_to_csv=path_to_csv,
+                                byte_chunk_offset=byte_chunk_offset,
+                                size_of_header=size_of_header,
+                                md5=md5,
+                                file_size=file_size,
+                                csv_table_descriptor=csv_table_descriptor,
+                                job_timeout=job_timeout,
+                                progress_bar=progress_bar,
+                            )
+                        )
                     )
-                    progress_bar.update(current_bytes_written)
+
+                client.logger.info(
+                    f"[{self.id}:{self.name}]: Found {len(chunks_to_upload)} chunks to upload into table"
+                )
+                await asyncio.gather(*update_tasks)
 
             progress_bar.update(progress_bar.total - progress_bar.n)
             progress_bar.refresh()
@@ -3060,7 +3071,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             if additional_changes:
                 changes.extend(additional_changes)
 
-            await _send_update(
+            await self._send_update(
+                client=client,
                 table_descriptor=csv_table_descriptor,
                 file_handle_id=file_handle_id,
                 changes=changes,
