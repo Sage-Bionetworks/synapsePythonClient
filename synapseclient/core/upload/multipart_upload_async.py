@@ -69,7 +69,6 @@ import os
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from io import BytesIO
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -172,7 +171,7 @@ class UploadAttemptAsync:
     def __init__(
         self,
         syn: "Synapse",
-        dest_file_name: Union[str, BytesIO],
+        dest_file_name: str,
         upload_request_payload: Dict[str, Any],
         part_request_body_provider_fn: Union[None, Callable[[int], bytes]],
         md5_fn: Callable[[bytes, httpx.Response], str],
@@ -356,9 +355,7 @@ class UploadAttemptAsync:
                     total=part_count,
                     desc=self._storage_str or "Copying",
                     unit_scale=True,
-                    postfix=self._dest_file_name
-                    if isinstance(self._dest_file_name, str)
-                    else None,
+                    postfix=self._dest_file_name,
                     smoothing=0,
                 )
                 self._progress_bar.update(completed_part_count)
@@ -375,9 +372,7 @@ class UploadAttemptAsync:
                     desc=self._storage_str or "Uploading",
                     unit="B",
                     unit_scale=True,
-                    postfix=self._dest_file_name
-                    if isinstance(self._dest_file_name, str)
-                    else None,
+                    postfix=self._dest_file_name,
                     smoothing=0,
                 )
                 self._progress_bar.update(previously_transferred)
