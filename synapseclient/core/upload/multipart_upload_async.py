@@ -669,10 +669,10 @@ async def stream_multipart_upload_async(
             bytes_to_prepend=bytes_to_prepend,
             part_number=part_number,
             chunk_size=part_size,
-            header_bytes_offset=header_bytes_offset,
             byte_offset=bytes_to_skip,
             path_to_original_file=path_to_original_file,
             file_size=original_file_size,
+            client=syn,
         )
 
     with logging_redirect_tqdm(loggers=[syn.logger]):
