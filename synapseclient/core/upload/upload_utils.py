@@ -15,7 +15,7 @@ def get_in_memory_csv_chunk(
     chunk_size: int,
     byte_offset: int,
     path_to_original_file: str,
-    file_size: int,
+    total_size_of_chunks_being_uploaded: int,
     client: "Synapse",
 ) -> bytes:
     """Read the nth chunk from the file.
@@ -32,7 +32,10 @@ def get_in_memory_csv_chunk(
     with open(path_to_original_file, "rb") as f:
         total_offset = byte_offset + ((part_number - 1) * chunk_size)
 
-        max_bytes_to_read = min((file_size - total_offset), chunk_size)
+        max_bytes_to_read = min(
+            (total_size_of_chunks_being_uploaded - ((part_number - 1) * chunk_size)),
+            chunk_size,
+        )
         client.logger.info(
             f"Part number: {part_number}, total_offset: {total_offset}, max_bytes_to_read: {max_bytes_to_read}"
         )

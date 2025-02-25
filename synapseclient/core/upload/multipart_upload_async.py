@@ -671,7 +671,7 @@ async def stream_multipart_upload_async(
             chunk_size=part_size,
             byte_offset=bytes_to_skip,
             path_to_original_file=path_to_original_file,
-            file_size=original_file_size,
+            total_size_of_chunks_being_uploaded=file_size,
             client=syn,
         )
 
