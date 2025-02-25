@@ -26,8 +26,7 @@ import uuid
 import warnings
 import zipfile
 from dataclasses import asdict, fields, is_dataclass
-from io import StringIO
-from typing import TYPE_CHECKING, List, TypeVar, Union
+from typing import TYPE_CHECKING, List, TypeVar
 
 import requests
 from opentelemetry import trace
@@ -58,9 +57,7 @@ LOGGER = logging.getLogger(LOGGER_NAME)
 
 
 def md5_for_file(
-    filename: Union[str, StringIO],
-    block_size: int = 2 * MB,
-    callback: typing.Callable = None,
+    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
 ):
     """
     Calculates the MD5 of the given file.
@@ -78,33 +75,19 @@ def md5_for_file(
     """
     loop_iteration = 0
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
-    if isinstance(filename, StringIO):
+    with open(filename, "rb") as f:
         while True:
             loop_iteration += 1
             if callback:
                 callback()
-            data = filename.read(block_size)
+            data = f.read(block_size)
             if not data:
                 break
-            md5.update(data.encode("utf-8"))
+            md5.update(data)
             del data
             # Garbage collect every 100 iterations
             if loop_iteration % 100 == 0:
                 gc.collect()
-    else:
-        with open(filename, "rb") as f:
-            while True:
-                loop_iteration += 1
-                if callback:
-                    callback()
-                data = f.read(block_size)
-                if not data:
-                    break
-                md5.update(data)
-                del data
-                # Garbage collect every 100 iterations
-                if loop_iteration % 100 == 0:
-                    gc.collect()
     return md5
 
 
@@ -139,11 +122,6 @@ def md5_fn(part, _) -> str:
     Returns:
         The MD5 Checksum
     """
-    if isinstance(part, str):
-        try:
-            part = part.encode("utf-8")
-        except UnicodeEncodeError:
-            pass
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     md5.update(part)
     return md5.hexdigest()
