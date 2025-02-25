@@ -33,7 +33,7 @@ from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_file_async,
-    stream_multipart_upload_async,
+    multipart_upload_partial_file_async,
 )
 from synapseclient.core.utils import (
     MB,
@@ -2918,26 +2918,37 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         size_of_chunk: int,
         path_to_csv: str,
         byte_chunk_offset: int,
-        size_of_header: int,
         md5: str,
-        file_size: int,
         csv_table_descriptor: CsvTableDescriptor,
         job_timeout: int,
         progress_bar: tqdm,
         wait_for_update_semaphore: asyncio.Semaphore,
     ) -> None:
-        file_handle_id = await stream_multipart_upload_async(
+        """
+        Handle the process of reading in parts of the CSV we are going to be uploading
+        into Synapse. Since the Synapse REST API has a limit of 1GB as the maximum
+        size of a file that can be appended to a table, we must upload files that are
+        larger than that in multiple requests.
+
+        After each chunk is uploaded we will send a `TableUpdateTransaction` to Synapse
+        to append the rows to the table.
+
+        Arguments:
+
+        """
+        file_handle_id = await multipart_upload_partial_file_async(
             syn=client,
             bytes_to_prepend=encoded_header,
             content_type="text/csv",
             dest_file_name="chunked_csv_for_synapse_store_rows.csv",
-            file_size_bytes=size_of_chunk,
+            partial_file_size_bytes=size_of_chunk,
             path_to_original_file=path_to_csv,
             bytes_to_skip=byte_chunk_offset,
-            header_bytes_offset=size_of_header,
             md5=md5,
-            original_file_size=file_size,
         )
+        # We are using a semaphore here because large tables can take a very long time
+        # for the update to complete. This will allow us to wait for the update to
+        # complete before moving on to the next chunk.
         async with wait_for_update_semaphore:
             await self._send_update(
                 client=client,
@@ -2963,6 +2974,25 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ]
         ] = None,
     ) -> None:
+        """
+        Determines if the file we are appending to the table is larger than the
+        maximum size that Synapse allows for a single request. If the file is larger
+        than the maximum size we will chunk the file into smaller requests and upload
+        them to Synapse. If the file is smaller than the maximum size we will upload
+        the file to Synapse as is.
+
+        Arguments:
+            path_to_csv: The path to the CSV file that is being uploaded to Synapse.
+            insert_size_byte: The maximum size of data that will be stored to Synapse
+                within a single transaction. The API have a limit of 1GB.
+            csv_table_descriptor: The descriptor for the CSV file that is being uploaded.
+            schema_change_request: The schema change request that will be sent to
+                Synapse to update the table.
+            client: The Synapse client that is being used to interact with the API.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+            additional_changes: Additional changes to the table that should execute
+        """
+
         file_size = os.path.getsize(path_to_csv)
         if file_size > insert_size_byte:
             # Apply schema changes before breaking apart and uploading the file
@@ -2986,6 +3016,10 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 smoothing=0,
                 unit="B",
             )
+            # The original file is read twice, the reason is that on the first pass we
+            # are calculating the size of the chunks that we will be uploading and the
+            # MD5 hash of the file. On the second pass we are reading in the chunks
+            # and uploading them to Synapse.
             with open(file=path_to_csv, mode="rb") as f:
                 header_line = f.readline()
                 size_of_header = len(header_line)
@@ -3026,9 +3060,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 update_tasks = []
                 wait_for_update_semaphore = asyncio.Semaphore(value=1)
                 for byte_chunk_offset, size_of_chunk, md5 in chunks_to_upload:
-                    client.logger.info(
-                        f"Uploading chunk of size: {size_of_chunk}, offset: {byte_chunk_offset}, md5: {md5}"
-                    )
                     update_tasks.append(
                         asyncio.create_task(
                             self._stream_and_update(
@@ -3037,9 +3068,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                                 size_of_chunk=size_of_chunk,
                                 path_to_csv=path_to_csv,
                                 byte_chunk_offset=byte_chunk_offset,
-                                size_of_header=size_of_header,
                                 md5=md5,
-                                file_size=file_size,
                                 csv_table_descriptor=csv_table_descriptor,
                                 job_timeout=job_timeout,
                                 progress_bar=progress_bar,

@@ -3,41 +3,45 @@
 import math
 import re
 from io import StringIO
-from typing import TYPE_CHECKING, Union
-
-if TYPE_CHECKING:
-    from synapseclient import Synapse
+from typing import Union
 
 
-def get_in_memory_csv_chunk(
+def get_partial_file_chunk(
     bytes_to_prepend: bytes,
     part_number: int,
-    chunk_size: int,
+    part_size: int,
     byte_offset: int,
-    path_to_original_file: str,
+    path_to_file_to_split: str,
     total_size_of_chunks_being_uploaded: int,
-    client: "Synapse",
 ) -> bytes:
-    """Read the nth chunk from the file.
+    """Read the nth chunk from the file assuming that we are not going to be reading
+    or uploading the entire file. This function allows us to read a portion of the file
+    and upload it to Synapse.
 
     Arguments:
-        file_path: The path to the file.
+        bytes_to_prepend: Bytes to prepend to the first chunk.
         part_number: The part number.
-        chunk_size: The size of the chunk.
+        part_size: The maximum size of the part to read for the upload process.
+        byte_offset: The byte offset for the file that has already been read and
+            and uploaded. This offset is used to calculate the total offset to read
+            the next chunk.
+        path_to_file_to_split: The path to the file that we are reading off disk and
+            uploading portions of to Synapse.
+        total_size_of_chunks_being_uploaded: The total size of the chunks that are being
+            uploaded. This is used to calculate the maximum number of bytes to read
+            from the file, accounting for the last chunk that may be smaller than the
+            chunk size.
     """
     header_bytes = None
     if bytes_to_prepend and part_number == 1:
         header_bytes = bytes_to_prepend
 
-    with open(path_to_original_file, "rb") as f:
-        total_offset = byte_offset + ((part_number - 1) * chunk_size)
+    with open(path_to_file_to_split, "rb") as f:
+        total_offset = byte_offset + ((part_number - 1) * part_size)
 
         max_bytes_to_read = min(
-            (total_size_of_chunks_being_uploaded - ((part_number - 1) * chunk_size)),
-            chunk_size,
-        )
-        client.logger.info(
-            f"Part number: {part_number}, total_offset: {total_offset}, max_bytes_to_read: {max_bytes_to_read}"
+            (total_size_of_chunks_being_uploaded - ((part_number - 1) * part_size)),
+            part_size,
         )
         f.seek(total_offset - 1)
 

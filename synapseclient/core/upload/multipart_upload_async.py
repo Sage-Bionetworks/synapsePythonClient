@@ -110,8 +110,8 @@ from synapseclient.core.upload.upload_utils import (
     copy_part_request_body_provider_fn,
     get_data_chunk,
     get_file_chunk,
-    get_in_memory_csv_chunk,
     get_part_size,
+    get_partial_file_chunk,
 )
 from synapseclient.core.utils import MB
 from synapseclient.core.utils import md5_fn as md5_fn_util
@@ -611,26 +611,49 @@ class UploadAttemptAsync:
         return response
 
 
-# TODO: Change to another function
-
-
-async def stream_multipart_upload_async(
+async def multipart_upload_partial_file_async(
     syn: "Synapse",
     bytes_to_prepend: bytes,
     dest_file_name: str,
     content_type: str,
     md5: str,
+    partial_file_size_bytes: int,
+    bytes_to_skip: int,
+    path_to_original_file: str,
     part_size: int = None,
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
     storage_str: str = None,
-    file_size_bytes: int = None,
-    bytes_to_skip: int = None,
-    path_to_original_file: str = None,
-    header_bytes_offset: int = None,
-    original_file_size: int = None,
 ) -> str:
+    """
+    Upload a portion of a file that exists on disk. The usage of this function allows us
+    to read a portion of a file and upload it to Synapse without needing to write a copy
+    of the portion to disk.
+
+    Arguments:
+        syn: a Synapse object.
+        bytes_to_prepend: bytes to prepend to the file. An example of using this is to
+            allow the user to prepend a header to the file such as a CSV. When using
+            this argument the `bytes_to_skip` should include the size of the bytes
+            being prepended.
+        dest_file_name: the name of the file to upload.
+        content_type: the content type of the file.
+        md5: the MD5 of the file.
+        partial_file_size_bytes: The size of the portion of the file that we are
+            uploading to Synapse.
+        bytes_to_skip: The number of bytes to skip from the beginning of the file that
+            exists on disk.
+        path_to_original_file: The path to the file that we are reading off disk and
+            uploading portions of to Synapse.
+        part_size: The size of the parts to upload. The minimum part size is 5MiB.
+        storage_location_id: The ID of the storage location where the file should be
+            stored. Retrieved from Synapse's UploadDestination.
+        preview: True to generate a preview.
+        force_restart: True to restart a previously initiated upload from scratch, False
+            to try to resume.
+        storage_str: Optional string to append to the upload message.
+    """
     trace.get_current_span().set_attributes(
         {
             "synapse.storage_location_id": (
@@ -639,25 +662,22 @@ async def stream_multipart_upload_async(
         }
     )
 
-    file_size = file_size_bytes
-    md5_hex = md5
-
     part_size = min(
         get_part_size(
             part_size or DEFAULT_PART_SIZE,
-            file_size,
+            partial_file_size_bytes,
             MIN_PART_SIZE,
             MAX_NUMBER_OF_PARTS,
         ),
-        file_size,
+        partial_file_size_bytes,
     )
 
     upload_request = {
         "concreteType": concrete_types.MULTIPART_UPLOAD_REQUEST,
         "contentType": content_type,
-        "contentMD5Hex": md5_hex,
+        "contentMD5Hex": md5,
         "fileName": dest_file_name,
-        "fileSizeBytes": file_size,
+        "fileSizeBytes": partial_file_size_bytes,
         "generatePreview": preview,
         "partSizeBytes": part_size,
         "storageLocationId": storage_location_id,
@@ -665,14 +685,13 @@ async def stream_multipart_upload_async(
 
     def part_fn(part_number: int) -> bytes:
         """Return the nth chunk of a file."""
-        return get_in_memory_csv_chunk(
+        return get_partial_file_chunk(
             bytes_to_prepend=bytes_to_prepend,
             part_number=part_number,
-            chunk_size=part_size,
+            part_size=part_size,
             byte_offset=bytes_to_skip,
-            path_to_original_file=path_to_original_file,
-            total_size_of_chunks_being_uploaded=file_size,
-            client=syn,
+            path_to_file_to_split=path_to_original_file,
+            total_size_of_chunks_being_uploaded=partial_file_size_bytes,
         )
 
     with logging_redirect_tqdm(loggers=[syn.logger]):
