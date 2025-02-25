@@ -69,7 +69,7 @@ import os
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from io import BytesIO, StringIO
+from io import BytesIO
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -807,7 +807,7 @@ async def multipart_upload_partial_file_async(
 
 async def multipart_upload_file_async(
     syn: "Synapse",
-    file_path: Union[str, StringIO],
+    file_path: str,
     dest_file_name: str = None,
     content_type: str = None,
     part_size: int = None,
@@ -848,17 +848,12 @@ async def multipart_upload_file_async(
         }
     )
 
-    if not isinstance(file_path, StringIO) and not os.path.exists(file_path):
+    if not os.path.exists(file_path):
         raise IOError(f'File "{file_path}" not found.')
-    if not isinstance(file_path, StringIO) and os.path.isdir(file_path):
+    if os.path.isdir(file_path):
         raise IOError(f'File "{file_path}" is a directory.')
 
-    if isinstance(file_path, StringIO):
-        file_path.seek(0, os.SEEK_END)
-        file_size = file_path.tell()
-        file_path.seek(0)
-    else:
-        file_size = os.path.getsize(file_path)
+    file_size = os.path.getsize(file_path)
     if not dest_file_name:
         dest_file_name = os.path.basename(file_path)
 
