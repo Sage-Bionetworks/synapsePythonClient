@@ -3,17 +3,20 @@
 import math
 import re
 from io import StringIO
-from typing import Union
+from typing import TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 
 def get_in_memory_csv_chunk(
     bytes_to_prepend: bytes,
     part_number: int,
     chunk_size: int,
-    header_bytes_offset: int,
     byte_offset: int,
     path_to_original_file: str,
     file_size: int,
+    client: "Synapse",
 ) -> bytes:
     """Read the nth chunk from the file.
 
@@ -28,7 +31,10 @@ def get_in_memory_csv_chunk(
 
     with open(path_to_original_file, "rb") as f:
         total_offset = byte_offset + ((part_number - 1) * chunk_size)
+        client.logger.info(f"Part number: {part_number}, total_offset: {total_offset}")
+
         max_bytes_to_read = min((file_size - total_offset), chunk_size)
+        client.logger.info(f"max_bytes_to_read: {max_bytes_to_read}")
         f.seek(total_offset - 1)
 
         if header_bytes:
