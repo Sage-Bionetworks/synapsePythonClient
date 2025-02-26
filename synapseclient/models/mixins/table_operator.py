@@ -1920,6 +1920,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     raise ValueError(
                         f"The values for the keys being upserted must be unique in the table: [{matching_row}]"
                     )
+                elif column not in self.columns:
+                    continue
 
                 if len(matching_row[column].values) == 0:
                     continue
