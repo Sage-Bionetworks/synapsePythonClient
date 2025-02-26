@@ -49,6 +49,12 @@ def get_partial_dataframe_chunk(
         part_size,
     )
     header_written = False
+    # TODO: This is an area for optimization. It is possible to avoid writing the entire
+    # dataframe to a buffer and then reading the buffer to get the bytes. Instead, we
+    # might be able to do something like keeping markers at each 100 row increment how
+    # many bytes exist in the next 100 rows. We may be able to then skip over each
+    # 100 row increment until we reach the row that we need to start reading from.
+    # Ticket: SYNPY-1573
     for start in range(0, len(df), 100):
         offset_start = start + line_start
         end = min(offset_start + 100, line_end)

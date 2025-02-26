@@ -268,6 +268,7 @@ class TestTableCreation:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
@@ -332,6 +333,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
@@ -381,6 +383,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # AND the table is stored in Synapse
@@ -435,6 +438,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
@@ -480,6 +484,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
@@ -539,6 +544,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with a schema storage strategy
@@ -602,6 +608,7 @@ class TestRowStorage:
             }
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with a schema storage strategy
@@ -663,6 +670,7 @@ class TestRowStorage:
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with a schema storage strategy
@@ -719,6 +727,7 @@ class TestRowStorage:
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with no schema storage strategy
@@ -732,6 +741,139 @@ class TestRowStorage:
             "400 Client Error: The first line is expected to be a header but the values do not match the names of of the columns of the table (column_key_2 is not a valid column name or id). Header row: column_string,column_key_2"
             in str(e.value)
         )
+
+    async def test_store_rows_as_csv_being_split_and_uploaded(
+        self, project_model: Project, mocker: MockerFixture
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_to_order_on", column_type=ColumnType.INTEGER),
+                Column(
+                    name="large_string",
+                    column_type=ColumnType.STRING,
+                    maximum_size=5,
+                ),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+
+        # AND data that will be split into multiple parts
+        large_string_a = "A" * 5
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": [f"value{i}" for i in range(200)],
+                "column_to_order_on": [i for i in range(200)],
+                "large_string": [large_string_a for _ in range(200)],
+            }
+        )
+        filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
+
+        # WHEN I store the rows to the table
+        await table.store_rows_async(
+            values=filepath,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+            insert_size_bytes=1 * utils.KB,
+        )
+
+        # AND I query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id} ORDER BY column_to_order_on ASC",
+            synapse_client=self.syn,
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["column_to_order_on"], data_for_table["column_to_order_on"]
+        )
+        pd.testing.assert_series_equal(
+            results["large_string"], data_for_table["large_string"]
+        )
+
+        # AND 200 rows exist on the table
+        assert len(results) == 200
+
+        # AND The spy should have been called in multiple batches
+        assert spy_send_job.call_count == 4
+
+    async def test_store_rows_as_df_being_split_and_uploaded(
+        self, project_model: Project, mocker: MockerFixture
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_to_order_on", column_type=ColumnType.INTEGER),
+                Column(
+                    name="large_string",
+                    column_type=ColumnType.STRING,
+                    maximum_size=5,
+                ),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+
+        # AND data that will be split into multiple parts
+        large_string_a = "A" * 5
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": [f"value{i}" for i in range(200)],
+                "column_to_order_on": [i for i in range(200)],
+                "large_string": [large_string_a for _ in range(200)],
+            }
+        )
+        filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
+        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
+
+        # WHEN I store the rows to the table
+        await table.store_rows_async(
+            values=data_for_table,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+            insert_size_bytes=1 * utils.KB,
+        )
+
+        # AND I query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id} ORDER BY column_to_order_on ASC",
+            synapse_client=self.syn,
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["column_to_order_on"], data_for_table["column_to_order_on"]
+        )
+        pd.testing.assert_series_equal(
+            results["large_string"], data_for_table["large_string"]
+        )
+
+        # AND 200 rows exist on the table
+        assert len(results) == 200
+
+        # AND The spy should have been called in multiple batches
+        # Note: DataFrames have a minimum of 100 rows per batch
+        assert spy_send_job.call_count == 2
 
 
 class TestUpsertRows:
@@ -833,6 +975,7 @@ class TestUpsertRows:
         )
 
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
+        self.schedule_for_cleanup(filepath)
         modified_data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I upsert rows to the table based on the first column
@@ -1125,8 +1268,8 @@ class TestUpsertRows:
             primary_keys=["column_string"],
             synapse_client=self.syn,
             rows_per_request=1,
-            update_size_byte=1 * utils.KB,
-            insert_size_byte=1 * utils.KB,
+            update_size_bytes=1 * utils.KB,
+            insert_size_bytes=1 * utils.KB,
         )
 
         # AND I query the table

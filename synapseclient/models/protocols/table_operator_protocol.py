@@ -277,8 +277,9 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         dry_run: bool = False,
         *,
         rows_per_query: int = 50000,
-        update_size_byte: int = 1.9 * MB,
-        insert_size_byte: int = 900 * MB,
+        update_size_bytes: int = 1.9 * MB,
+        insert_size_bytes: int = 900 * MB,
+        job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -294,6 +295,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         columns specified in this list the row will be updated. If a row does not exist
         it will be inserted.
 
+
         Limitations:
 
         - The request to update, and the request to insert data does not occur in a
@@ -305,9 +307,9 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             kept to a minimum (< 50,000). There is significant overhead in the request
             to Synapse for each row that is upserted. If you are upserting a large
             number of rows a better approach may be to query for the data you want
-            to update, update the data, then use the [store_rows][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows] method to
+            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
             update the data in Synapse. Any rows you want to insert may be added
-            to the DataFrame that is passed to the [store_rows][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows] method.
+            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method.
         - When upserting mnay rows the requests to Synapse will be chunked into smaller
             requests. The limit is 2MB per request. This chunking will happen
             automatically and should not be a concern for most users. If you are
@@ -341,7 +343,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
 
                 loop For results from query
                     Note Over Table: Sum row/chunk size
-                    alt Chunk size exceeds update_size_byte
+                    alt Chunk size exceeds update_size_bytes
                         Table->>Synapse: Push update chunk
                         Synapse-->>Table: Acknowledge update
                     end
@@ -385,15 +387,24 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 this will determine the number of rows that are queried at a time.
                 The default is 50,000 rows.
 
-            update_size_byte: The maximum size of the request that will be sent to Synapse
+            update_size_bytes: The maximum size of the request that will be sent to Synapse
                 when updating rows of data. The default is 1.9MB.
 
-            insert_size_byte: The maximum size of the request that will be sent to Synapse
+            insert_size_bytes: The maximum size of the request that will be sent to Synapse
                 when inserting rows of data. The default is 900MB.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when inserting, and updating rows of data. Each individual
+                request to Synapse will be sent as an independent job. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
+
+            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+                function when the `values` argument is a path to a csv file.
 
 
         Example: Updating 2 rows and inserting 1 row
@@ -481,8 +492,8 @@ class TableRowOperatorSynchronousProtocol(Protocol):
     def store_rows(
         self,
         values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
-        schema_storage_strategy: "SchemaStorageStrategy" = None,
-        column_expansion_strategy: "ColumnExpansionStrategy" = None,
+        schema_storage_strategy: SchemaStorageStrategy = None,
+        column_expansion_strategy: ColumnExpansionStrategy = None,
         dry_run: bool = False,
         additional_changes: List[
             Union[
@@ -492,10 +503,11 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             ]
         ] = None,
         *,
-        insert_size_byte: int = 900 * MB,
-        csv_table_descriptor: Optional["CsvTableDescriptor"] = None,
+        insert_size_bytes: int = 900 * MB,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
+        job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
@@ -527,50 +539,93 @@ class TableRowOperatorSynchronousProtocol(Protocol):
 
         - Synapse limits the number of rows that may be stored in a single request to
             a CSV file that is 1GB. If you are storing a CSV file that is larger than
-            this limit the data will be chunked into smaller requests by writing a
-            portion of the data to a temporary file that is cleaned up after upload.
-            Due to this batching it also means that the entire upload is not atomic.
-            The file will be written to the Synapse cache directory
-            (default is `~/.synapseCache`) and will be deleted after the upload is
-            complete. Storing a dataframe is also subject to this limit and will be
-            chunked into smaller requests if the size exceeds this limit. Dataframes
-            are converted to CSV files before being uploaded to Synapse regardless of
-            the size of the dataframe, but depending on the size of the dataframe the
-            data may be chunked into smaller requests.
+            this limit the data will be chunked into smaller requests. This process is
+            done by reading the file once to determine what the row and byte boundries
+            are and calculating the MD5 hash of that portion, then reading the file
+            again to send the data to Synapse. This process is done to ensure that the
+            data is not corrupted during the upload process, in addition Synapse
+            requires the MD5 hash of the data to be sent in the request along with the
+            number of bytes that are being sent.
+        - The limit of 1GB is also enforced when storing a dictionary or a DataFrame.
+            The data will be converted to a CSV format using the `.to_csv()` pandas
+            function. If you are storing more than a 1GB file it is recommended that
+            you store the data as a CSV and use the file path to upload the data. This
+            is due to the fact that the DataFrame chunking process is slower than
+            reading portions of a file on disk and calculating the MD5 hash of that
+            portion.
 
         The following is a Sequence Daigram that describes the process noted in the
         limitation above. It shows how the data is chunked into smaller requests when
-        the data exceeds the limit of 1GB, and how the data is written to a temporary
-        file that is cleaned up after upload.
+        the data exceeds the limit of 1GB, and how portions of the data are read from
+        the CSV file on disk while being uploaded to Synapse.
 
         ```mermaid
         sequenceDiagram
             participant User
             participant Table
-            participant CSVHandler
             participant FileSystem
             participant Synapse
 
             User->>Table: store_rows(values)
-            Table->>CSVHandler: Convert values to CSV (if Dict or DataFrame)
-            CSVHandler->>Table: Return CSV path
 
             alt CSV size > 1GB
-                loop Split and Upload CSV
-                    Table->>CSVHandler: Split CSV into smaller chunks
-                    CSVHandler->>FileSystem: Write chunk to local file
-                    FileSystem->>Table: Return file path
-                    Table->>Synapse: Upload CSV chunk using file path
+                Table->>Synapse: Apply schema changes before uploading
+                note over Table, FileSystem: Read CSV twice
+                Table->>FileSystem: Read entire CSV (First Pass)
+                FileSystem-->>Table: Compute chunk sizes & MD5 hashes
+
+                loop Read and Upload CSV chunks (Second Pass)
+                    Table->>FileSystem: Read next chunk from CSV
+                    FileSystem-->>Table: Return bytes
+                    Table->>Synapse: Upload CSV chunk
                     Synapse-->>Table: Return `file_handle_id`
-                    Table->>FileSystem: Truncate file for next chunk
                     Table->>Synapse: Send 'TableUpdateTransaction' to append/update rows
                     Synapse-->>Table: Transaction result
                 end
-                Table->>FileSystem: Delete temporary file
             else
-                Table->>Synapse: Upload CSV without splitting
+                Table->>Synapse: Upload CSV without splitting & Any additional schema changes
                 Synapse-->>Table: Return `file_handle_id`
                 Table->>Synapse: Send `TableUpdateTransaction' to append/update rows
+                Synapse-->>Table: Transaction result
+            end
+
+            Table-->>User: Upload complete
+        ```
+
+        The following is a Sequence Daigram that describes the process noted in the
+        limitation above for DataFrames. It shows how the data is chunked into smaller
+        requests when the data exceeds the limit of 1GB, and how portions of the data
+        are read from the DataFrame while being uploaded to Synapse.
+
+        ```mermaid
+        sequenceDiagram
+            participant User
+            participant Table
+            participant MemoryBuffer
+            participant Synapse
+
+            User->>Table: store_rows(DataFrame)
+
+            loop For all rows in DataFrame in 100 row increments
+                Table->>MemoryBuffer: Convert DataFrame rows to CSV in-memory
+                MemoryBuffer-->>Table: Compute chunk sizes & MD5 hashes
+            end
+
+
+            alt Multiple chunks detected
+                Table->>Synapse: Apply schema changes before uploading
+            end
+
+            loop For all chunks found in first loop
+                loop for all parts in chunk byte boundry
+                    Table->>MemoryBuffer: Read small (< 8MB) part of the chunk
+                    MemoryBuffer-->>Table: Return bytes (with correct offset)
+                    Table->>Synapse: Upload part
+                    Synapse-->>Table: Upload response
+                end
+                Table->>Synapse: Complete upload
+                Synapse-->>Table: Return `file_handle_id`
+                Table->>Synapse: Send 'TableUpdateTransaction' to append/update rows
                 Synapse-->>Table: Transaction result
             end
 
@@ -631,18 +686,27 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 updating table metadata. This is useful for debugging and understanding
                 what actions would be taken without actually performing them.
 
-            insert_size_byte: The maximum size of data that will be stored to Synapse
+            additional_changes: Additional changes to the table that should execute
+                within the same transaction as appending or updating rows. This is used
+                as a part of the `upsert_rows` method call to allow for the updating of
+                rows and the updating of the table schema in the same transaction. In
+                most cases you will not need to use this argument.
+
+            insert_size_bytes: The maximum size of data that will be stored to Synapse
                 within a single transaction. The API have a limit of 1GB, but the
                 default is set to 900 MB to allow for some overhead in the request. The
                 implication of this limit is that when you are storing a CSV that is
                 larger than this limit the data will be chunked into smaller requests
-                by writing a portion of the data to a temporary file that is cleaned up
-                after upload. Due to this batching it also means that the entire
-                upload is not atomic. Storing a dataframe is also subject to this limit
-                and will be chunked into smaller requests if the size exceeds this
-                limit. Dataframes are converted to CSV files before being uploaded to
-                Synapse regardless of the size of the dataframe, but depending on the
-                size of the dataframe the data may be chunked into smaller requests.
+                by reading the file once to determine what the row and byte boundries
+                are and calculating the MD5 hash of that portion, then reading the file
+                again to send the data to Synapse. This process is done to ensure that
+                the data is not corrupted during the upload process, in addition Synapse
+                requires the MD5 hash of the data to be sent in the request along with
+                the number of bytes that are being sent. This argument is also used
+                when storing a dictionary or a DataFrame. The data will be converted to
+                a CSV format using the `.to_csv()` pandas function. When storing data
+                as a DataFrame the minimum that it will be chunked to is 100 rows of
+                data, regardless of if the data is larger than the limit.
 
             csv_table_descriptor: When passing in a CSV file this will allow you to
                 specify the format of the CSV file. This is only used when the `values`
@@ -662,6 +726,12 @@ class TableRowOperatorSynchronousProtocol(Protocol):
                 the `values` argument is a Pandas DataFrame. See
                 <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
                 for complete list of supported arguments.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when inserting, and updating rows of data. Each individual
+                request to Synapse will be sent as an independent job. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
 
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
