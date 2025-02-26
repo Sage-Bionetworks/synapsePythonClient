@@ -307,9 +307,9 @@ class TableRowOperatorSynchronousProtocol(Protocol):
             kept to a minimum (< 50,000). There is significant overhead in the request
             to Synapse for each row that is upserted. If you are upserting a large
             number of rows a better approach may be to query for the data you want
-            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
+            to update, update the data, then use the [store_rows][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows] method to
             update the data in Synapse. Any rows you want to insert may be added
-            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method.
+            to the DataFrame that is passed to the [store_rows][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows] method.
         - When upserting mnay rows the requests to Synapse will be chunked into smaller
             requests. The limit is 2MB per request. This chunking will happen
             automatically and should not be a concern for most users. If you are
