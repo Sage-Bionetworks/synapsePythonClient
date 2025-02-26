@@ -621,7 +621,6 @@ async def multipart_upload_dataframe_async(
     bytes_to_prepend: bytes,
     line_start: int,
     line_end: int,
-    line_and_size_markers: Dict[str, int] = None,
     part_size: int = None,
     storage_location_id: str = None,
     preview: bool = True,
@@ -695,7 +694,6 @@ async def multipart_upload_dataframe_async(
             line_end=line_end,
             to_csv_kwargs=to_csv_kwargs,
             bytes_to_prepend=bytes_to_prepend,
-            line_and_size_markers=line_and_size_markers,
         )
 
     with logging_redirect_tqdm(loggers=[syn.logger]):

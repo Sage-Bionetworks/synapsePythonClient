@@ -17,7 +17,6 @@ def get_partial_dataframe_chunk(
     total_size_of_chunks_being_uploaded: int,
     line_start: int,
     line_end: int,
-    line_and_size_markers: Dict[str, int] = None,
     to_csv_kwargs: Optional[Dict[str, Any]] = None,
 ) -> bytes:
     """Read the nth chunk from the file assuming that we are not going to be reading
@@ -50,16 +49,8 @@ def get_partial_dataframe_chunk(
         part_size,
     )
     header_written = False
-
     for start in range(0, len(df), 100):
         offset_start = start + line_start
-
-        if line_and_size_markers and total_offset:
-            bytes_for_next_range = line_and_size_markers.get(start, 0)
-            if bytes_for_next_range and total_offset >= bytes_for_next_range:
-                total_offset -= bytes_for_next_range
-                continue
-
         end = min(offset_start + 100, line_end)
         df.iloc[offset_start:end].to_csv(
             buffer,

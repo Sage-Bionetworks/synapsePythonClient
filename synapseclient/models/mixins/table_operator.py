@@ -2890,7 +2890,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         job_timeout: int,
         progress_bar: tqdm,
         wait_for_update_semaphore: asyncio.Semaphore,
-        file_suffix: str,
     ) -> None:
         """
         Handle the process of reading in parts of the CSV we are going to be uploading
@@ -2908,7 +2907,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             syn=client,
             bytes_to_prepend=encoded_header,
             content_type="text/csv",
-            dest_file_name=f"chunked_csv_for_synapse_store_rows_{file_suffix}.csv",
+            dest_file_name="chunked_csv_for_synapse_store_rows.csv",
             partial_file_size_bytes=size_of_chunk,
             path_to_original_file=path_to_csv,
             bytes_to_skip=byte_chunk_offset,
@@ -2940,8 +2939,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         job_timeout: int,
         progress_bar: tqdm,
         wait_for_update_semaphore: asyncio.Semaphore,
-        file_suffix: str,
-        line_and_size_markers: Dict[str, int],
         changes: List[
             Union[
                 "TableSchemaChangeRequest",
@@ -2957,14 +2954,13 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             syn=client,
             df=df,
             content_type="text/csv",
-            dest_file_name=f"chunked_csv_for_synapse_store_rows_{file_suffix}.csv",
+            dest_file_name="chunked_csv_for_synapse_store_rows.csv",
             partial_file_size_bytes=size_of_chunk,
             bytes_to_skip=byte_chunk_offset,
             md5=md5,
             line_start=line_start,
             line_end=line_end,
             bytes_to_prepend=header,
-            line_and_size_markers=line_and_size_markers,
         )
         # We are using a semaphore here because large tables can take a very long time
         # for the update to complete. This will allow us to wait for the update to
@@ -3078,7 +3074,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
                 update_tasks = []
                 wait_for_update_semaphore = asyncio.Semaphore(value=1)
-                part = 0
                 for byte_chunk_offset, size_of_chunk, md5 in chunks_to_upload:
                     update_tasks.append(
                         asyncio.create_task(
@@ -3093,11 +3088,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                                 job_timeout=job_timeout,
                                 progress_bar=progress_bar,
                                 wait_for_update_semaphore=wait_for_update_semaphore,
-                                file_suffix=str(part),
                             )
                         )
                     )
-                    part += 1
 
                 client.logger.info(
                     f"[{self.id}:{self.name}]: Found {len(chunks_to_upload)} chunks to upload into table"
@@ -3158,7 +3151,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
         line_start_index_for_chunk = 0
         line_end_index_for_chunk = 0
-        line_and_size_markers = {}
         for start in range(0, len(df), 100):
             end = start + 100
             line_end_index_for_chunk = end
@@ -3179,8 +3171,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 header_line = buffer.readline()
                 size_of_header = len(header_line)
                 previous_chunk_byte_offset = size_of_header
-
-            line_and_size_markers[start] = total_df_bytes
             md5_hashlib.update(buffer.getvalue())
 
             if size_of_chunk >= insert_size_byte:
@@ -3239,7 +3229,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         update_tasks = []
         wait_for_update_semaphore = asyncio.Semaphore(value=1)
-        part = 0
         for (
             byte_chunk_offset,
             size_of_chunk,
@@ -3263,12 +3252,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                         df=df,
                         header=header_line,
                         changes=changes,
-                        file_suffix=str(part),
-                        line_and_size_markers=line_and_size_markers,
                     )
                 )
             )
-            part += 1
 
         await asyncio.gather(*update_tasks)
         progress_bar.update(progress_bar.total - progress_bar.n)
