@@ -492,8 +492,8 @@ class TableRowOperatorSynchronousProtocol(Protocol):
     def store_rows(
         self,
         values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
-        schema_storage_strategy: SchemaStorageStrategy = None,
-        column_expansion_strategy: ColumnExpansionStrategy = None,
+        schema_storage_strategy: "SchemaStorageStrategy" = None,
+        column_expansion_strategy: "ColumnExpansionStrategy" = None,
         dry_run: bool = False,
         additional_changes: List[
             Union[
@@ -504,7 +504,7 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         ] = None,
         *,
         insert_size_bytes: int = 900 * MB,
-        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        csv_table_descriptor: Optional["CsvTableDescriptor"] = None,
         read_csv_kwargs: Optional[Dict[str, Any]] = None,
         to_csv_kwargs: Optional[Dict[str, Any]] = None,
         job_timeout: int = 600,
