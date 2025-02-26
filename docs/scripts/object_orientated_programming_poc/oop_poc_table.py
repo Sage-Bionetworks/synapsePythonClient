@@ -19,6 +19,7 @@ import synapseclient
 from synapseclient.models import Column, ColumnType, Table
 
 PROJECT_ID = "syn52948289"
+ROWS_TO_WRITE = 10
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()
@@ -36,15 +37,15 @@ def write_random_csv_with_data(path: str):
     data = {}
     for name, type in randomized_data_columns.items():
         if type == int:
-            data[name] = [random.randint(0, 100) for _ in range(10)]
+            data[name] = [random.randint(0, 100) for _ in range(ROWS_TO_WRITE + 1)]
         elif type == float:
-            data[name] = [random.uniform(0, 100) for _ in range(10)]
+            data[name] = [random.uniform(0, 100) for _ in range(ROWS_TO_WRITE + 1)]
         elif type == bool:
-            data[name] = [bool(random.getrandbits(1)) for _ in range(10)]
+            data[name] = [bool(random.getrandbits(1)) for _ in range(ROWS_TO_WRITE + 1)]
         elif type == str:
             data[name] = [
                 "".join(random.choices(string.ascii_uppercase + string.digits, k=5))
-                for _ in range(10)
+                for _ in range(ROWS_TO_WRITE + 1)
             ]
 
     with open(path, "w", newline="", encoding="utf-8") as csvfile:
@@ -54,7 +55,7 @@ def write_random_csv_with_data(path: str):
         writer.writerow(data.keys())
 
         # Write data
-        for i in range(10):
+        for i in range(ROWS_TO_WRITE + 1):
             writer.writerow([values[i] for values in data.values()])
 
 
@@ -86,7 +87,7 @@ def store_table():
 
     # Creating a table ===============================================================
     table = Table(
-        name="my_first_test_table",
+        name="my_first_test_table_ksidubhgfkjsdgf",
         columns=columns,
         parent_id=PROJECT_ID,
         annotations=annotations_for_my_table,
