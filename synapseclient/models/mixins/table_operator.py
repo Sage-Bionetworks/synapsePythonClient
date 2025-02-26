@@ -3690,7 +3690,7 @@ def _convert_pandas_row_to_python_types(
     elif column_type == ColumnType.INTEGER:
         return cell.astype(int).item()
     elif column_type == ColumnType.BOOLEAN:
-        return cell.item()
+        return cell
     elif column_type == ColumnType.DATE:
         return cell.item()
     elif column_type == ColumnType.FILEHANDLEID:
