@@ -154,7 +154,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
     activity: None = None
     version_number: None = None
     _last_persistent_instance: None = None
-    _columns_to_delete: Dict = None
+    _columns_to_delete: Optional[Dict] = None
 
     def _set_last_persistent_instance(self) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
@@ -965,20 +965,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     raise ValueError(f"Duplicate column name: {column.name}")
                 results[column.name] = column
             return results
-        elif isinstance(columns, dict):
-            results = OrderedDict()
-            for key, column in columns.items():
-                if column.name:
-                    if column.name in results:
-                        raise ValueError(f"Duplicate column name: {column.name}")
-                    results[column.name] = column
-                else:
-                    column.name = key
-                    if key in results:
-                        raise ValueError(f"Duplicate column name: {key}")
-                    results[key] = column
-            return results
-        elif isinstance(columns, OrderedDict):
+        elif isinstance(columns, dict) or isinstance(columns, OrderedDict):
             results = OrderedDict()
             for key, column in columns.items():
                 if column.name:
