@@ -6111,8 +6111,9 @@ class Synapse(object):
             headers.update(synapseclient.USER_AGENT)
 
         if self.user_agent:
-            agent = [headers["User-Agent"] + " " + " ".join(self.user_agent)]
-            headers["User-Agent"] = " ".join(agent)
+            headers["User-Agent"] = (
+                headers["User-Agent"] + " " + " ".join(self.user_agent)
+            )
 
         return headers
 
