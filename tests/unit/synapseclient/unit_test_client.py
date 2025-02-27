@@ -1,5 +1,5 @@
 """Unit tests for the Synapse client"""
-
+import asyncio
 import configparser
 import datetime
 import errno
@@ -10,9 +10,11 @@ import tempfile
 import typing
 import urllib.request as urllib_request
 import uuid
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import ANY, AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
+import httpx
 import pytest
 import requests
 from pytest_mock import MockerFixture
@@ -20,6 +22,7 @@ from pytest_mock import MockerFixture
 import synapseclient
 import synapseclient.core.utils as utils
 from synapseclient import (
+    USER_AGENT,
     Activity,
     Annotations,
     Column,
@@ -3967,3 +3970,246 @@ def test_delete_team(syn: Synapse) -> None:
     with patch.object(syn, "restDELETE") as mock_delete:
         syn.delete_team(1)
         mock_delete.assert_called_once_with("/team/1")
+
+
+class TestUserAgent:
+    user_agent_invalid_message_format = "user_agent must be in the format of 'my-project-identifier/1.0.0'. Current value: {agent}"
+    user_agent_invalid_type_message = "user_agent must be a string or a list of strings to add to the User-Agent header. Current value: {agent}"
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse) -> None:
+        self.syn = syn
+
+        httpx_agent = f"{httpx.__title__}/{httpx.__version__}"
+        requests_agent = requests.utils.default_user_agent()
+        agent = deepcopy(synapseclient.USER_AGENT)
+        agent["User-Agent"] = agent["User-Agent"].replace(requests_agent, httpx_agent)
+        self.user_agent_httpx = agent
+
+    def test_valid_user_agent_string(self) -> None:
+        # GIVEN a valid user agent:
+        user_agent = "my-cool-project/1.0.0"
+
+        # WHEN a Synapse object is created with the user agent:
+        syn = Synapse(
+            debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+        )
+
+        # THEN I expect the user agent to be set correctly
+        assert syn.user_agent == [user_agent]
+
+    def test_valid_user_agent_list(self) -> None:
+        # GIVEN a valid user agent:
+        user_agent = ["my-sub-project/1.0.0", "my-cool-project/1.0.0"]
+
+        # WHEN a Synapse object is created with the user agent:
+        syn = Synapse(
+            debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+        )
+
+        # THEN I expect the user agent to be set correctly
+        assert syn.user_agent == user_agent
+
+    def test_invalid_user_agent(self) -> None:
+        # GIVEN An agent that is not a string:
+        user_agent = 123
+        with pytest.raises(ValueError) as ex:
+            Synapse(
+                debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+            )
+
+        assert self.user_agent_invalid_type_message.format(agent=user_agent) in str(
+            ex.value
+        )
+
+        # GIVEN An agent that is a list, but not a list of strings:
+        user_agent = [123, 456]
+        with pytest.raises(ValueError) as ex:
+            Synapse(
+                debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+            )
+
+        assert self.user_agent_invalid_type_message.format(agent=123) in str(ex.value)
+
+        # GIVEN An agent that is a list, but not all are strings:
+        user_agent = ["my-project/1.0.0", 456]
+        with pytest.raises(ValueError) as ex:
+            Synapse(
+                debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+            )
+
+        assert self.user_agent_invalid_type_message.format(agent=456) in str(ex.value)
+
+        # GIVEN an agent without a version number:
+        user_agent = "my-project"
+        with pytest.raises(ValueError) as ex:
+            Synapse(
+                debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+            )
+
+        assert self.user_agent_invalid_message_format.format(agent=user_agent) in str(
+            ex.value
+        )
+
+        # GIVEN an agent with an invalid semantic version:
+        user_agent = "my-project/1.0"
+        with pytest.raises(ValueError) as ex:
+            Synapse(
+                debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+            )
+
+        assert self.user_agent_invalid_message_format.format(agent=user_agent) in str(
+            ex.value
+        )
+
+    def test_for_default_user_agent(self) -> None:
+        mock_response = Mock()
+        mock_response.status_code = 200
+
+        # GIVEN a mock http call and response
+        with patch.object(
+            self.syn._requests_session, "get", return_value=mock_response
+        ) as wrapped_rest_call:
+            # WHEN I make that call
+            self.syn.restGET("/some/uri")
+
+            # THEN I expect the User-Agent header to be set correctly
+            assert wrapped_rest_call.call_count == 1
+            assert (
+                wrapped_rest_call.call_args[1]["headers"]["User-Agent"]
+                == USER_AGENT["User-Agent"]
+            )
+
+    def test_for_modified_user_agent_single_string(self) -> None:
+        mock_response = Mock()
+        mock_response.status_code = 200
+
+        # GIVEN a valid user agent:
+        user_agent = "my-cool-project/1.0.0"
+        syn = Synapse(
+            debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+        )
+
+        # AND a mock http call and response
+        with patch.object(
+            syn._requests_session, "get", return_value=mock_response
+        ) as wrapped_rest_call:
+            # WHEN I make that call
+            syn.restGET("/some/uri")
+
+            # THEN I expect the User-Agent header to be set correctly
+            assert wrapped_rest_call.call_count == 1
+            assert (
+                wrapped_rest_call.call_args[1]["headers"]["User-Agent"]
+                == USER_AGENT["User-Agent"] + " " + user_agent
+            )
+
+    def test_for_modified_user_agent_multiple_strings(self) -> None:
+        mock_response = Mock()
+        mock_response.status_code = 200
+
+        # GIVEN a valid user agent:
+        user_agent = ["my-sub-project/1.0.0", "my-cool-project/1.0.0"]
+        syn = Synapse(
+            debug=False, skip_checks=True, cache_client=False, user_agent=user_agent
+        )
+
+        # AND a mock http call and response
+        with patch.object(
+            syn._requests_session, "get", return_value=mock_response
+        ) as wrapped_rest_call:
+            # WHEN I make that call
+            syn.restGET("/some/uri")
+
+            # THEN I expect the User-Agent header to be set correctly
+            assert wrapped_rest_call.call_count == 1
+            assert wrapped_rest_call.call_args[1]["headers"][
+                "User-Agent"
+            ] == USER_AGENT["User-Agent"] + " " + " ".join(user_agent)
+
+    async def test_for_httpx_default_user_agent(self) -> None:
+        mock_response = Mock()
+        mock_response.status_code = 200
+        async_httpx_session = httpx.AsyncClient()
+
+        # GIVEN a synapse class instance without a user_agent argument
+        syn = Synapse(
+            debug=False,
+            skip_checks=True,
+            cache_client=False,
+            requests_session_async_synapse=async_httpx_session,
+            asyncio_event_loop=asyncio.get_running_loop(),
+        )
+
+        # AND a mock http call and response
+        with patch.object(
+            async_httpx_session, "get", return_value=mock_response
+        ) as wrapped_rest_call:
+            # WHEN I make that call
+            await syn.rest_get_async("/some/uri")
+
+            # THEN I expect the User-Agent header to be set correctly
+            assert wrapped_rest_call.call_count == 1
+            assert (
+                wrapped_rest_call.call_args[1]["headers"]["User-Agent"]
+                == self.user_agent_httpx["User-Agent"]
+            )
+
+    async def test_for_httpx_modified_user_agent_single_string(self) -> None:
+        mock_response = Mock()
+        mock_response.status_code = 200
+        async_httpx_session = httpx.AsyncClient()
+
+        # GIVEN a valid user agent:
+        user_agent = "my-cool-project/1.0.0"
+        syn = Synapse(
+            debug=False,
+            skip_checks=True,
+            cache_client=False,
+            user_agent=user_agent,
+            requests_session_async_synapse=async_httpx_session,
+            asyncio_event_loop=asyncio.get_running_loop(),
+        )
+
+        # AND a mock http call and response
+        with patch.object(
+            async_httpx_session, "get", return_value=mock_response
+        ) as wrapped_rest_call:
+            # WHEN I make that call
+            await syn.rest_get_async("/some/uri")
+
+            # THEN I expect the User-Agent header to be set correctly
+            assert wrapped_rest_call.call_count == 1
+            assert (
+                wrapped_rest_call.call_args[1]["headers"]["User-Agent"]
+                == self.user_agent_httpx["User-Agent"] + " " + user_agent
+            )
+
+    async def test_for_httpx_modified_user_agent_multiple_strings(self) -> None:
+        mock_response = Mock()
+        mock_response.status_code = 200
+        async_httpx_session = httpx.AsyncClient()
+
+        # GIVEN a valid user agent:
+        user_agent = ["my-sub-project/1.0.0", "my-cool-project/1.0.0"]
+        syn = Synapse(
+            debug=False,
+            skip_checks=True,
+            cache_client=False,
+            user_agent=user_agent,
+            requests_session_async_synapse=async_httpx_session,
+            asyncio_event_loop=asyncio.get_running_loop(),
+        )
+
+        # AND a mock http call and response
+        with patch.object(
+            async_httpx_session, "get", return_value=mock_response
+        ) as wrapped_rest_call:
+            # WHEN I make that call
+            await syn.rest_get_async("/some/uri")
+
+            # THEN I expect the User-Agent header to be set correctly
+            assert wrapped_rest_call.call_count == 1
+            assert wrapped_rest_call.call_args[1]["headers"][
+                "User-Agent"
+            ] == self.user_agent_httpx["User-Agent"] + " " + " ".join(user_agent)
