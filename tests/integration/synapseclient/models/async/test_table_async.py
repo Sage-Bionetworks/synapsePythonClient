@@ -1292,7 +1292,7 @@ class TestUpsertRows:
         assert len(results) == 6
 
         # AND the spy should have been called in multiple batches for update and insert operations
-        assert spy_send_job.call_count == 6
+        assert spy_send_job.call_count == 5
 
     async def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
         # GIVEN a table in Synapse

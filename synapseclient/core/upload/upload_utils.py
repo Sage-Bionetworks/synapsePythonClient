@@ -10,13 +10,13 @@ DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 def get_partial_dataframe_chunk(
     df: DATA_FRAME_TYPE,
-    bytes_to_prepend: bytes,
     part_number: int,
     part_size: int,
     byte_offset: int,
     total_size_of_chunks_being_uploaded: int,
     line_start: int,
     line_end: int,
+    bytes_to_prepend: Optional[bytes] = None,
     to_csv_kwargs: Optional[Dict[str, Any]] = None,
 ) -> bytes:
     """Read the nth chunk from the file assuming that we are not going to be reading
@@ -24,7 +24,6 @@ def get_partial_dataframe_chunk(
     and upload it to Synapse.
 
     Arguments:
-        bytes_to_prepend: Bytes to prepend to the first chunk.
         part_number: The part number.
         part_size: The maximum size of the part to read for the upload process.
         byte_offset: The byte offset for the file that has already been read and
@@ -36,6 +35,14 @@ def get_partial_dataframe_chunk(
             uploaded. This is used to calculate the maximum number of bytes to read
             from the file, accounting for the last chunk that may be smaller than the
             chunk size.
+        line_start: The starting line number to read from the dataframe for the entire chunk.
+        line_end: The ending line number to read from the dataframe for the entire chunk.
+        bytes_to_prepend: Bytes to prepend to the first chunk.
+        to_csv_kwargs: Additional arguments to pass to the `to_csv` pandas method.
+
+    Returns:
+        bytes: The bytes that are read from the dataframe for the given `part_size`,
+            `byte_offset` and `part_number`.
     """
     header_bytes = None
     if bytes_to_prepend and part_number == 1:
@@ -126,6 +133,10 @@ def get_partial_file_chunk(
             uploaded. This is used to calculate the maximum number of bytes to read
             from the file, accounting for the last chunk that may be smaller than the
             chunk size.
+
+    Returns:
+        bytes: The bytes that are read from the file for the given `part_size`,
+            `byte_offset` and `part_number`.
     """
     header_bytes = None
     if bytes_to_prepend and part_number == 1:
@@ -157,6 +168,10 @@ def get_file_chunk(
         file_path: The path to the file.
         part_number: The part number.
         chunk_size: The size of the chunk.
+
+    Returns:
+        bytes: The bytes that are read from the file for the given `part_number` and
+            `chunk_size`.
     """
     with open(file_path, "rb") as f:
         f.seek((part_number - 1) * chunk_size)
@@ -170,6 +185,10 @@ def get_data_chunk(data: bytes, part_number: int, chunk_size: int) -> bytes:
         data: The data in bytes.
         part_number: The part number.
         chunk_size: The size of the chunk.
+
+    Returns:
+        bytes: The bytes that are read from the data for the given `part_number` and
+            `chunk_size`.
     """
     return data[((part_number - 1) * chunk_size) : part_number * chunk_size]
 
@@ -184,6 +203,9 @@ def get_part_size(
         file_size: The size of the file.
         minimum_part_size: The minimum part size.
         max_number_of_parts: The maximum number of parts.
+
+    Returns:
+        int: The part size (number of bytes) that should be read for the upload process.
     """
     # can't exceed the maximum allowed num parts
     part_size = max(

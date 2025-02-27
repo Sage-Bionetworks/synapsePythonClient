@@ -1829,9 +1829,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 ColumnType.LINK,
                 ColumnType.ENTITYID,
             ):
-                values_for_where_statement = [
-                    f"'{value}'" for value in df[upsert_column] if value is not None
-                ]
+                values_for_where_statement = set(
+                    [f"'{value}'" for value in df[upsert_column] if value is not None]
+                )
 
             elif column_model.column_type == ColumnType.BOOLEAN:
                 include_true = False
@@ -1852,9 +1852,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 elif include_false:
                     values_for_where_statement = ["'false'"]
             else:
-                values_for_where_statement = [
-                    str(value) for value in df[upsert_column] if value is not None
-                ]
+                values_for_where_statement = set(
+                    [str(value) for value in df[upsert_column] if value is not None]
+                )
             if not values_for_where_statement:
                 continue
             where_statements.append(
@@ -2953,7 +2953,25 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         to append the rows to the table.
 
         Arguments:
+            client: The Synapse client that is being used to interact with the API.
+            encoded_header: The header of the CSV file that is being uploaded.
+            size_of_chunk: The size of the chunk that we are uploading to Synapse.
+            path_to_csv: The path to the CSV file that is being uploaded to Synapse.
+            byte_chunk_offset: The byte offset that we are starting to read from the
+                csv file for the current chunk. This is used to skip any parts of the
+                csv file that we have already uploaded.
+            md5: The MD5 hash of the current chunk that is being uploaded.
+            csv_table_descriptor: The descriptor for the CSV file that is being uploaded.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+            progress_bar: The progress bar that is being used to show the progress of
+                the upload.
+            wait_for_update_semaphore: The semaphore that is being used to wait for the
+                update to complete before moving on to the next chunk.
+            file_suffix: The suffix that is being used to name the CSV file that is
+                being uploaded. Used in the progress bar message and the file name.
 
+        Returns:
+            None
         """
         file_handle_id = await multipart_upload_partial_file_async(
             syn=client,
@@ -3683,45 +3701,48 @@ def _convert_pandas_row_to_python_types(
         The list of items to be used as annotations. Or a single instance if that is
             all that is present.
     """
-    if column_type == ColumnType.STRING:
-        return cell
-    elif column_type == ColumnType.DOUBLE:
-        return cell.item()
-    elif column_type == ColumnType.INTEGER:
-        return cell.astype(int).item()
-    elif column_type == ColumnType.BOOLEAN:
-        return cell
-    elif column_type == ColumnType.DATE:
-        return cell.item()
-    elif column_type == ColumnType.FILEHANDLEID:
-        return cell.item()
-    elif column_type == ColumnType.ENTITYID:
-        return cell
-    elif column_type == ColumnType.SUBMISSIONID:
-        return cell.astype(int).item()
-    elif column_type == ColumnType.EVALUATIONID:
-        return cell.astype(int).item()
-    elif column_type == ColumnType.LINK:
-        return cell
-    elif column_type == ColumnType.MEDIUMTEXT:
-        return cell
-    elif column_type == ColumnType.LARGETEXT:
-        return cell
-    elif column_type == ColumnType.USERID:
-        return cell.astype(int).item()
-    elif column_type == ColumnType.STRING_LIST:
-        return cell
-    elif column_type == ColumnType.INTEGER_LIST:
-        return [x for x in cell]
-    elif column_type == ColumnType.BOOLEAN_LIST:
-        return cell
-    elif column_type == ColumnType.DATE_LIST:
-        return cell
-    elif column_type == ColumnType.ENTITYID_LIST:
-        return cell
-    elif column_type == ColumnType.USERID_LIST:
-        return cell
-    elif column_type == ColumnType.JSON:
-        return cell
-    else:
+    try:
+        if column_type == ColumnType.STRING:
+            return cell
+        elif column_type == ColumnType.DOUBLE:
+            return cell.item()
+        elif column_type == ColumnType.INTEGER:
+            return cell.astype(int).item()
+        elif column_type == ColumnType.BOOLEAN:
+            return cell.item()
+        elif column_type == ColumnType.DATE:
+            return cell.item()
+        elif column_type == ColumnType.FILEHANDLEID:
+            return cell.item()
+        elif column_type == ColumnType.ENTITYID:
+            return cell
+        elif column_type == ColumnType.SUBMISSIONID:
+            return cell.astype(int).item()
+        elif column_type == ColumnType.EVALUATIONID:
+            return cell.astype(int).item()
+        elif column_type == ColumnType.LINK:
+            return cell
+        elif column_type == ColumnType.MEDIUMTEXT:
+            return cell
+        elif column_type == ColumnType.LARGETEXT:
+            return cell
+        elif column_type == ColumnType.USERID:
+            return cell.astype(int).item()
+        elif column_type == ColumnType.STRING_LIST:
+            return cell
+        elif column_type == ColumnType.INTEGER_LIST:
+            return [x for x in cell]
+        elif column_type == ColumnType.BOOLEAN_LIST:
+            return cell
+        elif column_type == ColumnType.DATE_LIST:
+            return cell
+        elif column_type == ColumnType.ENTITYID_LIST:
+            return cell
+        elif column_type == ColumnType.USERID_LIST:
+            return cell
+        elif column_type == ColumnType.JSON:
+            return cell
+        else:
+            return cell
+    except Exception:
         return cell
