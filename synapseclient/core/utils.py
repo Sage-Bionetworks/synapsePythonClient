@@ -3,7 +3,6 @@ Utility functions useful in the implementation and testing of the Synapse client
 """
 
 import base64
-import cgi
 import collections.abc
 import datetime
 import errno
@@ -26,6 +25,7 @@ import uuid
 import warnings
 import zipfile
 from dataclasses import asdict, fields, is_dataclass
+from email.message import Message
 from typing import TYPE_CHECKING, List, TypeVar
 
 import requests
@@ -174,8 +174,9 @@ def extract_filename(content_disposition_header, default_filename=None):
 
     if not content_disposition_header:
         return default_filename
-    value, params = cgi.parse_header(content_disposition_header)
-    return params.get("filename", default_filename)
+    message = Message()
+    message.add_header("content-disposition", content_disposition_header)
+    return message.get_filename(failobj=default_filename)
 
 
 def extract_user_name(profile):

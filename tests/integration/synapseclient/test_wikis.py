@@ -10,7 +10,9 @@ from synapseclient.core.upload.upload_functions import upload_synapse_s3
 
 
 @pytest.mark.flaky(reruns=3)
-async def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup):
+async def test_wikiAttachment(
+    syn: Synapse, project: Project, schedule_for_cleanup
+) -> None:
     # Upload a file to be attached to a Wiki
     filename = utils.make_bogus_data_file()
     attachname = utils.make_bogus_data_file()
@@ -80,7 +82,7 @@ async def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_clean
     pytest.raises(SynapseHTTPError, syn.getWiki, project)
 
 
-async def test_create_or_update_wiki(syn, project):
+async def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
     # create wiki once
     syn.store(
         Wiki(
@@ -103,7 +105,7 @@ async def test_create_or_update_wiki(syn, project):
     assert new_title == syn.getWiki(wiki.ownerId)["title"]
 
 
-async def test_wiki_version(syn, project):
+async def test_wiki_version(syn: Synapse, project: Project) -> None:
     # create a new project to avoid artifacts from previous tests
     project = syn.store(Project(name=str(uuid.uuid4())))
     wiki = syn.store(
@@ -126,3 +128,23 @@ async def test_wiki_version(syn, project):
     w2 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=1)
     assert "version 2" in w2.title
     assert "version 2" in w2.markdown
+
+
+async def test_wiki_with_empty_string_parent_wiki_id(
+    syn: Synapse, project: Project
+) -> None:
+    # GIVEN a wiki is created with an empty string parentWikiId
+    # WHEN it is stored
+    wiki_stored = syn.store(
+        Wiki(
+            title="This is the title",
+            owner=project,
+            markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!",
+            parentWikiId="",
+        )
+    )
+    # THEN it exists in Synapse
+    wiki_retrieved = syn.getWiki(owner=wiki_stored.ownerId, subpageId=wiki_stored.id)
+    # AND when we retrieve it, all attributes are set as expected
+    for property_name in wiki_stored:
+        assert wiki_stored[property_name] == wiki_retrieved[property_name]

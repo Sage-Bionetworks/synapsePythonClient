@@ -6,7 +6,12 @@ from typing import TYPE_CHECKING, Optional, Protocol
 from synapseclient import Synapse
 
 if TYPE_CHECKING:
-    from synapseclient.models import Agent, AgentSession, AgentSessionAccessLevel
+    from synapseclient.models import (
+        Agent,
+        AgentPrompt,
+        AgentSession,
+        AgentSessionAccessLevel,
+    )
 
 
 class AgentSessionSynchronousProtocol(Protocol):
@@ -109,7 +114,7 @@ class AgentSessionSynchronousProtocol(Protocol):
         newer_than: Optional[int] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> None:
+    ) -> "AgentPrompt":
         """Sends a prompt to the agent and adds the response to the AgentSession's
         chat history. A session must be started before sending a prompt.
 
@@ -140,7 +145,7 @@ class AgentSessionSynchronousProtocol(Protocol):
                     print_response=True,
                 )
         """
-        return None
+        return AgentPrompt()
 
 
 class AgentSynchronousProtocol(Protocol):
@@ -313,7 +318,7 @@ class AgentSynchronousProtocol(Protocol):
         newer_than: Optional[int] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> None:
+    ) -> "AgentPrompt":
         """Sends a prompt to the agent for the current session.
             If no session is currently active, a new session will be started.
 
@@ -331,18 +336,18 @@ class AgentSynchronousProtocol(Protocol):
         Example: Prompt the baseline Synapse Agent.
             The baseline Synapse Agent is equivilent to the Agent available in the Synapse UI.
 
-            from synapseclient import Synapse
-            from synapseclient.models import Agent
+                from synapseclient import Synapse
+                from synapseclient.models import Agent
 
-            syn = Synapse()
-            syn.login()
+                syn = Synapse()
+                syn.login()
 
-            my_agent = Agent()
-            my_agent.prompt(
-                prompt="Can you tell me about the AD Knowledge Portal dataset?",
-                enable_trace=True,
-                print_response=True,
-            )
+                my_agent = Agent()
+                my_agent.prompt(
+                    prompt="Can you tell me about the AD Knowledge Portal dataset?",
+                    enable_trace=True,
+                    print_response=True,
+                )
 
         Example: Prompt a custom agent.
             If you have already registered a custom agent, you can prompt it by providing the agent's registration ID.
@@ -388,4 +393,4 @@ class AgentSynchronousProtocol(Protocol):
                     session=my_second_session,
                 )
         """
-        return None
+        return AgentPrompt()
