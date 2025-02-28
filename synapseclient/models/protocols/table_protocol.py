@@ -1,21 +1,11 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, List, Optional, Protocol, Union
+from typing import Any, Dict, Optional, Protocol
 
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.table import CsvFileTable as Synapse_CsvFileTable
-from synapseclient.table import TableQueryResult as Synaspe_TableQueryResult
-
-if TYPE_CHECKING:
-    from synapseclient.models.table import (
-        CsvResultFormat,
-        Row,
-        RowsetResultFormat,
-        Table,
-    )
 
 
 class ColumnSynchronousProtocol(Protocol):
@@ -40,95 +30,78 @@ class TableSynchronousProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def store_rows_from_csv(
-        self, csv_path: str, *, synapse_client: Optional[Synapse] = None
-    ) -> str:
-        """Takes in a path to a CSV and stores the rows to Synapse.
-
-        Arguments:
-            csv_path: The path to the CSV to store.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The path to the CSV that was stored.
-        """
-        return ""
-
-    def delete_rows(
-        self, rows: List["Row"], *, synapse_client: Optional[Synapse] = None
-    ) -> None:
-        """Delete rows from a table.
-
-        Arguments:
-            rows: The rows to delete.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            None
-        """
-        return None
-
-    def store_schema(self, *, synapse_client: Optional[Synapse] = None) -> "Table":
-        """Store non-row information about a table including the columns and annotations.
-
-        Arguments:
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The Table instance stored in synapse.
-        """
-        return self
-
-    def get(self, *, synapse_client: Optional[Synapse] = None) -> "Table":
-        """Get the metadata about the table from synapse.
-
-        Arguments:
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The Table instance stored in synapse.
-        """
-        return self
-
-    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
-        """Delete the table from synapse.
-
-        Arguments:
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            None
-        """
-        return None
-
-    @classmethod
-    def query(
-        cls,
-        query: str,
-        result_format: Union["CsvResultFormat", "RowsetResultFormat"] = None,
+    def snapshot(
+        self,
+        comment: str = None,
+        label: str = None,
+        include_activity: bool = True,
+        associate_activity_to_new_version: bool = True,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Union[Synapse_CsvFileTable, Synaspe_TableQueryResult, None]:
-        """Query for data on a table stored in Synapse.
+    ) -> Dict[str, Any]:
+        """
+        Request to create a new snapshot of a table. The provided comment, label, and
+        activity will be applied to the current version thereby creating a snapshot
+        and locking the current version. After the snapshot is created a new version
+        will be started with an 'in-progress' label.
 
         Arguments:
-            query: The query to run.
-            result_format: The format of the results. Defaults to CsvResultFormat().
+            comment: Comment to add to this snapshot to the table.
+            label: Label to add to this snapshot to the table. The label must be unique,
+                if a label is not provided a unique label will be generated.
+            include_activity: If True the activity will be included in snapshot if it
+                exists. In order to include the activity, the activity must have already
+                been stored in Synapse by using the `activity` attribute on the Table
+                and calling the `store()` method on the Table instance. Adding an
+                activity to a snapshot of a table is meant to capture the provenance of
+                the data at the time of the snapshot.
+            associate_activity_to_new_version: If True the activity will be associated
+                with the new version of the table. If False the activity will not be
+                associated with the new version of the table.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
+        Example: Creating a snapshot of a table
+            Comment and label are optional, but filled in for this example.
+
+                from synapseclient.models import Table
+                from synapseclient import Synapse
+
+                syn = Synapse()
+                syn.login()
+
+                my_table = Table(id="syn1234")
+                my_table.snapshot(
+                    comment="This is a new snapshot comment",
+                    label="This is a unique label"
+                )
+
+        Example: Including the activity (Provenance) in the snapshot and not pulling it forward to the new `in-progress` version of the table.
+            By default this method is set up to include the activity in the snapshot and
+            then pull the activity forward to the new version. If you do not want to
+            include the activity in the snapshot you can set `include_activity` to
+            False. If you do not want to pull the activity forward to the new version
+            you can set `associate_activity_to_new_version` to False.
+
+            See the [activity][synapseclient.models.Activity] attribute on the Table
+            class for more information on how to interact with the activity.
+
+                from synapseclient.models import Table
+                from synapseclient import Synapse
+
+                syn = Synapse()
+                syn.login()
+
+                my_table = Table(id="syn1234")
+                my_table.snapshot(
+                    comment="This is a new snapshot comment",
+                    label="This is a unique label",
+                    include_activity=True,
+                    associate_activity_to_new_version=False
+                )
+
         Returns:
-            The results of the query.
+            A dictionary that matches: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SnapshotResponse.html>
         """
-        return None
+        return {}

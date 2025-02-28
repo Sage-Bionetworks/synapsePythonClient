@@ -7,3 +7,7 @@ div.doc-contents {
 .md-typeset table tbody {
     font-size: .7rem
 }
+
+.md-grid {
+    max-width: 1700px;
+}

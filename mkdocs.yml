@@ -83,6 +83,7 @@ nav:
           - Activity: reference/experimental/sync/activity.md
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
+          - Functional Interfaces: reference/experimental/functional_interfaces.md
           - Asynchronous:
               - Agent: reference/experimental/async/agent.md
               - Project: reference/experimental/async/project.md
@@ -140,6 +141,8 @@ theme:
     - toc.follow
     - navigation.tabs
     - navigation.tabs.sticky
+    - navigation.instant
+    - navigation.instant.progress
 
 extra_css:
   - css/custom.css

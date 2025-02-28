@@ -319,8 +319,10 @@ class Activity(ActivitySynchronousProtocol):
                 ),
             )
         self.fill_from_dict(synapse_activity=saved_activity)
-        Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Stored activity {self.id}"
+        Synapse.get_client(synapse_client=synapse_client).logger.info(
+            f"[{parent.id}]: Stored activity"
+            if parent
+            else f"[{self.id}]: Stored activity"
         )
 
         return self

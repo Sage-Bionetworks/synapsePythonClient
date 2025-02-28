@@ -88,7 +88,7 @@ class Annotations(AnnotationsSynchronousProtocol):
         self.annotations = Annotations.from_dict(result)
         self.etag = result["etag"]
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Annotations stored for {self.id}"
+            f"[{self.id}]: Stored annotations"
         )
         return self
 

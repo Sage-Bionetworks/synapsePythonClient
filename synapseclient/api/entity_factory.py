@@ -20,7 +20,7 @@ from synapseclient.core.exceptions import (
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import Dataset, File, Folder, Project, Table
 
 
 async def get_from_entity_factory(
@@ -32,7 +32,7 @@ async def get_from_entity_factory(
     download_file: bool = True,
     download_location: str = None,
     follow_link: bool = False,
-    entity_to_update: Union["Project", "File", "Folder"] = None,
+    entity_to_update: Union["Project", "File", "Folder", "Table", "Dataset"] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union["Project", "File", "Folder"]:
@@ -292,7 +292,7 @@ async def _cast_into_class_type(
         synapse_annotations=entity_bundle.get("annotations", None)
     )
 
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import File, Folder, Project, Table
 
     if entity["concreteType"] == concrete_types.PROJECT_ENTITY:
         if not entity_to_update:
@@ -349,6 +349,20 @@ async def _cast_into_class_type(
                     + "!" * len(warning_message)
                     + "\n"
                 )
+    elif entity["concreteType"] == concrete_types.TABLE_ENTITY:
+        if not entity_to_update:
+            entity_to_update = Table()
+        entity = entity_to_update.fill_from_dict(
+            entity=entity_bundle["entity"], set_annotations=False
+        )
+    elif entity["concreteType"] == concrete_types.DATASET_ENTITY:
+        if not entity_to_update:
+            from synapseclient.models import Dataset
+
+            entity_to_update = Dataset()
+        entity = entity_to_update.fill_from_dict(
+            entity=entity_bundle["entity"], set_annotations=False
+        )
     else:
         raise ValueError(
             f"Attempting to retrieve an unsupported entity type of {entity['concreteType']}."

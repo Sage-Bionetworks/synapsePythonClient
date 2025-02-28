@@ -1206,7 +1206,10 @@ class Synapse(object):
         If self.silent is True, no need to print out transfer progress.
         """
         if self.silent is not True:
-            cumulative_transfer_progress.printTransferProgress(*args, **kwargs)
+            logger = kwargs.pop("logger", self.logger)
+            cumulative_transfer_progress.printTransferProgress(
+                *args, logger=logger, **kwargs
+            )
 
     ############################################################
     #                      Service methods                     #

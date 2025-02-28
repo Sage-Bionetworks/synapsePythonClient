@@ -5,12 +5,18 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Optional
 
+from typing_extensions import Self
+
 from synapseclient import Synapse
-from synapseclient.core.constants.concrete_types import AGENT_CHAT_REQUEST
+from synapseclient.core.constants.concrete_types import (
+    AGENT_CHAT_REQUEST,
+    TABLE_UPDATE_TRANSACTION_REQUEST,
+)
 from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
+    TABLE_UPDATE_TRANSACTION_REQUEST: "/entity/{entityId}/table/transaction/async",
 }
 
 
@@ -21,9 +27,7 @@ class AsynchronousCommunicator:
         """Converts the request to a request expected of the Synapse REST API."""
         raise NotImplementedError("to_synapse_request must be implemented.")
 
-    def fill_from_dict(
-        self, synapse_response: Dict[str, str]
-    ) -> "AsynchronousCommunicator":
+    def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
         """
         Converts a response from the REST API into this dataclass.
 
@@ -49,9 +53,10 @@ class AsynchronousCommunicator:
     async def send_job_and_wait_async(
         self,
         post_exchange_args: Optional[Dict[str, Any]] = None,
+        timeout: int = 60,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> "AsynchronousCommunicator":
+    ) -> "Self":
         """Send the job to the Asynchronous Job service and wait for it to complete.
         Intended to be called by a class inheriting from this mixin to start a job
         in the Synapse API and wait for it to complete. The inheriting class needs to
@@ -61,6 +66,8 @@ class AsynchronousCommunicator:
 
         Arguments:
             post_exchange_args: Additional arguments to pass to the request.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 60.
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
@@ -98,9 +105,12 @@ class AsynchronousCommunicator:
         result = await send_job_and_wait_async(
             request=self.to_synapse_request(),
             request_type=self.concrete_type,
+            timeout=timeout,
             synapse_client=synapse_client,
         )
         self.fill_from_dict(synapse_response=result)
+        if not post_exchange_args:
+            post_exchange_args = {}
         await self._post_exchange_async(
             **post_exchange_args, synapse_client=synapse_client
         )
@@ -257,6 +267,7 @@ async def send_job_and_wait_async(
     request: Dict[str, Any],
     request_type: str,
     endpoint: str = None,
+    timeout: int = 60,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
@@ -267,6 +278,8 @@ async def send_job_and_wait_async(
     Arguments:
         request: A request matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousRequestBody.html>.
         endpoint: The endpoint to use for the request. Defaults to None.
+        timeout: The number of seconds to wait for the job to complete or progress
+            before raising a SynapseTimeoutError. Defaults to 60.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -287,6 +300,8 @@ async def send_job_and_wait_async(
             request_type=request_type,
             synapse_client=synapse_client,
             endpoint=endpoint,
+            timeout=timeout,
+            request=request,
         ),
     }
 
@@ -320,8 +335,14 @@ async def send_job_async(
         raise ValueError(f"Unsupported request type: {request_type}")
 
     client = Synapse.get_client(synapse_client=synapse_client)
+    uri = ASYNC_JOB_URIS[request_type]
+    if "{entityId}" in uri:
+        if "entityId" not in request:
+            raise ValueError(f"Attempting to send job with missing id in uri: {uri}")
+        uri = uri.format(entityId=request["entityId"])
+
     response = await client.rest_post_async(
-        uri=f"{ASYNC_JOB_URIS[request_type]}/start", body=json.dumps(request)
+        uri=f"{uri}/start", body=json.dumps(request)
     )
     return response["token"]
 
@@ -332,6 +353,7 @@ async def get_job_async(
     endpoint: str = None,
     sleep: int = 1,
     timeout: int = 60,
+    request: Dict[str, Any] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
@@ -345,6 +367,8 @@ async def get_job_async(
         sleep: The number of seconds to wait between requests. Defaults to 1.
         timeout: The number of seconds to wait for the job to complete or progress
             before raising a SynapseTimeoutError. Defaults to 60.
+        request: The original request that was sent to the server that created the job.
+            Required if the request type is one that requires additional information.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -358,16 +382,23 @@ async def get_job_async(
         SynapseTimeoutError: If the job does not complete or progress within the timeout interval.
     """
     client = Synapse.get_client(synapse_client=synapse_client)
-    start_time = asyncio.get_event_loop().time()
+    start_time = time.time()
 
     last_message = ""
     last_progress = 0
     last_total = 1
     progressed = False
 
-    while asyncio.get_event_loop().time() - start_time < timeout:
+    while time.time() - start_time < timeout:
+        uri = ASYNC_JOB_URIS[request_type]
+        if "{entityId}" in uri:
+            if not request:
+                raise ValueError("Attempting to get job with missing request.")
+            if "entityId" not in request:
+                raise ValueError(f"Attempting to get job with missing id in uri: {uri}")
+            uri = uri.format(entityId=request["entityId"])
         result = await client.rest_get_async(
-            uri=f"{ASYNC_JOB_URIS[request_type]}/get/{job_id}",
+            uri=f"{uri}/get/{job_id}",
             endpoint=endpoint,
         )
         job_status = AsynchronousJobStatus().fill_from_dict(async_job_status=result)
@@ -394,7 +425,7 @@ async def get_job_async(
                     prefix=last_message,
                     isBytes=False,
                 )
-                start_time = asyncio.get_event_loop().time()
+                start_time = time.time()
             await asyncio.sleep(sleep)
         elif job_status.state == AsynchronousJobState.FAILED:
             raise SynapseError(
@@ -404,7 +435,7 @@ async def get_job_async(
             break
     else:
         raise SynapseTimeoutError(
-            f"Timeout waiting for query results: {time.time() - start_time} seconds"
+            f"Timeout waiting for results: {time.time() - start_time} seconds"
         )
 
     return result

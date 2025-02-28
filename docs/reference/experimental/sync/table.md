@@ -16,16 +16,45 @@ at your own risk.
 
 ## API Reference
 
+
 ::: synapseclient.models.Table
     options:
         inherited_members: true
         members:
         - get
-        - store_schema
-        - store_rows_from_csv
-        - delete_rows
-        - query
+        - store
         - delete
+        - query
+        - query_part_mask
+        - store_rows
+        - upsert_rows
+        - delete_rows
+        - snapshot
+        - delete_column
+        - add_column
+        - reorder_column
         - get_permissions
         - get_acl
         - set_permissions
+
+::: synapseclient.models.Column
+    options:
+        members:
+
+::: synapseclient.models.SchemaStorageStrategy
+::: synapseclient.models.ColumnExpansionStrategy
+
+::: synapseclient.models.FacetType
+::: synapseclient.models.ColumnType
+::: synapseclient.models.JsonSubColumn
+
+
+::: synapseclient.models.ColumnChange
+::: synapseclient.models.PartialRow
+::: synapseclient.models.PartialRowSet
+::: synapseclient.models.TableSchemaChangeRequest
+::: synapseclient.models.AppendableRowSetRequest
+::: synapseclient.models.UploadToTableRequest
+::: synapseclient.models.TableUpdateTransaction
+::: synapseclient.models.CsvTableDescriptor
+::: synapseclient.models.mixins.table_operator.csv_to_pandas_df
