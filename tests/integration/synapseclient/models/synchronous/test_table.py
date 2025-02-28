@@ -21,8 +21,8 @@ from synapseclient.models import (
     Project,
     SchemaStorageStrategy,
     Table,
-    query_async,
-    query_part_mask_async,
+    query,
+    query_part_mask,
 )
 
 
@@ -41,14 +41,14 @@ class TestTableCreation:
         )
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # THEN the table should be created
         assert table.id is not None
 
         # AND I can retrieve that table from Synapse
-        new_table_instance = await Table(id=table.id).get_async(synapse_client=self.syn)
+        new_table_instance = Table(id=table.id).get(synapse_client=self.syn)
         assert new_table_instance is not None
         assert new_table_instance.name == table_name
         assert new_table_instance.id == table.id
@@ -68,14 +68,14 @@ class TestTableCreation:
         )
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # THEN the table should be created
         assert table.id is not None
 
         # AND I can retrieve that table from Synapse
-        new_table_instance = await Table(id=table.id).get_async(
+        new_table_instance = Table(id=table.id).get(
             synapse_client=self.syn, include_columns=True
         )
         assert new_table_instance is not None
@@ -104,14 +104,14 @@ class TestTableCreation:
         )
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # THEN the table should be created
         assert table.id is not None
 
         # AND I can retrieve that table from Synapse
-        new_table_instance = await Table(id=table.id).get_async(
+        new_table_instance = Table(id=table.id).get(
             synapse_client=self.syn, include_columns=True
         )
         assert new_table_instance is not None
@@ -148,7 +148,7 @@ class TestTableCreation:
 
         # WHEN I store the table
         with pytest.raises(SynapseHTTPError) as e:
-            await table.store_async(synapse_client=self.syn)
+            table.store(synapse_client=self.syn)
 
         # THEN the table should not be created
         assert (
@@ -169,11 +169,11 @@ class TestTableCreation:
         }
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND I store rows to the table
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
@@ -183,7 +183,7 @@ class TestTableCreation:
         assert table.id is not None
 
         # AND I can retrieve that table from Synapse
-        new_table_instance = await Table(id=table.id).get_async(
+        new_table_instance = Table(id=table.id).get(
             synapse_client=self.syn, include_columns=True
         )
         assert new_table_instance is not None
@@ -195,9 +195,7 @@ class TestTableCreation:
         )
 
         # AND I can query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
@@ -219,11 +217,11 @@ class TestTableCreation:
         )
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND I store rows to the table
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
@@ -233,7 +231,7 @@ class TestTableCreation:
         assert table.id is not None
 
         # AND I can retrieve that table from Synapse
-        new_table_instance = await Table(id=table.id).get_async(
+        new_table_instance = Table(id=table.id).get(
             synapse_client=self.syn, include_columns=True
         )
         assert new_table_instance is not None
@@ -245,9 +243,7 @@ class TestTableCreation:
         )
 
         # AND I can query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
@@ -272,11 +268,11 @@ class TestTableCreation:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND I store rows to the table
-        await table.store_rows_async(
+        table.store_rows(
             values=filepath,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
@@ -286,7 +282,7 @@ class TestTableCreation:
         assert table.id is not None
 
         # AND I can retrieve that table from Synapse
-        new_table_instance = await Table(id=table.id).get_async(
+        new_table_instance = Table(id=table.id).get(
             synapse_client=self.syn, include_columns=True
         )
         assert new_table_instance is not None
@@ -298,9 +294,7 @@ class TestTableCreation:
         )
 
         # AND I can query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
@@ -337,11 +331,11 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND I store rows to the table with INFER_FROM_DATA schema storage strategy
-        await table.store_rows_async(
+        table.store_rows(
             values=filepath,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
@@ -354,9 +348,7 @@ class TestRowStorage:
         spy_csv_file_conversion.assert_called_once()
 
         # AND I can query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
@@ -387,11 +379,11 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # AND the table is stored in Synapse
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND Rows are stored into Synapse with the INFER_FROM_DATA schema storage strategy
-        await table.store_rows_async(
+        table.store_rows(
             values=filepath,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
@@ -399,9 +391,7 @@ class TestRowStorage:
         assert table.id is not None
 
         # AND a query of the data
-        query_results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        query_results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # WHEN I update the rows with new data
         query_results.loc[
@@ -412,14 +402,14 @@ class TestRowStorage:
         ] = "value33"
 
         # AND I store the rows back to Synapse
-        await Table(id=table.id).store_rows_async(
+        Table(id=table.id).store_rows(
             values=query_results,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
         )
 
         # THEN the data should be stored in Synapse, and match the updated data
-        updated_results_from_table = await query_async(
+        updated_results_from_table = query(
             f"SELECT * FROM {table.id}", synapse_client=self.syn
         )
         pd.testing.assert_series_equal(
@@ -442,12 +432,12 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # WHEN I store rows to the table with no schema storage strategy
         with pytest.raises(SynapseHTTPError) as e:
-            await table.store_rows_async(
+            table.store_rows(
                 values=filepath, schema_storage_strategy=None, synapse_client=self.syn
             )
 
@@ -488,11 +478,11 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the table
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND I store rows to the table with no schema storage strategy
-        await table.store_rows_async(
+        table.store_rows(
             values=filepath, schema_storage_strategy=None, synapse_client=self.syn
         )
 
@@ -503,9 +493,7 @@ class TestRowStorage:
         spy_csv_file_conversion.assert_not_called()
 
         # AND I can query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
@@ -533,7 +521,7 @@ class TestRowStorage:
         )
 
         # AND the table exists in Synapse
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
@@ -548,7 +536,7 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with a schema storage strategy
-        await table.store_rows_async(
+        table.store_rows(
             values=filepath,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
@@ -565,9 +553,7 @@ class TestRowStorage:
         )
 
         # AND I can query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
@@ -593,7 +579,7 @@ class TestRowStorage:
         )
 
         # AND the table exists in Synapse
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
@@ -612,7 +598,7 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with a schema storage strategy
-        await table.store_rows_async(
+        table.store_rows(
             values=filepath,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             column_expansion_strategy=ColumnExpansionStrategy.AUTO_EXPAND_CONTENT_LENGTH,
@@ -634,9 +620,7 @@ class TestRowStorage:
         )
 
         # AND I can query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
@@ -661,7 +645,7 @@ class TestRowStorage:
         )
 
         # AND the table exists in Synapse
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
@@ -674,7 +658,7 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store rows to the table with a schema storage strategy
-        await table.store_rows_async(
+        table.store_rows(
             values=filepath,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
@@ -695,9 +679,7 @@ class TestRowStorage:
         )
 
         # AND I can query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
@@ -719,7 +701,7 @@ class TestRowStorage:
         )
 
         # AND the table exists in Synapse
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column stored to CSV
@@ -732,7 +714,7 @@ class TestRowStorage:
 
         # WHEN I store rows to the table with no schema storage strategy
         with pytest.raises(SynapseHTTPError) as e:
-            await table.store_rows_async(
+            table.store_rows(
                 values=filepath, schema_storage_strategy=None, synapse_client=self.syn
             )
 
@@ -760,7 +742,7 @@ class TestRowStorage:
                 ),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
@@ -778,7 +760,7 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the rows to the table
-        await table.store_rows_async(
+        table.store_rows(
             values=filepath,
             schema_storage_strategy=None,
             synapse_client=self.syn,
@@ -786,7 +768,7 @@ class TestRowStorage:
         )
 
         # AND I query the table
-        results = await query_async(
+        results = query(
             f"SELECT * FROM {table.id} ORDER BY column_to_order_on ASC",
             synapse_client=self.syn,
         )
@@ -826,7 +808,7 @@ class TestRowStorage:
                 ),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
@@ -844,7 +826,7 @@ class TestRowStorage:
         data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the rows to the table
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table,
             schema_storage_strategy=None,
             synapse_client=self.syn,
@@ -852,7 +834,7 @@ class TestRowStorage:
         )
 
         # AND I query the table
-        results = await query_async(
+        results = query(
             f"SELECT * FROM {table.id} ORDER BY column_to_order_on ASC",
             synapse_client=self.syn,
         )
@@ -895,14 +877,14 @@ class TestUpsertRows:
                 Column(name="column_key_2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame(
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
 
@@ -912,16 +894,14 @@ class TestUpsertRows:
         )
 
         # WHEN I upsert rows to the table based on the first column
-        await table.upsert_rows_async(
+        table.upsert_rows(
             values=modified_data_for_table,
             primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -947,14 +927,14 @@ class TestUpsertRows:
                 Column(name="column_key_2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame(
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
@@ -979,16 +959,14 @@ class TestUpsertRows:
         modified_data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I upsert rows to the table based on the first column
-        await table.upsert_rows_async(
+        table.upsert_rows(
             values=filepath,
             primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -1017,14 +995,14 @@ class TestUpsertRows:
                 Column(name="column_key_2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame(
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
@@ -1043,16 +1021,14 @@ class TestUpsertRows:
         }
 
         # WHEN I upsert rows to the table based on the first column
-        await table.upsert_rows_async(
+        table.upsert_rows(
             values=modified_data_for_table,
             primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -1083,14 +1059,14 @@ class TestUpsertRows:
                 Column(name="column_key_2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame(
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
@@ -1111,7 +1087,7 @@ class TestUpsertRows:
         )
 
         # WHEN I upsert rows to the table based on the first column
-        await table.upsert_rows_async(
+        table.upsert_rows(
             values=modified_data_for_table,
             primary_keys=["column_string"],
             dry_run=True,
@@ -1119,9 +1095,7 @@ class TestUpsertRows:
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the table should not contain any modified data from the original state
         pd.testing.assert_series_equal(
@@ -1150,14 +1124,14 @@ class TestUpsertRows:
                 Column(name="column_key_2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame(
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
@@ -1178,16 +1152,14 @@ class TestUpsertRows:
         )
 
         # WHEN I upsert rows to the table based on the first column
-        await table.upsert_rows_async(
+        table.upsert_rows(
             values=modified_data_for_table,
             primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -1221,7 +1193,7 @@ class TestUpsertRows:
                 ),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
@@ -1233,7 +1205,7 @@ class TestUpsertRows:
                 "large_string": [large_string_a, large_string_a, large_string_a],
             }
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
         spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
@@ -1263,7 +1235,7 @@ class TestUpsertRows:
         )
 
         # WHEN I upsert rows to the table based on the first column
-        await table.upsert_rows_async(
+        table.upsert_rows(
             values=modified_data_for_table,
             primary_keys=["column_string"],
             synapse_client=self.syn,
@@ -1273,9 +1245,7 @@ class TestUpsertRows:
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -1306,7 +1276,7 @@ class TestUpsertRows:
                 Column(name="column_key_3", column_type=ColumnType.BOOLEAN),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
@@ -1317,7 +1287,7 @@ class TestUpsertRows:
                 "column_key_3": [True, True, True],
             }
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
 
@@ -1338,16 +1308,14 @@ class TestUpsertRows:
         )
 
         # WHEN I upsert rows to the table based on the first column
-        await table.upsert_rows_async(
+        table.upsert_rows(
             values=modified_data_for_table,
             primary_keys=["column_string", "column_key_2"],
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -1377,7 +1345,7 @@ class TestUpsertRows:
                 Column(name="column_key_3", column_type=ColumnType.BOOLEAN),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
@@ -1388,7 +1356,7 @@ class TestUpsertRows:
                 "column_key_3": [True, True, True],
             }
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
 
@@ -1409,16 +1377,14 @@ class TestUpsertRows:
         )
 
         # WHEN I upsert rows to the table based on the first column
-        await table.upsert_rows_async(
+        table.upsert_rows(
             values=data_that_will_not_match_to_any_rows,
             primary_keys=["column_string", "column_key_2"],
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -1488,13 +1454,13 @@ class TestUpsertRows:
                 Column(name="column_json", column_type=ColumnType.JSON),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND A bogus file
         path = utils.make_bogus_data_file()
         self.schedule_for_cleanup(path)
-        file = await File(parent_id=project_model.id, path=path).store_async(
+        file = File(parent_id=project_model.id, path=path).store(
             synapse_client=self.syn
         )
 
@@ -1615,7 +1581,7 @@ class TestUpsertRows:
                 }
             )
 
-            await table.store_rows_async(
+            table.store_rows(
                 values=data_for_table,
                 schema_storage_strategy=None,
                 synapse_client=self.syn,
@@ -1624,7 +1590,7 @@ class TestUpsertRows:
             # AND A second bogus file to update the first one
             path = utils.make_bogus_data_file()
             self.schedule_for_cleanup(path)
-            file = await File(parent_id=project_model.id, path=path).store_async(
+            file = File(parent_id=project_model.id, path=path).store(
                 synapse_client=self.syn
             )
 
@@ -1742,14 +1708,14 @@ class TestUpsertRows:
             )
 
             # WHEN I upsert rows to the table based on the first column
-            await table.upsert_rows_async(
+            table.upsert_rows(
                 values=modified_data_for_table,
                 primary_keys=["column_string"],
                 synapse_client=self.syn,
             )
 
             # AND I query the table
-            results = await query_async(
+            results = query(
                 f"SELECT * FROM {table.id}",
                 synapse_client=self.syn,
                 include_row_id_and_row_version=False,
@@ -1797,13 +1763,13 @@ class TestUpsertRows:
                 Column(name="column_json", column_type=ColumnType.JSON),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND A bogus file
         path = utils.make_bogus_data_file()
         self.schedule_for_cleanup(path)
-        file = await File(parent_id=project_model.id, path=path).store_async(
+        file = File(parent_id=project_model.id, path=path).store(
             synapse_client=self.syn
         )
 
@@ -1924,7 +1890,7 @@ class TestUpsertRows:
                 }
             )
 
-            await table.store_rows_async(
+            table.store_rows(
                 values=data_for_table,
                 schema_storage_strategy=None,
                 synapse_client=self.syn,
@@ -2057,14 +2023,14 @@ class TestUpsertRows:
                 "column_largetext",
                 "column_userid",
             ]
-            await table.upsert_rows_async(
+            table.upsert_rows(
                 values=modified_data_for_table,
                 primary_keys=primary_keys,
                 synapse_client=self.syn,
             )
 
             # AND I query the table
-            results = await query_async(
+            results = query(
                 f"SELECT * FROM {table.id}",
                 synapse_client=self.syn,
                 include_row_id_and_row_version=False,
@@ -2094,25 +2060,23 @@ class TestDeleteRows:
             parent_id=project_model.id,
             columns=[Column(name="column_string", column_type=ColumnType.STRING)],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
 
         # WHEN I delete a single row from the table
-        await table.delete_rows_async(
+        table.delete_rows(
             query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id} WHERE column_string = 'value2'",
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -2131,25 +2095,23 @@ class TestDeleteRows:
             parent_id=project_model.id,
             columns=[Column(name="column_string", column_type=ColumnType.STRING)],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
 
         # WHEN I delete a single row from the table
-        await table.delete_rows_async(
+        table.delete_rows(
             query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id} WHERE column_string IN ('value2','value3')",
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -2168,25 +2130,23 @@ class TestDeleteRows:
             parent_id=project_model.id,
             columns=[Column(name="column_string", column_type=ColumnType.STRING)],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
 
         # WHEN I delete a single row from the table
-        await table.delete_rows_async(
+        table.delete_rows(
             query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id} WHERE column_string = 'foo'",
             synapse_client=self.syn,
         )
 
         # AND I query the table
-        results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
@@ -2212,9 +2172,7 @@ class TestColumnModifications:
             parent_id=project_model.id,
             columns=[Column(name=old_column_name, column_type=ColumnType.STRING)],
         )
-        old_table_instance = await old_table_instance.store_async(
-            synapse_client=self.syn
-        )
+        old_table_instance = old_table_instance.store(synapse_client=self.syn)
         self.schedule_for_cleanup(old_table_instance.id)
 
         # WHEN I rename the column
@@ -2222,14 +2180,14 @@ class TestColumnModifications:
         old_table_instance.columns[old_column_name].name = new_column_name
 
         # AND I store the table
-        await old_table_instance.store_async(synapse_client=self.syn)
+        old_table_instance.store(synapse_client=self.syn)
 
         # THEN the column name should be updated on the existing table instance
         assert old_table_instance.columns[new_column_name] is not None
         assert old_column_name not in old_table_instance.columns
 
         # AND the new column name should be reflected in the Synapse table
-        new_table_instance = await Table(id=old_table_instance.id).get_async(
+        new_table_instance = Table(id=old_table_instance.id).get(
             synapse_client=self.syn
         )
         assert new_table_instance.columns[new_column_name] is not None
@@ -2248,16 +2206,14 @@ class TestColumnModifications:
                 Column(name=column_to_keep, column_type=ColumnType.STRING),
             ],
         )
-        old_table_instance = await old_table_instance.store_async(
-            synapse_client=self.syn
-        )
+        old_table_instance = old_table_instance.store(synapse_client=self.syn)
         self.schedule_for_cleanup(old_table_instance.id)
 
         # WHEN I delete the column
         old_table_instance.delete_column(name=old_column_name)
 
         # AND I store the table
-        await old_table_instance.store_async(synapse_client=self.syn)
+        old_table_instance.store(synapse_client=self.syn)
 
         # THEN the column should be removed from the table instance
         assert old_column_name not in old_table_instance.columns
@@ -2267,7 +2223,7 @@ class TestColumnModifications:
         assert len(old_table_instance.columns.values()) == 1
 
         # AND the column should be removed from the Synapse table
-        new_table_instance = await Table(id=old_table_instance.id).get_async(
+        new_table_instance = Table(id=old_table_instance.id).get(
             synapse_client=self.syn
         )
         assert old_column_name not in new_table_instance.columns
@@ -2295,7 +2251,7 @@ class TestQuerying:
                 Column(name="float_column", column_type=ColumnType.DOUBLE),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for the table stored in synapse
@@ -2306,7 +2262,7 @@ class TestQuerying:
                 "float_column": [1.1, 2.2, 3.3, None],
             }
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
 
@@ -2317,7 +2273,7 @@ class TestQuerying:
         LAST_UPDATED_ON = 0x80
         part_mask = QUERY_RESULTS | QUERY_COUNT | SUM_FILE_SIZE_BYTES | LAST_UPDATED_ON
 
-        results = await query_part_mask_async(
+        results = query_part_mask(
             query=f"SELECT * FROM {table.id}",
             synapse_client=self.syn,
             part_mask=part_mask,
@@ -2353,7 +2309,7 @@ class TestQuerying:
                 Column(name="float_column", column_type=ColumnType.DOUBLE),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND data for the table stored in synapse
@@ -2364,13 +2320,13 @@ class TestQuerying:
                 "float_column": [1.1, 2.2, 3.3, None],
             }
         )
-        await table.store_rows_async(
+        table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
 
         # WHEN I query the table with a part mask
         QUERY_RESULTS = 0x1
-        results = await query_part_mask_async(
+        results = query_part_mask(
             query=f"SELECT * FROM {table.id}",
             synapse_client=self.syn,
             part_mask=QUERY_RESULTS,
