@@ -2,7 +2,7 @@ Python Synapse Client
 =====================
 
 Branch  | Build Status
---------|-------------
+--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 develop | [![Build Status develop branch](https://github.com/Sage-Bionetworks/synapsePythonClient/workflows/build/badge.svg?branch=develop)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Adevelop)
 master  | [![Build Status master branch](https://github.com/Sage-Bionetworks/synapsePythonClient/workflows/build/badge.svg?branch=master)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Amaster)
 
@@ -36,7 +36,7 @@ or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python
 Installation
 ------------
 
-The Python Synapse client has been tested on versions 3.9, 3.10, 3.11 and 3.12 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on versions 3.9, 3.10, 3.11, 3.12 and 3.13 on Mac OS X, Ubuntu Linux and Windows.
 
 **Starting from Synapse Python client version 3.0, Synapse Python client requires Python >= 3.9**
 
