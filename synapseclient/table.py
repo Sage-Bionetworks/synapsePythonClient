@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 from builtins import zip
-from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
@@ -43,6 +43,9 @@ from synapseclient.core.utils import from_unix_epoch_time, id_of, itersubclasses
 
 from .entity import Entity, Folder, Project, entity_type_to_class
 from .evaluation import Evaluation
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
@@ -1958,7 +1961,15 @@ class TableQueryResult(TableAbstractBaseClass):
             print(row)
     """
 
-    def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
+    def __init__(
+        self,
+        synapse: "Synapse",
+        query,
+        limit=None,
+        offset=None,
+        isConsistent=True,
+        partMask=None,
+    ):
         self.syn = synapse
 
         self.query = query
@@ -1967,7 +1978,11 @@ class TableQueryResult(TableAbstractBaseClass):
         self.isConsistent = isConsistent
 
         result = self.syn._queryTable(
-            query=query, limit=limit, offset=offset, isConsistent=isConsistent
+            query=query,
+            limit=limit,
+            offset=offset,
+            isConsistent=isConsistent,
+            partMask=partMask,
         )
 
         self.rowset = RowSet.from_json(result["queryResult"]["queryResults"])
@@ -1977,6 +1992,8 @@ class TableQueryResult(TableAbstractBaseClass):
         self.count = result.get("queryCount", None)
         self.maxRowsPerPage = result.get("maxRowsPerPage", None)
         self.i = -1
+        self.sumFileSizes = result.get("sumFileSizes", None)
+        self.lastUpdatedOn = result.get("lastUpdatedOn", None)
 
         super(TableQueryResult, self).__init__(
             schema=self.rowset.get("tableId", None),

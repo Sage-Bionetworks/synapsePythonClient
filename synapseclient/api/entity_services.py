@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from async_lru import alru_cache
 
+from synapseclient.core.utils import get_synid_and_version
+
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
@@ -213,6 +215,80 @@ async def delete_entity_generated_by(
     return await client.rest_delete_async(
         uri=f"/entity/{entity_id}/generatedBy",
     )
+
+
+async def delete_entity(
+    entity_id: str,
+    version_number: int = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Deletes an entity from Synapse.
+
+    Arguments:
+        entity_id: The ID of the entity. This may include version `syn123.0` or `syn123`.
+            If the version is included in `entity_id` and `version_number` is also
+            passed in, then the version in `entity_id` will be used.
+        version_number: The version number of the entity to delete.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Example: Delete the entity `syn123`:
+        This will delete all versions of the entity.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import delete_entity
+
+        syn = Synapse()
+        syn.login()
+
+
+        async def main():
+            await delete_entity(entity_id="syn123")
+
+        asyncio.run(main())
+        ```
+
+    Example: Delete a specific version of the entity `syn123`:
+        This will delete version `3` of the entity.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import delete_entity
+
+        syn = Synapse()
+        syn.login()
+
+
+        async def main():
+            await delete_entity(entity_id="syn123", version_number=3)
+
+        asyncio.run(main())
+        ```
+
+    Returns: None
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    syn_id, syn_version = get_synid_and_version(entity_id)
+    if not syn_version:
+        syn_version = version_number
+
+    if syn_version:
+        return await client.rest_delete_async(
+            uri=f"/entity/{syn_id}/version/{syn_version}",
+        )
+    else:
+        return await client.rest_delete_async(
+            uri=f"/entity/{syn_id}",
+        )
 
 
 async def get_entity_path(

@@ -129,6 +129,7 @@ class TestAgentPrompt:
             mock_send_job_and_wait_async.assert_called_once_with(
                 request=mock_to_synapse_request.return_value,
                 request_type=self.agent_prompt.concrete_type,
+                timeout=60,
                 synapse_client=self.syn,
             )
             # THEN the mock_fill_from_dict should have been called with the correct arguments
