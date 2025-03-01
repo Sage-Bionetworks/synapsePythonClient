@@ -68,7 +68,7 @@ file = syn.get('syn56789', download=False)
 # Add provenance (passing in activity) and store the file without creating a new version
 file = syn.store(
     file,
-    activity = Activity(used = ['syn64943795']),
+    activity = Activity(used = 'some_valid_file_synapse_id'),
     forceVersion=False
 )
 ```
