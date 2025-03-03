@@ -414,6 +414,9 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
     def _append_entity_ref(self, entity_ref: EntityRef) -> None:
         """Helper function to add an EntityRef to the items list of the dataset.
         Will not add duplicates.
+
+        Arguments:
+            entity_ref: The EntityRef to add to the items list of the dataset.
         """
         if entity_ref not in self.items:
             self.items.append(entity_ref)
@@ -429,7 +432,7 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
         For Folders, children are added recursively. Effect is not seen
         until the dataset is stored.
 
-        Args:
+        Arguments:
             item: Entity to add to the dataset. Must be an EntityRef, File, or Folder.
             synapse_client: The Synapse client to use. Defaults to None.
 
@@ -471,7 +474,11 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
             )
 
     def _remove_entity_ref(self, entity_ref: EntityRef) -> None:
-        """Helper function to remove an EntityRef from the items list of the dataset."""
+        """Helper function to remove an EntityRef from the items list of the dataset.
+
+        Arguments:
+            entity_ref: The EntityRef to remove from the items list of the dataset.
+        """
         if entity_ref not in self.items:
             raise ValueError(f"Entity {entity_ref.id} not found in items list")
         self.items.remove(entity_ref)
