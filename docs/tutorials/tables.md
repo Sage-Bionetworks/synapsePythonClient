@@ -71,8 +71,8 @@ The `Table` function takes two arguments, a schema object and data in some form,
 With a bit of luck, we now have a table populated with data. Let's try to query:
 
 ```python
-results = syn.tableQuery("select * from %s where Chromosome='1' and Start < 41000 and End > 20000"
-                         % table.schema.id)
+results = syn.tableQuery(
+    f"SELECT * FROM {table.schema.id} WHERE Chromosome = '1' AND Start < 41000 AND \"End\" > 20000")
 for row in results:
     print(row)
 ```
