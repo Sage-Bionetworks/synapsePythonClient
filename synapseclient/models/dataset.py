@@ -3,11 +3,12 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
 from typing_extensions import Self
 
 from synapseclient import Synapse
+from synapseclient.api import get_default_view_columns
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
@@ -18,6 +19,9 @@ from synapseclient.models.mixins.table_operator import (
     TableOperator,
     TableRowOperator,
 )
+
+if TYPE_CHECKING:
+    from synapseclient.models import File, Folder
 
 
 @dataclass()
@@ -383,15 +387,19 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
             "versionLabel": self.version_label,
             "versionComment": self.version_comment,
             "isLatestVersion": self.is_latest_version,
-            "columnIds": [
-                column.id for column in self._last_persistent_instance.columns.values()
-            ]
-            if self._last_persistent_instance and self._last_persistent_instance.columns
-            else [],
+            "columnIds": (
+                [
+                    column.id
+                    for column in self._last_persistent_instance.columns.values()
+                ]
+                if self._last_persistent_instance
+                and self._last_persistent_instance.columns
+                else []
+            ),
             "isSearchEnabled": self.is_search_enabled,
-            "items": [item.to_synapse_request() for item in self.items]
-            if self.items
-            else [],
+            "items": (
+                [item.to_synapse_request() for item in self.items] if self.items else []
+            ),
             "size": self.size,
             "checksum": self.checksum,
             "count": self.count,
@@ -403,15 +411,134 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
         delete_none_keys(result)
         return result
 
-    # TODO: Implement this method
-    @staticmethod
-    async def snapshot_async(
+    def _append_entity_ref(self, entity_ref: EntityRef) -> None:
+        """Helper function to add an EntityRef to the items list of the dataset.
+        Will not add duplicates.
+        """
+        if entity_ref not in self.items:
+            self.items.append(entity_ref)
+
+    @async_to_sync
+    async def add_item_async(
         self,
-        comment: str = None,
-        label: str = None,
-        include_activity: bool = True,
-        associate_activity_to_new_version: bool = True,
+        item: Union[EntityRef, "File", "Folder"],
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict[str, Any]:
-        pass
+    ) -> None:
+        """Adds an item in the form of an EntityRef to the dataset.
+        For Folders, children are added recursively. Effect is not seen
+        until the dataset is stored.
+
+        Args:
+            item: Entity to add to the dataset. Must be an EntityRef, File, or Folder.
+            synapse_client: The Synapse client to use. Defaults to None.
+
+        Raises:
+            ValueError: If the item is not an EntityRef, File, or Folder
+        """
+        from synapseclient.models import File, Folder
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if isinstance(item, EntityRef):
+            self._append_entity_ref(entity_ref=item)
+        elif isinstance(item, File):
+            file = File(
+                id=item.id, version_number=item.version_number, download_file=False
+            ).get()
+            self._append_entity_ref(
+                entity_ref=EntityRef(id=file.id, version=file.version_label)
+            )
+        elif isinstance(item, Folder):
+            children = item._retrieve_children(follow_link=True)
+            for child in children:
+                if child["type"] == concrete_types.FILE_ENTITY:
+                    file = File(
+                        id=child["id"],
+                        version_number=child["versionNumber"],
+                        download_file=False,
+                    ).get()
+                    self._append_entity_ref(
+                        entity_ref=EntityRef(id=file.id, version=file.version_label)
+                    )
+                else:
+                    await self.add_item_async(
+                        item=Folder(id=child["id"]), synapse_client=client
+                    )
+        else:
+            raise ValueError(
+                f"item must be one of EntityRef, File, or Folder, not {type(item)}"
+            )
+
+    def _remove_entity_ref(self, entity_ref: EntityRef) -> None:
+        """Helper function to remove an EntityRef from the items list of the dataset."""
+        if entity_ref not in self.items:
+            raise ValueError(f"Entity {entity_ref.id} not found in items list")
+        self.items.remove(entity_ref)
+
+    @async_to_sync
+    async def remove_item_async(
+        self,
+        item: Union[EntityRef, "File", "Folder"],
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Dataset":
+        """
+        Removes an item from the dataset. For Folders, all
+        children of the folder are removed recursively.
+        Effect is not seen until the dataset is stored.
+
+        Arguments:
+            item: The Synapse ID or Entity to remove from the dataset
+            synapse_client: The Synapse client to use. Defaults to None.
+
+        Returns:
+            Dataset: The dataset with the item removed
+
+        Raises:
+            ValueError: If the item is not a valid type
+        """
+        from synapseclient.models import File, Folder
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if isinstance(item, EntityRef):
+            self._remove_entity_ref(item)
+        elif isinstance(item, File):
+            file = File(
+                id=item.id, version_number=item.version_number, download_file=False
+            ).get()
+            self._remove_entity_ref(EntityRef(id=file.id, version=file.version_label))
+        elif isinstance(item, Folder):
+            children = item._retrieve_children(follow_link=True)
+            for child in children:
+                if child["type"] == concrete_types.FILE_ENTITY:
+                    file = File(
+                        id=child["id"],
+                        version_number=child["versionNumber"],
+                        download_file=False,
+                    ).get()
+                    self._remove_entity_ref(
+                        EntityRef(id=file.id, version=file.version_label)
+                    )
+                else:
+                    await self.remove_item_async(
+                        item=Folder(id=child["id"]), synapse_client=client
+                    )
+        else:
+            raise ValueError(
+                f"item must be one of str, EntityRef, File, or Folder, not {type(item)}"
+            )
+
+    # # TODO: Implement this method
+    # @staticmethod
+    # async def snapshot_async(
+    #     self,
+    #     comment: str = None,
+    #     label: str = None,
+    #     include_activity: bool = True,
+    #     associate_activity_to_new_version: bool = True,
+    #     *,
+    #     synapse_client: Optional[Synapse] = None,
+    # ) -> Dict[str, Any]:
+    #     pass
