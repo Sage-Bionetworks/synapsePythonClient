@@ -22,6 +22,7 @@ from typing_extensions import Self
 from synapseclient import Column as Synapse_Column
 from synapseclient import Synapse
 from synapseclient.api import (
+    get_default_view_columns,
     delete_entity,
     get_columns,
     get_from_entity_factory,
@@ -302,6 +303,32 @@ class TableOperator(TableOperatorSynchronousProtocol):
                 ordered_column_ids=order_of_new_columns,
             )
         return None
+
+    async def _get_default_view_columns(
+        self,
+        view_type: str,
+        *,
+        view_type_mask: str = None,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """Get the default columns for a table or dataset.
+
+        Arguments:
+            view_type: The type of view to get the columns for.
+            view_type_mask: The mask to use for the view. Defaults to None.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        columns = await get_default_view_columns(
+            view_type=view_type,
+            view_type_mask=view_type_mask,
+            synapse_client=client,
+        )
+        for column in columns:
+            self.columns[column.name] = column
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Store: {self.name}"
@@ -1151,12 +1178,16 @@ class TableOperator(TableOperatorSynchronousProtocol):
         return QueryResultBundle(
             result=as_df,
             count=results.count,
-            sum_file_sizes=SumFileSizes(
-                sum_file_size_bytes=results.sumFileSizes.get("sumFileSizesBytes", None),
-                greater_than=results.sumFileSizes.get("greaterThan", None),
-            )
-            if results.sumFileSizes
-            else None,
+            sum_file_sizes=(
+                SumFileSizes(
+                    sum_file_size_bytes=results.sumFileSizes.get(
+                        "sumFileSizesBytes", None
+                    ),
+                    greater_than=results.sumFileSizes.get("greaterThan", None),
+                )
+                if results.sumFileSizes
+                else None
+            ),
             last_updated_on=results.lastUpdatedOn,
         )
 
@@ -1621,7 +1652,7 @@ class Column(ColumnSynchronousProtocol):
         self.maximum_size = synapse_column.get("maximumSize", None)
         self.maximum_list_length = synapse_column.get("maximumListLength", None)
         self.enum_values = synapse_column.get("enumValues", None)
-        # TODO: This needs to be converted to it's Dataclass. It also needs to be tested to verify conversion.
+        # TODO: This needs to be converted to its Dataclass. It also needs to be tested to verify conversion.
         self.json_sub_columns = synapse_column.get("jsonSubColumns", None)
         self._set_last_persistent_instance()
         return self
@@ -1654,11 +1685,14 @@ class Column(ColumnSynchronousProtocol):
             "maximumSize": self.maximum_size,
             "maximumListLength": self.maximum_list_length,
             "enumValues": self.enum_values,
-            "jsonSubColumns": [
-                sub_column.to_synapse_request() for sub_column in self.json_sub_columns
-            ]
-            if self.json_sub_columns
-            else None,
+            "jsonSubColumns": (
+                [
+                    sub_column.to_synapse_request()
+                    for sub_column in self.json_sub_columns
+                ]
+                if self.json_sub_columns
+                else None
+            ),
         }
         delete_none_keys(result)
         return result
@@ -1919,10 +1953,10 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     if (
                         isinstance(cell_value, list) and len(cell_value) > 0
                     ) or not isna(cell_value):
-                        partial_change_values[
-                            column_id
-                        ] = _convert_pandas_row_to_python_types(
-                            cell=cell_value, column_type=column_type
+                        partial_change_values[column_id] = (
+                            _convert_pandas_row_to_python_types(
+                                cell=cell_value, column_type=column_type
+                            )
                         )
                     else:
                         partial_change_values[column_id] = None

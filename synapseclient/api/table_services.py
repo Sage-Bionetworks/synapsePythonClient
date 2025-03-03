@@ -69,3 +69,34 @@ async def post_columns(
         column.fill_from_dict(result["list"][i])
 
     return columns
+
+
+async def get_default_view_columns(
+    view_type: str,
+    *,
+    view_type_mask: str = None,
+    synapse_client: Optional["Synapse"] = None,
+) -> List["Column"]:
+    """Get the default view columns for a given view type.
+
+    Arguments:
+        view_type: The type of view to get the default columns for.
+        view_type_mask: The mask of the view type to get the default columns for.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+    """
+    from synapseclient import Synapse
+    from synapseclient.models import Column
+
+    uri = f"/column/tableview/defaults?viewEntityType={view_type}"
+    if view_type_mask:
+        uri += f"&viewTypeMask={view_type_mask}"
+    columns_response = await Synapse.get_client(
+        synapse_client=synapse_client
+    ).rest_get_async(uri)
+
+    return [
+        Column().fill_from_dict(synapse_column=column)
+        for column in columns_response["list"]
+    ]
