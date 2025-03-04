@@ -22,7 +22,6 @@ from typing_extensions import Self
 from synapseclient import Column as Synapse_Column
 from synapseclient import Synapse
 from synapseclient.api import (
-    get_default_view_columns,
     delete_entity,
     get_columns,
     get_from_entity_factory,
@@ -215,7 +214,6 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     and column._last_persistent_instance.id
                 ):
                     column_name_to_id[column.name] = column._last_persistent_instance.id
-
                 if (
                     column._last_persistent_instance
                     and column._last_persistent_instance.id
@@ -233,6 +231,20 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     )
                 if not dry_run:
                     columns_to_persist.append(column)
+            # This conditional is to handle for cases where a Column object has not
+            # been modified (ie: It's a default Column in Synapse), but it hasn't been
+            # associated with this Table yet.
+            elif (
+                not self._last_persistent_instance
+                or not self._last_persistent_instance.columns
+                or column.name not in self._last_persistent_instance.columns
+            ):
+                client.logger.info(
+                    f"[{self.id}:{self.name}:Column_{column.name} (Add)]: {column}"
+                )
+                if not dry_run:
+                    columns_to_persist.append(column)
+                    column_changes.append(ColumnChange(new_column_id=column.id))
 
         if columns_to_persist:
             await post_columns(
@@ -303,32 +315,6 @@ class TableOperator(TableOperatorSynchronousProtocol):
                 ordered_column_ids=order_of_new_columns,
             )
         return None
-
-    async def _get_default_view_columns(
-        self,
-        view_type: str,
-        *,
-        view_type_mask: str = None,
-        synapse_client: Optional[Synapse] = None,
-    ) -> None:
-        """Get the default columns for a table or dataset.
-
-        Arguments:
-            view_type: The type of view to get the columns for.
-            view_type_mask: The mask to use for the view. Defaults to None.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-        """
-        client = Synapse.get_client(synapse_client=synapse_client)
-
-        columns = await get_default_view_columns(
-            view_type=view_type,
-            view_type_mask=view_type_mask,
-            synapse_client=client,
-        )
-        for column in columns:
-            self.columns[column.name] = column
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Store: {self.name}"

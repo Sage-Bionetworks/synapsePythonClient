@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.api import get_default_view_columns
+from synapseclient.api import get_default_columns, ViewTypeMask
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
@@ -528,6 +528,62 @@ class Dataset(AccessControllable, TableOperator, TableRowOperator):
             raise ValueError(
                 f"item must be one of str, EntityRef, File, or Folder, not {type(item)}"
             )
+
+    async def store_async(
+        self,
+        dry_run: bool = False,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Self":
+        """Store non-row information about a table including the columns and annotations.
+
+
+        Note the following behavior for the order of columns:
+
+        - If a column is added via the `add_column` method it will be added at the
+            index you specify, or at the end of the columns list.
+        - If column(s) are added during the contruction of your `Table` instance, ie.
+            `Table(columns=[Column(name="foo")])`, they will be added at the begining
+            of the columns list.
+        - If you use the `store_rows` method and the `schema_storage_strategy` is set to
+            `INFER_FROM_DATA` the columns will be added at the end of the columns list.
+
+
+        Arguments:
+            dry_run: If True, will not actually store the table but will log to
+                the console what would have been stored.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when updating the table schema. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Table instance stored in synapse.
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        default_columns = await get_default_columns(
+            view_type_mask=ViewTypeMask.VIEW, synapse_client=synapse_client
+        )
+        for default_column in default_columns:
+            if (
+                default_column.name in self.columns
+                and default_column != self.columns[default_column.name]
+            ):
+                client.logger.warning(
+                    f"Column '{default_column.name}' already exists in dataset. "
+                    "Overwriting with default column."
+                )
+            self.columns[default_column.name] = default_column
+        return await super().store_async(
+            dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client
+        )
 
     # # TODO: Implement this method
     # @staticmethod
