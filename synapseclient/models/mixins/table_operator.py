@@ -208,6 +208,8 @@ class TableOperator(TableOperatorSynchronousProtocol):
         # part of the `TableSchemaChangeRequest`
         columns_to_persist = []
         for column in self.columns.values():
+            # TODO: Something like this is needed in order to add columns that already exist in Synapse to the Table (ie: The default columns for the type of view this is)
+            column_changes.append(ColumnChange(new_column_id=column.id))
             if column.has_changed:
                 if (
                     column._last_persistent_instance

@@ -47,7 +47,7 @@ from .file_services import (
     put_file_multipart_add,
     put_file_multipart_complete,
 )
-from .table_services import get_columns, post_columns
+from .table_services import ViewTypeMask, get_columns, get_default_columns, post_columns
 
 __all__ = [
     # annotations
@@ -99,4 +99,6 @@ __all__ = [
     # columns
     "get_columns",
     "post_columns",
+    "get_default_columns",
+    "ViewTypeMask",
 ]

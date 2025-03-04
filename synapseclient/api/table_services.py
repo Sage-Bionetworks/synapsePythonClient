@@ -4,11 +4,25 @@ columns in the Synapse REST API.
 """
 
 import json
+from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
     from synapseclient.models import Column
+
+
+class ViewTypeMask(int, Enum):
+    FILE = 0x01
+    PROJECT = 0x02
+    TABLE = 0x04
+    FOLDER = 0x08
+    VIEW = 0x10
+    DOCKER = 0x20
+    SUBMISSION_VIEW = 0x40
+    DATASET = 0x80
+    DATASET_COLLECTION = 0x100
+    MATERIALIZED_VIEW = 0x200
 
 
 async def get_columns(
@@ -67,5 +81,44 @@ async def post_columns(
     # Fill the results back onto the original columns
     for i, column in enumerate(columns):
         column.fill_from_dict(result["list"][i])
+
+    return columns
+
+
+async def get_default_columns(
+    view_type_mask: Optional[ViewTypeMask] = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> List["Column"]:
+    """Get the default columns for a given view type. This will query the following API:
+    <https://rest-docs.synapse.org/rest/GET/column/tableview/defaults.html> in order to
+    retrieve this information.
+
+    Arguments:
+        view_type_mask: The type of view to get the default columns for. Not required
+            in some cases like a submission view.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns: The annotations set in Synapse.
+    """
+
+    from synapseclient import Synapse
+    from synapseclient.models import Column
+
+    if view_type_mask:
+        result = await Synapse.get_client(synapse_client=synapse_client).rest_get_async(
+            f"/column/tableview/defaults?viewTypeMask={view_type_mask.value}",
+        )
+    else:
+        result = await Synapse.get_client(synapse_client=synapse_client).rest_get_async(
+            "/column/tableview/defaults",
+        )
+
+    columns = []
+
+    for column in result.get("list", []):
+        columns.append(Column().fill_from_dict(synapse_column=column))
 
     return columns
