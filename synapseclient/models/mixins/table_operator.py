@@ -208,8 +208,6 @@ class TableOperator(TableOperatorSynchronousProtocol):
         # part of the `TableSchemaChangeRequest`
         columns_to_persist = []
         for column in self.columns.values():
-            # TODO: Something like this is needed in order to add columns that already exist in Synapse to the Table (ie: The default columns for the type of view this is)
-            column_changes.append(ColumnChange(new_column_id=column.id))
             if column.has_changed:
                 if (
                     column._last_persistent_instance
@@ -234,6 +232,20 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     )
                 if not dry_run:
                     columns_to_persist.append(column)
+            # This conditional is to handle for cases where a Column object has not
+            # been modified (ie: It's a default Column in Synapse), but it hasn't been
+            # associated with this Table yet.
+            elif (
+                not self._last_persistent_instance
+                or not self._last_persistent_instance.columns
+                or column.name not in self._last_persistent_instance.columns
+            ):
+                client.logger.info(
+                    f"[{self.id}:{self.name}:Column_{column.name} (Add)]: {column}"
+                )
+                if not dry_run:
+                    columns_to_persist.append(column)
+                    column_changes.append(ColumnChange(new_column_id=column.id))
 
         if columns_to_persist:
             await post_columns(
