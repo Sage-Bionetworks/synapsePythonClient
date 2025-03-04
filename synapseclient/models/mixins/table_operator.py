@@ -8,6 +8,7 @@ import logging
 import os
 import tempfile
 import uuid
+import re
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -24,6 +25,8 @@ from synapseclient import Synapse
 from synapseclient.api import (
     delete_entity,
     get_columns,
+    get_default_columns,
+    ViewTypeMask,
     get_from_entity_factory,
     post_columns,
     post_entity_bundle2_create,
@@ -47,6 +50,7 @@ from synapseclient.models.mixins import AsynchronousCommunicator
 from synapseclient.models.protocols.table_operator_protocol import (
     TableOperatorSynchronousProtocol,
     TableRowOperatorSynchronousProtocol,
+    ViewOperatorSynchronousProtocol,
 )
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 from synapseclient.models.services.search import get_id
@@ -3753,3 +3757,114 @@ def _convert_pandas_row_to_python_types(
             return cell
     except Exception:
         return cell
+
+
+@async_to_sync
+@dataclass
+class ViewOperator(TableOperator, TableRowOperator, ViewOperatorSynchronousProtocol):
+    """A class that extends the TableOperator and TableRowOperator classes to add
+    appropriately handle View-like Synapse entities.
+
+    In the Synapse API, a View is a sub-category of the Table model which includes other Table-like
+    entities including: SubmissionView, EntityView, and Dataset.
+    """
+
+    view_entity_type: Optional[str] = field(default=None, compare=False)
+    """
+    The type of view to create. This is used to determine the default columns that are
+    added to the table. Must be defined as a `ViewTypeMask` enum.
+    """
+
+    view_type_mask: Optional[ViewTypeMask] = field(default=None, compare=False)
+    """
+    The type of view to create. This is used to determine the default columns that are
+    added to the table. Must be defined as a `ViewTypeMask` enum.
+    """
+
+    include_default_columns: Optional[bool] = field(default=True, compare=False)
+    """
+    When creating a table or view, specifies if default columns should be included.
+    Default columns are columns that are automatically added to the table or view. These
+    columns are managed by Synapse and cannot be modified. If you attempt to create a
+    column with the same name as a default column, you will receive a warning when you
+    store the table.
+    
+    The column you are overriding will not behave the same as a default column. For
+    example, suppose you create a column called `id` on a FileView. When using a 
+    default column, the `id` stores the Synapse ID of each of the entities included in
+    the scope of the view. If you override the `id` column with a new column, the `id`
+    column will no longer store the Synapse ID of the entities in the view. Instead, it
+    will store the values you provide when you store the table. It will be stored as an
+    annotation on the entity for the row you are modifying.
+    """
+
+    async def store_async(
+        self,
+        dry_run: bool = False,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Self":
+        """Store non-row information about a View-like entity
+        including the columns and annotations.
+
+        View-like entities often have default columns that are managed by Synapse.
+        The default behavior of this function is to include these default columns in the
+        table when it is stored. This means that with the default behavior, any columns that
+        you have added to your View will be overwritten by the default columns if they have
+        the same name. To avoid this behavior, set the `include_default_columns` attribute
+        to `False`.
+
+        Note the following behavior for the order of columns:
+
+        - If a column is added via the `add_column` method it will be added at the
+            index you specify, or at the end of the columns list.
+        - If column(s) are added during the contruction of your `Table` instance, ie.
+            `Table(columns=[Column(name="foo")])`, they will be added at the begining
+            of the columns list.
+        - If you use the `store_rows` method and the `schema_storage_strategy` is set to
+            `INFER_FROM_DATA` the columns will be added at the end of the columns list.
+
+
+        Arguments:
+            dry_run: If True, will not actually store the table but will log to
+                the console what would have been stored.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when updating the table schema. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+
+        Returns:
+            The View instance stored in synapse.
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if self.include_default_columns:
+            default_columns = await get_default_columns(
+                view_entity_type=self.view_entity_type,
+                view_type_mask=self.view_type_mask,
+                synapse_client=synapse_client,
+            )
+            for default_column in default_columns:
+                if (
+                    default_column.name in self.columns
+                    and default_column != self.columns[default_column.name]
+                ):
+                    client.logger.warning(
+                        f"Column '{default_column.name}' already exists in dataset. "
+                        "Overwriting with default column."
+                    )
+                self.columns[default_column.name] = default_column
+        # check that column names match this regex "^[a-zA-Z0-9,_.]+"
+        for _, column in self.columns.items():
+            if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
+                raise ValueError(
+                    f"Column name '{column.name}' does not match the regex pattern '^[a-zA-Z0-9,_.]+$'"
+                )
+        return await super().store_async(
+            dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client
+        )

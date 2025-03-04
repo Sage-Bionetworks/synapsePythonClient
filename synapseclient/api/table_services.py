@@ -12,7 +12,25 @@ if TYPE_CHECKING:
     from synapseclient.models import Column
 
 
+class ViewEntityType(str, Enum):
+    """String enum representing the type of view. This is used to determine
+    the default columns that are added to the table.
+    As defined in the Synapse REST API:
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ViewEntityType.html>
+    """
+
+    ENTITY_VIEW = "entityview"
+    SUBMISSION_VIEW = "submissionview"
+    DATASET = "dataset"
+    DATASET_COLLECTION = "datasetcollection"
+
+
 class ViewTypeMask(int, Enum):
+    """Bit mask representing the types to include in the view.
+    As defined in the Synapse REST API:
+    <https://rest-docs.synapse.org/rest/GET/column/tableview/defaults.html>
+    """
+
     FILE = 0x01
     PROJECT = 0x02
     TABLE = 0x04
@@ -86,6 +104,7 @@ async def post_columns(
 
 
 async def get_default_columns(
+    view_entity_type: Optional[ViewEntityType] = None,
     view_type_mask: Optional[ViewTypeMask] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -95,6 +114,7 @@ async def get_default_columns(
     retrieve this information.
 
     Arguments:
+        view_type: The type of view to get the default columns for.
         view_type_mask: The type of view to get the default columns for. Not required
             in some cases like a submission view.
         synapse_client: If not passed in and caching was not disabled by
@@ -107,18 +127,18 @@ async def get_default_columns(
     from synapseclient import Synapse
     from synapseclient.models import Column
 
-    if view_type_mask:
-        result = await Synapse.get_client(synapse_client=synapse_client).rest_get_async(
-            f"/column/tableview/defaults?viewTypeMask={view_type_mask.value}",
-        )
-    else:
-        result = await Synapse.get_client(synapse_client=synapse_client).rest_get_async(
-            "/column/tableview/defaults",
-        )
+    uri = "/column/tableview/defaults"
 
-    columns = []
+    if view_entity_type and not view_type_mask:
+        uri += f"?viewEntityType={view_entity_type.value}"
+    if view_type_mask and not view_entity_type:
+        uri += f"?viewTypeMask={view_type_mask.value}"
+    if view_entity_type and view_type_mask:
+        uri += f"?viewEntityType={view_entity_type.value}&viewTypeMask={view_type_mask.value}"
 
-    for column in result.get("list", []):
-        columns.append(Column().fill_from_dict(synapse_column=column))
+    result = await Synapse.get_client(synapse_client=synapse_client).rest_get_async(uri)
 
-    return columns
+    return [
+        Column().fill_from_dict(synapse_column=column)
+        for column in result.get("list", [])
+    ]

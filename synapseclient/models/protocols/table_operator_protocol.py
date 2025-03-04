@@ -933,3 +933,58 @@ class TableRowOperatorSynchronousProtocol(Protocol):
         from pandas import DataFrame
 
         return DataFrame()
+
+
+class ViewOperatorSynchronousProtocol(Protocol):
+    """A class that extends the TableOperator and TableRowOperator classes to add
+    appropriately handle View-like Synapse entities.
+
+    In the Synapse API, a View is a sub-category of the Table model which includes other Table-like
+    entities including: SubmissionView, EntityView, and Dataset.
+    """
+
+    def store(
+        self,
+        dry_run: bool = False,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Self":
+        """Store non-row information about a View-like entity
+        including the columns and annotations.
+
+        View-like entities often have default columns that are managed by Synapse.
+        The default behavior of this function is to include these default columns in the
+        table when it is stored. This means that with the default behavior, any columns that
+        you have added to your View will be overwritten by the default columns if they have
+        the same name. To avoid this behavior, set the `include_default_columns` attribute
+        to `False`.
+
+        Note the following behavior for the order of columns:
+
+        - If a column is added via the `add_column` method it will be added at the
+            index you specify, or at the end of the columns list.
+        - If column(s) are added during the contruction of your `Table` instance, ie.
+            `Table(columns=[Column(name="foo")])`, they will be added at the begining
+            of the columns list.
+        - If you use the `store_rows` method and the `schema_storage_strategy` is set to
+            `INFER_FROM_DATA` the columns will be added at the end of the columns list.
+
+
+        Arguments:
+            dry_run: If True, will not actually store the table but will log to
+                the console what would have been stored.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when updating the table schema. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The View instance stored in synapse.
+        """
+        return Self
