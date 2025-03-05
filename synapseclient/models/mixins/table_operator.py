@@ -2423,11 +2423,13 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 quoted_etags = [f"'{etag}'" for etag in original_etags_to_track]
                 wait_select_statement = f"select etag from {self.id} where etag IN ({','.join(quoted_etags)})"
                 results = await self.query_async(
-                    query=wait_select_statement, synapse_client=synapse_client
+                    query=wait_select_statement,
+                    synapse_client=synapse_client,
+                    include_row_id_and_row_version=False,
                 )
                 for row in results.itertuples(index=False):
-                    if row.ROW_ETAG in original_etags_to_track:
-                        original_etags_to_track.remove(row.ROW_ETAG)
+                    if row.etag in original_etags_to_track:
+                        original_etags_to_track.remove(row.etag)
                         progress_bar.update(1)
                 progress_bar.refresh()
                 if not original_etags_to_track:
