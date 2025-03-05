@@ -6,9 +6,10 @@ import hashlib
 import json
 import logging
 import os
-import tempfile
-import uuid
 import re
+import tempfile
+import time
+import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -23,10 +24,10 @@ from typing_extensions import Self
 from synapseclient import Column as Synapse_Column
 from synapseclient import Synapse
 from synapseclient.api import (
+    ViewTypeMask,
     delete_entity,
     get_columns,
     get_default_columns,
-    ViewTypeMask,
     get_from_entity_factory,
     post_columns,
     post_entity_bundle2_create,
@@ -34,6 +35,7 @@ from synapseclient.api import (
 )
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants import concrete_types
+from synapseclient.core.exceptions import SynapseTimeoutError
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_dataframe_async,
     multipart_upload_file_async,
@@ -59,7 +61,7 @@ from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
 )
 
-CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset"]
+CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "FileView"]
 
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
@@ -1882,7 +1884,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         chunk_to_check_for_upsert: DATA_FRAME_TYPE,
         primary_keys: List[str],
         contains_etag: bool,
-    ) -> Tuple[List[PartialRow], List[int], List[int]]:
+    ) -> Tuple[List[PartialRow], List[int], List[int], List[str]]:
         """
         Handles the construction of the PartialRow objects that will be used to update
         rows in Synapse. This method is used in the upsert method to determine which
@@ -1898,8 +1900,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         Returns:
             A tuple containing a list of PartialRow objects that will be used to update
             rows in Synapse, a list of the indexs of the rows in the original
-            DataFrame that have changes, and a list of the indexs of the rows in the
-            original DataFrame that do not have changes.
+            DataFrame that have changes, a list of the indexs of the rows in the
+            original DataFrame that do not have changes, and a list of the etags for
+            the rows that have changes.
         """
 
         from pandas import isna
@@ -1907,6 +1910,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         rows_to_update: List[PartialRow] = []
         indexs_of_original_df_with_changes = []
         indexs_of_original_df_without_changes = []
+        etags = []
         for row in results.itertuples(index=False):
             row_etag = None
 
@@ -1939,14 +1943,14 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 column_id = self.columns[column].id
                 column_type = self.columns[column].column_type
                 cell_value = matching_row[column].values[0]
-                if cell_value != getattr(row, column):
+                if not hasattr(row, column) or cell_value != getattr(row, column):
                     if (
                         isinstance(cell_value, list) and len(cell_value) > 0
                     ) or not isna(cell_value):
-                        partial_change_values[column_id] = (
-                            _convert_pandas_row_to_python_types(
-                                cell=cell_value, column_type=column_type
-                            )
+                        partial_change_values[
+                            column_id
+                        ] = _convert_pandas_row_to_python_types(
+                            cell=cell_value, column_type=column_type
                         )
                     else:
                         partial_change_values[column_id] = None
@@ -1965,12 +1969,15 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 )
                 rows_to_update.append(partial_change)
                 indexs_of_original_df_with_changes.append(matching_row.index[0])
+                if row_etag:
+                    etags.append(row_etag)
             else:
                 indexs_of_original_df_without_changes.append(matching_row.index[0])
         return (
             rows_to_update,
             indexs_of_original_df_with_changes,
             indexs_of_original_df_without_changes,
+            etags,
         )
 
     async def _push_row_updates_to_synapse(
@@ -2033,6 +2040,8 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
+        wait_for_eventually_consistent_view: bool = False,
+        wait_for_eventually_consistent_view_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -2276,6 +2285,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
 
         all_columns_from_df = [f'"{column}"' for column in values.columns]
         contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
+        original_etags_to_track = []
         indexes_of_original_df_with_changes = []
         indexes_of_original_df_with_no_changes = []
         total_row_count_updated = 0
@@ -2302,6 +2312,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     rows_to_update,
                     indexes_with_updates,
                     indexes_without_updates,
+                    etags_to_track,
                 ) = self._construct_partial_rows_for_upsert(
                     results=results,
                     chunk_to_check_for_upsert=individual_chunk,
@@ -2311,6 +2322,12 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 total_row_count_updated += len(rows_to_update)
                 indexes_of_original_df_with_changes.extend(indexes_with_updates)
                 indexes_of_original_df_with_no_changes.extend(indexes_without_updates)
+                if (
+                    etags_to_track
+                    and contains_etag
+                    and wait_for_eventually_consistent_view
+                ):
+                    original_etags_to_track.extend(etags_to_track)
 
                 if not dry_run and rows_to_update:
                     await self._push_row_updates_to_synapse(
@@ -2341,6 +2358,13 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             f" rows to update and {len(rows_to_insert_df)} rows to insert"
         )
 
+        if wait_for_eventually_consistent_view and original_etags_to_track:
+            await self._wait_for_eventually_consistent_changes(
+                original_etags_to_track=original_etags_to_track,
+                wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
+                synapse_client=synapse_client,
+            )
+
         if not dry_run and not rows_to_insert_df.empty:
             await self.store_rows_async(
                 values=rows_to_insert_df,
@@ -2348,6 +2372,64 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 insert_size_bytes=insert_size_bytes,
                 synapse_client=synapse_client,
             )
+
+    async def _wait_for_eventually_consistent_changes(
+        self,
+        original_etags_to_track: List[str],
+        wait_for_eventually_consistent_view_timeout: int,
+        synapse_client: Synapse,
+    ) -> None:
+        """
+        Given that a change has been made to a view, this method will wait for the
+        changes to be reflected in the view. This is done by querying the view for the
+        etags that were changed. If the etags are found in the view then we know that
+        the view has not yet been updated with the changes that were made. This method
+        will wait for the changes to be reflected in the view.
+
+        Arguments:
+            original_etags_to_track: A list of the etags that were changed.
+            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
+                wait for the changes to be reflected in the view.
+            synapse_client: The Synapse client to use to query the view.
+
+        Raises:
+            SynapseTimeoutError: If the changes are not reflected in the view within
+                the timeout period.
+
+        Returns:
+            None
+        """
+        with logging_redirect_tqdm(loggers=[synapse_client.logger]):
+            number_of_changes_to_wait_for = len(original_etags_to_track)
+            progress_bar = tqdm(
+                total=number_of_changes_to_wait_for,
+                desc="Waiting for eventually-consistent changes to show up in the view",
+                unit_scale=True,
+                smoothing=0,
+            )
+            start_time = time.time()
+
+            while (
+                time.time() - start_time < wait_for_eventually_consistent_view_timeout
+            ):
+                quoted_etags = [f"'{etag}'" for etag in original_etags_to_track]
+                wait_select_statement = f"select etag from {self.id} where etag IN ({','.join(quoted_etags)})"
+                results = await self.query_async(
+                    query=wait_select_statement, synapse_client=synapse_client
+                )
+                for row in results.itertuples(index=False):
+                    if row.ROW_ETAG in original_etags_to_track:
+                        original_etags_to_track.remove(row.ROW_ETAG)
+                        progress_bar.update(1)
+                progress_bar.refresh()
+                if not original_etags_to_track:
+                    progress_bar.close()
+                    break
+                await asyncio.sleep(1)
+            else:
+                raise SynapseTimeoutError(
+                    f"Timeout waiting for eventually consistent view: {time.time() - start_time} seconds"
+                )
 
     def _infer_columns_from_data(
         self,
@@ -3788,9 +3870,9 @@ class ViewOperator(TableOperator, TableRowOperator, ViewOperatorSynchronousProto
     columns are managed by Synapse and cannot be modified. If you attempt to create a
     column with the same name as a default column, you will receive a warning when you
     store the table.
-    
+
     The column you are overriding will not behave the same as a default column. For
-    example, suppose you create a column called `id` on a FileView. When using a 
+    example, suppose you create a column called `id` on a FileView. When using a
     default column, the `id` stores the Synapse ID of each of the entities included in
     the scope of the view. If you override the `id` column with a new column, the `id`
     column will no longer store the Synapse ID of the entities in the view. Instead, it
