@@ -1900,7 +1900,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         Returns:
             A tuple containing a list of PartialRow objects that will be used to update
             rows in Synapse, a list of the indexs of the rows in the original
-            DataFrame that have changes, a list of the indexs of the rows in the
+            DataFrame that have changes, a list of the indexes of the rows in the
             original DataFrame that do not have changes, and a list of the etags for
             the rows that have changes.
         """
@@ -2162,7 +2162,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 The default is 600 seconds
 
             wait_for_eventually_consistent_view: Only used if the table is a view. If
-                set to True this will wait for the view to be reflect any changes that
+                set to True this will wait for the view to reflect any changes that
                 you've made to the view. This is useful if you need to query the view
                 after making changes to the data.
 
