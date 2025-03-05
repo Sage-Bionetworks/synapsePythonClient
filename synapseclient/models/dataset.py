@@ -447,11 +447,12 @@ class Dataset(AccessControllable, ViewOperator):
         if isinstance(item, EntityRef):
             self._append_entity_ref(entity_ref=item)
         elif isinstance(item, File):
-            file = File(
-                id=item.id, version_number=item.version_number, download_file=False
-            ).get()
+            if not item.version_number:
+                item = File(
+                    id=item.id, version_number=item.version_number, download_file=False
+                ).get()
             self._append_entity_ref(
-                entity_ref=EntityRef(id=file.id, version=file.version_number)
+                entity_ref=EntityRef(id=item.id, version=item.version_number)
             )
         elif isinstance(item, Folder):
             children = item._retrieve_children(follow_link=True)
@@ -468,7 +469,7 @@ class Dataset(AccessControllable, ViewOperator):
                     )
         else:
             raise ValueError(
-                f"item must be one of EntityRef, File, or Folder, not {type(item)}"
+                f"item must be one of EntityRef, File, or Folder. {item} is a {type(item)}"
             )
 
     def _remove_entity_ref(self, entity_ref: EntityRef) -> None:
@@ -510,21 +511,17 @@ class Dataset(AccessControllable, ViewOperator):
         if isinstance(item, EntityRef):
             self._remove_entity_ref(item)
         elif isinstance(item, File):
-            file = File(
-                id=item.id, version_number=item.version_number, download_file=False
-            ).get()
-            self._remove_entity_ref(EntityRef(id=file.id, version=file.version_label))
+            if not item.version_number:
+                item = File(
+                    id=item.id, version_number=item.version_number, download_file=False
+                ).get()
+            self._remove_entity_ref(EntityRef(id=item.id, version=item.version_number))
         elif isinstance(item, Folder):
             children = item._retrieve_children(follow_link=True)
             for child in children:
                 if child["type"] == concrete_types.FILE_ENTITY:
-                    file = File(
-                        id=child["id"],
-                        version_number=child["versionNumber"],
-                        download_file=False,
-                    ).get()
                     self._remove_entity_ref(
-                        EntityRef(id=file.id, version=file.version_label)
+                        EntityRef(id=child["id"], version=child["versionNumber"])
                     )
                 else:
                     await self.remove_item_async(
@@ -532,7 +529,7 @@ class Dataset(AccessControllable, ViewOperator):
                     )
         else:
             raise ValueError(
-                f"item must be one of str, EntityRef, File, or Folder, not {type(item)}"
+                f"item must be one of str, EntityRef, File, or Folder, {item} is a {type(item)}"
             )
 
     # # TODO: Implement this method
