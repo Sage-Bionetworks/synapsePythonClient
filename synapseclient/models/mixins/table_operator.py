@@ -2161,6 +2161,14 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
+            wait_for_eventually_consistent_view: Only used if the table is a view. If
+                set to True this will wait for the view to be reflect any changes that
+                you've made to the view. This is useful if you need to query the view
+                after making changes to the data.
+
+            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
+                wait for a view to be eventually consistent. The default is 600 seconds.
+
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
