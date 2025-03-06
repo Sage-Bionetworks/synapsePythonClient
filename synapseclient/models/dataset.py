@@ -14,10 +14,16 @@ from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
-from synapseclient.models.mixins.table_operator import (
-    Column,
-    ViewOperator,
+from synapseclient.models.mixins.table_components import (
+    ViewAttributesMixin,
+    ViewStoreMixin,
+    ColumnMixin,
+    GetMixin,
+    QueryMixin,
+    UpsertMixin,
 )
+
+from synapseclient.models.mixins.table_operator import Column
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder
@@ -53,7 +59,15 @@ class EntityRef:
 
 @dataclass()
 @async_to_sync
-class Dataset(AccessControllable, ViewOperator):
+class Dataset(
+    AccessControllable,
+    ViewAttributesMixin,
+    ViewStoreMixin,
+    ColumnMixin,
+    GetMixin,
+    QueryMixin,
+    UpsertMixin,
+):
     """A Dataset represents the metadata of a dataset.
 
     Attributes:

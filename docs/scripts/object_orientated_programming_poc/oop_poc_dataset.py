@@ -26,58 +26,56 @@ FOLDER = Folder(
 
 async def main():
     # # Create a new dataset
-    # my_initialized_dataset = Dataset(parent_id=PROJECT, name="my-new-dataset")
-    # # Add items to the dataset
-    # # Add EntityRef directly
-    # await my_initialized_dataset.add_item_async(ENTITY_REF)
-    # # Add File
-    # await my_initialized_dataset.add_item_async(FILE)
-    # # Add Folder (all children are added)
-    # await my_initialized_dataset.add_item_async(FOLDER)
-    # # Store the dataset
-    # my_initialized_dataset.store()
-    # # Retrieve the dataset
-    # my_retrieved_dataset = Dataset(id=my_initialized_dataset.id).get()
+    my_initialized_dataset = Dataset(parent_id=PROJECT, name="my-new-dataset")
+    # Add items to the dataset
+    # Add EntityRef directly
+    await my_initialized_dataset.add_item_async(ENTITY_REF)
+    # Add File
+    await my_initialized_dataset.add_item_async(FILE)
+    # Add Folder (all children are added)
+    await my_initialized_dataset.add_item_async(FOLDER)
+    # Store the dataset
+    await my_initialized_dataset.store_async()
+    # Retrieve the dataset
+    my_retrieved_dataset = await Dataset(id=my_initialized_dataset.id).get_async()
 
-    # # Query Data
-    # row = my_retrieved_dataset.query(
-    #     query=f"SELECT * FROM {my_retrieved_dataset.id} WHERE id = '{FILE.id}'"
-    # )
-    # print(row)
+    # Query Data
+    row = await my_retrieved_dataset.query_async(
+        query=f"SELECT * FROM {my_retrieved_dataset.id} WHERE id = '{FILE.id}'"
+    )
+    print(row)
 
-    # # Add a custom column
-    # my_retrieved_dataset.add_column(
-    #     column=Column(
-    #         name="my_annotation",
-    #         column_type=ColumnType.STRING,
-    #     )
-    # )
-    # my_retrieved_dataset.store()
+    # Add a custom column
+    my_retrieved_dataset.add_column(
+        column=Column(
+            name="my_annotation",
+            column_type=ColumnType.STRING,
+        )
+    )
+    await my_retrieved_dataset.store_async()
 
-    # # update the custom annotation column - only works for custom columns
-    # dataset_df = my_retrieved_dataset.query(
+    # Upsert data - only works for updating, not inserting
+    modified_data = pd.DataFrame(
+        {
+            "id": ["syn51790028"],
+            "my_annotation": ["also good data"],
+        }
+    )
+    await my_retrieved_dataset.upsert_rows_async(
+        values=modified_data, primary_keys=["id"], dry_run=False
+    )
+
+    # update the custom annotation column - only works for custom columns
+    # dataset_df = await my_retrieved_dataset.query_async(
     #     query=f"SELECT * FROM {my_retrieved_dataset.id}"
     # )
     # dataset_df["my_annotation"] = "good data"
-    # my_retrieved_dataset.store_rows(values=dataset_df)
+    # await my_retrieved_dataset.store_rows_async(values=dataset_df)
 
     # Delete Data - this is not working
     # my_retrieved_dataset.delete_rows(
     #     query=f"SELECT * FROM {my_retrieved_dataset.id} WHERE id = '{FILE.id}'"
     # )
-    # my_retrieved_dataset.store()
-
-    # Upsert data - only works for updating, not inserting
-    my_retrieved_dataset = Dataset(id="syn64956609").get()
-    modified_data = pd.DataFrame(
-        {
-            "dataFileMD5Hex": ["not_a_md5"],
-            "my_annotation": ["also good data"],
-        }
-    )
-    my_retrieved_dataset.upsert_rows(
-        values=modified_data, primary_keys=["dataFileMD5Hex"], dry_run=False
-    )
     # my_retrieved_dataset.store()
 
 
