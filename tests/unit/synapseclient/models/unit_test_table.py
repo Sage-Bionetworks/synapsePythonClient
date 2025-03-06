@@ -1,4 +1,5 @@
-"""Tests for the Folder class."""
+"""Tests for the Table class."""
+
 import uuid
 from typing import Dict
 from unittest.mock import AsyncMock, patch
