@@ -15,7 +15,7 @@ from synapseclient.core.utils import delete_none_keys
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
-    ViewAttributesMixin,
+    ViewBase,
     ViewStoreMixin,
     ColumnMixin,
     GetMixin,
@@ -61,7 +61,7 @@ class EntityRef:
 @async_to_sync
 class Dataset(
     AccessControllable,
-    ViewAttributesMixin,
+    ViewBase,
     ViewStoreMixin,
     ColumnMixin,
     GetMixin,

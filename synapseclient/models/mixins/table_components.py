@@ -61,7 +61,7 @@ from synapseclient.models.mixins.table_operator import (
 )
 
 
-class TableAttributesMixin:
+class TableBase:
     """Mixin that extends the functionality of any `table` like entities in Synapse
     to perform a number of operations on the entity such as getting, deleting, or
     updating columns, querying for data, and more."""
@@ -92,7 +92,7 @@ class TableAttributesMixin:
         """Used to satisfy the usage in this mixin from the parent class."""
 
 
-class ViewAttributesMixin(TableAttributesMixin):
+class ViewBase(TableBase):
     """A class that extends the TableOperator and TableRowOperator classes to add
     appropriately handle View-like Synapse entities.
 
