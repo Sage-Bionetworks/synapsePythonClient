@@ -27,6 +27,12 @@ on:
     types:
       - 'published'
 
+# Cancel any previous runs of this workflow that are still in progress.
+# This is to avoid running the same tests multiple times concurrently.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
   pre-commit:
@@ -41,12 +47,6 @@ jobs:
 
   # run unit (and integration tests if account secrets available) on our build matrix
   test:
-    # Cancel any previous runs of this workflow that are still in progress.
-    # This is to avoid running the same tests multiple times concurrently.
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.os }}-py-${{ matrix.python }}
-      cancel-in-progress: true
-
     needs: [pre-commit]
 
     strategy:
