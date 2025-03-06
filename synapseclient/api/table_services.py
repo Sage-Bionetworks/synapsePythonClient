@@ -105,13 +105,38 @@ async def post_columns(
 
 async def get_default_columns(
     view_entity_type: Optional[ViewEntityType] = None,
-    view_type_mask: Optional[ViewTypeMask] = None,
+    view_type_mask: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> List["Column"]:
     """Get the default columns for a given view type. This will query the following API:
     <https://rest-docs.synapse.org/rest/GET/column/tableview/defaults.html> in order to
     retrieve this information.
+
+    If providing a view_type_mask, you can use the ViewTypeMask enum to get the
+    appropriate value for the entity type you are interested in. ViewTypeMask values are
+    hexadecimal values, so you can use the `|` operator to combine them.
+
+    Example:
+        To get the default columns for a Dataset, you can use:
+
+        ```python
+        view_type_mask = ViewTypeMask.DATASET.value
+        columns = await get_default_columns(
+            view_entity_type=ViewEntityType.DATASET,
+            view_type_mask=view_type_mask,
+        )
+        ```
+
+        To get the default columns for a File or a Folder, you can use:
+
+        ```python
+        view_type_mask = ViewTypeMask.FILE.value | ViewTypeMask.FOLDER.value
+        columns = await get_default_columns(
+            view_entity_type=ViewEntityType.DATASET,
+            view_type_mask=view_type_mask,
+        )
+        ```
 
     Arguments:
         view_type: The type of view to get the default columns for.
@@ -132,9 +157,9 @@ async def get_default_columns(
     if view_entity_type and not view_type_mask:
         uri += f"?viewEntityType={view_entity_type.value}"
     if view_type_mask and not view_entity_type:
-        uri += f"?viewTypeMask={view_type_mask.value}"
+        uri += f"?viewTypeMask={view_type_mask}"
     if view_entity_type and view_type_mask:
-        uri += f"?viewEntityType={view_entity_type.value}&viewTypeMask={view_type_mask.value}"
+        uri += f"?viewEntityType={view_entity_type.value}&viewTypeMask={view_type_mask}"
 
     result = await Synapse.get_client(synapse_client=synapse_client).rest_get_async(uri)
 

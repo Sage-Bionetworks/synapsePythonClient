@@ -465,7 +465,7 @@ class ViewStoreMixin(TableStoreMixin):
         if self.include_default_columns:
             default_columns = await get_default_columns(
                 view_entity_type=self.view_entity_type,
-                view_type_mask=self.view_type_mask,
+                view_type_mask=self.view_type_mask.value,
                 synapse_client=synapse_client,
             )
             for default_column in default_columns:
@@ -1131,8 +1131,6 @@ class UpsertMixin:
                     row, col
                 )
             matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
-            print(matching_row)
-            breakpoint()
 
             # Determines which cells need to be updated
             for column in chunk_to_check_for_upsert.columns:
@@ -1142,13 +1140,11 @@ class UpsertMixin:
                     )
                 elif column not in self.columns:
                     continue
-                breakpoint()
                 if len(matching_row[column].values) == 0:
                     continue
                 column_id = self.columns[column].id
                 column_type = self.columns[column].column_type
                 cell_value = matching_row[column].values[0]
-                breakpoint()
                 if not hasattr(row, column) or cell_value != getattr(row, column):
                     if (
                         isinstance(cell_value, list) and len(cell_value) > 0
@@ -1160,8 +1156,6 @@ class UpsertMixin:
                         )
                     else:
                         partial_change_values[column_id] = None
-            print(partial_change_values)
-            breakpoint()
 
             if partial_change_values:
                 partial_change = PartialRow(

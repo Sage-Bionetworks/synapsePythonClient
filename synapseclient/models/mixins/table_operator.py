@@ -1947,10 +1947,10 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     if (
                         isinstance(cell_value, list) and len(cell_value) > 0
                     ) or not isna(cell_value):
-                        partial_change_values[
-                            column_id
-                        ] = _convert_pandas_row_to_python_types(
-                            cell=cell_value, column_type=column_type
+                        partial_change_values[column_id] = (
+                            _convert_pandas_row_to_python_types(
+                                cell=cell_value, column_type=column_type
+                            )
                         )
                     else:
                         partial_change_values[column_id] = None
@@ -3938,7 +3938,7 @@ class ViewOperator(TableOperator, TableRowOperator, ViewOperatorSynchronousProto
         if self.include_default_columns:
             default_columns = await get_default_columns(
                 view_entity_type=self.view_entity_type,
-                view_type_mask=self.view_type_mask,
+                view_type_mask=self.view_type_mask.value,
                 synapse_client=synapse_client,
             )
             for default_column in default_columns:
