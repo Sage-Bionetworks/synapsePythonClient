@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 
 import pandas as pd
 
@@ -26,7 +27,7 @@ FOLDER = Folder(
 
 async def main():
     # # Create a new dataset
-    my_initialized_dataset = Dataset(parent_id=PROJECT, name="my-new-dataset")
+    my_initialized_dataset = Dataset(parent_id=PROJECT, name="my-new-new-dataset")
     # Add items to the dataset
     # Add EntityRef directly
     await my_initialized_dataset.add_item_async(ENTITY_REF)
@@ -36,6 +37,7 @@ async def main():
     await my_initialized_dataset.add_item_async(FOLDER)
     # Store the dataset
     await my_initialized_dataset.store_async()
+
     # Retrieve the dataset
     my_retrieved_dataset = await Dataset(id=my_initialized_dataset.id).get_async()
 
@@ -58,12 +60,14 @@ async def main():
     modified_data = pd.DataFrame(
         {
             "id": ["syn51790028"],
-            "my_annotation": ["also good data"],
+            "my_annotation": [str(uuid.uuid4())],
         }
     )
     await my_retrieved_dataset.upsert_rows_async(
         values=modified_data, primary_keys=["id"], dry_run=False
     )
+
+    await my_retrieved_dataset.delete_async()
 
     # update the custom annotation column - only works for custom columns
     # dataset_df = await my_retrieved_dataset.query_async(
@@ -81,42 +85,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-# # Getting a dataset
-# my_dataset = Dataset(id=REFERENCE_DATASET).get()
-
-# # Store with no changes
-# my_dataset.store()
-
-
-# # Upserting data
-# modified_data = pd.DataFrame(
-#     {
-#         "dataFileMD5Hex": ["ff034dc4449631db217e639d48a45ab1"],
-#     }
-# )
-
-# my_dataset.upsert_rows(
-#     values=modified_data, primary_keys=["dataFileMD5Hex"], dry_run=False
-# )
-# my_dataset.store()
-# breakpoint()
-# # Deleting data out of the dataset
-# my_dataset.delete_rows(
-#     query=f"SELECT * FROM {REFERENCE_DATASET} WHERE etag = '5d637c89-4577-467a-bb8e-1203dee78f48'"
-# )
-# breakpoint()
-# # Querying for data
-# query_for_row = my_dataset.query(
-#     query=f"SELECT * FROM {REFERENCE_DATASET} WHERE dataFileMD5Hex = 'ff034dc4449631db217e639d48a45ab1'"
-# )
-# print(query_for_row)
-
-# # Modifying data
-# query_for_row.loc[
-#     query_for_row["dataFileMD5Hex"] == "ff034dc4449631db217e639d48a45ab1",
-#     "manually_defined_column",
-# ] = "ccc"
-# print(query_for_row)
-# my_dataset.store_rows(values=query_for_row)
