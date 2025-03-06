@@ -5171,8 +5171,8 @@ class Synapse(object):
                 + result.get("errorDetails", None),
                 asynchronousJobStatus=result,
             )
-
-        progress_bar.update(progress_bar.total - progress_bar.n)
+        if progress_bar.total and progress_bar.n:
+            progress_bar.update(progress_bar.total - progress_bar.n)
         progress_bar.refresh()
         progress_bar.close()
         return result
