@@ -29,6 +29,7 @@ import warnings
 import webbrowser
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from http.client import HTTPResponse
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -210,6 +211,8 @@ mimetypes.add_type("text/x-markdown", ".md", strict=False)
 mimetypes.add_type("text/x-markdown", ".markdown", strict=False)
 
 DEFAULT_STORAGE_LOCATION_ID = 1
+# Verifies the pattern matches something like "my-project-identifier/1.0.0"
+USER_AGENT_REGEX_PATTERN = r"^[a-zA-Z0-9-]+\/[0-9]+\.[0-9]+\.[0-9]+$"
 
 
 def login(*args, **kwargs):
@@ -252,17 +255,61 @@ class Synapse(object):
                                when making http requests.
         cache_root_dir:        Root directory for storing cache data
         silent:                Defaults to False.
+        requests_session_async_synapse: A custom
+            [httpx.AsyncClient](https://www.python-httpx.org/async/) that this synapse
+            instance will use when making HTTP requests. `requests_session` is being
+            deprecated in favor of this.
+        requests_session_storage: A custom
+            [httpx.Client](https://www.python-httpx.org/advanced/clients/) that this synapse
+            instance will use when making HTTP requests to storage providers like AWS S3
+            and Google Cloud Storage.
+        asyncio_event_loop: The event loop that is going to be used while executing
+            this code. This is optional and only used when you are manually specifying
+            an async HTTPX client. This is important to pass when you are using the
+            `requests_session_async_synapse` kwarg because the connection pooling is
+            tied to the event loop.
+        cache_client: Whether to cache the Synapse client object in the Synapse module.
+            Defaults to True. When set to True anywhere a `Synapse` object is optional
+            you do not need to pass an instance of `Synapse` to that function, method,
+            or class. When working in a multi-user environment it is recommended to set
+            this to False, or use `Synapse.allow_client_caching(False)`.
+        user_agent: Additional values to add to the `User-Agent` header on HTTP
+            requests. This should be in the format of `"my-project-identifier/1.0.0"`.
+            This may be a single string or a list of strings to add onto the
+            header. If the format is incorrect a `ValueError` exception will be
+            raised. These will be appended to the default `User-Agent` header that
+            already includes the version of this client that you are using, and the
+            HTTP library used to make the request.
 
     Example: Getting started
         Logging in to Synapse using an authToken
 
+            ```python
             import synapseclient
             syn = synapseclient.login(authToken="authtoken")
+            ```
 
         Using environment variable or `.synapseConfig`
 
+            ```python
             import synapseclient
             syn = synapseclient.login()
+            ```
+
+    Example: Adding an additional `user_agent` value
+        This example shows how to add an additional `user_agent` to the HTTP headers
+        on the request. This is useful for tracking the requests that are being made
+        from your application.
+
+        ```python
+        from synapseclient import Synapse
+
+        my_agent = "my-project-identifier/1.0.0"
+        # You may also provide a list of strings to add to the User-Agent header.
+        # my_agent = ["my-sub-library/1.0.0", "my-parent-project/2.0.0"]
+
+        syn = Synapse(user_agent=my_agent)
+        ```
 
     """
 
@@ -287,6 +334,7 @@ class Synapse(object):
         requests_session_storage: httpx.Client = None,
         asyncio_event_loop: asyncio.AbstractEventLoop = None,
         cache_client: bool = True,
+        user_agent: Union[str, List[str]] = None,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -316,6 +364,15 @@ class Synapse(object):
                              When working in a multi-user environment it is
                              recommended to set this to False, or use
                              `Synapse.allow_client_caching(False)`.
+            user_agent: Additional values to add to the `User-Agent` header on HTTP
+                requests. This should be in the format of
+                `"my-project-identifier/1.0.0"`. Only
+                [Semantic Versioning](https://semver.org/) is expected.
+                This may be a single string or a list of strings to add onto the
+                header. If the format is incorrect a `ValueError` exception will be
+                raised. These will be appended to the default `User-Agent` header that
+                already includes the version of this client that you are using, and the
+                HTTP library used to make the request.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
@@ -372,6 +429,12 @@ class Synapse(object):
         }
         self.credentials = None
 
+        self._validate_user_agent_format(user_agent)
+        if isinstance(user_agent, str):
+            self.user_agent = [user_agent]
+        else:
+            self.user_agent = user_agent
+
         self.silent = silent
         self._init_logger()  # initializes self.logger
 
@@ -392,6 +455,24 @@ class Synapse(object):
         self._parts_transfered_counter = 0
         if cache_client and Synapse._allow_client_caching:
             Synapse.set_client(synapse_client=self)
+
+    def _validate_user_agent_format(self, agent: Union[str, List[str]]) -> None:
+        if not agent:
+            return
+
+        if not isinstance(agent, str) and not isinstance(agent, list):
+            raise ValueError(
+                f"user_agent must be a string or a list of strings to add to the User-Agent header. Current value: {agent}"
+            )
+
+        if isinstance(agent, str):
+            if not re.match(USER_AGENT_REGEX_PATTERN, agent):
+                raise ValueError(
+                    f"user_agent must be in the format of 'my-project-identifier/1.0.0'. Current value: {agent}"
+                )
+        else:
+            for value in agent:
+                self._validate_user_agent_format(agent=value)
 
     def _get_requests_session_async_synapse(
         self, asyncio_event_loop: asyncio.AbstractEventLoop
@@ -6010,14 +6091,32 @@ class Synapse(object):
     #                   Low level Rest calls                   #
     ############################################################
 
-    def _generate_headers(self, headers: Dict[str, str] = None) -> Dict[str, str]:
+    def _generate_headers(
+        self, headers: Dict[str, str] = None, is_httpx: bool = False
+    ) -> Dict[str, str]:
         """
         Generate headers (auth headers produced separately by credentials object)
 
         """
         if headers is None:
             headers = dict(self.default_headers)
-        headers.update(synapseclient.USER_AGENT)
+
+        # Replace the `requests` package's default user-agent with the httpx user agent
+        if is_httpx:
+            httpx_agent = f"{httpx.__title__}/{httpx.__version__}"
+            requests_agent = requests.utils.default_user_agent()
+            agent = deepcopy(synapseclient.USER_AGENT)
+            agent["User-Agent"] = agent["User-Agent"].replace(
+                requests_agent, httpx_agent
+            )
+            headers.update(agent)
+        else:
+            headers.update(synapseclient.USER_AGENT)
+
+        if self.user_agent:
+            headers["User-Agent"] = (
+                headers["User-Agent"] + " " + " ".join(self.user_agent)
+            )
 
         return headers
 
@@ -6245,7 +6344,11 @@ class Synapse(object):
         )
 
     def _build_uri_and_headers(
-        self, uri: str, endpoint: str = None, headers: Dict[str, str] = None
+        self,
+        uri: str,
+        endpoint: str = None,
+        headers: Dict[str, str] = None,
+        is_httpx: bool = False,
     ) -> Tuple[str, Dict[str, str]]:
         """Returns a tuple of the URI and headers to request with."""
 
@@ -6261,7 +6364,7 @@ class Synapse(object):
             uri = endpoint + uri
 
         if headers is None:
-            headers = self._generate_headers()
+            headers = self._generate_headers(is_httpx=is_httpx)
         return uri, headers
 
     def _build_retry_policy(self, retryPolicy={}):
@@ -6318,7 +6421,7 @@ class Synapse(object):
             JSON encoding of response
         """
         uri, headers = self._build_uri_and_headers(
-            uri, endpoint=endpoint, headers=headers
+            uri, endpoint=endpoint, headers=headers, is_httpx=True
         )
 
         retry_policy = self._build_retry_policy_async(retry_policy)

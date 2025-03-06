@@ -11,6 +11,8 @@ Explicit example:
 ```python
 import synapseclient
 
+syn = synapseclient.login()
+
 # fetch the file in Synapse
 file_to_update = syn.get('syn2222', downloadFile=False)
 
@@ -58,14 +60,17 @@ file = syn.store(file, forceVersion=False)
 To set Provenance without changing the file version:
 
 ```python
+from synapseclient import Activity
+
 # Get file from Synapse, set download=False since we are only updating provenance
 file = syn.get('syn56789', download=False)
 
-# Add provenance
-file = syn.setProvenance(file, activity = Activity(used = '/path/to/example_code'))
-
-# Store the file without creating a new version
-file = syn.store(file, forceVersion=False)
+# Add provenance (passing in activity) and store the file without creating a new version
+file = syn.store(
+    file,
+    activity = Activity(used = 'some_valid_file_synapse_id'),
+    forceVersion=False
+)
 ```
 
 ## Downloading a Specific Version
