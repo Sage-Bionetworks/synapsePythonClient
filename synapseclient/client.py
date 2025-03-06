@@ -43,6 +43,7 @@ from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.instrumentation.threading import ThreadingInstrumentor
 from opentelemetry.instrumentation.urllib import URLLibInstrumentor
 from opentelemetry.trace import Span
+from tqdm import tqdm
 
 import synapseclient
 import synapseclient.core.multithread_download as multithread_download
@@ -5129,22 +5130,27 @@ class Synapse(object):
         # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
-        lastMessage, lastProgress, lastTotal, progressed = "", 0, 1, False
+        lastMessage, lastProgress, lastTotal = "", 0, 1
+        progress_bar = tqdm(desc=uri, unit_scale=True, smoothing=0, leave=None)
         while time.time() - start_time < self.table_query_timeout:
             result = self.restGET(
                 uri + "/get/%s" % async_job_id["token"], endpoint=endpoint
             )
             if result.get("jobState", None) == "PROCESSING":
-                progressed = True
                 message = result.get("progressMessage", lastMessage)
                 progress = result.get("progressCurrent", lastProgress)
                 total = result.get("progressTotal", lastTotal)
+                if total and progress_bar.total != total:
+                    progress_bar.total = total
+                    progress_bar.refresh()
+
                 if message != "":
-                    self._print_transfer_progress(
-                        progress, total, message, isBytes=False
-                    )
+                    progress_bar.desc = message
+                    progress_bar.refresh()
+
                 # Reset the time if we made progress (fix SYNPY-214)
                 if message != lastMessage or lastProgress != progress:
+                    progress_bar.update(progress)
                     start_time = time.time()
                     lastMessage, lastProgress, lastTotal = message, progress, total
                 sleep = min(
@@ -5165,8 +5171,10 @@ class Synapse(object):
                 + result.get("errorDetails", None),
                 asynchronousJobStatus=result,
             )
-        if progressed:
-            self._print_transfer_progress(total, total, message, isBytes=False)
+
+        progress_bar.update(progress_bar.total - progress_bar.n)
+        progress_bar.refresh()
+        progress_bar.close()
         return result
 
     def getColumn(self, id):

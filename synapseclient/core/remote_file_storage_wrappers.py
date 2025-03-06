@@ -215,6 +215,7 @@ class S3ClientWrapper:
                 unit_scale=True,
                 postfix=filename,
                 smoothing=0,
+                leave=None,
             )
             progress_callback = S3ClientWrapper._create_progress_callback_func(
                 progress_bar
@@ -291,6 +292,7 @@ class SFTPWrapper:
             unit_scale=True,
             smoothing=0,
             postfix=filepath,
+            leave=None,
         )
 
         def progress_callback(*args, **kwargs) -> None:

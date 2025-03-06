@@ -2262,6 +2262,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 desc="Querying & Updating rows",
                 unit_scale=True,
                 smoothing=0,
+                leave=None,
             )
             for individual_chunk in chunk_list:
                 select_statement = self._construct_select_statement_for_upsert(
@@ -3116,6 +3117,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 unit_scale=True,
                 smoothing=0,
                 unit="B",
+                leave=None,
             )
             # The original file is read twice, the reason is that on the first pass we
             # are calculating the size of the chunks that we will be uploading and the
@@ -3316,6 +3318,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             unit_scale=True,
             smoothing=0,
             unit="B",
+            leave=None,
         )
 
         changes = []

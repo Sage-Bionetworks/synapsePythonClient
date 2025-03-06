@@ -359,12 +359,12 @@ def show(args, syn):
 
     ent = syn.get(args.id, downloadFile=False)
     syn.printEntity(ent)
-    sys.stdout.write("Provenance:\n")
+    syn.logger.info("Provenance:")
     try:
         prov = syn.getProvenance(ent)
         syn.logger.info(prov)
     except SynapseHTTPError:
-        syn.logger.error("  No Activity specified.\n")
+        syn.logger.exception("No Activity specified.")
 
 
 def delete(args, syn):
@@ -1785,11 +1785,13 @@ def perform_main(args, syn):
             )
         try:
             args.func(args, syn)
-        except Exception as ex:
+        except Exception:
             if args.debug:
                 raise
             else:
-                sys.stderr.write(utils._synapse_error_msg(ex))
+                # TODO: Verify behavior
+                # sys.stderr.write(utils._synapse_error_msg(ex))
+                syn.logger.exception(f"Failed to perform command: {args.func}")
                 sys.exit(1)
     else:
         # if no command provided print out help and quit

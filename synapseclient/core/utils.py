@@ -26,10 +26,12 @@ import warnings
 import zipfile
 from dataclasses import asdict, fields, is_dataclass
 from email.message import Message
-from typing import TYPE_CHECKING, List, TypeVar
+from typing import TYPE_CHECKING, List, Optional, TypeVar
 
 import requests
+from deprecated import deprecated
 from opentelemetry import trace
+from tqdm import tqdm
 
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
@@ -57,7 +59,10 @@ LOGGER = logging.getLogger(LOGGER_NAME)
 
 
 def md5_for_file(
-    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+    filename: str,
+    block_size: int = 2 * MB,
+    callback: typing.Callable = None,
+    progress_bar: Optional[tqdm] = None,
 ):
     """
     Calculates the MD5 of the given file.
@@ -82,8 +87,14 @@ def md5_for_file(
                 callback()
             data = f.read(block_size)
             if not data:
+                if progress_bar:
+                    progress_bar.update(progress_bar.total - progress_bar.n)
+                    progress_bar.refresh()
+                    progress_bar.close()
                 break
             md5.update(data)
+            if progress_bar:
+                progress_bar.update(len(data))
             del data
             # Garbage collect every 100 iterations
             if loop_iteration % 100 == 0:
@@ -617,7 +628,18 @@ def make_bogus_binary_file(
     Returns:
         The name of the file
     """
-
+    progress_bar = (
+        tqdm(
+            desc=f"Generating {filepath}",
+            unit_scale=True,
+            total=n,
+            smoothing=0,
+            unit="B",
+            leave=None,
+        )
+        if printprogress
+        else None
+    )
     with (
         open(filepath, "wb")
         if filepath
@@ -625,15 +647,17 @@ def make_bogus_binary_file(
     ) as f:
         if not filepath:
             filepath = f.name
-        progress = 0
         remaining = n
         while remaining > 0:
             buff_size = int(min(remaining, 1 * KB))
             f.write(os.urandom(buff_size))
+            if progress_bar:
+                progress_bar.update(buff_size)
             remaining -= buff_size
-            if printprogress:
-                progress += buff_size
-                printTransferProgress(progress, n, "Generated ", filepath)
+        if progress_bar:
+            progress_bar.update(progress_bar.total - progress_bar.n)
+            progress_bar.refresh()
+            progress_bar.close()
         return normalize_path(filepath)
 
 
@@ -1361,6 +1385,11 @@ class deprecated_keyword_param:
         return wrapper
 
 
+@deprecated(
+    version="4.8.0",
+    reason="To be removed in 5.0.0. "
+    "This is removed in favor of using the tqdm library for progress bars.",
+)
 class Spinner:
     def __init__(self, msg=""):
         self._tick = 0
