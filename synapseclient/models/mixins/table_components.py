@@ -464,8 +464,12 @@ class ViewStoreMixin(TableStoreMixin):
 
         if self.include_default_columns:
             default_columns = await get_default_columns(
-                view_entity_type=self.view_entity_type,
-                view_type_mask=self.view_type_mask.value,
+                view_entity_type=(
+                    self.view_entity_type if self.view_entity_type else None
+                ),
+                view_type_mask=(
+                    self.view_type_mask.value if self.view_type_mask else None
+                ),
                 synapse_client=synapse_client,
             )
             for default_column in default_columns:
