@@ -17,6 +17,7 @@ from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
     ViewBase,
     ViewStoreMixin,
+    DeleteMixin,
     ColumnMixin,
     GetMixin,
     QueryMixin,
@@ -63,6 +64,7 @@ class Dataset(
     AccessControllable,
     ViewBase,
     ViewStoreMixin,
+    DeleteMixin,
     ColumnMixin,
     GetMixin,
     QueryMixin,

@@ -494,6 +494,53 @@ class ViewStoreMixin(TableStoreMixin):
         )
 
 
+class DeleteMixin:
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Delete: {self.name}"
+    )
+    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
+        """Delete the entity from synapse. This is not version specific. If you'd like
+        to delete a specific version of the entity you must use the
+        [synapseclient.api.delete_entity][] function directly.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Example: Deleting a table
+            Deleting a table is only supported by the ID of the table.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await Table(id="syn4567").delete_async()
+
+            asyncio.run(main())
+            ```
+        """
+        if not (self.id or (self.name and self.parent_id)):
+            raise ValueError(
+                "The table must have an id or a " "(name and `parent_id`) set."
+            )
+
+        entity_id = await get_id(entity=self, synapse_client=synapse_client)
+
+        await delete_entity(
+            entity_id=entity_id,
+            synapse_client=synapse_client,
+        )
+
+
 class GetMixin:
 
     @otel_trace_method(

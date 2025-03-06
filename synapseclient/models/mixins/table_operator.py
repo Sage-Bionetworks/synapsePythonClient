@@ -2030,6 +2030,66 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
             progress_bar.update(len(chunk))
 
+    async def _wait_for_eventually_consistent_changes(
+        self,
+        original_etags_to_track: List[str],
+        wait_for_eventually_consistent_view_timeout: int,
+        synapse_client: Synapse,
+    ) -> None:
+        """
+        Given that a change has been made to a view, this method will wait for the
+        changes to be reflected in the view. This is done by querying the view for the
+        etags that were changed. If the etags are found in the view then we know that
+        the view has not yet been updated with the changes that were made. This method
+        will wait for the changes to be reflected in the view.
+
+        Arguments:
+            original_etags_to_track: A list of the etags that were changed.
+            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
+                wait for the changes to be reflected in the view.
+            synapse_client: The Synapse client to use to query the view.
+
+        Raises:
+            SynapseTimeoutError: If the changes are not reflected in the view within
+                the timeout period.
+
+        Returns:
+            None
+        """
+        with logging_redirect_tqdm(loggers=[synapse_client.logger]):
+            number_of_changes_to_wait_for = len(original_etags_to_track)
+            progress_bar = tqdm(
+                total=number_of_changes_to_wait_for,
+                desc="Waiting for eventually-consistent changes to show up in the view",
+                unit_scale=True,
+                smoothing=0,
+            )
+            start_time = time.time()
+
+            while (
+                time.time() - start_time < wait_for_eventually_consistent_view_timeout
+            ):
+                quoted_etags = [f"'{etag}'" for etag in original_etags_to_track]
+                wait_select_statement = f"select etag from {self.id} where etag IN ({','.join(quoted_etags)})"
+                results = await self.query_async(
+                    query=wait_select_statement,
+                    synapse_client=synapse_client,
+                    include_row_id_and_row_version=False,
+                )
+                for row in results.itertuples(index=False):
+                    if row.etag in original_etags_to_track:
+                        original_etags_to_track.remove(row.etag)
+                        progress_bar.update(1)
+                progress_bar.refresh()
+                if not original_etags_to_track:
+                    progress_bar.close()
+                    break
+                await asyncio.sleep(1)
+            else:
+                raise SynapseTimeoutError(
+                    f"Timeout waiting for eventually consistent view: {time.time() - start_time} seconds"
+                )
+
     async def upsert_rows_async(
         self,
         values: DATA_FRAME_TYPE,
@@ -2380,66 +2440,6 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 insert_size_bytes=insert_size_bytes,
                 synapse_client=synapse_client,
             )
-
-    async def _wait_for_eventually_consistent_changes(
-        self,
-        original_etags_to_track: List[str],
-        wait_for_eventually_consistent_view_timeout: int,
-        synapse_client: Synapse,
-    ) -> None:
-        """
-        Given that a change has been made to a view, this method will wait for the
-        changes to be reflected in the view. This is done by querying the view for the
-        etags that were changed. If the etags are found in the view then we know that
-        the view has not yet been updated with the changes that were made. This method
-        will wait for the changes to be reflected in the view.
-
-        Arguments:
-            original_etags_to_track: A list of the etags that were changed.
-            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
-                wait for the changes to be reflected in the view.
-            synapse_client: The Synapse client to use to query the view.
-
-        Raises:
-            SynapseTimeoutError: If the changes are not reflected in the view within
-                the timeout period.
-
-        Returns:
-            None
-        """
-        with logging_redirect_tqdm(loggers=[synapse_client.logger]):
-            number_of_changes_to_wait_for = len(original_etags_to_track)
-            progress_bar = tqdm(
-                total=number_of_changes_to_wait_for,
-                desc="Waiting for eventually-consistent changes to show up in the view",
-                unit_scale=True,
-                smoothing=0,
-            )
-            start_time = time.time()
-
-            while (
-                time.time() - start_time < wait_for_eventually_consistent_view_timeout
-            ):
-                quoted_etags = [f"'{etag}'" for etag in original_etags_to_track]
-                wait_select_statement = f"select etag from {self.id} where etag IN ({','.join(quoted_etags)})"
-                results = await self.query_async(
-                    query=wait_select_statement,
-                    synapse_client=synapse_client,
-                    include_row_id_and_row_version=False,
-                )
-                for row in results.itertuples(index=False):
-                    if row.etag in original_etags_to_track:
-                        original_etags_to_track.remove(row.etag)
-                        progress_bar.update(1)
-                progress_bar.refresh()
-                if not original_etags_to_track:
-                    progress_bar.close()
-                    break
-                await asyncio.sleep(1)
-            else:
-                raise SynapseTimeoutError(
-                    f"Timeout waiting for eventually consistent view: {time.time() - start_time} seconds"
-                )
 
     def _infer_columns_from_data(
         self,
