@@ -1789,8 +1789,6 @@ def perform_main(args, syn):
             if args.debug:
                 raise
             else:
-                # TODO: Verify behavior
-                # sys.stderr.write(utils._synapse_error_msg(ex))
                 syn.logger.exception(f"Failed to perform command: {args.func}")
                 sys.exit(1)
     else:
