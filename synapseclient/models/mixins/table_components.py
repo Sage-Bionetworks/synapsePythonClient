@@ -7,10 +7,9 @@ import re
 import tempfile
 import time
 import uuid
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Union
 from collections import OrderedDict
-
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -61,6 +60,7 @@ from synapseclient.models.mixins.table_operator import (
 )
 
 
+@dataclass
 class TableBase:
     """Mixin that extends the functionality of any `table` like entities in Synapse
     to perform a number of operations on the entity such as getting, deleting, or
@@ -92,6 +92,7 @@ class TableBase:
         """Used to satisfy the usage in this mixin from the parent class."""
 
 
+@dataclass
 class ViewBase(TableBase):
     """A class that extends the TableOperator and TableRowOperator classes to add
     appropriately handle View-like Synapse entities.
