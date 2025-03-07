@@ -454,6 +454,8 @@ class Dataset(
 
         Raises:
             ValueError: If the item is not an EntityRef, File, or Folder
+
+        #TODO: Add Examples
         """
         from synapseclient.models import File, Folder
 
@@ -517,6 +519,8 @@ class Dataset(
 
         Raises:
             ValueError: If the item is not a valid type
+
+        #TODO: Add Examples
         """
         from synapseclient.models import File, Folder
 
@@ -545,3 +549,34 @@ class Dataset(
             raise ValueError(
                 f"item must be one of str, EntityRef, File, or Folder, {item} is a {type(item)}"
             )
+
+    async def update_rows_async(
+        self,
+        values: DATA_FRAME_TYPE,
+        primary_keys: List[str],
+        dry_run: bool = False,
+        *,
+        rows_per_query: int = 50000,
+        update_size_bytes: int = 1.9 * MB,
+        insert_size_bytes: int = 900 * MB,
+        job_timeout: int = 600,
+        wait_for_eventually_consistent_view: bool = False,
+        wait_for_eventually_consistent_view_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+        **kwargs,
+    ) -> None:
+        """Placeholder Docstring specific to the Dataset class' implementation
+        of the update_rows_async method."""
+        await super().update_rows_async(
+            values=values,
+            primary_keys=primary_keys,
+            dry_run=dry_run,
+            rows_per_query=rows_per_query,
+            update_size_bytes=update_size_bytes,
+            insert_size_bytes=insert_size_bytes,
+            job_timeout=job_timeout,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+            wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
+            synapse_client=synapse_client,
+            **kwargs,
+        )
