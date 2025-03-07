@@ -9,7 +9,6 @@ from synapseclient.models.agent import (
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.dataset import Dataset
 from synapseclient.models.file import File, FileHandle
-from synapseclient.models.fileview import FileView, ViewTypeMask
 from synapseclient.models.folder import Folder
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
@@ -53,9 +52,6 @@ __all__ = [
     "AgentSession",
     "AgentSessionAccessLevel",
     "AgentPrompt",
-    # FileView models
-    "FileView",
-    "ViewTypeMask",
     # Table models
     "SchemaStorageStrategy",
     "ColumnExpansionStrategy",
