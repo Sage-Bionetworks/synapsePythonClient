@@ -1,8 +1,9 @@
 import functools
-import sys
 import traceback
 from multiprocessing import Lock, Value
 from typing import TYPE_CHECKING
+
+from deprecated import deprecated
 
 from synapseclient.core.utils import printTransferProgress
 
@@ -61,7 +62,9 @@ def notifyMe(syn: "Synapse", messageSubject: str = "", retries: int = 0):
                     )
                     return output
                 except Exception as e:
-                    sys.stderr.write(traceback.format_exc())
+                    syn.logger.exception(
+                        f"Encountered a temporary Failure during execution.  Will retry {retries - attempt} more times."
+                    )
                     syn.sendMessage(
                         [destination],
                         messageSubject,
@@ -140,7 +143,9 @@ def notify_me_async(syn: "Synapse", messageSubject: str = "", retries: int = 0):
                     )
                     return output
                 except Exception as e:
-                    sys.stderr.write(traceback.format_exc())
+                    syn.logger.exception(
+                        f"Encountered a temporary Failure during execution.  Will retry {retries - attempt} more times."
+                    )
                     syn.sendMessage(
                         [destination],
                         messageSubject,
@@ -157,6 +162,11 @@ def notify_me_async(syn: "Synapse", messageSubject: str = "", retries: int = 0):
     return notify_decorator
 
 
+@deprecated(
+    version="4.8.0",
+    reason="To be removed in 5.0.0. "
+    "This is removed in favor of using the tqdm library for progress bars.",
+)
 def with_progress_bar(func, totalCalls, prefix="", postfix="", isBytes=False):
     """Wraps a function to add a progress bar based on the number of calls to that function.
 

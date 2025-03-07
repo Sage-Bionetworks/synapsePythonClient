@@ -357,6 +357,7 @@ class UploadAttemptAsync:
                     unit_scale=True,
                     postfix=self._dest_file_name,
                     smoothing=0,
+                    leave=None,
                 )
                 self._progress_bar.update(completed_part_count)
             else:
@@ -374,6 +375,7 @@ class UploadAttemptAsync:
                     unit_scale=True,
                     postfix=self._dest_file_name,
                     smoothing=0,
+                    leave=None,
                 )
                 self._progress_bar.update(previously_transferred)
 

@@ -9,7 +9,16 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, Iterable, List, NamedTuple, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 from deprecated import deprecated
 from tqdm import tqdm
@@ -48,6 +57,9 @@ from .monitor import notify_me_async
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, Project
+
+
+DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 # When new fields are added to the manifest they will also need to be added to
 # file.py#_determine_fields_to_ignore_in_merge
@@ -978,21 +990,19 @@ def _sortAndFixProvenance(syn, df):
     return df.reset_index()
 
 
-def _check_path_and_normalize(f):
-    sys.stdout.write(".")
+def _check_path_and_normalize(f: str, syn: Synapse) -> str:
     if is_url(f):
         return f
     path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(f)))
     if not os.path.isfile(path_normalized):
-        print(
-            f'\nThe specified path "{f}" is either not a file path or does not exist.',
-            file=sys.stderr,
+        syn.logger.info(
+            f'\nThe specified path "{f}" is either not a file path or does not exist.'
         )
         raise IOError("The path %s is not a file or does not exist" % f)
     return path_normalized
 
 
-def readManifestFile(syn, manifestFile):
+def readManifestFile(syn: Synapse, manifestFile: str) -> DATA_FRAME_TYPE:
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
 
     [Read more about the manifest file format](../../explanations/manifest_tsv/)
@@ -1008,9 +1018,9 @@ def readManifestFile(syn, manifestFile):
     import pandas as pd
 
     if manifestFile is sys.stdin:
-        sys.stdout.write("Validation and upload of: <stdin>\n")
+        syn.logger.info("Validation and upload of: <stdin>")
     else:
-        sys.stdout.write("Validation and upload of: %s\n" % manifestFile)
+        syn.logger.info(f"Validation and upload of: {manifestFile}")
     # Read manifest file into pandas dataframe
     df = pd.read_csv(manifestFile, sep="\t")
     if "synapseStore" not in df:
@@ -1024,29 +1034,22 @@ def readManifestFile(syn, manifestFile):
     df.synapseStore = df.synapseStore.astype(bool)
     df = df.fillna("")
 
-    sys.stdout.write("Validating columns of manifest...")
+    syn.logger.info("Validating columns of manifest...")
     for field in REQUIRED_FIELDS:
-        sys.stdout.write(".")
         if field not in df.columns:
-            sys.stdout.write("\n")
             raise ValueError("Manifest must contain a column of %s" % field)
-    sys.stdout.write("OK\n")
 
-    sys.stdout.write("Validating that all paths exist...")
-    df.path = df.path.apply(_check_path_and_normalize)
+    syn.logger.info("Validating that all paths exist...")
+    df.path = df.path.apply(lambda f: _check_path_and_normalize(f, syn=syn))
 
-    sys.stdout.write("OK\n")
-
-    sys.stdout.write("Validating that all files are unique...")
+    syn.logger.info("Validating that all files are unique...")
     # Both the path and the combination of entity name and parent must be unique
     if len(df.path) != len(set(df.path)):
         raise ValueError("All rows in manifest must contain a unique file to upload")
-    sys.stdout.write("OK\n")
 
     # Check each size of uploaded file
-    sys.stdout.write("Validating that all the files are not empty...")
+    syn.logger.info("Validating that all the files are not empty...")
     _check_size_each_file(df)
-    sys.stdout.write("OK\n")
 
     # check the name of each file should be store on Synapse
     name_column = "name"
@@ -1055,30 +1058,27 @@ def readManifestFile(syn, manifestFile):
         filenames = [os.path.basename(path) for path in df["path"]]
         df["name"] = filenames
 
-    sys.stdout.write("Validating file names... \n")
-    _check_file_name(df)
-    sys.stdout.write("OK\n")
+    syn.logger.info("Validating file names...")
+    _check_file_name(df, syn=syn)
 
-    sys.stdout.write("Validating provenance...")
+    syn.logger.info("Validating provenance...")
     df = _sortAndFixProvenance(syn, df)
-    sys.stdout.write("OK\n")
 
-    sys.stdout.write("Validating that parents exist and are containers...")
+    syn.logger.info("Validating that parents exist and are containers...")
     parents = set(df.parent)
     for synId in parents:
         try:
             container = syn.get(synId, downloadFile=False)
         except SynapseHTTPError:
-            sys.stdout.write(
-                "\n%s in the parent column is not a valid Synapse Id\n" % synId
+            syn.logger.warning(
+                f"\n{synId} in the parent column is not a valid Synapse Id\n"
             )
             raise
         if not is_container(container):
-            sys.stdout.write(
-                "\n%s in the parent column is is not a Folder or Project\n" % synId
+            syn.logger.warning(
+                f"\n{synId} in the parent column is is not a Folder or Project\n"
             )
             raise SynapseHTTPError
-    sys.stdout.write("OK\n")
     return df
 
 
@@ -1157,6 +1157,7 @@ def syncToSynapse(
         unit="B",
         unit_scale=True,
         smoothing=0,
+        leave=None,
     )
     with upload_shared_progress_bar(progress_bar):
         if sendMessages:
@@ -1361,16 +1362,15 @@ async def _manifest_upload(
     return True
 
 
-def _check_file_name(df):
+def _check_file_name(df, syn: Synapse) -> None:
     compiled = re.compile(r"^[`\w \-\+\.\(\)]{1,256}$")
-    for idx, row in df.iterrows():
+    for _, row in df.iterrows():
         file_name = row["name"]
         if not file_name:
             directory_name = os.path.basename(row["path"])
             df.loc[df.path == row["path"], "name"] = file_name = directory_name
-            sys.stdout.write(
-                "No file name assigned to path: %s, defaulting to %s\n"
-                % (row["path"], directory_name)
+            syn.logger.info(
+                f"No file name assigned to path: {row['path']}, defaulting to {directory_name}"
             )
         if not compiled.match(file_name):
             raise ValueError(

@@ -159,6 +159,7 @@ def get_or_create_download_progress_bar(
             unit_scale=True,
             smoothing=0,
             postfix=postfix,
+            leave=None,
         )
         _thread_local.progress_bar_download = progress_bar
     else:

@@ -16,6 +16,7 @@ from typing import List, Mapping
 
 import requests
 from opentelemetry import trace
+from tqdm import tqdm
 
 from synapseclient.core import pool_provider
 from synapseclient.core.constants import concrete_types
@@ -33,7 +34,7 @@ from synapseclient.core.upload.upload_utils import (
     get_file_chunk,
     get_part_size,
 )
-from synapseclient.core.utils import MB, Spinner, md5_fn, md5_for_file
+from synapseclient.core.utils import MB, md5_fn, md5_for_file
 
 # AWS limits
 MAX_NUMBER_OF_PARTS = 10000
@@ -468,8 +469,21 @@ def multipart_upload_file(
         mime_type, _ = mimetypes.guess_type(file_path, strict=False)
         content_type = mime_type or "application/octet-stream"
 
-    callback_func = Spinner().print_tick if not syn.silent else None
-    md5_hex = md5 or md5_for_file(file_path, callback=callback_func).hexdigest()
+    if md5:
+        md5_hex = md5
+    else:
+        progress_bar = (
+            tqdm(
+                desc=f"Calculating MD5: {os.path.basename(file_path)}",
+                unit="B",
+                unit_scale=True,
+                total=file_size,
+                leave=None,
+            )
+            if not syn.silent
+            else None
+        )
+        md5_hex = md5_for_file(file_path, progress_bar=progress_bar).hexdigest()
 
     part_size = get_part_size(
         part_size or DEFAULT_PART_SIZE,
