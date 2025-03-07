@@ -2125,10 +2125,16 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                     synapse_client=synapse_client,
                     include_row_id_and_row_version=False,
                 )
-                for row in results.itertuples(index=False):
-                    if row.etag in original_etags_to_track:
-                        original_etags_to_track.remove(row.etag)
-                        progress_bar.update(1)
+
+                etags_in_results = results["etag"].values
+                etags_to_remove = []
+                for etag in original_etags_to_track:
+                    if etag not in etags_in_results:
+                        etags_to_remove.append(etag)
+                for etag in etags_to_remove:
+                    original_etags_to_track.remove(etag)
+                    progress_bar.update(1)
+
                 progress_bar.refresh()
                 if not original_etags_to_track:
                     progress_bar.close()
@@ -2480,7 +2486,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             await self._wait_for_eventually_consistent_changes(
                 original_etags_to_track=original_etags_to_track,
                 wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
-                synapse_client=synapse_client,
+                synapse_client=client,
             )
 
         if not dry_run and not rows_to_insert_df.empty:

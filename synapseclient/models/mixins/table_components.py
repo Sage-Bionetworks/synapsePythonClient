@@ -2,9 +2,9 @@ import asyncio
 import logging
 import re
 import time
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union, Self
 from collections import OrderedDict
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Self, Tuple, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -20,38 +20,33 @@ from synapseclient.api import (
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import SynapseTimeoutError
-from synapseclient.core.utils import (
-    MB,
-    log_dataclass_diff,
-    merge_dataclass_entities,
+from synapseclient.core.utils import MB, log_dataclass_diff, merge_dataclass_entities
+from synapseclient.models import Activity
+from synapseclient.models.mixins.table_operator import (
+    CLASSES_THAT_CONTAIN_ROW_ETAG,
+    DATA_FRAME_TYPE,
+    AppendableRowSetRequest,
+    Column,
+    ColumnChange,
+    ColumnType,
+    PartialRow,
+    PartialRowSet,
+    QueryResultBundle,
+    SnapshotRequest,
+    SumFileSizes,
+    TableSchemaChangeRequest,
+    TableUpdateTransaction,
+    _convert_pandas_row_to_python_types,
+    csv_to_pandas_df,
+    test_import_pandas,
 )
 from synapseclient.models.services.search import get_id
-from synapseclient.models import Activity
-from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
 )
-from synapseclient.models.mixins.table_operator import (
-    Column,
-    ColumnType,
-    TableSchemaChangeRequest,
-    TableUpdateTransaction,
-    ColumnChange,
-    DATA_FRAME_TYPE,
-    PartialRowSet,
-    PartialRow,
-    AppendableRowSetRequest,
-    CLASSES_THAT_CONTAIN_ROW_ETAG,
-    csv_to_pandas_df,
-    test_import_pandas,
-    _convert_pandas_row_to_python_types,
-    QueryResultBundle,
-    SumFileSizes,
-    SnapshotRequest,
-)
-from synapseclient.models.mixins import AsynchronousCommunicator
 
 
 @dataclass
@@ -127,7 +122,6 @@ class ViewBase(TableBase):
 
 @async_to_sync
 class TableStoreMixin:
-
     async def _generate_schema_change_request(
         self, dry_run: bool = False, *, synapse_client: Optional[Synapse] = None
     ) -> Union["TableSchemaChangeRequest", None]:
@@ -412,7 +406,6 @@ class TableStoreMixin:
 
 
 class ViewStoreMixin(TableStoreMixin):
-
     async def store_async(
         self,
         dry_run: bool = False,
@@ -490,7 +483,6 @@ class ViewStoreMixin(TableStoreMixin):
 
 
 class DeleteMixin:
-
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Delete: {self.name}"
     )
@@ -537,7 +529,6 @@ class DeleteMixin:
 
 
 class GetMixin:
-
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Get: {self.name}"
     )
@@ -644,7 +635,6 @@ class GetMixin:
 
 
 class ColumnMixin:
-
     def delete_column(self, name: str) -> None:
         """
         Mark a column for deletion. Note that this does not delete the column from
@@ -1039,7 +1029,6 @@ class ColumnMixin:
 
 
 class TableUpsertMixin:
-
     def _construct_select_statement_for_upsert(
         self,
         df: DATA_FRAME_TYPE,
@@ -1196,10 +1185,10 @@ class TableUpsertMixin:
                     if (
                         isinstance(cell_value, list) and len(cell_value) > 0
                     ) or not isna(cell_value):
-                        partial_change_values[column_id] = (
-                            _convert_pandas_row_to_python_types(
-                                cell=cell_value, column_type=column_type
-                            )
+                        partial_change_values[
+                            column_id
+                        ] = _convert_pandas_row_to_python_types(
+                            cell=cell_value, column_type=column_type
                         )
                     else:
                         partial_change_values[column_id] = None
@@ -1325,10 +1314,16 @@ class TableUpsertMixin:
                     synapse_client=synapse_client,
                     include_row_id_and_row_version=False,
                 )
-                for row in results.itertuples(index=False):
-                    if row.etag in original_etags_to_track:
-                        original_etags_to_track.remove(row.etag)
-                        progress_bar.update(1)
+
+                etags_in_results = results["etag"].values
+                etags_to_remove = []
+                for etag in original_etags_to_track:
+                    if etag not in etags_in_results:
+                        etags_to_remove.append(etag)
+                for etag in etags_to_remove:
+                    original_etags_to_track.remove(etag)
+                    progress_bar.update(1)
+
                 progress_bar.refresh()
                 if not original_etags_to_track:
                     progress_bar.close()
@@ -1679,7 +1674,7 @@ class TableUpsertMixin:
             await self._wait_for_eventually_consistent_changes(
                 original_etags_to_track=original_etags_to_track,
                 wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
-                synapse_client=synapse_client,
+                synapse_client=client,
             )
 
         # Only Tables can insert rows directly. Views and other table-like objects cannot.
@@ -1694,7 +1689,6 @@ class TableUpsertMixin:
 
 
 class ViewUpdateMixin(TableUpsertMixin):
-
     async def update_rows_async(
         self,
         values: DATA_FRAME_TYPE,
@@ -1727,7 +1721,6 @@ class ViewUpdateMixin(TableUpsertMixin):
 
 
 class QueryMixin:
-
     @staticmethod
     async def query_async(
         query: str,
@@ -1922,7 +1915,6 @@ class ViewSnapshotMixin:
         activity: Optional[Activity] = None,
         synapse_client: Optional[Synapse] = None,
     ):
-
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(
             f"[{self.id}:{self.name}]: Creating a snapshot of the {type(self)}."
