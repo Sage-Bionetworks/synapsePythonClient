@@ -11,7 +11,7 @@ from synapseclient import Table as Synapse_Table
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
-from synapseclient.models import Activity, Annotations, Column
+from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
     ColumnMixin,
@@ -24,6 +24,7 @@ from synapseclient.models.mixins.table_components import (
     TableStoreRowMixin,
     TableUpsertMixin,
 )
+from synapseclient.models.table_components import Column
 
 
 @dataclass()
