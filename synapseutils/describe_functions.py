@@ -1,14 +1,13 @@
 import json
 import os
-import sys
 import typing
 from collections import defaultdict
 
 import synapseclient
-from synapseclient import table
+from synapseclient import Synapse, table
 
 
-def _open_entity_as_df(syn, entity: str):
+def _open_entity_as_df(syn: Synapse, entity: str):
     """
     Gets a csv or tsv Synapse entity and returns it as a dataframe
 
@@ -27,9 +26,9 @@ def _open_entity_as_df(syn, entity: str):
 
     try:
         entity = syn.get(entity)
-        name, format = os.path.splitext(entity.path)
+        _, format = os.path.splitext(entity.path)
     except synapseclient.core.exceptions.SynapseHTTPError:
-        syn.logger.error(str(entity) + " is not a valid Synapse id")
+        syn.logger.exception(str(entity) + " is not a valid Synapse id")
         return dataset  # its value is None here
 
     if format == ".csv":
@@ -42,7 +41,7 @@ def _open_entity_as_df(syn, entity: str):
     return dataset
 
 
-def _describe_wrapper(df) -> dict:
+def _describe_wrapper(df, syn: Synapse) -> dict:
     """
     Returns the mode, min, max, mean, and dtype of each column in a dataframe
 
@@ -71,12 +70,12 @@ def _describe_wrapper(df) -> dict:
                 stats[column]["dtype"] = df[column].dtype.name
 
         except TypeError:
-            print("Invalid column type.", file=sys.stderr)
+            syn.logger.info(f"Invalid column type: {column}")
 
     return stats
 
 
-def describe(syn, entity: str) -> typing.Union[dict, None]:
+def describe(syn: Synapse, entity: str) -> typing.Union[dict, None]:
     """
     Gets a synapse entity and returns summary statistics about it.
 
@@ -121,6 +120,6 @@ def describe(syn, entity: str) -> typing.Union[dict, None]:
     if df is None:
         return None
 
-    stats = _describe_wrapper(df)
+    stats = _describe_wrapper(df, syn=syn)
     syn.logger.info(json.dumps(stats, indent=2, default=str))
     return stats

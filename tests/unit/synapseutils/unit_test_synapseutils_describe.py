@@ -148,8 +148,8 @@ class TestDescribe:
             },
         }
 
-    def test_describe_with_mixed_series(self):
-        result = _describe_wrapper(df=self.df_mixed)
+    def test_describe_with_mixed_series(self, syn: synapseclient.Synapse):
+        result = _describe_wrapper(df=self.df_mixed, syn=syn)
         assert result == self.expected_results
 
     def test_describe(self):
@@ -161,7 +161,7 @@ class TestDescribe:
         ) as mock_describe:
             result = describe_functions.describe(syn=syn, entity="syn1234")
             mock_open_entity.assert_called_once_with(syn=syn, entity="syn1234")
-            mock_describe.assert_called_once_with(self.df_mixed)
+            mock_describe.assert_called_once_with(self.df_mixed, syn=syn)
             assert result == self.expected_results
 
     def test_describe_none(self):

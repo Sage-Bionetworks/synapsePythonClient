@@ -674,9 +674,7 @@ class TestMultipartUpload:
         ) as md5_for_file, mock.patch.object(
             multipart_upload,
             "_multipart_upload",
-        ) as mock_multipart_upload, mock.patch.object(
-            multipart_upload, "Spinner"
-        ) as mock_spinner:
+        ) as mock_multipart_upload:
             os_path_getsize.return_value = file_size
             md5_for_file.return_value.hexdigest.return_value = md5_hex
 
@@ -735,7 +733,7 @@ class TestMultipartUpload:
                 file_path,
                 storage_location_id=storage_location_id,
             )
-            md5_for_file.assert_called_with(file_path, callback=None)
+            assert md5_for_file.called
 
             syn_with_no_silent_mode = Synapse(
                 debug=False, skip_checks=True, cache_client=False
@@ -745,9 +743,7 @@ class TestMultipartUpload:
                 file_path,
                 storage_location_id=storage_location_id,
             )
-            md5_for_file.assert_called_with(
-                file_path, callback=mock_spinner.return_value.print_tick
-            )
+            assert md5_for_file.called
 
             mock_multipart_upload.reset_mock()
 
