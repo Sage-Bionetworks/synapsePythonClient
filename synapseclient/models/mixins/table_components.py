@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import re
 import time
 from collections import OrderedDict
@@ -1726,12 +1727,21 @@ class QueryMixin:
         query: str,
         include_row_id_and_row_version: bool = True,
         convert_to_datetime: bool = False,
+        download_location=None,
+        quote_character='"',
+        escape_character="\\",
+        line_end=str(os.linesep),
+        separator=",",
+        header=True,
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> DATA_FRAME_TYPE:
         """Query for data on a table stored in Synapse. The results will always be
-        returned as a Pandas DataFrame.
+        returned as a Pandas DataFrame unless you specify a `download_location` in which
+        case the results will be downloaded to that location. There are a number of
+        arguments that you may pass to this function depending on if you are getting
+        the results back as a DataFrame or downloading the results to a file.
 
         Arguments:
             query: The query to run. The query must be valid syntax that Synapse can
@@ -1743,14 +1753,36 @@ class QueryMixin:
                 if using the query results to update rows in the table. These columns
                 are the primary keys used by Synapse to uniquely identify rows in the
                 table.
-            convert_to_datetime: If set to True, will convert all Synapse DATE columns
-                from UNIX timestamp integers into UTC datetime objects
+            convert_to_datetime: (DataFrame only) If set to True, will convert all
+                Synapse DATE columns from UNIX timestamp integers into UTC datetime
+                objects
 
-            **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
-                    <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
-                    for complete list of supported arguments. This is exposed as
-                    internally the query downloads a CSV from Synapse and then loads
-                    it into a dataframe.
+            download_location: (CSV Only) If set to a path the results will be
+                downloaded to that directory. The results will be downloaded as a CSV
+                file. A path to the downloaded file will be returned instead of a
+                DataFrame.
+
+            quote_character: (CSV Only) The character to use to quote fields. The
+                default is a double quote.
+
+            escape_character: (CSV Only) The character to use to escape special
+                characters. The default is a backslash.
+
+            line_end: (CSV Only) The character to use to end a line. The default is
+                the system's line separator.
+
+            separator: (CSV Only) The character to use to separate fields. The default
+                is a comma.
+
+            header: (CSV Only) If set to True the first row will be used as the header
+                row. The default is True.
+
+            **kwargs: (DataFrame only) Additional keyword arguments to pass to
+                pandas.read_csv. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
+                for complete list of supported arguments. This is exposed as
+                internally the query downloads a CSV from Synapse and then loads
+                it into a dataframe.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1794,8 +1826,16 @@ class QueryMixin:
             lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
                 query=query,
                 includeRowIdAndRowVersion=include_row_id_and_row_version,
+                quoteCharacter=quote_character,
+                escapeCharacter=escape_character,
+                lineEnd=line_end,
+                separator=separator,
+                header=header,
+                downloadLocation=download_location,
             ),
         )
+        if download_location:
+            return results.filepath
         return results.asDataFrame(
             rowIdAndVersionInIndex=False,
             convert_to_datetime=convert_to_datetime,
