@@ -1373,6 +1373,35 @@ class TableSchemaChangeRequest:
 
 
 @dataclass
+class SnapshotRequest:
+    """A request that defines the options available when creating a snapshot of a table or view.
+    Follows the model defined in
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SnapshotRequest.html>
+
+    All attributes are optional.
+    """
+
+    comment: Optional[str] = None
+    label: Optional[str] = None
+    activity: Optional[Activity] = None
+
+    def to_synapse_request(self):
+        """Converts the request to a request expected of the Synapse REST API."""
+        return {
+            "snapshotComment": self.comment,
+            "snapshotLabel": self.label,
+            "snapshotActivityId": self.activity.id if self.activity else None,
+        }
+
+    def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
+        """Converts a response from the REST API into this dataclass."""
+        self.comment = synapse_response.get("snapshotComment", None)
+        self.label = synapse_response.get("snapshotLabel", None)
+        self.activity = synapse_response.get("snapshotActivityId", None)
+        return self
+
+
+@dataclass
 class TableUpdateTransaction(AsynchronousCommunicator):
     """
     A request to update a table. This is used to update a table with a set of changes.
@@ -1382,21 +1411,37 @@ class TableUpdateTransaction(AsynchronousCommunicator):
     """
 
     entity_id: str
-    changes: List[
-        Union[TableSchemaChangeRequest, UploadToTableRequest, AppendableRowSetRequest]
-    ]
     concrete_type: str = concrete_types.TABLE_UPDATE_TRANSACTION_REQUEST
+    create_snapshot: bool = False
+    changes: Optional[
+        List[
+            Union[
+                TableSchemaChangeRequest, UploadToTableRequest, AppendableRowSetRequest
+            ]
+        ]
+    ] = None
+    snapshot_options: Optional[SnapshotRequest] = None
     results: Optional[List[Dict[str, Any]]] = None
+    snapshot_version_number: Optional[int] = None
     """This will be an array of
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>."""
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
-        return {
+        request = {
             "concreteType": self.concrete_type,
             "entityId": self.entity_id,
-            "changes": [change.to_synapse_request() for change in self.changes],
+            "createSnapshot": self.create_snapshot,
         }
+
+        if self.changes:
+            request["changes"] = [
+                change.to_synapse_request() for change in self.changes
+            ]
+        if self.snapshot_options:
+            request["snapshotOptions"] = self.snapshot_options.to_synapse_request()
+
+        return request
 
     def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
         """
@@ -1409,6 +1454,9 @@ class TableUpdateTransaction(AsynchronousCommunicator):
             An instance of this class.
         """
         self.results = synapse_response.get("results", None)
+        self.snapshot_version_number = synapse_response.get(
+            "snapshotVersionNumber", None
+        )
         return self
 
 

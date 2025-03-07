@@ -8,7 +8,7 @@ import tempfile
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Any, Optional, Tuple, Union
 from collections import OrderedDict
 
 from tqdm import tqdm
@@ -34,7 +34,7 @@ from synapseclient.core.utils import (
     merge_dataclass_entities,
 )
 from synapseclient.models.services.search import get_id
-
+from synapseclient.models import Activity
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
@@ -44,8 +44,8 @@ from synapseclient.models.mixins.table_operator import (
     Column,
     ColumnType,
     TableSchemaChangeRequest,
-    ColumnChange,
     TableUpdateTransaction,
+    ColumnChange,
     DATA_FRAME_TYPE,
     PartialRowSet,
     PartialRow,
@@ -57,7 +57,10 @@ from synapseclient.models.mixins.table_operator import (
     QueryResultBundle,
     SumFileSizes,
     SERIES_TYPE,
+    UploadToTableRequest,
+    SnapshotRequest,
 )
+from synapseclient.models.mixins import AsynchronousCommunicator
 
 
 @dataclass
@@ -1881,3 +1884,34 @@ class QueryMixin:
             ),
             last_updated_on=results.lastUpdatedOn,
         )
+
+
+class ViewSnapshotMixin:
+    """A mixin that allows you to create a snapshot of a view."""
+
+    async def snapshot_async(
+        self,
+        *,
+        comment: Optional[str] = None,
+        label: Optional[str] = None,
+        activity: Optional[Activity] = None,
+        synapse_client: Optional[Synapse] = None,
+    ):
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+        client.logger.info(
+            f"[{self.id}:{self.name}]: Creating a snapshot of the {type(self)}."
+        )
+
+        await self.get_async(include_activity=True, synapse_client=client)
+
+        return await TableUpdateTransaction(
+            entity_id=self.id,
+            changes=None,
+            create_snapshot=True,
+            snapshot_options=SnapshotRequest(
+                comment=comment,
+                label=label,
+                activity=activity,
+            ),
+        ).send_job_and_wait_async(synapse_client=client)

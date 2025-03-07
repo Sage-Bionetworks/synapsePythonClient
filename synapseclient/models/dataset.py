@@ -13,6 +13,7 @@ from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models import Activity, Annotations
+from synapseclient.models.mixins import AsynchronousCommunicator
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
     ViewBase,
@@ -22,6 +23,7 @@ from synapseclient.models.mixins.table_components import (
     GetMixin,
     QueryMixin,
     UpsertMixin,
+    ViewSnapshotMixin,
 )
 
 from synapseclient.models.mixins.table_operator import Column
@@ -54,10 +56,6 @@ class EntityRef:
         }
 
 
-# TODO: Create a DatasetSynchronousProtocol
-# class Dataset(DatasetSynchronousProtocol, AccessControllable, TableOperator):
-
-
 @dataclass()
 @async_to_sync
 class Dataset(
@@ -69,6 +67,7 @@ class Dataset(
     GetMixin,
     QueryMixin,
     UpsertMixin,
+    ViewSnapshotMixin,
 ):
     """A Dataset represents the metadata of a dataset.
 
@@ -547,16 +546,3 @@ class Dataset(
             raise ValueError(
                 f"item must be one of str, EntityRef, File, or Folder, {item} is a {type(item)}"
             )
-
-    # # TODO: Implement this method
-    # @staticmethod
-    # async def snapshot_async(
-    #     self,
-    #     comment: str = None,
-    #     label: str = None,
-    #     include_activity: bool = True,
-    #     associate_activity_to_new_version: bool = True,
-    #     *,
-    #     synapse_client: Optional[Synapse] = None,
-    # ) -> Dict[str, Any]:
-    #     pass
