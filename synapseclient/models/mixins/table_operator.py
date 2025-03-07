@@ -2063,6 +2063,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
                 desc="Waiting for eventually-consistent changes to show up in the view",
                 unit_scale=True,
                 smoothing=0,
+                leave=None,
             )
             start_time = time.time()
 
