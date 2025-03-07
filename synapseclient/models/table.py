@@ -11,20 +11,34 @@ from synapseclient import Table as Synapse_Table
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
-from synapseclient.models import Activity, Annotations
+from synapseclient.models import Activity, Annotations, Column
 from synapseclient.models.mixins.access_control import AccessControllable
-from synapseclient.models.mixins.table_operator import (
-    Column,
-    TableOperator,
-    TableRowOperator,
+from synapseclient.models.mixins.table_components import (
+    ColumnMixin,
+    DeleteMixin,
+    GetMixin,
+    QueryMixin,
+    TableBase,
+    TableDeleteRowMixin,
+    TableStoreMixin,
+    TableStoreRowMixin,
+    TableUpsertMixin,
 )
-from synapseclient.models.protocols.table_protocol import TableSynchronousProtocol
 
 
 @dataclass()
 @async_to_sync
 class Table(
-    TableSynchronousProtocol, AccessControllable, TableOperator, TableRowOperator
+    AccessControllable,
+    TableBase,
+    TableStoreRowMixin,
+    TableDeleteRowMixin,
+    DeleteMixin,
+    ColumnMixin,
+    GetMixin,
+    QueryMixin,
+    TableUpsertMixin,
+    TableStoreMixin,
 ):
     """A Table represents the metadata of a table.
 

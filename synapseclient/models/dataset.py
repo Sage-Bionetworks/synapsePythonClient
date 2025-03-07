@@ -3,7 +3,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from typing_extensions import Self
 
@@ -11,25 +11,23 @@ from synapseclient import Synapse
 from synapseclient.api.table_services import ViewEntityType, ViewTypeMask
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.utils import delete_none_keys
+from synapseclient.core.utils import MB, delete_none_keys
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
-    ViewBase,
-    ViewStoreMixin,
-    DeleteMixin,
     ColumnMixin,
+    DeleteMixin,
     GetMixin,
     QueryMixin,
-    ViewUpdateMixin,
+    ViewBase,
     ViewSnapshotMixin,
+    ViewStoreMixin,
+    ViewUpdateMixin,
 )
-
-from synapseclient.models.mixins.table_operator import (
+from synapseclient.models.table_components import (
+    DATA_FRAME_TYPE,
     Column,
     TableUpdateTransaction,
-    DATA_FRAME_TYPE,
-    MB,
 )
 
 if TYPE_CHECKING:
