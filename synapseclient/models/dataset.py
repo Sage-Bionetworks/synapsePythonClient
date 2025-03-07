@@ -13,7 +13,6 @@ from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models import Activity, Annotations
-from synapseclient.models.mixins import AsynchronousCommunicator
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
     ViewBase,
@@ -22,17 +21,18 @@ from synapseclient.models.mixins.table_components import (
     ColumnMixin,
     GetMixin,
     QueryMixin,
-    UpsertMixin,
+    ViewUpdateMixin,
     ViewSnapshotMixin,
 )
 
 from synapseclient.models.mixins.table_operator import Column
+from synapseclient.models.mixins.table_operator import DATA_FRAME_TYPE, MB
 
 if TYPE_CHECKING:
     from synapseclient.models import File, Folder
 
 
-@dataclass()
+@dataclass
 class EntityRef:
     """
     Represents a reference to the id and version of an entity to be used in collections.
@@ -56,7 +56,7 @@ class EntityRef:
         }
 
 
-@dataclass()
+@dataclass
 @async_to_sync
 class Dataset(
     AccessControllable,
@@ -66,10 +66,11 @@ class Dataset(
     ColumnMixin,
     GetMixin,
     QueryMixin,
-    UpsertMixin,
+    ViewUpdateMixin,
     ViewSnapshotMixin,
 ):
-    """A Dataset represents the metadata of a dataset.
+    """A Dataset object represents the metadata of a Synapse Dataset.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Dataset.html>
 
     Attributes:
         id: The unique immutable ID for this dataset. A new ID will be generated for new
@@ -437,7 +438,6 @@ class Dataset(
         if entity_ref not in self.items:
             self.items.append(entity_ref)
 
-    @async_to_sync
     async def add_item_async(
         self,
         item: Union[EntityRef, "File", "Folder"],
@@ -497,7 +497,6 @@ class Dataset(
             raise ValueError(f"Entity {entity_ref.id} not found in items list")
         self.items.remove(entity_ref)
 
-    @async_to_sync
     async def remove_item_async(
         self,
         item: Union[EntityRef, "File", "Folder"],

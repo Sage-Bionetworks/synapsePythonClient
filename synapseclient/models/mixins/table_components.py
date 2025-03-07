@@ -1,14 +1,9 @@
 import asyncio
-import hashlib
-import json
 import logging
-import os
 import re
-import tempfile
 import time
-import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Self
 from collections import OrderedDict
 
 from tqdm import tqdm
@@ -25,11 +20,9 @@ from synapseclient.api import (
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
-from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseTimeoutError
 from synapseclient.core.utils import (
     MB,
-    delete_none_keys,
     log_dataclass_diff,
     merge_dataclass_entities,
 )
@@ -56,8 +49,6 @@ from synapseclient.models.mixins.table_operator import (
     _convert_pandas_row_to_python_types,
     QueryResultBundle,
     SumFileSizes,
-    SERIES_TYPE,
-    UploadToTableRequest,
     SnapshotRequest,
 )
 from synapseclient.models.mixins import AsynchronousCommunicator
@@ -134,6 +125,7 @@ class ViewBase(TableBase):
     """
 
 
+@async_to_sync
 class TableStoreMixin:
 
     async def _generate_schema_change_request(
@@ -533,7 +525,7 @@ class DeleteMixin:
         """
         if not (self.id or (self.name and self.parent_id)):
             raise ValueError(
-                "The table must have an id or a " "(name and `parent_id`) set."
+                "The table must have an id or a (name and `parent_id`) set."
             )
 
         entity_id = await get_id(entity=self, synapse_client=synapse_client)
@@ -623,7 +615,7 @@ class GetMixin:
         """
         if not (self.id or (self.name and self.parent_id)):
             raise ValueError(
-                "The table must have an id or a " "(name and `parent_id`) set."
+                "The table must have an id or a (name and `parent_id`) set."
             )
 
         entity_id = await get_id(entity=self, synapse_client=synapse_client)
@@ -1046,7 +1038,7 @@ class ColumnMixin:
             raise ValueError("columns must be a list, dict, or OrderedDict")
 
 
-class UpsertMixin:
+class TableUpsertMixin:
 
     def _construct_select_statement_for_upsert(
         self,
@@ -1689,9 +1681,9 @@ class UpsertMixin:
                 wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
                 synapse_client=synapse_client,
             )
-        # TODO: Replace this conditional with something that indicates it is a Table
-        # View-like objects cannot insert rows this way.
-        if False:
+
+        # Only Tables can insert rows directly. Views and other table-like objects cannot.
+        if not isinstance(self, ViewBase):
             if not dry_run and not rows_to_insert_df.empty:
                 await self.store_rows_async(
                     values=rows_to_insert_df,
@@ -1699,6 +1691,39 @@ class UpsertMixin:
                     insert_size_bytes=insert_size_bytes,
                     synapse_client=synapse_client,
                 )
+
+
+class ViewUpdateMixin(TableUpsertMixin):
+
+    async def update_rows_async(
+        self,
+        values: DATA_FRAME_TYPE,
+        primary_keys: List[str],
+        dry_run: bool = False,
+        *,
+        rows_per_query: int = 50000,
+        update_size_bytes: int = 1.9 * MB,
+        insert_size_bytes: int = 900 * MB,
+        job_timeout: int = 600,
+        wait_for_eventually_consistent_view: bool = False,
+        wait_for_eventually_consistent_view_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+        **kwargs,
+    ) -> None:
+        """You can't insert rows into a view using this method, you can only update rows."""
+        await super().upsert_rows_async(
+            values=values,
+            primary_keys=primary_keys,
+            dry_run=dry_run,
+            rows_per_query=rows_per_query,
+            update_size_bytes=update_size_bytes,
+            insert_size_bytes=insert_size_bytes,
+            job_timeout=job_timeout,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+            wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
+            synapse_client=synapse_client,
+            **kwargs,
+        )
 
 
 class QueryMixin:
