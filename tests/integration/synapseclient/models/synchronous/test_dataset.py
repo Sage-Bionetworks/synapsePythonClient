@@ -1,8 +1,8 @@
-import pytest
-from synapseclient.models import Dataset, Column, ColumnType
-from synapseclient.core.exceptions import SynapseError
-from typing import List, Dict, Optional
+from typing import Dict, List
+
 import pandas as pd
+
+from synapseclient.models import Dataset
 
 
 def test_create_empty_dataset(syn, project) -> None:

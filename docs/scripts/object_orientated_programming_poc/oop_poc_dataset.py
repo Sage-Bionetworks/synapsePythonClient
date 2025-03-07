@@ -3,9 +3,8 @@ import uuid
 import pandas as pd
 
 from synapseclient import Synapse
+from synapseclient.models import Column, ColumnType, File, Folder
 from synapseclient.models.dataset import Dataset, EntityRef
-from synapseclient.models import File, Folder, Column, ColumnType
-
 
 syn = Synapse()
 syn.login()

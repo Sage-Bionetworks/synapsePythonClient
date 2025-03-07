@@ -48,11 +48,11 @@ from .file_services import (
     put_file_multipart_complete,
 )
 from .table_services import (
-    get_columns,
-    post_columns,
-    get_default_columns,
-    ViewTypeMask,
     ViewEntityType,
+    ViewTypeMask,
+    get_columns,
+    get_default_columns,
+    post_columns,
 )
 
 __all__ = [
