@@ -1,14 +1,21 @@
 import asyncio
+import hashlib
+import json
 import logging
 import os
 import re
+import tempfile
 import time
+import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Self, Tuple, Union
+from datetime import datetime
+from io import BytesIO
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
+from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api import (
@@ -23,31 +30,83 @@ from synapseclient.api import (
 )
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import SynapseTimeoutError
+from synapseclient.core.upload.multipart_upload_async import (
+    multipart_upload_dataframe_async,
+    multipart_upload_file_async,
+    multipart_upload_partial_file_async,
+)
 from synapseclient.core.utils import MB, log_dataclass_diff, merge_dataclass_entities
 from synapseclient.models import Activity
-from synapseclient.models.mixins.table_operator import (
-    CLASSES_THAT_CONTAIN_ROW_ETAG,
-    DATA_FRAME_TYPE,
-    AppendableRowSetRequest,
-    Column,
-    ColumnChange,
-    ColumnType,
-    PartialRow,
-    PartialRowSet,
-    QueryResultBundle,
-    SnapshotRequest,
-    SumFileSizes,
-    TableSchemaChangeRequest,
-    TableUpdateTransaction,
-    _convert_pandas_row_to_python_types,
-    csv_to_pandas_df,
-    test_import_pandas,
-)
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
 )
+from synapseclient.models.table_components import (
+    AppendableRowSetRequest,
+    Column,
+    ColumnChange,
+    ColumnExpansionStrategy,
+    ColumnType,
+    CsvTableDescriptor,
+    PartialRow,
+    PartialRowSet,
+    QueryResultBundle,
+    SchemaStorageStrategy,
+    SnapshotRequest,
+    SumFileSizes,
+    TableSchemaChangeRequest,
+    TableUpdateTransaction,
+    UploadToTableRequest,
+)
+
+CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "FileView"]
+
+PANDAS_TABLE_TYPE = {
+    "floating": "DOUBLE",
+    "decimal": "DOUBLE",
+    "integer": "INTEGER",
+    "mixed-integer-float": "DOUBLE",
+    "boolean": "BOOLEAN",
+    "datetime64": "DATE",
+    "datetime": "DATE",
+    "date": "DATE",
+}
+
+DEFAULT_QUOTE_CHARACTER = '"'
+DEFAULT_SEPARATOR = ","
+DEFAULT_ESCAPSE_CHAR = "\\"
+
+# Taken from <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/blob/cce01ec2c9f8ae44dabe957ca70e87942431aff5/lib/models/src/main/java/org/sagebionetworks/repo/model/table/TableConstants.java#L77>
+RESERVED_COLUMN_NAMES = [
+    "ROW_ID",
+    "ROW_VERSION",
+    "ROW_ETAG",
+    "ROW_BENEFACTOR",
+    "ROW_SEARCH_CONTENT",
+    "ROW_HASH_CODE",
+]
+
+DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
+SERIES_TYPE = TypeVar("pd.Series")
+
+
+def test_import_pandas() -> None:
+    try:
+        import pandas as pd  # noqa F401
+    # used to catch when pandas isn't installed
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            """\n\nThe pandas package is required for this function!\n
+        Most functions in the synapseclient package don't require the
+        installation of pandas, but some do. Please refer to the installation
+        instructions at: http://pandas.pydata.org/ or
+        https://python-docs.synapse.org/tutorials/installation/#installation-guide-for-pypi-users.
+        \n\n\n"""
+        )
+    # catch other errors (see SYNPY-177)
+    except:  # noqa
+        raise
 
 
 @dataclass
@@ -63,23 +122,6 @@ class TableBase:
     version_number: None = None
     _last_persistent_instance: None = None
     _columns_to_delete: Optional[Dict] = None
-
-    def _set_last_persistent_instance(self) -> None:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    def to_synapse_request(self) -> Dict:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    def fill_from_dict(self, entity: Dict, set_annotations: bool) -> None:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    @property
-    def has_changed(self) -> bool:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    @property
-    def has_columns_changed(self) -> bool:
-        """Used to satisfy the usage in this mixin from the parent class."""
 
 
 @dataclass
@@ -529,6 +571,7 @@ class DeleteMixin:
         )
 
 
+@async_to_sync
 class GetMixin:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Get: {self.name}"
@@ -1029,6 +1072,7 @@ class ColumnMixin:
             raise ValueError("columns must be a list, dict, or OrderedDict")
 
 
+@async_to_sync
 class TableUpsertMixin:
     def _construct_select_statement_for_upsert(
         self,
@@ -1374,9 +1418,9 @@ class TableUpsertMixin:
             kept to a minimum (< 50,000). There is significant overhead in the request
             to Synapse for each row that is upserted. If you are upserting a large
             number of rows a better approach may be to query for the data you want
-            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
+            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_components.TableStoreRowMixin.store_rows_async] method to
             update the data in Synapse. Any rows you want to insert may be added
-            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method.
+            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_components.TableStoreRowMixin.store_rows_async] method.
         - When upserting mnay rows the requests to Synapse will be chunked into smaller
             requests. The limit is 2MB per request. This chunking will happen
             automatically and should not be a concern for most users. If you are
@@ -1434,7 +1478,7 @@ class TableUpsertMixin:
         Arguments:
             values: Supports storing data from the following sources:
 
-                - A string holding the path to a CSV file. Tthe data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_operator.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
+                - A string holding the path to a CSV file. Tthe data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
                 - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
@@ -1689,6 +1733,7 @@ class TableUpsertMixin:
                 )
 
 
+@async_to_sync
 class ViewUpdateMixin(TableUpsertMixin):
     async def update_rows_async(
         self,
@@ -1721,6 +1766,7 @@ class ViewUpdateMixin(TableUpsertMixin):
         )
 
 
+@async_to_sync
 class QueryMixin:
     @staticmethod
     async def query_async(
@@ -1944,6 +1990,7 @@ class QueryMixin:
         )
 
 
+@async_to_sync
 class ViewSnapshotMixin:
     """A mixin that allows you to create a snapshot of a view."""
 
@@ -1972,3 +2019,1425 @@ class ViewSnapshotMixin:
                 activity=activity,
             ),
         ).send_job_and_wait_async(synapse_client=client)
+
+
+@async_to_sync
+class TableStoreRowMixin:
+    id: str = None
+    name: str = None
+    parent_id: str = None
+    activity: None = None
+    columns: OrderedDict = None
+    _last_persistent_instance: None = None
+    _columns_to_delete: None = None
+
+    def _infer_columns_from_data(
+        self,
+        values: DATA_FRAME_TYPE,
+        column_expansion_strategy: ColumnExpansionStrategy,
+    ) -> None:
+        """
+        Infer the columns from the data that is being stored. This method is used
+        when the `schema_storage_strategy` is set to `INFER_FROM_DATA`.
+
+        Arguments:
+            values: The data that is being stored. This data will be used to infer the
+                columns that are created in Synapse.
+            column_expansion_strategy: Determines how to automate the expansion of
+                columns based on the data that is being stored. The options given
+                allow cells with a limit on the length of content (Such as strings)
+                to be expanded to a larger size if the data being stored exceeds the
+                limit. A limit to list length is also enforced in Synapse by automatic
+                expansion for lists is not yet supported through this interface.
+
+        Returns:
+            None, but the columns on the table will be updated to reflect the inferred
+            columns from the data that is being stored.
+        """
+        infered_columns = infer_column_type_from_data(values=values)
+
+        modified_ordered_dict = OrderedDict()
+        for column in self.columns.values():
+            modified_ordered_dict[column.name] = column
+        self.columns = modified_ordered_dict
+
+        for infered_column in infered_columns:
+            column_instance = self.columns.get(infered_column.name, None)
+            if column_instance is None:
+                self.columns[infered_column.name] = infered_column
+            else:
+                if (
+                    column_expansion_strategy is not None
+                    and (
+                        column_expansion_strategy
+                        == ColumnExpansionStrategy.AUTO_EXPAND_CONTENT_LENGTH
+                    )
+                    and (infered_column.maximum_size or 0)
+                    > (column_instance.maximum_size or 1)
+                ):
+                    column_instance.maximum_size = infered_column.maximum_size
+
+    async def store_rows_async(
+        self,
+        values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
+        schema_storage_strategy: SchemaStorageStrategy = None,
+        column_expansion_strategy: ColumnExpansionStrategy = None,
+        dry_run: bool = False,
+        additional_changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
+        *,
+        insert_size_bytes: int = 900 * MB,
+        csv_table_descriptor: Optional[CsvTableDescriptor] = None,
+        read_csv_kwargs: Optional[Dict[str, Any]] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        Add or update rows in Synapse from the sources defined below. In most cases the
+        result of this function call will append rows to the table. In the case of an
+        update this method works on a full row replacement. What this means is
+        that you may not do a partial update of a row. If you want to update a row
+        you must pass in all the data for that row, or the data for the columns not
+        provided will be set to null.
+
+        If you'd like to update a row see the example `Updating rows in a table` below.
+
+        If you'd like to perform an `upsert` or partial update of a row you may use
+        the `.upsert_rows()` method. See that method for more information.
+
+
+        Note the following behavior for the order of columns:
+
+        - If a column is added via the `add_column` method it will be added at the
+            index you specify, or at the end of the columns list.
+        - If column(s) are added during the contruction of your `Table` instance, ie.
+            `Table(columns=[Column(name="foo")])`, they will be added at the begining
+            of the columns list.
+        - If you use the `store_rows` method and the `schema_storage_strategy` is set to
+            `INFER_FROM_DATA` the columns will be added at the end of the columns list.
+
+
+        **Limitations:**
+
+        - Synapse limits the number of rows that may be stored in a single request to
+            a CSV file that is 1GB. If you are storing a CSV file that is larger than
+            this limit the data will be chunked into smaller requests. This process is
+            done by reading the file once to determine what the row and byte boundries
+            are and calculating the MD5 hash of that portion, then reading the file
+            again to send the data to Synapse. This process is done to ensure that the
+            data is not corrupted during the upload process, in addition Synapse
+            requires the MD5 hash of the data to be sent in the request along with the
+            number of bytes that are being sent.
+        - The limit of 1GB is also enforced when storing a dictionary or a DataFrame.
+            The data will be converted to a CSV format using the `.to_csv()` pandas
+            function. If you are storing more than a 1GB file it is recommended that
+            you store the data as a CSV and use the file path to upload the data. This
+            is due to the fact that the DataFrame chunking process is slower than
+            reading portions of a file on disk and calculating the MD5 hash of that
+            portion.
+
+        The following is a Sequence Daigram that describes the process noted in the
+        limitation above. It shows how the data is chunked into smaller requests when
+        the data exceeds the limit of 1GB, and how portions of the data are read from
+        the CSV file on disk while being uploaded to Synapse.
+
+        ```mermaid
+        sequenceDiagram
+            participant User
+            participant Table
+            participant FileSystem
+            participant Synapse
+
+            User->>Table: store_rows(values)
+
+            alt CSV size > 1GB
+                Table->>Synapse: Apply schema changes before uploading
+                note over Table, FileSystem: Read CSV twice
+                Table->>FileSystem: Read entire CSV (First Pass)
+                FileSystem-->>Table: Compute chunk sizes & MD5 hashes
+
+                loop Read and Upload CSV chunks (Second Pass)
+                    Table->>FileSystem: Read next chunk from CSV
+                    FileSystem-->>Table: Return bytes
+                    Table->>Synapse: Upload CSV chunk
+                    Synapse-->>Table: Return `file_handle_id`
+                    Table->>Synapse: Send 'TableUpdateTransaction' to append/update rows
+                    Synapse-->>Table: Transaction result
+                end
+            else
+                Table->>Synapse: Upload CSV without splitting & Any additional schema changes
+                Synapse-->>Table: Return `file_handle_id`
+                Table->>Synapse: Send `TableUpdateTransaction' to append/update rows
+                Synapse-->>Table: Transaction result
+            end
+
+            Table-->>User: Upload complete
+        ```
+
+        The following is a Sequence Daigram that describes the process noted in the
+        limitation above for DataFrames. It shows how the data is chunked into smaller
+        requests when the data exceeds the limit of 1GB, and how portions of the data
+        are read from the DataFrame while being uploaded to Synapse.
+
+        ```mermaid
+        sequenceDiagram
+            participant User
+            participant Table
+            participant MemoryBuffer
+            participant Synapse
+
+            User->>Table: store_rows(DataFrame)
+
+            loop For all rows in DataFrame in 100 row increments
+                Table->>MemoryBuffer: Convert DataFrame rows to CSV in-memory
+                MemoryBuffer-->>Table: Compute chunk sizes & MD5 hashes
+            end
+
+
+            alt Multiple chunks detected
+                Table->>Synapse: Apply schema changes before uploading
+            end
+
+            loop For all chunks found in first loop
+                loop for all parts in chunk byte boundry
+                    Table->>MemoryBuffer: Read small (< 8MB) part of the chunk
+                    MemoryBuffer-->>Table: Return bytes (with correct offset)
+                    Table->>Synapse: Upload part
+                    Synapse-->>Table: Upload response
+                end
+                Table->>Synapse: Complete upload
+                Synapse-->>Table: Return `file_handle_id`
+                Table->>Synapse: Send 'TableUpdateTransaction' to append/update rows
+                Synapse-->>Table: Transaction result
+            end
+
+            Table-->>User: Upload complete
+        ```
+
+        Arguments:
+            values: Supports storing data from the following sources:
+
+                - A string holding the path to a CSV file. If the `schema_storage_strategy` is set to `None` the data will be uploaded as is. If `schema_storage_strategy` is set to `INFER_FROM_DATA` the data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
+                - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            schema_storage_strategy: Determines how to automate the creation of columns
+                based on the data that is being stored. If you want to have full
+                control over the schema you may set this to `None` and create
+                the columns manually.
+
+                The limitation with this behavior is that the columns created may only
+                be of the following types:
+
+                - STRING
+                - LARGETEXT
+                - INTEGER
+                - DOUBLE
+                - BOOLEAN
+                - DATE
+
+                The determination is based on how this pandas function infers the
+                data type: [infer_dtype](https://pandas.pydata.org/docs/reference/api/pandas.api.types.infer_dtype.html)
+
+                This may also only set the `name`, `column_type`, and `maximum_size` of
+                the column when the column is created. If this is used to update the
+                column the `maxium_size` will only be updated depending on the
+                value of `column_expansion_strategy`. The other attributes of the
+                column will be set to the default values on create, or remain the same
+                if the column already exists.
+
+
+                The usage of this feature will never delete a column, shrink a column,
+                or change the type of a column that already exists. If you need to
+                change any of these attributes you must do so after getting the table
+                via a `.get()` call, updating the columns as needed, then calling
+                `.store()` on the table.
+
+            column_expansion_strategy: Determines how to automate the expansion of
+                columns based on the data that is being stored. The options given allow
+                cells with a limit on the length of content (Such as strings) to be
+                expanded to a larger size if the data being stored exceeds the limit.
+                If you want to have full control over the schema you may set this to
+                `None` and create the columns manually. String type columns are the only
+                ones that support this feature.
+
+            dry_run: Log the actions that would be taken, but do not actually perform
+                the actions. This will not print out the data that would be stored or
+                modified as a result of this action. It will print out the actions that
+                would be taken, such as creating a new column, updating a column, or
+                updating table metadata. This is useful for debugging and understanding
+                what actions would be taken without actually performing them.
+
+            additional_changes: Additional changes to the table that should execute
+                within the same transaction as appending or updating rows. This is used
+                as a part of the `upsert_rows` method call to allow for the updating of
+                rows and the updating of the table schema in the same transaction. In
+                most cases you will not need to use this argument.
+
+            insert_size_bytes: The maximum size of data that will be stored to Synapse
+                within a single transaction. The API have a limit of 1GB, but the
+                default is set to 900 MB to allow for some overhead in the request. The
+                implication of this limit is that when you are storing a CSV that is
+                larger than this limit the data will be chunked into smaller requests
+                by reading the file once to determine what the row and byte boundries
+                are and calculating the MD5 hash of that portion, then reading the file
+                again to send the data to Synapse. This process is done to ensure that
+                the data is not corrupted during the upload process, in addition Synapse
+                requires the MD5 hash of the data to be sent in the request along with
+                the number of bytes that are being sent. This argument is also used
+                when storing a dictionary or a DataFrame. The data will be converted to
+                a CSV format using the `.to_csv()` pandas function. When storing data
+                as a DataFrame the minimum that it will be chunked to is 100 rows of
+                data, regardless of if the data is larger than the limit.
+
+            csv_table_descriptor: When passing in a CSV file this will allow you to
+                specify the format of the CSV file. This is only used when the `values`
+                argument is a string holding the path to a CSV file. See
+                [CsvTableDescriptor][synapseclient.models.CsvTableDescriptor]
+                for more information.
+
+            read_csv_kwargs: Additional arguments to pass to the `pd.read_csv` function
+                when reading in a CSV file. This is only used when the `values` argument
+                is a string holding the path to a CSV file and you have set the
+                `schema_storage_strategy` to `INFER_FROM_DATA`. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
+                for complete list of supported arguments.
+
+            to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+                function when writing the data to a CSV file. This is only used when
+                the `values` argument is a Pandas DataFrame. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html>
+                for complete list of supported arguments.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when inserting, and updating rows of data. Each individual
+                request to Synapse will be sent as an independent job. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Example: Inserting rows into a table that already has columns
+            This example shows how you may insert rows into a table.
+
+            Suppose we have a table with the following columns:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+
+            The following code will insert rows into the table:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                data_to_insert = {
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [1, 2, 3],
+                    'col3': [1, 2, 3],
+                }
+
+                await Table(id="syn1234").store_rows_async(values=data_to_insert)
+
+            asyncio.run(main())
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+        Example: Inserting rows into a table that does not have columns
+            This example shows how you may insert rows into a table that does not have
+            columns. The columns will be inferred from the data that is being stored.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                data_to_insert = {
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [1, 2, 3],
+                    'col3': [1, 2, 3],
+                }
+
+                await Table(id="syn1234").store_rows_async(
+                    values=data_to_insert,
+                    schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
+                )
+
+            asyncio.run(main())
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+        Example: Using the dry_run option with a SchemaStorageStrategy of INFER_FROM_DATA
+            This example shows how you may use the `dry_run` option with the
+            `SchemaStorageStrategy` set to `INFER_FROM_DATA`. This will show you the
+            actions that would be taken, but not actually perform the actions.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, SchemaStorageStrategy # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                data_to_insert = {
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [1, 2, 3],
+                    'col3': [1, 2, 3],
+                }
+
+                await Table(id="syn1234").store_rows_async(
+                    values=data_to_insert,
+                    dry_run=True,
+                    schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA
+                )
+
+            asyncio.run(main())
+            ```
+
+            The result of running this action will print to the console the actions that
+            would be taken, but not actually perform the actions.
+
+        Example: Updating rows in a table
+            This example shows how you may query for data in a table, update the data,
+            and then store the updated rows back in Synapse.
+
+            Suppose we have a table that has the following data:
+
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+            | C    | 3    | 3    |
+
+            Behind the scenese the tables also has `ROW_ID` and `ROW_VERSION` columns
+            which are used to identify the row that is being updated. These columns
+            are not shown in the table above, but is included in the data that is
+            returned when querying the table. If you add data that does not have these
+            columns the data will be treated as new rows to be inserted.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, query_async # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                query_results = await query_async(query="select * from syn1234 where col1 in ('A', 'B')")
+
+                # Update `col2` of the row where `col1` is `A` to `22`
+                query_results.loc[query_results['col1'] == 'A', 'col2'] = 22
+
+                # Update `col3` of the row where `col1` is `B` to `33`
+                query_results.loc[query_results['col1'] == 'B', 'col3'] = 33
+
+                await Table(id="syn1234").store_rows_async(values=query_results)
+
+            asyncio.run(main())
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 22   | 1    |
+            | B    | 2    | 33   |
+            | C    | 3    | 3    |
+
+        """
+        test_import_pandas()
+        from pandas import DataFrame
+
+        original_values = values
+        if isinstance(values, dict):
+            values = DataFrame(values)
+        elif (
+            isinstance(values, str)
+            and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
+        ):
+            values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
+        elif isinstance(values, DataFrame) or isinstance(values, str):
+            # We don't need to convert a DF, and CSVs will be uploaded as is
+            pass
+        else:
+            raise ValueError(
+                "Don't know how to make tables from values of type %s." % type(values)
+            )
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if (
+            (not self._last_persistent_instance)
+            and (
+                existing_id := await get_id(
+                    entity=self, synapse_client=synapse_client, failure_strategy=None
+                )
+            )
+            and (
+                existing_entity := await self.__class__(id=existing_id).get_async(
+                    include_columns=True, synapse_client=synapse_client
+                )
+            )
+        ):
+            merge_dataclass_entities(
+                source=existing_entity,
+                destination=self,
+            )
+
+        if dry_run:
+            client.logger.info(
+                f"[{self.id}:{self.name}]: Dry run enabled. No changes will be made."
+            )
+
+        schema_change_request = None
+
+        if schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA:
+            self._infer_columns_from_data(
+                values=values, column_expansion_strategy=column_expansion_strategy
+            )
+
+            schema_change_request = await self._generate_schema_change_request(
+                dry_run=dry_run, synapse_client=synapse_client
+            )
+
+        if dry_run:
+            return
+
+        if not self.id:
+            raise ValueError(
+                "The table must have an ID to store rows, or the table could not be found from the given name/parent_id."
+            )
+
+        if isinstance(original_values, str):
+            with logging_redirect_tqdm(loggers=[client.logger]):
+                await self._chunk_and_upload_csv(
+                    path_to_csv=original_values,
+                    insert_size_bytes=insert_size_bytes,
+                    csv_table_descriptor=csv_table_descriptor,
+                    schema_change_request=schema_change_request,
+                    client=client,
+                    additional_changes=additional_changes,
+                    job_timeout=job_timeout,
+                )
+        elif isinstance(values, DataFrame):
+            with logging_redirect_tqdm(loggers=[client.logger]):
+                await self._chunk_and_upload_df(
+                    df=values,
+                    insert_size_bytes=insert_size_bytes,
+                    csv_table_descriptor=csv_table_descriptor,
+                    schema_change_request=schema_change_request,
+                    client=client,
+                    additional_changes=additional_changes,
+                    job_timeout=job_timeout,
+                    to_csv_kwargs=to_csv_kwargs,
+                )
+
+        else:
+            raise ValueError(
+                "Don't know how to make tables from values of type %s." % type(values)
+            )
+
+    async def _send_update(
+        self,
+        client: Synapse,
+        table_descriptor: CsvTableDescriptor,
+        job_timeout: int,
+        file_handle_id: str = None,
+        changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
+    ) -> None:
+        """
+        Construct the request to send to Synapse to update the table with the
+        given file handle ID.
+
+        This will also send the schema change request, or any additional changes
+        that are passed in to the method.
+
+        Arguments:
+            table_descriptor: The descriptor for the CSV file that is being uploaded.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+            file_handle_id: The file handle ID that is being uploaded to Synapse.
+            changes: Additional changes to the table that should
+                execute within the same transaction as appending or updating rows.
+        """
+        all_changes = []
+        if changes:
+            all_changes.extend(changes)
+
+        if file_handle_id:
+            upload_request = UploadToTableRequest(
+                table_id=self.id,
+                upload_file_handle_id=file_handle_id,
+                update_etag=None,
+            )
+            if table_descriptor:
+                upload_request.csv_table_descriptor = table_descriptor
+            all_changes.append(upload_request)
+
+        if all_changes:
+            await TableUpdateTransaction(
+                entity_id=self.id, changes=all_changes
+            ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
+
+    async def _stream_and_update_from_disk(
+        self,
+        client: Synapse,
+        encoded_header: bytes,
+        size_of_chunk: int,
+        path_to_csv: str,
+        byte_chunk_offset: int,
+        md5: str,
+        csv_table_descriptor: CsvTableDescriptor,
+        job_timeout: int,
+        progress_bar: tqdm,
+        wait_for_update_semaphore: asyncio.Semaphore,
+        file_suffix: str,
+    ) -> None:
+        """
+        Handle the process of reading in parts of the CSV we are going to be uploading
+        into Synapse. Since the Synapse REST API has a limit of 1GB as the maximum
+        size of a file that can be appended to a table, we must upload files that are
+        larger than that in multiple requests.
+
+        After each chunk is uploaded we will send a `TableUpdateTransaction` to Synapse
+        to append the rows to the table.
+
+        Arguments:
+            client: The Synapse client that is being used to interact with the API.
+            encoded_header: The header of the CSV file that is being uploaded.
+            size_of_chunk: The size of the chunk that we are uploading to Synapse.
+            path_to_csv: The path to the CSV file that is being uploaded to Synapse.
+            byte_chunk_offset: The byte offset that we are starting to read from the
+                csv file for the current chunk. This is used to skip any parts of the
+                csv file that we have already uploaded.
+            md5: The MD5 hash of the current chunk that is being uploaded.
+            csv_table_descriptor: The descriptor for the CSV file that is being uploaded.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+            progress_bar: The progress bar that is being used to show the progress of
+                the upload.
+            wait_for_update_semaphore: The semaphore that is being used to wait for the
+                update to complete before moving on to the next chunk.
+            file_suffix: The suffix that is being used to name the CSV file that is
+                being uploaded. Used in the progress bar message and the file name.
+
+        Returns:
+            None
+        """
+        file_handle_id = await multipart_upload_partial_file_async(
+            syn=client,
+            bytes_to_prepend=encoded_header,
+            content_type="text/csv",
+            dest_file_name=f"chunked_csv_for_synapse_store_rows_{file_suffix}.csv",
+            partial_file_size_bytes=size_of_chunk,
+            path_to_original_file=path_to_csv,
+            bytes_to_skip=byte_chunk_offset,
+            md5=md5,
+        )
+        # We are using a semaphore here because large tables can take a very long time
+        # for the update to complete. This will allow us to wait for the update to
+        # complete before moving on to the next chunk.
+        async with wait_for_update_semaphore:
+            await self._send_update(
+                client=client,
+                table_descriptor=csv_table_descriptor,
+                file_handle_id=file_handle_id,
+                job_timeout=job_timeout,
+            )
+            progress_bar.update(size_of_chunk)
+
+    async def _stream_and_update_from_df(
+        self,
+        client: Synapse,
+        df: DATA_FRAME_TYPE,
+        header: bytes,
+        line_start: int,
+        line_end: int,
+        size_of_chunk: int,
+        byte_chunk_offset: int,
+        md5: str,
+        csv_table_descriptor: CsvTableDescriptor,
+        job_timeout: int,
+        progress_bar: tqdm,
+        wait_for_update_semaphore: asyncio.Semaphore,
+        file_suffix: str,
+        changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
+    ) -> None:
+        """
+        Organize the process of reading in and uploading parts of the DataFrame we are
+        going to be uploading into Synapse. Once the portion of the DataFrame is read
+        in we will send a `TableUpdateTransaction` to Synapse to append the rows to the
+        table.
+
+        Arguments:
+            client: The Synapse client that is being used to interact with the API.
+            df: The DataFrame that we are chunking up and is being uploaded to Synapse.
+            header: The header of the CSV file that is being uploaded.
+            line_start: The line number that we are starting to read from the DataFrame
+                for the current chunk.
+            line_end: The line number that we are ending to read from the DataFrame
+                for the current chunk.
+            size_of_chunk: The size of the chunk that we are uploading to Synapse.
+            byte_chunk_offset: The byte offset that we are starting to read from the
+                DataFrame for the current chunk. This is used to skip any parts of the
+                DataFrame that we have already uploaded.
+            md5: The MD5 hash of the current chunk that is being uploaded.
+            csv_table_descriptor: The descriptor for the CSV file that is being uploaded.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+            progress_bar: The progress bar that is being used to show the progress of
+                the upload.
+            wait_for_update_semaphore: The semaphore that is being used to wait for the
+                update to complete before moving on to the next chunk.
+            file_suffix: The suffix that is being used to name the CSV file that is
+                being uploaded.
+            changes: Additional changes to the table that should
+                execute within this transaction.
+        """
+        file_handle_id = await multipart_upload_dataframe_async(
+            syn=client,
+            df=df,
+            content_type="text/csv",
+            dest_file_name=f"chunked_csv_for_synapse_store_rows_{file_suffix}.csv",
+            partial_file_size_bytes=size_of_chunk,
+            bytes_to_skip=byte_chunk_offset,
+            md5=md5,
+            line_start=line_start,
+            line_end=line_end,
+            bytes_to_prepend=header,
+        )
+        # We are using a semaphore here because large tables can take a very long time
+        # for the update to complete. This will allow us to wait for the update to
+        # complete before moving on to the next chunk.
+        async with wait_for_update_semaphore:
+            await self._send_update(
+                client=client,
+                table_descriptor=csv_table_descriptor,
+                file_handle_id=file_handle_id,
+                job_timeout=job_timeout,
+                changes=changes,
+            )
+            progress_bar.update(size_of_chunk)
+
+    async def _chunk_and_upload_csv(
+        self,
+        path_to_csv: str,
+        insert_size_bytes: int,
+        csv_table_descriptor: CsvTableDescriptor,
+        schema_change_request: TableSchemaChangeRequest,
+        client: Synapse,
+        job_timeout: int,
+        additional_changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
+    ) -> None:
+        """
+        Determines if the file we are appending to the table is larger than the
+        maximum size that Synapse allows for a single request. If the file is larger
+        than the maximum size we will chunk the file into smaller requests and upload
+        them to Synapse. If the file is smaller than the maximum size we will upload
+        the file to Synapse as is.
+
+        Arguments:
+            path_to_csv: The path to the CSV file that is being uploaded to Synapse.
+            insert_size_bytes: The maximum size of data that will be stored to Synapse
+                within a single transaction. The API have a limit of 1GB.
+            csv_table_descriptor: The descriptor for the CSV file that is being uploaded.
+            schema_change_request: The schema change request that will be sent to
+                Synapse to update the table.
+            client: The Synapse client that is being used to interact with the API.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+            additional_changes: Additional changes to the table that should execute
+                within this transaction.
+        """
+        if (file_size := os.path.getsize(path_to_csv)) > insert_size_bytes:
+            # Apply schema changes before breaking apart and uploading the file
+            changes = []
+            if schema_change_request:
+                changes.append(schema_change_request)
+            if additional_changes:
+                changes.extend(additional_changes)
+
+            await self._send_update(
+                client=client,
+                table_descriptor=csv_table_descriptor,
+                changes=changes,
+                job_timeout=job_timeout,
+            )
+
+            progress_bar = tqdm(
+                total=file_size,
+                desc="Splitting CSV and uploading chunks",
+                unit_scale=True,
+                smoothing=0,
+                unit="B",
+                leave=None,
+            )
+            # The original file is read twice, the reason is that on the first pass we
+            # are calculating the size of the chunks that we will be uploading and the
+            # MD5 hash of the file. On the second pass we are reading in the chunks
+            # and uploading them to Synapse.
+            with open(file=path_to_csv, mode="rb") as f:
+                header_line = f.readline()
+                size_of_header = len(header_line)
+                file_size = size_of_header
+                md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
+                md5_hashlib.update(header_line)
+                chunks_to_upload = []
+                size_of_chunk = 0
+                previous_chunk_byte_offset = size_of_header
+                while chunk := f.readlines(8 * MB):
+                    for line in chunk:
+                        md5_hashlib.update(line)
+                        size_of_chunk += len(line)
+                        file_size += size_of_chunk
+                        if size_of_chunk >= insert_size_bytes:
+                            chunks_to_upload.append(
+                                (
+                                    previous_chunk_byte_offset,
+                                    size_of_chunk,
+                                    md5_hashlib.hexdigest(),
+                                )
+                            )
+                            previous_chunk_byte_offset += size_of_chunk
+                            size_of_chunk = 0
+                            md5_hashlib = hashlib.new(
+                                "md5", usedforsecurity=False
+                            )  # nosec
+                            md5_hashlib.update(header_line)
+                if size_of_chunk:
+                    chunks_to_upload.append(
+                        (
+                            previous_chunk_byte_offset,
+                            size_of_chunk,
+                            md5_hashlib.hexdigest(),
+                        )
+                    )
+
+                update_tasks = []
+                wait_for_update_semaphore = asyncio.Semaphore(value=1)
+                part = 0
+                for byte_chunk_offset, size_of_chunk, md5 in chunks_to_upload:
+                    update_tasks.append(
+                        asyncio.create_task(
+                            self._stream_and_update_from_disk(
+                                client=client,
+                                encoded_header=header_line,
+                                size_of_chunk=size_of_chunk,
+                                path_to_csv=path_to_csv,
+                                byte_chunk_offset=byte_chunk_offset,
+                                md5=md5,
+                                csv_table_descriptor=csv_table_descriptor,
+                                job_timeout=job_timeout,
+                                progress_bar=progress_bar,
+                                wait_for_update_semaphore=wait_for_update_semaphore,
+                                file_suffix=f"{part}",
+                            )
+                        )
+                    )
+                    part += 1
+
+                client.logger.info(
+                    f"[{self.id}:{self.name}]: Found {len(chunks_to_upload)} chunks to upload into table"
+                )
+                await asyncio.gather(*update_tasks)
+
+            progress_bar.update(progress_bar.total - progress_bar.n)
+            progress_bar.refresh()
+            progress_bar.close()
+        else:
+            file_handle_id = await multipart_upload_file_async(
+                syn=client, file_path=path_to_csv, content_type="text/csv"
+            )
+
+            changes = []
+            if schema_change_request:
+                changes.append(schema_change_request)
+            if additional_changes:
+                changes.extend(additional_changes)
+
+            await self._send_update(
+                client=client,
+                table_descriptor=csv_table_descriptor,
+                file_handle_id=file_handle_id,
+                changes=changes,
+                job_timeout=job_timeout,
+            )
+
+    async def _chunk_and_upload_df(
+        self,
+        df: Union[str, DATA_FRAME_TYPE],
+        insert_size_bytes: int,
+        csv_table_descriptor: CsvTableDescriptor,
+        schema_change_request: TableSchemaChangeRequest,
+        client: Synapse,
+        job_timeout: int,
+        additional_changes: List[
+            Union[
+                "TableSchemaChangeRequest",
+                "UploadToTableRequest",
+                "AppendableRowSetRequest",
+            ]
+        ] = None,
+        to_csv_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Determines the chunks that need to be used to upload the DataFrame to Synapse.
+        The DataFrame will be chunked into smaller requests when the data exceeds the
+        limit of 1GB. The data will be read in twice, the first pass will determine
+        the size of the chunks that will be uploaded and the MD5 hash of the file. The
+        second pass will read in the chunks and upload them to Synapse.
+
+        Arguments:
+            df: The DataFrame that we are chunking up and is being uploaded to Synapse.
+            insert_size_bytes: The maximum size of data that will be stored to Synapse
+                within a single transaction. The API have a limit of 1GB.
+            csv_table_descriptor: The descriptor for the CSV file that is being uploaded.
+            schema_change_request: The schema change request that will be sent to
+                Synapse to update the table.
+            client: The Synapse client that is being used to interact with the API.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+            additional_changes: Additional changes to the table that should execute
+                within this transaction. When there are multiple chunks to upload
+                the changes will be applied right away to prevent going over service
+                limits.
+            to_csv_kwargs: Additional arguments to pass to the `pd.DataFrame.to_csv`
+                function when writing the data to a CSV file.
+        """
+        # Loop over the rows of the DF to determine the size/boundries we'll be uploading
+
+        chunks_to_upload = []
+        size_of_chunk = 0
+        previous_chunk_byte_offset = 0
+        buffer = BytesIO()
+        total_df_bytes = 0
+        size_of_header = 0
+        header_line = None
+        md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
+        line_start_index_for_chunk = 0
+        line_end_index_for_chunk = 0
+        for start in range(0, len(df), 100):
+            end = start + 100
+            line_end_index_for_chunk = end
+            buffer.seek(0)
+            buffer.truncate(0)
+            df.iloc[start:end].to_csv(
+                buffer,
+                header=(start == 0),
+                index=False,
+                float_format="%.12g",
+                **(to_csv_kwargs or {}),
+            )
+            total_df_bytes += buffer.tell()
+            size_of_chunk += buffer.tell()
+
+            if start == 0:
+                buffer.seek(0)
+                header_line = buffer.readline()
+                size_of_header = len(header_line)
+                previous_chunk_byte_offset = size_of_header
+            md5_hashlib.update(buffer.getvalue())
+
+            if size_of_chunk >= insert_size_bytes:
+                chunks_to_upload.append(
+                    (
+                        previous_chunk_byte_offset,
+                        size_of_chunk,
+                        md5_hashlib.hexdigest(),
+                        line_start_index_for_chunk,
+                        line_end_index_for_chunk,
+                    )
+                )
+                previous_chunk_byte_offset = size_of_header
+                size_of_chunk = 0
+                line_start_index_for_chunk = line_end_index_for_chunk
+                md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
+        if size_of_chunk > 0:
+            chunks_to_upload.append(
+                (
+                    previous_chunk_byte_offset,
+                    size_of_chunk,
+                    md5_hashlib.hexdigest(),
+                    line_start_index_for_chunk,
+                    line_end_index_for_chunk,
+                )
+            )
+
+        client.logger.info(
+            f"[{self.id}:{self.name}]: Found {len(chunks_to_upload)} chunks to upload into table"
+        )
+        progress_bar = tqdm(
+            total=total_df_bytes,
+            desc="Splitting DataFrame and uploading chunks",
+            unit_scale=True,
+            smoothing=0,
+            unit="B",
+            leave=None,
+        )
+
+        changes = []
+        if schema_change_request:
+            changes.append(schema_change_request)
+        if additional_changes:
+            changes.extend(additional_changes)
+
+        # Apply changes right away when there are multiple chunks. This is to prevent
+        # going over service limits depending on the additiona changes.
+        if len(chunks_to_upload) > 1:
+            await self._send_update(
+                client=client,
+                table_descriptor=csv_table_descriptor,
+                changes=changes,
+                job_timeout=job_timeout,
+            )
+            changes = None
+
+        update_tasks = []
+        wait_for_update_semaphore = asyncio.Semaphore(value=1)
+        part = 0
+        for (
+            byte_chunk_offset,
+            size_of_chunk,
+            md5,
+            line_start,
+            line_end,
+        ) in chunks_to_upload:
+            update_tasks.append(
+                asyncio.create_task(
+                    self._stream_and_update_from_df(
+                        client=client,
+                        size_of_chunk=size_of_chunk,
+                        byte_chunk_offset=byte_chunk_offset,
+                        md5=md5,
+                        csv_table_descriptor=csv_table_descriptor,
+                        job_timeout=job_timeout,
+                        progress_bar=progress_bar,
+                        wait_for_update_semaphore=wait_for_update_semaphore,
+                        line_start=line_start,
+                        line_end=line_end,
+                        df=df,
+                        header=header_line,
+                        changes=changes,
+                        file_suffix=f"{part}",
+                    )
+                )
+            )
+            part += 1
+
+        await asyncio.gather(*update_tasks)
+        progress_bar.update(progress_bar.total - progress_bar.n)
+        progress_bar.refresh()
+        progress_bar.close()
+
+
+@async_to_sync
+class TableDeleteRowMixin:
+    async def delete_rows_async(
+        self,
+        query: str,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+    ) -> DATA_FRAME_TYPE:
+        """
+        Delete rows from a table given a query to select rows. The query at a
+        minimum must select the `ROW_ID` and `ROW_VERSION` columns. If you want to
+        inspect the data that will be deleted ahead of time you may use the
+        `.query` method to get the data.
+
+
+        Arguments:
+            query: The query to select the rows to delete. The query at a minimum
+                must select the `ROW_ID` and `ROW_VERSION` columns. See this document
+                that describes the expected syntax of the query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            job_timeout: The amount of time to wait for table updates to complete
+                before a `SynapseTimeoutError` is thrown. The default is 600 seconds.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The results of your query for the rows that were deleted from the table.
+
+        Example: Selecting a row to delete
+            This example shows how you may select a row to delete from a table.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await Table(id="syn1234").delete_rows_async(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo = 'asdf'")
+
+            asyncio.run(main())
+            ```
+
+        Example: Selecting all rows that contain a null value
+            This example shows how you may select a row to delete from a table where
+            a column has a null value.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await Table(id="syn1234").delete_rows_async(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo is null")
+
+            asyncio.run(main())
+            ```
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+        results_from_query = await self.query_async(query=query, synapse_client=client)
+        client.logger.info(
+            f"Found {len(results_from_query)} rows to delete for given query: {query}"
+        )
+
+        if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
+            filtered_columns = results_from_query[["ROW_ID", "ROW_VERSION", "ROW_ETAG"]]
+        else:
+            filtered_columns = results_from_query[["ROW_ID", "ROW_VERSION"]]
+
+        filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
+        try:
+            filtered_columns.to_csv(filepath, index=False)
+            file_handle_id = await multipart_upload_file_async(
+                syn=client, file_path=filepath, content_type="text/csv"
+            )
+        finally:
+            os.remove(filepath)
+
+        upload_request = UploadToTableRequest(
+            table_id=self.id, upload_file_handle_id=file_handle_id, update_etag=None
+        )
+
+        await TableUpdateTransaction(
+            entity_id=self.id, changes=[upload_request]
+        ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
+
+        return results_from_query
+
+
+def infer_column_type_from_data(values: DATA_FRAME_TYPE) -> List[Column]:
+    """
+    Return a list of Synapse table [Column][synapseclient.models.table.Column] objects
+    that correspond to the columns in the given values.
+
+    Arguments:
+        values: An object that holds the content of the tables. It must be a
+            [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+    Returns:
+        A list of Synapse table [Column][synapseclient.table.Column] objects
+
+    Example:
+
+        ```python
+        import pandas as pd
+
+        df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
+        cols = infer_column_type_from_data(df)
+        ```
+    """
+    test_import_pandas()
+    from pandas import DataFrame, isna
+    from pandas.api.types import infer_dtype
+
+    if isinstance(values, DataFrame):
+        df = values
+    else:
+        raise ValueError(
+            "Values of type %s is not supported. It must be a pandas DataFrame"
+            % type(values)
+        )
+
+    cols = list()
+    for col in df:
+        if not col or col.upper() in RESERVED_COLUMN_NAMES:
+            continue
+        inferred_type = infer_dtype(df[col], skipna=True)
+        if inferred_type == "floating":
+            # Check if the column is integers, assuming that the row may be an integer or null
+            if df[col].apply(lambda x: isna(x) or float(x).is_integer()).all():
+                inferred_type = "integer"
+
+        column_type = PANDAS_TABLE_TYPE.get(inferred_type, "STRING")
+        if column_type == "STRING":
+            maxStrLen = df[col].str.len().max()
+            if maxStrLen > 1000:
+                cols.append(
+                    Column(
+                        name=col, column_type=ColumnType["LARGETEXT"], default_value=""
+                    )
+                )
+            else:
+                size = int(
+                    round(min(1000, max(50, maxStrLen * 1.5)))
+                )  # Determine the length of the longest string
+                cols.append(
+                    Column(
+                        name=col,
+                        column_type=ColumnType[column_type],
+                        maximum_size=size,
+                    )
+                )
+        else:
+            cols.append(Column(name=col, column_type=ColumnType[column_type]))
+    return cols
+
+
+def _convert_df_date_cols_to_datetime(
+    df: DATA_FRAME_TYPE, date_columns: List
+) -> DATA_FRAME_TYPE:
+    """
+    Convert date columns with epoch time to date time in UTC timezone
+
+    Argumenets:
+        df: a pandas dataframe
+        date_columns: name of date columns
+
+    Returns:
+        A dataframe with epoch time converted to date time in UTC timezone
+    """
+    test_import_pandas()
+    import numpy as np
+    from pandas import to_datetime
+
+    # find columns that are in date_columns list but not in dataframe
+    diff_cols = list(set(date_columns) - set(df.columns))
+    if diff_cols:
+        raise ValueError("Please ensure that date columns are already in the dataframe")
+    try:
+        df[date_columns] = df[date_columns].astype(np.float64)
+    except ValueError:
+        raise ValueError(
+            "Cannot convert epoch time to integer. Please make sure that the date columns that you specified contain valid epoch time value"
+        )
+    df[date_columns] = df[date_columns].apply(
+        lambda x: to_datetime(x, unit="ms", utc=True)
+    )
+    return df
+
+
+def _row_labels_from_id_and_version(rows):
+    return ["_".join(map(str, row)) for row in rows]
+
+
+def csv_to_pandas_df(
+    filepath: Union[str, BytesIO],
+    separator: str = DEFAULT_SEPARATOR,
+    quote_char: str = DEFAULT_QUOTE_CHARACTER,
+    escape_char: str = DEFAULT_ESCAPSE_CHAR,
+    contain_headers: bool = True,
+    lines_to_skip: int = 0,
+    date_columns: Optional[List[str]] = None,
+    list_columns: Optional[List[str]] = None,
+    row_id_and_version_in_index: bool = True,
+    dtype: Optional[Dict[str, Any]] = None,
+    **kwargs,
+):
+    """
+    Convert a csv file to a pandas dataframe
+
+    Arguments:
+        filepath: The path to the file.
+        separator: The separator for the file, Defaults to `DEFAULT_SEPARATOR`.
+                    Passed as `sep` to pandas. If `sep` is supplied as a `kwarg`
+                    it will be used instead of this `separator` argument.
+        quote_char: The quote character for the file,
+                    Defaults to `DEFAULT_QUOTE_CHARACTER`.
+                    Passed as `quotechar` to pandas. If `quotechar` is supplied as a `kwarg`
+                    it will be used instead of this `quote_char` argument.
+        escape_char: The escape character for the file,
+                    Defaults to `DEFAULT_ESCAPSE_CHAR`.
+        contain_headers: Whether the file contains headers,
+                    Defaults to `True`.
+        lines_to_skip: The number of lines to skip at the beginning of the file,
+                        Defaults to `0`. Passed as `skiprows` to pandas.
+                        If `skiprows` is supplied as a `kwarg`
+                        it will be used instead of this `lines_to_skip` argument.
+        date_columns: The names of the date columns in the file
+        list_columns: The names of the list columns in the file
+        row_id_and_version_in_index: Whether the file contains rowId and
+                                version in the index, Defaults to `True`.
+        dtype: The data type for the file, Defaults to `None`.
+        **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
+                    https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html
+                    for complete list of supported arguments.
+
+    Returns:
+        A pandas dataframe
+    """
+    test_import_pandas()
+    from pandas import read_csv
+
+    line_terminator = str(os.linesep)
+
+    pandas_args = {
+        "dtype": dtype,
+        "sep": separator,
+        "quotechar": quote_char,
+        "escapechar": escape_char,
+        "header": 0 if contain_headers else None,
+        "skiprows": lines_to_skip,
+    }
+    pandas_args.update(kwargs)
+
+    # assign line terminator only if for single character
+    # line terminators (e.g. not '\r\n') 'cause pandas doesn't
+    # longer line terminators. See: <https://github.com/pydata/pandas/issues/3501>
+    # "ValueError: Only length-1 line terminators supported"
+    df = read_csv(
+        filepath,
+        lineterminator=line_terminator if len(line_terminator) == 1 else None,
+        **pandas_args,
+    )
+
+    # parse date columns if exists
+    if date_columns:
+        df = _convert_df_date_cols_to_datetime(df, date_columns)
+    # Turn list columns into lists
+    if list_columns:
+        for col in list_columns:
+            # Fill NA values with empty lists, it must be a string for json.loads to work
+            df.fillna({col: "[]"}, inplace=True)
+            df[col] = df[col].apply(json.loads)
+
+    if (
+        row_id_and_version_in_index
+        and "ROW_ID" in df.columns
+        and "ROW_VERSION" in df.columns
+    ):
+        # combine row-ids (in index) and row-versions (in column 0) to
+        # make new row labels consisting of the row id and version
+        # separated by a dash.
+        zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
+        if "ROW_ETAG" in df.columns:
+            zip_args.append(df["ROW_ETAG"])
+
+        df.index = _row_labels_from_id_and_version(zip(*zip_args))
+        del df["ROW_ID"]
+        del df["ROW_VERSION"]
+        if "ROW_ETAG" in df.columns:
+            del df["ROW_ETAG"]
+
+    return df
+
+
+def _convert_pandas_row_to_python_types(
+    cell: Union[SERIES_TYPE, str, List], column_type: ColumnType
+) -> Union[List, datetime, float, int, bool, str]:
+    """
+    Handle the conversion of a cell item to a Python type based on the column type.
+
+    Args:
+        cell: The cell item to convert.
+
+    Returns:
+        The list of items to be used as annotations. Or a single instance if that is
+            all that is present.
+    """
+    try:
+        if column_type == ColumnType.STRING:
+            return cell
+        elif column_type == ColumnType.DOUBLE:
+            return cell.item()
+        elif column_type == ColumnType.INTEGER:
+            return cell.astype(int).item()
+        elif column_type == ColumnType.BOOLEAN:
+            return cell.item()
+        elif column_type == ColumnType.DATE:
+            return cell.item()
+        elif column_type == ColumnType.FILEHANDLEID:
+            return cell.item()
+        elif column_type == ColumnType.ENTITYID:
+            return cell
+        elif column_type == ColumnType.SUBMISSIONID:
+            return cell.astype(int).item()
+        elif column_type == ColumnType.EVALUATIONID:
+            return cell.astype(int).item()
+        elif column_type == ColumnType.LINK:
+            return cell
+        elif column_type == ColumnType.MEDIUMTEXT:
+            return cell
+        elif column_type == ColumnType.LARGETEXT:
+            return cell
+        elif column_type == ColumnType.USERID:
+            return cell.astype(int).item()
+        elif column_type == ColumnType.STRING_LIST:
+            return cell
+        elif column_type == ColumnType.INTEGER_LIST:
+            return [x for x in cell]
+        elif column_type == ColumnType.BOOLEAN_LIST:
+            return cell
+        elif column_type == ColumnType.DATE_LIST:
+            return cell
+        elif column_type == ColumnType.ENTITYID_LIST:
+            return cell
+        elif column_type == ColumnType.USERID_LIST:
+            return cell
+        elif column_type == ColumnType.JSON:
+            return cell
+        else:
+            return cell
+    except Exception:
+        return cell

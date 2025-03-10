@@ -46,4 +46,4 @@ at your own risk.
 ::: synapseclient.models.UploadToTableRequest
 ::: synapseclient.models.TableUpdateTransaction
 ::: synapseclient.models.CsvTableDescriptor
-::: synapseclient.models.mixins.table_operator.csv_to_pandas_df
+::: synapseclient.models.mixins.table_components.csv_to_pandas_df
