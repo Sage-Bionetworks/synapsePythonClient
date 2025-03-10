@@ -1,10 +1,7 @@
-import uuid
-
 import pandas as pd
 
 from synapseclient import Synapse
-from synapseclient.models import Column, ColumnType, File, Folder
-from synapseclient.models.dataset import Dataset, EntityRef
+from synapseclient.models import Column, ColumnType, File, Folder, Dataset, EntityRef
 
 syn = Synapse()
 syn.login()
@@ -57,7 +54,7 @@ def store_dataset():
     )
     my_retrieved_dataset.store()
 
-    # Update dataset rows - does not work for default columns
+    # Update dataset rows - only works for custom columns
     modified_data = pd.DataFrame(
         {
             "id": [FILE.id],
@@ -70,8 +67,8 @@ def store_dataset():
 
     # Save a Snapshot of the dataset
     my_retrieved_dataset.snapshot(
-        comment=str(uuid.uuid4()),
-        label=str(uuid.uuid4()),
+        comment="My first snapshot",
+        label="My first snapshot",
     )
 
 

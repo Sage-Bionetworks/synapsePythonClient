@@ -7,7 +7,7 @@ from synapseclient.models.agent import (
     AgentSessionAccessLevel,
 )
 from synapseclient.models.annotations import Annotations
-from synapseclient.models.dataset import Dataset
+from synapseclient.models.dataset import Dataset, EntityRef
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
 from synapseclient.models.mixins.table_components import QueryMixin
@@ -75,6 +75,7 @@ __all__ = [
     "CsvTableDescriptor",
     # Dataset model
     "Dataset",
+    "EntityRef",
 ]
 
 # Static methods to expose as functions
