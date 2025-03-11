@@ -1793,7 +1793,7 @@ class TableUpsertMixin:
 
 
 @async_to_sync
-class ViewUpdateMixin(TableUpsertMixin):
+class ViewUpdateMixin:
     """Mixin class providing methods for updating rows in a `View`-like entity.
     Functionality for inserting rows is not supported for `View`-like entities. The update
     functionality will only work for values in custom columns within a `View`-like
