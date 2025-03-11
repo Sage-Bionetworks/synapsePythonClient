@@ -1892,7 +1892,8 @@ class ViewUpdateMixin:
             **kwargs: Additional arguments that are passed to the `pd.DataFrame`
                 function when the `values` argument is a path to a csv file.
         """
-        await super().upsert_rows_async(
+        await _upsert_rows_async(
+            entity=self,
             values=values,
             primary_keys=primary_keys,
             dry_run=dry_run,
