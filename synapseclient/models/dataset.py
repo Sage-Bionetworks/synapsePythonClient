@@ -37,21 +37,24 @@ if TYPE_CHECKING:
 @dataclass
 class EntityRef:
     """
-    Represents a reference to the id and version of an entity to be used in collections.
+    Represents a reference to the id and version of an entity to be used in `Dataset` and
+    `DatasetCollection` objects.
 
     Attributes:
-        id: The 'syn' identifier of the entity.
-        version: Indicates a specific version of a the entity.
+        id: The Synapse ID of the entity.
+        version: Indicates a specific version of the entity.
     """
 
     id: str
-    """The 'syn' identifier of the entity."""
+    """The Synapse ID of the entity."""
 
     version: int
-    """Indicates a specific version of a the entity."""
+    """Indicates a specific version of the entity."""
 
     def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
+        """Converts the attributes of an EntityRef instance to a
+        request expected of the Synapse REST API."""
+
         return {
             "entityId": self.id,
             "versionNumber": self.version,
@@ -71,7 +74,7 @@ class Dataset(
     ViewUpdateMixin,
     ViewSnapshotMixin,
 ):
-    """A Dataset object represents the metadata of a Synapse Dataset.
+    """A `Dataset` object represents the metadata of a Synapse Dataset.
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Dataset.html>
 
     Attributes:
@@ -80,7 +83,7 @@ class Dataset(
         name: The name of this dataset. Must be 256 characters or less. Names may only
             contain: letters, numbers, spaces, underscores, hyphens, periods, plus
             signs, apostrophes, and parentheses
-        description: The description of this entity. Must be 1000 characters or less.
+        description: The description of the dataset. Must be 1000 characters or less.
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
             concurrent updates. Since the E-Tag changes every time an entity is updated
             it is used to detect when a client's current representation of an entity is
@@ -105,21 +108,21 @@ class Dataset(
             and `.delete_column()` methods on your dataset class instance.
 
             You may modify the attributes of the Column object to change the column
-            type, name, or other attributes. For example suppose I'd like to change a
-            column from a INTEGER to a DOUBLE. I can do so by changing the column type
-            attribute of the Column object. The next time you store the table the column
+            type, name, or other attributes. For example, suppose you'd like to change a
+            column from a INTEGER to a DOUBLE. You can do so by changing the column type
+            attribute of the Column object. The next time you store the dataset the column
             will be updated in Synapse with the new type.
 
             ```python
             from synapseclient import Synapse
-            from synapseclient.models import Table, Column, ColumnType
+            from synapseclient.models import Column, ColumnType
 
             syn = Synapse()
             syn.login()
 
-            table = Table(id="syn1234").get()
-            table.columns["my_column"].column_type = ColumnType.DOUBLE
-            table.store()
+            dataset = Dataset(id="syn1234").get()
+            dataset.columns["my_column"].column_type = ColumnType.DOUBLE
+            dataset.store()
             ```
 
             Note that the keys in this dictionary should match the column names as they are in
@@ -136,8 +139,10 @@ class Dataset(
         is_search_enabled: When creating or updating a dataset or view specifies if full
             text search should be enabled. Note that enabling full text search might
             slow down the indexing of the dataset or view.
-        items: The flat list of file entity references that define this dataset.
-        size: The cumulative size, in bytes, of all items(files) in the dataset. This is
+        items: The flat list of file entity references that define this dataset. This is effectively
+        a list of the rows that are in/will be in the dataset after it is stored. The only way to add
+        or remove rows is to add or remove items from this list.
+        size: The cumulative size, in bytes, of all items (files) in the dataset. This is
             only correct after the dataset has been stored or newly read from Synapse.
         checksum: The checksum is computed over a sorted concatenation of the checksums
             of all items in the dataset. This is only correct after the dataset has been
@@ -145,17 +150,149 @@ class Dataset(
         count: The number of items/files in the dataset. This is only correct after the
             dataset has been stored or newly read from Synapse.
         activity: The Activity model represents the main record of Provenance in
-            Synapse. It is analygous to the Activity defined in the
+            Synapse. It is analogous to the Activity defined in the
             [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
         annotations: Additional metadata associated with the dataset. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
             associated with all values in the list.
+
+    Example: Create a new dataset from a list of files.
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Dataset, File
+
+        syn = Synapse()
+        syn.login()
+
+        my_files = [File(id="syn1234"), File(id="syn1235"), File(id="syn1236")]
+        my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_files)
+        my_dataset.store()
+        ```
+
+    Example: Add entities to an existing dataset.
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Dataset, File, Folder, EntityRef
+
+        syn = Synapse()
+        syn.login()
+
+        my_dataset = Dataset(id="syn1234").get()
+
+        # Add a file to the dataset
+        my_dataset.add_item(File(id="syn1235"))
+
+        # Add a folder to the dataset
+        # All child files are recursively added to the dataset
+        my_dataset.add_item(Folder(id="syn1236"))
+
+        # Add an entity reference to the dataset
+        my_dataset.add_item(EntityRef(id="syn1237", version=1))
+
+        my_dataset.store()
+        ```
+
+    Example: Remove entities from a dataset.
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Dataset, File, Folder, EntityRef
+
+        syn = Synapse()
+        syn.login()
+
+        my_dataset = Dataset(id="syn1234").get()
+
+        # Remove a file from the dataset
+        my_dataset.remove_item(File(id="syn1235"))
+
+        # Remove a folder from the dataset
+        # All child files are recursively removed from the dataset
+        my_dataset.remove_item(Folder(id="syn1236"))
+
+        # Remove an entity reference from the dataset
+        my_dataset.remove_item(EntityRef(id="syn1237", version=1))
+
+        my_dataset.store()
+        ```
+
+    Example: Query data from a dataset.
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Dataset
+
+        syn = Synapse()
+        syn.login()
+
+        my_dataset = Dataset(id="syn1234").get()
+        row = my_dataset.query(query="SELECT * FROM syn1234 WHERE id = 'syn1235'")
+        print(row)
+        ```
+
+    Example: Add a custom column to a dataset.
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Dataset, Column, ColumnType
+
+        syn = Synapse()
+        syn.login()
+
+        my_dataset = Dataset(id="syn1234").get()
+        my_dataset.add_column(Column(name="my_annotation", column_type=ColumnType.STRING))
+        my_dataset.store()
+        ```
+
+    Example: Update custom column values in a dataset.
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Dataset
+
+        syn = Synapse()
+        syn.login()
+
+        my_dataset = Dataset(id="syn1234").get()
+        # my_annotation must already exist in the dataset as a custom column
+        modified_data = pd.DataFrame(
+            {"id": ["syn1234"], "my_annotation": ["good data"]}
+        )
+        my_dataset.update_rows(values=modified_data, primary_keys=["id"], dry_run=False)
+        ```
+
+    Example: Save a snapshot of a dataset.
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Dataset
+
+        syn = Synapse()
+        syn.login()
+
+        my_dataset = Dataset(id="syn1234").get()
+        my_dataset.snapshot(comment="My first snapshot", label="My first snapshot")
+        ```
+
+    Example: Deleting a dataset
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Dataset
+
+        syn = Synapse()
+        syn.login()
+
+        Dataset(id="syn4567").delete()
+        ```
     """
 
     id: Optional[str] = None
     """The unique immutable ID for this dataset. A new ID will be generated for new
-    Datasets. Once issued, this ID is guaranteed to never change or be re-issued"""
+    datasets. Once issued, this ID is guaranteed to never change or be re-issued"""
 
     name: Optional[str] = None
     """The name of this dataset. Must be 256 characters or less. Names may only
@@ -244,9 +381,9 @@ class Dataset(
     and `.delete_column()` methods on your dataset class instance.
 
     You may modify the attributes of the Column object to change the column
-    type, name, or other attributes. For example suppose I'd like to change a
-    column from a INTEGER to a DOUBLE. I can do so by changing the column type
-    attribute of the Column object. The next time you store the table the column
+    type, name, or other attributes. For example, suppose you'd like to change a
+    column from a INTEGER to a DOUBLE. You can do so by changing the column type
+    attribute of the Column object. The next time you store the dataset the column
     will be updated in Synapse with the new type.
 
     ```python
@@ -256,9 +393,9 @@ class Dataset(
     syn = Synapse()
     syn.login()
 
-    table = Table(id="syn1234").get()
-    table.columns["my_column"].column_type = ColumnType.DOUBLE
-    table.store()
+    dataset = Dataset(id="syn1234").get()
+    dataset.columns["my_column"].column_type = ColumnType.DOUBLE
+    dataset.store()
     ```
 
     Note that the keys in this dictionary should match the column names as they are in
@@ -279,7 +416,7 @@ class Dataset(
 
     activity: Optional[Activity] = field(default=None, compare=False)
     """The Activity model represents the main record of Provenance in Synapse.  It is
-    analygous to the Activity defined in the
+    analogous to the Activity defined in the
     [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance."""
 
     annotations: Optional[
@@ -399,6 +536,7 @@ class Dataset(
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
+
         entity = {
             "name": self.name,
             "description": self.description,
@@ -457,7 +595,60 @@ class Dataset(
         Raises:
             ValueError: If the item is not an EntityRef, File, or Folder
 
-        #TODO: Add Examples
+        Example: Add a file to a dataset.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                my_dataset = await Dataset(id="syn1234").get_async()
+                await my_dataset.add_item_async(File(id="syn1235"))
+                await my_dataset.store_async()
+
+            asyncio.run(main())
+            ```
+
+        Example: Add a folder to a dataset.
+            All child files are recursively added to the dataset.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, Folder
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                my_dataset = await Dataset(id="syn1234").get_async()
+                await my_dataset.add_item_async(Folder(id="syn1236"))
+                await my_dataset.store_async()
+
+            asyncio.run(main())
+            ```
+
+        Example: Add an entity reference to a dataset.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, EntityRef
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                my_dataset = await Dataset(id="syn1234").get_async()
+                await my_dataset.add_item_async(EntityRef(id="syn1237", version=1))
+                await my_dataset.store_async()
+
+            asyncio.run(main())
+            ```
         """
         from synapseclient.models import File, Folder
 
@@ -508,7 +699,48 @@ class Dataset(
         Raises:
             ValueError: If the item is not an EntityRef, File, or Folder
 
-        #TODO: Add Examples
+        Example: Add a file to the dataset.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, File
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.add_item(File(id="syn1235"))
+            my_dataset.store()
+            ```
+
+        Example: Add a folder to the dataset.
+            All child files are recursively added to the dataset.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, Folder
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.add_item(Folder(id="syn1236"))
+            my_dataset.store()
+            ```
+
+        Example: Add an entity reference to the dataset.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, EntityRef
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.add_item(EntityRef(id="syn1237", version=1))
+            my_dataset.store()
+            ```
         """
         return None
 
@@ -543,7 +775,60 @@ class Dataset(
         Raises:
             ValueError: If the item is not a valid type
 
-        #TODO: Add Examples
+        Example: Remove a file from a dataset.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                my_dataset = await Dataset(id="syn1234").get_async()
+                await my_dataset.remove_item_async(File(id="syn1235"))
+                await my_dataset.store_async()
+
+            asyncio.run(main())
+            ```
+
+        Example: Remove a folder from a dataset.
+            All child files are recursively removed from the dataset.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, Folder
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                my_dataset = await Dataset(id="syn1234").get_async()
+                await my_dataset.remove_item_async(Folder(id="syn1236"))
+                await my_dataset.store_async()
+
+            asyncio.run(main())
+            ```
+
+        Example: Remove an entity reference from a dataset.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, EntityRef
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                my_dataset = await Dataset(id="syn1234").get_async()
+                await my_dataset.remove_item_async(EntityRef(id="syn1237", version=1))
+                await my_dataset.store_async()
+
+            asyncio.run(main())
+            ```
         """
         from synapseclient.models import File, Folder
 
@@ -594,7 +879,48 @@ class Dataset(
         Raises:
             ValueError: If the item is not a valid type
 
-        #TODO: Add Examples
+        Example: Remove a file from a dataset.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, File
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.remove_item(File(id="syn1235"))
+            my_dataset.store()
+            ```
+
+        Example: Remove a folder from a dataset.
+            All child files are recursively removed from the dataset.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, Folder
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.remove_item(Folder(id="syn1236"))
+            my_dataset.store()
+            ```
+
+        Example: Remove an entity reference from a dataset.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, EntityRef
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.remove_item(EntityRef(id="syn1237", version=1))
+            my_dataset.store()
+            ```
         """
         return None
 
@@ -636,6 +962,24 @@ class Dataset(
 
         Returns:
             The Dataset instance stored in synapse.
+
+        Example: Create a new dataset from a list of files by storing it.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset, File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                my_files = [File(id="syn1234"), File(id="syn1235"), File(id="syn1236")]
+                my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_files)
+                await my_dataset.store_async()
+
+            asyncio.run(main())
+            ```
         """
         return await super().store_async(
             dry_run=dry_run,
@@ -682,16 +1026,22 @@ class Dataset(
         Returns:
             The Dataset instance stored in synapse.
 
-        Example:
+        Example: Create a new dataset from a list of files by storing it.
+
             ```python
+            import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Dataset
+            from synapseclient.models import Dataset, File
 
             syn = Synapse()
             syn.login()
 
-            dataset = Dataset(id="syn4567").get()
-            dataset.store()
+            async def main():
+                my_files = [File(id="syn1234"), File(id="syn1235"), File(id="syn1236")]
+                my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_files)
+                await my_dataset.store_async()
+
+            asyncio.run(main())
             ```
         """
         return Self
@@ -760,7 +1110,13 @@ class Dataset(
             syn.login()
 
             async def main():
-                dataset = await Dataset(name="my_dataset", parent_id="syn1234").get_async(include_columns=True, include_activity=True)
+                dataset = await Dataset(
+                    name="my_dataset",
+                    parent_id="syn1234"
+                ).get_async(
+                    include_columns=True,
+                    include_activity=True
+                )
                 print(dataset)
                 print(dataset.columns)
                 print(dataset.activity)
@@ -915,8 +1271,103 @@ class Dataset(
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
-        """Placeholder Docstring specific to the Dataset class' implementation
-        of the update_rows_async method."""
+        """Update the values of rows in the dataset. This method can only
+        be used to update values in custom columns. Default columns cannot be updated, but
+        may be used as primary keys.
+
+        Limitations:
+
+        - When updating many rows the requests to Synapse will be chunked into smaller
+            requests. The limit is 2MB per request. This chunking will happen
+            automatically and should not be a concern for most users. If you are
+            having issues with the request being too large you may lower the
+            number of rows you are trying to update.
+        - The `primary_keys` argument must contain at least one column.
+        - The `primary_keys` argument cannot contain columns that are a LIST type.
+        - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The values used as the `primary_keys` must be unique in the table. If there
+            are multiple rows with the same values in the `primary_keys` the behavior
+            is that an exception will be raised.
+        - The columns used in `primary_keys` cannot contain updated values. Since
+            the values in these columns are used to determine if a row exists, they
+            cannot be updated in the same transaction.
+
+        Arguments:
+            values: Supports storing data from the following sources:
+
+                - A string holding the path to a CSV file. The data will be read into a
+                    [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
+                    The code makes assumptions about the format of the columns in the
+                    CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df]
+                    function. You may pass in additional arguments to the `csv_to_pandas_df`
+                    function by passing them in as keyword arguments to this function.
+                - A dictionary where the key is the column name and the value is one or
+                    more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            primary_keys: The columns to use to determine if a row already exists. If
+                a row exists with the same values in the columns specified in this list
+                the row will be updated. If a row does not exist nothing will be done.
+
+            dry_run: If set to True the data will not be updated in Synapse. A message
+                will be printed to the console with the number of rows that would have
+                been updated and inserted. If you would like to see the data that would
+                be updated and inserted you may set the `dry_run` argument to True and
+                set the log level to DEBUG by setting the debug flag when creating
+                your Synapse class instance like: `syn = Synapse(debug=True)`.
+
+            rows_per_query: The number of rows that will be queried from Synapse per
+                request. Since we need to query for the data that is being updated
+                this will determine the number of rows that are queried at a time.
+                The default is 50,000 rows.
+
+            update_size_bytes: The maximum size of the request that will be sent to Synapse
+                when updating rows of data. The default is 1.9MB.
+
+            insert_size_bytes: The maximum size of the request that will be sent to Synapse
+                when inserting rows of data. The default is 900MB.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when inserting, and updating rows of data. Each individual
+                request to Synapse will be sent as an independent job. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+
+            wait_for_eventually_consistent_view: Only used if the table is a view. If
+                set to True this will wait for the view to reflect any changes that
+                you've made to the view. This is useful if you need to query the view
+                after making changes to the data.
+
+            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
+                wait for a view to be eventually consistent. The default is 600 seconds.
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+                function when the `values` argument is a path to a csv file.
+
+
+        Example: Update custom column values in a dataset.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = await Dataset(id="syn1234").get_async()
+
+            # my_annotation must already exist in the dataset as a custom column
+            modified_data = pd.DataFrame(
+                {"id": ["syn1234"], "my_annotation": ["good data"]}
+            )
+            await my_dataset.update_rows_async(values=modified_data, primary_keys=["id"], dry_run=False)
+            ```
+        """
         await super().update_rows_async(
             values=values,
             primary_keys=primary_keys,
@@ -946,8 +1397,102 @@ class Dataset(
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
-        """Placeholder Docstring specific to the Dataset class' implementation
-        of the update_rows method."""
+        """Update the values of rows in the dataset. This method can only
+        be used to update values in custom columns. Default columns cannot be updated, but
+        may be used as primary keys.
+
+        Limitations:
+
+        - When updating many rows the requests to Synapse will be chunked into smaller
+            requests. The limit is 2MB per request. This chunking will happen
+            automatically and should not be a concern for most users. If you are
+            having issues with the request being too large you may lower the
+            number of rows you are trying to update.
+        - The `primary_keys` argument must contain at least one column.
+        - The `primary_keys` argument cannot contain columns that are a LIST type.
+        - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The values used as the `primary_keys` must be unique in the table. If there
+            are multiple rows with the same values in the `primary_keys` the behavior
+            is that an exception will be raised.
+        - The columns used in `primary_keys` cannot contain updated values. Since
+            the values in these columns are used to determine if a row exists, they
+            cannot be updated in the same transaction.
+
+        Arguments:
+            values: Supports storing data from the following sources:
+
+                - A string holding the path to a CSV file. The data will be read into a
+                    [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
+                    The code makes assumptions about the format of the columns in the
+                    CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df]
+                    function. You may pass in additional arguments to the `csv_to_pandas_df`
+                    function by passing them in as keyword arguments to this function.
+                - A dictionary where the key is the column name and the value is one or
+                    more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            primary_keys: The columns to use to determine if a row already exists. If
+                a row exists with the same values in the columns specified in this list
+                the row will be updated. If a row does not exist nothing will be done.
+
+            dry_run: If set to True the data will not be updated in Synapse. A message
+                will be printed to the console with the number of rows that would have
+                been updated and inserted. If you would like to see the data that would
+                be updated and inserted you may set the `dry_run` argument to True and
+                set the log level to DEBUG by setting the debug flag when creating
+                your Synapse class instance like: `syn = Synapse(debug=True)`.
+
+            rows_per_query: The number of rows that will be queried from Synapse per
+                request. Since we need to query for the data that is being updated
+                this will determine the number of rows that are queried at a time.
+                The default is 50,000 rows.
+
+            update_size_bytes: The maximum size of the request that will be sent to Synapse
+                when updating rows of data. The default is 1.9MB.
+
+            insert_size_bytes: The maximum size of the request that will be sent to Synapse
+                when inserting rows of data. The default is 900MB.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when inserting, and updating rows of data. Each individual
+                request to Synapse will be sent as an independent job. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+
+            wait_for_eventually_consistent_view: Only used if the table is a view. If
+                set to True this will wait for the view to reflect any changes that
+                you've made to the view. This is useful if you need to query the view
+                after making changes to the data.
+
+            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
+                wait for a view to be eventually consistent. The default is 600 seconds.
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+                function when the `values` argument is a path to a csv file.
+
+
+        Example: Update custom column values in a dataset.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = Dataset(id="syn1234").get()
+
+            # my_annotation must already exist in the dataset as a custom column
+            modified_data = pd.DataFrame(
+                {"id": ["syn1234"], "my_annotation": ["good data"]}
+            )
+            my_dataset.update_rows(values=modified_data, primary_keys=["id"], dry_run=False)
+            ```
+        """
         return None
 
     async def snapshot_async(
@@ -958,7 +1503,36 @@ class Dataset(
         activity: Optional[Activity] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
-        """Create a snapshot of the view."""
+        """Creates a snapshot of the dataset. A snapshot is a saved, read-only version of the dataset
+        at the time it was created. Dataset snapshots are created using the asyncronous job API.
+
+        Arguments:
+            comment: A unique comment to associate with the snapshot.
+            label: A unique label to associate with the snapshot.
+            activity: The Activity model represents the main record of Provenance in
+                Synapse. It is analogous to the Activity defined in the
+                [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A `TableUpdateTransaction` object which includes the version number of the snapshot.
+
+        Example: Save a snapshot of a dataset.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = await Dataset(id="syn1234").get_async()
+            await my_dataset.snapshot_async(comment="My first snapshot", label="My first snapshot")
+            ```
+        """
         return await super().snapshot_async(
             comment=comment,
             label=label,
@@ -974,7 +1548,35 @@ class Dataset(
         activity: Optional[Activity] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
-        """Create a snapshot of the view."""
+        """Creates a snapshot of the dataset. A snapshot is a saved, read-only version of the dataset
+        at the time it was created. Dataset snapshots are created using the asyncronous job API.
+
+        Arguments:
+            comment: A unique comment to associate with the snapshot.
+            label: A unique label to associate with the snapshot.
+            activity: The Activity model represents the main record of Provenance in
+                Synapse. It is analogous to the Activity defined in the
+                [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A `TableUpdateTransaction` object which includes the version number of the snapshot.
+
+        Example: Save a snapshot of a dataset.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset
+
+            syn = Synapse()
+            syn.login()
+
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.snapshot(comment="My first snapshot", label="My first snapshot")
+            ```
+        """
         return TableUpdateTransaction
 
     @staticmethod

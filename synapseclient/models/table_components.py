@@ -493,7 +493,7 @@ class JsonSubColumn:
         return result
 
 
-@dataclass()
+@dataclass
 @async_to_sync
 class Column(ColumnSynchronousProtocol):
     """A column model contains the metadata of a single column of a table or view."""

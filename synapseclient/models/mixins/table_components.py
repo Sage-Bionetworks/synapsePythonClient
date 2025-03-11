@@ -113,8 +113,10 @@ def test_import_pandas() -> None:
 
 @dataclass
 class TableBase:
-    """Base class for any `table`-like entities in Synapse.
-    Provides the minimum required attributes for any such entity."""
+    """Base class for any `Table`-like entities in Synapse.
+    Provides the minimum required attributes for any such entity.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableEntity.html>
+    """
 
     id: None = None
     name: None = None
@@ -168,6 +170,8 @@ class ViewBase(TableBase):
 
 @async_to_sync
 class TableStoreMixin:
+    """Mixin class providing methods for storing a `Table`-like entity."""
+
     async def _generate_schema_change_request(
         self, dry_run: bool = False, *, synapse_client: Optional[Synapse] = None
     ) -> Union["TableSchemaChangeRequest", None]:
@@ -323,7 +327,6 @@ class TableStoreMixin:
     ) -> "Self":
         """Store non-row information about a table including the columns and annotations.
 
-
         Note the following behavior for the order of columns:
 
         - If a column is added via the `add_column` method it will be added at the
@@ -333,7 +336,6 @@ class TableStoreMixin:
             of the columns list.
         - If you use the `store_rows` method and the `schema_storage_strategy` is set to
             `INFER_FROM_DATA` the columns will be added at the end of the columns list.
-
 
         Arguments:
             dry_run: If True, will not actually store the table but will log to
@@ -453,6 +455,8 @@ class TableStoreMixin:
 
 @async_to_sync
 class ViewStoreMixin(TableStoreMixin):
+    """Mixin class that extends `TableStoreMixin` providing methods for storing a `View`-like entity."""
+
     async def store_async(
         self,
         dry_run: bool = False,
@@ -536,6 +540,8 @@ class ViewStoreMixin(TableStoreMixin):
 
 @async_to_sync
 class DeleteMixin:
+    """Mixin class providing methods for deleting a `Table`-like entity."""
+
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Delete: {self.name}"
     )
@@ -583,6 +589,8 @@ class DeleteMixin:
 
 @async_to_sync
 class GetMixin:
+    """Mixin class providing methods for getting information about a `Table`-like entity."""
+
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Get: {self.name}"
     )
@@ -689,6 +697,8 @@ class GetMixin:
 
 
 class ColumnMixin:
+    """Mixin class providing methods for managing columns in a `Table`-like entity."""
+
     def delete_column(self, name: str) -> None:
         """
         Mark a column for deletion. Note that this does not delete the column from
@@ -1081,6 +1091,8 @@ class ColumnMixin:
         else:
             raise ValueError("columns must be a list, dict, or OrderedDict")
 
+    """Mixin class providing methods for upserting data into a `Table`-like entity."""
+
 
 def _construct_select_statement_for_upsert(
     entity: TableBase,
@@ -1237,10 +1249,10 @@ def _construct_partial_rows_for_upsert(
                 if (isinstance(cell_value, list) and len(cell_value) > 0) or not isna(
                     cell_value
                 ):
-                    partial_change_values[
-                        column_id
-                    ] = _convert_pandas_row_to_python_types(
-                        cell=cell_value, column_type=column_type
+                    partial_change_values[column_id] = (
+                        _convert_pandas_row_to_python_types(
+                            cell=cell_value, column_type=column_type
+                        )
                     )
                 else:
                     partial_change_values[column_id] = None
@@ -1781,7 +1793,13 @@ class TableUpsertMixin:
 
 
 @async_to_sync
-class ViewUpdateMixin:
+class ViewUpdateMixin(TableUpsertMixin):
+    """Mixin class providing methods for updating rows in a `View`-like entity.
+    Functionality for inserting rows is not supported for `View`-like entities. The update
+    functionality will only work for values in custom columns within a `View`-like
+    entity.
+    """
+
     async def update_rows_async(
         self,
         values: DATA_FRAME_TYPE,
@@ -1797,9 +1815,84 @@ class ViewUpdateMixin:
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
-        """You can't insert rows into a view using this method, you can only update rows."""
-        await _upsert_rows_async(
-            entity=self,
+        """This method leverages the logic provided by `TableUpsertMixin.upsert_rows_async` to provide
+        an interface for updating rows in a `View`-like entity. Update functionality will only work for
+        values in custom columns within a `View`-like entity.
+
+        Limitations:
+
+        - When updating many rows the requests to Synapse will be chunked into smaller
+            requests. The limit is 2MB per request. This chunking will happen
+            automatically and should not be a concern for most users. If you are
+            having issues with the request being too large you may lower the
+            number of rows you are trying to update.
+        - The `primary_keys` argument must contain at least one column.
+        - The `primary_keys` argument cannot contain columns that are a LIST type.
+        - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The values used as the `primary_keys` must be unique in the table. If there
+            are multiple rows with the same values in the `primary_keys` the behavior
+            is that an exception will be raised.
+        - The columns used in `primary_keys` cannot contain updated values. Since
+            the values in these columns are used to determine if a row exists, they
+            cannot be updated in the same transaction.
+
+        Arguments:
+            values: Supports storing data from the following sources:
+
+                - A string holding the path to a CSV file. The data will be read into a
+                    [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
+                    The code makes assumptions about the format of the columns in the
+                    CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df]
+                    function. You may pass in additional arguments to the `csv_to_pandas_df`
+                    function by passing them in as keyword arguments to this function.
+                - A dictionary where the key is the column name and the value is one or
+                    more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            primary_keys: The columns to use to determine if a row already exists. If
+                a row exists with the same values in the columns specified in this list
+                the row will be updated. If a row does not exist nothing will be done.
+
+            dry_run: If set to True the data will not be updated in Synapse. A message
+                will be printed to the console with the number of rows that would have
+                been updated and inserted. If you would like to see the data that would
+                be updated and inserted you may set the `dry_run` argument to True and
+                set the log level to DEBUG by setting the debug flag when creating
+                your Synapse class instance like: `syn = Synapse(debug=True)`.
+
+            rows_per_query: The number of rows that will be queried from Synapse per
+                request. Since we need to query for the data that is being updated
+                this will determine the number of rows that are queried at a time.
+                The default is 50,000 rows.
+
+            update_size_bytes: The maximum size of the request that will be sent to Synapse
+                when updating rows of data. The default is 1.9MB.
+
+            insert_size_bytes: The maximum size of the request that will be sent to Synapse
+                when inserting rows of data. The default is 900MB.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when inserting, and updating rows of data. Each individual
+                request to Synapse will be sent as an independent job. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+
+            wait_for_eventually_consistent_view: Only used if the table is a view. If
+                set to True this will wait for the view to reflect any changes that
+                you've made to the view. This is useful if you need to query the view
+                after making changes to the data.
+
+            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
+                wait for a view to be eventually consistent. The default is 600 seconds.
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+                function when the `values` argument is a path to a csv file.
+        """
+        await super().upsert_rows_async(
             values=values,
             primary_keys=primary_keys,
             dry_run=dry_run,
@@ -1816,6 +1909,8 @@ class ViewUpdateMixin:
 
 @async_to_sync
 class QueryMixin:
+    """Mixin class providing methods for querying data from a `Table`-like entity."""
+
     @staticmethod
     async def query_async(
         query: str,
@@ -2040,7 +2135,7 @@ class QueryMixin:
 
 @async_to_sync
 class ViewSnapshotMixin:
-    """A mixin that allows you to create a snapshot of a view."""
+    """A mixin providing methods for creating a snapshot of a `View`-like entity."""
 
     async def snapshot_async(
         self,
@@ -2049,7 +2144,24 @@ class ViewSnapshotMixin:
         label: Optional[str] = None,
         activity: Optional[Activity] = None,
         synapse_client: Optional[Synapse] = None,
-    ):
+    ) -> "TableUpdateTransaction":
+        """Creates a snapshot of the `View`-like entity.
+        Synapse handles snapshot creation differently for `Table`- and `View`-like
+        entities. `View` snapshots are created using the asyncronous job API.
+
+        Arguments:
+            comment: A unique comment to associate with the snapshot.
+            label: A unique label to associate with the snapshot.
+            activity: The Activity model represents the main record of Provenance in
+                Synapse. It is analogous to the Activity defined in the
+                [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A `TableUpdateTransaction` object which includes the version number of the snapshot.
+        """
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(
             f"[{self.id}:{self.name}]: Creating a snapshot of the {type(self)}."
@@ -2071,11 +2183,13 @@ class ViewSnapshotMixin:
 
 @async_to_sync
 class TableStoreRowMixin:
-    id: str = None
-    name: str = None
-    parent_id: str = None
+    """Mixin class providing methods for storing rows in a `Table`-like entity."""
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    parent_id: Optional[str] = None
+    columns: Optional[OrderedDict] = None
     activity: None = None
-    columns: OrderedDict = None
     _last_persistent_instance: None = None
     _columns_to_delete: None = None
 
@@ -3131,6 +3245,8 @@ class TableStoreRowMixin:
 
 @async_to_sync
 class TableDeleteRowMixin:
+    """Mixin class providing methods for deleting rows from a `Table`-like entity."""
+
     async def delete_rows_async(
         self,
         query: str,
@@ -3326,7 +3442,16 @@ def _convert_df_date_cols_to_datetime(
     return df
 
 
-def _row_labels_from_id_and_version(rows):
+def _row_labels_from_id_and_version(rows: List[Tuple[str, str]]) -> List[str]:
+    """
+    Create a list of row labels from a list of tuples containing row IDs and versions.
+
+    Arguments:
+        rows: A list of tuples containing row IDs and versions.
+
+    Returns:
+        A list of row labels.
+    """
     return ["_".join(map(str, row)) for row in rows]
 
 
@@ -3342,7 +3467,7 @@ def csv_to_pandas_df(
     row_id_and_version_in_index: bool = True,
     dtype: Optional[Dict[str, Any]] = None,
     **kwargs,
-):
+) -> DATA_FRAME_TYPE:
     """
     Convert a csv file to a pandas dataframe
 
