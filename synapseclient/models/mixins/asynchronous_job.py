@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Optional
 
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
 
 from synapseclient import Synapse
@@ -399,54 +401,63 @@ async def get_job_async(
     last_progress = 0
     last_total = 1
     progressed = False
-
-    while time.time() - start_time < timeout:
-        uri = ASYNC_JOB_URIS[request_type]
-        if "{entityId}" in uri:
-            if not request:
-                raise ValueError("Attempting to get job with missing request.")
-            if "entityId" not in request:
-                raise ValueError(f"Attempting to get job with missing id in uri: {uri}")
-            uri = uri.format(entityId=request["entityId"])
-        result = await client.rest_get_async(
-            uri=f"{uri}/get/{job_id}",
-            endpoint=endpoint,
-        )
-        job_status = AsynchronousJobStatus().fill_from_dict(async_job_status=result)
-        if job_status.state == AsynchronousJobState.PROCESSING:
-            progress_tracking = any(
-                [
-                    job_status.progress_message,
-                    job_status.progress_current,
-                    job_status.progress_total,
-                ]
+    progress_bar = tqdm(
+        total=last_total,
+        unit_scale=True,
+        smoothing=0,
+        leave=None,
+    )
+    with logging_redirect_tqdm(loggers=[client.logger]):
+        while time.time() - start_time < timeout:
+            uri = ASYNC_JOB_URIS[request_type]
+            if "{entityId}" in uri:
+                if not request:
+                    raise ValueError("Attempting to get job with missing request.")
+                if "entityId" not in request:
+                    raise ValueError(
+                        f"Attempting to get job with missing id in uri: {uri}"
+                    )
+                uri = uri.format(entityId=request["entityId"])
+            progress_bar.desc = uri
+            result = await client.rest_get_async(
+                uri=f"{uri}/get/{job_id}",
+                endpoint=endpoint,
             )
-            progressed = (
-                job_status.progress_message != last_message
-                or last_progress != job_status.progress_current
-            )
-            if progress_tracking and progressed:
-                last_message = job_status.progress_message
-                last_progress = job_status.progress_current
-                last_total = job_status.progress_total
-
-                client._print_transfer_progress(
-                    last_progress,
-                    last_total,
-                    prefix=last_message,
-                    isBytes=False,
+            job_status = AsynchronousJobStatus().fill_from_dict(async_job_status=result)
+            if job_status.state == AsynchronousJobState.PROCESSING:
+                progress_tracking = any(
+                    [
+                        job_status.progress_message,
+                        job_status.progress_current,
+                        job_status.progress_total,
+                    ]
                 )
-                start_time = time.time()
-            await asyncio.sleep(sleep)
-        elif job_status.state == AsynchronousJobState.FAILED:
-            raise SynapseError(
-                f"{job_status.error_message}\n{job_status.error_details}",
-            )
+                progressed = (
+                    job_status.progress_message != last_message
+                    or last_progress != job_status.progress_current
+                )
+                if progress_tracking and progressed:
+                    progress_bar.update(job_status.progress_current - last_progress)
+                    last_message = job_status.progress_message
+                    last_progress = job_status.progress_current
+                    last_total = job_status.progress_total
+                    progress_bar.desc = last_message
+                    start_time = time.time()
+                await asyncio.sleep(sleep)
+            elif job_status.state == AsynchronousJobState.FAILED:
+                progress_bar.close()
+                raise SynapseError(
+                    f"{job_status.error_message}\n{job_status.error_details}",
+                )
+            else:
+                break
         else:
-            break
-    else:
-        raise SynapseTimeoutError(
-            f"Timeout waiting for results: {time.time() - start_time} seconds"
-        )
+            progress_bar.close()
+            raise SynapseTimeoutError(
+                f"Timeout waiting for results: {time.time() - start_time} seconds"
+            )
 
-    return result
+        progress_bar.update(progress_bar.total - progress_bar.n)
+        progress_bar.refresh()
+        progress_bar.close()
+        return result

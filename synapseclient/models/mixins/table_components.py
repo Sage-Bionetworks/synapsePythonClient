@@ -11,7 +11,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Protocol, Tuple, TypeVar, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -373,6 +373,13 @@ class TableStoreMixin:
                 destination=self,
             )
 
+        if (
+            hasattr(self, "_append_default_columns")
+            and hasattr(self, "include_default_columns")
+            and self.include_default_columns
+        ):
+            await self._append_default_columns(synapse_client=synapse_client)
+
         if dry_run:
             client.logger.info(
                 f"[{self.id}:{self.name}]: Dry run enabled. No changes will be made."
@@ -457,6 +464,57 @@ class TableStoreMixin:
 class ViewStoreMixin(TableStoreMixin):
     """Mixin class that extends `TableStoreMixin` providing methods for storing a `View`-like entity."""
 
+    async def _append_default_columns(
+        self, synapse_client: Optional[Synapse] = None
+    ) -> None:
+        """
+        Append default columns to the table. This method will only append default
+        columns if the `include_default_columns` attribute is set to `True`. This is
+        called in the `super().store_async()` method because we need to respect the
+        ordering of columns that are already present on the View.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+        Returns:
+            None
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if self.include_default_columns:
+            view_type_mask = None
+            if self.view_type_mask:
+                if isinstance(self.view_type_mask, ViewTypeMask):
+                    view_type_mask = self.view_type_mask.value
+                else:
+                    view_type_mask = self.view_type_mask
+
+            default_columns = await get_default_columns(
+                view_entity_type=(
+                    self.view_entity_type if self.view_entity_type else None
+                ),
+                view_type_mask=view_type_mask,
+                synapse_client=synapse_client,
+            )
+            for default_column in default_columns:
+                if (
+                    default_column.name in self.columns
+                    and default_column != self.columns[default_column.name]
+                ):
+                    client.logger.warning(
+                        f"Column '{default_column.name}' already exists in dataset. "
+                        "Overwriting with default column."
+                    )
+                self.columns[default_column.name] = default_column
+        # check that column names match this regex "^[a-zA-Z0-9,_.]+"
+        for _, column in self.columns.items():
+            if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
+                raise ValueError(
+                    f"Column name '{column.name}' does not match the regex pattern '^[a-zA-Z0-9,_.]+$'"
+                )
+
     async def store_async(
         self,
         dry_run: bool = False,
@@ -500,39 +558,6 @@ class ViewStoreMixin(TableStoreMixin):
         Returns:
             The View instance stored in synapse.
         """
-        client = Synapse.get_client(synapse_client=synapse_client)
-
-        if self.include_default_columns:
-            view_type_mask = None
-            if self.view_type_mask:
-                if isinstance(self.view_type_mask, ViewTypeMask):
-                    view_type_mask = self.view_type_mask.value
-                else:
-                    view_type_mask = self.view_type_mask
-
-            default_columns = await get_default_columns(
-                view_entity_type=(
-                    self.view_entity_type if self.view_entity_type else None
-                ),
-                view_type_mask=view_type_mask,
-                synapse_client=synapse_client,
-            )
-            for default_column in default_columns:
-                if (
-                    default_column.name in self.columns
-                    and default_column != self.columns[default_column.name]
-                ):
-                    client.logger.warning(
-                        f"Column '{default_column.name}' already exists in dataset. "
-                        "Overwriting with default column."
-                    )
-                self.columns[default_column.name] = default_column
-        # check that column names match this regex "^[a-zA-Z0-9,_.]+"
-        for _, column in self.columns.items():
-            if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
-                raise ValueError(
-                    f"Column name '{column.name}' does not match the regex pattern '^[a-zA-Z0-9,_.]+$'"
-                )
         return await super().store_async(
             dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client
         )
@@ -564,6 +589,7 @@ class DeleteMixin:
             ```python
             import asyncio
             from synapseclient import Synapse
+            from synapseclient.models import Table
 
             syn = Synapse()
             syn.login()
@@ -626,7 +652,7 @@ class GetMixin:
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table # Also works with `Dataset`
+            from synapseclient.models import Table
 
             syn = Synapse()
             syn.login()
@@ -652,7 +678,7 @@ class GetMixin:
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table # Also works with `Dataset`
+            from synapseclient.models import Table
 
             syn = Synapse()
             syn.login()
@@ -675,6 +701,7 @@ class GetMixin:
 
         await get_from_entity_factory(
             entity_to_update=self,
+            version=self.version_number,
             synapse_id_or_path=entity_id,
             synapse_client=synapse_client,
         )
@@ -952,7 +979,7 @@ class ColumnMixin:
                     if col.name in self.columns:
                         raise ValueError(f"Duplicate column name: {col.name}")
                     columns_to_insert.append((col.name, col))
-                insert_index = min(index + i, len(self.columns))
+                insert_index = min(index, len(self.columns))
                 self.columns = OrderedDict(
                     list(self.columns.items())[:insert_index]
                     + columns_to_insert
@@ -1545,7 +1572,7 @@ async def _upsert_rows_async(
 class TableUpsertMixin:
     async def upsert_rows_async(
         self,
-        values: DATA_FRAME_TYPE,
+        values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
         primary_keys: List[str],
         dry_run: bool = False,
         *,
@@ -1642,8 +1669,14 @@ class TableUpsertMixin:
         Arguments:
             values: Supports storing data from the following sources:
 
-                - A string holding the path to a CSV file. Tthe data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
-                - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
+                - A string holding the path to a CSV file. The data will be read into a
+                    [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
+                    The code makes assumptions about the format of the columns in the
+                    CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df]
+                    function. You may pass in additional arguments to the `csv_to_pandas_df`
+                    function by passing them in as keyword arguments to this function.
+                - A dictionary where the key is the column name and the value is one or
+                    more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
             primary_keys: The columns to use to determine if a row already exists. If
@@ -1714,11 +1747,11 @@ class TableUpsertMixin:
             async def main():
                 table = await Table(id="syn123").get_async(include_columns=True)
 
-                df = {
+                df = pd.DataFrame({
                     'col1': ['A', 'B', 'C'],
                     'col2': [22, 2, 3],
                     'col3': [1, 33, 3],
-                }
+                })
 
                 await table.upsert_rows_async(values=df, primary_keys=["col1"])
 
@@ -1756,13 +1789,13 @@ class TableUpsertMixin:
             async def main():
                 table = await Table(id="syn123").get_async(include_columns=True)
 
-                df = {
+                dictionary_of_data = {
                     'col1': ['A', 'B'],
                     'col2': [None, 2],
                     'col3': [1, None],
                 }
 
-                await table.upsert_rows_async(values=df, primary_keys=["col1"])
+                await table.upsert_rows_async(values=dictionary_of_data, primary_keys=["col1"])
 
             asyncio.run(main())
             ```
@@ -1802,7 +1835,7 @@ class ViewUpdateMixin:
 
     async def update_rows_async(
         self,
-        values: DATA_FRAME_TYPE,
+        values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
         primary_keys: List[str],
         dry_run: bool = False,
         *,
@@ -1815,7 +1848,7 @@ class ViewUpdateMixin:
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
-        """This method leverages the logic provided by `TableUpsertMixin.upsert_rows_async` to provide
+        """This method leverages the logic provided by [TableUpsertMixin.upsert_rows_async][] to provide
         an interface for updating rows in a `View`-like entity. Update functionality will only work for
         values in custom columns within a `View`-like entity.
 
@@ -1908,8 +1941,164 @@ class ViewUpdateMixin:
         )
 
 
+class QueryMixinSynchronousProtocol(Protocol):
+    """Protocol for the synchronous query methods."""
+
+    @staticmethod
+    def query(
+        query: str,
+        include_row_id_and_row_version: bool = True,
+        convert_to_datetime: bool = False,
+        download_location=None,
+        quote_character='"',
+        escape_character="\\",
+        line_end=str(os.linesep),
+        separator=",",
+        header=True,
+        *,
+        synapse_client: Optional[Synapse] = None,
+        **kwargs,
+    ) -> Union[DATA_FRAME_TYPE, str]:
+        """Query for data on a table stored in Synapse. The results will always be
+        returned as a Pandas DataFrame unless you specify a `download_location` in which
+        case the results will be downloaded to that location. There are a number of
+        arguments that you may pass to this function depending on if you are getting
+        the results back as a DataFrame or downloading the results to a file.
+
+        Arguments:
+            query: The query to run. The query must be valid syntax that Synapse can
+                understand. See this document that describes the expected syntax of the
+                query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            include_row_id_and_row_version: If True the `ROW_ID` and `ROW_VERSION`
+                columns will be returned in the DataFrame. These columns are required
+                if using the query results to update rows in the table. These columns
+                are the primary keys used by Synapse to uniquely identify rows in the
+                table.
+            convert_to_datetime: (DataFrame only) If set to True, will convert all
+                Synapse DATE columns from UNIX timestamp integers into UTC datetime
+                objects
+
+            download_location: (CSV Only) If set to a path the results will be
+                downloaded to that directory. The results will be downloaded as a CSV
+                file. A path to the downloaded file will be returned instead of a
+                DataFrame.
+
+            quote_character: (CSV Only) The character to use to quote fields. The
+                default is a double quote.
+
+            escape_character: (CSV Only) The character to use to escape special
+                characters. The default is a backslash.
+
+            line_end: (CSV Only) The character to use to end a line. The default is
+                the system's line separator.
+
+            separator: (CSV Only) The character to use to separate fields. The default
+                is a comma.
+
+            header: (CSV Only) If set to True the first row will be used as the header
+                row. The default is True.
+
+            **kwargs: (DataFrame only) Additional keyword arguments to pass to
+                pandas.read_csv. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
+                for complete list of supported arguments. This is exposed as
+                internally the query downloads a CSV from Synapse and then loads
+                it into a dataframe.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The results of the query as a Pandas DataFrame or a path to the downloaded
+            query results if `download_location` is set.
+
+        Example: Querying for data
+            This example shows how you may query for data in a table and print out the
+            results.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import query
+
+            syn = Synapse()
+            syn.login()
+
+            results = query(query="SELECT * FROM syn1234")
+            print(results)
+            ```
+        """
+        # Replaced at runtime
+        return ""
+
+    @staticmethod
+    def query_part_mask(
+        query: str,
+        part_mask: int,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> QueryResultBundle:
+        """Query for data on a table stored in Synapse. This is a more advanced use case
+        of the `query` function that allows you to determine what addiitional metadata
+        about the table or query should also be returned. If you do not need this
+        additional information then you are better off using the `query` function.
+
+        The query for this method uses this Rest API:
+        <https://rest-docs.synapse.org/rest/POST/entity/id/table/query/async/start.html>
+
+        Arguments:
+            query: The query to run. The query must be valid syntax that Synapse can
+                understand. See this document that describes the expected syntax of the
+                query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            part_mask: The bitwise OR of the part mask values you want to return in the
+                results. The following list of part masks are implemented to be returned
+                in the results:
+
+                - Query Results (queryResults) = 0x1
+                - Query Count (queryCount) = 0x2
+                - The sum of the file sizes (sumFileSizesBytes) = 0x40
+                - The last updated on date of the table (lastUpdatedOn) = 0x80
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The results of the query as a Pandas DataFrame.
+
+        Example: Querying for data with a part mask
+            This example shows how to use the bitwise `OR` of Python to combine the
+            part mask values and then use that to query for data in a table and print
+            out the results.
+
+            In this case we are getting the results of the query, the count of rows, and
+            the last updated on date of the table.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import query_part_mask
+
+            syn = Synapse()
+            syn.login()
+
+            QUERY_RESULTS = 0x1
+            QUERY_COUNT = 0x2
+            LAST_UPDATED_ON = 0x80
+
+            # Combine the part mask values using bitwise OR
+            part_mask = QUERY_RESULTS | QUERY_COUNT | LAST_UPDATED_ON
+
+            result = query_part_mask(query="SELECT * FROM syn1234", part_mask=part_mask)
+            print(result)
+            ```
+        """
+        # Replaced at runtime
+        return QueryResultBundle(result=None)
+
+
 @async_to_sync
-class QueryMixin:
+class QueryMixin(QueryMixinSynchronousProtocol):
     """Mixin class providing methods for querying data from a `Table`-like entity."""
 
     @staticmethod
@@ -1978,7 +2167,8 @@ class QueryMixin:
                 instance from the Synapse class constructor.
 
         Returns:
-            The results of the query as a Pandas DataFrame.
+            The results of the query as a Pandas DataFrame or a path to the downloaded
+            query results if `download_location` is set.
 
         Example: Querying for data
             This example shows how you may query for data in a table and print out the
@@ -2134,16 +2324,16 @@ class QueryMixin:
         )
 
 
-@async_to_sync
-class ViewSnapshotMixin:
-    """A mixin providing methods for creating a snapshot of a `View`-like entity."""
+class ViewSnapshotMixinSynchronousProtocol(Protocol):
+    """Protocol for the synchronous snapshot methods."""
 
-    async def snapshot_async(
+    def snapshot(
         self,
         *,
         comment: Optional[str] = None,
         label: Optional[str] = None,
-        activity: Optional[Activity] = None,
+        include_activity: bool = True,
+        associate_activity_to_new_version: bool = True,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the `View`-like entity.
@@ -2153,9 +2343,55 @@ class ViewSnapshotMixin:
         Arguments:
             comment: A unique comment to associate with the snapshot.
             label: A unique label to associate with the snapshot.
-            activity: The Activity model represents the main record of Provenance in
-                Synapse. It is analogous to the Activity defined in the
-                [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
+            include_activity: If True the activity will be included in snapshot if it
+                exists. In order to include the activity, the activity must have already
+                been stored in Synapse by using the `activity` attribute on the Table
+                and calling the `store()` method on the Table instance. Adding an
+                activity to a snapshot of a table is meant to capture the provenance of
+                the data at the time of the snapshot.
+            associate_activity_to_new_version: If True the activity will be associated
+                with the new version of the table. If False the activity will not be
+                associated with the new version of the table.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A `TableUpdateTransaction` object which includes the version number of the snapshot.
+        """
+        # Replaced at runtime
+        return TableUpdateTransaction(entity_id=None)
+
+
+@async_to_sync
+class ViewSnapshotMixin(ViewSnapshotMixinSynchronousProtocol):
+    """A mixin providing methods for creating a snapshot of a `View`-like entity."""
+
+    async def snapshot_async(
+        self,
+        *,
+        comment: Optional[str] = None,
+        label: Optional[str] = None,
+        include_activity: bool = True,
+        associate_activity_to_new_version: bool = True,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "TableUpdateTransaction":
+        """Creates a snapshot of the `View`-like entity.
+        Synapse handles snapshot creation differently for `Table`- and `View`-like
+        entities. `View` snapshots are created using the asyncronous job API.
+
+        Arguments:
+            comment: A unique comment to associate with the snapshot.
+            label: A unique label to associate with the snapshot.
+            include_activity: If True the activity will be included in snapshot if it
+                exists. In order to include the activity, the activity must have already
+                been stored in Synapse by using the `activity` attribute on the Table
+                and calling the `store()` method on the Table instance. Adding an
+                activity to a snapshot of a table is meant to capture the provenance of
+                the data at the time of the snapshot.
+            associate_activity_to_new_version: If True the activity will be associated
+                with the new version of the table. If False the activity will not be
+                associated with the new version of the table.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -2170,16 +2406,26 @@ class ViewSnapshotMixin:
 
         await self.get_async(include_activity=True, synapse_client=client)
 
-        return await TableUpdateTransaction(
+        result = await TableUpdateTransaction(
             entity_id=self.id,
             changes=None,
             create_snapshot=True,
             snapshot_options=SnapshotRequest(
                 comment=comment,
                 label=label,
-                activity=activity,
+                activity=self.activity.id
+                if self.activity and include_activity
+                else None,
             ),
         ).send_job_and_wait_async(synapse_client=client)
+
+        if associate_activity_to_new_version and self.activity:
+            self._last_persistent_instance.activity = None
+            await self.store_async(synapse_client=synapse_client)
+        else:
+            await self.get_async(include_activity=True, synapse_client=synapse_client)
+
+        return result
 
 
 @async_to_sync

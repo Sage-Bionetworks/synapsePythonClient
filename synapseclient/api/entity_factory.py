@@ -21,6 +21,7 @@ from synapseclient.core.exceptions import (
 if TYPE_CHECKING:
     from synapseclient import Synapse
     from synapseclient.models import Dataset, File, Folder, Project, Table
+    from synapseclient.models.fileview import FileView
 
 
 async def get_from_entity_factory(
@@ -32,7 +33,9 @@ async def get_from_entity_factory(
     download_file: bool = True,
     download_location: str = None,
     follow_link: bool = False,
-    entity_to_update: Union["Project", "File", "Folder", "Table", "Dataset"] = None,
+    entity_to_update: Union[
+        "Project", "File", "Folder", "Table", "Dataset", "FileView"
+    ] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union["Project", "File", "Folder"]:
@@ -238,7 +241,7 @@ async def _cast_into_class_type(
     entity_to_update: Union["Project", "File", "Folder"] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Union["Project", "File", "Folder"]:
+) -> Union["Project", "File", "Folder", "Table", "Dataset", "FileView"]:
     """
     Take an entity_bundle returned from the Synapse API and cast it into the appropriate
     class type. This will also download the file if `download_file` is set to True.
@@ -360,6 +363,14 @@ async def _cast_into_class_type(
             from synapseclient.models import Dataset
 
             entity_to_update = Dataset()
+        entity = entity_to_update.fill_from_dict(
+            entity=entity_bundle["entity"], set_annotations=False
+        )
+    elif entity["concreteType"] == concrete_types.ENTITY_VIEW:
+        if not entity_to_update:
+            from synapseclient.models.fileview import FileView
+
+            entity_to_update = FileView()
         entity = entity_to_update.fill_from_dict(
             entity=entity_bundle["entity"], set_annotations=False
         )

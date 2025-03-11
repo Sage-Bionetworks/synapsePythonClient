@@ -9,7 +9,6 @@ from synapseclient import Column as Synapse_Column
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
-from synapseclient.models import Activity
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 
@@ -254,14 +253,14 @@ class SnapshotRequest:
 
     comment: Optional[str] = None
     label: Optional[str] = None
-    activity: Optional[Activity] = None
+    activity: Optional[str] = None
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
         return {
             "snapshotComment": self.comment,
             "snapshotLabel": self.label,
-            "snapshotActivityId": self.activity.id if self.activity else None,
+            "snapshotActivityId": self.activity,
         }
 
     def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
