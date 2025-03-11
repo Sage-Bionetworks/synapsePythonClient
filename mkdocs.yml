@@ -80,6 +80,7 @@ nav:
           - Folder: reference/experimental/sync/folder.md
           - File: reference/experimental/sync/file.md
           - Table: reference/experimental/sync/table.md
+          - Dataset: reference/experimental/sync/dataset.md
           - Activity: reference/experimental/sync/activity.md
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
@@ -90,6 +91,7 @@ nav:
               - Folder: reference/experimental/async/folder.md
               - File: reference/experimental/async/file.md
               - Table: reference/experimental/async/table.md
+              - Dataset: reference/experimental/async/dataset.md
               - Activity: reference/experimental/async/activity.md
               - Team: reference/experimental/async/team.md
               - UserProfile: reference/experimental/async/user_profile.md
