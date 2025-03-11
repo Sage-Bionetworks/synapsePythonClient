@@ -19,6 +19,7 @@ from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api import (
+    ViewEntityType,
     ViewTypeMask,
     delete_entity,
     get_columns,
@@ -92,6 +93,7 @@ SERIES_TYPE = TypeVar("pd.Series")
 
 
 def test_import_pandas() -> None:
+    """This function is called within other functions and methods to ensure that pandas is installed."""
     try:
         import pandas as pd  # noqa F401
     # used to catch when pandas isn't installed
@@ -111,9 +113,8 @@ def test_import_pandas() -> None:
 
 @dataclass
 class TableBase:
-    """Mixin that extends the functionality of any `table` like entities in Synapse
-    to perform a number of operations on the entity such as getting, deleting, or
-    updating columns, querying for data, and more."""
+    """Base class for any `table`-like entities in Synapse.
+    Provides the minimum required attributes for any such entity."""
 
     id: None = None
     name: None = None
@@ -126,40 +127,42 @@ class TableBase:
 
 @dataclass
 class ViewBase(TableBase):
-    """A class that extends the TableOperator and TableRowOperator classes to add
-    appropriately handle View-like Synapse entities.
+    """A class that extends TableBase for additional attributes specific to `View`-like objects.
 
-    In the Synapse API, a View is a sub-category of the Table model which includes other Table-like
-    entities including: SubmissionView, EntityView, and Dataset.
+    In the Synapse API, a `View` is a sub-category of the `Table` model interface which includes other `Table`-like
+    entities including: `SubmissionView`, `EntityView`, and `Dataset`.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/View.html>
     """
 
-    view_entity_type: Optional[str] = field(default=None, compare=False)
+    view_entity_type: Optional[ViewEntityType] = field(default=None, compare=False)
     """
-    The type of view to create. This is used to determine the default columns that are
-    added to the table. Must be defined as a `ViewTypeMask` enum.
+    The type of view. This is used to determine the default columns that are
+    added to the table. Must be defined as a `ViewEntityType` enum.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ViewEntityType.html>
     """
 
     view_type_mask: Optional[ViewTypeMask] = field(default=None, compare=False)
     """
-    The type of view to create. This is used to determine the default columns that are
-    added to the table. Must be defined as a `ViewTypeMask` enum.
+    Bit mask representing the types to include in the view. This is used to determine
+    the default columns that are added to the table. Must be defined as a `ViewTypeMask` enum.
+    <https://rest-docs.synapse.org/rest/GET/column/tableview/defaults.html>
     """
 
     include_default_columns: Optional[bool] = field(default=True, compare=False)
     """
     When creating a table or view, specifies if default columns should be included.
-    Default columns are columns that are automatically added to the table or view. These
-    columns are managed by Synapse and cannot be modified. If you attempt to create a
-    column with the same name as a default column, you will receive a warning when you
-    store the table.
+    Default columns are automatically added to the table or view. These columns are
+    managed by Synapse and cannot be modified. If you attempt to create a column with
+    the same name as a default column, you will receive a warning when you store the
+    table and the default column will overwrite the column with the same name.
 
-    The column you are overriding will not behave the same as a default column. For
-    example, suppose you create a column called `id` on a FileView. When using a
-    default column, the `id` stores the Synapse ID of each of the entities included in
-    the scope of the view. If you override the `id` column with a new column, the `id`
-    column will no longer store the Synapse ID of the entities in the view. Instead, it
-    will store the values you provide when you store the table. It will be stored as an
-    annotation on the entity for the row you are modifying.
+    If you use a custom column with the same name as a default column, it will not behave
+    like a default column. For example, if you create a column named `id` on a FileView.
+    When using a default column, the `id` stores the Synapse ID of each of the entities included
+    in the scope of the view. If you use a custom `id` column, this column will no longer store
+    the Synapse ID of the entities in the view. Instead, it will store the values you provide
+    when you store the table. It will be stored as an annotation on the entity for the row you 
+    are modifying.
     """
 
 
@@ -448,6 +451,7 @@ class TableStoreMixin:
         return self
 
 
+@async_to_sync
 class ViewStoreMixin(TableStoreMixin):
     async def store_async(
         self,
@@ -525,6 +529,7 @@ class ViewStoreMixin(TableStoreMixin):
         )
 
 
+@async_to_sync
 class DeleteMixin:
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Delete: {self.name}"
@@ -1041,7 +1046,7 @@ class ColumnMixin:
     def _convert_columns_to_ordered_dict(
         columns: Union[
             List["Column"], OrderedDict[str, "Column"], Dict[str, "Column"], None
-        ]
+        ],
     ) -> OrderedDict[str, "Column"]:
         """Converts the columns attribute to an OrderedDict if it is a list or dict."""
         if not columns:
@@ -1230,10 +1235,10 @@ class TableUpsertMixin:
                     if (
                         isinstance(cell_value, list) and len(cell_value) > 0
                     ) or not isna(cell_value):
-                        partial_change_values[
-                            column_id
-                        ] = _convert_pandas_row_to_python_types(
-                            cell=cell_value, column_type=column_type
+                        partial_change_values[column_id] = (
+                            _convert_pandas_row_to_python_types(
+                                cell=cell_value, column_type=column_type
+                            )
                         )
                     else:
                         partial_change_values[column_id] = None
