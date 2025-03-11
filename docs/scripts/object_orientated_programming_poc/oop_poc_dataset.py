@@ -1,7 +1,7 @@
 import pandas as pd
 
 from synapseclient import Synapse
-from synapseclient.models import Column, ColumnType, File, Folder, Dataset, EntityRef
+from synapseclient.models import Column, ColumnType, Dataset, EntityRef, File, Folder
 
 syn = Synapse()
 syn.login()
