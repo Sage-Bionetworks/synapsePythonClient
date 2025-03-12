@@ -20,4 +20,12 @@ at your own risk.
             - update_rows
             - snapshot
             - query
+            - query_part_mask
+            - add_column
+            - delete_column
+            - reorder_column
+            - rename_column
+            - get_permissions
+            - get_acl
+            - set_permissions
 ---
