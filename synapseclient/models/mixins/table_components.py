@@ -152,19 +152,40 @@ class ViewBase(TableBase):
 
     include_default_columns: Optional[bool] = field(default=True, compare=False)
     """
-    When creating a table or view, specifies if default columns should be included.
-    Default columns are automatically added to the table or view. These columns are
-    managed by Synapse and cannot be modified. If you attempt to create a column with
-    the same name as a default column, you will receive a warning when you store the
-    table and the default column will overwrite the column with the same name.
+    When creating a fileview or view, specifies if default columns should be included.
+    Default columns are columns that are automatically added to the fileview or view. These
+    columns are managed by Synapse and cannot be modified. If you attempt to create a
+    column with the same name as a default column, you will receive a warning when you
+    store the fileview.
 
-    If you use a custom column with the same name as a default column, it will not behave
-    like a default column. For example, if you create a column named `id` on a FileView.
-    When using a default column, the `id` stores the Synapse ID of each of the entities included
-    in the scope of the view. If you use a custom `id` column, this column will no longer store
-    the Synapse ID of the entities in the view. Instead, it will store the values you provide
-    when you store the table. It will be stored as an annotation on the entity for the row you
-    are modifying.
+    **`include_default_columns` is only used if this is the first time that the view is
+    being stored.** If you are updating an existing view this attribute will be ignored.
+    If you want to add all default columns back to your view then you may use this code
+    snippet to accomplish this:
+
+    ```python
+    import asyncio
+    from synapseclient import Synapse
+    from synapseclient.models import FileView # May also use: Dataset
+
+    syn = Synapse()
+    syn.login()
+
+    async def main():
+        view = await FileView(id="syn1234").get_async()
+        await view._append_default_columns()
+        await view.store_async()
+
+    asyncio.run(main())
+    ```
+
+    The column you are overriding will not behave the same as a default column. For
+    example, suppose you create a column called `id` on a FileView. When using a
+    default column, the `id` stores the Synapse ID of each of the entities included in
+    the scope of the view. If you override the `id` column with a new column, the `id`
+    column will no longer store the Synapse ID of the entities in the view. Instead, it
+    will store the values you provide when you store the fileview. It will be stored as an
+    annotation on the entity for the row you are modifying.
     """
 
 
@@ -373,7 +394,7 @@ class TableStoreMixin:
                 destination=self,
             )
 
-        if (
+        if (not self._last_persistent_instance) and (
             hasattr(self, "_append_default_columns")
             and hasattr(self, "include_default_columns")
             and self.include_default_columns

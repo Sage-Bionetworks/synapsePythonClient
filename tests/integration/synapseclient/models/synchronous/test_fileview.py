@@ -701,7 +701,6 @@ class TestRowStorage:
 
         # AND I remove the `id` column from the fileview
         fileview.delete_column(name="id")
-        fileview.include_default_columns = False
         fileview.store(synapse_client=self.syn)
 
         # WHEN I try to update the rows
