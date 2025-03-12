@@ -441,7 +441,18 @@ async def get_job_async(
                     last_message = job_status.progress_message
                     last_progress = job_status.progress_current
                     last_total = job_status.progress_total
-                    progress_bar.desc = last_message
+                    updated = False
+
+                    if progress_bar.desc != last_message:
+                        progress_bar.desc = last_message
+                        updated = True
+
+                    if progress_bar.total != last_total:
+                        progress_bar.total = last_total
+                        updated = True
+
+                    if updated:
+                        progress_bar.refresh()
                     start_time = time.time()
                 await asyncio.sleep(sleep)
             elif job_status.state == AsynchronousJobState.FAILED:

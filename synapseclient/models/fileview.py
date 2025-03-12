@@ -19,6 +19,7 @@ from synapseclient.models.mixins.table_components import (
     DeleteMixin,
     GetMixin,
     QueryMixin,
+    TableUpdateTransaction,
     ViewBase,
     ViewSnapshotMixin,
     ViewStoreMixin,
@@ -254,6 +255,85 @@ class FileViewSynchronousProtocol(Protocol):
                 function when the `values` argument is a path to a csv file.
         """
         return None
+
+    def snapshot(
+        self,
+        *,
+        comment: Optional[str] = None,
+        label: Optional[str] = None,
+        include_activity: bool = True,
+        associate_activity_to_new_version: bool = True,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "TableUpdateTransaction":
+        """Creates a snapshot of the `View`-like entity.
+        Synapse handles snapshot creation differently for `Table`- and `View`-like
+        entities. `View` snapshots are created using the asyncronous job API.
+
+
+        Making a snapshot of a view allows you to create an immutable version of the
+        view at the time of the snapshot. This is useful to create checkpoints in time
+        that you may go back and reference, or use in a publication. Snapshots are
+        immutable and cannot be changed. They may only be deleted.
+
+        Arguments:
+            comment: A unique comment to associate with the snapshot.
+            label: A unique label to associate with the snapshot. If this is not a
+                unique label an exception will be raised when you store this to Synapse.
+            include_activity: If True the activity will be included in snapshot if it
+                exists. In order to include the activity, the activity must have already
+                been stored in Synapse by using the `activity` attribute on the Table
+                and calling the `store()` method on the Table instance. Adding an
+                activity to a snapshot of a table is meant to capture the provenance of
+                the data at the time of the snapshot. Defaults to True.
+            associate_activity_to_new_version: If True the activity will be associated
+                with the new version of the table. If False the activity will not be
+                associated with the new version of the table. Defaults to True.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A `TableUpdateTransaction` object which includes the version number of the snapshot.
+
+        Example: Creating a snapshot of a view with an activity
+            Create a snapshot of a view and include the activity. The activity must
+            have been stored in Synapse by using the `activity` attribute on the FileView
+            and calling the `store()` method on the FileView instance. Adding an activity
+            to a snapshot of a fileview is meant to capture the provenance of the data at
+            the time of the snapshot.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import FileView
+
+            syn = Synapse()
+            syn.login()
+
+            view = FileView(id="syn4567")
+            snapshot = view.snapshot(label="Q1 2025", comment="Results collected in Lab A", include_activity=True, associate_activity_to_new_version=True)
+            print(snapshot)
+            ```
+
+        Example: Creating a snapshot of a view without an activity
+            Create a snapshot of a view without including the activity. This is used in
+            cases where we do not have any Provenance to associate with the snapshot and
+            we do not want to persist any activity that may be present on the view to
+            the new version of the view.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import FileView
+
+            syn = Synapse()
+            syn.login()
+
+            view = FileView(id="syn4567")
+            snapshot = view.snapshot(label="Q1 2025", comment="Results collected in Lab A", include_activity=False, associate_activity_to_new_version=False)
+            print(snapshot)
+            ```
+        """
+        # Replaced at runtime
+        return TableUpdateTransaction(entity_id=None)
 
 
 @dataclass

@@ -20,7 +20,7 @@ By the end of these tutorials you'll have:
 - [Annotations](./python/annotation.md) added to your Project, Folders, and Files
 - A File with multiple [Versions](./python/versions.md)
 - A File that has an [Activity/Provenance](./python/activity.md) added to it
-- A [File View](./python/file_view.md) created for your Project
+- A [File View](./python/fileview.md) created for your Project
 - A [Table](./python/table.md) created for your Project
 - [Create, Read, Update, Delete operations](./python/table_crud.md) for your table
 - A [Dataset](./python/dataset.md) created for your project
