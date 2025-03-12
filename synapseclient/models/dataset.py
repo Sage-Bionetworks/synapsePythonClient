@@ -552,8 +552,15 @@ class Dataset(
             "versionLabel": self.version_label,
             "versionComment": self.version_comment,
             "isLatestVersion": self.is_latest_version,
-            "columnIds": [column.id for column in self.columns.values()],
-            "isSearchEnabled": self.is_search_enabled,
+            "columnIds": (
+                [
+                    column.id
+                    for column in self._last_persistent_instance.columns.values()
+                ]
+                if self._last_persistent_instance
+                and self._last_persistent_instance.columns
+                else []
+            ),
             "items": (
                 [item.to_synapse_request() for item in self.items] if self.items else []
             ),
