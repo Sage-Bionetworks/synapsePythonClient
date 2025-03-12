@@ -1126,6 +1126,7 @@ def _construct_select_statement_for_upsert(
     df: DATA_FRAME_TYPE,
     all_columns_from_df: List[str],
     primary_keys: List[str],
+    wait_for_eventually_consistent_view: bool,
 ) -> str:
     """
     Create the select statement for a given DataFrame. This is used to select data
@@ -1137,16 +1138,26 @@ def _construct_select_statement_for_upsert(
         all_columns_from_df: A list of all the columns in the DataFrame.
         primary_keys: A list of the columns that are used to determine if a row
             already exists in the table.
+        wait_for_eventually_consistent_view: If True, the select statement will
+            include the ROW_ID, ROW_ETAG, and id columns. If False, the select
+            statement will only include the ROW_ID column.
 
     Returns:
         The select statement that can be used to query Synapse to determine if a row
         already exists in the
     """
 
-    select_statement = "SELECT ROW_ID, "
-
     if entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
-        select_statement += "ROW_ETAG, "
+        if wait_for_eventually_consistent_view:
+            select_statement = "SELECT id, ROW_ID, ROW_ETAG, "
+
+            if "id" in all_columns_from_df:
+                all_columns_from_df.remove("id")
+        else:
+            select_statement = "SELECT ROW_ID, ROW_ETAG, "
+
+    else:
+        select_statement = "SELECT ROW_ID, "
 
     select_statement += f"{', '.join(all_columns_from_df)} FROM {entity.id} WHERE "
     where_statements = []
@@ -1216,7 +1227,8 @@ def _construct_partial_rows_for_upsert(
     chunk_to_check_for_upsert: DATA_FRAME_TYPE,
     primary_keys: List[str],
     contains_etag: bool,
-) -> Tuple[List[PartialRow], List[int], List[int], List[str]]:
+    wait_for_eventually_consistent_view: bool,
+) -> Tuple[List[PartialRow], List[int], List[int], Dict[str, str]]:
     """
     Handles the construction of the PartialRow objects that will be used to update
     rows in Synapse. This method is used in the upsert method to determine which
@@ -1228,13 +1240,16 @@ def _construct_partial_rows_for_upsert(
             being upserted.
         primary_keys: A list of the columns that are used to determine if a row
             already exists in the table.
+        contains_etag: If True, the results DataFrame contains the ROW_ETAG column.
+        wait_for_eventually_consistent_view: If True, the results DataFrame contains
+            the id columns.
 
     Returns:
         A tuple containing a list of PartialRow objects that will be used to update
         rows in Synapse, a list of the indexs of the rows in the original
         DataFrame that have changes, a list of the indexes of the rows in the
-        original DataFrame that do not have changes, and a list of the etags for
-        the rows that have changes.
+        original DataFrame that do not have changes, and a dictionary of the synapse IDs
+        for the key with the etag of the row that was changed.
     """
 
     from pandas import isna
@@ -1242,7 +1257,7 @@ def _construct_partial_rows_for_upsert(
     rows_to_update: List[PartialRow] = []
     indexs_of_original_df_with_changes = []
     indexs_of_original_df_without_changes = []
-    etags = []
+    syn_id_and_etags = {}
     for row in results.itertuples(index=False):
         row_etag = None
 
@@ -1298,15 +1313,15 @@ def _construct_partial_rows_for_upsert(
             )
             rows_to_update.append(partial_change)
             indexs_of_original_df_with_changes.append(matching_row.index[0])
-            if row_etag:
-                etags.append(row_etag)
+            if wait_for_eventually_consistent_view and row_etag and row.id:
+                syn_id_and_etags[row.id] = row_etag
         else:
             indexs_of_original_df_without_changes.append(matching_row.index[0])
     return (
         rows_to_update,
         indexs_of_original_df_with_changes,
         indexs_of_original_df_without_changes,
-        etags,
+        syn_id_and_etags,
     )
 
 
@@ -1317,7 +1332,8 @@ async def _push_row_updates_to_synapse(
     progress_bar: tqdm,
     job_timeout: int,
     client: Synapse,
-) -> None:
+) -> List[TableUpdateTransaction]:
+    results = []
     current_chunk_size = 0
     chunk = []
     for row in rows_to_update:
@@ -1336,9 +1352,10 @@ async def _push_row_updates_to_synapse(
                 changes=[change],
             )
 
-            await request.send_job_and_wait_async(
+            result = await request.send_job_and_wait_async(
                 synapse_client=client, timeout=job_timeout
             )
+            results.append(result)
             progress_bar.update(len(chunk))
             chunk = []
             current_chunk_size = 0
@@ -1354,17 +1371,20 @@ async def _push_row_updates_to_synapse(
             ),
         )
 
-        await TableUpdateTransaction(
+        result = await TableUpdateTransaction(
             entity_id=entity.id,
             changes=[change],
         ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
         progress_bar.update(len(chunk))
+        results.append(result)
+    return results
 
 
 async def _wait_for_eventually_consistent_changes(
     entity: TableBase,
-    original_etags_to_track: List[str],
+    original_synids_and_etags_to_track: Dict[str, str],
     wait_for_eventually_consistent_view_timeout: int,
+    row_update_results: List[TableUpdateTransaction],
     synapse_client: Synapse,
 ) -> None:
     """
@@ -1375,9 +1395,13 @@ async def _wait_for_eventually_consistent_changes(
     will wait for the changes to be reflected in the view.
 
     Arguments:
-        original_etags_to_track: A list of the etags that were changed.
+        original_synids_and_etags_to_track: A dictionary of the synapse IDs for the
+            key with the etag of the row that was changed.
         wait_for_eventually_consistent_view_timeout: The maximum amount of time to
             wait for the changes to be reflected in the view.
+        row_update_results: The result of the row updates that were made. Used to
+            determine which changes we should wait for, and which changes we should not
+            wait for.
         synapse_client: The Synapse client to use to query the view.
 
     Raises:
@@ -1388,7 +1412,16 @@ async def _wait_for_eventually_consistent_changes(
         None
     """
     with logging_redirect_tqdm(loggers=[synapse_client.logger]):
-        number_of_changes_to_wait_for = len(original_etags_to_track)
+        etags_to_track = []
+        for row_update_result in row_update_results:
+            if row_update_result.entities_with_changes_applied:
+                for (
+                    entity_with_change
+                ) in row_update_result.entities_with_changes_applied:
+                    etags_to_track.append(
+                        original_synids_and_etags_to_track.get(entity_with_change)
+                    )
+        number_of_changes_to_wait_for = len(etags_to_track)
         progress_bar = tqdm(
             total=number_of_changes_to_wait_for,
             desc="Waiting for eventually-consistent changes to show up in the view",
@@ -1398,7 +1431,7 @@ async def _wait_for_eventually_consistent_changes(
         start_time = time.time()
 
         while time.time() - start_time < wait_for_eventually_consistent_view_timeout:
-            quoted_etags = [f"'{etag}'" for etag in original_etags_to_track]
+            quoted_etags = [f"'{etag}'" for etag in etags_to_track]
             wait_select_statement = (
                 f"select etag from {entity.id} where etag IN ({','.join(quoted_etags)})"
             )
@@ -1410,15 +1443,15 @@ async def _wait_for_eventually_consistent_changes(
 
             etags_in_results = results["etag"].values
             etags_to_remove = []
-            for etag in original_etags_to_track:
+            for etag in etags_to_track:
                 if etag not in etags_in_results:
                     etags_to_remove.append(etag)
             for etag in etags_to_remove:
-                original_etags_to_track.remove(etag)
+                etags_to_track.remove(etag)
                 progress_bar.update(1)
 
             progress_bar.refresh()
-            if not original_etags_to_track:
+            if not etags_to_track:
                 progress_bar.close()
                 break
             await asyncio.sleep(1)
@@ -1453,9 +1486,15 @@ async def _upsert_rows_async(
 
     if not entity._last_persistent_instance:
         await entity.get_async(include_columns=True, synapse_client=synapse_client)
+
     if not entity.columns:
         raise ValueError(
             "There are no columns on this table. Unable to proceed with an upsert operation."
+        )
+
+    if wait_for_eventually_consistent_view and "id" not in entity.columns:
+        raise ValueError(
+            "The 'id' column is required to wait for eventually consistent views."
         )
 
     if isinstance(values, dict):
@@ -1478,10 +1517,11 @@ async def _upsert_rows_async(
 
     all_columns_from_df = [f'"{column}"' for column in values.columns]
     contains_etag = entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
-    original_etags_to_track = []
+    original_synids_and_etags_to_track = {}
     indexes_of_original_df_with_changes = []
     indexes_of_original_df_with_no_changes = []
-    total_row_count_updated = 0
+    total_row_count_to_update = 0
+    row_update_results = None
 
     with logging_redirect_tqdm(loggers=[client.logger]):
         progress_bar = tqdm(
@@ -1496,6 +1536,7 @@ async def _upsert_rows_async(
                 df=individual_chunk,
                 all_columns_from_df=all_columns_from_df,
                 primary_keys=primary_keys,
+                wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
             )
 
             results = await entity.query_async(
@@ -1506,22 +1547,23 @@ async def _upsert_rows_async(
                 rows_to_update,
                 indexes_with_updates,
                 indexes_without_updates,
-                etags_to_track,
+                syn_id_and_etag_dict,
             ) = _construct_partial_rows_for_upsert(
                 entity=entity,
                 results=results,
                 chunk_to_check_for_upsert=individual_chunk,
                 primary_keys=primary_keys,
                 contains_etag=contains_etag,
+                wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
             )
-            total_row_count_updated += len(rows_to_update)
+            total_row_count_to_update += len(rows_to_update)
             indexes_of_original_df_with_changes.extend(indexes_with_updates)
             indexes_of_original_df_with_no_changes.extend(indexes_without_updates)
-            if etags_to_track and contains_etag and wait_for_eventually_consistent_view:
-                original_etags_to_track.extend(etags_to_track)
+            if syn_id_and_etag_dict:
+                original_synids_and_etags_to_track.update(syn_id_and_etag_dict)
 
             if not dry_run and rows_to_update:
-                await _push_row_updates_to_synapse(
+                row_update_results = await _push_row_updates_to_synapse(
                     entity=entity,
                     rows_to_update=rows_to_update,
                     update_size_bytes=update_size_bytes,
@@ -1544,16 +1586,30 @@ async def _upsert_rows_async(
         )
     ]
 
+    total_row_count_actually_updated = 0
+    if row_update_results:
+        for result in row_update_results:
+            if result.entities_with_changes_applied:
+                total_row_count_actually_updated += len(
+                    result.entities_with_changes_applied
+                )
+
+    additional_message = ""
+    if total_row_count_actually_updated < total_row_count_to_update:
+        additional_message = f". {total_row_count_to_update - total_row_count_actually_updated} rows could not be updated."
+
     client.logger.info(
-        f"[{entity.id}:{entity.name}]: Found {total_row_count_updated}"
+        f"[{entity.id}:{entity.name}]: Found {total_row_count_actually_updated or total_row_count_to_update}"
         f" rows to update and {len(rows_to_insert_df)} rows to insert"
+        + additional_message
     )
 
-    if wait_for_eventually_consistent_view and original_etags_to_track:
+    if wait_for_eventually_consistent_view and original_synids_and_etags_to_track:
         await _wait_for_eventually_consistent_changes(
             entity=entity,
-            original_etags_to_track=original_etags_to_track,
+            original_synids_and_etags_to_track=original_synids_and_etags_to_track,
             wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
+            row_update_results=row_update_results,
             synapse_client=client,
         )
 
@@ -1580,8 +1636,6 @@ class TableUpsertMixin:
         update_size_bytes: int = 1.9 * MB,
         insert_size_bytes: int = 900 * MB,
         job_timeout: int = 600,
-        wait_for_eventually_consistent_view: bool = False,
-        wait_for_eventually_consistent_view_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
@@ -1707,14 +1761,6 @@ class TableUpsertMixin:
                 is reached a `SynapseTimeoutError` will be raised.
                 The default is 600 seconds
 
-            wait_for_eventually_consistent_view: Only used if the table is a view. If
-                set to True this will wait for the view to reflect any changes that
-                you've made to the view. This is useful if you need to query the view
-                after making changes to the data.
-
-            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
-                wait for a view to be eventually consistent. The default is 600 seconds.
-
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
@@ -1818,8 +1864,6 @@ class TableUpsertMixin:
             update_size_bytes=update_size_bytes,
             insert_size_bytes=insert_size_bytes,
             job_timeout=job_timeout,
-            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
-            wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
             synapse_client=synapse_client,
             **kwargs,
         )
@@ -1913,7 +1957,10 @@ class ViewUpdateMixin:
             wait_for_eventually_consistent_view: Only used if the table is a view. If
                 set to True this will wait for the view to reflect any changes that
                 you've made to the view. This is useful if you need to query the view
-                after making changes to the data.
+                after making changes to the data. If you set this value to `True` your
+                view must contain the default `id` column which is the Synapse ID of the
+                row. If you do not have this column in your view you will need to add it
+                to the view before you can use this feature. The default is False
 
             wait_for_eventually_consistent_view_timeout: The maximum amount of time to
                 wait for a view to be eventually consistent. The default is 600 seconds.

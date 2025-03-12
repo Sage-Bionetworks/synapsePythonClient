@@ -679,6 +679,46 @@ class TestRowStorage:
         assert "integer_column" not in file4_copy.annotations.keys()
         assert "float_column" not in file4_copy.annotations.keys()
 
+    async def test_update_rows_without_id_column(self, project_model: Project) -> None:
+        # GIVEN a unique folder for this test
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(folder.id)
+
+        # AND a fileview with default columns defined
+        fileview_name = str(uuid.uuid4())
+        fileview = FileView(
+            name=fileview_name,
+            parent_id=project_model.id,
+            view_type_mask=ViewTypeMask.FILE.value,
+            scope_ids=[folder.id],
+        )
+
+        # AND the fileview is stored to Synapse
+        fileview = fileview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(fileview.id)
+
+        # AND I remove the `id` column from the fileview
+        fileview.delete_column(name="id")
+        fileview.include_default_columns = False
+        fileview.store(synapse_client=self.syn)
+
+        # WHEN I try to update the rows
+        with pytest.raises(ValueError) as e:
+            fileview.update_rows(
+                values={},
+                primary_keys=["id"],
+                synapse_client=self.syn,
+                wait_for_eventually_consistent_view=True,
+            )
+
+        # THEN the fileview should raise an exception that I am missing the `id` column
+        assert (
+            "The 'id' column is required to wait for eventually consistent views."
+            in str(e.value)
+        )
+
 
 class TestColumnModifications:
     @pytest.fixture(autouse=True, scope="function")

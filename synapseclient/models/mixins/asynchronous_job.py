@@ -111,6 +111,7 @@ class AsynchronousCommunicator:
             synapse_client=synapse_client,
         )
         if "results" in results:
+            failure_messages = []
             for result in results["results"]:
                 if "updateResults" in result:
                     for update_result in result["updateResults"]:
@@ -118,9 +119,11 @@ class AsynchronousCommunicator:
                         failure_message = update_result.get("failureMessage", None)
                         if failure_code or failure_message:
                             client = Synapse.get_client(synapse_client=synapse_client)
-                            client.logger.warning(
-                                f"Failed to send async job to Synapse: {update_result}"
-                            )
+                            failure_messages.append(update_result)
+            if failure_messages:
+                client.logger.warning(
+                    f"Failed to send a portion of the async job to Synapse: {failure_messages}"
+                )
         self.fill_from_dict(synapse_response=results)
         if not post_exchange_args:
             post_exchange_args = {}

@@ -293,6 +293,8 @@ class TableUpdateTransaction(AsynchronousCommunicator):
     snapshot_options: Optional[SnapshotRequest] = None
     results: Optional[List[Dict[str, Any]]] = None
     snapshot_version_number: Optional[int] = None
+    entities_with_changes_applied: Optional[List[str]] = None
+
     """This will be an array of
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>."""
 
@@ -327,6 +329,19 @@ class TableUpdateTransaction(AsynchronousCommunicator):
         self.snapshot_version_number = synapse_response.get(
             "snapshotVersionNumber", None
         )
+
+        if "results" in synapse_response:
+            successful_entities = []
+            for result in synapse_response["results"]:
+                if "updateResults" in result:
+                    for update_result in result["updateResults"]:
+                        failure_code = update_result.get("failureCode", None)
+                        failure_message = update_result.get("failureMessage", None)
+                        entity_id = update_result.get("entityId", None)
+                        if not failure_code and not failure_message and entity_id:
+                            successful_entities.append(entity_id)
+            if successful_entities:
+                self.entities_with_changes_applied = successful_entities
         return self
 
 
