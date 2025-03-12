@@ -157,17 +157,17 @@ class Dataset(
             values (use empty list to represent no values for key) and the value type
             associated with all values in the list.
 
-    Example: Create a new dataset from a list of files.
+    Example: Create a new dataset from a list of EntityRefs.
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import Dataset, File
+        from synapseclient.models import Dataset, EntityRef
 
         syn = Synapse()
         syn.login()
 
-        my_files = [File(id="syn1234"), File(id="syn1235"), File(id="syn1236")]
-        my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_files)
+        my_entity_refs = [EntityRef(id="syn1234"), EntityRef(id="syn1235"), EntityRef(id="syn1236")]
+        my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_entity_refs)
         my_dataset.store()
         ```
 
@@ -963,19 +963,19 @@ class Dataset(
         Returns:
             The Dataset instance stored in synapse.
 
-        Example: Create a new dataset from a list of files by storing it.
+        Example: Create a new dataset from a list of EntityRefs by storing it.
 
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Dataset, File
+            from synapseclient.models import Dataset, EntityRef
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                my_files = [File(id="syn1234"), File(id="syn1235"), File(id="syn1236")]
-                my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_files)
+                my_entity_refs = [EntityRef(id="syn1234"), EntityRef(id="syn1235"), EntityRef(id="syn1236")]
+                my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_entity_refs)
                 await my_dataset.store_async()
 
             asyncio.run(main())
@@ -1026,19 +1026,19 @@ class Dataset(
         Returns:
             The Dataset instance stored in synapse.
 
-        Example: Create a new dataset from a list of files by storing it.
+        Example: Create a new dataset from a list of EntityRefs by storing it.
 
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Dataset, File
+            from synapseclient.models import Dataset, EntityRef
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                my_files = [File(id="syn1234"), File(id="syn1235"), File(id="syn1236")]
-                my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_files)
+                my_entity_refs = [EntityRef(id="syn1234"), EntityRef(id="syn1235"), EntityRef(id="syn1236")]
+                my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_entity_refs)
                 await my_dataset.store_async()
 
             asyncio.run(main())
