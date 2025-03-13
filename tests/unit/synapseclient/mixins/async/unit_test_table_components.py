@@ -1,16 +1,18 @@
-import pytest
 import os
-from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
-from unittest.mock import patch
 from collections import OrderedDict
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+from unittest.mock import patch
+
+import pytest
+
 from synapseclient import Synapse
 from synapseclient.core import utils
-from synapseclient.models import Column, ColumnType, ColumnChange
+from synapseclient.models import Column, ColumnChange, ColumnType
 from synapseclient.models.mixins.table_components import (
-    TableStoreMixin,
-    GetMixin,
     FailureStrategy,
+    GetMixin,
+    TableStoreMixin,
 )
 
 POST_COLUMNS_PATCH = "synapseclient.models.mixins.table_components.post_columns"
