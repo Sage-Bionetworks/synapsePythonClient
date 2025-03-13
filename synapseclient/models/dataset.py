@@ -1054,6 +1054,7 @@ class Dataset(
                 and self._last_persistent_instance.columns
                 else []
             ),
+            "isSearchEnabled": self.is_search_enabled,
             "items": (
                 [item.to_synapse_request() for item in self.items] if self.items else []
             ),
