@@ -772,7 +772,6 @@ class FileView(
         self.version_comment = entity.get("versionComment", None)
         self.is_latest_version = entity.get("isLatestVersion", None)
         self.is_search_enabled = entity.get("isSearchEnabled", False)
-        self.column_ids = entity.get("columnIds", [])
         self.view_type_mask = entity.get("viewTypeMask", None)
         self.scope_ids = set(f"syn{id}" for id in entity.get("scopeIds", []))
 
