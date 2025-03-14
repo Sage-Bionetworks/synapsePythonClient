@@ -11,7 +11,7 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
 from synapseclient.core.utils import MB
-from synapseclient.models import Activity, Column, ColumnChange, ColumnType
+from synapseclient.models import Activity, Column, ColumnType
 from synapseclient.models.mixins.table_components import (
     ColumnMixin,
     DeleteMixin,
@@ -21,7 +21,6 @@ from synapseclient.models.mixins.table_components import (
     SnapshotRequest,
     TableDeleteRowMixin,
     TableStoreMixin,
-    TableStoreRowMixin,
     TableUpdateTransaction,
     TableUpsertMixin,
     ViewSnapshotMixin,
@@ -90,6 +89,7 @@ class TestTableStoreMixin:
             }
 
         def fill_from_dict(self, entity: Any, set_annotations: bool = True) -> None:
+            """Placeholder for fill_from_dict method"""
             self.__dict__.update(entity)
 
     @pytest.fixture(autouse=True, scope="function")
@@ -118,7 +118,8 @@ class TestTableStoreMixin:
         )
 
     async def test_generate_schema_change_request_columns_changed(self):
-        # GIVEN a TestClass instance where has_columns_changed is True AND columns have changes
+        # GIVEN a TestClass instance where has_columns_changed is True
+        # AND columns have changes
         test_instance = self.TestClass(
             has_columns_changed=True,
             id="syn123",
