@@ -531,7 +531,9 @@ class ViewStoreMixin(TableStoreMixin):
         for _, column in self.columns.items():
             if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
                 raise ValueError(
-                    f"Column name '{column.name}' does not match the regex pattern '^[a-zA-Z0-9,_.]+$'"
+                    f"Column name '{column.name}' contains invalid characters. "
+                    "Names may only contain: letters, numbers, spaces, underscores, "
+                    "hyphens, periods, plus signs, apostrophes, and parentheses."
                 )
         return await super().store_async(
             dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client
