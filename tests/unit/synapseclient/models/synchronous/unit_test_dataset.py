@@ -8,31 +8,6 @@ from synapseclient.models import Annotations, Dataset, EntityRef, File, Folder
 
 
 class TestDataset:
-    synapse_response = {
-        "id": "syn1234",
-        "name": "test_dataset",
-        "description": "test_description",
-        "parentId": "syn1234",
-        "etag": "etag_value",
-        "createdOn": "createdOn_value",
-        "createdBy": "createdBy_value",
-        "modifiedOn": "modifiedOn_value",
-        "modifiedBy": "modifiedBy_value",
-        "versionNumber": 1,
-        "versionLabel": "versionLabel_value",
-        "versionComment": "versionComment_value",
-        "isLatestVersion": True,
-        "isSearchEnabled": True,
-        "size": 100,
-        "checksum": "checksum_value",
-        "count": 100,
-        "items": [
-            {"entityId": "syn1234", "versionNumber": 1},
-            {"entityId": "syn1235", "versionNumber": 1},
-        ],
-        "annotations": {"key": "value"},
-    }
-
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
