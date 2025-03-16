@@ -104,33 +104,17 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
 
 class UserArgsCredentialsProvider(SynapseCredentialsProvider):
     def _get_auth_info(self, syn, user_login_args):
-        print(f"🛠 DEBUG: Entering UserArgsCredentialsProvider._get_auth_info()")
 
         username = user_login_args.get("username")
         token = user_login_args.get("auth_token")
 
         if username and token:
-            print(f"✅ UserArgsCredentialsProvider is returning:")
-            print(f"   - username: {username} (Should be monterocarmen)")
-            print(f"   - token: {'****' if token else None}")
-
             return username, token
 
         return None, None
     """
     Retrieves auth info from user_login_args during a CLI session.
     """
-    ''' Modified Code - CM
-    '''
-    """
-   Retrieves auth info from user_login_args during CLI session.
-   """
-
-    # def _get_auth_info(
-    #     self, syn: "Synapse", user_login_args: Dict[str, str]
-    # ) -> Tuple[str, str]:
-    #     profile = user_login_args.get("profile") or os.getenv("SYNAPSE_PROFILE", "default")
-    #     return profile, user_login_args.get("auth_token")
 
     ''' Unmodified Existing Code
     '''
@@ -154,49 +138,16 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     """
 
     def _get_auth_info(self, syn, user_login_args):
-        selected_profile = user_login_args.get("profile", "default")  # Default to "default"
+        selected_profile = user_login_args.get("profile", "default")
 
-        print(f"🛠 DEBUG: Entering ConfigFileCredentialsProvider._get_auth_info()")
-        print(f"   - selected_profile: {selected_profile}")
-
-
-        # ✅ Use the updated function from `cred_data.py`
         config_profiles = get_config_authentication(config_path=syn.configPath)
-        print(f"🔍 Available Config Profiles: {config_profiles}")
 
         # Retrieve credentials for the selected profile
         if selected_profile in config_profiles:
             username = config_profiles[selected_profile].get("username")
             token = config_profiles[selected_profile].get("auth_token")
-
-            print(f"✅ _get_auth_info() is returning:")
-            print(f"   - username: {username} (Should be monterocarmen)")
-            print(f"   - token: {'****' if token else None}")
-
-        # Normalize profile name (fixes "profile user1" issue)
-        #normalized_profile = f"profile {selected_profile}" if selected_profile != "default" else "default"
-        # normalized_profile = selected_profile
-        #
-        # print(f"🛠 ConfigFileCredentialsProvider._get_auth_info()")
-        # print(f"   - Selected Profile: {selected_profile}")
-        # print(f"   - Normalized Profile: {normalized_profile}")
-        # print(f"   - Retrieved Username: {config_profiles.get(normalized_profile, {}).get('username')}")
-        # print(f"   - Retrieved Auth Token: {'****' if config_profiles.get(normalized_profile, {}).get('authtoken') else None}")
-        #
-        # # Retrieve credentials for the selected profile
-        # if normalized_profile in config_profiles:
-        #     #return config_profiles[normalized_profile].get("username"), config_profiles[normalized_profile].get("authtoken")
-        #     username = config_profiles[normalized_profile].get("username")
-        #     token = config_profiles[normalized_profile].get("authtoken")
-        #
-        #
-        #     print(f"✅ _get_auth_info() is returning:")
-        #     print(f"   - username: {username} (Should be monterocarmen)")
-        #     print(f"   - token: {'****' if token else None}")
-
             return username, token
 
-        # 🔥 Raise an error if profile not found
         raise SynapseAuthenticationError(f"Profile '{selected_profile}' not found in {syn.configPath}")
 
     ''' Existing Code UnModified
@@ -314,13 +265,7 @@ class SynapseCredentialsProviderChain(object):
     def get_credentials(self, syn: "Synapse", user_login_args: "UserLoginArgs") -> Union[SynapseCredentials, None]:
         selected_profile = user_login_args.get("profile") or os.getenv("SYNAPSE_PROFILE", "default")
 
-        print(f"🔍 Selected Profile: {selected_profile}")
-        print(f"👤 Username BEFORE checking providers: {user_login_args.username}")
-        print(f"👤 Username: {user_login_args.username}")
-        print(f"🔑 Auth Token: {user_login_args.auth_token[:10]}... (truncated)")
-
         for provider in self.cred_providers:
-            print(f"🔄 Trying provider: {provider}")
 
             creds = provider.get_synapse_credentials(
                 syn,
@@ -331,12 +276,8 @@ class SynapseCredentialsProviderChain(object):
                 ),
             )
 
-            print(f"👤 Username AFTER provider: {user_login_args.username}")
-
             if creds is not None:
-                print(f"✅ Credentials Found: {creds}")
                 return creds
-        print("❌ No valid credentials found.")
         return None
 
         '''un modified code '''
@@ -372,9 +313,9 @@ class SynapseCredentialsProviderChain(object):
 # NOTE: If you change the order of this list, please also change the documentation
 # in Synapse.login() that describes the order
 
-'''Edited Code - CM (!!! Change Synapse.Login() documentation if i change this!) 
+'''Edited Code - CM (!!! Change Synapse.Login() documentation if needed!) 
 '''
-print("🚨 DEFAULT_CREDENTIAL_PROVIDER_CHAIN was initialized!")
+
 DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
     cred_providers=[
         UserArgsCredentialsProvider(),
@@ -383,9 +324,6 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
         AWSParameterStoreCredentialsProvider(),
     ]
 )
-
-print("✅ DEFAULT_CREDENTIAL_PROVIDER_CHAIN successfully created!")
-print(f"📌 Providers: {DEFAULT_CREDENTIAL_PROVIDER_CHAIN.cred_providers}")
 
 ''' UnModified Code 
 '''
@@ -411,10 +349,4 @@ def get_default_credential_chain() -> SynapseCredentialsProviderChain:
         credential chain
     """
 
-    '''CM
-    '''
-    print("🛠 Setting up default credential provider chain...")
-    print(f"🛠 Returning DEFAULT_CREDENTIAL_PROVIDER_CHAIN: {DEFAULT_CREDENTIAL_PROVIDER_CHAIN}")
-
-    ''' END OF CM'''
     return DEFAULT_CREDENTIAL_PROVIDER_CHAIN

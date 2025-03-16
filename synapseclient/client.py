@@ -235,19 +235,11 @@ def login(*args, **kwargs):
     Example:
         syn = synapseclient.login(profile="user1")
     """
-    profile = kwargs.pop("profile", "default")  # Extract and remove profile from kwargs
-
-    print(f"🛠 DEBUG: Wrapper login() received profile → {profile}")
+    profile = kwargs.pop("profile", "default")
 
     syn = Synapse()
     syn.login(*args, **kwargs, profile=profile)
     return syn
-
-    
-    ''' old'''
-    # syn = Synapse()
-    # syn.login(*args, profile=profile, **kwargs)
-    # return syn
 
 '''UNMOIDIFED CM
 '''
@@ -438,22 +430,19 @@ class Synapse(object):
         )
 
         config_debug = None
-        # Check for a config file
         self.configPath = configPath
         if os.path.isfile(self.configPath):
-            #MODIFIED CM CHECK CHECK CHECK
             config = get_config_file(self.configPath)
 
-            ## ME ME ME CM CM CM
             self.auth_profiles = {}
             for section in config.sections():
-                if section.startswith("profile "):  # Detect multiple profiles
-                    profile_name = section.split("profile ")[-1]  # Extract profile name
+                if section.startswith("profile "):
+                    profile_name = section.split("profile ")[-1]
                     self.auth_profiles[profile_name] = {
                         "username": config.get(section, "username", fallback=None),
                         "authtoken": config.get(section, "authtoken", fallback=None),
                     }
-                elif section == "authentication":  # Handle default authentication section
+                elif section == "authentication":
                     self.auth_profiles["default"] = {
                         "username": config.get(section, "username", fallback=None),
                         "authtoken": config.get(section, "authtoken", fallback=None),
@@ -462,7 +451,7 @@ class Synapse(object):
         if not hasattr(self, "auth_profiles") or not self.auth_profiles:
             self.auth_profiles = {"default": {"username": None, "authtoken": None}}
 
-            '''OKAy bottom is og code, above to me me me whatever CM is edited 
+            '''OKAy bottom is og code, above to me whatever CM is edited 
             '''
             # if config.has_option("cache", "location"):
             #     cache_root_dir = config.get("cache", "location")
@@ -836,15 +825,10 @@ class Synapse(object):
             email: str = None,
             silent: bool = False,
             authToken: str = None,
-            profile: str = "default",  # Allow users to specify a profile
+            profile: str = "default",
     ) -> None:
-        # 🔍 Debug: Show what profile is actually passed in
-        print(f"🛠 DEBUG: Received profile → {profile}")
 
-        # Check if it's being overridden somewhere
-        if profile not in ["default", "user1", "user2"]:
-            print(f"⚠️ WARNING: Unexpected profile received: {profile}")
-        print(f"🔍 Attempting login with profile: {profile}")
+
         """
         Logs into Synapse using credentials stored in a profile.
 
@@ -868,44 +852,26 @@ class Synapse(object):
             syn.login(profile="user1")  # Logs in with profile 'user1'
         """
 
-        # Check version before logging in
         if not self.skip_checks:
             version_check()
 
-        # Invalidate existing session
         self.logout()
 
-        # Load credentials
         credential_provider_chain = get_default_credential_chain()
 
         normalized_profile = profile
 
-        # 🔍 Debug: Fetch all available config profiles
-        from synapseclient.core.credentials.cred_data import get_config_authentication  # 👈 Explicitly import from `cred_data.py`
+        # CM need to specify import from cred_data.py, still need to fix this!!
+        from synapseclient.core.credentials.cred_data import get_config_authentication
         config_profiles = get_config_authentication(config_path=self.configPath)
-        print(f"🔍 Available Config Profiles: {config_profiles}")  # ✅ Debug
-        print("🔍 Using get_config_authentication from:", get_config_authentication.__module__)
-        print(f"🔍 Available Config Profiles: {config_profiles}")
 
-        # Ensure that we can find the requested profile
         if normalized_profile not in config_profiles:
             raise SynapseAuthenticationError(f"Profile '{profile}' not found in config.")
 
-        # 🔹 Extract credentials for the selected profile
         profile_creds = config_profiles[normalized_profile]
         email = profile_creds.get("username")
-        print("this is the email " + email)
-        authToken = profile_creds.get("auth_token")  # FIX: Ensure `auth_token` key is used
+        authToken = profile_creds.get("auth_token")
 
-        #🔍 Debug: Show extracted credentials
-        print(f"✅ Retrieved Credentials → Username: {email}, Token: {'****' if authToken else None}")
-
-        # 🔥 **Pass Correct Profile to `UserLoginArgs`**
-        print("🚨 line 903 passed  in client.py")
-        print(f"🛠 Initializing UserLoginArgs...")
-        print(f"   - username: {email}  🔥 (Should be monterocarmen)")
-        print(f"   - auth_token: {'****' if authToken else None}")
-        print(f"   - profile: {profile}")
         self.credentials = credential_provider_chain.get_credentials(
             syn=self,
             user_login_args=UserLoginArgs(
@@ -915,7 +881,6 @@ class Synapse(object):
             ),
         )
 
-        # 🔹 **Final Check on Login Success**
         if not self.credentials:
             raise SynapseNoCredentialsError("No credentials provided.")
 
