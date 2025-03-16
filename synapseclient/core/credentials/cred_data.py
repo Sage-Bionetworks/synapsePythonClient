@@ -1,8 +1,10 @@
 import abc
 import base64
 import collections
+import configparser
 import json
 import typing
+import os
 
 import requests.auth
 
@@ -121,16 +123,89 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
             f"owner_id='{self.owner_id}')"
         )
 
+''' MODIFIED CMCM'''
+class UserLoginArgs:
+    """
+    Stores login arguments passed from the Synapse client.
+    """
 
-# a class that just contains args passed form synapse client login
-UserLoginArgs = collections.namedtuple(
-    "UserLoginArgs",
-    [
-        "username",
-        "auth_token",
-    ],
-)
+    def __init__(self, username: str = None, auth_token: str = None, profile: str = "default"):
+        print("🛠 Initializing UserLoginArgs...")
+        print(f"   - username: {username}")
+        print(f"   - auth_token: {'****' if auth_token else None}")
+        print(f"   - profile: {profile}")
+
+        self.username = username
+        self.auth_token = auth_token
+        self.profile = profile  # Ensure profile support
+
+    def get(self, key, default=None):
+        """
+        Mimic dictionary `.get()` behavior so it remains compatible.
+        """
+        return getattr(self, key, default)
+
+    def to_dict(self):
+        """
+        Convert to dictionary format.
+        """
+        return {
+            "username": self.username,
+            "auth_token": self.auth_token,
+            "profile": self.profile,
+        }
+
+    def __repr__(self):
+        return f"UserLoginArgs(username={self.username}, auth_token={'****' if self.auth_token else None}, profile={self.profile})"
+    # """
+    # A class that holds login arguments passed from the Synapse client.
+    # """
+    # def __init__(self, username: str = None, auth_token: str = None, profile: str = "default"):
+    #     self.username = username
+    #     self.auth_token = auth_token
+    #     self.profile = profile  # Add profile support
+
+def get_config_authentication(config_path: str):
+    """Parses Synapse authentication profiles from `~/.synapseConfig`."""
+
+    if not os.path.exists(config_path):
+        raise SynapseAuthenticationError(f"Config file not found: {config_path}")
+
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    auth_profiles = {}
+
+    for section in config.sections():
+        # Normalize profile names ("default" stays the same, others get "profile" prefix)
+        # normalized_profile = section.replace("profile ", "")
+        # normalized_profile = section.replace("profile ", "")
+        normalized_profile = section if section == "default" else section.replace("profile ", "")
+        #normalized_profile = section if section == "default" else section.replace("profile ", "")
+        #normalized_profile = section if section == "default" else section if section.startswith("profile ") else f"profile {section}"
+        #normalized_profile = section if section == "default" else f"profile {section}"
+
+        auth_profiles[normalized_profile] = {
+            "username": config.get(section, "username", fallback=None),
+            "auth_token": config.get(section, "authtoken", fallback=None),
+        }
+
+    print(f"🔍 Debug: Parsed Profiles → {auth_profiles}")  # ✅ Debug print
+
+    return auth_profiles
+
+
+''' UNMOIDIFIED CM CM '''
+
+# # a class that just contains args passed form synapse client login
+# UserLoginArgs = collections.namedtuple(
+#     "UserLoginArgs",
+#     [
+#         "username",
+#         "auth_token",
+#     ],
+# )
 
 # make the namedtuple's arguments optional instead of positional. All values default to None
 # when we require Python 3.6.1 we can use typing.NamedTuple's built-in default support
-UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)
+# UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)

@@ -32,3 +32,6 @@ coverage.xml
 
 .ipynb_checkpoints
 *.ipynb
+synapseclient/.synapseConfig
+synapseclient/.synapseConfig
+synapseclient/.synapseConfig

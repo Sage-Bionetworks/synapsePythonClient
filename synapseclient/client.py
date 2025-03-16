@@ -53,6 +53,7 @@ from synapseclient.api import (
     get_config_section_dict,
     get_file_handle_for_download,
     get_transfer_config,
+    get_config_authentication,
 )
 from synapseclient.core import (
     cache,
@@ -215,29 +216,65 @@ DEFAULT_STORAGE_LOCATION_ID = 1
 # Verifies the pattern matches something like "my-project-identifier/1.0.0"
 USER_AGENT_REGEX_PATTERN = r"^[a-zA-Z0-9-]+\/[0-9]+\.[0-9]+\.[0-9]+$"
 
+''' MODIFIED '''
+def login(*args, profile="default", **kwargs):
+    """
+    Convenience method to create a Synapse object and login.
+
+    Example:
+        syn = synapseclient.login(profile="user1")
+    """
+    profile = kwargs.pop("profile", "default")  # Extract profile if provided
+    syn = Synapse()
+    syn.login(*args, profile=profile, **kwargs)  # Explicitly pass profile
+    return syn
 
 def login(*args, **kwargs):
     """
     Convenience method to create a Synapse object and login.
-
-    See `synapseclient.Synapse.login` for arguments and usage.
-
-    Example: Getting started
-        Logging in to Synapse using an authToken
-
-            import synapseclient
-            syn = synapseclient.login(authToken="authtoken")
-
-        Using environment variable or `.synapseConfig`
-
-            import synapseclient
-            syn = synapseclient.login()
+    Example:
+        syn = synapseclient.login(profile="user1")
     """
+    profile = kwargs.pop("profile", "default")  # Extract and remove profile from kwargs
+
+    print(f"🛠 DEBUG: Wrapper login() received profile → {profile}")
 
     syn = Synapse()
-    syn.login(*args, **kwargs)
+    syn.login(*args, **kwargs, profile=profile)
     return syn
 
+    
+    ''' old'''
+    # syn = Synapse()
+    # syn.login(*args, profile=profile, **kwargs)
+    # return syn
+
+'''UNMOIDIFED CM
+'''
+# def login(*args, **kwargs):
+#     """
+#     Convenience method to create a Synapse object and login.
+#
+#     See `synapseclient.Synapse.login` for arguments and usage.
+#
+#     Example: Getting started
+#         Logging in to Synapse using an authToken
+#
+#             import synapseclient
+#             syn = synapseclient.login(authToken="authtoken")
+#
+#         Using environment variable or `.synapseConfig`
+#
+#             import synapseclient
+#             syn = synapseclient.login()
+
+
+# syn = Synapse()
+# syn.login(*args, **kwargs)
+# return syn
+
+''' END OF UNMODIFIED
+'''
 
 class Synapse(object):
     """
@@ -403,12 +440,34 @@ class Synapse(object):
         config_debug = None
         # Check for a config file
         self.configPath = configPath
-        if os.path.isfile(configPath):
-            config = get_config_file(configPath)
-            if config.has_option("cache", "location"):
-                cache_root_dir = config.get("cache", "location")
-            if config.has_section("debug"):
-                config_debug = True
+        if os.path.isfile(self.configPath):
+            #MODIFIED CM CHECK CHECK CHECK
+            config = get_config_file(self.configPath)
+
+            ## ME ME ME CM CM CM
+            self.auth_profiles = {}
+            for section in config.sections():
+                if section.startswith("profile "):  # Detect multiple profiles
+                    profile_name = section.split("profile ")[-1]  # Extract profile name
+                    self.auth_profiles[profile_name] = {
+                        "username": config.get(section, "username", fallback=None),
+                        "authtoken": config.get(section, "authtoken", fallback=None),
+                    }
+                elif section == "authentication":  # Handle default authentication section
+                    self.auth_profiles["default"] = {
+                        "username": config.get(section, "username", fallback=None),
+                        "authtoken": config.get(section, "authtoken", fallback=None),
+                    }
+        # If no profiles exist, create an empty one
+        if not hasattr(self, "auth_profiles") or not self.auth_profiles:
+            self.auth_profiles = {"default": {"username": None, "authtoken": None}}
+
+            '''OKAy bottom is og code, above to me me me whatever CM is edited 
+            '''
+            # if config.has_option("cache", "location"):
+            #     cache_root_dir = config.get("cache", "location")
+            # if config.has_section("debug"):
+            #     config_debug = True
 
         if debug is None:
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
@@ -770,71 +829,170 @@ class Synapse(object):
         self.fileHandleEndpoint = endpoints["fileHandleEndpoint"]
         self.portalEndpoint = endpoints["portalEndpoint"]
 
+    ''' MODIFIED CODE CM
+    '''
     def login(
-        self,
-        email: str = None,
-        silent: bool = False,
-        authToken: str = None,
+            self,
+            email: str = None,
+            silent: bool = False,
+            authToken: str = None,
+            profile: str = "default",  # Allow users to specify a profile
     ) -> None:
+        # 🔍 Debug: Show what profile is actually passed in
+        print(f"🛠 DEBUG: Received profile → {profile}")
+
+        # Check if it's being overridden somewhere
+        if profile not in ["default", "user1", "user2"]:
+            print(f"⚠️ WARNING: Unexpected profile received: {profile}")
+        print(f"🔍 Attempting login with profile: {profile}")
         """
-        Valid combinations of login() arguments:
+        Logs into Synapse using credentials stored in a profile.
 
-        - authToken
+        Valid login combinations:
+            - authToken
+            - Profile-based authentication (from .synapseConfig)
 
-        If no login arguments are provided or only username is provided, login() will attempt to log in using
-         information from these sources (in order of preference):
-
-        1. .synapseConfig file (in user home folder unless configured otherwise)
-        2. User defined arguments during a CLI session
-        3. User's Personal Access Token (aka: Synapse Auth Token)
-            from the environment variable: SYNAPSE_AUTH_TOKEN
-        4. Retrieves user's authentication token from AWS SSM Parameter store (if configured)
+        If no login arguments are provided, login will attempt to authenticate from these sources:
+            1. .synapseConfig file (supports multiple profiles)
+            2. User-defined arguments during a CLI session
+            3. Environment variable (SYNAPSE_AUTH_TOKEN)
+            4. AWS Parameter Store (if configured)
 
         Arguments:
-            email:        Synapse user name (or an email address associated with a Synapse account)
-            authToken:    A bearer authorization token, e.g. a
-                [personal access token](https://python-docs.synapse.org/tutorials/authentication/).
-            silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
+            email (str): Synapse user name or email.
+            authToken (str): Personal access token.
+            silent (bool): Suppress login message (default: False).
+            profile (str): Profile to use from .synapseConfig (default: "default").
 
-        Example: Logging in
-            Using an auth token:
-
-                syn.login(authToken="authtoken")
-                > Welcome, Me!
-
-            Using an auth token and username. The username is optional but verified
-            against the username in the auth token:
-
-                syn.login(email="my-username", authToken="authtoken")
-                > Welcome, Me!
-
+        Example:
+            syn.login(profile="user1")  # Logs in with profile 'user1'
         """
-        # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
         if not self.skip_checks:
             version_check()
 
-        # Make sure to invalidate the existing session
+        # Invalidate existing session
         self.logout()
 
+        # Load credentials
         credential_provider_chain = get_default_credential_chain()
 
+        normalized_profile = profile
+
+        # 🔍 Debug: Fetch all available config profiles
+        from synapseclient.core.credentials.cred_data import get_config_authentication  # 👈 Explicitly import from `cred_data.py`
+        config_profiles = get_config_authentication(config_path=self.configPath)
+        print(f"🔍 Available Config Profiles: {config_profiles}")  # ✅ Debug
+        print("🔍 Using get_config_authentication from:", get_config_authentication.__module__)
+        print(f"🔍 Available Config Profiles: {config_profiles}")
+
+        # Ensure that we can find the requested profile
+        if normalized_profile not in config_profiles:
+            raise SynapseAuthenticationError(f"Profile '{profile}' not found in config.")
+
+        # 🔹 Extract credentials for the selected profile
+        profile_creds = config_profiles[normalized_profile]
+        email = profile_creds.get("username")
+        print("this is the email " + email)
+        authToken = profile_creds.get("auth_token")  # FIX: Ensure `auth_token` key is used
+
+        #🔍 Debug: Show extracted credentials
+        print(f"✅ Retrieved Credentials → Username: {email}, Token: {'****' if authToken else None}")
+
+        # 🔥 **Pass Correct Profile to `UserLoginArgs`**
+        print("🚨 line 903 passed  in client.py")
+        print(f"🛠 Initializing UserLoginArgs...")
+        print(f"   - username: {email}  🔥 (Should be monterocarmen)")
+        print(f"   - auth_token: {'****' if authToken else None}")
+        print(f"   - profile: {profile}")
         self.credentials = credential_provider_chain.get_credentials(
             syn=self,
             user_login_args=UserLoginArgs(
-                email,
-                authToken,
+                username=email,
+                auth_token=authToken,
+                profile=profile,
             ),
         )
 
-        # Final check on login success
+        # 🔹 **Final Check on Login Success**
         if not self.credentials:
             raise SynapseNoCredentialsError("No credentials provided.")
 
         if not silent:
             display_name = self.credentials.displayname or self.credentials.username
             self.logger.info(f"Welcome, {display_name}!\n")
+
+    ''' UNMODIFIED CODE CM 
+    '''
+
+    # def login(
+    #     self,
+    #     email: str = None,
+    #     silent: bool = False,
+    #     authToken: str = None,
+    # ) -> None:
+    #     """
+    #     Valid combinations of login() arguments:
+    #
+    #     - authToken
+    #
+    #     If no login arguments are provided or only username is provided, login() will attempt to log in using
+    #      information from these sources (in order of preference):
+    #
+    #     1. .synapseConfig file (in user home folder unless configured otherwise)
+    #     2. User defined arguments during a CLI session
+    #     3. User's Personal Access Token (aka: Synapse Auth Token)
+    #         from the environment variable: SYNAPSE_AUTH_TOKEN
+    #     4. Retrieves user's authentication token from AWS SSM Parameter store (if configured)
+    #
+    #     Arguments:
+    #         email:        Synapse user name (or an email address associated with a Synapse account)
+    #         authToken:    A bearer authorization token, e.g. a
+    #             [personal access token](https://python-docs.synapse.org/tutorials/authentication/).
+    #         silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
+    #
+    #     Example: Logging in
+    #         Using an auth token:
+    #
+    #             syn.login(authToken="authtoken")
+    #             > Welcome, Me!
+    #
+    #         Using an auth token and username. The username is optional but verified
+    #         against the username in the auth token:
+    #
+    #             syn.login(email="my-username", authToken="authtoken")
+    #             > Welcome, Me!
+    #
+    #     """
+    #     # Note: the order of the logic below reflects the ordering in the docstring above.
+    #
+    #     # Check version before logging in
+    #     if not self.skip_checks:
+    #         version_check()
+    #
+    #     # Make sure to invalidate the existing session
+    #     self.logout()
+    #
+    #     credential_provider_chain = get_default_credential_chain()
+    #
+    #     self.credentials = credential_provider_chain.get_credentials(
+    #         syn=self,
+    #         user_login_args=UserLoginArgs(
+    #             email,
+    #             authToken,
+    #         ),
+    #     )
+    #
+    #     # Final check on login success
+    #     if not self.credentials:
+    #         raise SynapseNoCredentialsError("No credentials provided.")
+    #
+    #     if not silent:
+    #         display_name = self.credentials.displayname or self.credentials.username
+    #         self.logger.info(f"Welcome, {display_name}!\n")
+    ''' UNMODIFIED CODE THERE
+    '''
 
     @deprecated(
         version="4.4.0",
