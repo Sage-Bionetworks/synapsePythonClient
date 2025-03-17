@@ -9,7 +9,6 @@
 #username = <username>
 #authtoken = <authtoken>
 
-
 ## Multi-profile configuration
 #[default]
 #username = default_user
@@ -22,6 +21,15 @@
 #[profile user2]
 #username = user2
 #authtoken = user2_auth_token
+
+## If you have projects with file stored on SFTP servers, you can specify your credentials here
+## You can specify multiple sftp credentials
+#[sftp://some.sftp.url.com]
+#username= <sftpuser>
+#password= <sftppwd>
+#[sftp://a.different.sftp.url.com]
+#username= <sftpuser>
+#password= <sftppwd>
 
 
 ## If you have projects that need to be stored in an S3-like (e.g. AWS S3, Openstack) storage but cannot allow Synapse
