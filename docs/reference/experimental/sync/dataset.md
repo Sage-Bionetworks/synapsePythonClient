@@ -16,8 +16,6 @@ at your own risk.
 
 ## API reference
 
-::: synapseclient.models.EntityRef
----
 ::: synapseclient.models.Dataset
     options:
         inherited_members: true
@@ -38,4 +36,6 @@ at your own risk.
             - get_permissions
             - get_acl
             - set_permissions
+---
+::: synapseclient.models.EntityRef
 ---
