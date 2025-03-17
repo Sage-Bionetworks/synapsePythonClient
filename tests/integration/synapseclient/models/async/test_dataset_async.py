@@ -137,7 +137,7 @@ class TestDataset:
         files = [self.create_file_instance(self.schedule_for_cleanup) for _ in range(3)]
         folder.files = files
         folder = await folder.store_async(parent=project_model)
-        # AND an Dataset with that Folder
+        # AND a Dataset with that Folder
         dataset = Dataset(
             name=str(uuid.uuid4()),
             description="Test dataset",

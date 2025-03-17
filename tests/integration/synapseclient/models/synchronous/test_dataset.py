@@ -1,5 +1,5 @@
 import uuid
-from typing import Callable, Dict, List
+from typing import Callable
 
 import pandas as pd
 import pytest

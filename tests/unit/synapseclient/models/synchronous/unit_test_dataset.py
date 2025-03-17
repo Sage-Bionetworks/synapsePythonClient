@@ -4,7 +4,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
-from synapseclient.models import Annotations, Dataset, EntityRef, File, Folder
+from synapseclient.models import Dataset, EntityRef, File, Folder
 
 
 class TestDataset:
