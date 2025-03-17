@@ -404,7 +404,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-13, windows-2022]
+        os: [ubuntu-24.04, macos-13, windows-2022]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
         python: ['3.9', '3.10', '3.11', '3.12', '3.13']
