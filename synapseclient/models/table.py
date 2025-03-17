@@ -1,6 +1,5 @@
 import asyncio
 import dataclasses
-import os
 from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -24,7 +23,6 @@ from synapseclient.models.mixins.table_components import (
     DeleteMixin,
     GetMixin,
     QueryMixin,
-    QueryResultBundle,
     SchemaStorageStrategy,
     TableBase,
     TableDeleteRowMixin,
@@ -164,158 +162,6 @@ class TableSynchronousProtocol(Protocol):
             syn.login()
 
             Table(id="syn4567").delete()
-            ```
-        """
-        return None
-
-    @staticmethod
-    def query(
-        query: str,
-        include_row_id_and_row_version: bool = True,
-        convert_to_datetime: bool = False,
-        download_location=None,
-        quote_character='"',
-        escape_character="\\",
-        line_end=str(os.linesep),
-        separator=",",
-        header=True,
-        *,
-        synapse_client: Optional[Synapse] = None,
-        **kwargs,
-    ) -> DATA_FRAME_TYPE:
-        """Query for data on a table stored in Synapse. The results will always be
-        returned as a Pandas DataFrame unless you specify a `download_location` in which
-        case the results will be downloaded to that location. There are a number of
-        arguments that you may pass to this function depending on if you are getting
-        the results back as a DataFrame or downloading the results to a file.
-
-        Arguments:
-            query: The query to run. The query must be valid syntax that Synapse can
-                understand. See this document that describes the expected syntax of the
-                query:
-                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
-            include_row_id_and_row_version: If True the `ROW_ID` and `ROW_VERSION`
-                columns will be returned in the DataFrame. These columns are required
-                if using the query results to update rows in the table. These columns
-                are the primary keys used by Synapse to uniquely identify rows in the
-                table.
-            convert_to_datetime: (DataFrame only) If set to True, will convert all
-                Synapse DATE columns from UNIX timestamp integers into UTC datetime
-                objects
-
-            download_location: (CSV Only) If set to a path the results will be
-                downloaded to that directory. The results will be downloaded as a CSV
-                file. A path to the downloaded file will be returned instead of a
-                DataFrame.
-
-            quote_character: (CSV Only) The character to use to quote fields. The
-                default is a double quote.
-
-            escape_character: (CSV Only) The character to use to escape special
-                characters. The default is a backslash.
-
-            line_end: (CSV Only) The character to use to end a line. The default is
-                the system's line separator.
-
-            separator: (CSV Only) The character to use to separate fields. The default
-                is a comma.
-
-            header: (CSV Only) If set to True the first row will be used as the header
-                row. The default is True.
-
-            **kwargs: (DataFrame only) Additional keyword arguments to pass to
-                pandas.read_csv. See
-                <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
-                for complete list of supported arguments. This is exposed as
-                internally the query downloads a CSV from Synapse and then loads
-                it into a dataframe.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The results of the query as a Pandas DataFrame.
-
-        Example: Querying for data
-            This example shows how you may query for data in a table and print out the
-            results.
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import query
-
-            syn = Synapse()
-            syn.login()
-
-            results = query(query="SELECT * FROM syn1234")
-            print(results)
-            ```
-        """
-        from pandas import DataFrame
-
-        return DataFrame()
-
-    @staticmethod
-    def query_part_mask(
-        query: str,
-        part_mask: int,
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> QueryResultBundle:
-        """Query for data on a table stored in Synapse. This is a more advanced use case
-        of the `query` function that allows you to determine what addiitional metadata
-        about the table or query should also be returned. If you do not need this
-        additional information then you are better off using the `query` function.
-
-        The query for this method uses this Rest API:
-        <https://rest-docs.synapse.org/rest/POST/entity/id/table/query/async/start.html>
-
-        Arguments:
-            query: The query to run. The query must be valid syntax that Synapse can
-                understand. See this document that describes the expected syntax of the
-                query:
-                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
-            part_mask: The bitwise OR of the part mask values you want to return in the
-                results. The following list of part masks are implemented to be returned
-                in the results:
-
-                - Query Results (queryResults) = 0x1
-                - Query Count (queryCount) = 0x2
-                - The sum of the file sizes (sumFileSizesBytes) = 0x40
-                - The last updated on date of the table (lastUpdatedOn) = 0x80
-
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The results of the query as a Pandas DataFrame.
-
-        Example: Querying for data with a part mask
-            This example shows how to use the bitwise `OR` of Python to combine the
-            part mask values and then use that to query for data in a table and print
-            out the results.
-
-            In this case we are getting the results of the query, the count of rows, and
-            the last updated on date of the table.
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import query_part_mask
-
-            syn = Synapse()
-            syn.login()
-
-            QUERY_RESULTS = 0x1
-            QUERY_COUNT = 0x2
-            LAST_UPDATED_ON = 0x80
-
-            # Combine the part mask values using bitwise OR
-            part_mask = QUERY_RESULTS | QUERY_COUNT | LAST_UPDATED_ON
-
-
-            result = query_part_mask(query="SELECT * FROM syn1234", part_mask=part_mask)
-            print(result)
             ```
         """
         return None
@@ -1558,11 +1404,15 @@ class Table(
             # When saving other (non-column) fields to Synapse we still need to pass
             # in the list of columns, otherwise Synapse will wipe out the columns. We
             # are using the last known columns to ensure that we are not losing any
-            "columnIds": [
-                column.id for column in self._last_persistent_instance.columns.values()
-            ]
-            if self._last_persistent_instance and self._last_persistent_instance.columns
-            else [],
+            "columnIds": (
+                [
+                    column.id
+                    for column in self._last_persistent_instance.columns.values()
+                ]
+                if self._last_persistent_instance
+                and self._last_persistent_instance.columns
+                else []
+            ),
         }
         delete_none_keys(entity)
         result = {
@@ -1673,9 +1523,9 @@ class Table(
                 table=self.id,
                 comment=comment,
                 label=label,
-                activity=self.activity.id
-                if self.activity and include_activity
-                else None,
+                activity=(
+                    self.activity.id if self.activity and include_activity else None
+                ),
             ),
         )
 
