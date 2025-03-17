@@ -13,7 +13,6 @@ from synapseclient.models import (
     Project,
 )
 
-
 # First, let's get the project that we want to create the dataset in
 syn = Synapse()
 syn.login()
