@@ -62,11 +62,6 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
 
         return self._create_synapse_credential(syn, username, auth_token)
 
-        '''Unmodified'''
-        # return self._create_synapse_credential(
-        #     syn, *self._get_auth_info(syn=syn, user_login_args=user_login_args)
-        # )
-        '''above unmodified '''
 
     def _create_synapse_credential(
         self, syn: "Synapse", username: str, auth_token: str
@@ -116,25 +111,9 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
     Retrieves auth info from user_login_args during a CLI session.
     """
 
-    ''' Unmodified Existing Code
-    '''
-    # def _get_auth_info(
-    #     self, syn: "Synapse", user_login_args: Dict[str, str]
-    # ) -> Tuple[str, str]:
-    #     return (
-    #         user_login_args.username,
-    #         user_login_args.auth_token,
-    #     )
-
-
 class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     """
     Retrieves auth info from the `~/.synapseConfig` file
-    """
-    ''' Modified Code - CM  
-    '''
-    """
-    Retrieves authentication info from `~/.synapseConfig`, now supporting multiple profiles.
     """
 
     def _get_auth_info(self, syn, user_login_args):
@@ -149,33 +128,6 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
             return username, token
 
         raise SynapseAuthenticationError(f"Profile '{selected_profile}' not found in {syn.configPath}")
-
-    ''' Existing Code UnModified
-    '''
-    # def _get_auth_info(
-    #     self, syn: "Synapse", user_login_args: Dict[str, str]
-    # ) -> Tuple[Union[str, None], Union[str, None]]:
-    #     config_dict = get_config_authentication(config_path=syn.configPath)
-    #     # check to make sure we didn't accidentally provide the wrong user
-    #
-    #     username = config_dict.get("username")
-    #     token = config_dict.get("authtoken")
-    #
-    #     if user_login_args.username and username != user_login_args.username:
-    #         # if the username is provided and there is a config file username but they
-    #         # don't match then we don't use any of the values from the config
-    #         # to prevent ambiguity
-    #         username = None
-    #         token = None
-    #         syn.logger.warning(
-    #             f"{user_login_args.username} was defined in the user login "
-    #             "arguments, however, it is also defined in the `~/.synapseConfig` "
-    #             "file. Becuase they do not match we will not use the `authtoken` "
-    #             "in the `~/.synapseConfig` file.",
-    #         )
-    #
-    #     return username, token
-
 
 class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
     """
@@ -280,41 +232,12 @@ class SynapseCredentialsProviderChain(object):
                 return creds
         return None
 
-        '''un modified code '''
-    #     self, syn: "Synapse", user_login_args: Dict[str, str]
-    # ) -> Union[SynapseCredentials, None]:
-    #     """
-    #     Iterates its list of
-    #     [SynapseCredentialsProvider][synapseclient.core.credentials.credential_provider.SynapseCredentialsProvider]
-    #     and returns the first non-None
-    #     [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials]
-    #     returned by a provider. If no provider is able to provide a
-    #     [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials],
-    #     returns None.
-    #
-    #     Arguments:
-    #         syn: Synapse client instance
-    #         user_login_args: subset of arguments passed during syn.login()
-    #
-    #     Returns:
-    #         [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials]
-    #             returned by the first non-None provider in its list, None otherwise
-    #     """
-
-        ''' Unmodified Code
-        '''
-        # for provider in self.cred_providers:
-        #     creds = provider.get_synapse_credentials(syn, user_login_args)
-        #     if creds is not None:
-        #         return creds
-        # return None
 
 
 # NOTE: If you change the order of this list, please also change the documentation
 # in Synapse.login() that describes the order
 
-'''Edited Code - CM (!!! Change Synapse.Login() documentation if needed!) 
-'''
+# TODO: change of order of list if needed
 
 DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
     cred_providers=[
@@ -325,17 +248,6 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
     ]
 )
 
-''' UnModified Code 
-'''
-
-# DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
-#     cred_providers=[
-#         UserArgsCredentialsProvider(),
-#         ConfigFileCredentialsProvider(),
-#         EnvironmentVariableCredentialsProvider(),
-#         AWSParameterStoreCredentialsProvider(),  # see service catalog issue: SC-260
-#     ]
-# )
 
 
 def get_default_credential_chain() -> SynapseCredentialsProviderChain:

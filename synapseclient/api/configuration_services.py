@@ -76,9 +76,10 @@ def get_client_authenticated_s3_profile(
         section_name=config_section, config_path=config_path
     ).get("profile_name", "default")
 
-''' CM MODIFED!!'''
+
 def get_config_authentication(config_path: str, profile: str = "default"):
     """
+    Get the authentication section of the configuration file.
     Reads the Synapse configuration file and extracts authentication information
     for a given profile.
 
@@ -101,25 +102,6 @@ def get_config_authentication(config_path: str, profile: str = "default"):
         "username": config[section].get("username"),
         "authtoken": config[section].get("authtoken"),
     }
-
-'''UNMODIFIED CODE!!!
-'''
-# def get_config_authentication(
-#     config_path: str,
-# ) -> Dict[str, str]:
-#     """
-#     Get the authentication section of the configuration file.
-#
-#     Arguments:
-#         config_path:  Path to configuration file on local file system
-#
-#     Returns:
-#         The authentication section of the configuration file
-#     """
-#     return get_config_section_dict(
-#         section_name=config_file_constants.AUTHENTICATION_SECTION_NAME,
-#         config_path=config_path,
-#     )
 
 
 def get_transfer_config(

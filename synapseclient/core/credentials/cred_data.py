@@ -123,7 +123,11 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
             f"owner_id='{self.owner_id}')"
         )
 
-''' MODIFIED CMCM'''
+
+# make the namedtuple's arguments optional instead of positional. All values default to None
+# when we require Python 3.6.1 we can use typing.NamedTuple's built-in default support
+# UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)
+
 class UserLoginArgs:
     """
     Stores login arguments passed from the Synapse client.
@@ -168,18 +172,3 @@ def get_config_authentication(config_path: str):
         }
 
     return auth_profiles
-
-''' UNMOIDIFIED CM '''
-
-# # a class that just contains args passed form synapse client login
-# UserLoginArgs = collections.namedtuple(
-#     "UserLoginArgs",
-#     [
-#         "username",
-#         "auth_token",
-#     ],
-# )
-
-# make the namedtuple's arguments optional instead of positional. All values default to None
-# when we require Python 3.6.1 we can use typing.NamedTuple's built-in default support
-# UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)
