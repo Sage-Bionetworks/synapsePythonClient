@@ -50,7 +50,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-13, windows-2022]
+        os: [ubuntu-22.04, macos-13, windows-2022]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         # Make sure that we are running the integration tests on the first and last versions of the matrix
@@ -212,7 +212,7 @@ jobs:
       - name: Upload coverage report
         id: upload_coverage_report
         uses: actions/upload-artifact@v4
-        if: ${{ contains(fromJSON('["3.13"]'), matrix.python) && contains(fromJSON('["ubuntu-20.04"]'), matrix.os)}}
+        if: ${{ contains(fromJSON('["3.13"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
         with:
           name: coverage-report
           path: coverage.xml
@@ -221,7 +221,7 @@ jobs:
     needs: [test]
     if: ${{ always() && !cancelled()}}
     name: SonarCloud
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -256,7 +256,7 @@ jobs:
   package:
     needs: [test,pre-commit]
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     if: github.event_name == 'release'
 
