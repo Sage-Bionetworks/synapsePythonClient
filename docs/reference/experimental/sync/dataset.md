@@ -4,6 +4,16 @@ Contained within this file are experimental interfaces for working with the Syna
 Client. Unless otherwise noted these interfaces are subject to change at any time. Use
 at your own risk.
 
+## Example Script:
+
+<details class="quote">
+  <summary>Working with Synapse datasets</summary>
+
+```python
+{!docs/scripts/object_orientated_programming_poc/oop_poc_dataset.py!}
+```
+</details>
+
 ## API reference
 
 ::: synapseclient.models.EntityRef
