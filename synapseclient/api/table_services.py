@@ -121,21 +121,37 @@ async def get_default_columns(
         To get the default columns for a Dataset, you can use:
 
         ```python
-        view_type_mask = ViewTypeMask.DATASET.value
-        columns = await get_default_columns(
-            view_entity_type=ViewEntityType.DATASET,
-            view_type_mask=view_type_mask,
-        )
+        import asyncio
+
+        from synapseclient.api.table_services import ViewEntityType, ViewTypeMask, get_default_columns
+
+        async def main():
+            view_type_mask = ViewTypeMask.DATASET.value
+            columns = await get_default_columns(
+                view_entity_type=ViewEntityType.DATASET,
+                view_type_mask=view_type_mask,
+            )
+            print(columns)
+
+        asyncio.run(main())
         ```
 
         To get the default columns for a File or a Folder, you can use:
 
         ```python
-        view_type_mask = ViewTypeMask.FILE.value | ViewTypeMask.FOLDER.value
-        columns = await get_default_columns(
-            view_entity_type=ViewEntityType.DATASET,
-            view_type_mask=view_type_mask,
-        )
+        import asyncio
+
+        from synapseclient.api.table_services import ViewEntityType, ViewTypeMask, get_default_columns
+
+        async def main():
+            view_type_mask = ViewTypeMask.FILE.value | ViewTypeMask.FOLDER.value
+            columns = await get_default_columns(
+                view_entity_type=ViewEntityType.DATASET,
+                view_type_mask=view_type_mask,
+            )
+            print(columns)
+
+        asyncio.run(main())
         ```
 
     Arguments:
