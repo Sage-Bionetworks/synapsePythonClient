@@ -131,7 +131,7 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     """
     Retrieves auth info from the `~/.synapseConfig` file
     """
-    ''' Modified Code - CM
+    ''' Modified Code - CM  
     '''
     """
     Retrieves authentication info from `~/.synapseConfig`, now supporting multiple profiles.
