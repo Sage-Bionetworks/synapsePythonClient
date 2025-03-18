@@ -433,6 +433,12 @@ async def download_by_file_handle(
             concrete_type = file_handle["concreteType"]
             storage_location_id = file_handle.get("storageLocationId")
 
+            print("--------------------------------")
+            print(syn.multi_threaded)
+            print(concrete_type)
+            print(file_handle)
+            print("--------------------------------")
+
             if concrete_type == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
                 profile = get_client_authenticated_s3_profile(
                     endpoint=file_handle["endpointUrl"],
