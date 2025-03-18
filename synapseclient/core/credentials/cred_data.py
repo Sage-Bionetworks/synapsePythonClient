@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+from typing import Optional
 import abc
 import base64
 import collections
@@ -123,40 +125,35 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
             f"owner_id='{self.owner_id}')"
         )
 
+# Define the default path to the Synapse configuration file
+CONFIG_PATH = os.path.expanduser("~/.synapseConfig")
 
-# make the namedtuple's arguments optional instead of positional. All values default to None
-# when we require Python 3.6.1 we can use typing.NamedTuple's built-in default support
-# UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)
-
-class UserLoginArgs:
+def get_config_authentication(config_path: str = CONFIG_PATH):
     """
-    Stores login arguments passed from the Synapse client.
+    Parses Synapse authentication profiles from the configuration file (`~/.synapseConfig`).
+
+    This function reads the `.synapseConfig` file to extract stored authentication credentials
+    for different profiles. It returns a dictionary where each profile name is mapped to its
+    respective username and authentication token.
+
+    Args:
+        config_path (str): Path to the Synapse configuration file. Defaults to `~/.synapseConfig`.
+
+    Returns:
+        dict: A dictionary mapping profile names to authentication credentials:
+              {
+                  "default": {"username": "your_username", "auth_token": "your_auth_token"},
+                  "profile1": {"username": "another_username", "auth_token": "another_auth_token"},
+                  ...
+              }
+
+    Raises:
+        FileNotFoundError: If the configuration file does not exist.
     """
 
-    def __init__(self, username: str = None, auth_token: str = None, profile: str = "default"):
-        self.username = username
-        self.auth_token = auth_token
-        self.profile = profile
-
-    def get(self, key, default=None):
-        return getattr(self, key, default)
-
-    def to_dict(self):
-        return {
-            "username": self.username,
-            "auth_token": self.auth_token,
-            "profile": self.profile,
-        }
-
-    def __repr__(self):
-        return f"UserLoginArgs(username={self.username}, auth_token={'****' if self.auth_token else None}, profile={self.profile})"
-
-
-def get_config_authentication(config_path: str):
-    """Parses Synapse authentication profiles from `~/.synapseConfig`."""
-
+    # Check if the configuration file exists before attempting to read it
     if not os.path.exists(config_path):
-        raise SynapseAuthenticationError(f"Config file not found: {config_path}")
+        raise FileNotFoundError(f"Config file not found: {config_path}")
 
     config = configparser.ConfigParser()
     config.read(config_path)
@@ -172,3 +169,43 @@ def get_config_authentication(config_path: str):
         }
 
     return auth_profiles
+
+
+@dataclass
+class UserLoginArgs:
+    """
+    Data class representing user login arguments for authentication.
+
+    This class encapsulates authentication credentials, supporting both profile-based
+    authentication (from the Synapse configuration file) and direct authentication
+    using an auth token.
+
+    Attributes:
+        profile (Optional[str]): The profile name to use for authentication.
+                                 Defaults to "default".
+        username (Optional[str]): The Synapse username associated with the login profile.
+                                  Defaults to None.
+        auth_token (Optional[str]): The authentication token for logging in.
+                                    Hidden from debug logs for security.
+    """
+    profile: Optional[str] = field(default="default")
+    username: Optional[str] = field(default=None)
+    auth_token: Optional[str] = field(default=None, repr=False)  # Hide auth_token from debug logs
+
+    def __post_init__(self):
+        """
+        Automatically fetch credentials from the configuration file if none are provided.
+
+        This method ensures that if a username and auth token are not explicitly supplied,
+        they will be retrieved from the `~/.synapseConfig` file based on the specified profile.
+
+        Raises:
+            ValueError: If the specified profile is not found in the configuration file.
+        """
+        if self.auth_token is None and self.username is None:
+            auth_profiles = get_config_authentication()
+            if self.profile in auth_profiles:
+                self.username = auth_profiles[self.profile]["username"]
+                self.auth_token = auth_profiles[self.profile]["auth_token"]
+            else:
+                raise ValueError(f"Profile '{self.profile}' not found in config.")

@@ -34,6 +34,7 @@ from http.client import HTTPResponse
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import asyncio_atexit
+import config
 import httpx
 import requests
 from deprecated import deprecated
@@ -221,6 +222,7 @@ def login(*args, profile="default", **kwargs):
     """
     Convenience method to create a Synapse object and login.
 
+
     Example:
         syn = synapseclient.login(profile="user1")
     """
@@ -232,13 +234,35 @@ def login(*args, profile="default", **kwargs):
 def login(*args, **kwargs):
     """
     Convenience method to create a Synapse object and login.
-    Example:
-        syn = synapseclient.login(profile="user1")
+
+    This function simplifies authentication by allowing users to log in
+    with a stored profile from '.synapseConfig'.
+
+    See `synapseclient.Synapse.login` for arguments and usage.
+
+        Example: Logging in to Synapse using an authToken
+            from synapseclient import Synapse
+            syn = Synapse()
+            syn.login(auth_token="auth_token")
+
+        Example: Using a specific login profile
+            from synapseclient import Synapse
+            syn = Synapse()
+            syn.login(profile="user1")
+
     """
     profile = kwargs.pop("profile", "default")
 
+    # Ensure correct argument handling
+    auth_token = kwargs.pop("authToken", None)  # Ensure 'authToken' is correctly referenced
+
     syn = Synapse()
-    syn.login(*args, **kwargs, profile=profile)
+
+    if auth_token:
+        syn.login(authToken=auth_token)  # Explicitly use authToken
+    else:
+        syn.login(*args, **kwargs, profile=profile)
+
     return syn
 
 
@@ -406,32 +430,15 @@ class Synapse(object):
         # Check for a config file
         config_debug = None
         self.configPath = configPath
+
         if os.path.isfile(self.configPath):
             config = get_config_file(self.configPath)
+            if config.has_option("cache", "location"):
+                cache_root_dir = config.get("cache", "location")
+            if config.has_section("debug"):
+                config_debug = True
 
             self.auth_profiles = {}
-            for section in config.sections():
-                if section.startswith("profile "):
-                    profile_name = section.split("profile ")[-1]
-                    self.auth_profiles[profile_name] = {
-                        "username": config.get(section, "username", fallback=None),
-                        "authtoken": config.get(section, "authtoken", fallback=None),
-                    }
-                elif section == "authentication":
-                    self.auth_profiles["default"] = {
-                        "username": config.get(section, "username", fallback=None),
-                        "authtoken": config.get(section, "authtoken", fallback=None),
-                    }
-        # If no profiles exist, create an empty one
-        if not hasattr(self, "auth_profiles") or not self.auth_profiles:
-            self.auth_profiles = {"default": {"username": None, "authtoken": None}}
-
-            '''OKAy bottom is og code, above to me whatever CM is edited 
-            '''
-            # if config.has_option("cache", "location"):
-            #     cache_root_dir = config.get("cache", "location")
-            # if config.has_section("debug"):
-            #     config_debug = True
 
         if debug is None:
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
@@ -803,7 +810,7 @@ class Synapse(object):
     ) -> None:
 
         """
-        Logs into Synapse using credentials stored in a profile.
+        Logs into Synapse using either an authentication token or a stored profile.
 
         Valid login combinations:
             - authToken
@@ -821,44 +828,33 @@ class Synapse(object):
             silent (bool): Suppress login message (default: False).
             profile (str): Profile to use from .synapseConfig (default: "default").
 
+        **Note: You Do Not Need to Reinstantiate `Synapse` Every Time**
+        You only need to instantiate `Synapse` once per script/session before calling `.login()`.
+        If `Synapse` is already instantiated, just call `.login()` again to switch credentials.
+
         Example:
-            syn.login(profile="user1")  # Logs in with profile 'user1'
+            - Logging in using a specific profile:
+            from synapseclient import Synapse
+            syn = Synapse() # Instantiate once
+            syn.login(profile="user1")
+
+        - Logging in with an authentication token:
+            from synapseclient import Synapse
+            syn = Synapse() # Instantiate once
+            syn.login(authToken="your_auth_token")
         """
-
-        # Check version before logging in
-        if not self.skip_checks:
-            version_check()
-
-        # Make sure to invalidate the existing session
+        # Ensure previous session is cleared
         self.logout()
 
+        # Prioritize direct authToken, fallback to profile
+        user_login_args = UserLoginArgs(profile=profile, username=email, auth_token=authToken)
+
         credential_provider_chain = get_default_credential_chain()
+        self.credentials = credential_provider_chain.get_credentials(syn=self, user_login_args=user_login_args)
 
-        normalized_profile = profile
-
-        # TODO: Specify import from cred_data.py
-        from synapseclient.core.credentials.cred_data import get_config_authentication
-        config_profiles = get_config_authentication(config_path=self.configPath)
-
-        if normalized_profile not in config_profiles:
-            raise SynapseAuthenticationError(f"Profile '{profile}' not found in config.")
-
-        profile_creds = config_profiles[normalized_profile]
-        email = profile_creds.get("username")
-        authToken = profile_creds.get("auth_token")
-
-        self.credentials = credential_provider_chain.get_credentials(
-            syn=self,
-            user_login_args=UserLoginArgs(
-                username=email,
-                auth_token=authToken,
-                profile=profile,
-            ),
-        )
-
-        # Final check on login success
+        # Final check
         if not self.credentials:
-            raise SynapseNoCredentialsError("No credentials provided.")
+            raise SynapseNoCredentialsError("No valid authentication credentials provided.")
 
         if not silent:
             display_name = self.credentials.displayname or self.credentials.username

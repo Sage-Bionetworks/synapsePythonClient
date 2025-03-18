@@ -93,15 +93,20 @@ def get_config_authentication(config_path: str, profile: str = "default"):
     config = configparser.ConfigParser()
     config.read(config_path)
 
-    section = f"profile {profile}" if profile != "default" else "default"
+    section = f"profile {profile}" if profile != "default" else profile
 
-    if section not in config:
-        raise ValueError(f"Profile '{profile}' not found in {config_path}")
+    section_for_profile = get_config_section_dict(
+        section_name=section,
+        config_path=config_path,
+    )
 
-    return {
-        "username": config[section].get("username"),
-        "authtoken": config[section].get("authtoken"),
-    }
+    if section_for_profile:
+        return section_for_profile
+
+    return get_config_section_dict(
+        section_name=config_file_constants.AUTHENTICATION_SECTION_NAME,
+        config_path=config_path,
+    )
 
 
 def get_transfer_config(
