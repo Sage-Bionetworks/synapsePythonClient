@@ -50,7 +50,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-15, windows-2025]
+        os: [ubuntu-22.04, macos-13, windows-2022]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         # Make sure that we are running the integration tests on the first and last versions of the matrix
