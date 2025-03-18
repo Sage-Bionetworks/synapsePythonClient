@@ -437,46 +437,46 @@ class TestDownloadFileHandle:
     def teardown_method(self) -> None:
         self.syn.multi_threaded = False
 
-    # async def test_multithread_true_s3_file_handle(self) -> None:
-    #     with (
-    #         patch.object(os, "makedirs"),
-    #         patch(
-    #             GET_FILE_HANDLE_FOR_DOWNLOAD,
-    #             new_callable=AsyncMock,
-    #         ) as mock_getFileHandleDownload,
-    #         patch(
-    #             "synapseclient.core.download.download_functions.download_from_url_multi_threaded",
-    #             new_callable=AsyncMock,
-    #         ) as mock_multi_thread_download,
-    #         patch.object(self.syn, "cache"),
-    #     ):
-    #         mock_getFileHandleDownload.return_value = {
-    #             "fileHandle": {
-    #                 "id": "123",
-    #                 "concreteType": concrete_types.S3_FILE_HANDLE,
-    #                 "contentMd5": "someMD5",
-    #                 "contentSize": download_async.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
-    #                 + 1,
-    #             }
-    #         }
+    async def test_multithread_true_s3_file_handle(self) -> None:
+        with (
+            patch.object(os, "makedirs"),
+            patch(
+                GET_FILE_HANDLE_FOR_DOWNLOAD,
+                new_callable=AsyncMock,
+            ) as mock_getFileHandleDownload,
+            patch(
+                "synapseclient.core.download.download_functions.download_from_url_multi_threaded",
+                new_callable=AsyncMock,
+            ) as mock_multi_thread_download,
+            patch.object(self.syn, "cache"),
+        ):
+            mock_getFileHandleDownload.return_value = {
+                "fileHandle": {
+                    "id": "123",
+                    "concreteType": concrete_types.S3_FILE_HANDLE,
+                    "contentMd5": "someMD5",
+                    "contentSize": download_async.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
+                    + 1,
+                }
+            }
 
-    #         self.syn.multi_threaded = True
-    #         await download_by_file_handle(
-    #             file_handle_id=123,
-    #             synapse_id=456,
-    #             entity_type="FileEntity",
-    #             destination="/myfakepath",
-    #             synapse_client=self.syn,
-    #         )
+            self.syn.multi_threaded = True
+            await download_by_file_handle(
+                file_handle_id=123,
+                synapse_id=456,
+                entity_type="FileEntity",
+                destination="/myfakepath",
+                synapse_client=self.syn,
+            )
 
-    #         mock_multi_thread_download.assert_called_once_with(
-    #             file_handle_id=123,
-    #             object_id=456,
-    #             object_type="FileEntity",
-    #             destination="/myfakepath",
-    #             expected_md5="someMD5",
-    #             synapse_client=self.syn,
-    #         )
+            mock_multi_thread_download.assert_called_once_with(
+                file_handle_id=123,
+                object_id=456,
+                object_type="FileEntity",
+                destination="/myfakepath",
+                expected_md5="someMD5",
+                synapse_client=self.syn,
+            )
 
     async def _multithread_not_applicable(self, file_handle: Dict[str, str]) -> None:
         get_file_handle_for_download_return_value = {
