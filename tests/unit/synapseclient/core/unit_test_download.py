@@ -430,6 +430,13 @@ import pytest_asyncio
 
 
 class TestDownloadFileHandle:
+    mock_file_handle = {
+        "id": "123",
+        "concreteType": concrete_types.S3_FILE_HANDLE,
+        "contentMd5": "someMD5",
+        "contentSize": download_async.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE + 1,
+    }
+
     @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
@@ -443,6 +450,7 @@ class TestDownloadFileHandle:
             patch(
                 GET_FILE_HANDLE_FOR_DOWNLOAD,
                 new_callable=AsyncMock,
+                return_value=self.mock_file_handle,
             ) as mock_getFileHandleDownload,
             patch(
                 "synapseclient.core.download.download_functions.download_from_url_multi_threaded",
@@ -451,13 +459,7 @@ class TestDownloadFileHandle:
             patch.object(self.syn, "cache"),
         ):
             mock_getFileHandleDownload.return_value = {
-                "fileHandle": {
-                    "id": "123",
-                    "concreteType": concrete_types.S3_FILE_HANDLE,
-                    "contentMd5": "someMD5",
-                    "contentSize": download_async.SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
-                    + 1,
-                }
+                "fileHandle": self.mock_file_handle,
             }
 
             self.syn.multi_threaded = True
