@@ -1404,11 +1404,15 @@ class Table(
             # When saving other (non-column) fields to Synapse we still need to pass
             # in the list of columns, otherwise Synapse will wipe out the columns. We
             # are using the last known columns to ensure that we are not losing any
-            "columnIds": [
-                column.id for column in self._last_persistent_instance.columns.values()
-            ]
-            if self._last_persistent_instance and self._last_persistent_instance.columns
-            else [],
+            "columnIds": (
+                [
+                    column.id
+                    for column in self._last_persistent_instance.columns.values()
+                ]
+                if self._last_persistent_instance
+                and self._last_persistent_instance.columns
+                else []
+            ),
         }
         delete_none_keys(entity)
         result = {
@@ -1519,9 +1523,9 @@ class Table(
                 table=self.id,
                 comment=comment,
                 label=label,
-                activity=self.activity.id
-                if self.activity and include_activity
-                else None,
+                activity=(
+                    self.activity.id if self.activity and include_activity else None
+                ),
             ),
         )
 

@@ -6,8 +6,6 @@ at your own risk.
 
 ## API reference
 
-::: synapseclient.models.EntityRef
----
 ::: synapseclient.models.Dataset
     options:
         inherited_members: true
@@ -20,4 +18,14 @@ at your own risk.
             - update_rows_async
             - snapshot_async
             - query_async
+            - query_part_mask_async
+            - add_column
+            - delete_column
+            - reorder_column
+            - rename_column
+            - get_permissions
+            - get_acl
+            - set_permissions
+---
+::: synapseclient.models.EntityRef
 ---

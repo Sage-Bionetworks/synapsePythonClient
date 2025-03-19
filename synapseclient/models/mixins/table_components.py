@@ -579,6 +579,41 @@ class ViewStoreMixin(TableStoreMixin):
         Returns:
             The View instance stored in synapse.
         """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if self.include_default_columns:
+            view_type_mask = None
+            if self.view_type_mask:
+                if isinstance(self.view_type_mask, ViewTypeMask):
+                    view_type_mask = self.view_type_mask.value
+                else:
+                    view_type_mask = self.view_type_mask
+
+            default_columns = await get_default_columns(
+                view_entity_type=(
+                    self.view_entity_type if self.view_entity_type else None
+                ),
+                view_type_mask=view_type_mask,
+                synapse_client=synapse_client,
+            )
+            for default_column in default_columns:
+                if (
+                    default_column.name in self.columns
+                    and default_column != self.columns[default_column.name]
+                ):
+                    client.logger.warning(
+                        f"Column '{default_column.name}' already exists in dataset. "
+                        "Overwriting with default column."
+                    )
+                self.columns[default_column.name] = default_column
+        # check that column names match this regex "^[a-zA-Z0-9,_.]+"
+        for _, column in self.columns.items():
+            if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
+                raise ValueError(
+                    f"Column name '{column.name}' contains invalid characters. "
+                    "Names may only contain: letters, numbers, spaces, underscores, "
+                    "hyphens, periods, plus signs, apostrophes, and parentheses."
+                )
         return await super().store_async(
             dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client
         )

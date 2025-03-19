@@ -33,7 +33,7 @@ nav:
           - File View: tutorials/python/fileview.md
           # - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
-          # - Dataset: tutorials/python/dataset.md
+          - Dataset: tutorials/python/dataset.md
           # - Sharing Settings: tutorials/python/sharing_settings.md
           # - Wiki: tutorials/python/wiki.md
           # - Team: tutorials/python/team.md
