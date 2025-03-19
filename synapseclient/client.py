@@ -847,6 +847,8 @@ class Synapse(object):
         self.logout()
 
         # Prioritize direct authToken, fallback to profile
+        #user_login_args = UserLoginArgs(profile=profile, username=email, auth_token=authToken)
+
         user_login_args = UserLoginArgs(profile=profile, username=email, auth_token=authToken)
 
         credential_provider_chain = get_default_credential_chain()

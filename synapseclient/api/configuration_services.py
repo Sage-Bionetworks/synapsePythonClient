@@ -77,7 +77,7 @@ def get_client_authenticated_s3_profile(
     ).get("profile_name", "default")
 
 
-def get_config_authentication(config_path: str, profile: str = "default"):
+def get_config_authentication(config_path: str, profile: str = "default")  -> Dict[str, str]:
     """
     Get the authentication section of the configuration file.
     Reads the Synapse configuration file and extracts authentication information
@@ -90,8 +90,6 @@ def get_config_authentication(config_path: str, profile: str = "default"):
     Returns:
         dict: A dictionary with 'username' and 'authtoken'.
     """
-    config = configparser.ConfigParser()
-    config.read(config_path)
 
     section = f"profile {profile}" if profile != "default" else profile
 
