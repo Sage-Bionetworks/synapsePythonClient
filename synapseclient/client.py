@@ -251,17 +251,9 @@ def login(*args, **kwargs):
             syn.login(profile="user1")
 
     """
-    profile = kwargs.pop("profile", "default")
-
-    # Ensure correct argument handling
-    auth_token = kwargs.pop("authToken", None)  # Ensure 'authToken' is correctly referenced
 
     syn = Synapse()
-
-    if auth_token:
-        syn.login(authToken=auth_token)  # Explicitly use authToken
-    else:
-        syn.login(*args, **kwargs, profile=profile)
+    syn.login(*args, **kwargs)
 
     return syn
 
