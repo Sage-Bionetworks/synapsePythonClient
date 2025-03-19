@@ -29,7 +29,7 @@ In this tutorial, you will:
 Let's get started by authenticating with Synapse and retrieving the ID of your project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=18-23}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=17-23}
 ```
 
 ## 2. Create your Dataset
@@ -37,12 +37,12 @@ Let's get started by authenticating with Synapse and retrieving the ID of your p
 Next, we will create the dataset. We will use the project ID to tell Synapse where we want the dataset to be created. After this step, we will have a Dataset object with all of the needed information to start building the dataset.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=28-29}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=27-28}
 ```
 
 Because we haven't added any files to the dataset yet, it will be empty, but if you view the dataset's schema in the UI, you will notice that datasets come with default columns that help to describe each file that we add to the dataset.
 
-![Dataset Default Schema](../images/dataset_default_schema.png)
+![Dataset Default Schema](./tutorial_screenshots/dataset_default_schema.png)
 
 ## 3. Add files to the dataset
 
@@ -50,32 +50,32 @@ Let's add some files to the dataset now. There are three ways to add files to a 
 
 1. Add an Entity Reference to a file with its ID and version
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=33}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=32-34}
 ```
 2. Add a File with its ID and version
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=35}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=36-38}
 ```
 3. Add a Folder. When adding a folder, all child files inside of the folder are added to the dataset recursively.
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=37}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=40-42}
 ```
 
 Whenever we make changes to the dataset, we need to call the `store()` method to save the changes to Synapse.
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=39}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=44}
 ```
 
 And now we are able to see our dataset with all of the files that we added to it.
 
-![Dataset with Files](../images/dataset_with_files.png)
+![Dataset with Files](./tutorial_screenshots/dataset_with_files.png)
 
 ## 4. Retrieve the dataset
 
 Now that we have a dataset with some files in it, we can retrieve the dataset from Synapse the next time we need to use it.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=49-51}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=48-50}
 ```
 
 ## 5. Query the dataset
@@ -83,7 +83,7 @@ Now that we have a dataset with some files in it, we can retrieve the dataset fr
 Now that we have a dataset with some files in it, we can query the dataset to find files that match certain criteria.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=55-58}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=54-57}
 ```
 
 ## 6. Add a custom column to the dataset
@@ -91,13 +91,13 @@ Now that we have a dataset with some files in it, we can query the dataset to fi
 We can also add a custom column to the dataset. This will allow us to annotate files in the dataset with additional information.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=62-68}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=61-67}
 ```
 
 Our custom column isn't all that useful empty, so let's update the dataset with some values.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=71-79}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=70-78}
 ```
 
 ## 7. Save a snapshot of the dataset
@@ -105,7 +105,7 @@ Our custom column isn't all that useful empty, so let's update the dataset with 
 Finally, let's save a snapshot of the dataset. This creates a read-only version of the dataset that captures the current state of the dataset and can be referenced later.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=83-87}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=82-86}
 ```
 
 ## Source Code for this Tutorial
