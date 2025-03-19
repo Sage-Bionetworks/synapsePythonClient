@@ -129,7 +129,18 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
         if not user_login_args.profile:
             raise SynapseAuthenticationError("No authentication method provided (neither authToken nor profile).")
 
+        # Fetch available profiles from the config file
+        auth_profiles = get_config_authentication(syn)
+
+        # If the profile exists, return its credentials
+        if user_login_args.profile in auth_profiles:
+            profile_data = auth_profiles[user_login_args.profile]
+            return profile_data["username"], profile_data["auth_token"]
+
+        # Otherwise, raise an error
         raise SynapseAuthenticationError(f"Profile '{user_login_args.profile}' not found in {syn.configPath}")
+
+        #raise SynapseAuthenticationError(f"Profile '{user_login_args.profile}' not found in {syn.configPath}")
 
 
 class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
