@@ -5,14 +5,14 @@ information (e.g. authToken) from a source (e.g. login args, config file).
 
 import abc
 import os
-from typing import TYPE_CHECKING, Dict, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Tuple, Union, Optional
 
 from opentelemetry import trace
 
 from synapseclient.api import get_config_authentication
 from synapseclient.core.credentials.cred_data import (
     SynapseAuthTokenCredentials,
-    SynapseCredentials, UserLoginArgs,
+    SynapseCredentials, UserLoginArgs
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
 
@@ -94,20 +94,23 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
 
 
 class UserArgsCredentialsProvider(SynapseCredentialsProvider):
-    def _get_auth_info(self, syn, user_login_args):
+    def _get_auth_info(self, syn: "Synapse", user_login_args: UserLoginArgs) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Retrieves authentication information from user_login_args during a CLI session.
 
-        username = user_login_args.username
-        token = user_login_args.auth_token
-        # username = user_login_args.get("username")
-        # token = user_login_args.get("auth_token")
+        Args:
+            syn (Synapse): Synapse client instance.
+            user_login_args (UserLoginArgs): Object containing login credentials.
 
-        if username and token:
-            return username, token
+        Returns:
+            Tuple[Optional[str], Optional[str]]: A tuple containing username and token,
+            where either or both values may be None.
+        """
 
-        return None, None
-    """
-    Retrieves auth info from user_login_args during a CLI session.
-    """
+        token: Optional[str] = user_login_args.auth_token
+        username: Optional[str] = user_login_args.username if user_login_args.username else None
+
+        return username, token
 
 class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     """
@@ -120,7 +123,7 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     """
         # If authToken is explicitly provided, return it directly and skip profiles
         if user_login_args.auth_token:
-            return None, user_login_args.auth_token  # No username needed, just authToken
+            return user_login_args.username, user_login_args.auth_token
 
         # Otherwise, fall back to profile-based lookup
         if not user_login_args.profile:
