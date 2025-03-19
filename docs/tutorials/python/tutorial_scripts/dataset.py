@@ -17,7 +17,7 @@ from synapseclient.models import (
 syn = Synapse()
 syn.login()
 
-project = Project(name="My Testing Project").get()
+project = Project(name="My Testing Project").get()  # Replace with your project name
 project_id = project.id
 print(project_id)
 
