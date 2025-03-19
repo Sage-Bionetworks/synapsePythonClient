@@ -1,6 +1,13 @@
 """
 This module contains classes that are responsible for retrieving synapse authentication
-information (e.g. authToken) from a source (e.g. login args, config file).
+information rom various sources such as:
+
+- User-provided login arguments
+- Synapse configuration file (`~/.synapseConfig`)
+- Environment variables
+- AWS Parameter Store
+
+The retrieved authentication credentials are used for secure login.
 """
 
 import abc
@@ -32,7 +39,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def _get_auth_info(
         self, syn: "Synapse", user_login_args: Dict[str, str]
-    ) -> Tuple[None, None]:
+    ) -> Tuple[Optional[str], Optional[str]]:
         """
         Subclasses must implement this to decide how to obtain an authentication token.
         For any of these values, return None if it is not possible to get that value.
@@ -55,9 +62,12 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
         self, syn: "Synapse", user_login_args: UserLoginArgs
     ) -> Union[SynapseCredentials, None]:
 
-        username, auth_token = self._get_auth_info(syn=syn, user_login_args=user_login_args)
+        if not user_login_args.auth_token and not user_login_args.username:
+            auth_profiles = get_config_authentication(syn.configPath, user_login_args.profile)
+            user_login_args.username = auth_profiles["username"]
+            user_login_args.auth_token = auth_profiles["auth_token"]
 
-        return self._create_synapse_credential(syn, username, auth_token)
+        return self._create_synapse_credential(syn, user_login_args.username, user_login_args.auth_token)
 
     def _create_synapse_credential(
         self, syn: "Synapse", username: str, auth_token: str
@@ -83,7 +93,6 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
             credentials.username = profile_username
             credentials.displayname = profile_displayname
             credentials.owner_id = profile.get("ownerId", None)
-
             current_span = trace.get_current_span()
             if current_span.is_recording():
                 current_span.set_attribute("user.id", credentials.owner_id)
@@ -94,6 +103,8 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
 
 
 class UserArgsCredentialsProvider(SynapseCredentialsProvider):
+    """Retrieves authentication information from user_login_args during a CLI session."""
+
     def _get_auth_info(self, syn: "Synapse", user_login_args: UserLoginArgs) -> Tuple[Optional[str], Optional[str]]:
         """
         Retrieves authentication information from user_login_args during a CLI session.
@@ -117,10 +128,23 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     Retrieves auth info from the `~/.synapseConfig` file
     """
 
-    def _get_auth_info(self, syn, user_login_args):
+    def _get_auth_info(self, syn: "Synapse", user_login_args) -> Tuple[Optional[str], Optional[str]]:
         """
-    Retrieves authentication info from user_login_args during a CLI session.
-    """
+        Retrieves authentication credentials from the `~/.synapseConfig` file.
+
+        This provider loads authentication details from the Synapse configuration file.
+        It supports multi-profile authentication, allowing users to switch between
+        different profiles dynamically.
+
+        - If an auth token is explicitly provided, it is returned immediately.
+        - If no auth token is provided, it attempts to retrieve credentials
+          based on the specified profile.
+        - If the profile does not exist, an authentication error is raised.
+
+        Raises:
+            SynapseAuthenticationError: If no authentication method is provided or
+            if the specified profile does not exist in the configuration file.
+        """
         # If authToken is explicitly provided, return it directly and skip profiles
         if user_login_args.auth_token:
             return user_login_args.username, user_login_args.auth_token
@@ -130,7 +154,7 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
             raise SynapseAuthenticationError("No authentication method provided (neither authToken nor profile).")
 
         # Fetch available profiles from the config file
-        auth_profiles = get_config_authentication(syn)
+        auth_profiles = get_config_authentication(syn.configPath)
 
         # If the profile exists, return its credentials
         if user_login_args.profile in auth_profiles:
@@ -139,8 +163,6 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
 
         # Otherwise, raise an error
         raise SynapseAuthenticationError(f"Profile '{user_login_args.profile}' not found in {syn.configPath}")
-
-        #raise SynapseAuthenticationError(f"Profile '{user_login_args.profile}' not found in {syn.configPath}")
 
 
 class AWSParameterStoreCredentialsProvider(SynapseCredentialsProvider):
@@ -229,7 +251,7 @@ class SynapseCredentialsProviderChain(object):
         self.cred_providers = list(cred_providers)
 
     def get_credentials(self, syn: "Synapse", user_login_args: "UserLoginArgs") -> Union[SynapseCredentials, None]:
-        selected_profile = user_login_args.profile or os.getenv("SYNAPSE_PROFILE", "default")
+        selected_profile = user_login_args.profile or os.getenv("SYNAPSE_PROFILE")
 
         for provider in self.cred_providers:
 
@@ -241,12 +263,9 @@ class SynapseCredentialsProviderChain(object):
                     profile=selected_profile,
                 ),
             )
-
             if creds is not None:
                 return creds
         return None
-
-
 
 # NOTE: If you change the order of this list, please also change the documentation
 # in Synapse.login() that describes the order
@@ -261,7 +280,6 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
 )
 
 
-
 def get_default_credential_chain() -> SynapseCredentialsProviderChain:
     """
     Creates and uses a default credential chain to retrieve
@@ -272,5 +290,4 @@ def get_default_credential_chain() -> SynapseCredentialsProviderChain:
     Returns:
         credential chain
     """
-
     return DEFAULT_CREDENTIAL_PROVIDER_CHAIN

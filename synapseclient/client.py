@@ -34,7 +34,6 @@ from http.client import HTTPResponse
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import asyncio_atexit
-import config
 import httpx
 import requests
 from deprecated import deprecated
@@ -54,7 +53,6 @@ from synapseclient.api import (
     get_config_section_dict,
     get_file_handle_for_download,
     get_transfer_config,
-    get_config_authentication,
 )
 from synapseclient.core import (
     cache,
@@ -218,19 +216,6 @@ DEFAULT_STORAGE_LOCATION_ID = 1
 USER_AGENT_REGEX_PATTERN = r"^[a-zA-Z0-9-]+\/[0-9]+\.[0-9]+\.[0-9]+$"
 
 
-def login(*args, profile="default", **kwargs):
-    """
-    Convenience method to create a Synapse object and login.
-
-
-    Example:
-        syn = synapseclient.login(profile="user1")
-    """
-    profile = kwargs.pop("profile", "default")  # Extract profile if provided
-    syn = Synapse()
-    syn.login(*args, profile=profile, **kwargs)  # Explicitly pass profile
-    return syn
-
 def login(*args, **kwargs):
     """
     Convenience method to create a Synapse object and login.
@@ -251,12 +236,10 @@ def login(*args, **kwargs):
             syn.login(profile="user1")
 
     """
-
     syn = Synapse()
-    syn.login(*args, **kwargs)
+    syn.login(*args, **kwargs)  # Explicitly pass profile
 
     return syn
-
 
 class Synapse(object):
     """
@@ -792,7 +775,6 @@ class Synapse(object):
         self.fileHandleEndpoint = endpoints["fileHandleEndpoint"]
         self.portalEndpoint = endpoints["portalEndpoint"]
 
-
     def login(
             self,
             email: str = None,
@@ -800,7 +782,6 @@ class Synapse(object):
             authToken: str = None,
             profile: str = "default",
     ) -> None:
-
         """
         Logs into Synapse using either an authentication token or a stored profile.
 
@@ -838,22 +819,21 @@ class Synapse(object):
         # Ensure previous session is cleared
         self.logout()
 
-        # Prioritize direct authToken, fallback to profile
-        #user_login_args = UserLoginArgs(profile=profile, username=email, auth_token=authToken)
-
-        user_login_args = UserLoginArgs(profile=profile, username=email, auth_token=authToken)
-
+        user_login_args = UserLoginArgs(profile=profile or "default", username=email, auth_token=authToken)
         credential_provider_chain = get_default_credential_chain()
         self.credentials = credential_provider_chain.get_credentials(syn=self, user_login_args=user_login_args)
 
         # Final check
         if not self.credentials:
-            raise SynapseNoCredentialsError("No valid authentication credentials provided.")
+            raise SynapseNoCredentialsError(
+                f"No valid authentication credentials provided.\n"
+                f"Tried profile: '{profile}', email: '{email or 'N/A'}'.\n"
+                "Check your `.synapseConfig` or ensure the provided auth token is valid."
+            )
 
         if not silent:
             display_name = self.credentials.displayname or self.credentials.username
-            self.logger.info(f"Welcome, {display_name}!\n")
-
+            self.logger.info(f"Welcome, {display_name}!(Profile: {profile})\n")
 
     @deprecated(
         version="4.4.0",
