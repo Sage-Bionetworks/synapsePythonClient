@@ -1,8 +1,8 @@
-"""Tests for the FileView class."""
+"""Tests for the EntityView class."""
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.models import Column, ColumnType, FileView
+from synapseclient.models import Column, ColumnType, EntityView
 
 SYN_123 = "syn123"
 SYN_456 = "syn456"
@@ -17,7 +17,7 @@ MODIFIED_BY = "modifiedBy_value"
 
 
 class TestDeleteColumn:
-    """Tests for deleting columns on a FileView"""
+    """Tests for deleting columns on a EntityView"""
 
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -25,7 +25,7 @@ class TestDeleteColumn:
 
     async def test_delete_with_no_last_instance(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
         )
 
@@ -41,9 +41,9 @@ class TestDeleteColumn:
 
     async def test_delete_with_no_columns(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -60,12 +60,12 @@ class TestDeleteColumn:
 
     async def test_delete_column_does_not_exist(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -79,7 +79,7 @@ class TestDeleteColumn:
 
     async def test_delete_column_is_delete(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(
@@ -88,7 +88,7 @@ class TestDeleteColumn:
                     column_type=ColumnType.INTEGER,
                 ),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -102,7 +102,7 @@ class TestDeleteColumn:
 
 
 class TestAddColumn:
-    """Tests for adding columns to a FileView"""
+    """Tests for adding columns to a EntityView"""
 
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -110,7 +110,7 @@ class TestAddColumn:
 
     async def test_add_column_with_no_last_instance(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
         )
 
@@ -126,9 +126,9 @@ class TestAddColumn:
 
     async def test_add_column(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -143,12 +143,12 @@ class TestAddColumn:
 
     async def test_add_column_with_duplicate_name(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -162,13 +162,13 @@ class TestAddColumn:
 
     async def test_add_column_at_specific_index(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
                 Column(name="col3", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -190,12 +190,12 @@ class TestAddColumn:
     async def test_add_column_at_specific_index_out_of_bounds(self) -> None:
         """Test that adding at an out of bounds index adds the column to the end"""
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -214,13 +214,13 @@ class TestAddColumn:
     async def test_add_column_at_index_with_duplicate_name_errors(self) -> None:
         """Test that adding a column at an index with a duplicate name errors"""
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
                 Column(name="col2", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -236,9 +236,9 @@ class TestAddColumn:
 
     async def test_add_multiple_columns(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -261,12 +261,12 @@ class TestAddColumn:
 
     async def test_add_multiple_columns_with_duplicate_name(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -285,13 +285,13 @@ class TestAddColumn:
 
     async def test_add_multiple_columns_at_specific_index(self) -> None:
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
                 Column(name="col4", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -322,12 +322,12 @@ class TestAddColumn:
     async def test_add_multiple_columns_at_specific_index_out_of_bounds(self) -> None:
         """Test that adding at an out of bounds index adds the column to the end"""
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )
@@ -357,13 +357,13 @@ class TestAddColumn:
     ) -> None:
         """Test that adding a column at an index with a duplicate name errors"""
         # GIVEN a table
-        table = FileView(
+        table = EntityView(
             id=SYN_123,
             columns=[
                 Column(name="col1", column_type=ColumnType.INTEGER),
                 Column(name="col2", column_type=ColumnType.INTEGER),
             ],
-            _last_persistent_instance=FileView(
+            _last_persistent_instance=EntityView(
                 id=SYN_123,
             ),
         )

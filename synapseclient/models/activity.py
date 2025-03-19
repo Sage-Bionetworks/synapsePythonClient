@@ -13,7 +13,7 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models.protocols.activity_protocol import ActivitySynchronousProtocol
 
 if TYPE_CHECKING:
-    from synapseclient.models import Dataset, File, FileView, Table
+    from synapseclient.models import Dataset, EntityView, File, Table
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -259,7 +259,7 @@ class Activity(ActivitySynchronousProtocol):
     )
     async def store_async(
         self,
-        parent: Optional[Union["Table", "File", "FileView", "Dataset"]] = None,
+        parent: Optional[Union["Table", "File", "EntityView", "Dataset"]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Activity":
@@ -329,7 +329,7 @@ class Activity(ActivitySynchronousProtocol):
     @classmethod
     async def from_parent_async(
         cls,
-        parent: Union["Table", "File", "FileView", "Dataset"],
+        parent: Union["Table", "File", "EntityView", "Dataset"],
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Union["Activity", None]:

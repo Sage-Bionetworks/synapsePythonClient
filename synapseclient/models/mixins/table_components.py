@@ -61,7 +61,7 @@ from synapseclient.models.table_components import (
     UploadToTableRequest,
 )
 
-CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "FileView"]
+CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView"]
 
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
@@ -152,11 +152,11 @@ class ViewBase(TableBase):
 
     include_default_columns: Optional[bool] = field(default=True, compare=False)
     """
-    When creating a fileview or view, specifies if default columns should be included.
-    Default columns are columns that are automatically added to the fileview or view. These
+    When creating a entityview or view, specifies if default columns should be included.
+    Default columns are columns that are automatically added to the entityview or view. These
     columns are managed by Synapse and cannot be modified. If you attempt to create a
     column with the same name as a default column, you will receive a warning when you
-    store the fileview.
+    store the entityview.
 
     **`include_default_columns` is only used if this is the first time that the view is
     being stored.** If you are updating an existing view this attribute will be ignored.
@@ -166,13 +166,13 @@ class ViewBase(TableBase):
     ```python
     import asyncio
     from synapseclient import Synapse
-    from synapseclient.models import FileView # May also use: Dataset
+    from synapseclient.models import EntityView # May also use: Dataset
 
     syn = Synapse()
     syn.login()
 
     async def main():
-        view = await FileView(id="syn1234").get_async()
+        view = await EntityView(id="syn1234").get_async()
         await view._append_default_columns()
         await view.store_async()
 
@@ -180,11 +180,11 @@ class ViewBase(TableBase):
     ```
 
     The column you are overriding will not behave the same as a default column. For
-    example, suppose you create a column called `id` on a FileView. When using a
+    example, suppose you create a column called `id` on a EntityView. When using a
     default column, the `id` stores the Synapse ID of each of the entities included in
     the scope of the view. If you override the `id` column with a new column, the `id`
     column will no longer store the Synapse ID of the entities in the view. Instead, it
-    will store the values you provide when you store the fileview. It will be stored as an
+    will store the values you provide when you store the entityview. It will be stored as an
     annotation on the entity for the row you are modifying.
     """
 
@@ -533,7 +533,9 @@ class ViewStoreMixin(TableStoreMixin):
         for _, column in self.columns.items():
             if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
                 raise ValueError(
-                    f"Column name '{column.name}' does not match the regex pattern '^[a-zA-Z0-9,_.]+$'"
+                    f"Column name '{column.name}' contains invalid characters. "
+                    "Names may only contain: letters, numbers, spaces, underscores, "
+                    "hyphens, periods, plus signs, apostrophes, and parentheses."
                 )
 
     async def store_async(
@@ -579,41 +581,6 @@ class ViewStoreMixin(TableStoreMixin):
         Returns:
             The View instance stored in synapse.
         """
-        client = Synapse.get_client(synapse_client=synapse_client)
-
-        if self.include_default_columns:
-            view_type_mask = None
-            if self.view_type_mask:
-                if isinstance(self.view_type_mask, ViewTypeMask):
-                    view_type_mask = self.view_type_mask.value
-                else:
-                    view_type_mask = self.view_type_mask
-
-            default_columns = await get_default_columns(
-                view_entity_type=(
-                    self.view_entity_type if self.view_entity_type else None
-                ),
-                view_type_mask=view_type_mask,
-                synapse_client=synapse_client,
-            )
-            for default_column in default_columns:
-                if (
-                    default_column.name in self.columns
-                    and default_column != self.columns[default_column.name]
-                ):
-                    client.logger.warning(
-                        f"Column '{default_column.name}' already exists in dataset. "
-                        "Overwriting with default column."
-                    )
-                self.columns[default_column.name] = default_column
-        # check that column names match this regex "^[a-zA-Z0-9,_.]+"
-        for _, column in self.columns.items():
-            if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
-                raise ValueError(
-                    f"Column name '{column.name}' contains invalid characters. "
-                    "Names may only contain: letters, numbers, spaces, underscores, "
-                    "hyphens, periods, plus signs, apostrophes, and parentheses."
-                )
         return await super().store_async(
             dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client
         )
@@ -2472,21 +2439,21 @@ class ViewSnapshotMixin:
 
         Example: Creating a snapshot of a view with an activity
             Create a snapshot of a view and include the activity. The activity must
-            have been stored in Synapse by using the `activity` attribute on the FileView
-            and calling the `store_async()` method on the FileView instance. Adding an activity
-            to a snapshot of a fileview is meant to capture the provenance of the data at
+            have been stored in Synapse by using the `activity` attribute on the EntityView
+            and calling the `store_async()` method on the EntityView instance. Adding an activity
+            to a snapshot of a entityview is meant to capture the provenance of the data at
             the time of the snapshot.
 
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import FileView
+            from synapseclient.models import EntityView
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                view = FileView(id="syn4567")
+                view = EntityView(id="syn4567")
                 snapshot = await view.snapshot_async(label="Q1 2025", comment="Results collected in Lab A", include_activity=True, associate_activity_to_new_version=True)
                 print(snapshot)
 
@@ -2502,13 +2469,13 @@ class ViewSnapshotMixin:
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import FileView
+            from synapseclient.models import EntityView
 
             syn = Synapse()
             syn.login()
 
             async def main():
-                view = FileView(id="syn4567")
+                view = EntityView(id="syn4567")
                 snapshot = await view.snapshot_async(label="Q1 2025", comment="Results collected in Lab A", include_activity=False, associate_activity_to_new_version=False)
                 print(snapshot)
 

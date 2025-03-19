@@ -6,7 +6,7 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError
 
 if TYPE_CHECKING:
-    from synapseclient.models import Dataset, File, FileView, Folder, Project, Table
+    from synapseclient.models import Dataset, EntityView, File, Folder, Project, Table
 
 
 class FailureStrategy(Enum):
@@ -42,7 +42,7 @@ async def wrap_coroutine(
 
 
 async def store_entity_components(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "FileView"],
+    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
     *,
     synapse_client: Optional[Synapse] = None,
@@ -161,9 +161,9 @@ def _resolve_store_task(
 
 
 def _has_activity_change_to_apply(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "FileView"],
+    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
     last_persistent_instance: Union[
-        "File", "Folder", "Project", "Table", "Dataset", "FileView"
+        "File", "Folder", "Project", "Table", "Dataset", "EntityView"
     ],
 ) -> bool:
     """Determines if there is a change on the Activity to apply to the root_resource.
@@ -185,9 +185,9 @@ def _has_activity_change_to_apply(
 
 
 def _pull_activity_forward_to_new_version(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "FileView"],
+    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
     last_persistent_instance: Union[
-        "File", "Folder", "Project", "Table", "Dataset", "FileView"
+        "File", "Folder", "Project", "Table", "Dataset", "EntityView"
     ],
 ) -> bool:
     """Determine if there was a version update on the root_resource, and if so it
@@ -208,7 +208,7 @@ def _pull_activity_forward_to_new_version(
 
 
 async def _store_activity_and_annotations(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "FileView"],
+    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> bool:

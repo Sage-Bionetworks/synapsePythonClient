@@ -1,3 +1,4 @@
+import asyncio
 import tempfile
 import uuid
 from typing import Callable
@@ -15,109 +16,109 @@ from synapseclient.models import (
     Activity,
     Column,
     ColumnType,
+    EntityView,
     File,
-    FileView,
     Folder,
     Project,
     UsedURL,
     ViewTypeMask,
-    query_async,
-    query_part_mask_async,
+    query,
+    query_part_mask,
 )
 
 
-class TestFileViewCreation:
+class TestEntityViewCreation:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_fileview_with_default_columns(
+    async def test_create_entityview_with_default_columns(
         self, project_model: Project
     ) -> None:
-        # GIVEN a fileview with no columns
-        fileview_name = str(uuid.uuid4())
-        fileview_description = "Test fileview"
-        fileview = FileView(
-            name=fileview_name,
+        # GIVEN a entityview with no columns
+        entityview_name = str(uuid.uuid4())
+        entityview_description = "Test entityview"
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
-            description=fileview_description,
+            description=entityview_description,
             view_type_mask=ViewTypeMask.FILE,
         )
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
-        # THEN the fileview should be created
-        assert fileview.id is not None
+        # THEN the entityview should be created
+        assert entityview.id is not None
 
-        # AND I can retrieve that fileview from Synapse
-        new_fileview_instance = await FileView(id=fileview.id).get_async(
+        # AND I can retrieve that entityview from Synapse
+        new_entityview_instance = EntityView(id=entityview.id).get(
             synapse_client=self.syn
         )
-        assert new_fileview_instance is not None
-        assert new_fileview_instance.name == fileview_name
-        assert new_fileview_instance.id == fileview.id
-        assert new_fileview_instance.description == fileview_description
+        assert new_entityview_instance is not None
+        assert new_entityview_instance.name == entityview_name
+        assert new_entityview_instance.id == entityview.id
+        assert new_entityview_instance.description == entityview_description
 
         # AND the columns on the view match the default columns
         default_columns = await get_default_columns(
             view_type_mask=ViewTypeMask.FILE.value, synapse_client=self.syn
         )
-        assert len(new_fileview_instance.columns) == len(default_columns)
+        assert len(new_entityview_instance.columns) == len(default_columns)
         assert len(default_columns) > 0
         for column in default_columns:
-            assert column.name in new_fileview_instance.columns
-            assert column == new_fileview_instance.columns[column.name]
+            assert column.name in new_entityview_instance.columns
+            assert column == new_entityview_instance.columns[column.name]
 
-    async def test_create_fileview_with_single_column(
+    async def test_create_entityview_with_single_column(
         self, project_model: Project
     ) -> None:
-        # GIVEN a fileview with a single column
-        fileview_name = str(uuid.uuid4())
-        fileview_description = "Test fileview"
-        fileview = FileView(
-            name=fileview_name,
+        # GIVEN a entityview with a single column
+        entityview_name = str(uuid.uuid4())
+        entityview_description = "Test entityview"
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
-            description=fileview_description,
+            description=entityview_description,
             columns=[Column(name="test_column", column_type=ColumnType.STRING)],
             view_type_mask=ViewTypeMask.FILE,
             include_default_columns=False,
         )
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
-        # THEN the fileview should be created
-        assert fileview.id is not None
+        # THEN the entityview should be created
+        assert entityview.id is not None
 
-        # AND I can retrieve that fileview from Synapse
-        new_fileview_instance = await FileView(id=fileview.id).get_async(
+        # AND I can retrieve that entityview from Synapse
+        new_entityview_instance = EntityView(id=entityview.id).get(
             synapse_client=self.syn, include_columns=True
         )
-        assert new_fileview_instance is not None
-        assert new_fileview_instance.name == fileview_name
-        assert new_fileview_instance.id == fileview.id
-        assert new_fileview_instance.description == fileview_description
-        assert new_fileview_instance.columns["test_column"].name == "test_column"
+        assert new_entityview_instance is not None
+        assert new_entityview_instance.name == entityview_name
+        assert new_entityview_instance.id == entityview.id
+        assert new_entityview_instance.description == entityview_description
+        assert new_entityview_instance.columns["test_column"].name == "test_column"
         assert (
-            new_fileview_instance.columns["test_column"].column_type
+            new_entityview_instance.columns["test_column"].column_type
             == ColumnType.STRING
         )
-        assert len(new_fileview_instance.columns) == 1
+        assert len(new_entityview_instance.columns) == 1
 
-    async def test_create_fileview_with_multiple_columns(
+    async def test_create_entityview_with_multiple_columns(
         self, project_model: Project
     ) -> None:
-        # GIVEN a fileview with multiple columns
-        fileview_name = str(uuid.uuid4())
-        fileview_description = "Test fileview"
-        fileview = FileView(
-            name=fileview_name,
+        # GIVEN a entityview with multiple columns
+        entityview_name = str(uuid.uuid4())
+        entityview_description = "Test entityview"
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
-            description=fileview_description,
+            description=entityview_description,
             columns=[
                 Column(name="test_column", column_type=ColumnType.STRING),
                 Column(name="test_column2", column_type=ColumnType.INTEGER),
@@ -126,43 +127,43 @@ class TestFileViewCreation:
             include_default_columns=False,
         )
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
-        # THEN the fileview should be created
-        assert fileview.id is not None
+        # THEN the entityview should be created
+        assert entityview.id is not None
 
-        # AND I can retrieve that fileview from Synapse
-        new_fileview_instance = await FileView(id=fileview.id).get_async(
+        # AND I can retrieve that entityview from Synapse
+        new_entityview_instance = EntityView(id=entityview.id).get(
             synapse_client=self.syn, include_columns=True
         )
-        assert new_fileview_instance is not None
-        assert new_fileview_instance.name == fileview_name
-        assert new_fileview_instance.id == fileview.id
-        assert new_fileview_instance.description == fileview_description
-        assert new_fileview_instance.columns["test_column"].name == "test_column"
+        assert new_entityview_instance is not None
+        assert new_entityview_instance.name == entityview_name
+        assert new_entityview_instance.id == entityview.id
+        assert new_entityview_instance.description == entityview_description
+        assert new_entityview_instance.columns["test_column"].name == "test_column"
         assert (
-            new_fileview_instance.columns["test_column"].column_type
+            new_entityview_instance.columns["test_column"].column_type
             == ColumnType.STRING
         )
-        assert new_fileview_instance.columns["test_column2"].name == "test_column2"
+        assert new_entityview_instance.columns["test_column2"].name == "test_column2"
         assert (
-            new_fileview_instance.columns["test_column2"].column_type
+            new_entityview_instance.columns["test_column2"].column_type
             == ColumnType.INTEGER
         )
-        assert len(new_fileview_instance.columns) == 2
+        assert len(new_entityview_instance.columns) == 2
 
-    async def test_create_fileview_with_invalid_column(
+    async def test_create_entityview_with_invalid_column(
         self, project_model: Project
     ) -> None:
-        # GIVEN a fileview with an invalid column
-        fileview_name = str(uuid.uuid4())
-        fileview_description = "Test fileview"
-        fileview = FileView(
-            name=fileview_name,
+        # GIVEN a entityview with an invalid column
+        entityview_name = str(uuid.uuid4())
+        entityview_description = "Test entityview"
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
-            description=fileview_description,
+            description=entityview_description,
             columns=[
                 Column(
                     name="test_column",
@@ -173,75 +174,73 @@ class TestFileViewCreation:
             view_type_mask=ViewTypeMask.FILE,
         )
 
-        # WHEN I store the fileview
+        # WHEN I store the entityview
         with pytest.raises(SynapseHTTPError) as e:
-            await fileview.store_async(synapse_client=self.syn)
+            entityview.store(synapse_client=self.syn)
 
-        # THEN the fileview should not be created
+        # THEN the entityview should not be created
         assert (
             "400 Client Error: ColumnModel.maxSize for a STRING cannot exceed:"
             in str(e.value)
         )
 
-    async def test_create_fileview_with_files_in_scope(
+    async def test_create_entityview_with_files_in_scope(
         self, project_model: Project
     ) -> None:
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
         # AND 4 files stored in a folder in Synapse
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
-        file2 = await File(
+        ).store(synapse_client=self.syn)
+        file2 = File(
             parent_id=folder.id,
             name="file2",
             data_file_handle_id=file1.data_file_handle_id,
             description="file2_description",
-        ).store_async(synapse_client=self.syn)
-        file3 = await File(
+        ).store(synapse_client=self.syn)
+        file3 = File(
             parent_id=folder.id,
             name="file3",
             data_file_handle_id=file1.data_file_handle_id,
             description="file3_description",
-        ).store_async(synapse_client=self.syn)
-        file4 = await File(
+        ).store(synapse_client=self.syn)
+        file4 = File(
             parent_id=folder.id,
             name="file4",
             data_file_handle_id=file1.data_file_handle_id,
             description="file4_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
         self.schedule_for_cleanup(file2.id)
         self.schedule_for_cleanup(file3.id)
         self.schedule_for_cleanup(file4.id)
 
-        # AND a fileview with default columns defined with the folder in it's scope
-        fileview_name = str(uuid.uuid4())
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview with default columns defined with the folder in it's scope
+        entityview_name = str(uuid.uuid4())
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             view_type_mask=ViewTypeMask.FILE,
             scope_ids=[folder.id],
         )
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
         # AND I query for the data in the file view
-        results = await query_async(
-            f"SELECT * FROM {fileview.id}", synapse_client=self.syn
-        )
+        results = query(f"SELECT * FROM {entityview.id}", synapse_client=self.syn)
 
-        # THEN the data for the files should exist in the fileview
+        # THEN the data for the files should exist in the entityview
         assert len(results) == 4
 
         assert results["name"][0] == file1.name
@@ -268,15 +267,15 @@ class TestRowStorage:
         spy_csv_file_conversion = mocker.spy(table_module, "csv_to_pandas_df")
 
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND a fileview with default columns defined
-        fileview_name = str(uuid.uuid4())
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview with default columns defined
+        entityview_name = str(uuid.uuid4())
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             view_type_mask=ViewTypeMask.FILE.value,
             scope_ids=[folder.id],
@@ -287,44 +286,44 @@ class TestRowStorage:
             ],
         )
 
-        # AND 4 files to show up in that fileview
+        # AND 4 files to show up in that entityview
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
-        file2 = await File(
+        ).store(synapse_client=self.syn)
+        file2 = File(
             parent_id=folder.id,
             name="file2",
             data_file_handle_id=file1.data_file_handle_id,
             description="file2_description",
-        ).store_async(synapse_client=self.syn)
-        file3 = await File(
+        ).store(synapse_client=self.syn)
+        file3 = File(
             parent_id=folder.id,
             name="file3",
             data_file_handle_id=file1.data_file_handle_id,
             description="file3_description",
-        ).store_async(synapse_client=self.syn)
-        file4 = await File(
+        ).store(synapse_client=self.syn)
+        file4 = File(
             parent_id=folder.id,
             name="file4",
             data_file_handle_id=file1.data_file_handle_id,
             description="file4_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
         self.schedule_for_cleanup(file2.id)
         self.schedule_for_cleanup(file3.id)
         self.schedule_for_cleanup(file4.id)
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
         # AND I query for the data in the file view
-        first_storage_results = await query_async(
-            f"SELECT * FROM {fileview.id}", synapse_client=self.syn
+        first_storage_results = query(
+            f"SELECT * FROM {entityview.id}", synapse_client=self.syn
         )
 
         # THEN the data in the columns should match
@@ -353,8 +352,8 @@ class TestRowStorage:
         self.schedule_for_cleanup(filepath)
         first_storage_results.to_csv(filepath, index=False, float_format="%.12g")
 
-        # AND I update rows in the fileview
-        await fileview.update_rows_async(
+        # AND I update rows in the entityview
+        entityview.update_rows(
             values=filepath,
             primary_keys=["id"],
             synapse_client=self.syn,
@@ -365,13 +364,13 @@ class TestRowStorage:
         spy_csv_file_conversion.assert_called_once()
 
         # AND the columns should exist
-        assert "column_string" in fileview.columns
-        assert "integer_column" in fileview.columns
-        assert "float_column" in fileview.columns
+        assert "column_string" in entityview.columns
+        assert "integer_column" in entityview.columns
+        assert "float_column" in entityview.columns
 
-        # AND I can query the fileview
-        modified_data_results = await query_async(
-            f"SELECT * FROM {fileview.id}", synapse_client=self.syn
+        # AND I can query the entityview
+        modified_data_results = query(
+            f"SELECT * FROM {entityview.id}", synapse_client=self.syn
         )
 
         assert len(modified_data_results) == 4
@@ -390,30 +389,22 @@ class TestRowStorage:
         )
 
         # AND the data on the file entities should be updated
-        file1_copy = await File(id=file1.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file1_copy = File(id=file1.id, download_file=False).get(synapse_client=self.syn)
         assert file1_copy.annotations["column_string"] == ["value1"]
         assert file1_copy.annotations["integer_column"] == [1]
         assert file1_copy.annotations["float_column"] == [1.1]
 
-        file2_copy = await File(id=file2.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file2_copy = File(id=file2.id, download_file=False).get(synapse_client=self.syn)
         assert file2_copy.annotations["column_string"] == ["value2"]
         assert file2_copy.annotations["integer_column"] == [2]
         assert file2_copy.annotations["float_column"] == [2.2]
 
-        file3_copy = await File(id=file3.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file3_copy = File(id=file3.id, download_file=False).get(synapse_client=self.syn)
         assert file3_copy.annotations["column_string"] == ["value3"]
         assert file3_copy.annotations["integer_column"] == [3]
         assert file3_copy.annotations["float_column"] == [3.3]
 
-        file4_copy = await File(id=file4.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file4_copy = File(id=file4.id, download_file=False).get(synapse_client=self.syn)
         assert file4_copy.annotations["column_string"] == ["value4"]
         assert "integer_column" not in file4_copy.annotations.keys()
         assert "float_column" not in file4_copy.annotations.keys()
@@ -425,15 +416,15 @@ class TestRowStorage:
         spy_csv_file_conversion = mocker.spy(table_module, "csv_to_pandas_df")
 
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND a fileview with default columns defined
-        fileview_name = str(uuid.uuid4())
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview with default columns defined
+        entityview_name = str(uuid.uuid4())
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             view_type_mask=ViewTypeMask.FILE.value,
             scope_ids=[folder.id],
@@ -444,44 +435,44 @@ class TestRowStorage:
             ],
         )
 
-        # AND 4 files to show up in that fileview
+        # AND 4 files to show up in that entityview
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
-        file2 = await File(
+        ).store(synapse_client=self.syn)
+        file2 = File(
             parent_id=folder.id,
             name="file2",
             data_file_handle_id=file1.data_file_handle_id,
             description="file2_description",
-        ).store_async(synapse_client=self.syn)
-        file3 = await File(
+        ).store(synapse_client=self.syn)
+        file3 = File(
             parent_id=folder.id,
             name="file3",
             data_file_handle_id=file1.data_file_handle_id,
             description="file3_description",
-        ).store_async(synapse_client=self.syn)
-        file4 = await File(
+        ).store(synapse_client=self.syn)
+        file4 = File(
             parent_id=folder.id,
             name="file4",
             data_file_handle_id=file1.data_file_handle_id,
             description="file4_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
         self.schedule_for_cleanup(file2.id)
         self.schedule_for_cleanup(file3.id)
         self.schedule_for_cleanup(file4.id)
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
         # AND I query for the data in the file view
-        first_storage_results = await query_async(
-            f"SELECT * FROM {fileview.id}", synapse_client=self.syn
+        first_storage_results = query(
+            f"SELECT * FROM {entityview.id}", synapse_client=self.syn
         )
 
         # THEN the data in the columns should match
@@ -509,8 +500,8 @@ class TestRowStorage:
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
         self.schedule_for_cleanup(filepath)
 
-        # AND I update rows in the fileview
-        await fileview.update_rows_async(
+        # AND I update rows in the entityview
+        entityview.update_rows(
             values=first_storage_results,
             primary_keys=["id"],
             synapse_client=self.syn,
@@ -521,13 +512,13 @@ class TestRowStorage:
         spy_csv_file_conversion.assert_not_called()
 
         # AND the columns should exist
-        assert "column_string" in fileview.columns
-        assert "integer_column" in fileview.columns
-        assert "float_column" in fileview.columns
+        assert "column_string" in entityview.columns
+        assert "integer_column" in entityview.columns
+        assert "float_column" in entityview.columns
 
-        # AND I can query the fileview
-        modified_data_results = await query_async(
-            f"SELECT * FROM {fileview.id}", synapse_client=self.syn
+        # AND I can query the entityview
+        modified_data_results = query(
+            f"SELECT * FROM {entityview.id}", synapse_client=self.syn
         )
 
         assert len(modified_data_results) == 4
@@ -546,30 +537,22 @@ class TestRowStorage:
         )
 
         # AND the data on the file entities should be updated
-        file1_copy = await File(id=file1.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file1_copy = File(id=file1.id, download_file=False).get(synapse_client=self.syn)
         assert file1_copy.annotations["column_string"] == ["value1"]
         assert file1_copy.annotations["integer_column"] == [1]
         assert file1_copy.annotations["float_column"] == [1.1]
 
-        file2_copy = await File(id=file2.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file2_copy = File(id=file2.id, download_file=False).get(synapse_client=self.syn)
         assert file2_copy.annotations["column_string"] == ["value2"]
         assert file2_copy.annotations["integer_column"] == [2]
         assert file2_copy.annotations["float_column"] == [2.2]
 
-        file3_copy = await File(id=file3.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file3_copy = File(id=file3.id, download_file=False).get(synapse_client=self.syn)
         assert file3_copy.annotations["column_string"] == ["value3"]
         assert file3_copy.annotations["integer_column"] == [3]
         assert file3_copy.annotations["float_column"] == [3.3]
 
-        file4_copy = await File(id=file4.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file4_copy = File(id=file4.id, download_file=False).get(synapse_client=self.syn)
         assert file4_copy.annotations["column_string"] == ["value4"]
         assert "integer_column" not in file4_copy.annotations.keys()
         assert "float_column" not in file4_copy.annotations.keys()
@@ -581,15 +564,15 @@ class TestRowStorage:
         spy_csv_file_conversion = mocker.spy(table_module, "csv_to_pandas_df")
 
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND a fileview with default columns defined
-        fileview_name = str(uuid.uuid4())
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview with default columns defined
+        entityview_name = str(uuid.uuid4())
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             view_type_mask=ViewTypeMask.FILE.value,
             scope_ids=[folder.id],
@@ -600,42 +583,42 @@ class TestRowStorage:
             ],
         )
 
-        # AND 4 files to show up in that fileview
+        # AND 4 files to show up in that entityview
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
-        file2 = await File(
+        ).store(synapse_client=self.syn)
+        file2 = File(
             parent_id=folder.id,
             name="file2",
             data_file_handle_id=file1.data_file_handle_id,
             description="file2_description",
-        ).store_async(synapse_client=self.syn)
-        file3 = await File(
+        ).store(synapse_client=self.syn)
+        file3 = File(
             parent_id=folder.id,
             name="file3",
             data_file_handle_id=file1.data_file_handle_id,
             description="file3_description",
-        ).store_async(synapse_client=self.syn)
-        file4 = await File(
+        ).store(synapse_client=self.syn)
+        file4 = File(
             parent_id=folder.id,
             name="file4",
             data_file_handle_id=file1.data_file_handle_id,
             description="file4_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
         self.schedule_for_cleanup(file2.id)
         self.schedule_for_cleanup(file3.id)
         self.schedule_for_cleanup(file4.id)
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
-        # AND I update rows with data in the fileview
+        # AND I update rows with data in the entityview
         updated_content = {
             "id": [file1.id, file2.id, file3.id, file4.id],
             "column_string": ["value1", "value2", "value3", "value4"],
@@ -643,7 +626,7 @@ class TestRowStorage:
             "float_column": [1.1, 2.2, 3.3, None],
         }
 
-        await fileview.update_rows_async(
+        entityview.update_rows(
             values=updated_content,
             primary_keys=["id"],
             synapse_client=self.syn,
@@ -654,13 +637,13 @@ class TestRowStorage:
         spy_csv_file_conversion.assert_not_called()
 
         # AND the columns should exist
-        assert "column_string" in fileview.columns
-        assert "integer_column" in fileview.columns
-        assert "float_column" in fileview.columns
+        assert "column_string" in entityview.columns
+        assert "integer_column" in entityview.columns
+        assert "float_column" in entityview.columns
 
-        # AND I can query the fileview
-        modified_data_results = await query_async(
-            f"SELECT * FROM {fileview.id}", synapse_client=self.syn
+        # AND I can query the entityview
+        modified_data_results = query(
+            f"SELECT * FROM {entityview.id}", synapse_client=self.syn
         )
 
         assert len(modified_data_results) == 4
@@ -679,68 +662,60 @@ class TestRowStorage:
         )
 
         # AND the data on the file entities should be updated
-        file1_copy = await File(id=file1.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file1_copy = File(id=file1.id, download_file=False).get(synapse_client=self.syn)
         assert file1_copy.annotations["column_string"] == ["value1"]
         assert file1_copy.annotations["integer_column"] == [1]
         assert file1_copy.annotations["float_column"] == [1.1]
 
-        file2_copy = await File(id=file2.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file2_copy = File(id=file2.id, download_file=False).get(synapse_client=self.syn)
         assert file2_copy.annotations["column_string"] == ["value2"]
         assert file2_copy.annotations["integer_column"] == [2]
         assert file2_copy.annotations["float_column"] == [2.2]
 
-        file3_copy = await File(id=file3.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file3_copy = File(id=file3.id, download_file=False).get(synapse_client=self.syn)
         assert file3_copy.annotations["column_string"] == ["value3"]
         assert file3_copy.annotations["integer_column"] == [3]
         assert file3_copy.annotations["float_column"] == [3.3]
 
-        file4_copy = await File(id=file4.id, download_file=False).get_async(
-            synapse_client=self.syn
-        )
+        file4_copy = File(id=file4.id, download_file=False).get(synapse_client=self.syn)
         assert file4_copy.annotations["column_string"] == ["value4"]
         assert "integer_column" not in file4_copy.annotations.keys()
         assert "float_column" not in file4_copy.annotations.keys()
 
     async def test_update_rows_without_id_column(self, project_model: Project) -> None:
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND a fileview with default columns defined
-        fileview_name = str(uuid.uuid4())
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview with default columns defined
+        entityview_name = str(uuid.uuid4())
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             view_type_mask=ViewTypeMask.FILE.value,
             scope_ids=[folder.id],
         )
 
-        # AND the fileview is stored to Synapse
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # AND the entityview is stored to Synapse
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
-        # AND I remove the `id` column from the fileview
-        fileview.delete_column(name="id")
-        await fileview.store_async(synapse_client=self.syn)
+        # AND I remove the `id` column from the entityview
+        entityview.delete_column(name="id")
+        entityview.store(synapse_client=self.syn)
 
         # WHEN I try to update the rows
         with pytest.raises(ValueError) as e:
-            await fileview.update_rows_async(
+            entityview.update_rows(
                 values={},
                 primary_keys=["id"],
                 synapse_client=self.syn,
                 wait_for_eventually_consistent_view=True,
             )
 
-        # THEN the fileview should raise an exception that I am missing the `id` column
+        # THEN the entityview should raise an exception that I am missing the `id` column
         assert (
             "The 'id' column is required to wait for eventually consistent views."
             in str(e.value)
@@ -754,45 +729,43 @@ class TestColumnModifications:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     async def test_column_rename(self, project_model: Project) -> None:
-        # GIVEN a fileview in Synapse
-        fileview_name = str(uuid.uuid4())
+        # GIVEN a entityview in Synapse
+        entityview_name = str(uuid.uuid4())
         old_column_name = "column_string"
-        old_fileview_instance = FileView(
-            name=fileview_name,
+        old_entityview_instance = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             columns=[Column(name=old_column_name, column_type=ColumnType.STRING)],
             view_type_mask=ViewTypeMask.FILE,
         )
-        old_fileview_instance = await old_fileview_instance.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(old_fileview_instance.id)
+        old_entityview_instance = old_entityview_instance.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(old_entityview_instance.id)
 
         # WHEN I rename the column
         new_column_name = "new_column_string"
-        old_fileview_instance.columns[old_column_name].name = new_column_name
+        old_entityview_instance.columns[old_column_name].name = new_column_name
 
-        # AND I store the fileview
-        await old_fileview_instance.store_async(synapse_client=self.syn)
+        # AND I store the entityview
+        old_entityview_instance.store(synapse_client=self.syn)
 
-        # THEN the column name should be updated on the existing fileview instance
-        assert old_fileview_instance.columns[new_column_name] is not None
-        assert old_column_name not in old_fileview_instance.columns
+        # THEN the column name should be updated on the existing entityview instance
+        assert old_entityview_instance.columns[new_column_name] is not None
+        assert old_column_name not in old_entityview_instance.columns
 
-        # AND the new column name should be reflected in the Synapse fileview
-        new_fileview_instance = await FileView(
-            id=old_fileview_instance.id, view_type_mask=ViewTypeMask.FILE
-        ).get_async(synapse_client=self.syn)
-        assert new_fileview_instance.columns[new_column_name] is not None
-        assert old_column_name not in new_fileview_instance.columns
+        # AND the new column name should be reflected in the Synapse entityview
+        new_entityview_instance = EntityView(
+            id=old_entityview_instance.id, view_type_mask=ViewTypeMask.FILE
+        ).get(synapse_client=self.syn)
+        assert new_entityview_instance.columns[new_column_name] is not None
+        assert old_column_name not in new_entityview_instance.columns
 
     async def test_delete_column(self, project_model: Project) -> None:
-        # GIVEN a fileview in Synapse
-        fileview_name = str(uuid.uuid4())
+        # GIVEN a entityview in Synapse
+        entityview_name = str(uuid.uuid4())
         old_column_name = "column_string"
         column_to_keep = "column_to_keep"
-        old_fileview_instance = FileView(
-            name=fileview_name,
+        old_entityview_instance = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             columns=[
                 Column(name=old_column_name, column_type=ColumnType.STRING),
@@ -800,31 +773,29 @@ class TestColumnModifications:
             ],
             view_type_mask=ViewTypeMask.FILE,
         )
-        old_fileview_instance = await old_fileview_instance.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(old_fileview_instance.id)
+        old_entityview_instance = old_entityview_instance.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(old_entityview_instance.id)
 
         # WHEN I delete the column
-        old_fileview_instance.delete_column(name=old_column_name)
+        old_entityview_instance.delete_column(name=old_column_name)
 
-        # AND I store the fileview
-        await old_fileview_instance.store_async(synapse_client=self.syn)
+        # AND I store the entityview
+        old_entityview_instance.store(synapse_client=self.syn)
 
-        # THEN the column should be removed from the fileview instance
-        assert old_column_name not in old_fileview_instance.columns
+        # THEN the column should be removed from the entityview instance
+        assert old_column_name not in old_entityview_instance.columns
 
-        # AND the column to keep should still be in the fileview instance
-        assert column_to_keep in old_fileview_instance.columns
+        # AND the column to keep should still be in the entityview instance
+        assert column_to_keep in old_entityview_instance.columns
 
-        # AND the column should be removed from the Synapse fileview
-        new_fileview_instance = await FileView(
-            id=old_fileview_instance.id, view_type_mask=ViewTypeMask.FILE
-        ).get_async(synapse_client=self.syn)
-        assert old_column_name not in new_fileview_instance.columns
+        # AND the column should be removed from the Synapse entityview
+        new_entityview_instance = EntityView(
+            id=old_entityview_instance.id, view_type_mask=ViewTypeMask.FILE
+        ).get(synapse_client=self.syn)
+        assert old_column_name not in new_entityview_instance.columns
 
-        # AND the column to keep should still be in the Synapse fileview
-        assert column_to_keep in new_fileview_instance.columns
+        # AND the column to keep should still be in the Synapse entityview
+        assert column_to_keep in new_entityview_instance.columns
 
 
 class TestQuerying:
@@ -835,50 +806,50 @@ class TestQuerying:
 
     async def test_part_mask_query_everything(self, project_model: Project) -> None:
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND a fileview
-        fileview_name = str(uuid.uuid4())
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview
+        entityview_name = str(uuid.uuid4())
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             view_type_mask=ViewTypeMask.FILE.value,
             scope_ids=[folder.id],
         )
 
-        # AND 2 files to show up in that fileview
+        # AND 2 files to show up in that entityview
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
-        file2 = await File(
+        ).store(synapse_client=self.syn)
+        file2 = File(
             parent_id=folder.id,
             name="file2",
             data_file_handle_id=file1.data_file_handle_id,
             description="file2_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
         self.schedule_for_cleanup(file2.id)
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
-        # WHEN I query the fileview with a part mask
+        # WHEN I query the entityview with a part mask
         query_results = 0x1
         query_count = 0x2
         sum_file_size_bytes = 0x40
         last_updated_on = 0x80
         part_mask = query_results | query_count | sum_file_size_bytes | last_updated_on
 
-        results = await query_part_mask_async(
-            query=f"SELECT * FROM {fileview.id} ORDER BY id ASC",
+        results = query_part_mask(
+            query=f"SELECT * FROM {entityview.id} ORDER BY id ASC",
             synapse_client=self.syn,
             part_mask=part_mask,
         )
@@ -895,45 +866,45 @@ class TestQuerying:
 
     async def test_part_mask_query_results_only(self, project_model: Project) -> None:
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND a fileview
-        fileview_name = str(uuid.uuid4())
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview
+        entityview_name = str(uuid.uuid4())
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
             view_type_mask=ViewTypeMask.FILE.value,
             scope_ids=[folder.id],
         )
 
-        # AND 2 files to show up in that fileview
+        # AND 2 files to show up in that entityview
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
-        file2 = await File(
+        ).store(synapse_client=self.syn)
+        file2 = File(
             parent_id=folder.id,
             name="file2",
             data_file_handle_id=file1.data_file_handle_id,
             description="file2_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
         self.schedule_for_cleanup(file2.id)
 
-        # WHEN I store the fileview
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
+        # WHEN I store the entityview
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
 
-        # WHEN I query the fileview with a part mask of only the results
+        # WHEN I query the entityview with a part mask of only the results
         query_results = 0x1
-        results = await query_part_mask_async(
-            query=f"SELECT * FROM {fileview.id} ORDER BY id ASC",
+        results = query_part_mask(
+            query=f"SELECT * FROM {entityview.id} ORDER BY id ASC",
             synapse_client=self.syn,
             part_mask=query_results,
         )
@@ -947,7 +918,7 @@ class TestQuerying:
         assert results.result["name"].tolist() == ["file1", "file2"]
 
 
-class TestFileViewSnapshot:
+class TestEntityViewSnapshot:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -955,28 +926,28 @@ class TestFileViewSnapshot:
 
     async def test_snapshot_with_activity(self, project_model: Project) -> None:
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND 1 file to show up in that fileview
+        # AND 1 file to show up in that entityview
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
 
-        # AND a fileview
-        fileview_name = str(uuid.uuid4())
-        fileview_description = "Test fileview"
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview
+        entityview_name = str(uuid.uuid4())
+        entityview_description = "Test entityview"
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
-            description=fileview_description,
+            description=entityview_description,
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE,
             activity=Activity(
@@ -985,13 +956,13 @@ class TestFileViewSnapshot:
             ),
         )
 
-        # AND the fileview is stored in Synapse
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
-        assert fileview.id is not None
+        # AND the entityview is stored in Synapse
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
+        assert entityview.id is not None
 
-        # WHEN I snapshot the fileview
-        snapshot = await fileview.snapshot_async(
+        # WHEN I snapshot the entityview
+        snapshot = entityview.snapshot(
             comment="My snapshot",
             label="My snapshot label",
             include_activity=True,
@@ -1002,15 +973,15 @@ class TestFileViewSnapshot:
         # THEN the table should be snapshotted
         assert snapshot.results is not None
 
-        # AND getting the first version of the fileview should return the snapshot instance
-        snapshot_instance = await FileView(id=fileview.id, version_number=1).get_async(
+        # AND getting the first version of the entityview should return the snapshot instance
+        snapshot_instance = EntityView(id=entityview.id, version_number=1).get(
             synapse_client=self.syn, include_activity=True
         )
         assert snapshot_instance is not None
         assert snapshot_instance.version_number == 1
-        assert snapshot_instance.id == fileview.id
-        assert snapshot_instance.name == fileview_name
-        assert snapshot_instance.description == fileview_description
+        assert snapshot_instance.id == entityview.id
+        assert snapshot_instance.name == entityview_name
+        assert snapshot_instance.description == entityview_description
         assert snapshot_instance.version_comment == "My snapshot"
         assert snapshot_instance.version_label == "My snapshot label"
         assert snapshot_instance.activity.name == "Activity for snapshot"
@@ -1018,7 +989,7 @@ class TestFileViewSnapshot:
         assert snapshot_instance.activity.used[0].url == "https://synapse.org"
 
         # AND The activity should be associated with the new version
-        newest_instance = await FileView(id=fileview.id).get_async(
+        newest_instance = EntityView(id=entityview.id).get(
             synapse_client=self.syn, include_activity=True
         )
         assert newest_instance.version_number == 2
@@ -1029,28 +1000,28 @@ class TestFileViewSnapshot:
         self, project_model: Project
     ) -> None:
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND 1 file to show up in that fileview
+        # AND 1 file to show up in that entityview
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
 
-        # AND a fileview
-        fileview_name = str(uuid.uuid4())
-        fileview_description = "Test fileview"
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview
+        entityview_name = str(uuid.uuid4())
+        entityview_description = "Test entityview"
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
-            description=fileview_description,
+            description=entityview_description,
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE,
             activity=Activity(
@@ -1059,13 +1030,14 @@ class TestFileViewSnapshot:
             ),
         )
 
-        # AND the fileview is stored in Synapse
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
-        assert fileview.id is not None
+        # AND the entityview is stored in Synapse
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
+        assert entityview.id is not None
+        await asyncio.sleep(5)
 
-        # WHEN I snapshot the fileview
-        snapshot = await fileview.snapshot_async(
+        # WHEN I snapshot the entityview
+        snapshot = entityview.snapshot(
             comment="My snapshot",
             label="My snapshot label",
             include_activity=True,
@@ -1076,15 +1048,15 @@ class TestFileViewSnapshot:
         # THEN the table should be snapshotted
         assert snapshot.results is not None
 
-        # AND getting the first version of the fileview should return the snapshot instance
-        snapshot_instance = await FileView(id=fileview.id, version_number=1).get_async(
+        # AND getting the first version of the entityview should return the snapshot instance
+        snapshot_instance = EntityView(id=entityview.id, version_number=1).get(
             synapse_client=self.syn, include_activity=True
         )
         assert snapshot_instance is not None
         assert snapshot_instance.version_number == 1
-        assert snapshot_instance.id == fileview.id
-        assert snapshot_instance.name == fileview_name
-        assert snapshot_instance.description == fileview_description
+        assert snapshot_instance.id == entityview.id
+        assert snapshot_instance.name == entityview_name
+        assert snapshot_instance.description == entityview_description
         assert snapshot_instance.version_comment == "My snapshot"
         assert snapshot_instance.version_label == "My snapshot label"
         assert snapshot_instance.activity.name == "Activity for snapshot"
@@ -1092,7 +1064,7 @@ class TestFileViewSnapshot:
         assert snapshot_instance.activity.used[0].url == "https://synapse.org"
 
         # AND The activity should not be associated with the new version
-        newest_instance = await FileView(id=fileview.id).get_async(
+        newest_instance = EntityView(id=entityview.id).get(
             synapse_client=self.syn, include_activity=True
         )
         assert newest_instance.version_number == 2
@@ -1102,28 +1074,28 @@ class TestFileViewSnapshot:
         self, project_model: Project
     ) -> None:
         # GIVEN a unique folder for this test
-        folder = await Folder(
-            name=str(uuid.uuid4()), parent_id=project_model.id
-        ).store_async(synapse_client=self.syn)
+        folder = Folder(name=str(uuid.uuid4()), parent_id=project_model.id).store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
-        # AND 1 file to show up in that fileview
+        # AND 1 file to show up in that entityview
         filename = utils.make_bogus_uuid_file()
-        file1 = await File(
+        file1 = File(
             parent_id=folder.id,
             name="file1",
             path=filename,
             description="file1_description",
-        ).store_async(synapse_client=self.syn)
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(file1.id)
 
-        # AND a fileview
-        fileview_name = str(uuid.uuid4())
-        fileview_description = "Test fileview"
-        fileview = FileView(
-            name=fileview_name,
+        # AND a entityview
+        entityview_name = str(uuid.uuid4())
+        entityview_description = "Test entityview"
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
-            description=fileview_description,
+            description=entityview_description,
             scope_ids=[folder.id],
             view_type_mask=ViewTypeMask.FILE,
             activity=Activity(
@@ -1132,13 +1104,13 @@ class TestFileViewSnapshot:
             ),
         )
 
-        # AND the fileview is stored in Synapse
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
-        assert fileview.id is not None
+        # AND the entityview is stored in Synapse
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
+        assert entityview.id is not None
 
-        # WHEN I snapshot the fileview
-        snapshot = await fileview.snapshot_async(
+        # WHEN I snapshot the entityview
+        snapshot = entityview.snapshot(
             comment="My snapshot",
             label="My snapshot label",
             include_activity=False,
@@ -1149,51 +1121,51 @@ class TestFileViewSnapshot:
         # THEN the table should be snapshotted
         assert snapshot.results is not None
 
-        # AND getting the first version of the fileview should return the snapshot instance
-        snapshot_instance = await FileView(id=fileview.id, version_number=1).get_async(
+        # AND getting the first version of the entityview should return the snapshot instance
+        snapshot_instance = EntityView(id=entityview.id, version_number=1).get(
             synapse_client=self.syn, include_activity=True
         )
         assert snapshot_instance is not None
         assert snapshot_instance.version_number == 1
-        assert snapshot_instance.id == fileview.id
-        assert snapshot_instance.name == fileview_name
-        assert snapshot_instance.description == fileview_description
+        assert snapshot_instance.id == entityview.id
+        assert snapshot_instance.name == entityview_name
+        assert snapshot_instance.description == entityview_description
         assert snapshot_instance.version_comment == "My snapshot"
         assert snapshot_instance.version_label == "My snapshot label"
         assert snapshot_instance.activity is None
 
         # AND The activity should not be associated with the new version
-        newest_instance = await FileView(id=fileview.id).get_async(
+        newest_instance = EntityView(id=entityview.id).get(
             synapse_client=self.syn, include_activity=True
         )
         assert newest_instance.version_number == 2
         assert newest_instance.activity is None
 
     async def test_snapshot_with_no_scope(self, project_model: Project) -> None:
-        # GIVEN a fileview
-        fileview_name = str(uuid.uuid4())
-        fileview_description = "Test fileview"
-        fileview = FileView(
-            name=fileview_name,
+        # GIVEN a entityview
+        entityview_name = str(uuid.uuid4())
+        entityview_description = "Test entityview"
+        entityview = EntityView(
+            name=entityview_name,
             parent_id=project_model.id,
-            description=fileview_description,
+            description=entityview_description,
             view_type_mask=ViewTypeMask.FILE,
         )
 
-        # AND the fileview is stored in Synapse
-        fileview = await fileview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(fileview.id)
-        assert fileview.id is not None
+        # AND the entityview is stored in Synapse
+        entityview = entityview.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview.id)
+        assert entityview.id is not None
 
-        # WHEN I snapshot the fileview
+        # WHEN I snapshot the entityview
         with pytest.raises(SynapseHTTPError) as e:
-            await fileview.snapshot_async(
+            entityview.snapshot(
                 comment="My snapshot",
                 label="My snapshot label",
                 synapse_client=self.syn,
             )
 
-        # THEN the fileview should not be snapshot
+        # THEN the entityview should not be snapshot
         assert (
             "400 Client Error: You cannot create a version of a view that has no scope."
             in str(e.value)

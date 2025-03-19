@@ -1,5 +1,5 @@
-# FileViews
-FileViews in Synapse allow you to create a queryable view that provides a unified selection
+# EntityViews
+EntityViews in Synapse allow you to create a queryable view that provides a unified selection
 of entities stored in different locations within your Synapse project. This can be
 particularly useful for managing and querying metadata across multiple files, folders,
 or projects that you manage.
@@ -26,11 +26,11 @@ This tutorial will follow a [Flattened Data Layout](../../explanations/structuri
 ## Tutorial Purpose
 In this tutorial you will:
 
-1. Create a FileView with a number of columns
-2. Query the FileView
-3. Update rows in the FileView
-4. Update the scope of your FileView
-5. Update the types of entities in your FileView
+1. Create a EntityView with a number of columns
+2. Query the EntityView
+3. Update rows in the EntityView
+4. Update the scope of your EntityView
+5. Update the types of entities in your EntityView
 
 ## Prerequisites
 * This tutorial assumes that you have a project in Synapse with one or more
@@ -44,28 +44,28 @@ and [File](./file.md) tutorials.
 
 First let's set up some constants we'll use in this script, and find the ID of our project
 ```python
-{!docs/tutorials/python/tutorial_scripts/fileview.py!lines=5-22}
+{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=5-22}
 ```
 
-## 2. Create a FileView with Columns
+## 2. Create a EntityView with Columns
 
-Now, we will create 4 columns to add to our FileView. Recall that any data added to
+Now, we will create 4 columns to add to our EntityView. Recall that any data added to
 these columns will be stored as an annotation on the underlying File.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/fileview.py!lines=24-31}
+{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=24-31}
 ```
 
 Next we're going to store what we have to Synapse and print out the results
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/fileview.py!lines=33-47}
+{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=33-47}
 ```
 
-## 3. Query the FileView
+## 3. Query the EntityView
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/fileview.py!lines=49-54}
+{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=49-54}
 ```
 
 <details class="example">
@@ -77,50 +77,50 @@ Next we're going to store what we have to Synapse and print out the results
 ```
 </details>
 
-## 4. Update rows in the FileView
+## 4. Update rows in the EntityView
 
-Now that we know the data is present in the FileView, let's go ahead and update the
+Now that we know the data is present in the EntityView, let's go ahead and update the
 annotations on these Files. The following code sets all returned rows to a single
 value. Since the results were returned as a Pandas DataFrame you have many
 options to search through and set values on your data.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/fileview.py!lines=56-66}
+{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=56-66}
 ```
 
 A note on `wait_for_eventually_consistent_view`: FileViews in Synapse are eventually
 consistent, meaning that updates to data may take some time to be reflected in the
 view. The `wait_for_eventually_consistent_view` flag allows the code to pause until
-the changes are fully propagated to your FileView. When this flag is set to `True` a
+the changes are fully propagated to your EntityView. When this flag is set to `True` a
 query is automatically executed on the view to determine if the view contains the
 updated changes. It will allow your next query on your view to reflect any changes that
 you made. Conversely, if this is set to `False`, there is no guarantee that your next
 query will reflect your most recent changes.
 
-## 5. Update the scope of your FileView
+## 5. Update the scope of your EntityView
 
 As your project expands or contracts you will need to adjust the containers you'd like
 to include in your view. In order to accomplish this you may modify the `scope_ids`
 attribute on your view.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/fileview.py!lines=69-73}
+{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=69-73}
 ```
 
-## 6. Update the types of Entities included in your FileView
+## 6. Update the types of Entities included in your EntityView
 
 You may also want to change what types of Entities may be included in your view. To
 accomplish this you'll be modifying the `view_type_mask` attribute on your view.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/fileview.py!lines=75-79}
+{!docs/tutorials/python/tutorial_scripts/entityview.py!lines=75-79}
 ```
 
 ## Results
 Now that you have created and updated your File View, you can inspect it in the
 Synapse web UI. It should look similar to:
 
-![fileview](./tutorial_screenshots/fileview.png)
+![entityview](./tutorial_screenshots/entityview.png)
 
 ## Source code for this tutorial
 
@@ -128,13 +128,13 @@ Synapse web UI. It should look similar to:
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/fileview.py!}
+{!docs/tutorials/python/tutorial_scripts/entityview.py!}
 ```
 </details>
 
 ## References used in this tutorial
 
-- [FileView](../../reference/experimental/sync/fileview.md)
+- [EntityView](../../reference/experimental/sync/entityview.md)
 - [Column][synapseclient.models.Column]
 - [syn.login][synapseclient.Synapse.login]
 - [Project](../../reference/experimental/sync/project.md)
