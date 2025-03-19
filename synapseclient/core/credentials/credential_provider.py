@@ -1,6 +1,6 @@
 """
 This module contains classes that are responsible for retrieving synapse authentication
-information rom various sources such as:
+information from various sources such as:
 
 - User-provided login arguments
 - Synapse configuration file (`~/.synapseConfig`)

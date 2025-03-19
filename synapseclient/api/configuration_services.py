@@ -79,7 +79,9 @@ def get_client_authenticated_s3_profile(
 
 def get_config_authentication(config_path: str, profile: str = "default") -> Dict[str, str]:
     """
-    Retrieve authentication credentials from the Synapse configuration file.
+    Get the authentication section of the configuration file.
+    Reads the Synapse configuration file and extracts authentication information
+    for a given profile.
 
     Args:
         config_path (str): Path to the Synapse config file.
