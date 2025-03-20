@@ -1,13 +1,6 @@
 """
 This module contains classes that are responsible for retrieving synapse authentication
-information from various sources such as:
-
-- User-provided login arguments
-- Synapse configuration file (`~/.synapseConfig`)
-- Environment variables
-- AWS Parameter Store
-
-The retrieved authentication credentials are used for secure login.
+information (e.g. authToken) from a source (e.g. login args, config file).
 """
 
 import abc
@@ -19,7 +12,8 @@ from opentelemetry import trace
 from synapseclient.api import get_config_authentication
 from synapseclient.core.credentials.cred_data import (
     SynapseAuthTokenCredentials,
-    SynapseCredentials, UserLoginArgs
+    SynapseCredentials,
+    UserLoginArgs
 )
 from synapseclient.core.exceptions import SynapseAuthenticationError
 
@@ -39,7 +33,7 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def _get_auth_info(
         self, syn: "Synapse", user_login_args: Dict[str, str]
-    ) -> Tuple[Optional[str], Optional[str]]:
+    ) -> Tuple[None, None]:
         """
         Subclasses must implement this to decide how to obtain an authentication token.
         For any of these values, return None if it is not possible to get that value.
@@ -61,18 +55,34 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
     def get_synapse_credentials(
         self, syn: "Synapse", user_login_args: UserLoginArgs
     ) -> Union[SynapseCredentials, None]:
+        """
+        Returns
+        [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials]
+        if this provider is able to get valid credentials, returns None otherwise.
 
-        if not user_login_args.auth_token and not user_login_args.username:
+        Arguments:
+            syn: Synapse client instance
+            user_login_args: subset of arguments passed during syn.login()
+
+        Returns:
+            [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials]
+                if valid credentials can be found by this provider, None otherwise.
+        """
+        # Retrieve authentication info using the appropriate method
+        username, auth_token = self._get_auth_info(syn=syn, user_login_args=user_login_args)
+
+        # If authentication token is not provided, fall back to configuration file
+        if not auth_token:
             auth_profiles = get_config_authentication(syn.configPath, user_login_args.profile)
-            user_login_args.username = auth_profiles["username"]
-            user_login_args.auth_token = auth_profiles["auth_token"]
+            if not username:
+                username = auth_profiles["username"]
+            auth_token = auth_profiles["authtoken"]
 
-        return self._create_synapse_credential(syn, user_login_args.username, user_login_args.auth_token)
+        return self._create_synapse_credential(syn, username, auth_token)
 
     def _create_synapse_credential(
         self, syn: "Synapse", username: str, auth_token: str
     ) -> Union[SynapseCredentials, None]:
-
         if auth_token is not None:
             credentials = SynapseAuthTokenCredentials(auth_token)
             profile = syn.restGET("/userProfile", auth=credentials)
@@ -81,9 +91,9 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
             profile_displayname = profile.get("displayName")
 
             if username and (
-                username != profile_username and username not in profile_emails):
-
-            # a username/email is not required when logging in with an auth token
+                username != profile_username and username not in profile_emails
+            ):
+                # a username/email is not required when logging in with an auth token
                 # however if both are provided raise an error if they do not correspond
                 # to avoid any ambiguity about what profile was logged in
                 raise SynapseAuthenticationError(
@@ -103,9 +113,13 @@ class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
 
 
 class UserArgsCredentialsProvider(SynapseCredentialsProvider):
-    """Retrieves authentication information from user_login_args during a CLI session."""
+    """
+    Retrieves auth info from user_login_args during a CLI session.
+    """
 
-    def _get_auth_info(self, syn: "Synapse", user_login_args: UserLoginArgs) -> Tuple[Optional[str], Optional[str]]:
+    def _get_auth_info(
+        self, syn: "Synapse", user_login_args: UserLoginArgs
+    ) -> Tuple[Optional[str], Optional[str]]:
         """
         Retrieves authentication information from user_login_args during a CLI session.
 
@@ -119,7 +133,7 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
         """
 
         token: Optional[str] = user_login_args.auth_token
-        username: Optional[str] = user_login_args.username if user_login_args.username else None
+        username: Optional[str] = user_login_args.username
 
         return username, token
 
@@ -128,7 +142,9 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     Retrieves auth info from the `~/.synapseConfig` file
     """
 
-    def _get_auth_info(self, syn: "Synapse", user_login_args) -> Tuple[Optional[str], Optional[str]]:
+    def _get_auth_info(
+            self, syn: "Synapse", user_login_args
+    ) -> Tuple[Optional[str], Optional[str]]:
         """
         Retrieves authentication credentials from the `~/.synapseConfig` file.
 
@@ -145,6 +161,22 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
             SynapseAuthenticationError: If no authentication method is provided or
             if the specified profile does not exist in the configuration file.
         """
+        # check to make sure we didn't accidentally provide the wrong user
+        config_dict = get_config_authentication(config_path=syn.configPath)
+        username = config_dict.get("username")
+        if user_login_args.username and username != user_login_args.username:
+            # if the username is provided and there is a config file username but they
+            # don't match then we don't use any of the values from the config
+            # to prevent ambiguity
+            username = None
+            token = None
+            syn.logger.warning(
+                f"{user_login_args.username} was defined in the user login "
+                "arguments, however, it is also defined in the `~/.synapseConfig` "
+                "file. Becuase they do not match we will not use the `authtoken` "
+                "in the `~/.synapseConfig` file.",
+            )
+
         # If authToken is explicitly provided, return it directly and skip profiles
         if user_login_args.auth_token:
             return user_login_args.username, user_login_args.auth_token
@@ -250,11 +282,29 @@ class SynapseCredentialsProviderChain(object):
     def __init__(self, cred_providers) -> None:
         self.cred_providers = list(cred_providers)
 
-    def get_credentials(self, syn: "Synapse", user_login_args: "UserLoginArgs") -> Union[SynapseCredentials, None]:
+    def get_credentials(
+            self, syn: "Synapse", user_login_args: "UserLoginArgs"
+    ) -> Union[SynapseCredentials, None]:
+        """
+        Iterates its list of
+        [SynapseCredentialsProvider][synapseclient.core.credentials.credential_provider.SynapseCredentialsProvider]
+        and returns the first non-None
+        [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials]
+        returned by a provider. If no provider is able to provide a
+        [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials],
+        returns None.
+
+        Arguments:
+            syn: Synapse client instance
+            user_login_args: subset of arguments passed during syn.login()
+
+        Returns:
+            [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials]
+                returned by the first non-None provider in its list, None otherwise
+        """
         selected_profile = user_login_args.profile or os.getenv("SYNAPSE_PROFILE")
 
         for provider in self.cred_providers:
-
             creds = provider.get_synapse_credentials(
                 syn,
                 UserLoginArgs(
@@ -275,7 +325,7 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain(
         UserArgsCredentialsProvider(),
         ConfigFileCredentialsProvider(),
         EnvironmentVariableCredentialsProvider(),
-        AWSParameterStoreCredentialsProvider(),
+        AWSParameterStoreCredentialsProvider(),  # see service catalog issue: SC-260
     ]
 )
 

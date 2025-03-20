@@ -8,7 +8,6 @@ import urllib.parse
 from typing import Dict
 
 from synapseclient.core.constants import config_file_constants
-from synapseclient.core.exceptions import SynapseNoCredentialsError
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 
 
@@ -77,46 +76,37 @@ def get_client_authenticated_s3_profile(
         section_name=config_section, config_path=config_path
     ).get("profile_name", "default")
 
-def get_config_authentication(config_path: str, profile: str = "default") -> Dict[str, str]:
+
+def get_config_authentication(
+        config_path: str,
+        profile: str = "default"
+) -> Dict[str, str]:
     """
-    Get the authentication section of the configuration file.
-    Reads the Synapse configuration file and extracts authentication information
-    for a given profile.
+      Get the authentication section of the configuration file.
 
-    Args:
-        config_path (str): Path to the Synapse config file.
-        profile (str, optional): The profile name to retrieve credentials for. Defaults to "default".
+      Arguments:
+          config_path:  Path to configuration file on local file system
+          profile (str, optional): The profile name to retrieve credentials for. Defaults to "default".
 
-    Returns:
-        Dict[str, str]: Dictionary containing 'username' and 'auth_token'.
+      Returns:
+          The authentication section of the configuration file
+      """
 
-    Raises:
-        SynapseNoCredentialsError: If the specified profile is not found in the config file.
-        FileNotFoundError: If the config file does not exist.
+    section = f"profile {profile}" if profile != "default" else profile
 
-    Example:
-        >>> get_config_authentication("~/.synapseConfig", profile="user1")
-        {'username': 'user1', 'auth_token': 'user1_auth_token'}
-    """
-    config = configparser.ConfigParser()
-    config.read(config_path)
+    section_for_profile = get_config_section_dict(
+        section_name=section,
+        config_path=config_path,
+    )
 
-    auth_profiles = {}
+    if section_for_profile:
+        return section_for_profile
 
-    # Extract all profiles and normalize them
-    for section in config.sections():
-        normalized_profile = section.replace("profile ", "").strip()  # Ensure no trailing spaces
-        auth_profiles[normalized_profile] = {
-            "username": config.get(section, "username", fallback=None),
-            "auth_token": config.get(section, "authtoken", fallback=None),
-        }
+    return get_config_section_dict(
+        section_name=config_file_constants.AUTHENTICATION_SECTION_NAME,
+        config_path=config_path,
+    )
 
-    # **Check for the exact match**
-    if profile in auth_profiles:
-        return auth_profiles[profile]
-
-    # If profile not found, return error instead of "default"
-    raise SynapseNoCredentialsError(f"Profile '{profile}' not found in the config file.")
 
 def get_transfer_config(
     config_path: str,

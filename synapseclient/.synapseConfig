@@ -4,12 +4,7 @@
 
 ## Used for logging in to Synapse. See https://python-docs.synapse.org/tutorials/authentication/
 ## for information on retrieving an auth token.
-## Single-profile configuration
-#[authentication]
-#username = <username>
-#authtoken = <authtoken>
 
-## Multi-profile configuration
 #[default]
 #username = default_user
 #authtoken = default_auth_token

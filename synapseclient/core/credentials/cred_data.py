@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from typing import Optional
 import abc
 import base64
-import collections
 import json
 import typing
 
@@ -127,10 +126,6 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
 class UserLoginArgs:
     """
     Data class representing user login arguments for authentication.
-
-    This class encapsulates authentication credentials, supporting both profile-based
-    authentication (from the Synapse configuration file) and direct authentication
-    using an auth token.
 
     Attributes:
         profile (Optional[str]): The profile name to use for authentication.
