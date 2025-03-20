@@ -289,7 +289,6 @@ def execute_test_copy(syn: Synapse, schedule_for_cleanup):
 
 
 class TestCopyWiki:
-    @pytest.mark.asyncio(loop_scope="session")
     @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
     async def init(self, syn, schedule_for_cleanup):
         self.syn = syn
@@ -451,7 +450,6 @@ class TestCopyWiki:
 
 
 class TestCopyFileHandles:
-    @pytest.mark.asyncio(loop_scope="session")
     @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
     async def init(self, syn, schedule_for_cleanup):
         self.syn = syn
