@@ -77,7 +77,6 @@ ETAG = "etag"
 MODIFIED_ON = "modifiedOn"
 
 
-@pytest.mark.asyncio(loop_scope="session")
 @pytest_asyncio.fixture(loop_scope="function", scope="function", autouse=True)
 async def test_state(syn: Synapse, schedule_for_cleanup: Callable[..., None]):
     class TestState:
