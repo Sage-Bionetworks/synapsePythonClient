@@ -198,7 +198,7 @@ jobs:
           fi
 
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n 6 --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n 4 --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
           pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
