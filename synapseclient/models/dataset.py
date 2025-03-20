@@ -595,6 +595,42 @@ class Dataset(
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
             associated with all values in the list.
+        include_default_columns: When creating a dataset or view, specifies if default
+            columns should be included. Default columns are columns that are
+            automatically added to the dataset or view. These columns are managed by
+            Synapse and cannot be modified. If you attempt to create a column with the
+            same name as a default column, you will receive a warning when you store the
+            dataset.
+
+            **`include_default_columns` is only used if this is the first time that the
+            view is being stored.** If you are updating an existing view this attribute
+            will be ignored. If you want to add all default columns back to your view
+            then you may use this code snippet to accomplish this:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Dataset
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                view = await Dataset(id="syn1234").get_async()
+                await view._append_default_columns()
+                await view.store_async()
+
+            asyncio.run(main())
+            ```
+
+            The column you are overriding will not behave the same as a default column.
+            For example, suppose you create a column called `id` on a Dataset. When
+            using a default column, the `id` stores the Synapse ID of each of the
+            entities included in the scope of the view. If you override the `id` column
+            with a new column, the `id` column will no longer store the Synapse ID of
+            the entities in the view. Instead, it will store the values you provide when
+            you store the dataset. It will be stored as an annotation on the entity for
+            the row you are modifying.
 
     Example: Create a new dataset from a list of EntityRefs.
 

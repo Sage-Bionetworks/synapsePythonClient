@@ -401,6 +401,16 @@ class TableStoreMixin:
         ):
             await self._append_default_columns(synapse_client=synapse_client)
 
+        if self.columns:
+            # check that column names match this regex "^[a-zA-Z0-9,_.]+"
+            for _, column in self.columns.items():
+                if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
+                    raise ValueError(
+                        f"Column name '{column.name}' contains invalid characters. "
+                        "Names may only contain: letters, numbers, spaces, underscores, "
+                        "hyphens, periods, plus signs, apostrophes, and parentheses."
+                    )
+
         if dry_run:
             client.logger.info(
                 f"[{self.id}:{self.name}]: Dry run enabled. No changes will be made."
@@ -529,14 +539,6 @@ class ViewStoreMixin(TableStoreMixin):
                         "Overwriting with default column."
                     )
                 self.columns[default_column.name] = default_column
-        # check that column names match this regex "^[a-zA-Z0-9,_.]+"
-        for _, column in self.columns.items():
-            if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
-                raise ValueError(
-                    f"Column name '{column.name}' contains invalid characters. "
-                    "Names may only contain: letters, numbers, spaces, underscores, "
-                    "hyphens, periods, plus signs, apostrophes, and parentheses."
-                )
 
     async def store_async(
         self,

@@ -69,11 +69,11 @@ view.update_rows(
 # Over time you may have a need to add or remove scopes from the EntityView, you may
 # use `add` or `remove` along with the Synapse ID of the scope you wish to add/remove
 view.scope_ids.add("syn1234")
-# fileview.scope_ids.remove("syn1234")
+# view.scope_ids.remove("syn1234")
 view.store()
 
 # You may also need to add or remove the types of Entities that may show up in your view
 # You will be able to specify multiple types using the bitwise OR operator, or a single value
 view.view_type_mask = ViewTypeMask.FILE | ViewTypeMask.FOLDER
-# fileview.view_type_mask = ViewTypeMask.FILE
+# view.view_type_mask = ViewTypeMask.FILE
 view.store()

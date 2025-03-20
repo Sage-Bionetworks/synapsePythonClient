@@ -88,7 +88,7 @@ options to search through and set values on your data.
 {!docs/tutorials/python/tutorial_scripts/entityview.py!lines=56-66}
 ```
 
-A note on `wait_for_eventually_consistent_view`: FileViews in Synapse are eventually
+A note on `wait_for_eventually_consistent_view`: EntityViews in Synapse are eventually
 consistent, meaning that updates to data may take some time to be reflected in the
 view. The `wait_for_eventually_consistent_view` flag allows the code to pause until
 the changes are fully propagated to your EntityView. When this flag is set to `True` a
