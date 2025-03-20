@@ -9,7 +9,6 @@ import synapseutils
 from synapseclient import File, Folder, Project
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_walk(syn, schedule_for_cleanup):
     try:
         execute_test_walk(syn, schedule_for_cleanup)

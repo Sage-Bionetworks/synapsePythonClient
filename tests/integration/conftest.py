@@ -51,7 +51,7 @@ def pytest_collection_modifyitems(items) -> None:
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
-def syn(request) -> Synapse:
+async def syn(request) -> Synapse:
     """
     Create a logged in Synapse instance that can be shared by all tests in the session.
     If xdist is being used a syn is created for each worker node.
