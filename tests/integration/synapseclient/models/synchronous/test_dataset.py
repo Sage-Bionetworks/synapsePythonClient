@@ -71,7 +71,9 @@ class TestDataset:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    def test_create_empty_dataset(self, syn: Synapse, project_model: Project) -> None:
+    async def test_create_empty_dataset(
+        self, syn: Synapse, project_model: Project
+    ) -> None:
         # GIVEN an empty Dataset
         dataset = Dataset(
             name=str(uuid.uuid4()),
@@ -93,7 +95,9 @@ class TestDataset:
         assert new_dataset_instance.id == dataset.id
         assert new_dataset_instance.description == dataset.description
 
-    def test_create_dataset_with_file(self, project_model: Project, file: File) -> None:
+    async def test_create_dataset_with_file(
+        self, project_model: Project, file: File
+    ) -> None:
         # GIVEN a File on Synapse
         file_1 = file.store(parent=project_model)
 
@@ -120,7 +124,7 @@ class TestDataset:
             EntityRef(id=file_1.id, version=file_1.version_number),
         ]
 
-    def test_create_dataset_with_folder(
+    async def test_create_dataset_with_folder(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a Folder with 3 files on Synapse
@@ -153,7 +157,7 @@ class TestDataset:
         for item in new_dataset_instance.items:
             assert item in expected_items
 
-    def test_create_dataset_with_files_and_folders(
+    async def test_create_dataset_with_files_and_folders(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
         # GIVEN a File and a Folder with 3 files on Synapse
@@ -190,7 +194,7 @@ class TestDataset:
         for item in new_dataset_instance.items:
             assert item in expected_items
 
-    def test_update_dataset_attributes(
+    async def test_update_dataset_attributes(
         self, syn: Synapse, project_model: Project
     ) -> None:
         # GIVEN an empty Dataset
@@ -219,7 +223,7 @@ class TestDataset:
         # AND all versions should have the same id
         assert retrieved_dataset.id == updated_dataset.id == original_dataset.id
 
-    def test_query_dataset(self, project_model: Project, file: File) -> None:
+    async def test_query_dataset(self, project_model: Project, file: File) -> None:
         # GIVEN a Dataset with a File
         file = file.store(parent=project_model)
         dataset = Dataset(
@@ -236,7 +240,7 @@ class TestDataset:
         assert row["name"][0] == file.name
         assert row["description"][0] == file.description
 
-    def test_part_mask_query_everything(
+    async def test_part_mask_query_everything(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a Dataset with a File
@@ -275,7 +279,7 @@ class TestDataset:
         assert results.sum_file_sizes.sum_file_size_bytes is not None
         assert results.last_updated_on is not None
 
-    def test_part_mask_query_results_only(
+    async def test_part_mask_query_results_only(
         self, project_model: Project, file: File
     ) -> None:
         # GIVEN a Dataset with a File
@@ -307,7 +311,7 @@ class TestDataset:
         assert results.sum_file_sizes is None
         assert results.last_updated_on is None
 
-    def test_update_dataset_rows(
+    async def test_update_dataset_rows(
         self, syn: Synapse, project_model: Project, file: File
     ) -> None:
         # GIVEN a Dataset with a File and a custom column
@@ -343,7 +347,7 @@ class TestDataset:
         # THEN the dataset row should be updated
         assert row["my_annotation"][0] == "good data"
 
-    def test_update_dataset_remove_item(
+    async def test_update_dataset_remove_item(
         self,
         project_model: Project,
     ) -> None:
@@ -376,7 +380,7 @@ class TestDataset:
             EntityRef(id=files[2].id, version=files[2].version_number) in dataset.items
         )
 
-    def test_delete_dataset(self, syn: Synapse, project_model: Project) -> None:
+    async def test_delete_dataset(self, syn: Synapse, project_model: Project) -> None:
         # GIVEN an empty Dataset
         dataset = Dataset(
             name=str(uuid.uuid4()),
@@ -402,7 +406,7 @@ class TestDatasetColumns:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def test_add_column(
+    async def test_add_column(
         self,
         syn: Synapse,
         project_model: Project,
@@ -423,7 +427,7 @@ class TestDatasetColumns:
         # THEN the dataset should have the new column
         assert "my_annotation" in dataset.columns
 
-    def test_delete_column(self, project_model: Project) -> None:
+    async def test_delete_column(self, project_model: Project) -> None:
         # GIVEN a Dataset in Synapse
         dataset_name = str(uuid.uuid4())
         old_column_name = "column_string"
@@ -463,7 +467,7 @@ class TestDatasetColumns:
         assert column_to_keep in new_dataset_instance.columns
         assert len(new_dataset_instance.columns.values()) == 1
 
-    def test_reorder_column(self, project_model: Project) -> None:
+    async def test_reorder_column(self, project_model: Project) -> None:
         # GIVEN a Dataset in Synapse
         dataset_name = str(uuid.uuid4())
         first_column_name = "first"
@@ -493,7 +497,7 @@ class TestDatasetColumns:
             first_column_name,
         ]
 
-    def test_rename_column(self, project_model: Project) -> None:
+    async def test_rename_column(self, project_model: Project) -> None:
         # GIVEN a dataset in Synapse
         dataset_name = str(uuid.uuid4())
         old_column_name = "column_string"
