@@ -104,7 +104,7 @@ Migrating a Synapse project or folder programmatically is a two step process.
 
 First ensure that you know the id of the storage location you want to migrate to. More info on storage locations can be found above and [here](https://help.synapse.org/docs/Custom-Storage-Locations.2048327803.html).
 
-Once the storage location is known, the first step to migrate the project or folder is to create a migratable index of its contents using the [index_files_for_migration](synapseutils.migrate_functions.index_files_for_migration) function, e.g.
+Once the storage location is known, the first step to migrate the project or folder is to create a migratable index of its contents using the [index_files_for_migration][synapseutils.migrate_functions.index_files_for_migration] function, e.g.
 
 When specifying the `.db` file for the migratable indexes you need to specify a `.db` file that does not already exist for another synapse project or folder on disk. It is the best practice to specify a unique name for the file by including the synapse id in the name of the file, or other unique identifier.
 
@@ -134,9 +134,9 @@ result = synapseutils.index_files_for_migration(
 )
 ```
 
-If called on a container (e.g. a Project or Folder) the *index_files_for_migration* function will recursively index all of the children of that container (including its subfolders). Once the entity has been indexed you can optionally programmatically inspect the the contents of the index or output its contents to a csv file in order to manually inspect it using the [available methods](synapseutils.html#synapseutils.migrate_functions.MigrationResult) on the returned result object.
+If called on a container (e.g. a Project or Folder) the *index_files_for_migration* function will recursively index all of the children of that container (including its subfolders). Once the entity has been indexed you can optionally programmatically inspect the the contents of the index or output its contents to a csv file in order to manually inspect it using the [available methods][synapseutils.migrate_functions.MigrationResult] on the returned result object.
 
-The next step to trigger the migration from the indexed files is using the [migrate_indexed_files](synapseutils.html#synapseutils.migrate_functions.migrate_indexed_files) function, e.g.
+The next step to trigger the migration from the indexed files is using the [migrate_indexed_files][synapseutils.migrate_functions.migrate_indexed_files] function, e.g.
 
 ```python
 result = synapseutils.migrate_indexed_files(
