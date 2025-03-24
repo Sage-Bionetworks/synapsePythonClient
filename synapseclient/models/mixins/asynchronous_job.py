@@ -102,13 +102,24 @@ class AsynchronousCommunicator:
                 # attributes with the response from the API
                 agent_prompt.send_job_and_wait_async()
         """
-        result = await send_job_and_wait_async(
+        results = await send_job_and_wait_async(
             request=self.to_synapse_request(),
             request_type=self.concrete_type,
             timeout=timeout,
             synapse_client=synapse_client,
         )
-        self.fill_from_dict(synapse_response=result)
+        if "results" in results:
+            for result in results["results"]:
+                if "updateResults" in result:
+                    for update_result in result["updateResults"]:
+                        failure_code = update_result.get("failureCode", None)
+                        failure_message = update_result.get("failureMessage", None)
+                        if failure_code or failure_message:
+                            client = Synapse.get_client(synapse_client=synapse_client)
+                            client.logger.warning(
+                                f"Failed to send async job to Synapse: {update_result}"
+                            )
+        self.fill_from_dict(synapse_response=results)
         if not post_exchange_args:
             post_exchange_args = {}
         await self._post_exchange_async(

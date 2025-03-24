@@ -4,6 +4,7 @@ import time
 import uuid
 
 import pytest
+import pytest_asyncio
 from func_timeout import FunctionTimedOut, func_set_timeout
 
 import synapseclient.core.utils as utils
@@ -288,8 +289,9 @@ def execute_test_copy(syn: Synapse, schedule_for_cleanup):
 
 
 class TestCopyWiki:
-    @pytest.fixture(autouse=True)
-    def init(self, syn, schedule_for_cleanup):
+    @pytest.mark.asyncio(loop_scope="session")
+    @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
+    async def init(self, syn, schedule_for_cleanup):
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
@@ -449,8 +451,8 @@ class TestCopyWiki:
 
 
 class TestCopyFileHandles:
-    @pytest.mark.asyncio(scope="session")
-    @pytest.fixture(autouse=True)
+    @pytest.mark.asyncio(loop_scope="session")
+    @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
     async def init(self, syn, schedule_for_cleanup):
         self.syn = syn
 
