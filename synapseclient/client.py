@@ -225,14 +225,13 @@ def login(*args, **kwargs):
     Example: Getting started
         Logging in to Synapse using an authToken
 
-            from synapseclient import Synapse
-            syn = Synapse()
-            syn.login(auth_token="auth_token")
+            import synapseclient
+            syn = synapseclient.login(authToken="authtoken")
 
         Using environment variable or `.synapseConfig`
-                from synapseclient import Synapse
-                syn = Synapse()
-                syn.login(profile="user_profile")
+
+            import synapseclient
+            syn = synapseclient.login(profile="user1)
     """
 
     syn = Synapse()
@@ -800,26 +799,16 @@ class Synapse(object):
             silent (bool): Defaults to False.  Suppresses the "Welcome ...!" message.
             profile (str): Profile to use from .synapseConfig (default: "default").
 
-        **Note: You Do Not Need to Reinstantiate `Synapse` Every Time**
-        You only need to instantiate `Synapse` once per script/session before calling `.login()`.
-        If `Synapse` is already instantiated, just call `.login()` again to switch credentials.
-
         Example: Logging in
-            - Logging in using a specific profile:
-                from synapseclient import Synapse
-                syn = Synapse() # Instantiate once
-                syn.login(profile="user_profile")
+        - Logging in using a specific profile:
+                import synapseclient
+                syn = synapseclient.login(profile="user1)
+                > Welcome, username! You are using the user1 profile
 
         - Logging in with an authentication token:
-            from synapseclient import Synapse
-            syn = Synapse() # Instantiate once
-            syn.login(authToken="your_auth_token")
-
-        -Using an auth token and username. The username is optional but verified
-            against the username in the auth token:
-                from synapseclient import Synapse
-                syn = Synapse() # Instantiate once
-                syn.login(email="my-username", authToken="authtoken")
+            import synapseclient
+            syn = synapseclient.login(authToken = "your_auth_token"))
+            > Welcome, username!
         """
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
@@ -832,9 +821,11 @@ class Synapse(object):
 
         user_login_args = UserLoginArgs(profile=profile, username=email, auth_token=authToken)
         credential_provider_chain = get_default_credential_chain()
-        self.credentials = credential_provider_chain.get_credentials(syn=self, user_login_args=user_login_args)
+        self.credentials = credential_provider_chain.get_credentials(
+            syn=self,
+            user_login_args=user_login_args)
 
-        # Final check
+        # Final check on login success
         if not self.credentials:
             raise SynapseNoCredentialsError(
                 f"No valid authentication credentials provided.\n"
@@ -844,7 +835,7 @@ class Synapse(object):
 
         if not silent:
             display_name = self.credentials.displayname or self.credentials.username
-            if profile.lower() == config_file_constants.AUTHENTICATION_SECTION_NAME:
+            if not profile or profile.lower() == config_file_constants.AUTHENTICATION_SECTION_NAME:
                 self.logger.info(f"Welcome, {display_name}!\n")
             else:
                 self.logger.info(f"Welcome, {display_name}! You are using the '{profile}' profile.")

@@ -349,16 +349,17 @@ synapse list [-h] [-r] [-l] [-m] syn123
 
 ### `config`
 
-Create or modify a Synapse configuration file.
+Create or modify a Synapse configuration file. This command interactively prompts for a username and a Synapse Personal Access Token (Auth Token) and writes them to the ~/.synapseConfig file.
+Supports multiple profiles.
 
 ```bash
-synapse config [-h]
+synapse config [-h] [--profile PROFILE_NAME]
 ```
 
-| Name                | Type    | Description                                                               |
-|---------------------|---------|---------------------------------------------------------------------------|
-| `-h`                | Named  | Show the help message and exit.                                           |
-
+| Name        | Type    | Description                                                               |
+|-------------|---------|---------------------------------------------------------------------------|
+| `-h`        | Named  | Show the help message and exit.                                           |
+| `--profile` | Named  | Optional name of the Synapse profile to create or update in the config file. <br/>If omitted, modifies the default [authentication] section.                                          |
 
 ### `set-provenance`
 
@@ -475,14 +476,17 @@ Verify credentials can be used to login to Synapse.
 This does not need to be used prior to executing other commands.
 
 ```bash
-synapse login [-h] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN]
+synapse login [-h] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN] [--profile PROFILE_NAME]
 ```
 
-| Name                | Type    | Description                                                               | Default               |
-|---------------------|---------|---------------------------------------------------------------------------|-----------------------|
-| `-u, --username`    | Named  | Username used to connect to Synapse.                                       |                       |
-| `-p, --password`    | Named  | Synapse Auth Token (aka: Personal Access Token) used to connect to Synapse |                       |
+| Name             | Type    | Description                                                                | Default               |
+|------------------|---------|----------------------------------------------------------------------------|-----------------------|
+| `-u, --username` | Named  | Username used to connect to Synapse.                                       |                       |
+| `-p, --password` | Named  | Synapse Auth Token (aka: Personal Access Token) used to connect to Synapse |                       |
+| `--profile`      | Named  | Name of the Synapse profile (from .synapseConfig) to log in under          |                       |
 
+If --profile is provided, the credentials will be validated and the login will be associated with the given profile.
+If no profile is specified, the default '[default]' section in ~/.synapseConfig will be used.
 
 ### `test-encoding`
 

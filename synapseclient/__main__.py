@@ -492,7 +492,7 @@ def storeTable(args, syn):
     syn.logger.info('{"tableId": "%s"}', table_ent.tableId)
 
 
-def _replace_existing_config(path, auth_section):
+def _replace_existing_config(path, auth_section, profile_name):
     # insert the auth section into the existing config file
 
     # always make a backup of the existing config file,
@@ -513,8 +513,9 @@ def _replace_existing_config(path, auth_section):
     with open(path, "r") as config_o:
         config_text = config_o.read()
 
+    profile_name = re.escape(profile_name)
     matcher = re.search(
-        r"^[ \t]*(\[authentication\].*?)(^[ \t]*\[|\Z)",
+        rf"^[ \t]*(\[{profile_name}\].*?)(^[ \t]*\[|\Z)",
         config_text,
         flags=re.MULTILINE | re.DOTALL,
     )
@@ -534,7 +535,7 @@ def _replace_existing_config(path, auth_section):
     return new_config_text
 
 
-def _generate_new_config(auth_section):
+def _generate_new_config(auth_section, profile_name):
     # insert the auth section into the default config template file
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -542,13 +543,19 @@ def _generate_new_config(auth_section):
     with open(os.path.join(script_dir, ".synapseConfig"), "r") as config_o:
         config_text = config_o.read()
 
-    # Replace text in configuration
-    new_config_text = re.sub(
-        r"#\[authentication\].*<authtoken>",
-        auth_section,
-        config_text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
+    if not profile_name:
+        # Replace text in configuration
+        new_config_text = re.sub(
+            r"#\[default\].*<authtoken>",
+            auth_section,
+            config_text,
+            flags=re.MULTILINE | re.DOTALL,
+        )
+
+    if profile_name:
+        profile_section = f"[{profile_name}]\n{auth_section.strip()}\n"
+        new_config_text = config_text.strip() + "\n\n" + profile_section
+
     return new_config_text
 
 
@@ -564,15 +571,16 @@ def config(args, syn):
     # the endpoints of the credentials)
     login_key = _authenticate_login(syn, user, secret, silent=True)
 
-    auth_section = "[authentication]\n"
+    profile_name = args.profile or "default"
+    auth_section = f"[{profile_name}]\n"
     if user:
         auth_section += f"username={user}\n"
     auth_section += f"{login_key.lower()}={secret}\n\n"
 
     if os.path.exists(args.configPath):
-        config_text = _replace_existing_config(args.configPath, auth_section)
+        config_text = _replace_existing_config(args.configPath, auth_section, profile_name)
     else:
-        config_text = _generate_new_config(auth_section)
+        config_text = _generate_new_config(auth_section, profile_name)
 
     with open(args.configPath, "w") as config_o:
         config_o.write(config_text)
@@ -662,6 +670,7 @@ def login(args, syn: synapseclient.Synapse) -> None:
         syn,
         args.synapseUser,
         args.synapse_auth_token,
+        profile=args.profile,
     )
     profile = syn.getUserProfile()
     syn.logger.info(
@@ -811,6 +820,11 @@ def build_parser():
         "--password",
         dest="synapse_auth_token",
         help="Personal Access Token (aka: Synapse Auth Token) used to connect to Synapse.",
+    )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        help="Synapse config profile to use when logging in (from ~/.synapseConfig)",
     )
     parser.add_argument(
         "-c",
@@ -1800,10 +1814,10 @@ def perform_main(args, syn):
 
 @tracer.start_as_current_span("main::login_with_prompt")
 def login_with_prompt(
-    syn: synapseclient.Synapse, user: str, password: str, silent: bool = False
+    syn: synapseclient.Synapse, user: str, password: str, silent: bool = False, profile: str = None
 ) -> None:
     try:
-        _authenticate_login(syn=syn, user=user, secret=password, silent=silent)
+        _authenticate_login(syn=syn, user=user, secret=password, profile=profile, silent=silent)
     except SynapseNoCredentialsError:
         # there were no complete credentials in the cache nor provided
         user, passwd = _prompt_for_credentials(user=user)
