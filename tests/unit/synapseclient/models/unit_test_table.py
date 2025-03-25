@@ -1,4 +1,5 @@
 """Tests for the Table class."""
+
 import pytest
 
 from synapseclient import Synapse
