@@ -34,7 +34,7 @@ my_new_dataset.add_item(
 )  # Replace with the ID of the file you want to add
 # 2. Add a File with its ID and version
 my_new_dataset.add_item(
-    File(id="syn51790028", version_label=1)
+    File(id="syn51790028", version_number=1)
 )  # Replace with the ID of the file you want to add
 # 3. Add a Folder. In this case, all child files of the folder are added to the dataset recursively.
 my_new_dataset.add_item(
