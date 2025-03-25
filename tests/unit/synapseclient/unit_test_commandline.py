@@ -5,7 +5,7 @@
 import base64
 import os
 import tempfile
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import MagicMock, Mock, call, patch, mock_open
 
 import pytest
 
@@ -511,6 +511,12 @@ def test__replace_existing_config__prepend(syn):
     assert new_config_text == expected_text
     f.close()
 
+    for suffix in ["", ".backup", ".backup2", ".backup3"]:
+        try:
+            os.remove(f.name + suffix)
+        except FileNotFoundError:
+            pass
+
 
 def test__replace_existing_config__backup(syn):
     """Replace backup files are created"""
@@ -609,6 +615,7 @@ def test_config_replace(
     temp.close()
 
 @patch("synapseclient.__main__.os.path.exists", return_value=False)
+@patch("synapseclient.__main__.open", new_callable=mock_open)
 @patch.object(cmdline, "_generate_new_config")
 @patch.object(cmdline, "_authenticate_login")
 @patch.object(cmdline, "_prompt_for_credentials")
@@ -649,14 +656,23 @@ def test_config_replace_named_profile(
     mock_authenticate_login.return_value = "authtoken"
     mock_replace_existing_config.return_value = "new config text"
 
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        config_path = tmp.name
+
     args = Mock()
-    args.configPath = "test_existing_config"
+    args.configPath = config_path
     args.profile = "prod"
 
     expected_auth_section = "[prod]\nusername=testuser\nauthtoken=authtoken123\n\n"
     cmdline.config(args, syn)
-    mock_replace_existing_config.assert_called_once_with("test_existing_config", expected_auth_section, "prod")
+    mock_replace_existing_config.assert_called_once_with(config_path, expected_auth_section, "prod")
 
+    # Clean up backups if any were made
+    for suffix in ["", ".backup", ".backup2", ".backup3"]:
+        try:
+            os.remove(config_path + suffix)
+        except FileNotFoundError:
+            pass
 
 def test_login_from_named_profile(mocker, syn):
     """Test CLI login using a profile name"""
