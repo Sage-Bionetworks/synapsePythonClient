@@ -297,7 +297,8 @@ class TestConfigFileCredentialsProvider(object):
 
         assert self.expected_return_tuple == returned_tuple
         self.mock_get_config_authentication.assert_called_once_with(
-            config_path=self.syn.configPath
+            config_path=self.syn.configPath,
+            profile="default"
         )
 
     def test_get_auth_info__user_arg_username_matches_config(self) -> None:
@@ -310,7 +311,8 @@ class TestConfigFileCredentialsProvider(object):
 
         assert self.expected_return_tuple == returned_tuple
         self.mock_get_config_authentication.assert_called_once_with(
-            config_path=self.syn.configPath
+            config_path=self.syn.configPath,
+            profile="default"
         )
 
     def test_get_auth_info__user_arg_username_does_not_match_config(self) -> None:
@@ -325,7 +327,8 @@ class TestConfigFileCredentialsProvider(object):
 
         assert (None, None) == returned_tuple
         self.mock_get_config_authentication.assert_called_once_with(
-            config_path=self.syn.configPath
+            config_path=self.syn.configPath,
+            profile="default"
         )
 
 
