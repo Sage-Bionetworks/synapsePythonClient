@@ -561,7 +561,7 @@ def test__generate_new_config(syn):
     """Generate new configuration file"""
     profile_name = "authentication"
     new_auth_section = "username=foobar\nauthToken=testingtesting"
-    expected_section = f"[{profile_name}]\n{new_auth_section}"
+    expected_section = f"[profile {profile_name}]\n{new_auth_section}"
     new_config_text = cmdline._generate_new_config(new_auth_section, profile_name)
     assert expected_section in new_config_text
 
@@ -580,7 +580,7 @@ def test_config_generate(
     mock__authenticate_login.return_value = "password"
     mock__generate_new_config.return_value = "test"
 
-    expected_auth_section = "[authentication]\n" "username=test\n" "password=wow\n\n"
+    expected_auth_section = "[profile authentication]\nusername=test\npassword=wow\n\n"
     args = Mock()
     args.configPath = "foo"
     args.profile = "authentication"
@@ -603,7 +603,7 @@ def test_config_replace(
     mock__authenticate_login.return_value = "password"
     mock__replace_existing_config.return_value = "test"
 
-    expected_auth_section = "[authentication]\n" "username=test\n" "password=wow\n\n"
+    expected_auth_section = "[profile authentication]\nusername=test\npassword=wow\n\n"
     temp = tempfile.NamedTemporaryFile(mode="w", delete=False)
     args = Mock()
     args.configPath = temp.name
@@ -635,7 +635,7 @@ def test_config_generate_named_profile(
     args.configPath = "test_config_path"
     args.profile = "devprofile"
 
-    expected_auth_section = "[devprofile]\nusername=testuser\nauthtoken=authtoken123\n\n"
+    expected_auth_section = "[profile devprofile]\nusername=testuser\nauthtoken=authtoken123\n\n"
     cmdline.config(args, syn)
     mock_generate_new_config.assert_called_once_with(expected_auth_section, "devprofile")
 
@@ -663,7 +663,7 @@ def test_config_replace_named_profile(
     args.configPath = config_path
     args.profile = "prod"
 
-    expected_auth_section = "[prod]\nusername=testuser\nauthtoken=authtoken123\n\n"
+    expected_auth_section = "[profile prod]\nusername=testuser\nauthtoken=authtoken123\n\n"
     cmdline.config(args, syn)
     mock_replace_existing_config.assert_called_once_with(config_path, expected_auth_section, "prod")
 

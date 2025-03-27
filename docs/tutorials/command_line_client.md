@@ -359,7 +359,7 @@ synapse config [-h] [--profile PROFILE_NAME]
 | Name        | Type    | Description                                                               |
 |-------------|---------|---------------------------------------------------------------------------|
 | `-h`        | Named  | Show the help message and exit.                                           |
-| `--profile` | Named  | Optional name of the Synapse profile to create or update in the config file. <br/>If omitted, modifies the default [authentication] section.                                          |
+| `--profile` | Named  |  Optional name of the Synapse profile to create or update in the config file. <br/>If omitted, modifies the `[default]` section.|
 
 ### `set-provenance`
 

@@ -513,19 +513,24 @@ def _replace_existing_config(path, auth_section, profile_name):
     with open(path, "r") as config_o:
         config_text = config_o.read()
 
-    profile_name = re.escape(profile_name)
+    section_name = (
+        "default" if profile_name == "default" else f"profile {profile_name}"
+    )
+    escaped_section = re.escape(section_name)
+
     matcher = re.search(
-        rf"^[ \t]*(\[{profile_name}\].*?)(^[ \t]*\[|\Z)",
+        rf"^[ \t]*(\[{escaped_section}\].*?)(^[ \t]*\[|\Z)",
         config_text,
         flags=re.MULTILINE | re.DOTALL,
     )
+
     if matcher:
-        # we matched an existing authentication section
-        new_config_text = (
-            config_text[: matcher.start(1)]
-            + auth_section
-            + config_text[matcher.end(1) :]
-        )
+            # we matched an existing authentication section
+            new_config_text = (
+                config_text[: matcher.start(1)]
+                + auth_section
+                + config_text[matcher.end(1) :]
+            )
 
     else:
         # weren't able to find an authentication section so
@@ -553,7 +558,7 @@ def _generate_new_config(auth_section, profile_name):
         )
 
     if profile_name:
-        profile_section = f"[{profile_name}]\n{auth_section.strip()}\n"
+        profile_section = f"[profile {profile_name}]\n{auth_section.strip()}\n"
         new_config_text = config_text.strip() + "\n\n" + profile_section
 
     return new_config_text
@@ -572,7 +577,8 @@ def config(args, syn):
     login_key = _authenticate_login(syn, user, secret, silent=True)
 
     profile_name = args.profile or "default"
-    auth_section = f"[{profile_name}]\n"
+    section_header = f"[{profile_name}]\n" if profile_name == "default" else f"[profile {profile_name}]\n"
+    auth_section = section_header
     if user:
         auth_section += f"username={user}\n"
     auth_section += f"{login_key.lower()}={secret}\n\n"
