@@ -65,8 +65,7 @@ Auth token: $MY_SYNAPSE_TOKEN
 ### Manually modifying the `~/.synapseConfig` file
 The following describes how to add your credentials to the `~/.synapseConfig` file without the use of the `synapse config` command.
 
-Open the `~/.synapseConfig` file (can use 'nano ~/.synapseConfig' to edit or 'cat ~/.synapseConfig' to read from the CLI)
-and find the following section:
+Open the `~/.synapseConfig` file using your preferred text editing tool and find the following section:
 
 ```
 #[default]
