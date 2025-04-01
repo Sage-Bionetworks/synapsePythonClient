@@ -400,12 +400,19 @@ def _check_entity_restrictions(
     if restriction_information and restriction_information.get(
         "hasUnmetAccessRequirement", None
     ):
-        warning_message = (
-            "\nThis entity has access restrictions. Please visit the web page for this entity "
-            f'(syn.onweb("{synapse_id}")). Look for the "Access" label and the lock icon underneath '
-            'the file name. Click "Request Access", and then review and fulfill the file '
-            "download requirement(s).\n"
-        )
+        if not syn.credentials._token:
+            warning_message = (
+                "You have not provided valid credentials for authentication with Synapse."
+                " Please use an authentication token and `synapseclient.login()` before your next attempt."
+                " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
+            )
+        else:
+            warning_message = (
+                "\nThis entity has access restrictions. Please visit the web page for this entity "
+                f'(syn.onweb("{synapse_id}")). Look for the "Access" label and the lock icon underneath '
+                'the file name. Click "Request Access", and then review and fulfill the file '
+                "download requirement(s).\n"
+            )
         if download_file and bundle.get("entityType") not in ("project", "folder"):
             raise SynapseUnmetAccessRestrictions(warning_message)
         syn.logger.warn(warning_message)
