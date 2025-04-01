@@ -629,7 +629,9 @@ class TestViewStoreMixin:
             "col#1",  # Invalid character: #
         ],
     )
-    async def test_store_async_invalid_character_in_column_name(self, invalid_column_name):
+    async def test_store_async_invalid_character_in_column_name(
+        self, invalid_column_name
+    ):
         # GIVEN a TestClass instance with an invalid column name
         test_instance = TestViewStoreMixin.ClassForTest(
             include_default_columns=False,
@@ -664,7 +666,9 @@ class TestViewStoreMixin:
                 "col.5": Column(name="col.5", column_type=ColumnType.STRING, id="id5"),
                 "col+6": Column(name="col+6", column_type=ColumnType.STRING, id="id6"),
                 "col'7": Column(name="col'7", column_type=ColumnType.STRING, id="id7"),
-                "col(8)": Column(name="col(8)", column_type=ColumnType.STRING, id="id8"),
+                "col(8)": Column(
+                    name="col(8)", column_type=ColumnType.STRING, id="id8"
+                ),
             },
         )
 
