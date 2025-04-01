@@ -403,7 +403,7 @@ def _check_entity_restrictions(
         if not syn.credentials._token:
             warning_message = (
                 "You have not provided valid credentials for authentication with Synapse."
-                " Please use an authentication token and `synapseclient.login()` before your next attempt."
+                " Please provide an authentication token and use `synapseclient.login()` before your next attempt."
                 " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
             )
         else:
