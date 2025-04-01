@@ -400,7 +400,7 @@ def _check_entity_restrictions(
     if restriction_information and restriction_information.get(
         "hasUnmetAccessRequirement", None
     ):
-        if not syn.credentials._token:
+        if not syn.credentials or not syn.credentials._token:
             warning_message = (
                 "You have not provided valid credentials for authentication with Synapse."
                 " Please provide an authentication token and use `synapseclient.login()` before your next attempt."

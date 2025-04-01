@@ -1248,6 +1248,29 @@ class TestCheckEntityRestrictions:
                 " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
             )
 
+    def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true_and_no_credentials(
+        self,
+    ) -> None:
+        with patch("logging.Logger.warning") as mocked_warn:
+            bundle = {
+                "entity": {
+                    "id": "syn123",
+                    "name": "anonymous",
+                    "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                    "parentId": "syn12345",
+                },
+                "entityType": "folder",
+                "restrictionInformation": {"hasUnmetAccessRequirement": True},
+            }
+            entity = "syn123"
+            self.syn.credentials = None
+            self.syn._check_entity_restrictions(bundle, entity, True)
+            mocked_warn.assert_called_with(
+                "You have not provided valid credentials for authentication with Synapse."
+                " Please provide an authentication token and use `synapseclient.login()` before your next attempt."
+                " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
+            )
+
     def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true(
         self,
     ) -> None:
