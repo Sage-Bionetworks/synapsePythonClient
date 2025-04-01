@@ -614,27 +614,64 @@ class TestViewStoreMixin:
             # AND the result should be the same instance
             assert result == test_instance
 
-    async def test_store_async_invalid_character_in_column_name(self):
-        # GIVEN a TestClass instance with an invalid character in a column name
-        test_instance = self.ClassForTest(
+    @pytest.mark.parametrize(
+        "invalid_column_name",
+        [
+            "col*1",  # Invalid character: *
+            "col/1",  # Invalid character: /
+            "col\\1",  # Invalid character: \
+            "col:1",  # Invalid character: :
+            "col;1",  # Invalid character: ;
+            "col,1",  # Invalid character: ,
+            "col?1",  # Invalid character: ?
+            "col!1",  # Invalid character: !
+            "col@1",  # Invalid character: @
+            "col#1",  # Invalid character: #
+        ],
+    )
+    async def test_store_async_invalid_character_in_column_name(self, invalid_column_name):
+        # GIVEN a TestClass instance with an invalid column name
+        test_instance = TestViewStoreMixin.ClassForTest(
             include_default_columns=False,
             columns={
-                "col*1": Column(name="col*1", column_type=ColumnType.STRING, id="id1")
+                invalid_column_name: Column(
+                    name=invalid_column_name, column_type=ColumnType.STRING, id="id1"
+                )
             },
         )
 
-        with patch(GET_ID_PATCH, return_value=None):
-            # WHEN store_async is awaited
-            # THEN a ValueError should be raised
-            with pytest.raises(
-                ValueError,
-                match=re.escape(
-                    "Column name 'col*1' contains invalid characters. "
-                    "Names may only contain: letters, numbers, spaces, underscores, "
-                    "hyphens, periods, plus signs, apostrophes, and parentheses."
-                ),
-            ):
-                await test_instance.store_async(synapse_client=self.syn, dry_run=True)
+        # WHEN store_async is awaited
+        # THEN a ValueError should be raised with the appropriate message
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"Column name '{invalid_column_name}' contains invalid characters. "
+                "Names may only contain: letters, numbers, spaces, underscores, "
+                "hyphens, periods, plus signs, apostrophes, and parentheses."
+            ),
+        ):
+            await test_instance.store_async(synapse_client=None, dry_run=True)
+
+    async def test_store_async_valid_characters_in_column_name(self):
+        # GIVEN a TestClass instance with valid characters in column names
+        test_instance = self.ClassForTest(
+            include_default_columns=False,
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col 2": Column(name="col 2", column_type=ColumnType.STRING, id="id2"),
+                "col_3": Column(name="col_3", column_type=ColumnType.STRING, id="id3"),
+                "col-4": Column(name="col-4", column_type=ColumnType.STRING, id="id4"),
+                "col.5": Column(name="col.5", column_type=ColumnType.STRING, id="id5"),
+                "col+6": Column(name="col+6", column_type=ColumnType.STRING, id="id6"),
+                "col'7": Column(name="col'7", column_type=ColumnType.STRING, id="id7"),
+                "col(8)": Column(name="col(8)", column_type=ColumnType.STRING, id="id8"),
+            },
+        )
+
+        # WHEN store_async is awaited
+        await test_instance.store_async(synapse_client=self.syn, dry_run=True)
+
+        # THEN No exception should be raised
 
 
 class TestDeleteMixin:
