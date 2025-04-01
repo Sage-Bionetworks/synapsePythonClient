@@ -10,7 +10,6 @@ from synapseclient import Evaluation, File, Project, SubmissionViewSchema, Synap
 from synapseclient.core.exceptions import SynapseHTTPError
 
 
-@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 async def test_evaluations(syn: Synapse, project: Project):
     # Create an Evaluation
     name = "Test Evaluation %s" % str(uuid.uuid4())

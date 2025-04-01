@@ -9,7 +9,6 @@ from synapseclient import Column as Synapse_Column
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
-from synapseclient.models import Activity
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 
@@ -254,14 +253,14 @@ class SnapshotRequest:
 
     comment: Optional[str] = None
     label: Optional[str] = None
-    activity: Optional[Activity] = None
+    activity: Optional[str] = None
 
     def to_synapse_request(self):
         """Converts the request to a request expected of the Synapse REST API."""
         return {
             "snapshotComment": self.comment,
             "snapshotLabel": self.label,
-            "snapshotActivityId": self.activity.id if self.activity else None,
+            "snapshotActivityId": self.activity,
         }
 
     def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
@@ -294,6 +293,8 @@ class TableUpdateTransaction(AsynchronousCommunicator):
     snapshot_options: Optional[SnapshotRequest] = None
     results: Optional[List[Dict[str, Any]]] = None
     snapshot_version_number: Optional[int] = None
+    entities_with_changes_applied: Optional[List[str]] = None
+
     """This will be an array of
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>."""
 
@@ -328,6 +329,19 @@ class TableUpdateTransaction(AsynchronousCommunicator):
         self.snapshot_version_number = synapse_response.get(
             "snapshotVersionNumber", None
         )
+
+        if "results" in synapse_response:
+            successful_entities = []
+            for result in synapse_response["results"]:
+                if "updateResults" in result:
+                    for update_result in result["updateResults"]:
+                        failure_code = update_result.get("failureCode", None)
+                        failure_message = update_result.get("failureMessage", None)
+                        entity_id = update_result.get("entityId", None)
+                        if not failure_code and not failure_message and entity_id:
+                            successful_entities.append(entity_id)
+            if successful_entities:
+                self.entities_with_changes_applied = successful_entities
         return self
 
 

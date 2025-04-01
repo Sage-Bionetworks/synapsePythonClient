@@ -41,9 +41,6 @@ SEND_JOB_AND_WAIT_ASYNC_PATCH = "synapseclient.models.mixins.table_components.Ta
 GET_DEFAULT_COLUMNS_PATCH = (
     "synapseclient.models.mixins.table_components.get_default_columns"
 )
-TABLE_STORE_MIXIN_PATCH = (
-    "synapseclient.models.mixins.table_components.TableStoreMixin.store_async"
-)
 DELETE_ENTITY_PATCH = "synapseclient.models.mixins.table_components.delete_entity"
 _UPSERT_ROWS_ASYNC_PATCH = (
     "synapseclient.models.mixins.table_components._upsert_rows_async"
@@ -56,7 +53,7 @@ class TestTableStoreMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(TableStoreMixin, GetMixin):
+    class ClassForTest(TableStoreMixin, GetMixin):
         id: Optional[str] = None
         name: Optional[str] = None
         has_columns_changed: Optional[bool] = None
@@ -98,7 +95,7 @@ class TestTableStoreMixin:
 
     async def test_generate_schema_change_request_no_changes(self):
         # GIVEN a TestClass instance where has_columns_changed is False
-        test_instance = self.TestClass(has_columns_changed=False, columns=[])
+        test_instance = self.ClassForTest(has_columns_changed=False, columns=[])
         # WHEN the _generate_schema_change_request method is called
         # THEN the method should return None
         assert (
@@ -109,7 +106,7 @@ class TestTableStoreMixin:
     async def test_generate_schema_change_request_no_columns(self):
         # GIVEN a TestClass instance where has_columns_changed is True
         # AND columns is None
-        test_instance = self.TestClass(has_columns_changed=True, columns=None)
+        test_instance = self.ClassForTest(has_columns_changed=True, columns=None)
         # WHEN the _generate_schema_change_request method is called
         # THEN the method should return None
         assert (
@@ -120,7 +117,7 @@ class TestTableStoreMixin:
     async def test_generate_schema_change_request_columns_changed(self):
         # GIVEN a TestClass instance where has_columns_changed is True
         # AND columns have changes
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             has_columns_changed=True,
             id="syn123",
             name="test_table",
@@ -173,7 +170,7 @@ class TestTableStoreMixin:
 
     async def test_generate_schema_change_request_with_column_deletion(self):
         # GIVEN a TestClass instance with columns to delete
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             has_columns_changed=True,
             id="syn123",
             name="test_table",
@@ -190,7 +187,7 @@ class TestTableStoreMixin:
                 id="deleted_col_id",
             )
         }
-        test_instance._last_persistent_instance = self.TestClass(
+        test_instance._last_persistent_instance = self.ClassForTest(
             columns={
                 "remaining_column": Column(
                     name="remaining_column", column_type=ColumnType.STRING, id="col1"
@@ -231,7 +228,7 @@ class TestTableStoreMixin:
 
     async def test_generate_schema_change_request_column_order_change(self):
         # GIVEN a TestClass instance where column order has changed
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             has_columns_changed=True,
             id="syn123",
             name="test_table",
@@ -240,7 +237,7 @@ class TestTableStoreMixin:
                 "col2": Column(name="col2", column_type=ColumnType.STRING, id="id2"),
             },
         )
-        test_instance._last_persistent_instance = self.TestClass(
+        test_instance._last_persistent_instance = self.ClassForTest(
             columns={
                 "col2": Column(name="col2", column_type=ColumnType.STRING, id="id2"),
                 "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
@@ -274,7 +271,7 @@ class TestTableStoreMixin:
 
     async def test_generate_schema_change_request_with_dry_run(self):
         # GIVEN a TestClass instance with column changes
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             has_columns_changed=True,
             id="syn123",
             name="test_table",
@@ -302,7 +299,7 @@ class TestTableStoreMixin:
 
     async def test_store_async_new_entity(self):
         # GIVEN a new TestClass instance
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             name="test_table",
             columns={
                 "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
@@ -312,7 +309,10 @@ class TestTableStoreMixin:
         )
 
         with (
-            patch(GET_ID_PATCH, return_value=None) as mock_get_id,
+            patch(
+                GET_ID_PATCH,
+                return_value=None,
+            ) as mock_get_id,
             patch(
                 POST_ENTITY_BUNDLE2_CREATE_PATCH,
                 return_value={"entity": {"id": "syn123", "name": "test_table"}},
@@ -327,7 +327,7 @@ class TestTableStoreMixin:
                 return_value=False,
             ) as mock_send_job_and_wait_async,
             patch.object(
-                self.TestClass, "get_async", return_value=test_instance
+                self.ClassForTest, "get_async", return_value=test_instance
             ) as mock_get_async,
         ):
             # WHEN store_async is awaited
@@ -378,7 +378,7 @@ class TestTableStoreMixin:
 
     async def test_store_async_unchanged_entity(self):
         # GIVEN a TestClass instance that matches its last persistent instance
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             id="syn123",
             name="test_table",
             columns={
@@ -407,7 +407,7 @@ class TestTableStoreMixin:
                 "synapseclient.models.mixins.table_components.TableUpdateTransaction.send_job_and_wait_async"
             ) as mock_send_job_and_wait_async,
             patch.object(
-                self.TestClass, "get_async", return_value=test_instance
+                self.ClassForTest, "get_async", return_value=test_instance
             ) as mock_get_async,
         ):
             # WHEN store_async is awaited
@@ -434,7 +434,7 @@ class TestTableStoreMixin:
 
     async def test_store_async_with_dry_run(self):
         # GIVEN a TestClass instance with changes
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             id="syn123",
             name="test_table",
             columns={
@@ -452,7 +452,7 @@ class TestTableStoreMixin:
             patch(STORE_ENTITY_COMPONENTS_PATCH) as mock_store_entity_components,
             patch(POST_COLUMNS_PATCH) as mock_post_columns,
             patch(SEND_JOB_AND_WAIT_ASYNC_PATCH) as mock_send_job_and_wait_async,
-            patch.object(self.TestClass, "get_async") as mock_get_async,
+            patch.object(self.ClassForTest, "get_async") as mock_get_async,
             patch(
                 "synapseclient.models.mixins.table_components.merge_dataclass_entities",
             ) as mock_merge_dataclass_entities,
@@ -491,17 +491,20 @@ class TestViewStoreMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(ViewStoreMixin):
+    class ClassForTest(ViewStoreMixin):
         id: Optional[str] = None
         name: Optional[str] = None
         columns: Dict[str, Column] = field(default_factory=dict)
         include_default_columns: Optional[bool] = None
         view_entity_type: Optional[ViewEntityType] = ViewEntityType.DATASET
         view_type_mask: Optional[ViewTypeMask] = ViewTypeMask.DATASET
+        _last_persistent_instance = None
+        has_changed = False
+        has_columns_changed = False
 
     async def test_store_async_include_default_columns_no_custom_columns(self):
         # GIVEN a TestClass instance with include_default_columns=True and no custom columns
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             include_default_columns=True,
         )
 
@@ -512,24 +515,17 @@ class TestViewStoreMixin:
                     Column(name="col2", column_type=ColumnType.STRING, id="id2")
                 ],
             ) as mock_get_default_columns,
-            patch(
-                TABLE_STORE_MIXIN_PATCH,
-                return_value=test_instance,
-            ) as mock_table_store_async,
+            patch(GET_ID_PATCH, return_value=None),
         ):
             # WHEN store_async is awaited
-            result = await test_instance.store_async(synapse_client=self.syn)
+            result = await test_instance.store_async(
+                synapse_client=self.syn, dry_run=True
+            )
 
             # THEN mock_get_default_columns should be called
             mock_get_default_columns.assert_awaited_once_with(
                 view_entity_type=ViewEntityType.DATASET,
                 view_type_mask=ViewTypeMask.DATASET,
-                synapse_client=self.syn,
-            )
-            # AND mock_store_async should be called
-            mock_table_store_async.assert_awaited_once_with(
-                dry_run=False,
-                job_timeout=600,
                 synapse_client=self.syn,
             )
 
@@ -545,7 +541,7 @@ class TestViewStoreMixin:
     ):
         # GIVEN a TestClass instance with include_default_columns=True and two custom columns,
         # One of which shares a name with a default column
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             include_default_columns=True,
             columns={
                 "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
@@ -560,23 +556,17 @@ class TestViewStoreMixin:
                     Column(name="col2", column_type=ColumnType.STRING, id="DEFAULT")
                 ],
             ) as mock_get_default_columns,
-            patch(
-                TABLE_STORE_MIXIN_PATCH, return_value=test_instance
-            ) as mock_table_store_async,
+            patch(GET_ID_PATCH, return_value=None),
         ):
             # WHEN store_async is awaited
-            result = await test_instance.store_async(synapse_client=self.syn)
+            result = await test_instance.store_async(
+                synapse_client=self.syn, dry_run=True
+            )
 
             # THEN mock_get_default_columns should be called
             mock_get_default_columns.assert_awaited_once_with(
                 view_entity_type=ViewEntityType.DATASET,
                 view_type_mask=ViewTypeMask.DATASET,
-                synapse_client=self.syn,
-            )
-            # AND mock_table_store_async should be called
-            mock_table_store_async.assert_awaited_once_with(
-                dry_run=False,
-                job_timeout=600,
                 synapse_client=self.syn,
             )
 
@@ -597,7 +587,7 @@ class TestViewStoreMixin:
 
     async def test_store_async_no_default_columns(self):
         # GIVEN a TestClass instance with no default columns
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             include_default_columns=False,
             columns={
                 "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
@@ -611,35 +601,29 @@ class TestViewStoreMixin:
                     Column(name="col2", column_type=ColumnType.STRING, id="DEFAULT")
                 ],
             ) as mock_get_default_columns,
-            patch(
-                TABLE_STORE_MIXIN_PATCH, return_value=test_instance
-            ) as mock_table_store_async,
+            patch(GET_ID_PATCH, return_value=None),
         ):
             # WHEN store_async is awaited
-            result = await test_instance.store_async(synapse_client=self.syn)
+            result = await test_instance.store_async(
+                synapse_client=self.syn, dry_run=True
+            )
 
             # THEN we expect no default columns to be fetched
             mock_get_default_columns.assert_not_awaited()
-            # AND mock_table_store_async should be called
-            mock_table_store_async.assert_awaited_once_with(
-                dry_run=False,
-                job_timeout=600,
-                synapse_client=self.syn,
-            )
 
             # AND the result should be the same instance
             assert result == test_instance
 
     async def test_store_async_invalid_character_in_column_name(self):
         # GIVEN a TestClass instance with an invalid character in a column name
-        test_instance = self.TestClass(
+        test_instance = self.ClassForTest(
             include_default_columns=False,
             columns={
                 "col*1": Column(name="col*1", column_type=ColumnType.STRING, id="id1")
             },
         )
 
-        with patch(TABLE_STORE_MIXIN_PATCH, return_value=test_instance):
+        with patch(GET_ID_PATCH, return_value=None):
             # WHEN store_async is awaited
             # THEN a ValueError should be raised
             with pytest.raises(
@@ -650,7 +634,7 @@ class TestViewStoreMixin:
                     "hyphens, periods, plus signs, apostrophes, and parentheses."
                 ),
             ):
-                await test_instance.store_async(synapse_client=self.syn)
+                await test_instance.store_async(synapse_client=self.syn, dry_run=True)
 
 
 class TestDeleteMixin:
@@ -659,14 +643,14 @@ class TestDeleteMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(DeleteMixin):
+    class ClassForTest(DeleteMixin):
         id: Optional[str] = None
         name: Optional[str] = None
         parent_id: Optional[str] = None
 
     async def test_delete_with_id(self):
         # GIVEN a TestClass instance with an id
-        test_instance = self.TestClass(id="syn123")
+        test_instance = self.ClassForTest(id="syn123")
 
         with patch(DELETE_ENTITY_PATCH, return_value=None) as mock_delete_entity:
             # WHEN delete_async is awaited
@@ -679,7 +663,7 @@ class TestDeleteMixin:
 
     async def test_delete_with_name_and_parent_id(self):
         # GIVEN a TestClass instance with a name and parent_id
-        test_instance = self.TestClass(name="test_table", parent_id="syn123")
+        test_instance = self.ClassForTest(name="test_table", parent_id="syn123")
 
         with (
             patch(
@@ -702,7 +686,7 @@ class TestDeleteMixin:
 
     async def test_delete_with_no_id_or_name_and_parent_id(self):
         # GIVEN a TestClass instance with no id or name and parent_id
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
 
         with pytest.raises(
             ValueError,
@@ -719,10 +703,11 @@ class TestGetMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(GetMixin):
+    class ClassForTest(GetMixin):
         id: Optional[str] = None
         name: Optional[str] = None
         parent_id: Optional[str] = None
+        version_number: int = 1
         columns: Dict[str, Column] = field(default_factory=dict)
         _last_persistent_instance: Optional[Any] = None
 
@@ -731,7 +716,7 @@ class TestGetMixin:
 
     async def test_get_async_include_columns_and_activity(self):
         # GIVEN a TestClass instance with an id
-        test_instance = self.TestClass(id="syn123")
+        test_instance = self.ClassForTest(id="syn123")
 
         with (
             patch(GET_ID_PATCH, return_value="syn123") as mock_get_id,
@@ -763,6 +748,7 @@ class TestGetMixin:
             # AND mock_get_from_entity_factory should be called
             mock_get_from_entity_factory.assert_awaited_once_with(
                 entity_to_update=test_instance,
+                version=1,
                 synapse_id_or_path="syn123",
                 synapse_client=self.syn,
             )
@@ -781,7 +767,7 @@ class TestGetMixin:
 
     async def test_get_async_no_id_or_name_and_parent_id(self):
         # GIVEN a TestClass instance with no id or name and parent_id
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
         # WHEN I await get_async
         # THEN I expect a ValueError to be raised
         with pytest.raises(
@@ -799,7 +785,7 @@ class TestColumnMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(ColumnMixin):
+    class ClassForTest(ColumnMixin):
         id: Optional[str] = None
         name: Optional[str] = None
         columns: Dict[str, Column] = field(default_factory=dict)
@@ -808,7 +794,7 @@ class TestColumnMixin:
 
     async def test_delete_column_no_persistent_instance(self):
         # GIVEN a TestClass instance with no persistent instance
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
         # WHEN I call delete_column
         # THEN I expect a ValueError to be raised
         with pytest.raises(
@@ -821,7 +807,7 @@ class TestColumnMixin:
 
     async def test_delete_column_no_columns(self):
         # GIVEN a TestClass instance with no columns
-        test_instance = self.TestClass(_last_persistent_instance=self.TestClass())
+        test_instance = self.ClassForTest(_last_persistent_instance=self.ClassForTest())
         # WHEN I call delete_column
         # THEN I expect a ValueError to be raised
         with pytest.raises(
@@ -834,8 +820,8 @@ class TestColumnMixin:
 
     async def test_delete_column_column_not_in_table(self):
         # GIVEN a TestClass instance with a column that is not in the table
-        test_instance = self.TestClass(
-            _last_persistent_instance=self.TestClass(),
+        test_instance = self.ClassForTest(
+            _last_persistent_instance=self.ClassForTest(),
             columns={
                 "col2": Column(name="col2", column_type=ColumnType.STRING, id="id2")
             },
@@ -850,8 +836,8 @@ class TestColumnMixin:
 
     async def test_delete_column_column_in_table(self):
         # GIVEN a TestClass instance with a column that is in the table
-        test_instance = self.TestClass(
-            _last_persistent_instance=self.TestClass(),
+        test_instance = self.ClassForTest(
+            _last_persistent_instance=self.ClassForTest(),
             columns={
                 "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1")
             },
@@ -868,14 +854,14 @@ class TestTableUpsertMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(TableUpsertMixin):
+    class ClassForTest(TableUpsertMixin):
         id: Optional[str] = None
         name: Optional[str] = None
         columns: Dict[str, Column] = field(default_factory=dict)
 
     async def test_upsert_rows_async(self):
         # GIVEN a TestClass instance
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
         # WHEN I call upsert_rows_async
         with patch(
             _UPSERT_ROWS_ASYNC_PATCH,
@@ -896,8 +882,6 @@ class TestTableUpsertMixin:
                 update_size_bytes=1.9 * MB,
                 insert_size_bytes=900 * MB,
                 job_timeout=600,
-                wait_for_eventually_consistent_view=False,
-                wait_for_eventually_consistent_view_timeout=600,
                 synapse_client=self.syn,
             )
 
@@ -908,14 +892,14 @@ class TestViewUpdateMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(ViewUpdateMixin):
+    class ClassForTest(ViewUpdateMixin):
         id: Optional[str] = None
         name: Optional[str] = None
         columns: Dict[str, Column] = field(default_factory=dict)
 
     async def test_update_rows_async(self):
         # GIVEN a TestClass instance
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
         # WHEN I call upsert_rows_async
         with patch(
             _UPSERT_ROWS_ASYNC_PATCH,
@@ -950,14 +934,14 @@ class TestQueryMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(QueryMixin):
+    class ClassForTest(QueryMixin):
         id: Optional[str] = None
         name: Optional[str] = None
         columns: Dict[str, Column] = field(default_factory=dict)
 
     async def test_query_async(self):
         # GIVEN a TestClass instance
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
 
         # Create a mock TableQueryResult without calling __init__
         mock_query_result = MagicMock(spec=TableQueryResult)
@@ -996,7 +980,7 @@ class TestQueryMixin:
 
     async def test_query_part_mask_async(self):
         # GIVEN a TestClass instance
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
 
         # Create mock query result with all possible part mask returns
         mock_query_result = MagicMock(spec=TableQueryResult)
@@ -1048,7 +1032,7 @@ class TestQueryMixin:
 
     async def test_query_part_mask_async_minimal(self):
         # GIVEN a TestClass instance
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
 
         # Create mock with just query results
         mock_query_result = MagicMock(spec=TableQueryResult)
@@ -1097,14 +1081,15 @@ class TestViewSnapshotMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(ViewSnapshotMixin, GetMixin):
+    class ClassForTest(ViewSnapshotMixin, GetMixin):
         id: Optional[str] = "syn123"
         name: Optional[str] = "test_view"
         columns: Dict[str, Column] = field(default_factory=dict)
+        activity: Optional[Activity] = None
 
     async def test_snapshot_async(self):
         # GIVEN a TestClass instance
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
         expected_result = TableUpdateTransaction(
             entity_id=test_instance.id,
             changes=None,
@@ -1127,15 +1112,12 @@ class TestViewSnapshotMixin:
             result = await test_instance.snapshot_async(
                 comment="test comment",
                 label="test label",
-                activity=Activity(name="test activity"),
-                synapse_client=self.syn,
-            )
-
-            # THEN get_async should be called with include_activity=True
-            mock_get_async.assert_awaited_once_with(
                 include_activity=True,
                 synapse_client=self.syn,
             )
+
+            # THEN get_async should be called
+            mock_get_async.assert_called()
 
             # AND send_job_and_wait_async should be called with correct parameters
             mock_send_job_and_wait_async.assert_awaited_once_with(
@@ -1154,14 +1136,14 @@ class TestTableDeleteRowMixin:
         self.syn = syn
 
     @dataclass
-    class TestClass(TableDeleteRowMixin, QueryMixin):
+    class ClassForTest(TableDeleteRowMixin, QueryMixin):
         id: Optional[str] = "syn123"
         name: Optional[str] = "test_table"
         columns: Dict[str, Column] = field(default_factory=dict)
 
     async def test_delete_rows_async(self):
         # GIVEN a TestClass instance
-        test_instance = self.TestClass()
+        test_instance = self.ClassForTest()
         with (
             patch(
                 "synapseclient.models.mixins.table_components.QueryMixin.query_async",

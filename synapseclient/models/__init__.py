@@ -8,6 +8,7 @@ from synapseclient.models.agent import (
 )
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.dataset import Dataset, EntityRef
+from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
 from synapseclient.models.mixins.table_components import QueryMixin
@@ -52,6 +53,9 @@ __all__ = [
     "AgentSession",
     "AgentSessionAccessLevel",
     "AgentPrompt",
+    # EntityView models
+    "EntityView",
+    "ViewTypeMask",
     # Table models
     "SchemaStorageStrategy",
     "ColumnExpansionStrategy",
@@ -80,7 +84,6 @@ __all__ = [
 
 # Static methods to expose as functions
 query_async = QueryMixin.query_async
-# TODO: Static typing on this might cause issues since it's created dynamically
 query = QueryMixin.query
 query_part_mask_async = QueryMixin.query_part_mask_async
 query_part_mask = QueryMixin.query_part_mask

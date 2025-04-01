@@ -45,7 +45,6 @@ def _init_query_timeout(request, syn):
     request.addfinalizer(revert_timeout)
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_create_and_update_file_view(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
@@ -327,7 +326,6 @@ async def test_dataset(syn, project):
     assert all(dataset_df.columns == ["id", "name"])
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_tables_csv(syn, project):
     # Define schema
     cols = [
@@ -365,7 +363,6 @@ async def test_tables_csv(syn, project):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_tables_pandas(syn, project):
     # create a pandas DataFrame
     df = pd.DataFrame(

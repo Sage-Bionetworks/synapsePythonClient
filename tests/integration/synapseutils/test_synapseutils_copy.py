@@ -28,7 +28,6 @@ from synapseclient.core.exceptions import SynapseHTTPError
 
 # Add Test for UPDATE
 # Add test for existing provenance but the orig doesn't have provenance
-@pytest.mark.flaky(reruns=3)
 async def test_copy(syn: Synapse, schedule_for_cleanup):
     try:
         execute_test_copy(syn, schedule_for_cleanup)
@@ -289,7 +288,6 @@ def execute_test_copy(syn: Synapse, schedule_for_cleanup):
 
 
 class TestCopyWiki:
-    @pytest.mark.asyncio(loop_scope="session")
     @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
     async def init(self, syn, schedule_for_cleanup):
         self.syn = syn
@@ -451,7 +449,6 @@ class TestCopyWiki:
 
 
 class TestCopyFileHandles:
-    @pytest.mark.asyncio(loop_scope="session")
     @pytest_asyncio.fixture(autouse=True, loop_scope="function", scope="function")
     async def init(self, syn, schedule_for_cleanup):
         self.syn = syn
