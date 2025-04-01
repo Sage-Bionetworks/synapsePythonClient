@@ -415,4 +415,4 @@ def _check_entity_restrictions(
             )
         if download_file and bundle.get("entityType") not in ("project", "folder"):
             raise SynapseUnmetAccessRestrictions(warning_message)
-        syn.logger.warn(warning_message)
+        syn.logger.warning(warning_message)

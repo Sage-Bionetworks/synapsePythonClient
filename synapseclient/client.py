@@ -1445,17 +1445,26 @@ class Synapse(object):
         Raises:
             SynapseUnmetAccessRestrictions: Warning for unmet access requirements.
         """
-        restrictionInformation = bundle["restrictionInformation"]
-        if restrictionInformation["hasUnmetAccessRequirement"]:
-            warning_message = (
-                "\nThis entity has access restrictions. Please visit the web page for this entity "
-                f'(syn.onweb("{id_of(entity)}")). Look for the "Access" label and the lock icon underneath '
-                'the file name. Click "Request Access", and then review and fulfill the file '
-                "download requirement(s).\n"
-            )
+        restriction_information = bundle.get("restrictionInformation", None)
+        if restriction_information and restriction_information.get(
+            "hasUnmetAccessRequirement", None
+        ):
+            if not self.credentials._token:
+                warning_message = (
+                    "You have not provided valid credentials for authentication with Synapse."
+                    " Please provide an authentication token and use `synapseclient.login()` before your next attempt."
+                    " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
+                )
+            else:
+                warning_message = (
+                    "\nThis entity has access restrictions. Please visit the web page for this entity "
+                    f'(syn.onweb("{id_of(entity)}")). Look for the "Access" label and the lock icon underneath '
+                    'the file name. Click "Request Access", and then review and fulfill the file '
+                    "download requirement(s).\n"
+                )
             if downloadFile and bundle.get("entityType") not in ("project", "folder"):
                 raise SynapseUnmetAccessRestrictions(warning_message)
-            warnings.warn(warning_message)
+            self.logger.warning(warning_message)
 
     def _getFromFile(
         self, filepath: str, limitSearch: str = None, md5: str = None
