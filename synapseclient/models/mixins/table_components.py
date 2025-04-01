@@ -3513,7 +3513,9 @@ class TableStoreRowMixin:
         )
         progress_bar = tqdm(
             total=total_df_bytes,
-            desc="Splitting DataFrame and uploading chunks",
+            desc="Splitting DataFrame and uploading chunks"
+            if len(chunks_to_upload) > 1
+            else "Uploading DataFrame",
             unit_scale=True,
             smoothing=0,
             unit="B",
