@@ -1156,6 +1156,7 @@ def test_get_children_next_page_token(syn: Synapse) -> None:
             ]
         )
 
+
 class TestCheckEntityRestrictions:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -1177,9 +1178,8 @@ class TestCheckEntityRestrictions:
             self.syn._check_entity_restrictions(bundle, entity, True)
             mocked_warn.assert_not_called()
 
-
     def test_check_entity_restrictions_unmet_restriction_entity_file_with_download_file_is_true(
-        self
+        self,
     ) -> None:
         with patch("warnings.warn") as mocked_warn:
             bundle = {
@@ -1201,7 +1201,6 @@ class TestCheckEntityRestrictions:
                 True,
             )
         mocked_warn.assert_not_called()
-
 
     def test_check_entity_restrictions_unmet_restriction_entity_project_with_download_file_is_true(
         self,
@@ -1226,7 +1225,6 @@ class TestCheckEntityRestrictions:
             "download requirement(s).\n"
         )
 
-
     def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true_and_no_token(
         self,
     ) -> None:
@@ -1250,7 +1248,6 @@ class TestCheckEntityRestrictions:
                 " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
             )
 
-
     def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true(
         self,
     ) -> None:
@@ -1273,7 +1270,6 @@ class TestCheckEntityRestrictions:
             'the file name. Click "Request Access", and then review and fulfill the file '
             "download requirement(s).\n"
         )
-
 
     def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(
         self,
