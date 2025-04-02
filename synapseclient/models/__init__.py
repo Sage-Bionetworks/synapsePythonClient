@@ -7,10 +7,15 @@ from synapseclient.models.agent import (
     AgentSessionAccessLevel,
 )
 from synapseclient.models.annotations import Annotations
-from synapseclient.models.dataset import Dataset
+from synapseclient.models.dataset import Dataset, EntityRef
+from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
-from synapseclient.models.mixins.table_operator import (
+from synapseclient.models.mixins.table_components import QueryMixin
+from synapseclient.models.project import Project
+from synapseclient.models.services import FailureStrategy
+from synapseclient.models.table import Table
+from synapseclient.models.table_components import (
     AppendableRowSetRequest,
     Column,
     ColumnChange,
@@ -21,14 +26,12 @@ from synapseclient.models.mixins.table_operator import (
     JsonSubColumn,
     PartialRow,
     PartialRowSet,
+    QueryResultBundle,
     SchemaStorageStrategy,
     TableSchemaChangeRequest,
     TableUpdateTransaction,
     UploadToTableRequest,
 )
-from synapseclient.models.project import Project
-from synapseclient.models.services import FailureStrategy
-from synapseclient.models.table import Table
 from synapseclient.models.team import Team, TeamMember
 from synapseclient.models.user import UserPreference, UserProfile
 
@@ -50,6 +53,9 @@ __all__ = [
     "AgentSession",
     "AgentSessionAccessLevel",
     "AgentPrompt",
+    # EntityView models
+    "EntityView",
+    "ViewTypeMask",
     # Table models
     "SchemaStorageStrategy",
     "ColumnExpansionStrategy",
@@ -58,6 +64,7 @@ __all__ = [
     "ColumnType",
     "FacetType",
     "JsonSubColumn",
+    "QueryResultBundle",
     "query_async",
     "query",
     "query_part_mask_async",
@@ -72,10 +79,11 @@ __all__ = [
     "CsvTableDescriptor",
     # Dataset model
     "Dataset",
+    "EntityRef",
 ]
 
 # Static methods to expose as functions
-query_async = Table.query_async
-query = Table.query
-query_part_mask_async = Table.query_part_mask_async
-query_part_mask = Table.query_part_mask
+query_async = QueryMixin.query_async
+query = QueryMixin.query
+query_part_mask_async = QueryMixin.query_part_mask_async
+query_part_mask = QueryMixin.query_part_mask

@@ -9,7 +9,6 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_wikiAttachment(
     syn: Synapse, project: Project, schedule_for_cleanup
 ) -> None:

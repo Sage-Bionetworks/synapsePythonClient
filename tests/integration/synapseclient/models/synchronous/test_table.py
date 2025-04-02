@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import uuid
 from typing import Callable
@@ -8,7 +9,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 import synapseclient.models.mixins.asynchronous_job as asynchronous_job_module
-import synapseclient.models.mixins.table_operator as table_module
+import synapseclient.models.mixins.table_components as table_module
 from synapseclient import Evaluation, Synapse
 from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
@@ -2238,6 +2239,56 @@ class TestQuerying:
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
+
+    async def test_query_to_csv(self, project_model: Project) -> None:
+        # GIVEN a table with a column defined
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="integer_column", column_type=ColumnType.INTEGER),
+                Column(name="float_column", column_type=ColumnType.DOUBLE),
+            ],
+        )
+        table = table.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for the table stored in synapse
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": ["value1", "value2", "value3", "value4"],
+                "integer_column": [1, 2, 3, None],
+                "float_column": [1.1, 2.2, 3.3, None],
+            }
+        )
+        table.store_rows(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+
+        # WHEN I query the table with a temporary directory
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            results = query(
+                query=f"SELECT * FROM {table.id}",
+                synapse_client=self.syn,
+                download_location=temp_dir_name,
+            )
+            # THEN The returned result should be a path to the CSV
+            assert isinstance(results, str)
+            assert os.path.basename(results).endswith(".csv")
+            as_dataframe = pd.read_csv(results)
+
+        # AND the data in the columns should match
+        pd.testing.assert_series_equal(
+            as_dataframe["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            as_dataframe["integer_column"], data_for_table["integer_column"]
+        )
+        pd.testing.assert_series_equal(
+            as_dataframe["float_column"], data_for_table["float_column"]
+        )
 
     async def test_part_mask_query_everything(self, project_model: Project) -> None:
         # GIVEN a table with a column defined

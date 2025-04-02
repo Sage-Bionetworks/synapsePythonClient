@@ -30,10 +30,10 @@ nav:
           - Annotation: tutorials/python/annotation.md
           # - Versions: tutorials/python/versions.md
           # - Activity/Provenance: tutorials/python/activity.md
-          # - File View: tutorials/python/file_view.md
+          - Entity View: tutorials/python/entityview.md
           # - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
-          # - Dataset: tutorials/python/dataset.md
+          - Dataset: tutorials/python/dataset.md
           # - Sharing Settings: tutorials/python/sharing_settings.md
           # - Wiki: tutorials/python/wiki.md
           # - Team: tutorials/python/team.md
@@ -80,6 +80,8 @@ nav:
           - Folder: reference/experimental/sync/folder.md
           - File: reference/experimental/sync/file.md
           - Table: reference/experimental/sync/table.md
+          - Dataset: reference/experimental/sync/dataset.md
+          - EntityView: reference/experimental/sync/entityview.md
           - Activity: reference/experimental/sync/activity.md
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
@@ -90,6 +92,8 @@ nav:
               - Folder: reference/experimental/async/folder.md
               - File: reference/experimental/async/file.md
               - Table: reference/experimental/async/table.md
+              - Dataset: reference/experimental/async/dataset.md
+              - EntityView: reference/experimental/async/entityview.md
               - Activity: reference/experimental/async/activity.md
               - Team: reference/experimental/async/team.md
               - UserProfile: reference/experimental/async/user_profile.md
