@@ -128,6 +128,67 @@ class TestTableCreation:
             new_table_instance.columns["test_column2"].column_type == ColumnType.INTEGER
         )
 
+    async def test_create_table_with_many_columns(self, project_model: Project) -> None:
+        # GIVEN a table with many columns
+        table_name = str(uuid.uuid4())
+        table_description = "Test table"
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            description=table_description,
+            columns=[
+                Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                Column(name="col 2", column_type=ColumnType.STRING, id="id2"),
+                Column(name="col_3", column_type=ColumnType.STRING, id="id3"),
+                Column(name="col-4", column_type=ColumnType.STRING, id="id4"),
+                Column(name="col.5", column_type=ColumnType.STRING, id="id5"),
+                Column(name="col+6", column_type=ColumnType.STRING, id="id6"),
+                Column(name="col'7", column_type=ColumnType.STRING, id="id7"),
+                Column(name="col(8)", column_type=ColumnType.STRING, id="id8"),
+            ],
+        )
+
+        # WHEN I store the table
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # THEN the table should be created
+        assert table.id is not None
+
+        # AND I can retrieve that table from Synapse
+        new_table_instance = await Table(id=table.id).get_async(
+            synapse_client=self.syn, include_columns=True
+        )
+        assert new_table_instance is not None
+        assert new_table_instance.name == table_name
+        assert new_table_instance.id == table.id
+        assert new_table_instance.description == table_description
+
+        # Verify all column names and types
+        assert new_table_instance.columns["col1"].name == "col1"
+        assert new_table_instance.columns["col1"].column_type == ColumnType.STRING
+
+        assert new_table_instance.columns["col 2"].name == "col 2"
+        assert new_table_instance.columns["col 2"].column_type == ColumnType.STRING
+
+        assert new_table_instance.columns["col_3"].name == "col_3"
+        assert new_table_instance.columns["col_3"].column_type == ColumnType.STRING
+
+        assert new_table_instance.columns["col-4"].name == "col-4"
+        assert new_table_instance.columns["col-4"].column_type == ColumnType.STRING
+
+        assert new_table_instance.columns["col.5"].name == "col.5"
+        assert new_table_instance.columns["col.5"].column_type == ColumnType.STRING
+
+        assert new_table_instance.columns["col+6"].name == "col+6"
+        assert new_table_instance.columns["col+6"].column_type == ColumnType.STRING
+
+        assert new_table_instance.columns["col'7"].name == "col'7"
+        assert new_table_instance.columns["col'7"].column_type == ColumnType.STRING
+
+        assert new_table_instance.columns["col(8)"].name == "col(8)"
+        assert new_table_instance.columns["col(8)"].column_type == ColumnType.STRING
+
     async def test_create_table_with_invalid_column(
         self, project_model: Project
     ) -> None:
