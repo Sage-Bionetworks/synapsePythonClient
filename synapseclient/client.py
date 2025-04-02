@@ -248,7 +248,6 @@ class Synapse(object):
         authEndpoint:          Location of authentication service
         fileHandleEndpoint:    Location of file service
         portalEndpoint:        Location of the website
-        serviceTimeoutSeconds: Wait time before timeout (currently unused)
         debug:                 Print debugging messages if True
         skip_checks:           Skip version and endpoint checks
         configPath:            Path to config File with setting for Synapse. Defaults to ~/.synapseConfig
@@ -281,6 +280,9 @@ class Synapse(object):
             raised. These will be appended to the default `User-Agent` header that
             already includes the version of this client that you are using, and the
             HTTP library used to make the request.
+        timeout: The timeout in seconds for HTTP requests. The default is 70 seconds.
+            You may increase this if you are experiencing timeouts when interacting
+            with slow services.
 
     Example: Getting started
         Logging in to Synapse using an authToken
@@ -336,6 +338,7 @@ class Synapse(object):
         asyncio_event_loop: asyncio.AbstractEventLoop = None,
         cache_client: bool = True,
         user_agent: Union[str, List[str]] = None,
+        http_timeout_seconds: int = 70,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -374,6 +377,9 @@ class Synapse(object):
                 raised. These will be appended to the default `User-Agent` header that
                 already includes the version of this client that you are using, and the
                 HTTP library used to make the request.
+            http_timeout_seconds: The timeout in seconds for HTTP requests.
+                The default is 70 seconds. You may increase this if you are
+                experiencing timeouts when interacting with slow services.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
@@ -391,7 +397,8 @@ class Synapse(object):
         else:
             self._requests_session_async_synapse = {}
 
-        httpx_timeout = httpx.Timeout(70, pool=None)
+        self._http_timeout_seconds = http_timeout_seconds
+        httpx_timeout = httpx.Timeout(http_timeout_seconds, pool=None)
         self._requests_session_storage = requests_session_storage or httpx.Client(
             timeout=httpx_timeout
         )
@@ -505,7 +512,7 @@ class Synapse(object):
             await self._requests_session_async_synapse[asyncio_event_loop].aclose()
             del self._requests_session_async_synapse[asyncio_event_loop]
 
-        httpx_timeout = httpx.Timeout(70, pool=None)
+        httpx_timeout = httpx.Timeout(self._http_timeout_seconds, pool=None)
         self._requests_session_async_synapse.update(
             {
                 asyncio_event_loop: httpx.AsyncClient(
@@ -6207,12 +6214,14 @@ class Synapse(object):
 
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
+        timeout = kwargs.pop("timeout", self._http_timeout_seconds)
         response = with_retry(
             lambda: requests_method_fn(
                 uri,
                 data=data,
                 headers=headers,
                 auth=auth,
+                timeout=timeout,
                 **kwargs,
             ),
             verbose=self.debug,
