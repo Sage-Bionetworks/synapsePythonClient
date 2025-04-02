@@ -2263,7 +2263,12 @@ class TestRestCalls:
         mock_build_retry_policy.assert_called_once_with(retryPolicy)
         mock_handle_synapse_http_error.assert_called_once_with(response)
         mock_requests_call.assert_called_once_with(
-            uri, data=data, headers=headers, auth=self.syn.credentials, **kwargs
+            uri,
+            data=data,
+            headers=headers,
+            auth=self.syn.credentials,
+            timeout=70,
+            **kwargs,
         )
 
         return response
