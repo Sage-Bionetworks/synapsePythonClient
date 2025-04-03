@@ -765,6 +765,7 @@ class Synapse(object):
                         endpoints[point],
                         allow_redirects=False,
                         headers=synapseclient.USER_AGENT,
+                        timeout=self._http_timeout_seconds,
                     ),
                     verbose=self.debug,
                     **STANDARD_RETRY_PARAMS,
