@@ -402,9 +402,9 @@ class TableStoreMixin:
             await self._append_default_columns(synapse_client=synapse_client)
 
         if self.columns:
-            # check that column names match this regex "^[a-zA-Z0-9,_.]+"
+            # check that column names match this regex "^[a-zA-Z0-9 _\-\.\+\(\)']+$"
             for _, column in self.columns.items():
-                if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
+                if not re.match(r"^[a-zA-Z0-9 _\-\.\+\(\)']+$", column.name):
                     raise ValueError(
                         f"Column name '{column.name}' contains invalid characters. "
                         "Names may only contain: letters, numbers, spaces, underscores, "
@@ -3513,7 +3513,9 @@ class TableStoreRowMixin:
         )
         progress_bar = tqdm(
             total=total_df_bytes,
-            desc="Splitting DataFrame and uploading chunks",
+            desc="Splitting DataFrame and uploading chunks"
+            if len(chunks_to_upload) > 1
+            else "Uploading DataFrame",
             unit_scale=True,
             smoothing=0,
             unit="B",
