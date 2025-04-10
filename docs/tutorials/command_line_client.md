@@ -17,6 +17,7 @@ For help on specific commands, type:
 ```bash
 synapse [command] -h
 ```
+Note: All commands support the --profile (or -r) flag to specify which Synapse profile to use from your ~/.synapseConfig file. If not specified, the default profile is used.
 
 Test your login credentials with an auth token environment variable:
 <!-- termynal -->
@@ -43,6 +44,7 @@ synapse [-h] [--version] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN] [-c CONFIGPATH
 | `--version`         | Flag    | Show program’s version number and exit                                    |                       |
 | `-u, --username`    | Option  | Username used to connect to Synapse                                       |                       |
 | `-p, --password`    | Option  | Auth Token used to connect to Synapse                                     |                       |
+| `-r, --profile`     | Option  | Name of the Synapse profile to use (from ~/.synapseConfig). Defaults to 'default'. | 'default'           |
 | `-c, --configPath`  | Option  | Path to configuration file used to connect to Synapse                     | “~/.synapseConfig”    |
 | `--debug`           | Flag    | Set to debug mode, additional output and error messages are printed to the console | False             |
 | `--silent`          | Flag    | Set to silent mode, console output is suppressed                          | False                 |
@@ -356,10 +358,10 @@ Supports multiple profiles.
 synapse config [-h] [--profile PROFILE_NAME]
 ```
 
-| Name        | Type    | Description                                                               |
-|-------------|---------|---------------------------------------------------------------------------|
-| `-h`        | Named  | Show the help message and exit.                                           |
-| `--profile` | Named  |  Optional name of the Synapse profile to create or update in the config file. <br/>If omitted, modifies the `[default]` section.|
+| Name            | Type    | Description                                                               |
+|-----------------|---------|---------------------------------------------------------------------------|
+| `-h`            | Named  | Show the help message and exit.                                           |
+| `-r, --profile` | Named  |  Optional name of the Synapse profile to create or update in the config file. <br/>If omitted, modifies the `[default]` section.|
 
 ### `set-provenance`
 
@@ -483,7 +485,7 @@ synapse login [-h] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN] [--profile PROFILE_N
 |------------------|---------|----------------------------------------------------------------------------|-----------------------|
 | `-u, --username` | Named  | Username used to connect to Synapse.                                       |                       |
 | `-p, --password` | Named  | Synapse Auth Token (aka: Personal Access Token) used to connect to Synapse |                       |
-| `--profile`      | Named  | Name of the Synapse profile (from .synapseConfig) to log in under          |                       |
+| `-r, --profile`  | Named  | Name of the Synapse profile (from .synapseConfig) to log in under          |                       |
 
 If --profile is provided, the credentials will be validated and the login will be associated with the given profile.
 If no profile is specified, the default '[default]' section in ~/.synapseConfig will be used.
