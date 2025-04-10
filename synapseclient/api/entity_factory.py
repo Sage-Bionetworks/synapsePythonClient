@@ -367,6 +367,14 @@ async def _cast_into_class_type(
         entity = entity_to_update.fill_from_dict(
             entity=entity_bundle["entity"], set_annotations=False
         )
+    elif entity["concreteType"] == concrete_types.DATASET_COLLECTION_ENTITY:
+        if not entity_to_update:
+            from synapseclient.models import DatasetCollection
+
+            entity_to_update = DatasetCollection()
+        entity = entity_to_update.fill_from_dict(
+            entity=entity_bundle["entity"], set_annotations=False
+        )
     elif entity["concreteType"] == concrete_types.ENTITY_VIEW:
         if not entity_to_update:
             from models.entityview import EntityView

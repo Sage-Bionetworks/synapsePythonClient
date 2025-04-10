@@ -61,7 +61,7 @@ from synapseclient.models.table_components import (
     UploadToTableRequest,
 )
 
-CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView"]
+CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView", "DatasetCollection"]
 
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
