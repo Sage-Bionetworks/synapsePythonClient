@@ -270,6 +270,7 @@ class SynapseCredentialsProviderChain(object):
                 returned by the first non-None provider in its list, None otherwise
         """
         selected_profile = user_login_args.profile or os.getenv("SYNAPSE_PROFILE")
+
         for provider in self.cred_providers:
             creds = provider.get_synapse_credentials(
                 syn,

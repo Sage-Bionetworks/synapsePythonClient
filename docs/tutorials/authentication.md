@@ -34,7 +34,7 @@ Welcome, First Last!
 Logged in as: username (1234567)
 ```
 
-## Use `.synapseConfig` for Multiple Profiles
+## Use `.synapseConfig`
 
 For writing code using the Synapse Python client that is easy to share with others, please do not include your credentials in the code. Instead, please use the `~/.synapseConfig` file to manage your credentials.
 
@@ -55,7 +55,7 @@ Synapse username (Optional): $MY_USERNAME
 
 Auth token: $MY_SYNAPSE_TOKEN
 
-#For additional profiles
+#For adding a new profile with a new username
 > synapse --profile $MY_PROFILE_NAME config
 Synapse username (Optional): $MY_USERNAME
 
@@ -121,6 +121,28 @@ If logging in specifying the profile, it will log in with said profile:
 import synapseclient
 syn = synapseclient.login(profile="user1")
 ```
+
+### Transitioning from One Profile to Multiple
+
+If you're currently using a single profile (under the [default] section) and wish to start using multiple profiles, 
+simply add new sections for each profile with a unique profile name. For example, you can add a profile for user1 and user2 as shown below. 
+The Synapse Python client will allow you to choose which profile to use at login.
+
+```
+[default]
+username = default_user
+#authtoken = default_auth_token
+
+[profile user1]
+username = user1
+authtoken = user1_auth_token
+
+[profile user2]
+username = user2
+authtoken = user2_auth_token
+```
+
+When you add a new profile section like this, you can then use the --profile flag to specify which profile you want to log in under.
 
 ## Use Environment Variable
 
