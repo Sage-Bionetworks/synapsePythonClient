@@ -102,6 +102,12 @@ Now, you can login without specifying any arguments:
 import synapseclient
 syn = synapseclient.login()
 ```
+<!-- termynal -->
+```
+#For default login 
+synapse login
+#returns Welcome, last first! 
+```
 
 If logging in specifying the profile, it will log in with said profile,
 or, if you are logging into a specific profile, simply pass the profile name as an argument to `login()`:
@@ -113,10 +119,6 @@ syn = synapseclient.login(profile="user1")
 
 <!-- termynal -->
 ```
-#For default login 
-synapse login
-#returns Welcome, last first! 
-
 #For profile login
 synapse login --profile <profile_name>
 #returns Welcome, last first! You are using the '<profile_name> profile. 
