@@ -828,9 +828,9 @@ def build_parser():
         help="Personal Access Token (aka: Synapse Auth Token) used to connect to Synapse.",
     )
     parser.add_argument(
-        "--profile",
+        "-r","--profile",
         type=str,
-        help="Synapse config profile to use when logging in (from ~/.synapseConfig)",
+        help="Name of the Synapse profile to use (from ~/.synapseConfig). Defaults to 'default'."
     )
     parser.add_argument(
         "-c",
@@ -840,7 +840,6 @@ def build_parser():
         help="Path to configuration file used to connect to Synapse "
         "[default: %(default)s]",
     )
-
     parser.add_argument(
         "--debug",
         dest="debug",
@@ -848,7 +847,6 @@ def build_parser():
         help="Set to debug mode, additional output and error messages are printed to "
         "the console",
     )
-
     parser.add_argument(
         "--silent",
         dest="silent",
@@ -1476,6 +1474,11 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
     parser_config = subparsers.add_parser(
         "config", help="Create or modify a Synapse configuration file"
     )
+    parser_config.add_argument(
+        "--profile",
+        help="Optional name of the Synapse profile to create or update in the config file. "
+             "If omitted, modifies the [default] profile."
+    )
     parser_config.set_defaults(func=config)
 
     parser_set_provenance = subparsers.add_parser(
@@ -1699,6 +1702,12 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         dest="synapse_auth_token",
         help="Personal Access Token (aka: Synapse Auth Token) used to connect to Synapse.",
     )
+    parser_login.add_argument(
+        "-r",
+        "--profile",
+        type=str,
+        help="Optional name of the Synapse profile to use when logging in or saving credentials to ~/.synapseConfig. If omitted, modifies the [default] profile.",
+    )
     parser_login.set_defaults(func=login)
 
     # test character encoding
@@ -1802,6 +1811,7 @@ def perform_main(args, syn):
                 user=args.synapseUser,
                 password=args.synapse_auth_token,
                 silent=True,
+                profile=getattr(args, "profile", None),
             )
         try:
             args.func(args, syn)
