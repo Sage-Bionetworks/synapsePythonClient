@@ -1080,7 +1080,9 @@ class Dataset(
 
         Arguments:
             item: Entity to add to the dataset. Must be an EntityRef, File, or Folder.
-            synapse_client: The Synapse client to use. Defaults to None.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the item is not an EntityRef, File, or Folder
@@ -1195,7 +1197,9 @@ class Dataset(
 
         Arguments:
             item: The Synapse ID or Entity to remove from the dataset
-            synapse_client: The Synapse client to use. Defaults to None.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Returns:
             Dataset: The dataset with the item removed
@@ -2536,8 +2540,6 @@ class DatasetCollection(
     async def add_item_async(
         self,
         item: Union["Dataset", "EntityRef"],
-        *,
-        synapse_client: Optional[Synapse] = None,
     ) -> None:
         """Adds a dataset to the dataset collection.
         Effect is not seen until the dataset collection is stored.
@@ -2567,8 +2569,6 @@ class DatasetCollection(
             asyncio.run(main())
             ```
         """
-        from synapseclient.models import Dataset
-
         if not isinstance(item, (Dataset, EntityRef)):
             raise ValueError(
                 f"item must be a Dataset or EntityRef. {item} is a {type(item)}"
@@ -2583,8 +2583,6 @@ class DatasetCollection(
     async def remove_item_async(
         self,
         item: Union["Dataset", "EntityRef"],
-        *,
-        synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
         Removes a dataset from the dataset collection.
@@ -2592,10 +2590,6 @@ class DatasetCollection(
 
         Arguments:
             item: The Dataset or EntityRef to remove from the collection
-            synapse_client: The Synapse client to use. Defaults to None.
-
-        Returns:
-            None
 
         Raises:
             ValueError: If the item is not a Dataset or EntityRef
