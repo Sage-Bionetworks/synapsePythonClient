@@ -93,21 +93,9 @@ Open the `~/.synapseConfig` file using your preferred text editing tool and find
 ```
 
 To enable this section, uncomment it. You don't need to specify your username when using authtoken as a pair, but if you do, it will be used to verify your identity. A personal access token generated from your synapse.org Settings can be used as your .synapseConfig authtoken.
-```
-[default]
-username = default_user
-#authtoken = default_auth_token
 
-[profile user1]
-username = user1
-authtoken = user1_auth_token
+If logging in without specifying any profiles, it will default to the default profile.
 
-[profile user2]
-username = user2
-authtoken = user2_auth_token
-```
-
-If logging in without specifying any profiles, it will default to the default profile:
 Now, you can login without specifying any arguments:
 
 ```python
@@ -129,7 +117,7 @@ simply add new sections for each profile with a unique profile name. For example
 The Synapse Python client will allow you to choose which profile to use at login.
 
 ```
-[default]
+[authentication]
 username = default_user
 #authtoken = default_auth_token
 
