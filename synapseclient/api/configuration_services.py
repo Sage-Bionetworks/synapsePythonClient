@@ -92,7 +92,7 @@ def get_config_authentication(
         The authentication section of the configuration file
     """
 
-    section = f"profile {profile}" if profile != "default" else profile
+    section = profile if profile == "default" else f"profile {profile}"
 
     section_for_profile = get_config_section_dict(
         section_name=section,

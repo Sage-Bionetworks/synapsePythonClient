@@ -514,7 +514,7 @@ def _replace_existing_config(path, auth_section, profile_name):
         config_text = config_o.read()
 
     section_name = (
-        "default" if profile_name == "default" else f"profile {profile_name}"
+        profile_name if profile_name == "default" else f"profile {profile_name}"
     )
     escaped_section = re.escape(section_name)
 
@@ -556,8 +556,7 @@ def _generate_new_config(auth_section, profile_name):
             config_text,
             flags=re.MULTILINE | re.DOTALL,
         )
-
-    if profile_name:
+    else:
         profile_section = f"[profile {profile_name}]\n{auth_section.strip()}\n"
         new_config_text = config_text.strip() + "\n\n" + profile_section
 
@@ -577,8 +576,7 @@ def config(args, syn):
     login_key = _authenticate_login(syn, user, secret, silent=True)
 
     profile_name = args.profile or "default"
-    section_header = f"[{profile_name}]\n" if profile_name == "default" else f"[profile {profile_name}]\n"
-    auth_section = section_header
+    auth_section = f"[{profile_name}]\n" if profile_name == "default" else f"[profile {profile_name}]\n"
     if user:
         auth_section += f"username={user}\n"
     auth_section += f"{login_key.lower()}={secret}\n\n"

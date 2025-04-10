@@ -103,7 +103,8 @@ import synapseclient
 syn = synapseclient.login()
 ```
 
-If logging in specifying the profile, it will log in with said profile:
+If logging in specifying the profile, it will log in with said profile,
+or, if you are logging into a specific profile, simply pass the profile name as an argument to `login()`:
 
 ```python
 import synapseclient
