@@ -40,7 +40,7 @@ For writing code using the Synapse Python client that is easy to share with othe
 
 The Synapse Python Client supports multiple profiles within the ~/.synapseConfig file, enabling users to manage credentials for multiple accounts.
 
-Each profile is defined in its own '[profile <profile_name>]' section. A default profile can still be defined using '[default]'.
+Each profile is defined in its own `[profile <profile_name>]` section. A default profile can still be defined using '`[default]`.
 
 When installing the Synapse Python client, the `~/.synapseConfig` is added to your home directory.
 
@@ -49,7 +49,7 @@ You may modify the `~/.synapseConfig` file by utilizing the [command line client
 
 <!-- termynal -->
 ```
-#For Default profile
+#For modifying the username used in the default profile
 > synapse --profile default config
 Synapse username (Optional): $MY_USERNAME
 
@@ -61,6 +61,17 @@ Synapse username (Optional): $MY_USERNAME
 
 Auth token: $MY_SYNAPSE_TOKEN
 ```
+
+Note: If you encounter a PermissionError 
+(e.g., [Errno 13] Permission denied: '/Users/username/.synapseConfig'), it is likely that the user does not have write permissions to the ~/.synapseConfig file. 
+To resolve this, ensure that you have the necessary permissions to modify this file. 
+You can change the permissions using the following command:
+
+<!-- termynal -->
+```
+chmod u+w ~/.synapseConfig
+```
+
 
 ### Manually modifying the `~/.synapseConfig` file
 The following describes how to add your credentials to the `~/.synapseConfig` file without the use of the `synapse config` command.
