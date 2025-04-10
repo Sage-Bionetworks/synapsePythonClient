@@ -111,6 +111,18 @@ import synapseclient
 syn = synapseclient.login(profile="user1")
 ```
 
+<!-- termynal -->
+```
+#For default login 
+synapse login
+#returns Welcome, last first! 
+
+#For profile login
+synapse login --profile <profile_name>
+#returns Welcome, last first! You are using the '<profile_name> profile. 
+```
+
+
 ### Transitioning from One Profile to Multiple
 
 If you're currently using a single profile (under the [default] section) and wish to start using multiple profiles, 

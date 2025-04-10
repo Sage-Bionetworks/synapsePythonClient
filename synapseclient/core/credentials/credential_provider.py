@@ -124,7 +124,7 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     """
 
     def _get_auth_info(
-        self, syn: "Synapse", user_login_args
+        self, syn: "Synapse", user_login_args: UserLoginArgs
     ) -> Tuple[Optional[str], Optional[str]]:
         """
         Retrieves authentication credentials from the `~/.synapseConfig` file.
@@ -138,6 +138,10 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
           based on the specified profile.
         - If the profile does not exist, an authentication error is raised.
         """
+        # If authToken is explicitly provided, return it directly and skip profiles
+        if user_login_args.auth_token:
+            return user_login_args.username, user_login_args.auth_token
+
         profile_name = user_login_args.profile or "default"
         config_dict = get_config_authentication(config_path=syn.configPath, profile=profile_name)
 
@@ -156,10 +160,6 @@ class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
                 "file. Becuase they do not match we will not use the `authtoken` "
                 "in the `~/.synapseConfig` file.",
             )
-
-        # If authToken is explicitly provided, return it directly and skip profiles
-        if user_login_args.auth_token:
-            return user_login_args.username, user_login_args.auth_token
 
         return username, token
 
@@ -269,17 +269,17 @@ class SynapseCredentialsProviderChain(object):
             [SynapseCredentials][synapseclient.core.credentials.cred_data.SynapseCredentials]
                 returned by the first non-None provider in its list, None otherwise
         """
-        selected_profile = user_login_args.profile or os.getenv("SYNAPSE_PROFILE")
+        user_login_args.profile = user_login_args.profile or os.getenv("SYNAPSE_PROFILE")
+
+        # Check if the profile specified in the argument and the environment variable are different
+        if user_login_args.profile and os.getenv("SYNAPSE_PROFILE") and user_login_args.profile != os.getenv("SYNAPSE_PROFILE"):
+            syn.logger.warning(
+                f"The profile specified via '--profile' ({user_login_args.profile}) differs from the profile in the environment variable 'SYNAPSE_PROFILE' ({os.getenv('SYNAPSE_PROFILE')}). "
+                "The argument profile will be used for login."
+            )
 
         for provider in self.cred_providers:
-            creds = provider.get_synapse_credentials(
-                syn,
-                UserLoginArgs(
-                    username=user_login_args.username,
-                    auth_token=user_login_args.auth_token,
-                    profile=selected_profile,
-                ),
-            )
+            creds = provider.get_synapse_credentials(syn, user_login_args)
             if creds is not None:
                 return creds
         return None

@@ -619,7 +619,9 @@ def test_config_replace(
 @patch.object(cmdline, "_generate_new_config")
 @patch.object(cmdline, "_authenticate_login")
 @patch.object(cmdline, "_prompt_for_credentials")
+@patch.object(cmdline, "_replace_existing_config")
 def test_config_generate_named_profile(
+        mock_replace_existing_config,
         mock_prompt_for_credentials,
         mock_authenticate_login,
         mock_generate_new_config,
@@ -637,10 +639,23 @@ def test_config_generate_named_profile(
 
     expected_auth_section = "[profile devprofile]\nusername=testuser\nauthtoken=authtoken123\n\n"
     cmdline.config(args, syn)
+
+    # Assertions for the calls
     mock_generate_new_config.assert_called_once_with(expected_auth_section, "devprofile")
+
+    # Ensure that _authenticate_login was called once to validate credentials
+    mock_authenticate_login.assert_called_once()
+
+    # Ensure that _replace_existing_config was not called
+    mock_replace_existing_config.assert_not_called()
+
+    #Check that the open function was called with the correct parameters
+    mock_exists.assert_called_once_with(args.configPath, 'w')
 
 
 @patch("synapseclient.__main__.os.path.exists", return_value=True)
+@patch("synapseclient.__main__.open", new_callable=mock_open)
+@patch.object(cmdline, "_generate_new_config")
 @patch.object(cmdline, "_replace_existing_config")
 @patch.object(cmdline, "_authenticate_login")
 @patch.object(cmdline, "_prompt_for_credentials")
@@ -648,6 +663,8 @@ def test_config_replace_named_profile(
         mock_prompt_for_credentials,
         mock_authenticate_login,
         mock_replace_existing_config,
+        mock_generate_new_config,
+        mock_open,
         mock_exists,
         syn,
 ):
@@ -665,7 +682,18 @@ def test_config_replace_named_profile(
 
     expected_auth_section = "[profile prod]\nusername=testuser\nauthtoken=authtoken123\n\n"
     cmdline.config(args, syn)
+
+    # Assertions for the calls
     mock_replace_existing_config.assert_called_once_with(config_path, expected_auth_section, "prod")
+
+    # Ensure that _authenticate_login was called once to validate credentials
+    mock_authenticate_login.assert_called_once()
+
+    # Ensure that _generate_new_config was NOT called, since we are replacing the config
+    mock_generate_new_config.assert_not_called()
+
+    # Check that open was called with the correct parameters
+    mock_open.assert_called_once_with(config_path, 'w')
 
     # Clean up backups if any were made
     for suffix in ["", ".backup", ".backup2", ".backup3"]:

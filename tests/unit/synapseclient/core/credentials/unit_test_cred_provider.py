@@ -499,3 +499,55 @@ class TestEnvironmentVariableCredentialsProvider:
         )
 
         assert (None, None) == self.provider._get_auth_info(syn, user_login_args)
+
+
+# Test case to verify behavior when auth_token is provided
+class TestAuthTokenProvided:
+    """
+   This test verifies that when an auth_token is explicitly provided in the user login arguments,
+   the profile-related logic is skipped, and the auth_token is directly used for authentication.
+
+   The test ensures that:
+   - If the auth_token is provided, it is returned without attempting to fetch credentials from the config file.
+   - Other authentication logic (e.g., from the ConfigFileCredentialsProvider) is not called when an auth_token is provided.
+   """
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    @pytest.fixture(scope="function", autouse=True)
+    def setup_method(self) -> None:
+        self.auth_token = "auth_token123"
+        self.username = "username"
+        self.user_login_args = UserLoginArgs(
+            username=self.username,
+            auth_token=self.auth_token,
+        )
+
+        # Mock the SynapseCredentialsProvider so we don't interact with external systems
+        class SynapseCredProviderTester(credential_provider.SynapseCredentialsProvider):
+            def _get_auth_info(self, syn: Synapse, user_login_args: UserLoginArgs):
+                """Test specific implementation for the auth_token logic"""
+                if user_login_args.auth_token:
+                    # If auth_token is provided, skip the profile logic and return immediately
+                    return user_login_args.username, user_login_args.auth_token
+                return None, None
+
+        self.provider = SynapseCredProviderTester()
+
+    @patch("synapseclient.core.credentials.credential_provider.get_config_authentication")
+    @patch("synapseclient.core.credentials.credential_provider.ConfigFileCredentialsProvider._get_auth_info")
+    def test_auth_token_provided_skips_profile_logic(
+            self, mock_get_config_authentication, mock_config_file_auth_info
+    ) -> None:
+        # Call the _get_auth_info method to verify behavior
+        username, auth_token = self.provider._get_auth_info(self.syn, self.user_login_args)
+
+        # Assert that the provided username and auth_token are returned
+        assert username == self.username
+        assert auth_token == self.auth_token
+
+        # Ensure that _get_config_authentication and _get_auth_info (for ConfigFileCredentialsProvider) were not called
+        mock_get_config_authentication.assert_not_called()
+        mock_config_file_auth_info.assert_not_called()

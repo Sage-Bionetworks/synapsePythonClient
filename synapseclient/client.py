@@ -228,8 +228,12 @@ def login(*args, **kwargs):
             import synapseclient
             syn = synapseclient.login(authToken="authtoken")
 
-        Using environment variable or `.synapseConfig`
+        Using environment variable or `.synapseConfig` (default profile)
 
+            import synapseclient
+            syn = synapseclient.login()
+
+        Using a specific profile
             import synapseclient
             syn = synapseclient.login(profile="user1)
     """
