@@ -214,6 +214,7 @@ class TestDataset:
         # THEN I expect the Dataset to have no items
         assert dataset.items == []
 
+
 class TestDatasetCollection:
     synapse_response = {
         "id": "syn1234",
@@ -256,11 +257,22 @@ class TestDatasetCollection:
         assert dataset_collection.created_by == self.synapse_response["createdBy"]
         assert dataset_collection.modified_on == self.synapse_response["modifiedOn"]
         assert dataset_collection.modified_by == self.synapse_response["modifiedBy"]
-        assert dataset_collection.version_number == self.synapse_response["versionNumber"]
+        assert (
+            dataset_collection.version_number == self.synapse_response["versionNumber"]
+        )
         assert dataset_collection.version_label == self.synapse_response["versionLabel"]
-        assert dataset_collection.version_comment == self.synapse_response["versionComment"]
-        assert dataset_collection.is_latest_version == self.synapse_response["isLatestVersion"]
-        assert dataset_collection.is_search_enabled == self.synapse_response["isSearchEnabled"]
+        assert (
+            dataset_collection.version_comment
+            == self.synapse_response["versionComment"]
+        )
+        assert (
+            dataset_collection.is_latest_version
+            == self.synapse_response["isLatestVersion"]
+        )
+        assert (
+            dataset_collection.is_search_enabled
+            == self.synapse_response["isSearchEnabled"]
+        )
         assert dataset_collection.items == [
             EntityRef(id=item["entityId"], version=item["versionNumber"])
             for item in self.synapse_response["items"]
@@ -326,15 +338,21 @@ class TestDatasetCollection:
 
     async def test_remove_item_dataset(self):
         # GIVEN a DatasetCollection with a Dataset
-        dataset_collection = DatasetCollection(items=[EntityRef(id="syn1234", version=1)])
+        dataset_collection = DatasetCollection(
+            items=[EntityRef(id="syn1234", version=1)]
+        )
         # WHEN I remove the Dataset from it
-        await dataset_collection.remove_item_async(Dataset(id="syn1234", version_number=1))
+        await dataset_collection.remove_item_async(
+            Dataset(id="syn1234", version_number=1)
+        )
         # THEN I expect the DatasetCollection to have no items
         assert dataset_collection.items == []
 
     async def test_remove_item_entity_ref(self):
         # GIVEN a DatasetCollection with an EntityRef
-        dataset_collection = DatasetCollection(items=[EntityRef(id="syn1234", version=1)])
+        dataset_collection = DatasetCollection(
+            items=[EntityRef(id="syn1234", version=1)]
+        )
         # WHEN I remove the EntityRef from it
         await dataset_collection.remove_item_async(EntityRef(id="syn1234", version=1))
         # THEN I expect the DatasetCollection to have no items

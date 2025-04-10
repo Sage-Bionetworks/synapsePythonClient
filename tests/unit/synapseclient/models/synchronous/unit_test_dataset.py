@@ -6,6 +6,7 @@ from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
 from synapseclient.models import Dataset, DatasetCollection, EntityRef, File, Folder
 
+
 class TestDataset:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -91,6 +92,7 @@ class TestDataset:
         # THEN I expect the Dataset to have no items
         assert dataset.items == []
 
+
 class TestDatasetCollection:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -124,7 +126,9 @@ class TestDatasetCollection:
 
     def test_remove_item_dataset(self):
         # GIVEN a DatasetCollection with a Dataset
-        dataset_collection = DatasetCollection(items=[EntityRef(id="syn1234", version=1)])
+        dataset_collection = DatasetCollection(
+            items=[EntityRef(id="syn1234", version=1)]
+        )
         # WHEN I remove the Dataset from it
         dataset_collection.remove_item(Dataset(id="syn1234", version_number=1))
         # THEN I expect the DatasetCollection to have no items
@@ -132,7 +136,9 @@ class TestDatasetCollection:
 
     def test_remove_item_entity_ref(self):
         # GIVEN a DatasetCollection with an EntityRef
-        dataset_collection = DatasetCollection(items=[EntityRef(id="syn1234", version=1)])
+        dataset_collection = DatasetCollection(
+            items=[EntityRef(id="syn1234", version=1)]
+        )
         # WHEN I remove the EntityRef from it
         dataset_collection.remove_item(EntityRef(id="syn1234", version=1))
         # THEN I expect the DatasetCollection to have no items

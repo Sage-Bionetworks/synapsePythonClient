@@ -7,7 +7,7 @@ from synapseclient.models.agent import (
     AgentSessionAccessLevel,
 )
 from synapseclient.models.annotations import Annotations
-from synapseclient.models.dataset import Dataset, EntityRef, DatasetCollection
+from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder

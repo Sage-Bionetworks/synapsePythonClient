@@ -1644,7 +1644,7 @@ class Dataset(
             synapse_client=synapse_client,
         )
 
- 
+
 @dataclass
 class DatasetCollectionSynchronousProtocol(Protocol):
     """Protocol defining the synchronous interface for DatasetCollection operations."""
@@ -2401,7 +2401,6 @@ class DatasetCollection(
     """Additional metadata associated with the dataset collection. The key is the name of your
     desired annotations. The value is an object containing"""
 
-
     _last_persistent_instance: Optional["DatasetCollection"] = field(
         default=None, repr=False, compare=False
     )
@@ -2571,7 +2570,9 @@ class DatasetCollection(
         from synapseclient.models import Dataset
 
         if not isinstance(item, (Dataset, EntityRef)):
-            raise ValueError(f"item must be a Dataset or EntityRef. {item} is a {type(item)}")
+            raise ValueError(
+                f"item must be a Dataset or EntityRef. {item} is a {type(item)}"
+            )
 
         # EntityRef uses `version`, Dataset uses `version_number`
         version = item.version if isinstance(item, EntityRef) else item.version_number
@@ -2618,10 +2619,14 @@ class DatasetCollection(
             ```
         """
         if not isinstance(item, (Dataset, EntityRef)):
-            raise ValueError(f"item must be a Dataset or EntityRef. {item} is a {type(item)}")
+            raise ValueError(
+                f"item must be a Dataset or EntityRef. {item} is a {type(item)}"
+            )
 
-        self.items = [current_item for current_item in self.items if current_item.id != item.id]
-        
+        self.items = [
+            current_item for current_item in self.items if current_item.id != item.id
+        ]
+
     async def store_async(
         self,
         dry_run: bool = False,
