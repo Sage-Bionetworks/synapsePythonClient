@@ -38,7 +38,7 @@ class TestMaterializedViewWithoutData:
     async def test_create_materialized_view_without_columns(
         self, project_model: Project
     ) -> None:
-        # GIVEN a table with columns
+        # GIVEN a table with no columns
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
