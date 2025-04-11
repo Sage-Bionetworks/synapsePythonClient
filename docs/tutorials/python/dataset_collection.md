@@ -6,12 +6,12 @@ This tutorial will walk through basics of working with Dataset Collections using
 # Tutorial Purpose
 In this tutorial, you will:
 
-1. Create a Dataset Collection
-2. Add datasets to the collection
-3. Add a custom column to the collection
-4. Update the collection with new annotations
-5. Query the collection
-6. Save a snapshot of the collection
+- Create a Dataset Collection
+- Add datasets to the collection
+- Add a custom column to the collection
+- Update the collection with new annotations
+- Query the collection
+- Save a snapshot of the collection
 
 # Prerequisites
 * This tutorial assumes that you have a project in Synapse and have already created datasets that you would like to add to a Dataset Collection.
