@@ -1,7 +1,7 @@
 # Datasets
 Datasets in Synapse are a way to organize, annotate, and publish sets of files for others to use. Datasets behave similarly to Tables and EntityViews, but provide some default behavior that makes it easy to put a group of files together.
 
-This tutorial will walk through basics of working with datasets using the Synapse Python client.
+This tutorial will walk through basics of working with datasets using the Synapse Python Client.
 
 # Tutorial Purpose
 In this tutorial, you will:
