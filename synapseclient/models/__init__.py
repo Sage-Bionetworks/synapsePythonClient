@@ -11,6 +11,7 @@ from synapseclient.models.dataset import Dataset, EntityRef
 from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
+from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
 from synapseclient.models.services import FailureStrategy
@@ -77,6 +78,7 @@ __all__ = [
     "UploadToTableRequest",
     "TableUpdateTransaction",
     "CsvTableDescriptor",
+    "MaterializedView",
     # Dataset model
     "Dataset",
     "EntityRef",
