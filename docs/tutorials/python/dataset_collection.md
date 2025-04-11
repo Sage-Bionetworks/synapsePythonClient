@@ -31,7 +31,7 @@ Let's get started by authenticating with Synapse and retrieving the ID of your p
 Next, we will create the Dataset Collection. We will use the project ID to tell Synapse where we want the Dataset Collection to be created. After this step, we will have a Dataset Collection object with all of the needed information to start building the collection.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=23-25}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=23-31}
 ```
 
 Because we haven't added any datasets to the collection yet, it will be empty, but if you view the Dataset Collection's schema in the UI, you will notice that Dataset Collections come with default columns.
@@ -43,13 +43,13 @@ Because we haven't added any datasets to the collection yet, it will be empty, b
 Now, let's add some datasets to the collection. We will loop through our dataset ids and add each dataset to the collection using the `add_item` method.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=29-31}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=35-36}
 ```
 
 Whenever we make changes to the Dataset Collection, we need to call the `store()` method to save the changes to Synapse.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=32}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=38}
 ```
 
 And now we are able to see our Dataset Collection with all of the datasets that we added to it.
@@ -61,7 +61,7 @@ And now we are able to see our Dataset Collection with all of the datasets that 
 Now that our Dataset Collection has been created and we have added some Datasets to it, we can retrieve the Dataset Collection from Synapse the next time we need to use it.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=36-38}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=42-44}
 ```
 
 ## 5. Add a custom column to the Dataset Collection
@@ -69,13 +69,13 @@ Now that our Dataset Collection has been created and we have added some Datasets
 In addition to the default columns, you may want to annotate items in your DatasetCollection using custom columns.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=42-48}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=48-54}
 ```
 
 Our custom column isn't all that useful empty, so let's update the Dataset Collection with some values.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=51-54}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=57-65}
 ```
 
 ## 6. Query the Dataset Collection
@@ -83,7 +83,7 @@ Our custom column isn't all that useful empty, so let's update the Dataset Colle
 If you want to query your DatasetCollection for items that match certain criteria, you can do so using the `query` method.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=58-61}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=69-72}
 ```
 
 ## 7. Save a snapshot of the Dataset Collection
@@ -91,7 +91,7 @@ If you want to query your DatasetCollection for items that match certain criteri
 Finally, let's save a snapshot of the Dataset Collection. This creates a read-only version of the Dataset Collection that captures the current state of the Dataset Collection and can be referenced later.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=64}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=75}
 ```
 
 ## Source Code for this Tutorial
