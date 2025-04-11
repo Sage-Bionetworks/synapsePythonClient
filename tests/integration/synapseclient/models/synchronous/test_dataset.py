@@ -11,6 +11,7 @@ from synapseclient.models import (
     Column,
     ColumnType,
     Dataset,
+    DatasetCollection,
     EntityRef,
     File,
     Folder,
@@ -527,3 +528,418 @@ class TestDatasetColumns:
         )
         assert new_dataset_instance.columns[new_column_name] is not None
         assert old_column_name not in new_dataset_instance.columns
+
+
+class TestDatasetCollection:
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    def create_file_instance(self, schedule_for_cleanup: Callable[..., None]) -> File:
+        filename = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(filename)
+        return File(
+            path=filename,
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
+        )
+
+    @pytest.fixture(autouse=True, scope="function")
+    def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
+        return self.create_file_instance(schedule_for_cleanup)
+
+    def create_dataset_instance(
+        self, schedule_for_cleanup: Callable[..., None], project_model: Project
+    ) -> Dataset:
+        dataset_name = str(uuid.uuid4())
+        schedule_for_cleanup(dataset_name)
+        return Dataset(
+            name=dataset_name,
+            description="Test dataset",
+            parent_id=project_model.id,
+        )
+
+    @pytest.fixture(autouse=True, scope="function")
+    def dataset(
+        self, schedule_for_cleanup: Callable[..., None], project_model: Project
+    ) -> Dataset:
+        return self.create_dataset_instance(schedule_for_cleanup, project_model)
+
+    def test_create_empty_dataset_collection(
+        self, syn: Synapse, project_model: Project
+    ) -> None:
+        # GIVEN an empty DatasetCollection
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        )
+        dataset_collection = dataset_collection.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I store the DatasetCollection
+        dataset_collection = dataset_collection.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # THEN the DatasetCollection should be created
+        assert dataset_collection.id is not None
+
+        # AND I can retrieve that DatasetCollection from Synapse
+        new_dataset_collection_instance = DatasetCollection(
+            id=dataset_collection.id
+        ).get(synapse_client=self.syn)
+        assert new_dataset_collection_instance is not None
+        assert new_dataset_collection_instance.name == dataset_collection.name
+        assert new_dataset_collection_instance.id == dataset_collection.id
+        assert (
+            new_dataset_collection_instance.description
+            == dataset_collection.description
+        )
+
+    def test_create_dataset_collection_with_dataset(
+        self, syn: Synapse, project_model: Project, file: File, dataset: Dataset
+    ) -> None:
+        # GIVEN a Dataset with a file
+        file_1 = file.store(parent=project_model)
+        self.schedule_for_cleanup(file_1.id)
+        dataset.add_item(file_1)
+        dataset_1 = dataset.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_1.id)
+
+        # WHEN I create a DatasetCollection with that Dataset
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        )
+        dataset_collection.add_item(dataset_1)
+        dataset_collection.store(synapse_client=self.syn)
+
+        # THEN the DatasetCollection should be created
+        assert dataset_collection.id is not None
+
+        # AND I can retrieve that DatasetCollection from Synapse
+        new_dataset_collection_instance = DatasetCollection(
+            id=dataset_collection.id
+        ).get(synapse_client=self.syn)
+        assert new_dataset_collection_instance is not None
+        assert new_dataset_collection_instance.name == dataset_collection.name
+        assert new_dataset_collection_instance.id == dataset_collection.id
+        assert (
+            new_dataset_collection_instance.description
+            == dataset_collection.description
+        )
+        assert new_dataset_collection_instance.items == [
+            EntityRef(id=dataset_1.id, version=dataset_1.version_number),
+        ]
+
+    def test_update_dataset_collection_attributes(
+        self, syn: Synapse, project_model: Project
+    ) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I update the DatasetCollection attributes
+        updated_dataset_collection = DatasetCollection(id=dataset_collection.id).get(
+            synapse_client=self.syn
+        )
+        updated_dataset_collection.name = str(uuid.uuid4())
+        updated_dataset_collection.description = "Updated description"
+        updated_dataset_collection.store(synapse_client=self.syn)
+
+        # AND I retrieve the DatasetCollection
+        my_retrieved_dataset_collection = DatasetCollection(
+            id=dataset_collection.id
+        ).get(synapse_client=self.syn)
+
+        # THEN the DatasetCollection should be updated
+        assert my_retrieved_dataset_collection is not None
+        assert my_retrieved_dataset_collection.name == updated_dataset_collection.name
+        assert (
+            my_retrieved_dataset_collection.description
+            == updated_dataset_collection.description
+        )
+        # AND all versions should have the same id
+        assert my_retrieved_dataset_collection.id == updated_dataset_collection.id
+
+    def test_query_dataset_collection(
+        self, syn: Synapse, project_model: Project, dataset: Dataset
+    ) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I add a Dataset to the DatasetCollection
+        dataset_1 = dataset.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_1.id)
+        dataset_collection.add_item(dataset_1)
+        dataset_collection.store(synapse_client=self.syn)
+
+        # AND I query the DatasetCollection
+        row = DatasetCollection.query(
+            query=f"SELECT * FROM {dataset_collection.id} WHERE id = '{dataset_1.id}'",
+        )
+        # THEN I expect the row to contain expected values
+        assert row["id"][0] == dataset_1.id
+        assert row["name"][0] == dataset_1.name
+        assert row["description"][0] == dataset_1.description
+
+    def test_dataset_collection_part_mask_query_everything(
+        self, syn: Synapse, project_model: Project, dataset: Dataset
+    ) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I add a Dataset to the DatasetCollection
+        dataset_1 = dataset.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_1.id)
+        dataset_collection.add_item(dataset_1)
+        dataset_collection.store(synapse_client=self.syn)
+
+        # AND I query the DatasetCollection with a part mask with everything included
+        QUERY_RESULTS = 0x1
+        QUERY_COUNT = 0x2
+        SUM_FILE_SIZE_BYTES = 0x40
+        LAST_UPDATED_ON = 0x80
+        part_mask = QUERY_RESULTS | QUERY_COUNT | SUM_FILE_SIZE_BYTES | LAST_UPDATED_ON
+
+        row = DatasetCollection.query_part_mask(
+            query=f"SELECT * FROM {dataset_collection.id}",
+            synapse_client=self.syn,
+            part_mask=part_mask,
+        )
+
+        # THEN I expect the row to contain expected values
+        assert row.result["id"][0] == dataset_1.id
+        assert row.result["name"][0] == dataset_1.name
+        assert row.result["description"][0] == dataset_1.description
+
+        # AND the part mask should be reflected in the row
+        assert row.count == 1
+        assert row.sum_file_sizes is not None
+        assert row.sum_file_sizes.greater_than is not None
+        assert row.sum_file_sizes.sum_file_size_bytes is not None
+        assert row.last_updated_on is not None
+
+    def test_dataset_collection_part_mask_query_results_only(
+        self, syn: Synapse, project_model: Project, dataset: Dataset
+    ) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I add a Dataset to the DatasetCollection
+        dataset_1 = dataset.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_1.id)
+        dataset_collection.add_item(dataset_1)
+        dataset_collection.store(synapse_client=self.syn)
+
+        # AND I query the DatasetCollection with a part mask with results only
+        QUERY_RESULTS = 0x1
+        row = DatasetCollection.query_part_mask(
+            query=f"SELECT * FROM {dataset_collection.id}", part_mask=QUERY_RESULTS
+        )
+        # THEN the data in the columns should match
+        assert row.result["id"][0] == dataset_1.id
+        assert row.result["name"][0] == dataset_1.name
+        assert row.result["description"][0] == dataset_1.description
+
+        # AND the part mask should be reflected in the results
+        assert row.count is None
+        assert row.sum_file_sizes is None
+        assert row.last_updated_on is None
+
+    def test_dataset_collection_update_rows(
+        self, syn: Synapse, project_model: Project, dataset: Dataset
+    ) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            description="Test dataset collection",
+            columns=[
+                Column(name="my_annotation", column_type=ColumnType.STRING),
+            ],
+        ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I add a Dataset to the DatasetCollection
+        dataset_1 = dataset.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_1.id)
+        dataset_collection.add_item(dataset_1)
+        dataset_collection.store(synapse_client=self.syn)
+
+        # AND I update rows in the dataset collection
+        modified_data = pd.DataFrame(
+            {
+                "id": [dataset_1.id],
+                "my_annotation": ["good dataset"],
+            }
+        )
+        dataset_collection.update_rows(
+            values=modified_data,
+            primary_keys=["id"],
+            wait_for_eventually_consistent_view=True,
+            dry_run=False,
+        )
+
+        # AND I query the dataset collection
+        row = DatasetCollection.query(
+            query=f"SELECT my_annotation FROM {dataset_collection.id} WHERE id = '{dataset_1.id}'",
+        )
+        assert row["my_annotation"][0] == "good dataset"
+
+    def test_delete_dataset_collection(
+        self, syn: Synapse, project_model: Project
+    ) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I delete the DatasetCollection
+        dataset_collection.delete(synapse_client=self.syn)
+
+        # THEN the DatasetCollection should be deleted
+        with pytest.raises(
+            SynapseHTTPError,
+            match=f"404 Client Error: Entity {dataset_collection.id} is in trash can.",
+        ):
+            DatasetCollection(id=dataset_collection.id).get(synapse_client=self.syn)
+
+
+class TestDatasetCollectionColumns:
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    def test_add_column(self, syn: Synapse, project_model: Project) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection = DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I add a column to the DatasetCollection
+        dataset_collection.add_column(
+            Column(name="my_annotation", column_type=ColumnType.STRING)
+        )
+        dataset_collection.store(synapse_client=self.syn)
+
+        # AND I retrieve the DatasetCollection
+        new_dataset_collection_instance = DatasetCollection(
+            id=dataset_collection.id
+        ).get(synapse_client=self.syn)
+
+        # THEN the column should be added to the DatasetCollection
+        assert "my_annotation" in new_dataset_collection_instance.columns
+
+    def test_delete_column(self, syn: Synapse, project_model: Project) -> None:
+        # GIVEN a DatasetCollection with custom columns in Synapse
+        dataset_collection_name = str(uuid.uuid4())
+        old_column_name = "my_annotation"
+        column_to_keep = "my_annotation_2"
+        old_dataset_collection_instance = DatasetCollection(
+            name=dataset_collection_name,
+            parent_id=project_model.id,
+            include_default_columns=False,
+            columns=[
+                Column(name=old_column_name, column_type=ColumnType.STRING),
+                Column(name=column_to_keep, column_type=ColumnType.STRING),
+            ],
+        ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(old_dataset_collection_instance.id)
+
+        # WHEN I delete a column from the DatasetCollection
+        old_dataset_collection_instance.delete_column(name=old_column_name)
+
+        # AND I store the DatasetCollection
+        old_dataset_collection_instance.store(synapse_client=self.syn)
+
+        # THEN the column should be deleted from the DatasetCollection
+        assert old_column_name not in old_dataset_collection_instance.columns
+
+        # AND the column to keep should be in the DatasetCollection
+        assert column_to_keep in old_dataset_collection_instance.columns
+        assert len(old_dataset_collection_instance.columns) == 1
+
+    def test_reorder_column(self, syn: Synapse, project_model: Project) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection_name = str(uuid.uuid4())
+        first_column_name = "first"
+        second_column_name = "second"
+        old_dataset_collection_instance = DatasetCollection(
+            name=dataset_collection_name,
+            parent_id=project_model.id,
+            include_default_columns=False,
+            columns=[
+                Column(name=first_column_name, column_type=ColumnType.STRING),
+                Column(name=second_column_name, column_type=ColumnType.STRING),
+            ],
+        )
+        old_dataset_collection_instance = old_dataset_collection_instance.store(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(old_dataset_collection_instance.id)
+
+        # WHEN I reorder the columns
+        old_dataset_collection_instance.reorder_column(
+            name=second_column_name,
+            index=0,
+        )
+        old_dataset_collection_instance.store(synapse_client=self.syn)
+
+        # THEN the columns should be reordered
+        assert list(old_dataset_collection_instance.columns.keys()) == [
+            second_column_name,
+            first_column_name,
+        ]
+
+    def test_rename_column(self, syn: Synapse, project_model: Project) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection_name = str(uuid.uuid4())
+        old_column_name = "column_string"
+        old_dataset_collection_instance = DatasetCollection(
+            name=dataset_collection_name,
+            parent_id=project_model.id,
+            columns=[Column(name=old_column_name, column_type=ColumnType.STRING)],
+        )
+        old_dataset_collection_instance = old_dataset_collection_instance.store(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(old_dataset_collection_instance.id)
+
+        # WHEN I rename the column
+        new_column_name = "new_column_string"
+        old_dataset_collection_instance.columns[old_column_name].name = new_column_name
+
+        # AND I store the DatasetCollection
+        old_dataset_collection_instance.store(synapse_client=self.syn)
+
+        # THEN the column name should be updated on the existing DatasetCollection instance
+        assert old_dataset_collection_instance.columns[new_column_name] is not None
+        assert old_column_name not in old_dataset_collection_instance.columns
+
+        # AND the new column name should be reflected in the Synapse DatasetCollection
+        new_dataset_collection_instance = DatasetCollection(
+            id=old_dataset_collection_instance.id
+        ).get(synapse_client=self.syn)
+        assert new_dataset_collection_instance.columns[new_column_name] is not None
+        assert old_column_name not in new_dataset_collection_instance.columns
