@@ -105,8 +105,8 @@ Finally, let's save a snapshot of the Dataset Collection. This creates a read-on
 </details>
 
 ## References
-- [DatasetCollection][../../reference/experimental/sync/dataset_collection.md]
-- [Dataset][../../reference/experimental/sync/dataset.md]
+- [DatasetCollection](../../reference/experimental/sync/dataset_collection.md)
+- [Dataset](../../reference/experimental/sync/dataset.md)
+- [Project](../../reference/experimental/sync/project.md)
 - [Column][synapseclient.models.Column]
-- [Project][../../reference/experimental/sync/project.md]
 - [syn.login][synapseclient.Synapse.login]
