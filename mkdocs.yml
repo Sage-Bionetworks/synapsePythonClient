@@ -34,6 +34,7 @@ nav:
           # - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
           - Dataset: tutorials/python/dataset.md
+          # - Dataset Collection: tutorials/python/dataset_collection.md
           # - Sharing Settings: tutorials/python/sharing_settings.md
           # - Wiki: tutorials/python/wiki.md
           # - Team: tutorials/python/team.md
@@ -81,6 +82,7 @@ nav:
           - File: reference/experimental/sync/file.md
           - Table: reference/experimental/sync/table.md
           - Dataset: reference/experimental/sync/dataset.md
+          - Dataset Collection: reference/experimental/sync/dataset_collection.md
           - EntityView: reference/experimental/sync/entityview.md
           - Activity: reference/experimental/sync/activity.md
           - Team: reference/experimental/sync/team.md
@@ -93,6 +95,7 @@ nav:
               - File: reference/experimental/async/file.md
               - Table: reference/experimental/async/table.md
               - Dataset: reference/experimental/async/dataset.md
+              - Dataset Collection: reference/experimental/async/dataset_collection.md
               - EntityView: reference/experimental/async/entityview.md
               - Activity: reference/experimental/async/activity.md
               - Team: reference/experimental/async/team.md
