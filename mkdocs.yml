@@ -34,7 +34,7 @@ nav:
           # - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
           - Dataset: tutorials/python/dataset.md
-          # - Dataset Collection: tutorials/python/dataset_collection.md
+          - Dataset Collection: tutorials/python/dataset_collection.md
           # - Sharing Settings: tutorials/python/sharing_settings.md
           # - Wiki: tutorials/python/wiki.md
           # - Team: tutorials/python/team.md
