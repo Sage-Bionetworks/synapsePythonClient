@@ -11,7 +11,7 @@ Print release notes for installed version of client:
 
 """
 
-import importlib.resources
+import importlib
 import json
 import logging
 import re
@@ -49,8 +49,8 @@ def version_check(
           If False, only the major and minor package version will be compared (ie. 1.0)
         use_local_metadata:
           Defaults to False.
-          If True, importlib.resources will be used to get the latest version fo the package
-          If False, the latest version fo the package will be taken from Pypi
+          If True, importlib.resources will be used to get the latest version of the package
+          If False, the latest version of the package will be taken from Pypi
         logger: a logger for logging output
 
     Returns:
@@ -140,7 +140,7 @@ def _version_check(
           If False, only the major and minor package version will be compared (ie. 1.0)
         use_local_metadata:
           Defaults to False.
-          If True, importlib.resources will be used to get the latest version fo the package
+          If True, importlib.resources will be used to get the latest version of the package
         logger: a logger for logging output
 
     Returns:
