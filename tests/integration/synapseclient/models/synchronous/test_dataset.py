@@ -566,7 +566,7 @@ class TestDatasetCollection:
     ) -> Dataset:
         return self.create_dataset_instance(schedule_for_cleanup, project_model)
 
-    def test_create_empty_dataset_collection(
+    async def test_create_empty_dataset_collection(
         self, syn: Synapse, project_model: Project
     ) -> None:
         # GIVEN an empty DatasetCollection
@@ -596,7 +596,7 @@ class TestDatasetCollection:
             == dataset_collection.description
         )
 
-    def test_create_dataset_collection_with_dataset(
+    async def test_create_dataset_collection_with_dataset(
         self, syn: Synapse, project_model: Project, file: File, dataset: Dataset
     ) -> None:
         # GIVEN a Dataset with a file
@@ -632,7 +632,7 @@ class TestDatasetCollection:
             EntityRef(id=dataset_1.id, version=dataset_1.version_number),
         ]
 
-    def test_update_dataset_collection_attributes(
+    async def test_update_dataset_collection_attributes(
         self, syn: Synapse, project_model: Project
     ) -> None:
         # GIVEN a DatasetCollection in Synapse
@@ -665,7 +665,7 @@ class TestDatasetCollection:
         # AND all versions should have the same id
         assert my_retrieved_dataset_collection.id == updated_dataset_collection.id
 
-    def test_query_dataset_collection(
+    async def test_query_dataset_collection(
         self, syn: Synapse, project_model: Project, dataset: Dataset
     ) -> None:
         # GIVEN a DatasetCollection in Synapse
@@ -690,7 +690,7 @@ class TestDatasetCollection:
         assert row["name"][0] == dataset_1.name
         assert row["description"][0] == dataset_1.description
 
-    def test_dataset_collection_part_mask_query_everything(
+    async def test_dataset_collection_part_mask_query_everything(
         self, syn: Synapse, project_model: Project, dataset: Dataset
     ) -> None:
         # GIVEN a DatasetCollection in Synapse
@@ -731,7 +731,7 @@ class TestDatasetCollection:
         assert row.sum_file_sizes.sum_file_size_bytes is not None
         assert row.last_updated_on is not None
 
-    def test_dataset_collection_part_mask_query_results_only(
+    async def test_dataset_collection_part_mask_query_results_only(
         self, syn: Synapse, project_model: Project, dataset: Dataset
     ) -> None:
         # GIVEN a DatasetCollection in Synapse
@@ -762,7 +762,7 @@ class TestDatasetCollection:
         assert row.sum_file_sizes is None
         assert row.last_updated_on is None
 
-    def test_dataset_collection_update_rows(
+    async def test_dataset_collection_update_rows(
         self, syn: Synapse, project_model: Project, dataset: Dataset
     ) -> None:
         # GIVEN a DatasetCollection in Synapse
@@ -802,7 +802,7 @@ class TestDatasetCollection:
         )
         assert row["my_annotation"][0] == "good dataset"
 
-    def test_delete_dataset_collection(
+    async def test_delete_dataset_collection(
         self, syn: Synapse, project_model: Project
     ) -> None:
         # GIVEN a DatasetCollection in Synapse
@@ -829,7 +829,7 @@ class TestDatasetCollectionColumns:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def test_add_column(self, syn: Synapse, project_model: Project) -> None:
+    async def test_add_column(self, syn: Synapse, project_model: Project) -> None:
         # GIVEN a DatasetCollection in Synapse
         dataset_collection = DatasetCollection(
             name=str(uuid.uuid4()),
@@ -851,7 +851,7 @@ class TestDatasetCollectionColumns:
         # THEN the column should be added to the DatasetCollection
         assert "my_annotation" in new_dataset_collection_instance.columns
 
-    def test_delete_column(self, syn: Synapse, project_model: Project) -> None:
+    async def test_delete_column(self, syn: Synapse, project_model: Project) -> None:
         # GIVEN a DatasetCollection with custom columns in Synapse
         dataset_collection_name = str(uuid.uuid4())
         old_column_name = "my_annotation"
@@ -880,7 +880,7 @@ class TestDatasetCollectionColumns:
         assert column_to_keep in old_dataset_collection_instance.columns
         assert len(old_dataset_collection_instance.columns) == 1
 
-    def test_reorder_column(self, syn: Synapse, project_model: Project) -> None:
+    async def test_reorder_column(self, syn: Synapse, project_model: Project) -> None:
         # GIVEN a DatasetCollection in Synapse
         dataset_collection_name = str(uuid.uuid4())
         first_column_name = "first"
@@ -912,7 +912,7 @@ class TestDatasetCollectionColumns:
             first_column_name,
         ]
 
-    def test_rename_column(self, syn: Synapse, project_model: Project) -> None:
+    async def test_rename_column(self, syn: Synapse, project_model: Project) -> None:
         # GIVEN a DatasetCollection in Synapse
         dataset_collection_name = str(uuid.uuid4())
         old_column_name = "column_string"
