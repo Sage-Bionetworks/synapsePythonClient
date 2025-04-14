@@ -37,7 +37,7 @@ def version_check(
     Recommends upgrade, if a newer version exists.
 
     This wraps the _version_check function in a try except block.
-    The purpose of this is so that no exception caught running the version check stop the client from running.
+    The purpose of this is so that no exception caught running the version check stops the client from running.
 
     Args:
         current_version (Optional[str], optional): The current version of the package.
@@ -165,7 +165,9 @@ def _write_package_behind_messages(
     current_version: str,
     latest_version: str,
 ) -> None:
-    """_summary_
+    """
+    This writes the output message for when the installed package version is behind the
+      most recent release.
 
     Args:
         current_version (str): The current version of a package
