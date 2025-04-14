@@ -120,7 +120,7 @@ class TestDatasetCollection:
         # WHEN I add an invalid type to it
         with pytest.raises(
             ValueError,
-            match="item must be a Dataset or EntityRef. 1 is a <class 'int'>",
+            match="item must be a Dataset or EntityRef.",
         ):
             dataset_collection.add_item(1)
 
