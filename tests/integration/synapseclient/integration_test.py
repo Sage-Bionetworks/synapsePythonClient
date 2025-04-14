@@ -25,7 +25,6 @@ from synapseclient import (
     client,
 )
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseNoCredentialsError
-from synapseclient.core.version_check import version_check
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948

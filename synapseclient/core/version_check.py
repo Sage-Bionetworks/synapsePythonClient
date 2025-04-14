@@ -13,16 +13,15 @@ Print release notes for installed version of client:
 
 import importlib.resources
 import json
+import logging
 import re
 import sys
-import urllib.request
-from typing import Optional
+from typing import Any, Optional
 
-import requests
+import httpx
 
 import synapseclient
 
-_VERSION_URL = "https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/master/synapseclient/synapsePythonClient"  # noqa
 _PYPI_JSON_URL = "https://pypi.org/pypi/synapseclient/json"
 _RELEASE_NOTES_URL = "https://python-docs.synapse.org/news/"
 
@@ -31,6 +30,7 @@ def version_check(
     current_version: Optional[str] = None,
     check_for_point_releases: bool = False,
     use_local_metadata: bool = False,
+    logger: logging.Logger = None,
 ) -> bool:
     """
     Gets the latest version information from version_url and check against the current version.
@@ -39,25 +39,26 @@ def version_check(
     This wraps the _version_check function in a try except block.
     The purpose of this is so that no exception caught running the version check stops the client from running.
 
-    Args:
-        current_version (Optional[str], optional): The current version of the package.
+    Arguments:
+        current_version: The current version of the package.
           Defaults to None.
           This argument is mainly used for testing.
-        check_for_point_releases (bool, optional):
+        check_for_point_releases:
           Defaults to False.
           If True, The whole package versions will be compared (ie. 1.0.0)
           If False, only the major and minor package version will be compared (ie. 1.0)
-        use_local_metadata (bool, optional):
+        use_local_metadata:
           Defaults to False.
           If True, importlib.resources will be used to get the latest version fo the package
           If False, the latest version fo the package will be taken from Pypi
+        logger: a logger for logging output
 
     Returns:
         bool: True if current version is the latest release (or higher) version, otherwise False.
     """
     try:
         if not _version_check(
-            current_version, check_for_point_releases, use_local_metadata
+            current_version, check_for_point_releases, use_local_metadata, logger
         ):
             return False
 
@@ -69,10 +70,59 @@ def version_check(
     return True
 
 
+def check_for_updates(logger: logging.Logger = None):
+    """
+    Check for the existence of newer versions of the client,
+      reporting both current release version and development version.
+
+    For help installing development versions of the client,
+    see the [README.md](https://github.com/Sage-Bionetworks/synapsePythonClient#installation).
+
+    Arguments:
+        logger: a logger for logging output
+
+    """
+    current_version = synapseclient.__version__
+    latest_version = _get_version_info_from_pypi()
+
+    msg = (
+        "Python Synapse Client\n"
+        f"currently running version:  {current_version}\n"
+        f"latest release version:     {latest_version}\n"
+    )
+    if _is_current_version_behind(current_version, latest_version, levels=3):
+        msg = msg + _create_package_behind_message(current_version, latest_version)
+    else:
+        msg = msg + "\nYour Synapse client is up to date!\n"
+
+    if logger:
+        logger.info(msg)
+    else:
+        sys.stdout.write(msg)
+        sys.stdout.flush()
+
+
+def release_notes(logger: logging.Logger = None):
+    """
+    Print release notes for the latest release
+
+    Arguments:
+        logger: a logger for logging output
+    """
+    latest_version = _get_version_info_from_pypi()
+    msg = _create_release_notes_message(latest_version)
+    if logger:
+        logger.info(msg)
+    else:
+        sys.stdout.write(msg)
+        sys.stdout.flush()
+
+
 def _version_check(
     current_version: Optional[str] = None,
     check_for_point_releases: bool = False,
     use_local_metadata: bool = False,
+    logger: logging.Logger = None,
 ) -> bool:
     """
     Gets the latest version information from version_url and check against the current version.
@@ -80,18 +130,18 @@ def _version_check(
 
     This has been split of from the version_check function to make testing easier.
 
-    Args:
-        current_version (Optional[str], optional): The current version of the package.
+    Arguments:
+        current_version: The current version of the package.
           Defaults to None.
           This argument is mainly used for testing.
-        check_for_point_releases (bool, optional):
+        check_for_point_releases:
           Defaults to False.
           If True, The whole package versions will be compared (ie. 1.0.0)
           If False, only the major and minor package version will be compared (ie. 1.0)
-        use_local_metadata (bool, optional):
+        use_local_metadata:
           Defaults to False.
           If True, importlib.resources will be used to get the latest version fo the package
-          If False, the latest version fo the package will be taken from Pypi
+        logger: a logger for logging output
 
     Returns:
         bool: True if current version is the latest release (or higher) version, otherwise False.
@@ -110,9 +160,28 @@ def _version_check(
     levels = 3 if check_for_point_releases else 2
 
     if _is_current_version_behind(current_version, latest_version, levels):
-        _write_package_behind_messages(current_version, latest_version)
+        msg1 = _create_package_behind_message(current_version, latest_version)
+        msg2 = _create_release_notes_message(latest_version)
+        msg = msg1 + msg2
+        if logger:
+            logger.info(msg)
+        else:
+            sys.stdout.write(msg)
+            sys.stdout.flush()
         return False
     return True
+
+
+def _get_local_package_metadata() -> dict[str, Any]:
+    """Gets version info locally, using importlib.resources
+
+    Returns:
+        dict[str, Any]: This will have various fields relating the version of the client
+    """
+    ref = importlib.resources.files("synapseclient").joinpath("synapsePythonClient")
+    with ref.open("r") as fp:
+        pkg_metadata = json.loads(fp.read())
+    return pkg_metadata
 
 
 def _get_version_info_from_pypi() -> str:
@@ -121,8 +190,8 @@ def _get_version_info_from_pypi() -> str:
     Returns:
         str: The current release version
     """
-    with urllib.request.urlopen(_PYPI_JSON_URL) as url:
-        data = json.load(url)
+    content = httpx.get(_PYPI_JSON_URL)
+    data = json.load(content)
     version = data["info"]["version"]
     assert isinstance(version, str)
     return version
@@ -134,10 +203,10 @@ def _is_current_version_behind(
     """
     Tests if the current version of the package is behind the latest version.
 
-    Args:
-        current_version (str): The current version of a package
-        latest_version (str): The latest version of a package
-        levels (int): The levels of the packages to check. For example:
+    Arguments:
+        current_version: The current version of a package
+        latest_version: The latest version of a package
+        levels: The levels of the packages to check. For example:
           level 1: major versions
           level 2: minor versions
           level 3: patch versions
@@ -161,79 +230,22 @@ def _is_current_version_behind(
     return current_version_int_tuple < latest_version_int_tuple
 
 
-def _write_package_behind_messages(
-    current_version: str,
-    latest_version: str,
-) -> None:
-    """
-    This writes the output message for when the installed package version is behind the
-      most recent release.
-
-    Args:
-        current_version (str): The current version of a package
-        latest_version (str): The latest version of a package
-    """
-    sys.stderr.write(
-        "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client"
-        f" ({latest_version}) is available."
+def _create_package_behind_message(current_version: str, latest_version: str) -> str:
+    msg = (
+        "\nUPGRADE AVAILABLE\n\n"
+        f"A more recent version of the Synapse Client ({latest_version}) is available."
         f" Your version ({current_version}) can be upgraded by typing:\n   "
-        " pip install --upgrade synapseclient\n\n"
+        "pip install --upgrade synapseclient\n\n"
     )
-    sys.stderr.write(
-        f"Python Synapse Client version {latest_version}" " release notes\n\n"
+    return msg
+
+
+def _create_release_notes_message(latest_version) -> str:
+    msg = (
+        f"Python Synapse Client version {latest_version} release notes\n\n"
+        f"{_RELEASE_NOTES_URL}\n\n"
     )
-    sys.stderr.write(f"{_RELEASE_NOTES_URL}\n\n")
-
-
-def check_for_updates():
-    """
-    Check for the existence of newer versions of the client, reporting both current release version and development
-    version.
-
-    For help installing development versions of the client,
-    see the [README.md](https://github.com/Sage-Bionetworks/synapsePythonClient#installation).
-    """
-    sys.stderr.write("Python Synapse Client\n")
-    sys.stderr.write("currently running version:  %s\n" % synapseclient.__version__)
-
-    release_version_info = _get_version_info(_VERSION_URL)
-    sys.stderr.write(
-        "latest release version:     %s\n" % release_version_info["latestVersion"]
-    )
-
-    if _version_tuple(synapseclient.__version__, levels=3) < _version_tuple(
-        release_version_info["latestVersion"], levels=3
-    ):
-        print(
-            "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is"
-            " available. Your version (%s) can be upgraded by typing:\n    pip install"
-            " --upgrade synapseclient\n\n"
-            % (
-                release_version_info["latestVersion"],
-                synapseclient.__version__,
-            )
-        )
-    else:
-        sys.stderr.write("\nYour Synapse client is up to date!\n")
-
-
-def release_notes(version_url=None):
-    """
-    Print release notes for the installed version of the client or latest release or development version if version_url
-    is supplied.
-
-    version_url: Defaults to None, meaning release notes for the installed version. Alternatives are:
-                        - synapseclient.version_check._VERSION_URL
-                        - synapseclient.version_check._DEV_VERSION_URL
-
-    """
-    version_info = _get_version_info(version_url)
-    sys.stderr.write(
-        "Python Synapse Client version %s release notes\n\n"
-        % version_info["latestVersion"]
-    )
-    if "releaseNotes" in version_info:
-        sys.stderr.write(version_info["releaseNotes"] + "\n")
+    return msg
 
 
 def _strip_dev_suffix(version):
@@ -255,9 +267,9 @@ def _version_tuple(version: str, levels: int = 2) -> tuple:
     If the number of levels is lesser than the levels argument(x),
       "0" strings are used to pad out the return value.
 
-    Args:
-        version (str): A package version in string form such as "1.0.0"
-        levels (int, optional):
+    Arguments:
+        version: A package version in string form such as "1.0.0"
+        levels:
           Defaults to 2.
           The number of levels deep in the package version to return. "1.0.0", for example:
             levels=1: only the major version ("1")
@@ -272,39 +284,6 @@ def _version_tuple(version: str, levels: int = 2) -> tuple:
     if len(v) < levels:
         v = v + ["0"] * (levels - len(v))
     return tuple(v)
-
-
-def _get_version_info(version_url: Optional[str] = _VERSION_URL) -> dict:
-    """
-    Gets version info from the version_url argument, or locally
-    By default this is the Github for the python client
-    If the version_url argument is None the version info will be obtained locally.
-
-    Args:
-        version_url (str, optional):
-          Defaults to _VERSION_URL.
-          The url to get version info from
-
-    Returns:
-        dict: This will have various fields relating the version of the client
-    """
-    if version_url is None:
-        return _get_local_package_metadata()
-    headers = {"Accept": "application/json; charset=UTF-8"}
-    headers.update(synapseclient.USER_AGENT)
-    return requests.get(version_url, headers=headers).json()
-
-
-def _get_local_package_metadata() -> dict:
-    """Gets version info locally, using importlib.resources
-
-    Returns:
-        dict: This will have various fields relating the version of the client
-    """
-    ref = importlib.resources.files("synapseclient").joinpath("synapsePythonClient")
-    with ref.open("r") as fp:
-        pkg_metadata = json.loads(fp.read())
-    return pkg_metadata
 
 
 # If this file is run as a script, print current version
