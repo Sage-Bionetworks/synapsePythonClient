@@ -375,6 +375,14 @@ async def _cast_into_class_type(
         entity = entity_to_update.fill_from_dict(
             entity=entity_bundle["entity"], set_annotations=False
         )
+    elif entity["concreteType"] == concrete_types.MATERIALIZED_VIEW:
+        if not entity_to_update:
+            from models.materializedview import MaterializedView
+
+            entity_to_update = MaterializedView()
+        entity = entity_to_update.fill_from_dict(
+            entity=entity_bundle["entity"], set_annotations=False
+        )
     else:
         raise ValueError(
             f"Attempting to retrieve an unsupported entity type of {entity['concreteType']}."
