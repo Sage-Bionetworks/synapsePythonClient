@@ -12,7 +12,7 @@ syn.login()
 # Get the project where we want to create the materialized view
 project = Project(name="My uniquely named project about Alzheimer's Disease").get()
 project_id = project.id
-print(f"Created project with ID: {project_id}")
+print(f"Got project with ID: {project_id}")
 
 # Create the first table with some columns and rows
 table1_columns = [
@@ -168,7 +168,7 @@ def create_materialized_view_with_right_join():
     Example: Create a materialized view with a RIGHT JOIN clause.
     """
     defining_sql = f"""
-    SELECT t1.sample_id AS sample_id, t1.patient_id AS patient_id, t1.age AS age, t1.diagnosis AS diagnosis,
+    SELECT t2.sample_id AS sample_id, t1.patient_id AS patient_id, t1.age AS age, t1.diagnosis AS diagnosis,
            t2.gene AS gene, t2.expression_level AS expression_level
     FROM {table1.id} t1
     RIGHT JOIN {table2.id} t2

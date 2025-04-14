@@ -118,13 +118,14 @@ the results.
   <summary>The result of querying your Materialized View with a RIGHT JOIN clause should
   look like:</summary>
 ```
+Results from the materialized view with RIGHT JOIN:
   sample_id patient_id   age    diagnosis   gene  expression_level
 0        S1         P1  70.0  Alzheimer's   APOE               2.5
 1        S2         P2  65.0      Healthy    APP               1.8
 2        S3         P3  72.0  Alzheimer's  PSEN1               3.2
 3        S4         P4  68.0      Healthy   MAPT               2.1
 4        S5         P5  75.0  Alzheimer's    APP               3.5
-5       NaN        NaN   NaN          NaN  PSEN2               1.9
+5        S7        NaN   NaN          NaN  PSEN2               1.9
 ```
 </details>
 
