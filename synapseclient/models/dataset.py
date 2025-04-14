@@ -640,6 +640,7 @@ class Dataset(
             the row you are modifying.
 
     Example: Create a new dataset from a list of EntityRefs.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
