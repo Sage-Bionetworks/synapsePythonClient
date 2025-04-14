@@ -274,7 +274,7 @@ def _version_tuple(version: str, levels: int = 2) -> tuple:
           The number of levels deep in the package version to return. "1.0.0", for example:
             levels=1: only the major version ("1")
             levels=2: the major and minor version ("1", "0")
-            levels=2: the major, minor, and patch version ("1", "0", "0")
+            levels=3: the major, minor, and patch version ("1", "0", "0")
 
     Returns:
         Tuple: A tuple of strings where the length is equal to the levels argument.
