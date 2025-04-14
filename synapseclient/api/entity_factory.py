@@ -340,9 +340,9 @@ async def _cast_into_class_type(
         EntityView,
         File,
         Folder,
+        MaterializedView,
         Project,
         Table,
-        MaterializedView
     )
 
     syn = Synapse.get_client(synapse_client=synapse_client)
