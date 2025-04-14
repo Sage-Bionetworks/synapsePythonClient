@@ -1719,23 +1719,19 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         Returns:
             The DatasetCollection instance stored in synapse.
 
-        Example: Create a new dataset collection from a list of datasets by storing it.
+        Example: Create a new Dataset Collection from a list of Datasets by storing it.
             &nbsp;
 
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import DatasetCollection, Dataset
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_datasets = [Dataset(id="syn1234"), Dataset(id="syn1235"), Dataset(id="syn1236")]
-                my_collection = DatasetCollection(parent_id="syn987", name="my-new-collection", items=my_datasets)
-                await my_collection.store_async()
-
-            asyncio.run(main())
+            my_datasets = [Dataset(id="syn1234"), Dataset(id="syn1235"), Dataset(id="syn1236")]
+            my_collection = DatasetCollection(parent_id="syn987", name="my-new-collection", items=my_datasets)
+            my_collection.store()
             ```
         """
         return self
@@ -1762,8 +1758,8 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         Returns:
             The DatasetCollection instance stored in synapse.
 
-        Example: Getting metadata about a DatasetCollection using id
-            Get a DatasetCollection by ID and print out the columns and activity. `include_columns`
+        Example: Getting metadata about a Dataset Collection using id
+            Get a Dataset Collection by ID and print out the columns and activity. `include_columns`
             defaults to True and `include_activity` defaults to False. When you need to
             update existing columns or activity these need to be set to True during the
             `get` call, then you'll make the changes, and finally call the
@@ -1784,8 +1780,8 @@ class DatasetCollectionSynchronousProtocol(Protocol):
             print(collection.activity)
             ```
 
-        Example: Getting metadata about a DatasetCollection using name and parent_id
-            Get a DatasetCollection by name/parent_id and print out the columns and activity.
+        Example: Getting metadata about a Dataset Collection using name and parent_id
+            Get a Dataset Collection by name/parent_id and print out the columns and activity.
             `include_columns` defaults to True and `include_activity` defaults to
             False. When you need to update existing columns or activity these need to
             be set to True during the `get` call, then you'll make the changes,
@@ -1819,8 +1815,8 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         Returns:
             None
 
-        Example: Deleting a dataset collection
-            Deleting a dataset collection is only supported by the ID of the dataset collection.
+        Example: Deleting a Dataset Collection
+            Deleting a Dataset Collection is only supported by the ID of the Dataset Collection.
 
             ```python
             from synapseclient import Synapse
@@ -1927,7 +1923,8 @@ class DatasetCollectionSynchronousProtocol(Protocol):
                 function when the `values` argument is a path to a csv file.
 
 
-        Example: Update custom column values in a dataset collection.
+        Example: Update custom column values in a Dataset Collection.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -1978,7 +1975,8 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         Returns:
             A `TableUpdateTransaction` object which includes the version number of the snapshot.
 
-        Example: Save a snapshot of a dataset collection.
+        Example: Save a snapshot of a Dataset Collection.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -2009,7 +2007,8 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         Raises:
             ValueError: If the item is not a Dataset
 
-        Example: Add a dataset to a dataset collection.
+        Example: Add a Dataset to a Dataset Collection.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -2045,7 +2044,8 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         Raises:
             ValueError: If the item is not a Dataset
 
-        Example: Remove a dataset from a dataset collection.
+        Example: Remove a Dataset from a Dataset Collection.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -2076,10 +2076,10 @@ class DatasetCollection(
     ViewUpdateMixin,
     ViewSnapshotMixin,
 ):
-    """A `DatasetCollection` object represents the metadata of a Synapse DatasetCollection.
+    """A `DatasetCollection` object represents the metadata of a Synapse Dataset Collection.
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DatasetCollection.html>
 
-    A dataset collection is a type of view defined by a flat list of datasets.
+    A Dataset Collection is a type of view defined by a flat list of Datasets.
 
     Attributes:
         id: The unique immutable ID for this dataset collection. A new ID will be generated for new
@@ -2190,7 +2190,8 @@ class DatasetCollection(
             you store the dataset collection. It will be stored as an annotation on the entity for
             the row you are modifying.
 
-    Example: Create a new dataset collection from a list of datasets.
+    Example: Create a new Dataset Collection from a list of Datasets.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -2204,7 +2205,8 @@ class DatasetCollection(
         my_collection.store()
         ```
 
-    Example: Add datasets to an existing dataset collection.
+    Example: Add Datasets to an existing Dataset Collection.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -2220,7 +2222,8 @@ class DatasetCollection(
         my_collection.store()
         ```
 
-    Example: Remove datasets from a dataset collection.
+    Example: Remove Datasets from a Dataset Collection.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -2236,7 +2239,8 @@ class DatasetCollection(
         my_collection.store()
         ```
 
-    Example: Query data from a dataset collection.
+    Example: Query data from a Dataset Collection.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -2250,7 +2254,8 @@ class DatasetCollection(
         print(row)
         ```
 
-    Example: Add a custom column to a dataset collection.
+    Example: Add a custom column to a Dataset Collection.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -2264,7 +2269,8 @@ class DatasetCollection(
         my_collection.store()
         ```
 
-    Example: Update custom column values in a dataset collection.
+    Example: Update custom column values in a Dataset Collection.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -2281,7 +2287,8 @@ class DatasetCollection(
         my_collection.update_rows(values=modified_data, primary_keys=["id"], dry_run=False)
         ```
 
-    Example: Save a snapshot of a dataset collection.
+    Example: Save a snapshot of a Dataset Collection.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -2294,7 +2301,8 @@ class DatasetCollection(
         my_collection.snapshot(comment="My first snapshot", label="My first snapshot")
         ```
 
-    Example: Deleting a dataset collection
+    Example: Deleting a Dataset Collection.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -2579,7 +2587,8 @@ class DatasetCollection(
         Raises:
             ValueError: If the item is not a Dataset or EntityRef
 
-        Example: Add a dataset to a dataset collection.
+        Example: Add a Dataset to a Dataset Collection.
+            &nbsp;
 
             ```python
             import asyncio
@@ -2622,7 +2631,8 @@ class DatasetCollection(
         Raises:
             ValueError: If the item is not a Dataset or EntityRef
 
-        Example: Remove a dataset from a dataset collection.
+        Example: Remove a Dataset from a Dataset Collection.
+            &nbsp;
 
             ```python
             import asyncio
@@ -2688,7 +2698,8 @@ class DatasetCollection(
         Returns:
             The DatasetCollection instance stored in synapse.
 
-        Example: Create a new dataset collection from a list of datasets by storing it.
+        Example: Create a new Dataset Collection from a list of Datasets by storing it.
+            &nbsp;
 
             ```python
             import asyncio
@@ -2734,7 +2745,7 @@ class DatasetCollection(
         Returns:
             The DatasetCollection instance stored in synapse.
 
-        Example: Getting metadata about a DatasetCollection using id
+        Example: Getting metadata about a Dataset Collection using id
             Get a DatasetCollection by ID and print out the columns and activity. `include_columns`
             defaults to True and `include_activity` defaults to False. When you need to
             update existing columns or activity these need to be set to True during the
@@ -2760,8 +2771,8 @@ class DatasetCollection(
             asyncio.run(main())
             ```
 
-        Example: Getting metadata about a DatasetCollection using name and parent_id
-            Get a DatasetCollection by name/parent_id and print out the columns and activity.
+        Example: Getting metadata about a Dataset Collection using name and parent_id
+            Get a Dataset Collection by name/parent_id and print out the columns and activity.
             `include_columns` defaults to True and `include_activity` defaults to
             False. When you need to update existing columns or activity these need to
             be set to True during the `get_async` call, then you'll make the changes,
@@ -2809,8 +2820,8 @@ class DatasetCollection(
         Returns:
             None
 
-        Example: Deleting a dataset collection
-            Deleting a dataset collection is only supported by the ID of the dataset collection.
+        Example: Deleting a Dataset Collection
+            Deleting a Dataset Collection is only supported by the ID of the Dataset Collection.
 
             ```python
             import asyncio
@@ -2921,7 +2932,8 @@ class DatasetCollection(
                 function when the `values` argument is a path to a csv file.
 
 
-        Example: Update custom column values in a dataset collection.
+        Example: Update custom column values in a Dataset Collection.
+            &nbsp;
 
             ```python
             import asyncio
@@ -2989,7 +3001,8 @@ class DatasetCollection(
         Returns:
             A `TableUpdateTransaction` object which includes the version number of the snapshot.
 
-        Example: Save a snapshot of a dataset collection.
+        Example: Save a snapshot of a Dataset Collection.
+            &nbsp;
 
             ```python
             import asyncio
