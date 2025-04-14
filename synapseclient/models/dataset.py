@@ -104,21 +104,18 @@ class DatasetSynchronousProtocol(Protocol):
             The Dataset instance stored in synapse.
 
         Example: Create a new dataset from a list of EntityRefs by storing it.
+            &nbsp;
 
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Dataset, EntityRef
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_entity_refs = [EntityRef(id="syn1234"), EntityRef(id="syn1235"), EntityRef(id="syn1236")]
-                my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_entity_refs)
-                await my_dataset.store_async()
-
-            asyncio.run(main())
+            my_entity_refs = [EntityRef(id="syn1234"), EntityRef(id="syn1235"), EntityRef(id="syn1236")]
+            my_dataset = Dataset(parent_id="syn987", name="my-new-dataset", items=my_entity_refs)
+            my_dataset.store()
             ```
         """
         return self
@@ -311,6 +308,7 @@ class DatasetSynchronousProtocol(Protocol):
 
 
         Example: Update custom column values in a dataset.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -362,6 +360,7 @@ class DatasetSynchronousProtocol(Protocol):
             A `TableUpdateTransaction` object which includes the version number of the snapshot.
 
         Example: Save a snapshot of a dataset.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -394,6 +393,7 @@ class DatasetSynchronousProtocol(Protocol):
             ValueError: If the item is not an EntityRef, File, or Folder
 
         Example: Add a file to a dataset.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -409,6 +409,7 @@ class DatasetSynchronousProtocol(Protocol):
 
         Example: Add a folder to a dataset.
             All child files are recursively added to the dataset.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -423,6 +424,7 @@ class DatasetSynchronousProtocol(Protocol):
             ```
 
         Example: Add an entity reference to a dataset.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -460,6 +462,7 @@ class DatasetSynchronousProtocol(Protocol):
             ValueError: If the item is not a valid type
 
         Example: Remove a file from a dataset.
+            &nbsp;
 
             ```python
             from synapseclient import Synapse
@@ -489,7 +492,7 @@ class DatasetSynchronousProtocol(Protocol):
             ```
 
         Example: Remove an entity reference from a dataset.
-
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Dataset, EntityRef
@@ -640,7 +643,9 @@ class Dataset(
             the row you are modifying.
 
     Example: Create a new dataset from a list of EntityRefs.
-        &nbsp;
+        Dataset items consist of references to Synapse Files using an Entity Reference.
+        If you are adding items to a Dataset directly, you must provide them in the form of
+        an `EntityRef` class instance.
 
         ```python
         from synapseclient import Synapse
@@ -655,6 +660,9 @@ class Dataset(
         ```
 
     Example: Add entities to an existing dataset.
+        Using `add_item`, you can add Synapse entities that are Files, Folders, or EntityRefs that point to a Synapse entity.
+        If the entity is a Folder (or an EntityRef that points to a folder), all of the child Files
+        within the Folder will be added to the Dataset recursively.
 
         ```python
         from synapseclient import Synapse
@@ -679,6 +687,8 @@ class Dataset(
         ```
 
     Example: Remove entities from a dataset.
+        &nbsp;
+
 
         ```python
         from synapseclient import Synapse
@@ -703,6 +713,7 @@ class Dataset(
         ```
 
     Example: Query data from a dataset.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -717,6 +728,7 @@ class Dataset(
         ```
 
     Example: Add a custom column to a dataset.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -731,6 +743,7 @@ class Dataset(
         ```
 
     Example: Update custom column values in a dataset.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -748,6 +761,7 @@ class Dataset(
         ```
 
     Example: Save a snapshot of a dataset.
+        &nbsp;
 
         ```python
         from synapseclient import Synapse
@@ -761,7 +775,7 @@ class Dataset(
         ```
 
     Example: Deleting a dataset
-
+        &nbsp;
         ```python
         from synapseclient import Synapse
         from synapseclient.models import Dataset
@@ -1089,7 +1103,7 @@ class Dataset(
             ValueError: If the item is not an EntityRef, File, or Folder
 
         Example: Add a file to a dataset.
-
+            &nbsp;
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -1126,6 +1140,7 @@ class Dataset(
             ```
 
         Example: Add an entity reference to a dataset.
+            &nbsp;
 
             ```python
             import asyncio
@@ -1209,6 +1224,7 @@ class Dataset(
             ValueError: If the item is not a valid type
 
         Example: Remove a file from a dataset.
+            &nbsp;
 
             ```python
             import asyncio
@@ -1246,6 +1262,7 @@ class Dataset(
             ```
 
         Example: Remove an entity reference from a dataset.
+            &nbsp;
 
             ```python
             import asyncio
@@ -1331,7 +1348,7 @@ class Dataset(
             The Dataset instance stored in synapse.
 
         Example: Create a new dataset from a list of EntityRefs by storing it.
-
+            &nbsp;
             ```python
             import asyncio
             from synapseclient import Synapse
@@ -1564,22 +1581,27 @@ class Dataset(
 
 
         Example: Update custom column values in a dataset.
+            &nbsp;
 
             ```python
             import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Dataset
+            import pandas as pd
 
             syn = Synapse()
             syn.login()
 
-            my_dataset = Dataset(id="syn1234").get()
+            async def main():
+                my_dataset = await Dataset(id="syn1234").get_async()
 
-            # my_annotation must already exist in the dataset as a custom column
-            modified_data = pd.DataFrame(
-                {"id": ["syn1234"], "my_annotation": ["good data"]}
-            )
-            await my_dataset.update_rows_async(values=modified_data, primary_keys=["id"], dry_run=False)
+                # my_annotation must already exist in the dataset as a custom column
+                modified_data = pd.DataFrame(
+                    {"id": ["syn1234"], "my_annotation": ["good data"]}
+                )
+                await my_dataset.update_rows_async(values=modified_data, primary_keys=["id"], dry_run=False)
+
+            asyncio.run(main())
             ```
         """
         await super().update_rows_async(
@@ -1628,6 +1650,7 @@ class Dataset(
             A `TableUpdateTransaction` object which includes the version number of the snapshot.
 
         Example: Save a snapshot of a dataset.
+            &nbsp;
 
             ```python
             import asyncio
@@ -1637,8 +1660,11 @@ class Dataset(
             syn = Synapse()
             syn.login()
 
-            my_dataset = await Dataset(id="syn1234").get_async()
-            await my_dataset.snapshot_async(comment="My first snapshot", label="My first snapshot")
+            async def main():
+                my_dataset = await Dataset(id="syn1234").get_async()
+                await my_dataset.snapshot_async(comment="My first snapshot", label="My first snapshot")
+
+            asyncio.run(main())
             ```
         """
         return await super().snapshot_async(
@@ -1694,6 +1720,7 @@ class DatasetCollectionSynchronousProtocol(Protocol):
             The DatasetCollection instance stored in synapse.
 
         Example: Create a new dataset collection from a list of datasets by storing it.
+            &nbsp;
 
             ```python
             import asyncio
