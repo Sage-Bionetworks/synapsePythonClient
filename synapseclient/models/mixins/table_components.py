@@ -62,6 +62,7 @@ from synapseclient.models.table_components import (
 )
 
 CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView", "DatasetCollection"]
+CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView"]
 
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
@@ -216,7 +217,11 @@ class TableStoreMixin:
             of the table. If there are no changes to the columns this method will
             return `None`.
         """
-        if not self.has_columns_changed or not self.columns:
+        if (
+            self.__class__.__name__ in CLASSES_WITH_READ_ONLY_SCHEMA
+            or not self.has_columns_changed
+            or not self.columns
+        ):
             return None
 
         column_name_to_id = {}
@@ -401,10 +406,13 @@ class TableStoreMixin:
         ):
             await self._append_default_columns(synapse_client=synapse_client)
 
-        if self.columns:
-            # check that column names match this regex "^[a-zA-Z0-9,_.]+"
+        if (
+            self.__class__.__name__ not in CLASSES_WITH_READ_ONLY_SCHEMA
+            and self.columns
+        ):
+            # check that column names match this regex "^[a-zA-Z0-9 _\-\.\+\(\)']+$"
             for _, column in self.columns.items():
-                if not re.match(r"^[a-zA-Z0-9,_.]+$", column.name):
+                if not re.match(r"^[a-zA-Z0-9 _\-\.\+\(\)']+$", column.name):
                     raise ValueError(
                         f"Column name '{column.name}' contains invalid characters. "
                         "Names may only contain: letters, numbers, spaces, underscores, "
@@ -3513,7 +3521,9 @@ class TableStoreRowMixin:
         )
         progress_bar = tqdm(
             total=total_df_bytes,
-            desc="Splitting DataFrame and uploading chunks",
+            desc="Splitting DataFrame and uploading chunks"
+            if len(chunks_to_upload) > 1
+            else "Uploading DataFrame",
             unit_scale=True,
             smoothing=0,
             unit="B",
