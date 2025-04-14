@@ -395,9 +395,7 @@ async def _cast_into_class_type(
         )
     else:
         # Handle all other entity types
-        entity_instance.fill_from_dict(
-            entity=entity_bundle["entity"], set_annotations=False
-        )
+        entity_instance.fill_from_dict(entity_bundle["entity"], set_annotations=False)
 
     if annotations:
         entity_instance.annotations = annotations
