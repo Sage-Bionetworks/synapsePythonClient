@@ -963,7 +963,9 @@ class Dataset(
 
         Arguments:
             item: Entity to add to the dataset. Must be an EntityRef, File, or Folder.
-            synapse_client: The Synapse client to use. Defaults to None.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Raises:
             ValueError: If the item is not an EntityRef, File, or Folder
@@ -1066,7 +1068,9 @@ class Dataset(
 
         Arguments:
             item: The Synapse ID or Entity to remove from the dataset
-            synapse_client: The Synapse client to use. Defaults to None.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Returns:
             None
