@@ -395,14 +395,6 @@ async def _cast_into_class_type(
             submission=submission,
             synapse_client=syn,
         )
-    elif entity["concreteType"] == concrete_types.MATERIALIZED_VIEW:
-        if not entity_to_update:
-            from models.materializedview import MaterializedView
-
-            entity_to_update = MaterializedView()
-        entity = entity_to_update.fill_from_dict(
-            entity=entity_bundle["entity"], set_annotations=False
-        )
     else:
         # Handle all other entity types
         entity_instance.fill_from_dict(entity_bundle["entity"], set_annotations=False)
