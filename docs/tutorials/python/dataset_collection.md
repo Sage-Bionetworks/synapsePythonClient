@@ -23,7 +23,7 @@ In this tutorial, you will:
 Let's get started by authenticating with Synapse and retrieving the ID of your project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=9-14}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=3-14}
 ```
 
 ## 2. Create your Dataset Collection

@@ -17,9 +17,9 @@ from synapseclient.models import (
 syn = Synapse()
 syn.login()
 
-project = Project(name="My Testing Project").get()  # Replace with your project name
+project = Project(name="My uniquely named project about Alzheimer's Disease").get()  # Replace with your project name
 project_id = project.id
-print(project_id)
+print(f"My project ID is {project_id}")
 
 # Next, let's create the dataset. We'll use the project id as the parent id.
 # To begin, the dataset will be empty, but if you view the dataset's schema in the UI,

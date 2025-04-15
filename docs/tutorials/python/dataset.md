@@ -29,7 +29,7 @@ In this tutorial, you will:
 Let's get started by authenticating with Synapse and retrieving the ID of your project.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=17-23}
+{!docs/tutorials/python/tutorial_scripts/dataset.py!lines=3-22}
 ```
 
 ## 2. Create your Dataset

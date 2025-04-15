@@ -9,9 +9,9 @@ from synapseclient.models import Column, ColumnType, Dataset, DatasetCollection,
 syn = Synapse()
 syn.login()
 
-project = Project(name="My Testing Project").get()  # Replace with your project name
+project = Project(name="My uniquely named project about Alzheimer's Disease").get()  # Replace with your project name
 project_id = project.id
-print(project_id)
+print(f"My project ID is {project_id}")
 
 # This tutorial assumes that you have already created datasets that you would like to add to a DatasetCollection.
 # If you need help creating datasets, you can refer to the dataset tutorial.
@@ -57,7 +57,7 @@ my_retrieved_dataset_collection.store()
 modified_data = pd.DataFrame(
     {
         "id": DATASET_IDS,
-        "my_annotation": ["good dataset", "better dataset", "best dataset"],
+        "my_annotation": ["good dataset" * len(DATASET_IDS)],
     }
 )
 my_retrieved_dataset_collection.update_rows(
