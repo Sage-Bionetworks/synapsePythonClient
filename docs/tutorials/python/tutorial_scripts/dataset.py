@@ -17,7 +17,9 @@ from synapseclient.models import (
 syn = Synapse()
 syn.login()
 
-project = Project(name="My uniquely named project about Alzheimer's Disease").get()  # Replace with your project name
+project = Project(
+    name="My uniquely named project about Alzheimer's Disease"
+).get()  # Replace with your project name
 project_id = project.id
 print(f"My project ID is {project_id}")
 
