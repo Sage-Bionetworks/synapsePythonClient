@@ -110,7 +110,7 @@ class TestDataset:
             description="Test dataset",
             parent_id=project_model.id,
         )
-        await dataset.add_item_async(file_1)
+        dataset.add_item(file_1)
 
         await dataset.store_async(synapse_client=self.syn)
 
@@ -143,7 +143,7 @@ class TestDataset:
             description="Test dataset",
             parent_id=project_model.id,
         )
-        await dataset.add_item_async(folder)
+        dataset.add_item(folder)
         # WHEN I store the Dataset on Synapse
         await dataset.store_async(synapse_client=self.syn)
         # THEN the Dataset should be created
@@ -180,8 +180,8 @@ class TestDataset:
             description="Test dataset",
             parent_id=project_model.id,
         )
-        await dataset.add_item_async(file)
-        await dataset.add_item_async(folder)
+        dataset.add_item(file)
+        dataset.add_item(folder)
         await dataset.store_async(synapse_client=self.syn)
 
         # THEN the Dataset should be created
@@ -245,7 +245,7 @@ class TestDataset:
             description="Test dataset",
             parent_id=project_model.id,
         )
-        await dataset.add_item_async(file)
+        dataset.add_item(file)
         await dataset.store_async(synapse_client=self.syn)
         # WHEN I query the dataset
         row = await Dataset.query_async(
@@ -266,7 +266,7 @@ class TestDataset:
             description="Test dataset",
             parent_id=project_model.id,
         )
-        await dataset.add_item_async(file)
+        dataset.add_item(file)
         await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset.id)
 
@@ -305,7 +305,7 @@ class TestDataset:
             description="Test dataset",
             parent_id=project_model.id,
         )
-        await dataset.add_item_async(file)
+        dataset.add_item(file)
         await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset.id)
 
@@ -338,7 +338,7 @@ class TestDataset:
             parent_id=project_model.id,
             columns=[Column(name="my_annotation", column_type=ColumnType.STRING)],
         )
-        await dataset.add_item_async(file)
+        dataset.add_item(file)
         await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset.id)
 
@@ -376,12 +376,12 @@ class TestDataset:
         files = [self.create_file_instance(self.schedule_for_cleanup) for _ in range(3)]
         for file in files:
             file = await file.store_async(parent=project_model)
-            await dataset.add_item_async(file)
+            dataset.add_item(file)
         await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset.id)
         # WHEN I remove one of the Files
         assert len(dataset.items) == 3
-        await dataset.remove_item_async(files[0])
+        dataset.remove_item(files[0])
         await dataset.store_async(synapse_client=self.syn)
         # THEN the dataset should only have two Files
         assert len(dataset.items) == 2
@@ -622,7 +622,7 @@ class TestDatasetCollection:
         # GIVEN a Dataset with a file
         file_1 = await file.store_async(parent=project_model)
         self.schedule_for_cleanup(file_1.id)
-        await dataset.add_item_async(file_1)
+        dataset.add_item(file_1)
         dataset_1 = await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset_1.id)
 
@@ -631,7 +631,7 @@ class TestDatasetCollection:
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
         )
-        await dataset_collection.add_item_async(dataset_1)
+        dataset_collection.add_item(dataset_1)
         await dataset_collection.store_async(synapse_client=self.syn)
 
         # THEN the DatasetCollection should be created
@@ -698,7 +698,7 @@ class TestDatasetCollection:
         # WHEN I add a Dataset to the DatasetCollection
         dataset_1 = await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset_1.id)
-        await dataset_collection.add_item_async(dataset_1)
+        dataset_collection.add_item(dataset_1)
         await dataset_collection.store_async(synapse_client=self.syn)
 
         # AND I query the DatasetCollection
@@ -723,7 +723,7 @@ class TestDatasetCollection:
         # WHEN I add a Dataset to the DatasetCollection
         dataset_1 = await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset_1.id)
-        await dataset_collection.add_item_async(dataset_1)
+        dataset_collection.add_item(dataset_1)
         await dataset_collection.store_async(synapse_client=self.syn)
 
         # AND I query the DatasetCollection with a part mask with everything included
@@ -764,7 +764,7 @@ class TestDatasetCollection:
         # WHEN I add a Dataset to the DatasetCollection
         dataset_1 = await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset_1.id)
-        await dataset_collection.add_item_async(dataset_1)
+        dataset_collection.add_item(dataset_1)
         await dataset_collection.store_async(synapse_client=self.syn)
 
         # AND I query the DatasetCollection with a part mask with results only
@@ -799,7 +799,7 @@ class TestDatasetCollection:
         # WHEN I add a Dataset to the DatasetCollection
         dataset_1 = await dataset.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset_1.id)
-        await dataset_collection.add_item_async(dataset_1)
+        dataset_collection.add_item(dataset_1)
         await dataset_collection.store_async(synapse_client=self.syn)
 
         # AND I update rows in the dataset collection
