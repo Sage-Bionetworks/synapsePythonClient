@@ -28,7 +28,7 @@ Let's get started by authenticating with Synapse and retrieving the ID of your p
 
 ## 2. Create your Dataset Collection
 
-Next, we will create the Dataset Collection. We will use the project ID to tell Synapse where we want the Dataset Collection to be created. After this step, we will have a Dataset Collection object with all of the needed information to start building the collection.
+Next, we will create the Dataset Collection using the project ID to tell Synapse where we want the Dataset Collection to be created. After this step, we will have a Dataset Collection object with all of the necessary information to start building the collection.
 
 ```python
 {!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=23-31}
