@@ -11,11 +11,11 @@ Print release notes for installed version of client:
 
 """
 
-import importlib
 import json
 import logging
 import re
 import sys
+from importlib.resources import files
 from typing import Any, Optional
 
 import httpx
@@ -37,7 +37,8 @@ def version_check(
     Recommends upgrade, if a newer version exists.
 
     This wraps the _version_check function in a try except block.
-    The purpose of this is so that no exception caught running the version check stops the client from running.
+    The purpose of this is so that no exception caught running the version
+      check stops the client from running.
 
     Arguments:
         current_version: The current version of the package.
@@ -178,7 +179,7 @@ def _get_local_package_metadata() -> dict[str, Any]:
     Returns:
         dict[str, Any]: This will have various fields relating the version of the client
     """
-    ref = importlib.resources.files("synapseclient").joinpath("synapsePythonClient")
+    ref = files("synapseclient").joinpath("synapsePythonClient")
     with ref.open("r") as fp:
         pkg_metadata = json.loads(fp.read())
     return pkg_metadata
