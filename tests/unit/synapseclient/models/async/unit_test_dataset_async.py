@@ -130,7 +130,7 @@ class TestDataset:
         # GIVEN an empty Dataset
         dataset = Dataset()
         # WHEN I add an EntityRef to it
-        await dataset.add_item_async(EntityRef(id="syn1234", version=1))
+        dataset.add_item(EntityRef(id="syn1234", version=1))
         # THEN I expect the Dataset to have the EntityRef in its items
         assert dataset.items == [EntityRef(id="syn1234", version=1)]
 
@@ -138,7 +138,7 @@ class TestDataset:
         # GIVEN an empty Dataset
         dataset = Dataset()
         # WHEN I add a File to it
-        await dataset.add_item_async(File(id="syn1234", version_number=1))
+        dataset.add_item(File(id="syn1234", version_number=1))
         # THEN I expect the Dataset to have the File in its items
         assert dataset.items == [EntityRef(id="syn1234", version=1)]
 
@@ -156,7 +156,7 @@ class TestDataset:
                 }
             ],
         ):
-            await dataset.add_item_async(Folder(id="syn1234"))
+            dataset.add_item(Folder(id="syn1234"))
         # THEN I expect the Dataset to have the Folder in its items
         assert dataset.items == [
             EntityRef(id="syn1235", version=1),
@@ -168,9 +168,9 @@ class TestDataset:
         # WHEN I add an invalid type to it
         with pytest.raises(
             ValueError,
-            match="item must be one of EntityRef, File, or Folder. 1 is a <class 'int'>",
+            match="item must be one of EntityRef, File, or Folder.",
         ):
-            await dataset.add_item_async(1)
+            dataset.add_item(1)
 
     async def test_remove_entity_ref(self):
         # GIVEN a Dataset with an EntityRef
@@ -184,15 +184,28 @@ class TestDataset:
         # GIVEN a Dataset with an EntityRef
         dataset = Dataset(items=[EntityRef(id="syn1234", version=1)])
         # WHEN I remove the EntityRef from it
-        await dataset.remove_item_async(EntityRef(id="syn1234", version=1))
+        dataset.remove_item(EntityRef(id="syn1234", version=1))
         # THEN I expect the Dataset to have no items
         assert dataset.items == []
+
+    async def test_remove_item_entity_ref_version(self):
+        # GIVEN a Dataset with 2 versions of an EntityRef
+        dataset = Dataset(
+            items=[
+                EntityRef(id="syn1234", version=1),
+                EntityRef(id="syn1234", version=2),
+            ]
+        )
+        # WHEN I remove the EntityRef from it
+        dataset.remove_item(EntityRef(id="syn1234", version=1))
+        # THEN I expect the Dataset to only have version 2 of the EntityRef
+        assert dataset.items == [EntityRef(id="syn1234", version=2)]
 
     async def test_remove_item_file(self):
         # GIVEN a Dataset with a File
         dataset = Dataset(items=[EntityRef(id="syn1234", version=1)])
         # WHEN I remove the File from it
-        await dataset.remove_item_async(File(id="syn1234", version_number=1))
+        dataset.remove_item(File(id="syn1234", version_number=1))
         # THEN I expect the Dataset to have no items
         assert dataset.items == []
 
@@ -210,7 +223,7 @@ class TestDataset:
             ],
         ):
             # WHEN I remove the Folder from it
-            await dataset.remove_item_async(Folder(id="syn1234"))
+            dataset.remove_item(Folder(id="syn1234"))
         # THEN I expect the Dataset to have no items
         assert dataset.items == []
 
@@ -314,7 +327,7 @@ class TestDatasetCollection:
         # GIVEN an empty DatasetCollection
         dataset_collection = DatasetCollection()
         # WHEN I add a Dataset to it
-        await dataset_collection.add_item_async(Dataset(id="syn1234", version_number=1))
+        dataset_collection.add_item(Dataset(id="syn1234", version_number=1))
         # THEN I expect the DatasetCollection to have the Dataset in its items
         assert dataset_collection.items == [EntityRef(id="syn1234", version=1)]
 
@@ -322,7 +335,7 @@ class TestDatasetCollection:
         # GIVEN an empty DatasetCollection
         dataset_collection = DatasetCollection()
         # WHEN I add an EntityRef to it
-        await dataset_collection.add_item_async(EntityRef(id="syn1234", version=1))
+        dataset_collection.add_item(EntityRef(id="syn1234", version=1))
         # THEN I expect the DatasetCollection to have the EntityRef in its items
         assert dataset_collection.items == [EntityRef(id="syn1234", version=1)]
 
@@ -334,7 +347,7 @@ class TestDatasetCollection:
             ValueError,
             match="item must be a Dataset or EntityRef.",
         ):
-            await dataset_collection.add_item_async(1)
+            dataset_collection.add_item(1)
 
     async def test_remove_item_dataset(self):
         # GIVEN a DatasetCollection with a Dataset
@@ -342,9 +355,7 @@ class TestDatasetCollection:
             items=[EntityRef(id="syn1234", version=1)]
         )
         # WHEN I remove the Dataset from it
-        await dataset_collection.remove_item_async(
-            Dataset(id="syn1234", version_number=1)
-        )
+        dataset_collection.remove_item(Dataset(id="syn1234"))
         # THEN I expect the DatasetCollection to have no items
         assert dataset_collection.items == []
 
@@ -354,6 +365,21 @@ class TestDatasetCollection:
             items=[EntityRef(id="syn1234", version=1)]
         )
         # WHEN I remove the EntityRef from it
-        await dataset_collection.remove_item_async(EntityRef(id="syn1234", version=1))
+        dataset_collection.remove_item(EntityRef(id="syn1234", version=1))
         # THEN I expect the DatasetCollection to have no items
         assert dataset_collection.items == []
+
+    async def test_remove_item_dataset_version(self):
+        # GIVEN a DatasetCollection with 2 versions of a Dataset
+        dataset_collection = DatasetCollection(
+            items=[
+                EntityRef(id="syn1234", version=1),
+                EntityRef(id="syn1234", version=2),
+            ]
+        )
+        # WHEN I remove the Dataset from it
+        dataset_collection.remove_item(Dataset(id="syn1234", version_number=1))
+        # THEN I expect the DatasetCollection to onlyhave version 2 of the Dataset
+        assert dataset_collection.items == [
+            EntityRef(id="syn1234", version=2),
+        ]

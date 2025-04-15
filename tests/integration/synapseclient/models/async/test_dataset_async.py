@@ -570,9 +570,7 @@ class TestDatasetCollection:
     def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
         return self.create_file_instance(schedule_for_cleanup)
 
-    def create_dataset_instance(
-        self, project_model: Project
-    ) -> Dataset:
+    def create_dataset_instance(self, project_model: Project) -> Dataset:
         dataset_name = str(uuid.uuid4())
         return Dataset(
             name=dataset_name,
@@ -581,9 +579,7 @@ class TestDatasetCollection:
         )
 
     @pytest.fixture(autouse=True, scope="function")
-    def dataset(
-        self, project_model: Project
-    ) -> Dataset:
+    def dataset(self, project_model: Project) -> Dataset:
         return self.create_dataset_instance(project_model)
 
     async def test_create_empty_dataset_collection(

@@ -375,138 +375,6 @@ class DatasetSynchronousProtocol(Protocol):
         """
         return TableUpdateTransaction
 
-    def add_item(
-        self,
-        item: Union[EntityRef, "File", "Folder"],
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> None:
-        """Adds an item in the form of an EntityRef to the dataset.
-        For Folders, children are added recursively. Effect is not seen
-        until the dataset is stored.
-
-        Arguments:
-            item: Entity to add to the dataset. Must be an EntityRef, File, or Folder.
-            synapse_client: The Synapse client to use. Defaults to None.
-
-        Raises:
-            ValueError: If the item is not an EntityRef, File, or Folder
-
-        Example: Add a file to a dataset.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import Dataset, File
-
-            syn = Synapse()
-            syn.login()
-
-            my_dataset = Dataset(id="syn1234").get()
-            my_dataset.add_item(File(id="syn1235"))
-            my_dataset.store()
-            ```
-
-        Example: Add a folder to a dataset.
-            All child files are recursively added to the dataset.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import Dataset, Folder
-
-            syn = Synapse()
-            syn.login()
-
-            my_dataset = Dataset(id="syn1234").get()
-            my_dataset.add_item(Folder(id="syn1236"))
-            my_dataset.store()
-            ```
-
-        Example: Add an entity reference to a dataset.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import Dataset, EntityRef
-
-            syn = Synapse()
-            syn.login()
-
-            my_dataset = Dataset(id="syn1234").get()
-            my_dataset.add_item(EntityRef(id="syn1237", version=1))
-            my_dataset.store()
-            ```
-        """
-        return None
-
-    def remove_item(
-        self,
-        item: Union[EntityRef, "File", "Folder"],
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> None:
-        """
-        Removes an item from the dataset. For Folders, all
-        children of the folder are removed recursively.
-        Effect is not seen until the dataset is stored.
-
-        Arguments:
-            item: The Synapse ID or Entity to remove from the dataset
-            synapse_client: The Synapse client to use. Defaults to None.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If the item is not a valid type
-
-        Example: Remove a file from a dataset.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import Dataset, File
-
-            syn = Synapse()
-            syn.login()
-
-            my_dataset = Dataset(id="syn1234").get()
-            my_dataset.remove_item(File(id="syn1235"))
-            my_dataset.store()
-            ```
-
-        Example: Remove a folder from a dataset.
-            All child files are recursively removed from the dataset.
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import Dataset, Folder
-
-            syn = Synapse()
-            syn.login()
-
-            my_dataset = Dataset(id="syn1234").get()
-            my_dataset.remove_item(Folder(id="syn1236"))
-            my_dataset.store()
-            ```
-
-        Example: Remove an entity reference from a dataset.
-            &nbsp;
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import Dataset, EntityRef
-
-            syn = Synapse()
-            syn.login()
-
-            my_dataset = Dataset(id="syn1234").get()
-            my_dataset.remove_item(EntityRef(id="syn1237", version=1))
-            my_dataset.store()
-            ```
-        """
-        return None
-
 
 @dataclass
 @async_to_sync
@@ -1083,7 +951,7 @@ class Dataset(
         if entity_ref not in self.items:
             self.items.append(entity_ref)
 
-    async def add_item_async(
+    def add_item(
         self,
         item: Union[EntityRef, "File", "Folder"],
         *,
@@ -1095,67 +963,54 @@ class Dataset(
 
         Arguments:
             item: Entity to add to the dataset. Must be an EntityRef, File, or Folder.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
+            synapse_client: The Synapse client to use. Defaults to None.
 
         Raises:
             ValueError: If the item is not an EntityRef, File, or Folder
 
         Example: Add a file to a dataset.
             &nbsp;
+
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Dataset, File
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_dataset = await Dataset(id="syn1234").get_async()
-                await my_dataset.add_item_async(File(id="syn1235"))
-                await my_dataset.store_async()
-
-            asyncio.run(main())
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.add_item(File(id="syn1235"))
+            my_dataset.store()
             ```
 
         Example: Add a folder to a dataset.
             All child files are recursively added to the dataset.
 
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Dataset, Folder
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_dataset = await Dataset(id="syn1234").get_async()
-                await my_dataset.add_item_async(Folder(id="syn1236"))
-                await my_dataset.store_async()
-
-            asyncio.run(main())
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.add_item(Folder(id="syn1236"))
+            my_dataset.store()
             ```
 
         Example: Add an entity reference to a dataset.
             &nbsp;
 
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Dataset, EntityRef
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_dataset = await Dataset(id="syn1234").get_async()
-                await my_dataset.add_item_async(EntityRef(id="syn1237", version=1))
-                await my_dataset.store_async()
-
-            asyncio.run(main())
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.add_item(EntityRef(id="syn1237", version=1))
+            my_dataset.store()
             ```
         """
         from synapseclient.models import File, Folder
@@ -1182,9 +1037,7 @@ class Dataset(
                         )
                     )
                 else:
-                    await self.add_item_async(
-                        item=Folder(id=child["id"]), synapse_client=client
-                    )
+                    self.add_item(item=Folder(id=child["id"]), synapse_client=client)
         else:
             raise ValueError(
                 f"item must be one of EntityRef, File, or Folder. {item} is a {type(item)}"
@@ -1200,7 +1053,7 @@ class Dataset(
             raise ValueError(f"Entity {entity_ref.id} not found in items list")
         self.items.remove(entity_ref)
 
-    async def remove_item_async(
+    def remove_item(
         self,
         item: Union[EntityRef, "File", "Folder"],
         *,
@@ -1213,12 +1066,10 @@ class Dataset(
 
         Arguments:
             item: The Synapse ID or Entity to remove from the dataset
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
+            synapse_client: The Synapse client to use. Defaults to None.
 
         Returns:
-            Dataset: The dataset with the item removed
+            None
 
         Raises:
             ValueError: If the item is not a valid type
@@ -1227,57 +1078,44 @@ class Dataset(
             &nbsp;
 
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Dataset, File
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_dataset = await Dataset(id="syn1234").get_async()
-                await my_dataset.remove_item_async(File(id="syn1235"))
-                await my_dataset.store_async()
-
-            asyncio.run(main())
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.remove_item(File(id="syn1235"))
+            my_dataset.store()
             ```
 
         Example: Remove a folder from a dataset.
             All child files are recursively removed from the dataset.
 
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Dataset, Folder
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_dataset = await Dataset(id="syn1234").get_async()
-                await my_dataset.remove_item_async(Folder(id="syn1236"))
-                await my_dataset.store_async()
-
-            asyncio.run(main())
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.remove_item(Folder(id="syn1236"))
+            my_dataset.store()
             ```
 
         Example: Remove an entity reference from a dataset.
             &nbsp;
-
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Dataset, EntityRef
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_dataset = await Dataset(id="syn1234").get_async()
-                await my_dataset.remove_item_async(EntityRef(id="syn1237", version=1))
-                await my_dataset.store_async()
-
-            asyncio.run(main())
+            my_dataset = Dataset(id="syn1234").get()
+            my_dataset.remove_item(EntityRef(id="syn1237", version=1))
+            my_dataset.store()
             ```
         """
         from synapseclient.models import File, Folder
@@ -1300,9 +1138,7 @@ class Dataset(
                         EntityRef(id=child["id"], version=child["versionNumber"])
                     )
                 else:
-                    await self.remove_item_async(
-                        item=Folder(id=child["id"]), synapse_client=client
-                    )
+                    self.remove_item(item=Folder(id=child["id"]), synapse_client=client)
         else:
             raise ValueError(
                 f"item must be one of str, EntityRef, File, or Folder, {item} is a {type(item)}"
@@ -1991,76 +1827,6 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         """
         return TableUpdateTransaction
 
-    def add_item(
-        self,
-        item: Union["Dataset"],
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> None:
-        """Adds a dataset to the dataset collection.
-        Effect is not seen until the dataset collection is stored.
-
-        Arguments:
-            item: Dataset to add to the collection. Must be a Dataset.
-            synapse_client: The Synapse client to use. Defaults to None.
-
-        Raises:
-            ValueError: If the item is not a Dataset
-
-        Example: Add a Dataset to a Dataset Collection.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import DatasetCollection, Dataset
-
-            syn = Synapse()
-            syn.login()
-
-            my_collection = DatasetCollection(id="syn1234").get()
-            my_collection.add_item(Dataset(id="syn1235"))
-            my_collection.store()
-            ```
-        """
-        return None
-
-    def remove_item(
-        self,
-        item: Union["Dataset"],
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> None:
-        """
-        Removes a dataset from the dataset collection.
-        Effect is not seen until the dataset collection is stored.
-
-        Arguments:
-            item: The Dataset to remove from the collection
-            synapse_client: The Synapse client to use. Defaults to None.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If the item is not a Dataset
-
-        Example: Remove a Dataset from a Dataset Collection.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import DatasetCollection, Dataset
-
-            syn = Synapse()
-            syn.login()
-
-            my_collection = DatasetCollection(id="syn1234").get()
-            my_collection.remove_item(Dataset(id="syn1235"))
-            my_collection.store()
-            ```
-        """
-        return None
-
 
 @dataclass
 @async_to_sync
@@ -2573,37 +2339,32 @@ class DatasetCollection(
         delete_none_keys(result)
         return result
 
-    async def add_item_async(
+    def add_item(
         self,
-        item: Union["Dataset", "EntityRef"],
+        item: Union["Dataset"],
     ) -> None:
         """Adds a dataset to the dataset collection.
         Effect is not seen until the dataset collection is stored.
 
         Arguments:
-            item: Dataset or EntityRef to add to the collection.
-            synapse_client: The Synapse client to use. Defaults to None.
+            item: Dataset to add to the collection. Must be a Dataset.
 
         Raises:
-            ValueError: If the item is not a Dataset or EntityRef
+            ValueError: If the item is not a Dataset
 
         Example: Add a Dataset to a Dataset Collection.
             &nbsp;
 
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import DatasetCollection, Dataset
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_collection = await DatasetCollection(id="syn1234").get_async()
-                await my_collection.add_item_async(Dataset(id="syn1235"))
-                await my_collection.store_async()
-
-            asyncio.run(main())
+            my_collection = DatasetCollection(id="syn1234").get()
+            my_collection.add_item(Dataset(id="syn1235"))
+            my_collection.store()
             ```
         """
         if not isinstance(item, (Dataset, EntityRef)):
@@ -2617,37 +2378,52 @@ class DatasetCollection(
         if not any(current_item.id == item.id for current_item in self.items):
             self.items.append(EntityRef(id=item.id, version=version))
 
-    async def remove_item_async(
+    def remove_item(
         self,
         item: Union["Dataset", "EntityRef"],
     ) -> None:
         """
-        Removes a dataset from the dataset collection.
+        Removes an entity from the dataset collection. Must be a Dataset or EntityRef.
         Effect is not seen until the dataset collection is stored.
+        Unless the version is specified, all entities with the same ID will be removed.
 
         Arguments:
-            item: The Dataset or EntityRef to remove from the collection
+            item: The Dataset to remove from the collection
+
+        Returns:
+            None
 
         Raises:
-            ValueError: If the item is not a Dataset or EntityRef
+            ValueError: If the item is not a Dataset
 
         Example: Remove a Dataset from a Dataset Collection.
             &nbsp;
 
             ```python
-            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import DatasetCollection, Dataset
 
             syn = Synapse()
             syn.login()
 
-            async def main():
-                my_collection = await DatasetCollection(id="syn1234").get_async()
-                await my_collection.remove_item_async(Dataset(id="syn1235"))
-                await my_collection.store_async()
+            my_collection = DatasetCollection(id="syn1234").get()
+            my_collection.remove_item(Dataset(id="syn1235", version_number=1))
+            my_collection.store()
+            ```
 
-            asyncio.run(main())
+        Example: Remove all versions of a Dataset from a Dataset Collection.
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import DatasetCollection, Dataset
+
+            syn = Synapse()
+            syn.login()
+
+            my_collection = DatasetCollection(id="syn1234").get()
+            my_collection.remove_item(Dataset(id="syn1235"))
+            my_collection.store()
             ```
         """
         if not isinstance(item, (Dataset, EntityRef)):
@@ -2655,8 +2431,13 @@ class DatasetCollection(
                 f"item must be a Dataset or EntityRef. {item} is a {type(item)}"
             )
 
+        version = item.version if isinstance(item, EntityRef) else item.version_number
+
         self.items = [
-            current_item for current_item in self.items if current_item.id != item.id
+            current_item
+            for current_item in self.items
+            if (version and current_item != EntityRef(id=item.id, version=version))
+            or (not version and current_item.id != item.id)
         ]
 
     async def store_async(
@@ -2666,7 +2447,8 @@ class DatasetCollection(
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
-        """Store non-row information about a DatasetCollection including the columns and annotations.
+        """Store information about a DatasetCollection including the columns and annotations. This includes updating
+        the `item`s of the DatasetCollection which will update the rows of the visualization in Synapse.
 
         DatasetCollections have default columns that are managed by Synapse. The default behavior of
         this function is to include these default columns in the dataset collection when it is stored.
