@@ -63,9 +63,14 @@ def version_check(
         ):
             return False
 
+    # Don't prevent the client from running if something goes wrong
     except Exception as e:
-        # Don't prevent the client from running if something goes wrong
-        sys.stderr.write(f"Exception in version check: {str(e)}\n")
+        msg = f"Exception in version check: {str(e)}\n"
+        if logger:
+            logger.info(msg)
+        else:
+            sys.stdout.write(msg)
+            sys.stdout.flush()
         return False
 
     return True
