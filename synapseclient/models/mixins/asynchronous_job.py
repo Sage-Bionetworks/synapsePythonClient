@@ -14,7 +14,11 @@ from synapseclient.core.constants.concrete_types import (
     AGENT_CHAT_REQUEST,
     TABLE_UPDATE_TRANSACTION_REQUEST,
 )
-from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError, SynapseHTTPError
+from synapseclient.core.exceptions import (
+    SynapseError,
+    SynapseHTTPError,
+    SynapseTimeoutError,
+)
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
@@ -311,10 +315,12 @@ async def send_job_and_wait_async(
     start_time = time.time()
     retry_interval = 5  # Retry every 5 seconds
     max_wait_time = timeout * 5  # Maximum total wait time of 5 minutes
-    
+
     while time.time() - start_time < max_wait_time:
         try:
-            job_id = await send_job_async(request=request, synapse_client=synapse_client)
+            job_id = await send_job_async(
+                request=request, synapse_client=synapse_client
+            )
             result = {
                 "jobId": job_id,
                 **await get_job_async(
@@ -328,7 +334,10 @@ async def send_job_and_wait_async(
             }
             return result
         except SynapseHTTPError as e:
-            if "You cannot create a version of a view that is not available (Status: PROCESSING)" in str(e):
+            if (
+                "You cannot create a version of a view that is not available (Status: PROCESSING)"
+                in str(e)
+            ):
                 if time.time() - start_time < max_wait_time:
                     await asyncio.sleep(retry_interval)
                     continue

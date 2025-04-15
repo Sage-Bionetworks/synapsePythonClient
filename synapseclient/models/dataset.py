@@ -71,7 +71,8 @@ class DatasetSynchronousProtocol(Protocol):
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
-        """Store non-row information about a Dataset including the columns and annotations.
+        """Store information about a Dataset including the columns and annotations.
+        Storing an update to the Datatset items will alter the rows present in the Dataset.
 
         Datasets have default columns that are managed by Synapse. The default behavior of
         this function is to include these default columns in the dataset when it is stored.
@@ -1155,8 +1156,8 @@ class Dataset(
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
-        """Store non-row information about a Dataset including the columns and annotations.
-
+        """Store information about a Dataset including the columns and annotations.
+        Storing an update to the Dataset items will alter the rows present in the Dataset.
         Datasets have default columns that are managed by Synapse. The default behavior of
         this function is to include these default columns in the dataset when it is stored.
         This means that with the default behavior, any columns that you have added to your

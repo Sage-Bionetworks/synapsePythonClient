@@ -2512,6 +2512,13 @@ class ViewSnapshotMixin:
             ),
         ).send_job_and_wait_async(synapse_client=client)
 
+        if not self.version_number:
+            # set to latest drafting version if the first snapshot was just created
+            self.version_number = 2
+        else:
+            # increment the version number for each subsequent snapshot
+            self.version_number += 1
+
         if associate_activity_to_new_version and self.activity:
             self._last_persistent_instance.activity = None
             await self.store_async(synapse_client=synapse_client)
