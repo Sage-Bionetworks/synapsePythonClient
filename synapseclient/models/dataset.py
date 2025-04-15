@@ -2341,7 +2341,7 @@ class DatasetCollection(
 
     def add_item(
         self,
-        item: Union["Dataset"],
+        item: Union["Dataset", "EntityRef"],
     ) -> None:
         """Adds a dataset to the dataset collection.
         Effect is not seen until the dataset collection is stored.
@@ -2375,7 +2375,10 @@ class DatasetCollection(
         # EntityRef uses `version`, Dataset uses `version_number`
         version = item.version if isinstance(item, EntityRef) else item.version_number
 
-        if not any(current_item.id == item.id for current_item in self.items):
+        if not any(
+            current_item.id == item.id and current_item.version == version
+            for current_item in self.items
+        ):
             self.items.append(EntityRef(id=item.id, version=version))
 
     def remove_item(
@@ -2433,12 +2436,18 @@ class DatasetCollection(
 
         version = item.version if isinstance(item, EntityRef) else item.version_number
 
-        self.items = [
-            current_item
-            for current_item in self.items
-            if (version and current_item != EntityRef(id=item.id, version=version))
-            or (not version and current_item.id != item.id)
-        ]
+        if version:
+            self.items = [
+                current_item
+                for current_item in self.items
+                if current_item != EntityRef(id=item.id, version=version)
+            ]
+        else:
+            self.items = [
+                current_item
+                for current_item in self.items
+                if current_item.id != item.id
+            ]
 
     async def store_async(
         self,
