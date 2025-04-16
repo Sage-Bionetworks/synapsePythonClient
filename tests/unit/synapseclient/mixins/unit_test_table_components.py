@@ -1127,6 +1127,7 @@ class TestViewSnapshotMixin:
         name: Optional[str] = "test_view"
         columns: Dict[str, Column] = field(default_factory=dict)
         activity: Optional[Activity] = None
+        version_number: Optional[int] = None
 
     async def test_snapshot_async(self):
         # GIVEN a TestClass instance
