@@ -2137,8 +2137,8 @@ class DatasetCollection(
     should be enabled. Note that enabling full text search might slow down the
     indexing of the dataset collection or view."""
 
-    items: Optional[List["Dataset"]] = field(default_factory=list, compare=False)
-    """The flat list of datasets that define this collection."""
+    items: Optional[List["EntityRef"]] = field(default_factory=list, compare=False)
+    """The flat list of EntityRefs referring to the datasets that define this collection."""
 
     columns: Optional[
         Union[List[Column], OrderedDict[str, Column], Dict[str, Column]]
