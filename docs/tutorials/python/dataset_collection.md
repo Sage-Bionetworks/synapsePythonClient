@@ -43,7 +43,7 @@ Because we haven't added any datasets to the collection yet, it will be empty, b
 Now, let's add some datasets to the collection. We will loop through our dataset ids and add each dataset to the collection using the `add_item` method.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=37-48}
+{!docs/tutorials/python/tutorial_scripts/dataset_collection.py!lines=37-38}
 ```
 
 Whenever we make changes to the Dataset Collection, we need to call the `store()` method to save the changes to Synapse.
