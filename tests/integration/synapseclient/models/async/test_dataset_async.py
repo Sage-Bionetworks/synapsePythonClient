@@ -415,6 +415,49 @@ class TestDataset:
         ):
             await Dataset(id=dataset.id).get_async(synapse_client=self.syn)
 
+    async def test_snapshot_dataset(
+        self, syn: Synapse, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a Dataset
+        dataset = Dataset(
+            name=str(uuid.uuid4()),
+            description="Test dataset",
+            parent_id=project_model.id,
+        )
+        dataset = await dataset.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset.id)
+
+        # AND two files to use for our Dataset
+        file_1 = self.create_file_instance(self.schedule_for_cleanup)
+        file_1 = await file_1.store_async(parent=project_model)
+        file_2 = self.create_file_instance(self.schedule_for_cleanup)
+        file_2 = await file_2.store_async(parent=project_model)
+        # WHEN I add the first file to the Dataset and create a snapshot of it
+        dataset.add_item(file_1)
+        await dataset.store_async(synapse_client=self.syn)
+        await dataset.snapshot_async(synapse_client=self.syn)
+
+        # AND I add the second file to the Dataset and create a snapshot of it again
+        dataset.add_item(file_2)
+        await dataset.store_async(synapse_client=self.syn)
+        await dataset.snapshot_async(synapse_client=self.syn)
+
+        # THEN the versions of the Dataset should have the expected items
+        dataset_version_1 = await Dataset(id=dataset.id, version_number=1).get_async(
+            synapse_client=self.syn
+        )
+        assert dataset_version_1.items == [
+            EntityRef(id=file_1.id, version=file_1.version_number)
+        ]
+
+        dataset_version_2 = await Dataset(id=dataset.id, version_number=2).get_async(
+            synapse_client=self.syn
+        )
+        assert dataset_version_2.items == [
+            EntityRef(id=file_1.id, version=file_1.version_number),
+            EntityRef(id=file_2.id, version=file_2.version_number),
+        ]
+
 
 class TestDatasetColumns:
     @pytest.fixture(autouse=True, scope="function")
@@ -821,6 +864,51 @@ class TestDatasetCollection:
             query=f"SELECT my_annotation FROM {dataset_collection.id} WHERE id = '{dataset_1.id}'",
         )
         assert row["my_annotation"][0] == "good dataset"
+
+    async def test_dataset_collection_snapshot(
+        self, syn: Synapse, project_model: Project, dataset: Dataset
+    ) -> None:
+        # GIVEN a DatasetCollection in Synapse
+        dataset_collection = await DatasetCollection(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+        ).store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I add a Dataset to the DatasetCollection
+        dataset_1 = await dataset.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_1.id)
+        dataset_collection.add_item(dataset_1)
+        await dataset_collection.store_async(synapse_client=self.syn)
+
+        # AND I take a snapshot of the DatasetCollection
+        await dataset_collection.snapshot_async(synapse_client=self.syn)
+        # AND I update the DatasetCollection
+        dataset_collection.name = "Updated dataset collection"
+        # AND I take a new snapshot of the DatasetCollection
+        await dataset_collection.snapshot_async(synapse_client=self.syn)
+
+        # THEN the first snapshot should be the same as the original dataset collection
+        dataset_collection_version_1 = await DatasetCollection(
+            id=dataset_collection.id, version_number=1
+        ).get_async(synapse_client=self.syn)
+        assert dataset_collection_version_1.id == dataset_collection.id
+        assert dataset_collection_version_1.name == dataset_collection.name
+        assert (
+            dataset_collection_version_1.description == dataset_collection.description
+        )
+        assert dataset_collection_version_1.items == dataset_collection.items
+
+        # AND the second snapshot should be the updated dataset collection
+        dataset_collection_version_2 = await DatasetCollection(
+            id=dataset_collection.id, version_number=2
+        ).get_async(synapse_client=self.syn)
+        assert dataset_collection_version_2.id == dataset_collection.id
+        assert dataset_collection_version_2.name == dataset_collection.name
+        assert (
+            dataset_collection_version_2.description == dataset_collection.description
+        )
+        assert dataset_collection_version_2.items == dataset_collection.items
 
     async def test_delete_dataset_collection(
         self, syn: Synapse, project_model: Project
