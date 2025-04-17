@@ -169,3 +169,4 @@ Results from the materialized view with UNION:
 - [Column][synapseclient.models.Column]
 - [Project][synapseclient.models.Project]
 - [syn.login][synapseclient.Synapse.login]
+- [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html)

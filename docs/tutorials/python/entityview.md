@@ -138,3 +138,4 @@ Synapse web UI. It should look similar to:
 - [Column][synapseclient.models.Column]
 - [syn.login][synapseclient.Synapse.login]
 - [Project](../../reference/experimental/sync/project.md)
+- [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html)

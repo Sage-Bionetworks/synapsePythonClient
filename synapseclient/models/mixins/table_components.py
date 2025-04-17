@@ -61,7 +61,12 @@ from synapseclient.models.table_components import (
     UploadToTableRequest,
 )
 
-CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView", "DatasetCollection"]
+CLASSES_THAT_CONTAIN_ROW_ETAG = [
+    "Dataset",
+    "EntityView",
+    "DatasetCollection",
+    "SubmissionView",
+]
 CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView"]
 
 PANDAS_TABLE_TYPE = {

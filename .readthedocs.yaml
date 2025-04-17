@@ -22,4 +22,5 @@ python:
 # See https://docs.readthedocs.com/platform/stable/config-file/v2.html#search for more options
 search:
   ranking:
-    reference/*: -1
+    reference/*: -2
+    reference/experimental/*: -1

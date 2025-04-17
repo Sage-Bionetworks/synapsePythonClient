@@ -36,6 +36,7 @@ nav:
           - Dataset: tutorials/python/dataset.md
           - Dataset Collection: tutorials/python/dataset_collection.md
           - Materialized View: tutorials/python/materializedview.md
+          - Submission View: tutorials/python/submissionview.md
           # - Sharing Settings: tutorials/python/sharing_settings.md
           # - Wiki: tutorials/python/wiki.md
           # - Team: tutorials/python/team.md
@@ -86,6 +87,7 @@ nav:
           - Dataset Collection: reference/experimental/sync/dataset_collection.md
           - EntityView: reference/experimental/sync/entityview.md
           - MaterializedView: reference/experimental/sync/materializedview.md
+          - SubmissionView: reference/experimental/sync/submissionview.md
           - Activity: reference/experimental/sync/activity.md
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
@@ -100,6 +102,7 @@ nav:
               - Dataset Collection: reference/experimental/async/dataset_collection.md
               - EntityView: reference/experimental/async/entityview.md
               - MaterializedView: reference/experimental/async/materializedview.md
+              - SubmissionView: reference/experimental/async/submissionview.md
               - Activity: reference/experimental/async/activity.md
               - Team: reference/experimental/async/team.md
               - UserProfile: reference/experimental/async/user_profile.md
