@@ -12,6 +12,7 @@ at your own risk.
         - from_parent_async
         - store_async
         - delete_async
+        - disassociate_from_entity_async
 ---
 ::: synapseclient.models.UsedEntity
     options:

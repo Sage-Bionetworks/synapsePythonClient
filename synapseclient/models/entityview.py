@@ -177,7 +177,7 @@ class EntityViewSynchronousProtocol(Protocol):
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> None:
-        """This method leverages the logic provided by [TableUpsertMixin.upsert_rows_async][] to provide
+        """This method leverages the logic provided by [upsert_rows_async][synapseclient.models.Table.upsert_rows_async] to provide
         an interface for updating rows in a `View`-like entity. Update functionality will only work for
         values in custom columns within a `View`-like entity.
 
