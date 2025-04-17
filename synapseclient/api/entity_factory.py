@@ -232,6 +232,64 @@ async def _search_for_file_by_md5(
     return bundle
 
 
+async def _handle_file_entity(
+    entity_instance: "File",
+    entity_bundle: Dict[str, Any],
+    download_file: bool,
+    download_location: str,
+    if_collision: str,
+    submission: str,
+    synapse_client: "Synapse",
+) -> "File":
+    """Helper function to handle File entity specific logic."""
+    from synapseclient.models import FileHandle
+
+    entity_instance.fill_from_dict(
+        synapse_file=entity_bundle["entity"], set_annotations=False
+    )
+
+    # Update entity with FileHandle metadata
+    file_handle = next(
+        (
+            handle
+            for handle in entity_bundle.get("fileHandles", [])
+            if handle and handle["id"] == entity_instance.data_file_handle_id
+        ),
+        {},
+    )
+
+    entity_instance.file_handle = FileHandle().fill_from_dict(
+        synapse_instance=file_handle
+    )
+    entity_instance._fill_from_file_handle()
+
+    if download_file:
+        if file_handle:
+            await download_file_entity_model(
+                download_location=download_location,
+                file=entity_instance,
+                if_collision=if_collision,
+                submission=submission,
+                synapse_client=synapse_client,
+            )
+        else:
+            warning_message = (
+                "WARNING: You have READ permission on this file entity but not DOWNLOAD "
+                "permission. The file has NOT been downloaded."
+            )
+            synapse_client.logger.warning(
+                "\n"
+                + "!" * len(warning_message)
+                + "\n"
+                + warning_message
+                + "\n"
+                + "!" * len(warning_message)
+                + "\n"
+            )
+
+    return entity_instance
+
+
 async def _cast_into_class_type(
     entity_bundle: Dict[str, Any],
     download_file: bool = True,
@@ -275,6 +333,17 @@ async def _cast_into_class_type(
         ValueError: If the entity type is not supported.
     """
     from synapseclient import Synapse
+    from synapseclient.models import (
+        Annotations,
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        File,
+        Folder,
+        MaterializedView,
+        Project,
+        Table,
+    )
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 
@@ -288,109 +357,52 @@ async def _cast_into_class_type(
         entity_bundle = await get_entity_id_version_bundle2(
             entity_id=target_id, version=target_version, synapse_client=synapse_client
         )
+
     entity = entity_bundle["entity"]
-
-    from synapseclient.models import Annotations
-
     annotations = Annotations.from_dict(
         synapse_annotations=entity_bundle.get("annotations", None)
     )
 
-    from synapseclient.models import File, Folder, Project, Table
+    # Map concrete types to their corresponding classes
+    ENTITY_TYPE_MAP = {
+        concrete_types.PROJECT_ENTITY: Project,
+        concrete_types.FOLDER_ENTITY: Folder,
+        concrete_types.FILE_ENTITY: File,
+        concrete_types.TABLE_ENTITY: Table,
+        concrete_types.DATASET_ENTITY: Dataset,
+        concrete_types.DATASET_COLLECTION_ENTITY: DatasetCollection,
+        concrete_types.ENTITY_VIEW: EntityView,
+        concrete_types.MATERIALIZED_VIEW: MaterializedView,
+    }
 
-    if entity["concreteType"] == concrete_types.PROJECT_ENTITY:
-        if not entity_to_update:
-            entity_to_update = Project()
-        entity = entity_to_update.fill_from_dict(
-            synapse_project=entity_bundle["entity"], set_annotations=False
-        )
-    elif entity["concreteType"] == concrete_types.FOLDER_ENTITY:
-        if not entity_to_update:
-            entity_to_update = Folder()
-        entity = entity_to_update.fill_from_dict(
-            synapse_folder=entity_bundle["entity"], set_annotations=False
-        )
-    elif entity["concreteType"] == concrete_types.FILE_ENTITY:
-        if not entity_to_update:
-            entity_to_update = File()
-        entity = entity_to_update.fill_from_dict(
-            synapse_file=entity_bundle["entity"], set_annotations=False
-        )
-        # update the entity with FileHandle metadata
-        file_handle = next(
-            (
-                handle
-                for handle in entity_bundle.get("fileHandles", [])
-                if handle and handle["id"] == entity.data_file_handle_id
-            ),
-            {},
-        )
-        from synapseclient.models import FileHandle
-
-        entity.file_handle = FileHandle().fill_from_dict(synapse_instance=file_handle)
-        entity._fill_from_file_handle()
-
-        if download_file:
-            if file_handle:
-                await download_file_entity_model(
-                    download_location=download_location,
-                    file=entity,
-                    if_collision=if_collision,
-                    submission=submission,
-                    synapse_client=synapse_client,
-                )
-            else:  # no filehandle means that we do not have DOWNLOAD permission
-                warning_message = (
-                    "WARNING: You have READ permission on this file entity but not DOWNLOAD "
-                    "permission. The file has NOT been downloaded."
-                )
-                syn.logger.warning(
-                    "\n"
-                    + "!" * len(warning_message)
-                    + "\n"
-                    + warning_message
-                    + "\n"
-                    + "!" * len(warning_message)
-                    + "\n"
-                )
-    elif entity["concreteType"] == concrete_types.TABLE_ENTITY:
-        if not entity_to_update:
-            entity_to_update = Table()
-        entity = entity_to_update.fill_from_dict(
-            entity=entity_bundle["entity"], set_annotations=False
-        )
-    elif entity["concreteType"] == concrete_types.DATASET_ENTITY:
-        if not entity_to_update:
-            from synapseclient.models import Dataset
-
-            entity_to_update = Dataset()
-        entity = entity_to_update.fill_from_dict(
-            entity=entity_bundle["entity"], set_annotations=False
-        )
-    elif entity["concreteType"] == concrete_types.ENTITY_VIEW:
-        if not entity_to_update:
-            from models.entityview import EntityView
-
-            entity_to_update = EntityView()
-        entity = entity_to_update.fill_from_dict(
-            entity=entity_bundle["entity"], set_annotations=False
-        )
-    elif entity["concreteType"] == concrete_types.MATERIALIZED_VIEW:
-        if not entity_to_update:
-            from models.materializedview import MaterializedView
-
-            entity_to_update = MaterializedView()
-        entity = entity_to_update.fill_from_dict(
-            entity=entity_bundle["entity"], set_annotations=False
-        )
-    else:
+    entity_class = ENTITY_TYPE_MAP.get(entity["concreteType"], None)
+    if not entity_class:
         raise ValueError(
             f"Attempting to retrieve an unsupported entity type of {entity['concreteType']}."
         )
-    if annotations:
-        entity.annotations = annotations
 
-    return entity
+    # Create or use existing entity instance
+    entity_instance = entity_to_update or entity_class()
+
+    # Handle special case for File entities
+    if entity["concreteType"] == concrete_types.FILE_ENTITY:
+        entity_instance = await _handle_file_entity(
+            entity_instance=entity_instance,
+            entity_bundle=entity_bundle,
+            download_file=download_file,
+            download_location=download_location,
+            if_collision=if_collision,
+            submission=submission,
+            synapse_client=syn,
+        )
+    else:
+        # Handle all other entity types
+        entity_instance.fill_from_dict(entity_bundle["entity"], set_annotations=False)
+
+    if annotations:
+        entity_instance.annotations = annotations
+
+    return entity_instance
 
 
 def _check_entity_restrictions(

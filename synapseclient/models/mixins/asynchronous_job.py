@@ -14,7 +14,11 @@ from synapseclient.core.constants.concrete_types import (
     AGENT_CHAT_REQUEST,
     TABLE_UPDATE_TRANSACTION_REQUEST,
 )
-from synapseclient.core.exceptions import SynapseError, SynapseTimeoutError
+from synapseclient.core.exceptions import (
+    SynapseError,
+    SynapseHTTPError,
+    SynapseTimeoutError,
+)
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
@@ -308,18 +312,40 @@ async def send_job_and_wait_async(
         SynapseError: If the job fails.
         SynapseTimeoutError: If the job does not complete within the timeout.
     """
-    job_id = await send_job_async(request=request, synapse_client=synapse_client)
-    return {
-        "jobId": job_id,
-        **await get_job_async(
-            job_id=job_id,
-            request_type=request_type,
-            synapse_client=synapse_client,
-            endpoint=endpoint,
-            timeout=timeout,
-            request=request,
-        ),
-    }
+    start_time = time.time()
+    retry_interval = 5  # Retry every 5 seconds
+    max_wait_time = timeout * 5  # Maximum total wait time of 5 minutes
+
+    while time.time() - start_time < max_wait_time:
+        try:
+            job_id = await send_job_async(
+                request=request, synapse_client=synapse_client
+            )
+            result = {
+                "jobId": job_id,
+                **await get_job_async(
+                    job_id=job_id,
+                    request_type=request_type,
+                    synapse_client=synapse_client,
+                    endpoint=endpoint,
+                    timeout=timeout,
+                    request=request,
+                ),
+            }
+            return result
+        except SynapseHTTPError as e:
+            if (
+                "You cannot create a version of a view that is not available (Status: PROCESSING)"
+                in str(e)
+            ):
+                if time.time() - start_time < max_wait_time:
+                    await asyncio.sleep(retry_interval)
+                    continue
+            raise  # Re-raise any other SynapseHTTPError or if max wait time reached
+        except Exception:
+            raise  # Re-raise any other exceptions
+
+    raise SynapseError(f"Failed to create view version after {max_wait_time} seconds")
 
 
 async def send_job_async(
@@ -426,6 +452,7 @@ async def get_job_async(
                 uri=f"{uri}/get/{job_id}",
                 endpoint=endpoint,
             )
+
             job_status = AsynchronousJobStatus().fill_from_dict(async_job_status=result)
             if job_status.state == AsynchronousJobState.PROCESSING:
                 progress_tracking = any(

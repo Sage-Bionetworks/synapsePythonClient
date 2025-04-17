@@ -61,7 +61,7 @@ from synapseclient.models.table_components import (
     UploadToTableRequest,
 )
 
-CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView"]
+CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView", "DatasetCollection"]
 CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView"]
 
 PANDAS_TABLE_TYPE = {
@@ -2511,6 +2511,13 @@ class ViewSnapshotMixin:
                 else None,
             ),
         ).send_job_and_wait_async(synapse_client=client)
+
+        if not self.version_number:
+            # set to latest drafting version if the first snapshot was just created
+            self.version_number = 2
+        else:
+            # increment the version number for each subsequent snapshot
+            self.version_number += 1
 
         if associate_activity_to_new_version and self.activity:
             self._last_persistent_instance.activity = None

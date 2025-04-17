@@ -34,6 +34,7 @@ nav:
           # - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
           - Dataset: tutorials/python/dataset.md
+          - Dataset Collection: tutorials/python/dataset_collection.md
           - Materialized View: tutorials/python/materializedview.md
           # - Sharing Settings: tutorials/python/sharing_settings.md
           # - Wiki: tutorials/python/wiki.md
@@ -82,6 +83,7 @@ nav:
           - File: reference/experimental/sync/file.md
           - Table: reference/experimental/sync/table.md
           - Dataset: reference/experimental/sync/dataset.md
+          - Dataset Collection: reference/experimental/sync/dataset_collection.md
           - EntityView: reference/experimental/sync/entityview.md
           - MaterializedView: reference/experimental/sync/materializedview.md
           - Activity: reference/experimental/sync/activity.md
@@ -95,6 +97,7 @@ nav:
               - File: reference/experimental/async/file.md
               - Table: reference/experimental/async/table.md
               - Dataset: reference/experimental/async/dataset.md
+              - Dataset Collection: reference/experimental/async/dataset_collection.md
               - EntityView: reference/experimental/async/entityview.md
               - MaterializedView: reference/experimental/async/materializedview.md
               - Activity: reference/experimental/async/activity.md
