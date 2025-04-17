@@ -3,7 +3,11 @@
 import httpx
 from pytest_mock import MockerFixture
 
-from synapseclient.core.version_check import _get_version_info_from_pypi, version_check
+from synapseclient.core.version_check import (
+    _PYPI_JSON_URL,
+    _get_version_info_from_pypi,
+    version_check,
+)
 
 
 async def test_version_check(mocker: MockerFixture):
@@ -17,7 +21,7 @@ async def test_version_check(mocker: MockerFixture):
     # Assert httpx.get called  when running version_check
     spy = mocker.spy(httpx, "get")
     version_check()
-    spy.assert_called_once()
+    spy.assert_called_once_with(_PYPI_JSON_URL)
 
 
 def test_get_version_info_from_pypi():
