@@ -63,15 +63,15 @@ Note: Due to Synapse's eventual consistency model, we need to wait briefly for t
 submission to appear in the view.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=107-128}
+{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=107-126}
 ```
 
 <details class="example">
   <summary>The result of querying your SubmissionView should include your submission with its details:</summary>
 ```
 Query results:
-             id          name           status      evaluationid  metric_A  metric_B
-0  [submission_id]  Test Submission  RECEIVED  [evaluation_id]       NaN       NaN
+    ROW_ID  ROW_VERSION                              ROW_ETAG  metric_A  metric_B  ... submitteralias     entityid  entityversion  dockerrepositoryname  dockerdigest
+0  9751779            0  e7c37ec7-e5e8-435d-b378-dc2d6bddad21       NaN       NaN  ...  Participant 1  syn66272627              1                   NaN           NaN
 ```
 
 After updating the submission status:
@@ -87,7 +87,7 @@ As your challenge evolves, you might need to add more evaluation queues to your 
 Here's how to create another evaluation queue and add it to your view's scope.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=129-145}
+{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=128-143}
 ```
 
 ## 6. Create a snapshot of the view
@@ -96,7 +96,7 @@ SubmissionViews support creating snapshots, which capture the state of all submi
 specific point in time. This is useful for archiving or comparing submission states.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=147-154}
+{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=145-152}
 ```
 
 ## 7. Query the snapshot
@@ -105,7 +105,7 @@ After creating a snapshot, you can query it to retrieve the state of submissions
 time the snapshot was created. This is useful for historical analysis or auditing.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=155-164}
+{!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=153-162}
 ```
 
 ## Source Code for this Tutorial
@@ -120,7 +120,7 @@ time the snapshot was created. This is useful for historical analysis or auditin
 
 ## References
 - [SubmissionView][synapseclient.models.SubmissionView]
-- [Evaluation][synapseclient.Evaluation]
+- [Evaluation][synapseclient.evaluation]
 - [syn.submit][synapseclient.Synapse.submit]
 - [syn.getSubmissionStatus][synapseclient.Synapse.getSubmissionStatus]
 - [syn.getSubmission][synapseclient.Synapse.getSubmission]

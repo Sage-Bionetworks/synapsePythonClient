@@ -105,14 +105,12 @@ with tempfile.NamedTemporaryFile(
     print(f"Created submission with ID: {submission.id}")
 
 # Step 4: Query and update the submission status
-# Due to eventual consistency, wait for the submission to appear in the view
-print("Waiting for the submission to appear in the view...")
-time.sleep(5)  # Give Synapse time to update the view
-
 # Query the SubmissionView to see our submission
-results_as_dataframe: pd.DataFrame = view.query(
-    query=f"SELECT * FROM {view.id} WHERE id = '{submission.id}'",
-)
+query = f"SELECT * FROM {view.id} WHERE id = '{submission.id}'"
+results_as_dataframe: pd.DataFrame = view.query(query=query)
+# Due to the eventual consistency of the system, we need to perform 2 queries
+results_as_dataframe: pd.DataFrame = view.query(query=query)
+
 print("Query results:")
 print(results_as_dataframe)
 
