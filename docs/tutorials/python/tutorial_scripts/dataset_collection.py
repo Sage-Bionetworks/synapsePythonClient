@@ -59,7 +59,7 @@ my_retrieved_dataset_collection.store()
 modified_data = pd.DataFrame(
     {
         "id": DATASET_IDS,
-        "my_annotation": ["good dataset" * len(DATASET_IDS)],
+        "my_annotation": ["good dataset"] * len(DATASET_IDS),
     }
 )
 my_retrieved_dataset_collection.update_rows(
