@@ -525,12 +525,12 @@ def _replace_existing_config(path, auth_section, profile_name):
     )
 
     if matcher:
-            # we matched an existing authentication section
-            new_config_text = (
-                config_text[: matcher.start(1)]
-                + auth_section
-                + config_text[matcher.end(1) :]
-            )
+        # we matched an existing authentication section
+        new_config_text = (
+            config_text[: matcher.start(1)]
+            + auth_section
+            + config_text[matcher.end(1) :]
+        )
 
     else:
         # weren't able to find an authentication section so
@@ -566,23 +566,29 @@ def _generate_new_config(auth_section, profile_name):
 @tracer.start_as_current_span("main::config")
 def config(args, syn):
     """Create/modify a synapse configuration file"""
-    user, secret = _prompt_for_credentials()
+    user, secret, profile = _prompt_for_credentials(user=None, profile=args.profile)
 
     # validate the credentials provided and determine what login
     # mechanism was used (authToken)
     # this means that writing a config requires connectivity
     # (and that the endpoints in the current config point to
     # the endpoints of the credentials)
-    login_key = _authenticate_login(syn, user, secret, silent=True)
+    login_key = _authenticate_login(syn, user, secret, profile=profile, silent=False)
 
-    profile_name = args.profile or "default"
-    auth_section = f"[{profile_name}]\n" if profile_name == "default" else f"[profile {profile_name}]\n"
+    profile_name = args.profile or profile or "default"
+    auth_section = (
+        f"[{profile_name}]\n"
+        if profile_name == "default"
+        else f"[profile {profile_name}]\n"
+    )
     if user:
         auth_section += f"username={user}\n"
     auth_section += f"{login_key.lower()}={secret}\n\n"
 
     if os.path.exists(args.configPath):
-        config_text = _replace_existing_config(args.configPath, auth_section, profile_name)
+        config_text = _replace_existing_config(
+            args.configPath, auth_section, profile_name
+        )
     else:
         config_text = _generate_new_config(auth_section, profile_name)
 
@@ -826,9 +832,10 @@ def build_parser():
         help="Personal Access Token (aka: Synapse Auth Token) used to connect to Synapse.",
     )
     parser.add_argument(
-        "-r","--profile",
-        type=str,
-        help="Name of the Synapse profile to use (from ~/.synapseConfig). Defaults to 'default'."
+        "-r",
+        "--profile",
+        dest="profile",
+        help="Name of the Synapse profile to use (from ~/.synapseConfig). Defaults to 'default'.",
     )
     parser.add_argument(
         "-c",
@@ -1472,11 +1479,6 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
     parser_config = subparsers.add_parser(
         "config", help="Create or modify a Synapse configuration file"
     )
-    parser_config.add_argument(
-        "--profile",
-        help="Optional name of the Synapse profile to create or update in the config file. "
-             "If omitted, modifies the [default] profile."
-    )
     parser_config.set_defaults(func=config)
 
     parser_set_provenance = subparsers.add_parser(
@@ -1700,12 +1702,6 @@ https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/Table
         dest="synapse_auth_token",
         help="Personal Access Token (aka: Synapse Auth Token) used to connect to Synapse.",
     )
-    parser_login.add_argument(
-        "-r",
-        "--profile",
-        type=str,
-        help="Optional name of the Synapse profile to use when logging in or saving credentials to ~/.synapseConfig. If omitted, modifies the [default] profile.",
-    )
     parser_login.set_defaults(func=login)
 
     # test character encoding
@@ -1808,7 +1804,7 @@ def perform_main(args, syn):
                 syn=syn,
                 user=args.synapseUser,
                 password=args.synapse_auth_token,
-                silent=True,
+                silent=False,
                 profile=getattr(args, "profile", None),
             )
         try:
@@ -1828,25 +1824,37 @@ def perform_main(args, syn):
 
 @tracer.start_as_current_span("main::login_with_prompt")
 def login_with_prompt(
-    syn: synapseclient.Synapse, user: str, password: str, silent: bool = False, profile: str = None
+    syn: synapseclient.Synapse,
+    user: str,
+    password: str,
+    silent: bool = False,
+    profile: str = None,
 ) -> None:
     try:
-        _authenticate_login(syn=syn, user=user, secret=password, profile=profile, silent=silent)
+        _authenticate_login(
+            syn=syn, user=user, secret=password, profile=profile, silent=silent
+        )
     except SynapseNoCredentialsError:
         # there were no complete credentials in the cache nor provided
-        user, passwd = _prompt_for_credentials(user=user)
+        user, passwd, prompt_profile = _prompt_for_credentials(
+            user=user, password=password, profile=profile
+        )
 
-        _authenticate_login(syn=syn, user=user, secret=passwd)
+        _authenticate_login(
+            syn=syn, user=user, secret=passwd, profile=prompt_profile, silent=silent
+        )
 
 
-def _prompt_for_credentials(user=None):
+def _prompt_for_credentials(
+    user: str = None, profile: str = None, password: str = None
+):
     if not user:
         # if username was passed then we use that username
         user = input("Synapse username (Optional): ")
 
     secret_prompt = f"Auth token for user {user}:" if user else "Auth token:"
 
-    passwd = None
+    passwd = password
     while not passwd:
         # if the terminal is not a tty, we are unable to read from standard input
         # For git bash using python getpass
@@ -1858,7 +1866,16 @@ def _prompt_for_credentials(user=None):
         else:
             passwd = getpass.getpass(secret_prompt)
 
-    return user, passwd
+    if not profile:
+        input_profile = input(
+            "Configuration profile name (Optional, 'default' used if not specified)): "
+        )
+        if not input_profile:
+            input_profile = "default"
+    else:
+        input_profile = profile
+
+    return user, passwd, input_profile
 
 
 @tracer.start_as_current_span("main::_authenticate_login")

@@ -823,11 +823,13 @@ class Synapse(object):
         # Make sure to invalidate the existing session
         self.logout()
 
-        user_login_args = UserLoginArgs(profile=profile, username=email, auth_token=authToken)
+        user_login_args = UserLoginArgs(
+            profile=profile, username=email, auth_token=authToken
+        )
         credential_provider_chain = get_default_credential_chain()
         self.credentials = credential_provider_chain.get_credentials(
-            syn=self,
-            user_login_args=user_login_args)
+            syn=self, user_login_args=user_login_args
+        )
 
         # Final check on login success
         if not self.credentials:
@@ -839,10 +841,16 @@ class Synapse(object):
 
         if not silent:
             display_name = self.credentials.displayname or self.credentials.username
-            if not profile or profile.lower() == config_file_constants.AUTHENTICATION_SECTION_NAME:
+            if (
+                not self.credentials.profile_name
+                or self.credentials.profile_name.lower()
+                == config_file_constants.AUTHENTICATION_SECTION_NAME
+            ):
                 self.logger.info(f"Welcome, {display_name}!\n")
             else:
-                self.logger.info(f"Welcome, {display_name}! You are using the '{profile}' profile.")
+                self.logger.info(
+                    f"Welcome, {display_name}! You are using the '{self.credentials.profile_name}' profile."
+                )
 
     @deprecated(
         version="4.4.0",
