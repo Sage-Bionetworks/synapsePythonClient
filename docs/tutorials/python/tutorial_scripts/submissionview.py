@@ -8,10 +8,10 @@ This tutorial also shows how to create an evaluation queue, submit a file to it,
 update the submission status. The example uses a temporary file for the submission,
 which is automatically cleaned up after the script runs. You can modify the file
 path and name as needed.
+
 """
 
 import tempfile
-import time
 
 import pandas as pd
 

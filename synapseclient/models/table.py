@@ -1328,15 +1328,6 @@ class Table(
             not self._last_persistent_instance or self._last_persistent_instance != self
         )
 
-    @property
-    def has_columns_changed(self) -> bool:
-        """Determines if the object has been changed and needs to be updated in Synapse."""
-        return (
-            not self._last_persistent_instance
-            or (not self._last_persistent_instance.columns and self.columns)
-            or self._last_persistent_instance.columns != self.columns
-        )
-
     def _set_last_persistent_instance(self) -> None:
         """Stash the last time this object interacted with Synapse. This is used to
         determine if the object has been changed and needs to be updated in Synapse."""

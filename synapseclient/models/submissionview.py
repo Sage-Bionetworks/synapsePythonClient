@@ -13,6 +13,7 @@ from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models import Activity, Annotations
+from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
     ColumnMixin,
     DeleteMixin,
@@ -267,6 +268,7 @@ class SubmissionViewSynchronousProtocol(Protocol):
 @async_to_sync
 class SubmissionView(
     SubmissionViewSynchronousProtocol,
+    AccessControllable,
     ColumnMixin,
     DeleteMixin,
     GetMixin,
@@ -541,15 +543,6 @@ class SubmissionView(
             or self._last_persistent_instance != self
             or (not self._last_persistent_instance.scope_ids and self.scope_ids)
             or self._last_persistent_instance.scope_ids != self.scope_ids
-        )
-
-    @property
-    def has_columns_changed(self) -> bool:
-        """Determines if the object has been changed and needs to be updated in Synapse."""
-        return (
-            not self._last_persistent_instance
-            or (not self._last_persistent_instance.columns and self.columns)
-            or self._last_persistent_instance.columns != self.columns
         )
 
     async def store_async(
