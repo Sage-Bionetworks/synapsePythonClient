@@ -78,8 +78,7 @@ def get_client_authenticated_s3_profile(
 
 
 def get_config_authentication(
-    config_path: str,
-    profile: str = "default"
+    config_path: str, profile: str = "default"
 ) -> Dict[str, str]:
     """
     Get the authentication section of the configuration file.
@@ -100,12 +99,18 @@ def get_config_authentication(
     )
 
     if section_for_profile:
-        return section_for_profile
+        return {
+            "section_name": profile,
+            **section_for_profile,
+        }
 
-    return get_config_section_dict(
-        section_name=config_file_constants.AUTHENTICATION_SECTION_NAME,
-        config_path=config_path,
-    )
+    return {
+        "section_name": config_file_constants.AUTHENTICATION_SECTION_NAME,
+        **get_config_section_dict(
+            section_name=config_file_constants.AUTHENTICATION_SECTION_NAME,
+            config_path=config_path,
+        ),
+    }
 
 
 def get_transfer_config(

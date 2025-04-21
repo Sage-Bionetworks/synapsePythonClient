@@ -1,9 +1,9 @@
-from dataclasses import dataclass, field
-from typing import Optional
 import abc
 import base64
 import json
 import typing
+from dataclasses import dataclass, field
+from typing import Optional
 
 import requests.auth
 
@@ -25,6 +25,11 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
     @abc.abstractmethod
     def owner_id(self) -> None:
         """The owner id, or profile id, associated with these credentials."""
+
+    @property
+    @abc.abstractmethod
+    def profile_name(self) -> None:
+        """The name of the profile used to find these credentials. May be None."""
 
 
 class SynapseAuthTokenCredentials(SynapseCredentials):
@@ -109,6 +114,15 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         """The bearer token."""
         return self._token
 
+    @property
+    def profile_name(self) -> str:
+        """The name of the profile used to find these credentials."""
+        return self._profile_name
+
+    @profile_name.setter
+    def profile_name(self, profile_name: str) -> None:
+        self._profile_name = profile_name
+
     def __call__(self, r):
         r.headers.update({"Authorization": f"Bearer {self.secret}"})
         return r
@@ -121,6 +135,7 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
             f"token='{self.secret}', "
             f"owner_id='{self.owner_id}')"
         )
+
 
 @dataclass
 class UserLoginArgs:
@@ -135,6 +150,9 @@ class UserLoginArgs:
         auth_token (Optional[str]): The authentication token for logging in.
                                     Hidden from debug logs for security.
     """
+
     profile: Optional[str] = field(default="default")
     username: Optional[str] = field(default=None)
-    auth_token: Optional[str] = field(default=None, repr=False)  # Hide auth_token from debug logs
+    auth_token: Optional[str] = field(
+        default=None, repr=False
+    )  # Hide auth_token from debug logs
