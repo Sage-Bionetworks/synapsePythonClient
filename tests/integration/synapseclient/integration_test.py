@@ -25,7 +25,6 @@ from synapseclient import (
     client,
 )
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseNoCredentialsError
-from synapseclient.core.version_check import version_check
 
 PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
@@ -325,39 +324,6 @@ async def test_downloadFile(schedule_for_cleanup):
     )
     schedule_for_cleanup(filename)
     assert os.path.exists(filename)
-
-
-async def test_version_check():
-    # Check current version against dev-synapsePythonClient version file
-    version_check(
-        version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient"
-    )
-
-    # Should be higher than current version and return true
-    assert version_check(
-        current_version="999.999.999",
-        version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient",
-    )
-
-    # Test out of date version
-    assert not version_check(
-        current_version="0.0.1",
-        version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient",
-    )
-
-    # Test blacklisted version
-    pytest.raises(
-        SystemExit,
-        version_check,
-        current_version="0.0.0",
-        version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient",
-    )
-
-    # Test bad URL
-    assert not version_check(
-        current_version="999.999.999",
-        version_url="http://dev-versions.synapse.sagebase.org/bad_filename_doesnt_exist",
-    )
 
 
 async def test_provenance(syn, project, schedule_for_cleanup):

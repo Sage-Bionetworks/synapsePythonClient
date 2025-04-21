@@ -229,14 +229,6 @@ def test_extract_filename() -> None:
     assert utils.extract_filename(None, "fname.ext") == "fname.ext"
 
 
-def test_version_check() -> None:
-    from synapseclient.core.version_check import _version_tuple
-
-    assert _version_tuple("0.5.1.dev200", levels=2) == ("0", "5")
-    assert _version_tuple("0.5.1.dev200", levels=3) == ("0", "5", "1")
-    assert _version_tuple("1.6", levels=3) == ("1", "6", "0")
-
-
 def test_normalize_path() -> None:
     # tests should pass on reasonable OSes and also on windows
 

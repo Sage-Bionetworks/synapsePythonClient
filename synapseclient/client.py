@@ -821,7 +821,7 @@ class Synapse(object):
 
         # Check version before logging in
         if not self.skip_checks:
-            version_check()
+            version_check(logger=self.logger)
 
         # Make sure to invalidate the existing session
         self.logout()
