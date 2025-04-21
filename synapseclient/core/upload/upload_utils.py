@@ -55,7 +55,6 @@ def get_partial_dataframe_chunk(
         (total_size_of_chunks_being_uploaded - ((part_number - 1) * part_size)),
         part_size,
     )
-    header_written = False
     # TODO: This is an area for optimization. It is possible to avoid writing the entire
     # dataframe to a buffer and then reading the buffer to get the bytes. Instead, we
     # might be able to do something like keeping markers at each 100 row increment how
@@ -68,12 +67,11 @@ def get_partial_dataframe_chunk(
         df.iloc[offset_start:end].to_csv(
             buffer,
             mode="a",
-            header=(part_number == 1 and not header_written),
+            header=False,
             index=False,
             float_format="%.12g",
             **(to_csv_kwargs or {}),
         )
-        header_written = True
         number_of_bytes_in_buffer = buffer.tell()
         # Drop data from the front of the buffer until total_offset is 0
         if total_offset > 0 and total_offset >= number_of_bytes_in_buffer:
