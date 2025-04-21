@@ -3468,10 +3468,8 @@ class TableStoreRowMixin:
 
         chunks_to_upload = []
         size_of_chunk = 0
-        previous_chunk_byte_offset = 0
         buffer = BytesIO()
         total_df_bytes = 0
-        size_of_header = 0
         header_line = None
         md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
         line_start_index_for_chunk = 0
@@ -3494,28 +3492,23 @@ class TableStoreRowMixin:
             if start == 0:
                 buffer.seek(0)
                 header_line = buffer.readline()
-                size_of_header = len(header_line)
-                previous_chunk_byte_offset = size_of_header
             md5_hashlib.update(buffer.getvalue())
 
             if size_of_chunk >= insert_size_bytes:
                 chunks_to_upload.append(
                     (
-                        previous_chunk_byte_offset,
                         size_of_chunk,
                         md5_hashlib.hexdigest(),
                         line_start_index_for_chunk,
                         line_end_index_for_chunk,
                     )
                 )
-                previous_chunk_byte_offset = size_of_header
                 size_of_chunk = 0
                 line_start_index_for_chunk = line_end_index_for_chunk
                 md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
         if size_of_chunk > 0:
             chunks_to_upload.append(
                 (
-                    previous_chunk_byte_offset,
                     size_of_chunk,
                     md5_hashlib.hexdigest(),
                     line_start_index_for_chunk,
@@ -3558,7 +3551,6 @@ class TableStoreRowMixin:
         wait_for_update_semaphore = asyncio.Semaphore(value=1)
         part = 0
         for (
-            byte_chunk_offset,
             size_of_chunk,
             md5,
             line_start,
@@ -3569,7 +3561,7 @@ class TableStoreRowMixin:
                     self._stream_and_update_from_df(
                         client=client,
                         size_of_chunk=size_of_chunk,
-                        byte_chunk_offset=byte_chunk_offset,
+                        byte_chunk_offset=0,
                         md5=md5,
                         csv_table_descriptor=csv_table_descriptor,
                         job_timeout=job_timeout,
