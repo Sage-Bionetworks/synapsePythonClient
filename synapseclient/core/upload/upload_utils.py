@@ -89,6 +89,7 @@ def get_partial_dataframe_chunk(
             buffer.truncate(0)
             buffer.write(copy_of_data)
             total_offset = 0
+            number_of_bytes_in_buffer = buffer.tell()
 
         if number_of_bytes_in_buffer >= max_bytes_to_read:
             # Return maximum number of bytes that can be read from the buffer
