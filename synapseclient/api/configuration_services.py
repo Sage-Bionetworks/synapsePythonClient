@@ -78,21 +78,39 @@ def get_client_authenticated_s3_profile(
 
 
 def get_config_authentication(
-    config_path: str,
+    config_path: str, profile: str = "default"
 ) -> Dict[str, str]:
     """
     Get the authentication section of the configuration file.
 
     Arguments:
         config_path:  Path to configuration file on local file system
+        profile (str, optional): The profile name to retrieve credentials for. Defaults to "default".
 
     Returns:
         The authentication section of the configuration file
     """
-    return get_config_section_dict(
-        section_name=config_file_constants.AUTHENTICATION_SECTION_NAME,
+
+    section = profile if profile == "default" else f"profile {profile}"
+
+    section_for_profile = get_config_section_dict(
+        section_name=section,
         config_path=config_path,
     )
+
+    if section_for_profile:
+        return {
+            "section_name": profile,
+            **section_for_profile,
+        }
+
+    return {
+        "section_name": config_file_constants.AUTHENTICATION_SECTION_NAME,
+        **get_config_section_dict(
+            section_name=config_file_constants.AUTHENTICATION_SECTION_NAME,
+            config_path=config_path,
+        ),
+    }
 
 
 def get_transfer_config(
