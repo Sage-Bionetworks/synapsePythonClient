@@ -135,7 +135,7 @@ class TestSynapseCredentialProvider(object):
         # username is required with credentials other than auth token.
         # if neither is provided it shouldn't matter what the other fields are
         cred = self.provider._create_synapse_credential(
-            syn=self.syn, username=None, auth_token=None
+            syn=self.syn, username=None, auth_token=None, authentication_profile=None
         )
         assert cred is None
 
@@ -153,7 +153,7 @@ class TestSynapseCredentialProvider(object):
         mock_creds.owner_id = self.owner_id
         mock_rest_get.return_value = {"userName": self.username}
         creds = self.provider._create_synapse_credential(
-            syn=self.syn, username=None, auth_token=self.auth_token
+            syn=self.syn, username=None, auth_token=self.auth_token, authentication_profile=None,
         )
         assert creds is mock_creds
         mock_rest_get.assert_called_once_with("/userProfile", auth=mock_creds)
@@ -172,7 +172,7 @@ class TestSynapseCredentialProvider(object):
         mock_init_auth_creds.return_value = mock_creds
 
         creds = self.provider._create_synapse_credential(
-            syn=self.syn, username=self.username, auth_token=self.auth_token
+            syn=self.syn, username=self.username, auth_token=self.auth_token, authentication_profile=None,
         )
         assert creds is mock_creds
 
@@ -210,7 +210,7 @@ class TestSynapseCredentialProvider(object):
         }
 
         cred = self.provider._create_synapse_credential(
-            syn=self.syn, username=login_username, auth_token=self.auth_token
+            syn=self.syn, username=login_username, auth_token=self.auth_token, authentication_profile="ownerId"
         )
         assert cred.secret == self.auth_token
         assert cred.username == profile_username
@@ -233,7 +233,7 @@ class TestSynapseCredentialProvider(object):
 
         with pytest.raises(SynapseAuthenticationError) as ex:
             self.provider._create_synapse_credential(
-                syn=self.syn, username=login_username, auth_token=self.auth_token
+                syn=self.syn, username=login_username, auth_token=self.auth_token, authentication_profile=None,
             )
         assert (
             str(ex.value)
@@ -257,6 +257,7 @@ class TestUserArgsCredentialsProvider(object):
         assert (
             user_login_args.username,
             user_login_args.auth_token,
+            None,
         ) == returned_tuple
 
 
@@ -269,7 +270,7 @@ class TestConfigFileCredentialsProvider(object):
     def setup_method(self) -> None:
         self.username = "username"
         self.token = "token123"
-        self.expected_return_tuple = (self.username, self.token)
+        self.expected_return_tuple = (self.username, self.token, None)
         self.config_dict = {
             "username": self.username,
             "authtoken": self.token,
@@ -293,7 +294,7 @@ class TestConfigFileCredentialsProvider(object):
             auth_token=None,
         )
 
-        returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
+        returned_tuple = self.provider._get_auth_info(self.syn, user_login_args,)
 
         assert self.expected_return_tuple == returned_tuple
         self.mock_get_config_authentication.assert_called_once_with(
@@ -325,7 +326,7 @@ class TestConfigFileCredentialsProvider(object):
 
         returned_tuple = self.provider._get_auth_info(self.syn, user_login_args)
 
-        assert (None, None) == returned_tuple
+        assert (None, None, None) == returned_tuple
         self.mock_get_config_authentication.assert_called_once_with(
             config_path=self.syn.configPath,
             profile="default"
@@ -370,7 +371,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
             auth_token=None,
         )
 
-        assert (None, None) == self.provider._get_auth_info(syn, user_login_args)
+        assert (None, None, None) == self.provider._get_auth_info(syn, user_login_args)
         assert not mock_boto3_client.called
         stubber.assert_no_pending_responses()
 
@@ -397,7 +398,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
         )
 
         with stubber:
-            assert (None, None) == self.provider._get_auth_info(syn, user_login_args)
+            assert (None, None, None) == self.provider._get_auth_info(syn, user_login_args)
             mock_boto3_client.assert_called_once_with("ssm")
             stubber.assert_no_pending_responses()
 
@@ -431,7 +432,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
         )
 
         with stubber:
-            assert (username, token) == self.provider._get_auth_info(
+            assert (username, token, None) == self.provider._get_auth_info(
                 syn, user_login_args
             )
             mock_boto3_client.assert_called_once_with("ssm")
@@ -452,7 +453,7 @@ class TestAWSParameterStoreCredentialsProvider(object):
             auth_token=None,
         )
 
-        assert (None, None) == self.provider._get_auth_info(syn, user_login_args)
+        assert (None, None, None) == self.provider._get_auth_info(syn, user_login_args)
 
 
 class TestEnvironmentVariableCredentialsProvider:
@@ -474,7 +475,7 @@ class TestEnvironmentVariableCredentialsProvider:
             username=None,
             auth_token=None,
         )
-        assert (None, token) == self.provider._get_auth_info(syn, user_login_args)
+        assert (None, token, None) == self.provider._get_auth_info(syn, user_login_args)
 
     def test_get_auth_info__has_environment_variable_user_args_with_username(
         self, mocker: MockerFixture, syn: Synapse
@@ -486,7 +487,7 @@ class TestEnvironmentVariableCredentialsProvider:
             username=username,
             auth_token=None,
         )
-        assert (username, token) == self.provider._get_auth_info(syn, user_login_args)
+        assert (username, token, None) == self.provider._get_auth_info(syn, user_login_args)
 
     def test_get_auth_info__no_environment_variable(
         self, mocker: MockerFixture, syn: Synapse
@@ -498,7 +499,7 @@ class TestEnvironmentVariableCredentialsProvider:
             auth_token=None,
         )
 
-        assert (None, None) == self.provider._get_auth_info(syn, user_login_args)
+        assert (None, None, None) == self.provider._get_auth_info(syn, user_login_args)
 
 
 # Test case to verify behavior when auth_token is provided
@@ -551,3 +552,170 @@ class TestAuthTokenProvided:
         # Ensure that _get_config_authentication and _get_auth_info (for ConfigFileCredentialsProvider) were not called
         mock_get_config_authentication.assert_not_called()
         mock_config_file_auth_info.assert_not_called()
+
+class TestCredentialResolutionPrecedence:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.user_login_args = UserLoginArgs(username=None, auth_token=None)
+
+    def test_config_with_authentication_default_and_profile__uses_default(self, mocker, syn):
+        config_dict = {"username": "default_user", "authtoken": "default_token"}
+        mock_get_config = mocker.patch(
+            "synapseclient.core.credentials.credential_provider.get_config_authentication",
+            return_value=config_dict,
+        )
+        provider = ConfigFileCredentialsProvider()
+
+        returned = provider._get_auth_info(syn, self.user_login_args)
+
+        assert returned == ("default_user", "default_token", None)
+        mock_get_config.assert_called_once_with(config_path=syn.configPath, profile="default")
+
+    def test_config_with_authentication_and_profile__no_default__uses_authentication(self, mocker, syn):
+        config_dict = {"username": "auth_user", "authtoken": "auth_token"}
+        mock_get_config = mocker.patch(
+            "synapseclient.core.credentials.credential_provider.get_config_authentication",
+            return_value=config_dict,
+        )
+        provider = ConfigFileCredentialsProvider()
+
+        returned = provider._get_auth_info(syn, self.user_login_args)
+
+        assert returned == ("auth_user", "auth_token", None)
+        mock_get_config.assert_called_once_with(config_path=syn.configPath, profile="default")
+
+    def test_config_with_profile_specified__uses_profile(self, mocker, syn):
+        config_dict = {
+            "username": "profile_user",
+            "authtoken": "profile_token",
+            "section_name": "testprofile",
+        }
+        mock_get_config = mocker.patch(
+            "synapseclient.core.credentials.credential_provider.get_config_authentication",
+            return_value=config_dict,
+        )
+        provider = ConfigFileCredentialsProvider()
+        user_login_args = UserLoginArgs(username=None, auth_token=None, profile="testprofile")
+
+        returned = provider._get_auth_info(syn, user_login_args)
+
+        assert returned == ("profile_user", "profile_token", "testprofile")
+        mock_get_config.assert_called_once_with(config_path=syn.configPath, profile="testprofile")
+
+    def test_config_with_profile_only__no_profile_specified__prompts_login(self, mocker, syn):
+        mock_get_config = mocker.patch(
+            "synapseclient.core.credentials.credential_provider.get_config_authentication",
+            return_value={},
+        )
+        provider = ConfigFileCredentialsProvider()
+
+        returned = provider._get_auth_info(syn, self.user_login_args)
+
+        assert returned == (None, None, None)
+
+    def test_config_with_profile_only__profile_specified__succeeds(self, mocker, syn):
+        config_dict = {"username": "profile_user", "authtoken": "profile_token"}
+        mock_get_config = mocker.patch(
+            "synapseclient.core.credentials.credential_provider.get_config_authentication",
+            return_value=config_dict,
+        )
+        provider = ConfigFileCredentialsProvider()
+        syn._login_args = {"profile": "onlyprofile"}
+
+        returned = provider._get_auth_info(syn, self.user_login_args)
+
+        assert returned == ("profile_user", "profile_token", None)
+
+    def test_config_with_authentication_only__fallback_succeeds(self, mocker, syn):
+        config_dict = {"username": "auth_user", "authtoken": "auth_token"}
+        mock_get_config = mocker.patch(
+            "synapseclient.core.credentials.credential_provider.get_config_authentication",
+            return_value=config_dict,
+        )
+        provider = ConfigFileCredentialsProvider()
+
+        returned = provider._get_auth_info(syn, self.user_login_args)
+
+        assert returned == ("auth_user", "auth_token", None)
+
+# def test_config_with_authentication_default_and_profile__uses_default(mocker, syn):
+#     config_dict = {"username": "default_user", "authtoken": "default_token"}
+#     mock_get_config = mocker.patch(
+#         "synapseclient.core.credentials.credential_provider.get_config_authentication",
+#         return_value=config_dict,
+#     )
+#     provider = ConfigFileCredentialsProvider()
+#
+#     user_login_args = UserLoginArgs(username=None, auth_token=None)
+#     returned = provider._get_auth_info(syn, user_login_args)
+#
+#     assert returned == ("default_user", "default_token", None)
+#     mock_get_config.assert_called_once_with(config_path=syn.configPath, profile="default")
+#
+# def test_config_with_authentication_and_profile__no_default__uses_authentication(mocker, syn):
+#     config_dict = {"username": "auth_user", "authtoken": "auth_token"}
+#     mock_get_config = mocker.patch(
+#         "synapseclient.core.credentials.credential_provider.get_config_authentication",
+#         return_value=config_dict,
+#     )
+#     provider = ConfigFileCredentialsProvider()
+#
+#     user_login_args = UserLoginArgs(username=None, auth_token=None)
+#     returned = provider._get_auth_info(syn, user_login_args)
+#
+#     assert returned == ("auth_user", "auth_token", None)
+#     mock_get_config.assert_called_once_with(config_path=syn.configPath, profile="default")
+#
+# def test_config_with_profile_specified__uses_profile(mocker, syn):
+#     config_dict = {"username": "profile_user", "authtoken": "profile_token"}
+#     mock_get_config = mocker.patch(
+#         "synapseclient.core.credentials.credential_provider.get_config_authentication",
+#         return_value=config_dict,
+#     )
+#     provider = ConfigFileCredentialsProvider()
+#     syn._login_args = {"profile": "testprofile"}
+#
+#     user_login_args = UserLoginArgs(username=None, auth_token=None)
+#     returned = provider._get_auth_info(syn, user_login_args)
+#
+#     assert returned == ("profile_user", "profile_token", None)
+#     mock_get_config.assert_called_once_with(config_path=syn.configPath, profile="testprofile")
+#
+# def test_config_with_profile_only__no_profile_specified__prompts_login(mocker, syn):
+#     mock_get_config = mocker.patch(
+#         "synapseclient.core.credentials.credential_provider.get_config_authentication",
+#         return_value={}
+#     )
+#     provider = ConfigFileCredentialsProvider()
+#
+#     user_login_args = UserLoginArgs(username=None, auth_token=None)
+#     returned = provider._get_auth_info(syn, user_login_args)
+#
+#     assert returned == (None, None, None)
+#
+# def test_config_with_profile_only__profile_specified__succeeds(mocker, syn):
+#     config_dict = {"username": "profile_user", "authtoken": "profile_token"}
+#     mock_get_config = mocker.patch(
+#         "synapseclient.core.credentials.credential_provider.get_config_authentication",
+#         return_value=config_dict,
+#     )
+#     provider = ConfigFileCredentialsProvider()
+#     syn._login_args = {"profile": "onlyprofile"}
+#
+#     user_login_args = UserLoginArgs(username=None, auth_token=None)
+#     returned = provider._get_auth_info(syn, user_login_args)
+#
+#     assert returned == ("profile_user", "profile_token", None)
+#
+# def test_config_with_authentication_only__fallback_succeeds(mocker, syn):
+#     config_dict = {"username": "auth_user", "authtoken": "auth_token"}
+#     mock_get_config = mocker.patch(
+#         "synapseclient.core.credentials.credential_provider.get_config_authentication",
+#         return_value=config_dict,
+#     )
+#     provider = ConfigFileCredentialsProvider()
+#
+#     user_login_args = UserLoginArgs(username=None, auth_token=None)
+#     returned = provider._get_auth_info(syn, user_login_args)
+#
+#     assert returned == ("auth_user", "auth_token", None)

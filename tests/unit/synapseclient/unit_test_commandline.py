@@ -352,8 +352,10 @@ def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn)
 
     cmdline.login_with_prompt(syn=syn, user=None, password=None, silent=True)
 
-    mock_input.assert_called_once_with("Synapse username (Optional): ")
+    assert mock_input.call_args_list[0] == call("Synapse username (Optional): ")
     mock_getpass.getpass.assert_called_once_with(expected_pass_prompt)
+
+    profile_name = username or "default"
 
     expected_authenticate_calls = [
         call(syn=syn, user=None, secret=None, profile=None, silent=True),
@@ -361,6 +363,8 @@ def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn)
             syn=syn,
             user=username,
             secret=password,
+            profile=profile_name,
+            silent=True
         ),
     ]
 
@@ -435,15 +439,18 @@ def test_login_with_prompt__user_supplied(mocker, syn):
     mock_getpass.getpass.return_value = password
 
     mock_input = mocker.patch.object(cmdline, "input")
+    mock_input.return_value = username
     mock_authenticate_login = mocker.patch.object(cmdline, "_authenticate_login")
     mock_authenticate_login.side_effect = [SynapseNoCredentialsError(), None]
 
     cmdline.login_with_prompt(syn=syn, user=username, password=None)
-    assert not mock_input.called
+    mock_input.assert_called_once_with("Configuration profile name (Optional, 'default' used if not specified)): ")
     mock_authenticate_login.assert_called_with(
         syn=syn,
         user=username,
         secret=password,
+        profile=username,
+        silent=False,
     )
 
 
@@ -477,7 +484,7 @@ def test_command_auto_login(mock_login_with_prompt, mock_sys_exit, syn):
     cmdline.perform_main(args, syn)
 
     mock_login_with_prompt.assert_called_once_with(
-        syn=syn, user="test_user", password=None, silent=True
+        syn=syn, user="test_user", password=None, silent=False, profile=None
     )
     mock_sys_exit.assert_called_once_with(1)
 
@@ -576,7 +583,7 @@ def test_config_generate(
     syn,
 ):
     """Config when generating new configuration"""
-    mock__prompt_for_credentials.return_value = ("test", "wow")
+    mock__prompt_for_credentials.return_value = ("test", "wow", "authentication")
     mock__authenticate_login.return_value = "password"
     mock__generate_new_config.return_value = "test"
 
@@ -599,7 +606,7 @@ def test_config_replace(
     syn,
 ):
     """Config when replacing configuration"""
-    mock__prompt_for_credentials.return_value = ("test", "wow")
+    mock__prompt_for_credentials.return_value = ("test", "wow", "authentication")
     mock__authenticate_login.return_value = "password"
     mock__replace_existing_config.return_value = "test"
 
@@ -629,7 +636,7 @@ def test_config_generate_named_profile(
         syn,
 ):
     """Test config command generates a new config with a named profile"""
-    mock_prompt_for_credentials.return_value = ("testuser", "authtoken123")
+    mock_prompt_for_credentials.return_value = ("testuser", "authtoken123", "devprofile")
     mock_authenticate_login.return_value = "authtoken"
     mock_generate_new_config.return_value = "config text"
 
@@ -669,7 +676,7 @@ def test_config_replace_named_profile(
         syn,
 ):
     """Test config replacement logic for named profile"""
-    mock_prompt_for_credentials.return_value = ("testuser", "authtoken123")
+    mock_prompt_for_credentials.return_value = ("testuser", "authtoken123", "prod")
     mock_authenticate_login.return_value = "authtoken"
     mock_replace_existing_config.return_value = "new config text"
 

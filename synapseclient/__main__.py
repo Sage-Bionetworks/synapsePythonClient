@@ -513,13 +513,17 @@ def _replace_existing_config(path, auth_section, profile_name):
     with open(path, "r") as config_o:
         config_text = config_o.read()
 
-    section_name = (
-        profile_name if profile_name == "default" else f"profile {profile_name}"
-    )
-    escaped_section = re.escape(section_name)
+    if profile_name == "authentication":
+        section_header = "authentication"
+    elif profile_name == "default":
+        section_header = "default"
+    else:
+        section_header = f"profile {profile_name}"
+
+    escaped_section = re.escape(section_header)
 
     matcher = re.search(
-        rf"^[ \t]*(\[{escaped_section}\].*?)(^[ \t]*\[|\Z)",
+        rf"^[ \t]*\[{escaped_section}\][^\[]*?(?=^[ \t]*\[|\Z)",
         config_text,
         flags=re.MULTILINE | re.DOTALL,
     )
@@ -527,9 +531,9 @@ def _replace_existing_config(path, auth_section, profile_name):
     if matcher:
         # we matched an existing authentication section
         new_config_text = (
-            config_text[: matcher.start(1)]
+            config_text[: matcher.start()]
             + auth_section
-            + config_text[matcher.end(1) :]
+            + config_text[matcher.end() :]
         )
 
     else:
