@@ -1,8 +1,11 @@
 import json
 import os
+import random
+import string
 import tempfile
 import uuid
 from typing import Callable
+from unittest import skip
 
 import pandas as pd
 import pytest
@@ -901,9 +904,6 @@ class TestRowStorage:
                 "large_string": [large_string_a for _ in range(200)],
             }
         )
-        filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        self.schedule_for_cleanup(filepath)
-        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the rows to the table
         await table.store_rows_async(
@@ -936,6 +936,70 @@ class TestRowStorage:
         # AND The spy should have been called in multiple batches
         # Note: DataFrames have a minimum of 100 rows per batch
         assert spy_send_job.call_count == 2
+
+    @skip("Skip in normal testing because the large size makes it slow")
+    async def test_store_rows_as_large_df_being_split_and_uploaded(
+        self, project_model: Project, mocker: MockerFixture
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_to_order_on", column_type=ColumnType.INTEGER),
+                Column(
+                    name="large_string",
+                    column_type=ColumnType.LARGETEXT,
+                ),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+
+        # AND data that will be split into multiple parts
+        rows_in_table = 20
+        random_string = "".join(random.choices(string.ascii_uppercase, k=500000))
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": [f"value{i}" for i in range(rows_in_table)],
+                "column_to_order_on": [i for i in range(rows_in_table)],
+                "large_string": [random_string for _ in range(rows_in_table)],
+            }
+        )
+
+        # WHEN I store the rows to the table
+        await table.store_rows_async(
+            values=data_for_table,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+            insert_size_bytes=1 * utils.KB,
+        )
+
+        # AND I query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id} ORDER BY column_to_order_on ASC",
+            synapse_client=self.syn,
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["column_to_order_on"], data_for_table["column_to_order_on"]
+        )
+        pd.testing.assert_series_equal(
+            results["large_string"], data_for_table["large_string"]
+        )
+
+        # AND `rows_in_table` rows exist on the table
+        assert len(results) == rows_in_table
+
+        # AND The spy should have been called in multiple batches
+        assert spy_send_job.call_count == 1
 
 
 class TestUpsertRows:
