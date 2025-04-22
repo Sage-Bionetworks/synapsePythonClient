@@ -17,7 +17,7 @@ For help on specific commands, type:
 ```bash
 synapse [command] -h
 ```
-**Note:** All commands support the --profile (or -r) flag to specify which Synapse profile to use from your ~/.synapseConfig file. If not specified, the default profile is used.
+**Note:** All higher-level commands support the --profile (or -r) flag to specify which Synapse profile to use from your ~/.synapseConfig file. If not specified, the default profile is used.
 
 Test your login credentials with an auth token environment variable:
 <!-- termynal -->
