@@ -61,7 +61,12 @@ from synapseclient.models.table_components import (
     UploadToTableRequest,
 )
 
-CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView", "DatasetCollection"]
+CLASSES_THAT_CONTAIN_ROW_ETAG = [
+    "Dataset",
+    "EntityView",
+    "DatasetCollection",
+    "SubmissionView",
+]
 CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView"]
 
 PANDAS_TABLE_TYPE = {
@@ -758,6 +763,15 @@ class GetMixin:
 
 class ColumnMixin:
     """Mixin class providing methods for managing columns in a `Table`-like entity."""
+
+    @property
+    def has_columns_changed(self) -> bool:
+        """Determines if the object has been changed and needs to be updated in Synapse."""
+        return (
+            not self._last_persistent_instance
+            or (not self._last_persistent_instance.columns and self.columns)
+            or self._last_persistent_instance.columns != self.columns
+        )
 
     def delete_column(self, name: str) -> None:
         """

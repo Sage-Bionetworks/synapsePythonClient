@@ -30,6 +30,7 @@ import webbrowser
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from dataclasses import is_dataclass
 from http.client import HTTPResponse
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -4575,14 +4576,26 @@ class Synapse(object):
         else:
             docker_repository = None
 
-        if "versionNumber" not in entity:
-            entity = self.get(entity, downloadFile=False)
-        # version defaults to 1 to hack around required version field and allow submission of files/folders
-        entity_version = entity.get("versionNumber", 1)
+        # Some hacks to make sure that new OOP models will also work with this interface
+        entity_is_dataclass = is_dataclass(entity)
+        if entity_is_dataclass:
+            if not entity.version_number:
+                if hasattr(entity, "download_file"):
+                    entity.download_file = False
+                entity.get(synapse_client=self)
+            entity_version = entity.version_number
+        else:
+            if "versionNumber" not in entity:
+                entity = self.get(entity, downloadFile=False)
+            # version defaults to 1 to hack around required version field and allow submission of files/folders
+            entity_version = entity.get("versionNumber", 1)
 
         # default name of submission to name of entity
-        if name is None and "name" in entity:
-            name = entity["name"]
+        if name is None:
+            if entity_is_dataclass:
+                name = entity.name
+            elif "name" in entity:
+                name = entity["name"]
 
         team_id = None
         if team:
@@ -4615,7 +4628,11 @@ class Synapse(object):
             "submitterAlias": submitterAlias,
         }
 
-        submitted = self._submit(submission, entity["etag"], eligibility_hash)
+        if entity_is_dataclass:
+            entity_etag = entity.etag
+        else:
+            entity_etag = entity["etag"]
+        submitted = self._submit(submission, entity_etag, eligibility_hash)
 
         # if we want to display the receipt message, we need the full object
         if not silent:

@@ -15,6 +15,7 @@ from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
 from synapseclient.models.services import FailureStrategy
+from synapseclient.models.submissionview import SubmissionView
 from synapseclient.models.table import Table
 from synapseclient.models.table_components import (
     AppendableRowSetRequest,
@@ -83,6 +84,7 @@ __all__ = [
     "Dataset",
     "EntityRef",
     "DatasetCollection",
+    "SubmissionView",
 ]
 
 # Static methods to expose as functions

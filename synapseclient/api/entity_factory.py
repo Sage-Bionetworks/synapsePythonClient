@@ -342,6 +342,7 @@ async def _cast_into_class_type(
         Folder,
         MaterializedView,
         Project,
+        SubmissionView,
         Table,
     )
 
@@ -373,6 +374,7 @@ async def _cast_into_class_type(
         concrete_types.DATASET_COLLECTION_ENTITY: DatasetCollection,
         concrete_types.ENTITY_VIEW: EntityView,
         concrete_types.MATERIALIZED_VIEW: MaterializedView,
+        concrete_types.SUBMISSION_VIEW: SubmissionView,
     }
 
     entity_class = ENTITY_TYPE_MAP.get(entity["concreteType"], None)
