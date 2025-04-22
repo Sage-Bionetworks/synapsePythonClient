@@ -531,9 +531,7 @@ def _replace_existing_config(path, auth_section, profile_name):
     if matcher:
         # we matched an existing authentication section
         new_config_text = (
-            config_text[: matcher.start()]
-            + auth_section
-            + config_text[matcher.end() :]
+            config_text[: matcher.start()] + auth_section + config_text[matcher.end() :]
         )
 
     else:
