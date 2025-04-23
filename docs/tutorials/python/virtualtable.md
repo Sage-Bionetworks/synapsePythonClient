@@ -44,7 +44,7 @@ First, we will create a simple Virtual Table that selects all rows from a table 
 then query it to retrieve the results.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=75-97}
+{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=77-99}
 ```
 
 <details class="example">
@@ -66,7 +66,7 @@ Results from the basic virtual table:
 Next, we'll create a Virtual Table that selects only specific columns from the source table.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=100-129}
+{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=102-124}
 ```
 
 <details class="example">
@@ -88,7 +88,7 @@ Results from the virtual table with column selection:
 We can create a Virtual Table that filters rows from the source table using a WHERE clause.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=132-161}
+{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=127-149}
 ```
 
 <details class="example">
@@ -107,7 +107,7 @@ Results from the virtual table with filtering:
 You can also create a Virtual Table that orders the rows from the source table using an ORDER BY clause.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=164-193}
+{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=152-174}
 ```
 
 <details class="example">
@@ -129,7 +129,7 @@ Results from the virtual table with ordering:
 Finally, we can create a Virtual Table that aggregates data using functions like COUNT, along with GROUP BY.
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=196-225}
+{!docs/tutorials/python/tutorial_scripts/virtualtable.py!lines=177-199}
 ```
 
 <details class="example">
