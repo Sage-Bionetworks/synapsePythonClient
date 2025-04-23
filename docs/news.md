@@ -9,6 +9,48 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.8.0 (2025-04-23)
+
+### Highlights
+
+- Introduced new object-oriented models for working with Synapse [Datasets](https://python-docs.synapse.org/en/stable/tutorials/python/dataset/), [DatasetCollections](https://python-docs.synapse.org/en/stable/tutorials/python/dataset_collection/), [EntityViews](https://python-docs.synapse.org/en/stable/tutorials/python/entityview/), [MaterializedViews](https://python-docs.synapse.org/en/stable/tutorials/python/materializedview/), and [SubmissionViews](https://python-docs.synapse.org/en/stable/tutorials/python/submissionview/). This includes tutorials for each of these models.
+- Improved handling of progress bars, logging, and error messages
+- Added support for Python 3.13
+
+### Features
+
+- [SYNPY-1571] Introduced `Dataset` model and composition model for `Table`/`View`-like classes ([#1175](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1175))
+- [SYNPY-1575] Introduced `EntityView` model ([#1181](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1181))
+- [SYNPY-1579] Introduced `MaterializedView` model ([#1190](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1190))
+- [SYNPY-1577] Introduced `SubmissionView` model ([#1192](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1192))
+- [SYNPY-1578] Introduced `DatasetCollection` model ([#1189](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1189))
+
+### Bug Fixes
+
+- [SYNPY-1547] Fixed `parentWikiId=""` bug ([#1165](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1165))
+- [SYNPY-1553] Removed blank auth header and improved error message for unauthenticated requests ([#1171](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1171), [#1185](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1185))
+- [SYNPY-1584] Fixed issue with DataFrame upload and header writing ([#1193](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1193))
+
+### Tech Debt
+
+- [SYNPY-1551] Refactored `Table` model ([#1151](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1151))
+- [SYNPY-1488] Patched nested TQDM progress bars and messages to logger ([#1177](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1177))
+- [SYNPY-1497] Refactored version check to use PyPI for version info ([#1191](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1191))
+
+### Other
+
+- [DPE-1253] Added PR template for GitHub Pull requests ([#1182](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1182))
+- [SYNPY-1542] Upgraded ReadTheDocs OS, Python version, and search ranking ([#1184](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1184))
+- Updated Dockerfile to fix `pandas` installation ([#1169](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1169))
+- Updated table and file versioning tutorials ([#1172](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1172))
+- Prevented concurrent builds per branch ([#1178](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1178))
+- Included default timeout for HTTP requests ([#1188](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1188))
+- Corrected regular expression for invalid column name ([#1187](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1187))
+- Updated docstring for `setPermissions` function ([#1164](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1164))
+- Added SECURITY.md ([#1166](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1166))
+- Fixed typo in dataset tutorial ([#1186](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1186))
+
+
 ## 4.7.0 (2025-01-31)
 
 ### Highlights
