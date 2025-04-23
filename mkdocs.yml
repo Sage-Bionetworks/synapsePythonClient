@@ -33,7 +33,7 @@ nav:
           - Entity View: tutorials/python/entityview.md
           # - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
-          - Virtual Table: tutorials/python/virtualtable.md
+          - VirtualTable: tutorials/python/virtualtable.md
           - Dataset: tutorials/python/dataset.md
           - Dataset Collection: tutorials/python/dataset_collection.md
           - Materialized View: tutorials/python/materializedview.md
@@ -84,7 +84,7 @@ nav:
           - Folder: reference/experimental/sync/folder.md
           - File: reference/experimental/sync/file.md
           - Table: reference/experimental/sync/table.md
-          - Virtual Table: reference/experimental/sync/virtualtable.md
+          - VirtualTable: reference/experimental/sync/virtualtable.md
           - Dataset: reference/experimental/sync/dataset.md
           - Dataset Collection: reference/experimental/sync/dataset_collection.md
           - EntityView: reference/experimental/sync/entityview.md
@@ -100,7 +100,7 @@ nav:
               - Folder: reference/experimental/async/folder.md
               - File: reference/experimental/async/file.md
               - Table: reference/experimental/async/table.md
-              - Virtual Table: reference/experimental/async/virtualtable.md
+              - VirtualTable: reference/experimental/async/virtualtable.md
               - Dataset: reference/experimental/async/dataset.md
               - Dataset Collection: reference/experimental/async/dataset_collection.md
               - EntityView: reference/experimental/async/entityview.md
