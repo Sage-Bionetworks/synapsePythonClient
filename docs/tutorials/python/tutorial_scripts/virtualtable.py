@@ -3,7 +3,7 @@
 import pandas as pd
 
 from synapseclient import Synapse
-from synapseclient.models import Column, ColumnType, VirtualTable, Project, Table
+from synapseclient.models import Column, ColumnType, Project, Table, VirtualTable
 
 # Initialize Synapse client
 syn = Synapse()

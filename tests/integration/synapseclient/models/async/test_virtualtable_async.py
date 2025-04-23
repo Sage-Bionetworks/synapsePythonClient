@@ -7,7 +7,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Column, ColumnType, VirtualTable, Project, Table
+from synapseclient.models import Column, ColumnType, Project, Table, VirtualTable
 
 
 class TestVirtualTableWithoutData:
@@ -579,10 +579,10 @@ class TestVirtualTableWithData:
         await table.store_rows_async(data, synapse_client=self.syn)
 
         # AND a virtual table with aggregation
-        defining_sql = f"""SELECT 
-            department, 
-            COUNT(*) 
-        FROM {table.id} 
+        defining_sql = f"""SELECT
+            department,
+            COUNT(*)
+        FROM {table.id}
         GROUP BY department"""
 
         virtual_table = VirtualTable(

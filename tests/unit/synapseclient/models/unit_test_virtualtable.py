@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseQueryError
 from synapseclient.models import VirtualTable
@@ -20,9 +22,9 @@ class TestVirtualTable:
             description="A test virtual table",
             parent_id="syn12345",
             defining_sql="""
-            SELECT t1.column1, t2.column2 
-            FROM syn12345 t1 
-            JOIN syn67890 t2 
+            SELECT t1.column1, t2.column2
+            FROM syn12345 t1
+            JOIN syn67890 t2
             ON t1.id = t2.foreign_id
             """,
         )

@@ -1,7 +1,7 @@
 # Virtual Tables
 
-Virtual Tables in Synapse allow you to create queryable views based on existing Synapse tables. 
-Unlike Materialized Views, Virtual Tables don't store the results but instead provide a 
+Virtual Tables in Synapse allow you to create queryable views based on existing Synapse tables.
+Unlike Materialized Views, Virtual Tables don't store the results but instead provide a
 view that is evaluated at query time. They're useful for providing different perspectives
 of your data without duplicating the storage.
 

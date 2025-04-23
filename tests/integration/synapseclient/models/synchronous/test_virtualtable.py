@@ -7,7 +7,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Column, ColumnType, VirtualTable, Project, Table
+from synapseclient.models import Column, ColumnType, Project, Table, VirtualTable
 
 
 class TestVirtualTableWithoutData:
@@ -574,10 +574,10 @@ class TestVirtualTableWithData:
 
         # AND a virtual table with aggregation
         # Define SQL properly with consistent column names
-        defining_sql = f"""SELECT 
-            department, 
-            COUNT(*) as employee_count 
-        FROM {table.id} 
+        defining_sql = f"""SELECT
+            department,
+            COUNT(*) as employee_count
+        FROM {table.id}
         GROUP BY department"""
 
         virtual_table = VirtualTable(
