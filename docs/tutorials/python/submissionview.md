@@ -31,6 +31,9 @@ and create an evaluation queue that will be used in the view.
 You will want to replace `"My uniquely named project about Alzheimer's Disease"` with
 the name of your project.
 
+The name of the Evaluation must also be globally unique. Please update
+`"Test Evaluation Queue for Alzheimer conference"` with a new value.
+
 ```python
 {!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=13-44}
 ```
@@ -85,6 +88,9 @@ Submission status: SCORED
 
 As your challenge evolves, you might need to add more evaluation queues to your SubmissionView.
 Here's how to create another evaluation queue and add it to your view's scope.
+
+The name of the Evaluation must also be globally unique. Please update
+`"Second Test Evaluation Queue for Alzheimer conference"` with a new value.
 
 ```python
 {!docs/tutorials/python/tutorial_scripts/submissionview.py!lines=128-143}

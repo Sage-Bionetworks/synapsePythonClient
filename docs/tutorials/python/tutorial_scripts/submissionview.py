@@ -34,7 +34,7 @@ my_project = Project(name="My uniquely named project about Alzheimer's Disease")
 project_id = my_project.id
 print(f"My project ID is: {project_id}")
 
-# Step 1: Set up and create an evaluation queue
+# Step 1: Set up and create an evaluation queue - Must be globally unique
 evaluation_name = "Test Evaluation Queue for Alzheimer conference"
 evaluation_description = "Evaluation queue for testing submission view"
 evaluation = Evaluation(
@@ -130,7 +130,7 @@ view.get()
 
 # Create another evaluation queue to demonstrate adding to the scope
 second_evaluation = Evaluation(
-    name="Second Test Evaluation Queue for Alzheimer conference",
+    name="Second Test Evaluation Queue for Alzheimer conference",  # Must be globally unique
     description="Another evaluation queue for testing submission view",
     contentSource=project_id,
 )
