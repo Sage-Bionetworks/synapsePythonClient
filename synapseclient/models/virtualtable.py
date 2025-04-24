@@ -33,9 +33,9 @@ class VirtualTableSynchronousProtocol(Protocol):
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
         """
-        Store non-row information about a VirtualTable including the annotations.
+        Store metadata about a VirtualTable including the annotations.
 
-        Note: Columns in a VirtualTable are determined by the `defining_sql` attribute. To update
+        Note: Columns and rows in a VirtualTable are determined by the `defining_sql` attribute. To update
         the columns, you must update the `defining_sql` and store the view.
 
         Arguments:
@@ -51,6 +51,9 @@ class VirtualTableSynchronousProtocol(Protocol):
 
         Returns:
             The VirtualTable instance stored in synapse.
+
+        Raises:
+            SynapseQueryError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
 
         Example: Create a new virtual table with a defining SQL query.
             &nbsp;
@@ -86,132 +89,6 @@ class VirtualTableSynchronousProtocol(Protocol):
             virtual_table.defining_sql = "SELECT column1, column2 FROM syn67890"
             virtual_table = virtual_table.store()
             print("Updated Virtual Table defining SQL.")
-            ```
-
-        Example: Retrieve and update annotations for a virtual table.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import VirtualTable
-
-            syn = Synapse()
-            syn.login()
-
-            virtual_table = VirtualTable(id="syn12345").get()
-            virtual_table.annotations["key1"] = ["value1"]
-            virtual_table.annotations["key2"] = ["value2"]
-            virtual_table.store()
-            print("Updated annotations for Virtual Table.")
-            ```
-
-        Example: Create a virtual table with a JOIN clause.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import VirtualTable
-
-            syn = Synapse()
-            syn.login()
-
-            defining_sql = '''
-            SELECT t1.column1 AS new_column1, t2.column2 AS new_column2
-            FROM syn12345 t1
-            JOIN syn67890 t2
-            ON t1.id = t2.foreign_id
-            '''
-
-            virtual_table = VirtualTable(
-                name="Join Virtual Table",
-                description="A virtual table with a JOIN clause",
-                parent_id="syn11111",
-                defining_sql=defining_sql,
-            )
-            virtual_table = virtual_table.store()
-            print(f"Created Virtual Table with ID: {virtual_table.id}")
-            ```
-
-        Example: Create a virtual table with a LEFT JOIN clause.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import VirtualTable
-
-            syn = Synapse()
-            syn.login()
-
-            defining_sql = '''
-            SELECT t1.column1 AS new_column1, t2.column2 AS new_column2
-            FROM syn12345 t1
-            LEFT JOIN syn67890 t2
-            ON t1.id = t2.foreign_id
-            '''
-
-            virtual_table = VirtualTable(
-                name="Left Join Virtual Table",
-                description="A virtual table with a LEFT JOIN clause",
-                parent_id="syn11111",
-                defining_sql=defining_sql,
-            )
-            virtual_table = virtual_table.store()
-            print(f"Created Virtual Table with ID: {virtual_table.id}")
-            ```
-
-        Example: Create a virtual table with a RIGHT JOIN clause.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import VirtualTable
-
-            syn = Synapse()
-            syn.login()
-
-            defining_sql = '''
-            SELECT t1.column1 AS new_column1, t2.column2 AS new_column2
-            FROM syn12345 t1
-            RIGHT JOIN syn67890 t2
-            ON t1.id = t2.foreign_id
-            '''
-
-            virtual_table = VirtualTable(
-                name="Right Join Virtual Table",
-                description="A virtual table with a RIGHT JOIN clause",
-                parent_id="syn11111",
-                defining_sql=defining_sql,
-            )
-            virtual_table = virtual_table.store()
-            print(f"Created Virtual Table with ID: {virtual_table.id}")
-            ```
-
-        Example: Create a virtual table with a UNION clause.
-            &nbsp;
-
-            ```python
-            from synapseclient import Synapse
-            from synapseclient.models import VirtualTable
-
-            syn = Synapse()
-            syn.login()
-
-            defining_sql = '''
-            SELECT column1 AS new_column1, column2 AS new_column2
-            FROM syn12345
-            UNION
-            SELECT column1 AS new_column1, column2 AS new_column2
-            FROM syn67890
-            '''
-
-            virtual_table = VirtualTable(
-                name="Union Virtual Table",
-                description="A virtual table with a UNION clause",
-                parent_id="syn11111",
-                defining_sql=defining_sql,
-            )
-            virtual_table = virtual_table.store()
-            print(f"Created Virtual Table with ID: {virtual_table.id}")
             ```
         """
         return self
@@ -293,9 +170,6 @@ class VirtualTableSynchronousProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
-        Returns:
-            None
-
         Example: Delete a virtual table.
             &nbsp;
 
@@ -328,9 +202,10 @@ class VirtualTable(
     """
     A virtual table is a type of table that is dynamically built from a Synapse
     SQL query. Its content is read only and based off the `defining_sql` attribute.
-    The SQL of the virtual table may contain JOIN clauses on multiple tables.
+    The SQL of the virtual table may NOT contain JOIN or UNION clauses and must
+    reference a table that has a non-empty schema.
 
-    A `VirtualTable` object represents this concept in Synapse:
+    A `VirtualTable` object represents this `VirtualTable` API model in Synapse:
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/VirtualTable.html>
 
     Attributes:
@@ -360,7 +235,9 @@ class VirtualTable(
         is_search_enabled: When creating or updating a table or view specifies if full
             text search should be enabled.
         defining_sql: The synapse SQL statement that defines the data in the
-            virtual table.
+            virtual table. This field may NOT contain JOIN or UNION clauses.
+            If a JOIN or UNION clause is present, a `SynapseQueryError` will be raised
+            when the `store` method is called.
         annotations: Additional metadata associated with the entityview. The key is
             the name of your desired annotations. The value is an object containing a
             list of values (use empty list to represent no values for key) and the
@@ -433,132 +310,6 @@ class VirtualTable(
         query_result = query("SELECT * FROM syn66080386")
         print(query_result)
         ```
-
-    Example: Retrieve and update annotations for a virtual table.
-        &nbsp;
-
-        ```python
-        from synapseclient import Synapse
-        from synapseclient.models import VirtualTable
-
-        syn = Synapse()
-        syn.login()
-
-        virtual_table = VirtualTable(id="syn12345").get()
-        virtual_table.annotations["key1"] = ["value1"]
-        virtual_table.annotations["key2"] = ["value2"]
-        virtual_table.store()
-        print("Updated annotations for Virtual Table.")
-        ```
-
-    Example: Create a virtual table with a JOIN clause.
-        &nbsp;
-
-        ```python
-        from synapseclient import Synapse
-        from synapseclient.models import VirtualTable
-
-        syn = Synapse()
-        syn.login()
-
-        defining_sql = '''
-        SELECT t1.column1 AS new_column1, t2.column2 AS new_column2
-        FROM syn12345 t1
-        JOIN syn67890 t2
-        ON t1.id = t2.foreign_id
-        '''
-
-        virtual_table = VirtualTable(
-            name="Join Virtual Table",
-            description="A virtual table with a JOIN clause",
-            parent_id="syn11111",
-            defining_sql=defining_sql,
-        )
-        virtual_table = virtual_table.store()
-        print(f"Created Virtual Table with ID: {virtual_table.id}")
-        ```
-
-    Example: Create a virtual table with a LEFT JOIN clause.
-        &nbsp;
-
-        ```python
-        from synapseclient import Synapse
-        from synapseclient.models import VirtualTable
-
-        syn = Synapse()
-        syn.login()
-
-        defining_sql = '''
-        SELECT t1.column1 AS new_column1, t2.column2 AS new_column2
-        FROM syn12345 t1
-        LEFT JOIN syn67890 t2
-        ON t1.id = t2.foreign_id
-        '''
-
-        virtual_table = VirtualTable(
-            name="Left Join Virtual Table",
-            description="A virtual table with a LEFT JOIN clause",
-            parent_id="syn11111",
-            defining_sql=defining_sql,
-        )
-        virtual_table = virtual_table.store()
-        print(f"Created Virtual Table with ID: {virtual_table.id}")
-        ```
-
-    Example: Create a virtual table with a RIGHT JOIN clause.
-        &nbsp;
-
-        ```python
-        from synapseclient import Synapse
-        from synapseclient.models import VirtualTable
-
-        syn = Synapse()
-        syn.login()
-
-        defining_sql = '''
-        SELECT t1.column1 AS new_column1, t2.column2 AS new_column2
-        FROM syn12345 t1
-        RIGHT JOIN syn67890 t2
-        ON t1.id = t2.foreign_id
-        '''
-
-        virtual_table = VirtualTable(
-            name="Right Join Virtual Table",
-            description="A virtual table with a RIGHT JOIN clause",
-            parent_id="syn11111",
-            defining_sql=defining_sql,
-        )
-        virtual_table = virtual_table.store()
-        print(f"Created Virtual Table with ID: {virtual_table.id}")
-        ```
-
-    Example: Create a virtual table with a UNION clause.
-        &nbsp;
-
-        ```python
-        from synapseclient import Synapse
-        from synapseclient.models import VirtualTable
-
-        syn = Synapse()
-        syn.login()
-
-        defining_sql = '''
-        SELECT column1 AS new_column1, column2 AS new_column2
-        FROM syn12345
-        UNION
-        SELECT column1 AS new_column1, column2 AS new_column2
-        FROM syn67890
-        '''
-
-        virtual_table = VirtualTable(
-            name="Union Virtual Table",
-            description="A virtual table with a UNION clause",
-            parent_id="syn11111",
-            defining_sql=defining_sql,
-        )
-        virtual_table = virtual_table.store()
-        print(f"Created Virtual Table with ID: {virtual_table.id}")
-        ```
     """
 
     id: Optional[str] = None
@@ -620,7 +371,9 @@ class VirtualTable(
 
     defining_sql: Optional[str] = None
     """The synapse SQL statement that defines the data in the virtual
-    table."""
+    table. This field may NOT contain JOIN or UNION clauses. If a JOIN or UNION
+    clause is present, a `SynapseQueryError` will be raised when the `store`
+    method is called."""
 
     _last_persistent_instance: Optional["VirtualTable"] = field(
         default=None, repr=False, compare=False
@@ -736,9 +489,9 @@ class VirtualTable(
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
         """
-        Asynchronously store non-row information about a VirtualTable including the annotations.
+        Asynchronously store metadata about a VirtualTable including the annotations.
 
-        Note: Columns in a VirtualTable are determined by the `defining_sql` attribute. To update
+        Note: Columns and rows in a VirtualTable are determined by the `defining_sql` attribute. To update
         the columns, you must update the `defining_sql` and store the view.
 
         Arguments:
@@ -754,6 +507,9 @@ class VirtualTable(
 
         Returns:
             The VirtualTable instance stored in synapse.
+
+        Raises:
+            SynapseQueryError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
 
         Example: Create a new virtual table with a defining SQL query.
             &nbsp;
@@ -778,14 +534,10 @@ class VirtualTable(
 
             asyncio.run(main())
             ```
-
-        Raises:
-            SynapseQueryError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
         """
         # Check for unsupported operations in defining_sql
         if self.defining_sql:
-            sql_upper = self.defining_sql.upper()
-            if "JOIN" in sql_upper or "UNION" in sql_upper:
+            if any(clause in self.defining_sql.upper() for clause in ["JOIN", "UNION"]):
                 raise SynapseQueryError(
                     "VirtualTables do not support JOIN or UNION operations in the defining_sql. "
                     "If you need to combine data from multiple tables, consider using a MaterializedView instead."
@@ -852,9 +604,6 @@ class VirtualTable(
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
-
-        Returns:
-            None
 
         Example: Delete a virtual table.
             &nbsp;
