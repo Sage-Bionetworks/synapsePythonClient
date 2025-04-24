@@ -34,7 +34,9 @@ class TestVirtualTable:
             # THEN I expect a SynapseQueryError to be raised
             with pytest.raises(
                 SynapseQueryError,
-                match="VirtualTables do not support JOIN or UNION operations in the defining_sql. If you need to combine data from multiple tables, consider using a MaterializedView instead.",
+                match="VirtualTables do not support JOIN or UNION operations in the defining_sql. "
+                "If you need to combine data from multiple tables, "
+                "consider using a MaterializedView instead.",
             ):
                 await virtual_table.store_async(synapse_client=self.syn)
 
@@ -59,7 +61,9 @@ class TestVirtualTable:
             # THEN I expect a SynapseQueryError to be raised
             with pytest.raises(
                 SynapseQueryError,
-                match="VirtualTables do not support JOIN or UNION operations in the defining_sql. If you need to combine data from multiple tables, consider using a MaterializedView instead.",
+                match="VirtualTables do not support JOIN or UNION operations in the defining_sql. "
+                "If you need to combine data from multiple tables, "
+                "consider using a MaterializedView instead.",
             ):
                 await virtual_table.store_async(synapse_client=self.syn)
 
