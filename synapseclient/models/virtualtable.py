@@ -1,3 +1,4 @@
+import re
 from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
@@ -538,11 +539,7 @@ class VirtualTable(
         # Check for unsupported operations in defining_sql
 
         if self.defining_sql:
-            import re
-
-            # Convert to uppercase for case-insensitive matching
             sql_upper = self.defining_sql.upper()
-
             join_pattern = r"(?:^|\s|\n)JOIN(?:\s|\n|$)"
             union_pattern = r"(?:^|\s|\n)UNION(?:\s|\n|$)"
 
