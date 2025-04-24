@@ -26,14 +26,12 @@ class TestVirtualTableWithoutData:
         )
 
         # WHEN I try to store the virtual table
-        with pytest.raises(SynapseHTTPError) as e:
+        with pytest.raises(
+            SynapseHTTPError,
+            match="400 Client Error: The definingSQL of the virtual table is required "
+            "and must not be the empty string.",
+        ):
             virtual_table.store(synapse_client=self.syn)
-
-        # THEN a 400 Client Error should be raised
-        assert (
-            "400 Client Error: The definingSQL of the virtual table is required "
-            "and must not be the empty string." in str(e.value)
-        )
 
     async def test_create_virtual_table_without_columns(
         self, project_model: Project
@@ -58,11 +56,10 @@ class TestVirtualTableWithoutData:
         )
 
         # WHEN I try to store the virtual table
-        with pytest.raises(SynapseHTTPError) as e:
+        with pytest.raises(
+            SynapseHTTPError, match=f"400 Client Error: Schema for {table.id} is empty."
+        ):
             virtual_table.store(synapse_client=self.syn)
-
-        # THEN a 400 Client Error should be raised
-        assert f"400 Client Error: Schema for {table.id} is empty." in str(e.value)
 
     async def test_create_virtual_table_with_columns(
         self, project_model: Project
@@ -120,14 +117,12 @@ class TestVirtualTableWithoutData:
         )
 
         # WHEN I store the virtual table
-        with pytest.raises(SynapseHTTPError) as e:
+        with pytest.raises(
+            SynapseHTTPError,
+            match='400 Client Error: Encountered " <regular_identifier> "INVALID "" '
+            "at line 1, column 1.\nWas expecting one of:",
+        ):
             virtual_table.store(synapse_client=self.syn)
-
-        # THEN the virtual table should not be created
-        assert (
-            '400 Client Error: Encountered " <regular_identifier> "INVALID "" '
-            "at line 1, column 1.\nWas expecting one of:" in str(e.value)
-        )
 
     async def test_update_virtual_table_attributes(
         self, project_model: Project
@@ -215,7 +210,7 @@ class TestVirtualTableWithoutData:
         # THEN the virtual table should be deleted
         with pytest.raises(
             SynapseHTTPError,
-            match=(f"404 Client Error: Entity {virtual_table.id} is in trash can."),
+            match=f"404 Client Error: Entity {virtual_table.id} is in trash can.",
         ):
             VirtualTable(id=virtual_table.id).get(synapse_client=self.syn)
 
@@ -253,6 +248,9 @@ class TestVirtualTableWithData:
         )
         virtual_table = virtual_table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(virtual_table.id)
+
+        # Wait for the virtual table to be ready
+        await asyncio.sleep(2)
 
         # WHEN I query the virtual table
         query_result = virtual_table.query(
@@ -462,6 +460,9 @@ class TestVirtualTableWithData:
         virtual_table = virtual_table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(virtual_table.id)
 
+        # Wait for the virtual table to be ready
+        await asyncio.sleep(2)
+
         # WHEN I query the virtual table
         query_result = virtual_table.query(
             f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
@@ -538,6 +539,9 @@ class TestVirtualTableWithData:
         )
         virtual_table = virtual_table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(virtual_table.id)
+
+        # Wait for the virtual table to be ready
+        await asyncio.sleep(2)
 
         # WHEN I query the virtual table
         query_result = virtual_table.query(
