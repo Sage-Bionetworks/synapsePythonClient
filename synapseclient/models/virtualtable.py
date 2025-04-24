@@ -536,8 +536,19 @@ class VirtualTable(
             ```
         """
         # Check for unsupported operations in defining_sql
+
         if self.defining_sql:
-            if any(clause in self.defining_sql.upper() for clause in ["JOIN", "UNION"]):
+            import re
+
+            # Convert to uppercase for case-insensitive matching
+            sql_upper = self.defining_sql.upper()
+
+            join_pattern = r"(?:^|\s|\n)JOIN(?:\s|\n|$)"
+            union_pattern = r"(?:^|\s|\n)UNION(?:\s|\n|$)"
+
+            if re.search(join_pattern, sql_upper) or re.search(
+                union_pattern, sql_upper
+            ):
                 raise SynapseQueryError(
                     "VirtualTables do not support JOIN or UNION operations in the defining_sql. "
                     "If you need to combine data from multiple tables, consider using a MaterializedView instead."
