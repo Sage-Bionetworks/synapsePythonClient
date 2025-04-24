@@ -123,7 +123,7 @@ stored in the `~/.synapseConfig` file.
 ## 4.3.0 (2024-05-30)
 ### Highlights
 - **New tutorial:**
-    - [Uploading data in bulk](../tutorials/python/upload_data_in_bulk)
+    - [Uploading data in bulk](tutorials/python/upload_data_in_bulk.md)
     is our newest tutorial. It covers the basics of working with manifest files to manage synapse projects.
 - **Updates to syncToSynapse:**
     - The `syncToSynapse` function has been refactored to improve performance and
@@ -167,7 +167,7 @@ stored in the `~/.synapseConfig` file.
 
 ### Highlights
 - **New Downloading Data in Bulk Tutorial**
-    - See [Downloading data in bulk tutorial](https://python-docs.synapse.org/tutorials/python/download_data_in_bulk/) for more details on downloading data in bulk from Synapse.
+    - See [Downloading data in bulk tutorial][tutorial-downloading-data-in-bulk] for more details on downloading data in bulk from Synapse.
 - **Downloading Files Troubleshooting Improvement**
     - Improved error logging for when users are downloading files using commands like `get-download-list` from Synapse.
 
@@ -222,27 +222,27 @@ stored in the `~/.synapseConfig` file.
 
 -   **Only authentication through Personal Access Token**
     **(aka: Authentication bearer token) is supported**. Review the
-    [Authentication document](https://python-docs.synapse.org/tutorials/authentication/)
+    [Authentication document][tutorial-authentication]
     for information on setting up your usage of a Personal Access Token to authenticate
     with Synapse.
 -   **Date type Annotations on Synapse entities are now timezone aware**. Review our
-    [reference documentation for Annotations](https://python-docs.synapse.org/reference/annotations/).
+    [reference documentation for Annotations][synapseclient.annotations].
     The [`pytz` package](https://pypi.org/project/pytz/) is recommended if you regularly
     work with data across time zones.
     - If you do not set the `tzinfo` field on a date or datetime instance we will use the
         timezone of the machine where the code is executing.
     - If you are using the
-        [Manifest TSV](https://python-docs.synapse.org/explanations/manifest_tsv/#annotations)
+        [Manifest TSV][manifest-tsv-explanation-annotations]
         for bulk actions on your projects you'll now see that
         [synapseutils.sync.syncFromSynapse][] will store dates as `YYYY-MM-DDTHH:MM:SSZ`.
         Review our documentation for an
-        [example manifest file](https://python-docs.synapse.org/explanations/manifest_tsv/#example-manifest-file).
+        [example manifest file][manifest-tsv-explanation-example-file].
         Additionally, if you'd like to upload an annotation in a specific timezone please
         make sure that it is in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601).
         If you do not specify a timezone it is assumed to use the timezone of the machine
         where the code is executing.
 -   **Support for annotations with multiple values through the**
-    [**Manifest TSV**](https://python-docs.synapse.org/explanations/manifest_tsv/#multiple-values-of-annotations-per-key)
+    [**Manifest TSV**][manifest-tsv-explanation-multiple-annotations]
     with the usage of a comma delimited bracket wrapped list. Any manifest files wishing
     to take advantage of multi-value annotations need to match this format. Examples:
     - `["Annotation, with a comma", another annotation]`
@@ -253,7 +253,7 @@ stored in the `~/.synapseConfig` file.
     that you'll
     [provide the Data Processing and Engineering team feedback on areas we can improve](https://sagebionetworks.jira.com/servicedesk/customer/portal/5/group/7).
 -   Expansion of the available Python Tutorials can be found
-    [starting here](https://python-docs.synapse.org/tutorials/python_client/).
+    [starting here][tutorials-home].
 
 ### Bug Fixes
 -  \[[SYNPY-1357](https://sagebionetworks.jira.com/browse/SYNPY-1357)\] - Manifest does not support annotations with multiple values
@@ -925,7 +925,7 @@ stored in the `~/.synapseConfig` file.
     syn = synapseclient.Synapse(cache_root_dir=<directory path>)
     ```
 
--   A [helper method](index.html#synapseclient.Synapse.is_certified) on
+-   A [helper method][synapseclient.Synapse.is_certified] on
     the Synapse object has been added to enable obtaining the Synapse
     certification quiz status of a user.
 
@@ -981,7 +981,7 @@ stored in the `~/.synapseConfig` file.
 -   This version addresses an issue with downloads being retried
     unsuccessfully after encountering certain types of errors.
 -   A
-    [create_snapshot_version](index.html#synapseclient.Synapse.create_snapshot_version)
+    [create_snapshot_version][synapseclient.Synapse.create_snapshot_version]
     function is added for making table and view snapshots.
 
 ### Bug Fixes
@@ -1008,9 +1008,9 @@ stored in the `~/.synapseConfig` file.
 ### Highlights
 
 -   Files that are part of
-    [syncFromSynapse](https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse)
+    [syncFromSynapse][synapseutils.sync.syncFromSynapse]
     and
-    [syncToSynapse](https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse)
+    [syncToSynapse][synapseutils.sync.syncToSynapse]
     operations (`synapse get -r` and `synapse sync` in the command line
     client, respectively) are transferred in in parallel threads rather
     than serially, substantially improving the performance of these
@@ -1056,7 +1056,7 @@ stored in the `~/.synapseConfig` file.
 ### Highlights
 
 -   This version includes a performance improvement for
-    [syncFromSynapse](https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse)
+    [syncFromSynapse][synapseutils.sync.syncFromSynapse]
     downloads of deep folder hierarchies to local filesystem locations
     outside of the [Synapse
     cache](https://help.synapse.org/docs/Downloading-Data-Programmatically.2003796248.html#DownloadingDataProgrammatically-DownloadingFiles).
@@ -1837,8 +1837,7 @@ Below are the full list of issues addressed by this release:
 Release 1.7 is a large bugfix release with several new features. The
 main ones include:
 
--   We have expanded the [synapseutils
-    packages](python-docs.synapse.org/build/html/synapseutils.html#module-synapseutils)
+-   We have expanded the [synapseutils packages][synapseutils]
     to add the ability to:
 
     > -   Bulk upload files to synapse (synapseutils.syncToSynapse).

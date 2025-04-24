@@ -6,6 +6,7 @@ at your own risk.
 
 ## API Reference
 
+[](){ #user-profile-reference-async }
 ::: synapseclient.models.UserProfile
     options:
       inherited_members: true
@@ -15,5 +16,6 @@ at your own risk.
       - from_username_async
       - is_certified_async
 ---
+[](){ #user-preference-reference-async }
 ::: synapseclient.models.UserPreference
 ---
