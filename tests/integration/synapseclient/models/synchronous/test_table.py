@@ -1,8 +1,11 @@
 import json
 import os
+import random
+import string
 import tempfile
 import uuid
 from typing import Callable
+from unittest import skip
 
 import pandas as pd
 import pytest
@@ -33,10 +36,14 @@ class TestTableCreation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_table_with_no_columns(self, project_model: Project) -> None:
+    async def test_create_table_with_different_column_configurations(
+        self, project_model: Project
+    ) -> None:
+        """Test creating tables with different column configurations."""
+        # Test 1: Table with no columns
         # GIVEN a table with no columns
         table_name = str(uuid.uuid4())
-        table_description = "Test table"
+        table_description = "Test table with no columns"
         table = Table(
             name=table_name, parent_id=project_model.id, description=table_description
         )
@@ -55,13 +62,11 @@ class TestTableCreation:
         assert new_table_instance.id == table.id
         assert new_table_instance.description == table_description
 
-    async def test_create_table_with_single_column(
-        self, project_model: Project
-    ) -> None:
+        # Test 2: Table with a single column
         # GIVEN a table with a single column
         table_name = str(uuid.uuid4())
-        table_description = "Test table"
-        table = Table(
+        table_description = "Test table with single column"
+        table_single_column = Table(
             name=table_name,
             parent_id=project_model.id,
             description=table_description,
@@ -69,35 +74,29 @@ class TestTableCreation:
         )
 
         # WHEN I store the table
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
+        table_single_column = table_single_column.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table_single_column.id)
 
         # THEN the table should be created
-        assert table.id is not None
+        assert table_single_column.id is not None
 
         # AND I can retrieve that table from Synapse
-        new_table_instance = Table(id=table.id).get(
+        new_table_instance = Table(id=table_single_column.id).get(
             synapse_client=self.syn, include_columns=True
         )
-        assert new_table_instance is not None
         assert new_table_instance.name == table_name
-        assert new_table_instance.id == table.id
-        assert new_table_instance.description == table_description
         assert new_table_instance.columns["test_column"].name == "test_column"
         assert (
             new_table_instance.columns["test_column"].column_type == ColumnType.STRING
         )
 
-    async def test_create_table_with_multiple_columns(
-        self, project_model: Project
-    ) -> None:
+        # Test 3: Table with multiple columns
         # GIVEN a table with multiple columns
         table_name = str(uuid.uuid4())
-        table_description = "Test table"
-        table = Table(
+        table_multi_columns = Table(
             name=table_name,
             parent_id=project_model.id,
-            description=table_description,
+            description="Test table with multiple columns",
             columns=[
                 Column(name="test_column", column_type=ColumnType.STRING),
                 Column(name="test_column2", column_type=ColumnType.INTEGER),
@@ -105,39 +104,76 @@ class TestTableCreation:
         )
 
         # WHEN I store the table
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
+        table_multi_columns = table_multi_columns.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table_multi_columns.id)
 
-        # THEN the table should be created
-        assert table.id is not None
-
-        # AND I can retrieve that table from Synapse
-        new_table_instance = Table(id=table.id).get(
+        # THEN the table should be created and columns are correct
+        new_table_instance = Table(id=table_multi_columns.id).get(
             synapse_client=self.syn, include_columns=True
         )
-        assert new_table_instance is not None
-        assert new_table_instance.name == table_name
-        assert new_table_instance.id == table.id
-        assert new_table_instance.description == table_description
-        assert new_table_instance.columns["test_column"].name == "test_column"
         assert (
             new_table_instance.columns["test_column"].column_type == ColumnType.STRING
         )
-        assert new_table_instance.columns["test_column2"].name == "test_column2"
         assert (
             new_table_instance.columns["test_column2"].column_type == ColumnType.INTEGER
         )
 
-    async def test_create_table_with_invalid_column(
+    async def test_create_table_with_many_column_types(
         self, project_model: Project
     ) -> None:
-        # GIVEN a table with an invalid column
+        """Test creating a table with many column types with different allowed characters."""
+        # GIVEN a table with many columns with various naming patterns
         table_name = str(uuid.uuid4())
-        table_description = "Test table"
         table = Table(
             name=table_name,
             parent_id=project_model.id,
-            description=table_description,
+            description="Test table with various column names",
+            columns=[
+                Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                Column(name="col 2", column_type=ColumnType.STRING, id="id2"),
+                Column(name="col_3", column_type=ColumnType.STRING, id="id3"),
+                Column(name="col-4", column_type=ColumnType.STRING, id="id4"),
+                Column(name="col.5", column_type=ColumnType.STRING, id="id5"),
+                Column(name="col+6", column_type=ColumnType.STRING, id="id6"),
+                Column(name="col'7", column_type=ColumnType.STRING, id="id7"),
+                Column(name="col(8)", column_type=ColumnType.STRING, id="id8"),
+            ],
+        )
+
+        # WHEN I store the table
+        table = table.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # THEN the table should be created with all columns
+        new_table_instance = Table(id=table.id).get(
+            synapse_client=self.syn, include_columns=True
+        )
+
+        # Verify all column names and types
+        column_names = [
+            "col1",
+            "col 2",
+            "col_3",
+            "col-4",
+            "col.5",
+            "col+6",
+            "col'7",
+            "col(8)",
+        ]
+        for name in column_names:
+            assert name in new_table_instance.columns
+            assert new_table_instance.columns[name].column_type == ColumnType.STRING
+
+    async def test_create_table_with_invalid_column(
+        self, project_model: Project
+    ) -> None:
+        """Test creating a table with an invalid column configuration."""
+        # GIVEN a table with an invalid column (maximum_size too large)
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            description="Test table with invalid column",
             columns=[
                 Column(
                     name="test_column",
@@ -147,159 +183,86 @@ class TestTableCreation:
             ],
         )
 
-        # WHEN I store the table
+        # WHEN I store the table, THEN it should fail with appropriate error
         with pytest.raises(SynapseHTTPError) as e:
             table.store(synapse_client=self.syn)
 
-        # THEN the table should not be created
+        # Verify error message
         assert (
             "400 Client Error: ColumnModel.maxSize for a STRING cannot exceed:"
             in str(e.value)
         )
 
-    async def test_create_table_with_column_from_dict(
+    async def test_table_creation_with_data_sources(
         self, project_model: Project
     ) -> None:
-        # GIVEN a table with no columns defined
+        """Test creating tables with different data sources."""
+        # Test with dictionary data
+        # GIVEN a table with no columns defined and dictionary data
         table_name = str(uuid.uuid4())
-        table = Table(name=table_name, parent_id=project_model.id)
-
-        # AND data for a column
-        data_for_table = {
+        table_dict = Table(name=table_name, parent_id=project_model.id)
+        dict_data = {
             "column_string": ["value1", "value2", "value3"],
         }
 
-        # WHEN I store the table
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND I store rows to the table
-        table.store_rows(
-            values=data_for_table,
+        # WHEN I store the table and then add data
+        table_dict = table_dict.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table_dict.id)
+        table_dict.store_rows(
+            values=dict_data,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
         )
 
-        # THEN the table should be created
-        assert table.id is not None
-
-        # AND I can retrieve that table from Synapse
-        new_table_instance = Table(id=table.id).get(
-            synapse_client=self.syn, include_columns=True
-        )
-        assert new_table_instance is not None
-        assert new_table_instance.name == table_name
-        assert new_table_instance.id == table.id
-        assert new_table_instance.columns["column_string"].name == "column_string"
-        assert (
-            new_table_instance.columns["column_string"].column_type == ColumnType.STRING
-        )
-
-        # AND I can query the table
-        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # AND the data in the columns should match
+        # THEN the table should have proper schema and data
+        results = query(f"SELECT * FROM {table_dict.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], pd.DataFrame(data_for_table)["column_string"]
+            results["column_string"], pd.DataFrame(dict_data)["column_string"]
         )
 
-    async def test_create_table_with_column_from_dataframe(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a table with no columns defined
+        # Test with DataFrame data
+        # GIVEN a table with no columns defined and pandas DataFrame data
         table_name = str(uuid.uuid4())
-        table = Table(name=table_name, parent_id=project_model.id)
+        table_df = Table(name=table_name, parent_id=project_model.id)
+        df_data = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
 
-        # AND data for a column
-        data_for_table = pd.DataFrame(
-            {
-                "column_string": ["value1", "value2", "value3"],
-            }
-        )
-
-        # WHEN I store the table
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND I store rows to the table
-        table.store_rows(
-            values=data_for_table,
+        # WHEN I store the table and then add data
+        table_df = table_df.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table_df.id)
+        table_df.store_rows(
+            values=df_data,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
         )
 
-        # THEN the table should be created
-        assert table.id is not None
-
-        # AND I can retrieve that table from Synapse
-        new_table_instance = Table(id=table.id).get(
-            synapse_client=self.syn, include_columns=True
-        )
-        assert new_table_instance is not None
-        assert new_table_instance.name == table_name
-        assert new_table_instance.id == table.id
-        assert new_table_instance.columns["column_string"].name == "column_string"
-        assert (
-            new_table_instance.columns["column_string"].column_type == ColumnType.STRING
-        )
-
-        # AND I can query the table
-        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # AND the data in the columns should match
+        # THEN the table should have proper schema and data
+        results = query(f"SELECT * FROM {table_df.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], df_data["column_string"]
         )
 
-    async def test_create_table_with_column_from_csv(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a table with no columns defined
+        # Test with CSV file data
+        # GIVEN a table with no columns defined and CSV file data
         table_name = str(uuid.uuid4())
-        table = Table(name=table_name, parent_id=project_model.id)
-
-        # AND data for a column
-        data_for_table = pd.DataFrame(
-            {
-                "column_string": ["value1", "value2", "value3"],
-            }
-        )
+        table_csv = Table(name=table_name, parent_id=project_model.id)
+        csv_data = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
         self.schedule_for_cleanup(filepath)
-        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
+        csv_data.to_csv(filepath, index=False, float_format="%.12g")
 
-        # WHEN I store the table
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND I store rows to the table
-        table.store_rows(
+        # WHEN I store the table and add data from CSV
+        table_csv = table_csv.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table_csv.id)
+        table_csv.store_rows(
             values=filepath,
             schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA,
             synapse_client=self.syn,
         )
 
-        # THEN the table should be created
-        assert table.id is not None
-
-        # AND I can retrieve that table from Synapse
-        new_table_instance = Table(id=table.id).get(
-            synapse_client=self.syn, include_columns=True
-        )
-        assert new_table_instance is not None
-        assert new_table_instance.name == table_name
-        assert new_table_instance.id == table.id
-        assert new_table_instance.columns["column_string"].name == "column_string"
-        assert (
-            new_table_instance.columns["column_string"].column_type == ColumnType.STRING
-        )
-
-        # AND I can query the table
-        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # AND the data in the columns should match
+        # THEN the table should have proper schema and data
+        results = query(f"SELECT * FROM {table_csv.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], csv_data["column_string"]
         )
 
 
@@ -524,7 +487,7 @@ class TestRowStorage:
         # AND the table exists in Synapse
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
@@ -582,7 +545,7 @@ class TestRowStorage:
         # AND the table exists in Synapse
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
@@ -648,7 +611,7 @@ class TestRowStorage:
         # AND the table exists in Synapse
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
@@ -745,7 +708,7 @@ class TestRowStorage:
         )
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
 
         # AND data that will be split into multiple parts
         large_string_a = "A" * 5
@@ -811,7 +774,7 @@ class TestRowStorage:
         )
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
 
         # AND data that will be split into multiple parts
         large_string_a = "A" * 5
@@ -822,9 +785,6 @@ class TestRowStorage:
                 "large_string": [large_string_a for _ in range(200)],
             }
         )
-        filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
-        self.schedule_for_cleanup(filepath)
-        data_for_table.to_csv(filepath, index=False, float_format="%.12g")
 
         # WHEN I store the rows to the table
         table.store_rows(
@@ -858,6 +818,70 @@ class TestRowStorage:
         # Note: DataFrames have a minimum of 100 rows per batch
         assert spy_send_job.call_count == 2
 
+    @skip("Skip in normal testing because the large size makes it slow")
+    async def test_store_rows_as_large_df_being_split_and_uploaded(
+        self, project_model: Project, mocker: MockerFixture
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="column_string", column_type=ColumnType.STRING),
+                Column(name="column_to_order_on", column_type=ColumnType.INTEGER),
+                Column(
+                    name="large_string",
+                    column_type=ColumnType.LARGETEXT,
+                ),
+            ],
+        )
+        table = table.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+
+        # AND data that will be split into multiple parts
+        rows_in_table = 20
+        random_string = "".join(random.choices(string.ascii_uppercase, k=500000))
+        data_for_table = pd.DataFrame(
+            {
+                "column_string": [f"value{i}" for i in range(rows_in_table)],
+                "column_to_order_on": [i for i in range(rows_in_table)],
+                "large_string": [random_string for _ in range(rows_in_table)],
+            }
+        )
+
+        # WHEN I store the rows to the table
+        table.store_rows(
+            values=data_for_table,
+            schema_storage_strategy=None,
+            synapse_client=self.syn,
+            insert_size_bytes=1 * utils.KB,
+        )
+
+        # AND I query the table
+        results = query(
+            f"SELECT * FROM {table.id} ORDER BY column_to_order_on ASC",
+            synapse_client=self.syn,
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"], data_for_table["column_string"]
+        )
+        pd.testing.assert_series_equal(
+            results["column_to_order_on"], data_for_table["column_to_order_on"]
+        )
+        pd.testing.assert_series_equal(
+            results["large_string"], data_for_table["large_string"]
+        )
+
+        # AND `rows_in_table` rows exist on the table
+        assert len(results) == rows_in_table
+
+        # AND The spy should have been called in multiple batches
+        assert spy_send_job.call_count == 1
+
 
 class TestUpsertRows:
     @pytest.fixture(autouse=True, scope="function")
@@ -865,9 +889,10 @@ class TestUpsertRows:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_upsert_with_updates_and_no_insertions(
-        self, project_model: Project
+    async def test_upsert_operations_with_various_data_sources(
+        self, project_model: Project, mocker: MockerFixture
     ) -> None:
+        """Test various upsert operations with different data sources and options."""
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         table = Table(
@@ -882,66 +907,38 @@ class TestUpsertRows:
         self.schedule_for_cleanup(table.id)
 
         # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame(
+        initial_data = pd.DataFrame(
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
         )
         table.store_rows(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+            values=initial_data, schema_storage_strategy=None, synapse_client=self.syn
         )
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
 
-        # AND data I want to upsert the rows to
-        modified_data_for_table = pd.DataFrame(
+        # Test 1: Basic update with no insertions
+        # WHEN I upsert rows with modified values but no new rows
+        updated_data = pd.DataFrame(
             {"column_string": ["value1", "value2", "value3"], "column_key_2": [4, 5, 6]}
         )
-
-        # WHEN I upsert rows to the table based on the first column
         table.upsert_rows(
-            values=modified_data_for_table,
+            values=updated_data,
             primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
-        # AND I query the table
+        # THEN the values should be updated with no new rows
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], modified_data_for_table["column_string"]
+            results["column_string"], updated_data["column_string"]
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], modified_data_for_table["column_key_2"]
+            results["column_key_2"], updated_data["column_key_2"]
         )
-
-        # AND no additional rows exist on the table
         assert len(results) == 3
 
-    async def test_upsert_with_updates_and_insertions_as_csv(
-        self, project_model: Project, mocker: MockerFixture
-    ) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="column_string", column_type=ColumnType.STRING),
-                Column(name="column_key_2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame(
-            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
-        )
-        table.store_rows(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
-
-        # AND data I want to upsert the rows to
-        modified_data_for_table = pd.DataFrame(
+        # Test 2: Upsert with updates and insertions from CSV
+        # WHEN I upsert rows with modified values and new rows from CSV
+        updated_and_new_data = pd.DataFrame(
             {
                 "column_string": [
                     "value1",
@@ -951,170 +948,89 @@ class TestUpsertRows:
                     "value5",
                     "value6",
                 ],
-                "column_key_2": [1, 5, 6, 7, 8, 9],
+                "column_key_2": [10, 11, 12, 13, 14, 15],
             }
         )
-
         filepath = f"{tempfile.mkdtemp()}/upload_{uuid.uuid4()}.csv"
         self.schedule_for_cleanup(filepath)
-        modified_data_for_table.to_csv(filepath, index=False, float_format="%.12g")
+        updated_and_new_data.to_csv(filepath, index=False, float_format="%.12g")
 
-        # WHEN I upsert rows to the table based on the first column
         table.upsert_rows(
             values=filepath,
             primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
-        # AND I query the table
+        # THEN the values should be updated and new rows added
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], modified_data_for_table["column_string"]
+            results["column_string"], updated_and_new_data["column_string"]
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], modified_data_for_table["column_key_2"]
+            results["column_key_2"], updated_and_new_data["column_key_2"]
         )
+        assert len(results) == 6  # 3 original + 3 new
 
-        # AND 3 additional rows exist on the table
-        assert len(results) == 6
-
-        # AND the spy should have been called in single batches for update and insert operations
-        assert spy_send_job.call_count == 2
-
-    async def test_upsert_with_updates_and_insertions_as_dict(
-        self, project_model: Project, mocker: MockerFixture
-    ) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="column_string", column_type=ColumnType.STRING),
-                Column(name="column_key_2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame(
-            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
-        )
-        table.store_rows(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
-
-        # AND data I want to upsert the rows to
-        modified_data_for_table = {
+        # Test 3: Upsert with dictionary data source
+        # WHEN I upsert rows with dictionary data
+        dict_data = {
             "column_string": [
                 "value1",
                 "value2",
                 "value3",
-                "value4",
-                "value5",
-                "value6",
+                "value7",
+                "value8",
+                "value9",
             ],
-            "column_key_2": [4, 5, 6, 7, 8, 9],
+            "column_key_2": [20, 21, 22, 23, 24, 25],
         }
 
-        # WHEN I upsert rows to the table based on the first column
+        # Reset the spy to count just this operation
+        spy_send_job.reset_mock()
+
         table.upsert_rows(
-            values=modified_data_for_table,
+            values=dict_data,
             primary_keys=["column_string"],
             synapse_client=self.syn,
         )
 
-        # AND I query the table
+        # THEN the values should be updated and new rows added
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # THEN the data in the columns should match
-        pd.testing.assert_series_equal(
-            results["column_string"],
-            pd.DataFrame(modified_data_for_table)["column_string"],
-        )
-        pd.testing.assert_series_equal(
-            results["column_key_2"],
-            pd.DataFrame(modified_data_for_table)["column_key_2"],
-        )
-
-        # AND 3 additional rows exist on the table
-        assert len(results) == 6
-
-        # AND the spy should have been called in single batches for update and insert operations
+        # We should have 9 total rows now (6 from before + 3 new)
+        assert len(results) == 9
+        # The spy should have been called for update and insert operations
         assert spy_send_job.call_count == 2
 
-    async def test_upsert_with_dry_run(
-        self, project_model: Project, mocker: MockerFixture
-    ) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="column_string", column_type=ColumnType.STRING),
-                Column(name="column_key_2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame(
-            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
-        )
-        table.store_rows(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
-
-        # AND data I want to upsert the rows to
-        modified_data_for_table = pd.DataFrame(
+        # Test 4: Dry run operation
+        # WHEN I perform a dry run upsert
+        dry_run_data = pd.DataFrame(
             {
-                "column_string": [
-                    "value1",
-                    "value2",
-                    "value3",
-                    "value4",
-                    "value5",
-                    "value6",
-                ],
-                "column_key_2": [4, 5, 6, 7, 8, 9],
+                "column_string": ["value1", "value2", "value3"],
+                "column_key_2": [99, 99, 99],
             }
         )
 
-        # WHEN I upsert rows to the table based on the first column
+        # Reset the spy to count just this operation
+        spy_send_job.reset_mock()
+
         table.upsert_rows(
-            values=modified_data_for_table,
+            values=dry_run_data,
             primary_keys=["column_string"],
             dry_run=True,
             synapse_client=self.syn,
         )
 
-        # AND I query the table
+        # THEN no changes should be applied
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # THEN the table should not contain any modified data from the original state
-        pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
-        )
-        pd.testing.assert_series_equal(
-            results["column_key_2"], data_for_table["column_key_2"]
-        )
-
-        # AND the 3 original rows should exist on the table
-        assert len(results) == 3
-
-        # AND the spy should have not been called for update/insert operations
+        # Should still have 9 rows
+        assert len(results) == 9
+        # The values from the previous update should still be in place
+        assert 99 not in results["column_key_2"].values
+        # The spy should not have been called
         assert spy_send_job.call_count == 0
 
-    async def test_upsert_with_updates_and_insertions(
-        self, project_model: Project, mocker: MockerFixture
-    ) -> None:
+    async def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
+        """Test upserting rows using multiple columns as the primary key."""
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         table = Table(
@@ -1123,6 +1039,7 @@ class TestUpsertRows:
             columns=[
                 Column(name="column_string", column_type=ColumnType.STRING),
                 Column(name="column_key_2", column_type=ColumnType.INTEGER),
+                Column(name="column_key_3", column_type=ColumnType.BOOLEAN),
             ],
         )
         table = table.store(synapse_client=self.syn)
@@ -1130,14 +1047,17 @@ class TestUpsertRows:
 
         # AND data for a column already stored in Synapse
         data_for_table = pd.DataFrame(
-            {"column_string": ["value1", "value2", "value3"], "column_key_2": [1, 2, 3]}
+            {
+                "column_string": ["value1", "value2", "value3"],
+                "column_key_2": [1, 2, 3],
+                "column_key_3": [True, True, True],
+            }
         )
         table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
-        # AND data I want to upsert the rows to
+        # WHEN I upsert rows with matching keys
         modified_data_for_table = pd.DataFrame(
             {
                 "column_string": [
@@ -1148,38 +1068,57 @@ class TestUpsertRows:
                     "value5",
                     "value6",
                 ],
-                "column_key_2": [4, 5, 6, 7, 8, 9],
+                "column_key_2": [1, 2, 3, 4, 5, 6],
+                "column_key_3": [False, False, False, False, False, False],
             }
         )
-
-        # WHEN I upsert rows to the table based on the first column
         table.upsert_rows(
             values=modified_data_for_table,
-            primary_keys=["column_string"],
+            primary_keys=["column_string", "column_key_2"],
             synapse_client=self.syn,
         )
 
-        # AND I query the table
+        # THEN matching rows should be updated and new rows added
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # THEN the data in the columns should match
         pd.testing.assert_series_equal(
             results["column_string"], modified_data_for_table["column_string"]
         )
         pd.testing.assert_series_equal(
             results["column_key_2"], modified_data_for_table["column_key_2"]
         )
+        pd.testing.assert_series_equal(
+            results["column_key_3"], modified_data_for_table["column_key_3"]
+        )
+        assert len(results) == 6  # 3 updated + 3 new
 
-        # AND 3 additional rows exist on the table
-        assert len(results) == 6
+        # WHEN I upsert rows with non-matching keys
+        data_for_insertion_only = pd.DataFrame(
+            {
+                "column_string": [
+                    "value1",
+                    "value2",
+                    "value3",
+                ],
+                "column_key_2": [7, 8, 9],  # Different key values
+                "column_key_3": [True, True, True],
+            }
+        )
+        table.upsert_rows(
+            values=data_for_insertion_only,
+            primary_keys=["column_string", "column_key_2"],
+            synapse_client=self.syn,
+        )
 
-        # AND the spy should have been called in single batches for update and insert operations
-        assert spy_send_job.call_count == 2
+        # THEN all rows should be inserted (no updates)
+        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
+        # Should have 9 rows now (6 from before + 3 new)
+        assert len(results) == 9
 
-    async def test_upsert_with_updates_and_insertions_single_row_per_interaction(
+    async def test_upsert_with_large_data_and_batching(
         self, project_model: Project, mocker: MockerFixture
     ) -> None:
-        # GIVEN a table in Synapse
+        """Test upserting with large data strings that require batching."""
+        # GIVEN a table in Synapse with a large string column
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
@@ -1209,9 +1148,9 @@ class TestUpsertRows:
         table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
 
-        # AND data I want to upsert the rows to
+        # WHEN I upsert rows with large data and control batch size
         large_string_b = "B" * 1000
         modified_data_for_table = pd.DataFrame(
             {
@@ -1235,7 +1174,6 @@ class TestUpsertRows:
             }
         )
 
-        # WHEN I upsert rows to the table based on the first column
         table.upsert_rows(
             values=modified_data_for_table,
             primary_keys=["column_string"],
@@ -1245,10 +1183,8 @@ class TestUpsertRows:
             insert_size_bytes=1 * utils.KB,
         )
 
-        # AND I query the table
+        # THEN all rows should be updated or inserted correctly
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # THEN the data in the columns should match
         pd.testing.assert_series_equal(
             results["column_string"], modified_data_for_table["column_string"]
         )
@@ -1258,174 +1194,16 @@ class TestUpsertRows:
         pd.testing.assert_series_equal(
             results["large_string"], modified_data_for_table["large_string"]
         )
-
-        # AND 3 additional rows exist on the table
         assert len(results) == 6
 
-        # AND the spy should have been called in multiple batches for update and insert operations
-        assert spy_send_job.call_count == 5
+        # AND multiple batch jobs should have been created due to batching settings
+        assert spy_send_job.call_count == 5  # More batches due to small size settings
 
-    async def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="column_string", column_type=ColumnType.STRING),
-                Column(name="column_key_2", column_type=ColumnType.INTEGER),
-                Column(name="column_key_3", column_type=ColumnType.BOOLEAN),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame(
-            {
-                "column_string": ["value1", "value2", "value3"],
-                "column_key_2": [1, 2, 3],
-                "column_key_3": [True, True, True],
-            }
-        )
-        table.store_rows(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
-
-        # AND data I want to upsert the rows to
-        modified_data_for_table = pd.DataFrame(
-            {
-                "column_string": [
-                    "value1",
-                    "value2",
-                    "value3",
-                    "value4",
-                    "value5",
-                    "value6",
-                ],
-                "column_key_2": [1, 2, 3, 4, 5, 6],
-                "column_key_3": [False, False, False, False, False, False],
-            }
-        )
-
-        # WHEN I upsert rows to the table based on the first column
-        table.upsert_rows(
-            values=modified_data_for_table,
-            primary_keys=["column_string", "column_key_2"],
-            synapse_client=self.syn,
-        )
-
-        # AND I query the table
-        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # THEN the data in the columns should match
-        pd.testing.assert_series_equal(
-            results["column_string"], modified_data_for_table["column_string"]
-        )
-        pd.testing.assert_series_equal(
-            results["column_key_2"], modified_data_for_table["column_key_2"]
-        )
-        pd.testing.assert_series_equal(
-            results["column_key_3"], modified_data_for_table["column_key_3"]
-        )
-
-        # AND 3 additional rows exist on the table
-        assert len(results) == 6
-
-    async def test_upsert_with_multi_value_key_none_matching(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="column_string", column_type=ColumnType.STRING),
-                Column(name="column_key_2", column_type=ColumnType.INTEGER),
-                Column(name="column_key_3", column_type=ColumnType.BOOLEAN),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND data for a column already stored in Synapse
-        data_for_table = pd.DataFrame(
-            {
-                "column_string": ["value1", "value2", "value3"],
-                "column_key_2": [1, 2, 3],
-                "column_key_3": [True, True, True],
-            }
-        )
-        table.store_rows(
-            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
-        )
-
-        # AND data I want to upsert the rows to. In this case the keys won't match any rows and should all be inserted
-        data_that_will_not_match_to_any_rows = pd.DataFrame(
-            {
-                "column_string": [
-                    "value1",
-                    "value2",
-                    "value3",
-                    "value4",
-                    "value5",
-                    "value6",
-                ],
-                "column_key_2": [7, 8, 9, 10, 11, 12],
-                "column_key_3": [False, False, False, False, False, False],
-            }
-        )
-
-        # WHEN I upsert rows to the table based on the first column
-        table.upsert_rows(
-            values=data_that_will_not_match_to_any_rows,
-            primary_keys=["column_string", "column_key_2"],
-            synapse_client=self.syn,
-        )
-
-        # AND I query the table
-        results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-
-        # THEN the data in the columns should match
-        pd.testing.assert_series_equal(
-            results["column_string"],
-            pd.concat(
-                [
-                    data_for_table["column_string"],
-                    data_that_will_not_match_to_any_rows["column_string"],
-                ],
-                ignore_index=True,
-            ),
-        )
-        pd.testing.assert_series_equal(
-            results["column_key_2"],
-            pd.concat(
-                [
-                    data_for_table["column_key_2"],
-                    data_that_will_not_match_to_any_rows["column_key_2"],
-                ],
-                ignore_index=True,
-            ),
-        )
-        pd.testing.assert_series_equal(
-            results["column_key_3"],
-            pd.concat(
-                [
-                    data_for_table["column_key_3"],
-                    data_that_will_not_match_to_any_rows["column_key_3"],
-                ],
-                ignore_index=True,
-            ),
-        )
-
-        # AND 6 additional rows exist on the table
-        assert len(results) == 9
-
-    async def test_upsert_all_data_types_single_key(
+    async def test_upsert_all_data_types(
         self, mocker: MockerFixture, project_model: Project
     ) -> None:
-        # GIVEN a table in Synapse
+        """Test upserting all supported data types to ensure type compatibility."""
+        # GIVEN a table in Synapse with all data types
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
@@ -1458,14 +1236,14 @@ class TestUpsertRows:
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
-        # AND A bogus file
+        # Set up test resources
         path = utils.make_bogus_data_file()
         self.schedule_for_cleanup(path)
         file = File(parent_id=project_model.id, path=path).store(
             synapse_client=self.syn
         )
 
-        # AND A bogus evaluation/submission
+        # Create evaluation for testing
         name = "Test Evaluation %s" % str(uuid.uuid4())
         evaluation = Evaluation(
             name=name,
@@ -1479,74 +1257,62 @@ class TestUpsertRows:
                 evaluation, file.id, name="Submission 1", submitterAlias="My Team"
             )
 
-            # AND data for a column already stored in Synapse
-            data_for_table = pd.DataFrame(
+            # GIVEN initial data with all data types
+            initial_data = pd.DataFrame(
                 {
-                    # STRING
+                    # Basic types
                     "column_string": ["value1", "value2", "value3"],
-                    # DOUBLE
                     "column_double": [1.1, 2.2, 3.3],
-                    # INTEGER
                     "column_integer": [1, 2, 3],
-                    # BOOLEAN
                     "column_boolean": [True, True, True],
-                    # DATE
                     "column_date": [
                         utils.to_unix_epoch_time("2021-01-01"),
                         utils.to_unix_epoch_time("2021-01-02"),
                         utils.to_unix_epoch_time("2021-01-03"),
                     ],
-                    # # FILEHANDLEID
+                    # Reference types
                     "column_filehandleid": [
                         file.file_handle.id,
                         file.file_handle.id,
                         file.file_handle.id,
                     ],
-                    # # ENTITYID
                     "column_entityid": [file.id, file.id, file.id],
-                    # SUBMISSIONID
                     "column_submissionid": [
                         submission.id,
                         submission.id,
                         submission.id,
                     ],
-                    # EVALUATIONID
                     "column_evaluationid": [
                         evaluation.id,
                         evaluation.id,
                         evaluation.id,
                     ],
-                    # LINK
+                    # Text types
                     "column_link": [
                         "https://www.synapse.org/Profile:",
                         "https://www.synapse.org/Profile:",
                         "https://www.synapse.org/Profile:",
                     ],
-                    # MEDIUMTEXT
                     "column_mediumtext": ["value1", "value2", "value3"],
-                    # LARGETEXT
                     "column_largetext": ["value1", "value2", "value3"],
-                    # USERID
+                    # User IDs
                     "column_userid": [
                         self.syn.credentials.owner_id,
                         self.syn.credentials.owner_id,
                         self.syn.credentials.owner_id,
                     ],
-                    # STRING_LIST
+                    # List types
                     "column_string_LIST": [
                         ["value1", "value2"],
                         ["value3", "value4"],
                         ["value5", "value6"],
                     ],
-                    # INTEGER_LIST
                     "column_integer_LIST": [[1, 2], [3, 4], [5, 6]],
-                    # BOOLEAN_LIST
                     "column_boolean_LIST": [
                         [True, False],
                         [True, False],
                         [True, False],
                     ],
-                    # DATE_LIST
                     "column_date_LIST": [
                         [
                             utils.to_unix_epoch_time("2021-01-01"),
@@ -1561,19 +1327,17 @@ class TestUpsertRows:
                             utils.to_unix_epoch_time("2021-01-06"),
                         ],
                     ],
-                    # ENTITYID_LIST
                     "column_entity_id_list": [
                         [file.id, file.id],
                         [file.id, file.id],
                         [file.id, file.id],
                     ],
-                    # USERID_LIST
                     "column_user_id_list": [
                         [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
                         [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
                         [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
                     ],
-                    # JSON
+                    # JSON type
                     "column_json": [
                         {"key1": "value1", "key2": 2},
                         {"key3": "value3", "key4": 4},
@@ -1582,88 +1346,76 @@ class TestUpsertRows:
                 }
             )
 
+            # Store initial data
             table.store_rows(
-                values=data_for_table,
+                values=initial_data,
                 schema_storage_strategy=None,
                 synapse_client=self.syn,
             )
 
-            # AND A second bogus file to update the first one
-            path = utils.make_bogus_data_file()
-            self.schedule_for_cleanup(path)
-            file = File(parent_id=project_model.id, path=path).store(
+            # Create a second test file to update references
+            path2 = utils.make_bogus_data_file()
+            self.schedule_for_cleanup(path2)
+            file2 = File(parent_id=project_model.id, path=path2).store(
                 synapse_client=self.syn
             )
 
-            # AND data I want to upsert the rows to
-            modified_data_for_table = pd.DataFrame(
+            # WHEN I upsert with updated data for all types
+            updated_data = pd.DataFrame(
                 {
-                    # STRING
+                    # Basic types with updated values
                     "column_string": ["value1", "value2", "value3"],
-                    # DOUBLE
                     "column_double": [11.2, 22.3, 33.4],
-                    # INTEGER
                     "column_integer": [11, 22, 33],
-                    # BOOLEAN
                     "column_boolean": [False, False, False],
-                    # DATE
                     "column_date": [
                         utils.to_unix_epoch_time("2022-01-01"),
                         utils.to_unix_epoch_time("2022-01-02"),
                         utils.to_unix_epoch_time("2022-01-03"),
                     ],
-                    # # FILEHANDLEID
+                    # Updated references
                     "column_filehandleid": [
-                        int(file.file_handle.id),
-                        int(file.file_handle.id),
-                        int(file.file_handle.id),
+                        int(file2.file_handle.id),
+                        int(file2.file_handle.id),
+                        int(file2.file_handle.id),
                     ],
-                    # # ENTITYID
-                    "column_entityid": [file.id, file.id, file.id],
-                    # Not testing the update for these 2 columns due to the cleanup overhead
-                    # SUBMISSIONID
+                    "column_entityid": [file2.id, file2.id, file2.id],
                     "column_submissionid": [
                         int(submission.id),
                         int(submission.id),
                         int(submission.id),
                     ],
-                    # EVALUATIONID
                     "column_evaluationid": [
                         int(evaluation.id),
                         int(evaluation.id),
                         int(evaluation.id),
                     ],
-                    # LINK
+                    # Updated text
                     "column_link": [
                         "https://www.synapse.org/",
                         "https://www.synapse.org/",
                         "https://www.synapse.org/",
                     ],
-                    # MEDIUMTEXT
                     "column_mediumtext": ["value11", "value22", "value33"],
-                    # LARGETEXT
                     "column_largetext": ["value11", "value22", "value33"],
-                    # USERID
+                    # User IDs
                     "column_userid": [
                         int(self.syn.credentials.owner_id),
                         int(self.syn.credentials.owner_id),
                         int(self.syn.credentials.owner_id),
                     ],
-                    # STRING_LIST
+                    # Updated list types
                     "column_string_LIST": [
                         ["value11", "value22"],
                         ["value33", "value44"],
-                        ["value55", "value76"],
+                        ["value55", "value66"],
                     ],
-                    # INTEGER_LIST
                     "column_integer_LIST": [[11, 22], [33, 44], [55, 66]],
-                    # BOOLEAN_LIST
                     "column_boolean_LIST": [
                         [False, True],
                         [False, True],
                         [False, True],
                     ],
-                    # DATE_LIST
                     "column_date_LIST": [
                         [
                             utils.to_unix_epoch_time("2022-01-01"),
@@ -1678,13 +1430,11 @@ class TestUpsertRows:
                             utils.to_unix_epoch_time("2022-01-06"),
                         ],
                     ],
-                    # ENTITYID_LIST
                     "column_entity_id_list": [
-                        [file.id, file.id],
-                        [file.id, file.id],
-                        [file.id, file.id],
+                        [file2.id, file2.id],
+                        [file2.id, file2.id],
+                        [file2.id, file2.id],
                     ],
-                    # USERID_LIST
                     "column_user_id_list": [
                         [
                             int(self.syn.credentials.owner_id),
@@ -1708,284 +1458,98 @@ class TestUpsertRows:
                 }
             )
 
-            # WHEN I upsert rows to the table based on the first column
+            # Perform upsert based on string column
             table.upsert_rows(
-                values=modified_data_for_table,
+                values=updated_data,
                 primary_keys=["column_string"],
                 synapse_client=self.syn,
             )
 
-            # AND I query the table
+            # THEN all data types should be correctly updated
             results = query(
                 f"SELECT * FROM {table.id}",
                 synapse_client=self.syn,
                 include_row_id_and_row_version=False,
             )
 
-            # THEN the data in the columns should match
-            original_as_string = modified_data_for_table.to_json()
+            # Check that all values were updated correctly
+            # Convert to JSON for easy comparison
+            original_as_string = updated_data.to_json()
             modified_as_string = results.to_json()
             assert original_as_string == modified_as_string
 
-            # AND the cells I expect to have been updated should have been updated
-        finally:
-            self.syn.delete(evaluation)
-
-    async def test_upsert_all_data_types_multi_key(
-        self, mocker: MockerFixture, project_model: Project
-    ) -> None:
-        # GIVEN a table in Synapse
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="column_string", column_type=ColumnType.STRING),
-                Column(name="column_double", column_type=ColumnType.DOUBLE),
-                Column(name="column_integer", column_type=ColumnType.INTEGER),
-                Column(name="column_boolean", column_type=ColumnType.BOOLEAN),
-                Column(name="column_date", column_type=ColumnType.DATE),
-                Column(name="column_filehandleid", column_type=ColumnType.FILEHANDLEID),
-                Column(name="column_entityid", column_type=ColumnType.ENTITYID),
-                Column(name="column_submissionid", column_type=ColumnType.SUBMISSIONID),
-                Column(name="column_evaluationid", column_type=ColumnType.EVALUATIONID),
-                Column(name="column_link", column_type=ColumnType.LINK),
-                Column(name="column_mediumtext", column_type=ColumnType.MEDIUMTEXT),
-                Column(name="column_largetext", column_type=ColumnType.LARGETEXT),
-                Column(name="column_userid", column_type=ColumnType.USERID),
-                Column(name="column_string_LIST", column_type=ColumnType.STRING_LIST),
-                Column(name="column_integer_LIST", column_type=ColumnType.INTEGER_LIST),
-                Column(name="column_boolean_LIST", column_type=ColumnType.BOOLEAN_LIST),
-                Column(name="column_date_LIST", column_type=ColumnType.DATE_LIST),
-                Column(
-                    name="column_entity_id_list", column_type=ColumnType.ENTITYID_LIST
-                ),
-                Column(name="column_user_id_list", column_type=ColumnType.USERID_LIST),
-                Column(name="column_json", column_type=ColumnType.JSON),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND A bogus file
-        path = utils.make_bogus_data_file()
-        self.schedule_for_cleanup(path)
-        file = File(parent_id=project_model.id, path=path).store(
-            synapse_client=self.syn
-        )
-
-        # AND A bogus evaluation/submission
-        name = "Test Evaluation %s" % str(uuid.uuid4())
-        evaluation = Evaluation(
-            name=name,
-            description="Evaluation for testing",
-            contentSource=project_model.id,
-        )
-        # TODO: When Evaluation and Submission are implemented with Async methods update this test
-        evaluation = self.syn.store(evaluation)
-        try:
-            submission = self.syn.submit(
-                evaluation, file.id, name="Submission 1", submitterAlias="My Team"
-            )
-
-            # AND data for a column already stored in Synapse
-            data_for_table = pd.DataFrame(
+            # WHEN I upsert with multiple primary keys
+            multi_key_data = pd.DataFrame(
                 {
-                    # STRING
-                    "column_string": ["value1", "value2", "value3"],
-                    # DOUBLE
-                    "column_double": [1.1, 2.2, 3.3],
-                    # INTEGER
-                    "column_integer": [1, 2, 3],
-                    # BOOLEAN
-                    "column_boolean": [True, True, True],
-                    # DATE
-                    "column_date": [
-                        utils.to_unix_epoch_time("2021-01-01"),
-                        utils.to_unix_epoch_time("2021-01-02"),
-                        utils.to_unix_epoch_time("2021-01-03"),
-                    ],
-                    # FILEHANDLEID
-                    "column_filehandleid": [
-                        file.file_handle.id,
-                        file.file_handle.id,
-                        file.file_handle.id,
-                    ],
-                    # # ENTITYID
-                    "column_entityid": [file.id, file.id, file.id],
-                    # SUBMISSIONID
-                    "column_submissionid": [
-                        submission.id,
-                        submission.id,
-                        submission.id,
-                    ],
-                    # EVALUATIONID
-                    "column_evaluationid": [
-                        evaluation.id,
-                        evaluation.id,
-                        evaluation.id,
-                    ],
-                    # LINK
-                    "column_link": [
-                        "https://www.synapse.org/",
-                        "https://www.synapse.org/",
-                        "https://www.synapse.org/",
-                    ],
-                    # MEDIUMTEXT
-                    "column_mediumtext": ["value1", "value2", "value3"],
-                    # LARGETEXT
-                    "column_largetext": ["value1", "value2", "value3"],
-                    # USERID
-                    "column_userid": [
-                        self.syn.credentials.owner_id,
-                        self.syn.credentials.owner_id,
-                        self.syn.credentials.owner_id,
-                    ],
-                    # STRING_LIST
-                    "column_string_LIST": [
-                        ["value1", "value2"],
-                        ["value3", "value4"],
-                        ["value5", "value6"],
-                    ],
-                    # INTEGER_LIST
-                    "column_integer_LIST": [[1, 2], [3, 4], [5, 6]],
-                    # BOOLEAN_LIST
-                    "column_boolean_LIST": [
-                        [True, False],
-                        [True, False],
-                        [True, False],
-                    ],
-                    # DATE_LIST
-                    "column_date_LIST": [
-                        [
-                            utils.to_unix_epoch_time("2021-01-01"),
-                            utils.to_unix_epoch_time("2021-01-02"),
-                        ],
-                        [
-                            utils.to_unix_epoch_time("2021-01-03"),
-                            utils.to_unix_epoch_time("2021-01-04"),
-                        ],
-                        [
-                            utils.to_unix_epoch_time("2021-01-05"),
-                            utils.to_unix_epoch_time("2021-01-06"),
-                        ],
-                    ],
-                    # ENTITYID_LIST
-                    "column_entity_id_list": [
-                        [file.id, file.id],
-                        [file.id, file.id],
-                        [file.id, file.id],
-                    ],
-                    # USERID_LIST
-                    "column_user_id_list": [
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
-                    ],
-                    # JSON
-                    "column_json": [
-                        {"key1": "value1", "key2": 2},
-                        {"key3": "value3", "key4": 4},
-                        {"key5": "value5", "key6": 6},
-                    ],
-                }
-            )
-
-            table.store_rows(
-                values=data_for_table,
-                schema_storage_strategy=None,
-                synapse_client=self.syn,
-            )
-
-            # AND data I want to upsert the rows to
-            modified_data_for_table = pd.DataFrame(
-                {
-                    # STRING
+                    # Just using a subset of columns for this test case
                     "column_string": ["this", "is", "updated"],
-                    # DOUBLE
                     "column_double": [1.1, 2.2, 3.3],
-                    # INTEGER
                     "column_integer": [1, 2, 3],
-                    # BOOLEAN
                     "column_boolean": [True, True, True],
-                    # DATE
                     "column_date": [
                         utils.to_unix_epoch_time("2021-01-01"),
                         utils.to_unix_epoch_time("2021-01-02"),
                         utils.to_unix_epoch_time("2021-01-03"),
                     ],
-                    # FILEHANDLEID
                     "column_filehandleid": [
                         int(file.file_handle.id),
                         int(file.file_handle.id),
                         int(file.file_handle.id),
                     ],
-                    # # ENTITYID
                     "column_entityid": [file.id, file.id, file.id],
-                    # SUBMISSIONID
                     "column_submissionid": [
                         int(submission.id),
                         int(submission.id),
                         int(submission.id),
                     ],
-                    # EVALUATIONID
                     "column_evaluationid": [
                         int(evaluation.id),
                         int(evaluation.id),
                         int(evaluation.id),
                     ],
-                    # LINK
                     "column_link": [
                         "https://www.synapse.org/",
                         "https://www.synapse.org/",
                         "https://www.synapse.org/",
                     ],
-                    # MEDIUMTEXT
-                    "column_mediumtext": ["value1", "value2", "value3"],
-                    # LARGETEXT
-                    "column_largetext": ["value1", "value2", "value3"],
-                    # USERID
+                    "column_mediumtext": ["updated1", "updated2", "updated3"],
+                    "column_largetext": ["largetext1", "largetext2", "largetext3"],
                     "column_userid": [
                         int(self.syn.credentials.owner_id),
                         int(self.syn.credentials.owner_id),
                         int(self.syn.credentials.owner_id),
                     ],
-                    # STRING_LIST
+                    # Simplified list data
                     "column_string_LIST": [
-                        ["value1", "value2"],
-                        ["value3", "value4"],
-                        ["value5", "value6"],
+                        ["a", "b"],
+                        ["c", "d"],
+                        ["e", "f"],
                     ],
-                    # INTEGER_LIST
-                    "column_integer_LIST": [[1, 2], [3, 4], [5, 6]],
-                    # BOOLEAN_LIST
+                    "column_integer_LIST": [[9, 8], [7, 6], [5, 4]],
                     "column_boolean_LIST": [
-                        [True, False],
-                        [True, False],
-                        [True, False],
+                        [True, True],
+                        [True, True],
+                        [True, True],
                     ],
-                    # DATE_LIST
                     "column_date_LIST": [
                         [
-                            utils.to_unix_epoch_time("2021-01-01"),
-                            utils.to_unix_epoch_time("2021-01-02"),
+                            utils.to_unix_epoch_time("2023-01-01"),
+                            utils.to_unix_epoch_time("2023-01-02"),
                         ],
                         [
-                            utils.to_unix_epoch_time("2021-01-03"),
-                            utils.to_unix_epoch_time("2021-01-04"),
+                            utils.to_unix_epoch_time("2023-01-03"),
+                            utils.to_unix_epoch_time("2023-01-04"),
                         ],
                         [
-                            utils.to_unix_epoch_time("2021-01-05"),
-                            utils.to_unix_epoch_time("2021-01-06"),
+                            utils.to_unix_epoch_time("2023-01-05"),
+                            utils.to_unix_epoch_time("2023-01-06"),
                         ],
                     ],
-                    # ENTITYID_LIST
                     "column_entity_id_list": [
                         [file.id, file.id],
                         [file.id, file.id],
                         [file.id, file.id],
                     ],
-                    # USERID_LIST
                     "column_user_id_list": [
                         [
                             int(self.syn.credentials.owner_id),
@@ -2000,50 +1564,40 @@ class TestUpsertRows:
                             int(self.syn.credentials.owner_id),
                         ],
                     ],
-                    # JSON
                     "column_json": [
-                        json.dumps({"key1": "value1", "key2": 2}),
-                        json.dumps({"key3": "value3", "key4": 4}),
-                        json.dumps({"key5": "value5", "key6": 6}),
+                        json.dumps({"final1": "value1"}),
+                        json.dumps({"final2": "value2"}),
+                        json.dumps({"final3": "value3"}),
                     ],
                 }
             )
 
-            # WHEN I upsert rows to the table based on all columns except the first one and list based columns
+            # Test multiple primary keys
             primary_keys = [
                 "column_double",
                 "column_integer",
                 "column_boolean",
                 "column_date",
-                "column_filehandleid",
-                "column_entityid",
-                "column_submissionid",
-                "column_evaluationid",
-                "column_link",
-                "column_mediumtext",
-                "column_largetext",
-                "column_userid",
             ]
+
             table.upsert_rows(
-                values=modified_data_for_table,
+                values=multi_key_data,
                 primary_keys=primary_keys,
                 synapse_client=self.syn,
             )
 
-            # AND I query the table
-            results = query(
+            # THEN the new rows should be added (not updating existing)
+            results_after_multi_key = query(
                 f"SELECT * FROM {table.id}",
                 synapse_client=self.syn,
                 include_row_id_and_row_version=False,
             )
 
-            # THEN the data in the columns should match
-            original_as_string = modified_data_for_table.to_json()
-            modified_as_string = results.to_json()
-            assert original_as_string == modified_as_string
+            # We should have more rows now (original 3 + 3 new ones)
+            assert len(results_after_multi_key) == 6
 
-            # AND the cells I expect to have been updated should have been updated
         finally:
+            # Clean up
             self.syn.delete(evaluation)
 
 

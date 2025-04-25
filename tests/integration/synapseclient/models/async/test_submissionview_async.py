@@ -26,11 +26,10 @@ class TestSubmissionViewCreation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_submissionview_with_default_columns(
+    async def test_create_submissionview_with_columns(
         self, project_model: Project
     ) -> None:
         # GIVEN a project to work with
-
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
             Evaluation(
@@ -41,7 +40,8 @@ class TestSubmissionViewCreation:
         )
         self.schedule_for_cleanup(evaluation.id)
 
-        # AND a submissionview with default columns
+        # Test Case 1: Submissionview with default columns
+        # GIVEN a submissionview with default columns
         submissionview_name = str(uuid.uuid4())
         submissionview_description = "Test submissionview"
         submissionview = SubmissionView(
@@ -70,118 +70,78 @@ class TestSubmissionViewCreation:
         # AND the submissionview has columns
         assert len(new_submissionview_instance.columns) > 0
 
-    async def test_create_submissionview_with_single_column(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a project to work with
-
-        # AND an evaluation to use in the scope
-        evaluation = self.syn.store(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation.id)
-
-        # AND a submissionview with a single column
-        submissionview_name = str(uuid.uuid4())
-        submissionview_description = "Test submissionview"
-        submissionview = SubmissionView(
-            name=submissionview_name,
+        # Test Case 2: Submissionview with a single custom column
+        # GIVEN a submissionview with a single column
+        submissionview_name2 = str(uuid.uuid4())
+        submissionview_description2 = "Test submissionview with single column"
+        custom_column = "test_column"
+        submissionview2 = SubmissionView(
+            name=submissionview_name2,
             parent_id=project_model.id,
-            description=submissionview_description,
-            columns=[Column(name="test_column", column_type=ColumnType.STRING)],
+            description=submissionview_description2,
+            columns=[Column(name=custom_column, column_type=ColumnType.STRING)],
             scope_ids=[evaluation.id],
         )
 
         # WHEN I store the submissionview
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        submissionview2 = await submissionview2.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submissionview2.id)
 
         # THEN the submissionview should be created
-        assert submissionview.id is not None
+        assert submissionview2.id is not None
 
-        # AND I can retrieve that submissionview from Synapse
-        new_submissionview_instance = await SubmissionView(
-            id=submissionview.id
+        # AND I can retrieve that submissionview from Synapse with the custom column
+        new_submissionview_instance2 = await SubmissionView(
+            id=submissionview2.id
         ).get_async(synapse_client=self.syn, include_columns=True)
-        assert new_submissionview_instance is not None
-        assert new_submissionview_instance.name == submissionview_name
-        assert new_submissionview_instance.id == submissionview.id
-        assert new_submissionview_instance.description == submissionview_description
-        assert "test_column" in new_submissionview_instance.columns
-        assert new_submissionview_instance.columns["test_column"].name == "test_column"
+        assert new_submissionview_instance2 is not None
+        assert custom_column in new_submissionview_instance2.columns
+        assert new_submissionview_instance2.columns[custom_column].name == custom_column
         assert (
-            new_submissionview_instance.columns["test_column"].column_type
+            new_submissionview_instance2.columns[custom_column].column_type
             == ColumnType.STRING
         )
 
-    async def test_create_submissionview_with_multiple_columns(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a project to work with
-
-        # AND an evaluation to use in the scope
-        evaluation = self.syn.store(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation.id)
-
-        # AND a submissionview with multiple columns
-        submissionview_name = str(uuid.uuid4())
-        submissionview_description = "Test submissionview"
-        submissionview = SubmissionView(
-            name=submissionview_name,
+        # Test Case 3: Submissionview with multiple custom columns
+        # GIVEN a submissionview with multiple columns
+        submissionview_name3 = str(uuid.uuid4())
+        submissionview_description3 = "Test submissionview with multiple columns"
+        custom_column1 = "test_column1"
+        custom_column2 = "test_column2"
+        submissionview3 = SubmissionView(
+            name=submissionview_name3,
             parent_id=project_model.id,
-            description=submissionview_description,
+            description=submissionview_description3,
             columns=[
-                Column(name="test_column", column_type=ColumnType.STRING),
-                Column(name="test_column2", column_type=ColumnType.INTEGER),
+                Column(name=custom_column1, column_type=ColumnType.STRING),
+                Column(name=custom_column2, column_type=ColumnType.INTEGER),
             ],
             scope_ids=[evaluation.id],
         )
 
         # WHEN I store the submissionview
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        submissionview3 = await submissionview3.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submissionview3.id)
 
-        # THEN the submissionview should be created
-        assert submissionview.id is not None
-
-        # AND I can retrieve that submissionview from Synapse
-        new_submissionview_instance = await SubmissionView(
-            id=submissionview.id
+        # THEN I can retrieve that submissionview with both columns
+        new_submissionview_instance3 = await SubmissionView(
+            id=submissionview3.id
         ).get_async(synapse_client=self.syn, include_columns=True)
-        assert new_submissionview_instance is not None
-        assert new_submissionview_instance.name == submissionview_name
-        assert new_submissionview_instance.id == submissionview.id
-        assert new_submissionview_instance.description == submissionview_description
-        assert "test_column" in new_submissionview_instance.columns
-        assert new_submissionview_instance.columns["test_column"].name == "test_column"
+        assert custom_column1 in new_submissionview_instance3.columns
+        assert custom_column2 in new_submissionview_instance3.columns
         assert (
-            new_submissionview_instance.columns["test_column"].column_type
+            new_submissionview_instance3.columns[custom_column1].column_type
             == ColumnType.STRING
         )
-        assert "test_column2" in new_submissionview_instance.columns
         assert (
-            new_submissionview_instance.columns["test_column2"].name == "test_column2"
-        )
-        assert (
-            new_submissionview_instance.columns["test_column2"].column_type
+            new_submissionview_instance3.columns[custom_column2].column_type
             == ColumnType.INTEGER
         )
 
-    async def test_create_submissionview_with_invalid_column(
+    async def test_create_submissionview_special_cases(
         self, project_model: Project
     ) -> None:
         # GIVEN a project to work with
-
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
             Evaluation(
@@ -192,87 +152,61 @@ class TestSubmissionViewCreation:
         )
         self.schedule_for_cleanup(evaluation.id)
 
-        # AND a submissionview with an invalid column
+        # Test Case 1: Creating a submissionview with an invalid column
+        # GIVEN a submissionview with an invalid column
         submissionview_name = str(uuid.uuid4())
-        submissionview_description = "Test submissionview"
         submissionview = SubmissionView(
             name=submissionview_name,
             parent_id=project_model.id,
-            description=submissionview_description,
+            description="Test submissionview with invalid column",
             columns=[
                 Column(
                     name="test_column",
                     column_type=ColumnType.STRING,
-                    maximum_size=999999999,
+                    maximum_size=999999999,  # Too large
                 )
             ],
             scope_ids=[evaluation.id],
         )
 
-        # WHEN I store the submissionview
+        # WHEN I try to store the submissionview
+        # THEN it should fail with a specific error
         with pytest.raises(SynapseHTTPError) as e:
             await submissionview.store_async(synapse_client=self.syn)
-
-        # THEN the submissionview should not be created
         assert (
             "400 Client Error: ColumnModel.maxSize for a STRING cannot exceed:"
             in str(e.value)
         )
 
-    async def test_create_submissionview_with_empty_scope(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a project to work with
-
-        # AND a submissionview with no scope
-        submissionview_name = str(uuid.uuid4())
-        submissionview_description = "Test submissionview"
-        submissionview = SubmissionView(
-            name=submissionview_name,
+        # Test Case 2: Creating a submissionview with empty scope
+        # GIVEN a submissionview with no scope
+        submissionview_name2 = str(uuid.uuid4())
+        submissionview2 = SubmissionView(
+            name=submissionview_name2,
             parent_id=project_model.id,
-            description=submissionview_description,
+            description="Test submissionview with empty scope",
             scope_ids=[],
         )
 
         # WHEN I store the submissionview
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        submissionview2 = await submissionview2.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submissionview2.id)
 
         # THEN the submissionview should be created but with empty scope
-        assert submissionview.id is not None
-
-        # AND I can retrieve that submissionview from Synapse
-        new_submissionview_instance = await SubmissionView(
-            id=submissionview.id
-        ).get_async(synapse_client=self.syn)
-        assert new_submissionview_instance is not None
-        assert len(new_submissionview_instance.scope_ids) == 0
-
-    async def test_create_submissionview_without_default_columns(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a project to work with
-
-        # AND an evaluation to use in the scope
-        evaluation = self.syn.store(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
+        retrieved_view = await SubmissionView(id=submissionview2.id).get_async(
+            synapse_client=self.syn
         )
-        self.schedule_for_cleanup(evaluation.id)
+        assert len(retrieved_view.scope_ids) == 0
 
-        # AND a submissionview with custom columns but no default columns
-        submissionview_name = str(uuid.uuid4())
-        submissionview_description = "Test submissionview without default columns"
+        # Test Case 3: Creating a submissionview without default columns
+        # GIVEN a submissionview with custom columns but no default columns
+        submissionview_name3 = str(uuid.uuid4())
         custom_column1 = "custom_column1"
         custom_column2 = "custom_column2"
-
-        submissionview = SubmissionView(
-            name=submissionview_name,
+        submissionview3 = SubmissionView(
+            name=submissionview_name3,
             parent_id=project_model.id,
-            description=submissionview_description,
+            description="Test submissionview without default columns",
             include_default_columns=False,
             columns=[
                 Column(name=custom_column1, column_type=ColumnType.STRING),
@@ -282,41 +216,29 @@ class TestSubmissionViewCreation:
         )
 
         # WHEN I store the submissionview
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        submissionview3 = await submissionview3.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submissionview3.id)
 
-        # THEN the submissionview should be created
-        assert submissionview.id is not None
-
-        # AND I can retrieve that submissionview from Synapse
-        new_submissionview_instance = await SubmissionView(
-            id=submissionview.id
-        ).get_async(synapse_client=self.syn, include_columns=True)
-        assert new_submissionview_instance is not None
-        assert new_submissionview_instance.name == submissionview_name
-        assert new_submissionview_instance.id == submissionview.id
-        assert new_submissionview_instance.description == submissionview_description
-
-        # AND the submissionview should only contain our custom columns
-        assert len(new_submissionview_instance.columns) == 2
-        assert custom_column1 in new_submissionview_instance.columns
-        assert custom_column2 in new_submissionview_instance.columns
-
-        # AND default columns like "id" should not be present
-        assert "id" not in new_submissionview_instance.columns
-        assert "name" not in new_submissionview_instance.columns
-        assert "createdOn" not in new_submissionview_instance.columns
+        # THEN the submissionview should only contain our custom columns
+        retrieved_view3 = await SubmissionView(id=submissionview3.id).get_async(
+            synapse_client=self.syn, include_columns=True
+        )
+        assert len(retrieved_view3.columns) == 2
+        assert custom_column1 in retrieved_view3.columns
+        assert custom_column2 in retrieved_view3.columns
+        assert "id" not in retrieved_view3.columns
+        assert "name" not in retrieved_view3.columns
+        assert "createdOn" not in retrieved_view3.columns
 
 
-class TestColumnModifications:
+class TestColumnAndScopeModifications:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_column_rename(self, project_model: Project) -> None:
+    async def test_column_modifications(self, project_model: Project) -> None:
         # GIVEN a project to work with
-
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
             Evaluation(
@@ -327,56 +249,11 @@ class TestColumnModifications:
         )
         self.schedule_for_cleanup(evaluation.id)
 
-        # AND a submissionview in Synapse
-        submissionview_name = str(uuid.uuid4())
-        old_column_name = "column_string"
-        old_submissionview_instance = SubmissionView(
-            name=submissionview_name,
-            parent_id=project_model.id,
-            columns=[Column(name=old_column_name, column_type=ColumnType.STRING)],
-            scope_ids=[evaluation.id],
-        )
-        old_submissionview_instance = await old_submissionview_instance.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(old_submissionview_instance.id)
-
-        # WHEN I rename the column
-        new_column_name = "new_column_string"
-        old_submissionview_instance.columns[old_column_name].name = new_column_name
-
-        # AND I store the submissionview
-        await old_submissionview_instance.store_async(synapse_client=self.syn)
-
-        # THEN the column name should be updated on the existing submissionview instance
-        assert old_submissionview_instance.columns[new_column_name] is not None
-        assert old_column_name not in old_submissionview_instance.columns
-
-        # AND the new column name should be reflected in the Synapse submissionview
-        new_submissionview_instance = await SubmissionView(
-            id=old_submissionview_instance.id
-        ).get_async(synapse_client=self.syn)
-        assert new_submissionview_instance.columns[new_column_name] is not None
-        assert old_column_name not in new_submissionview_instance.columns
-
-    async def test_delete_column(self, project_model: Project) -> None:
-        # GIVEN a project to work with
-
-        # AND an evaluation to use in the scope
-        evaluation = self.syn.store(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation.id)
-
-        # AND a submissionview in Synapse
+        # AND a submissionview in Synapse with two columns
         submissionview_name = str(uuid.uuid4())
         old_column_name = "column_string"
         column_to_keep = "column_to_keep"
-        old_submissionview_instance = SubmissionView(
+        submissionview = SubmissionView(
             name=submissionview_name,
             parent_id=project_model.id,
             columns=[
@@ -385,229 +262,49 @@ class TestColumnModifications:
             ],
             scope_ids=[evaluation.id],
         )
-        old_submissionview_instance = await old_submissionview_instance.store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(old_submissionview_instance.id)
+        submissionview = await submissionview.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submissionview.id)
 
-        # WHEN I delete the column
-        old_submissionview_instance.delete_column(name=old_column_name)
+        # Test Case 1: Rename column
+        # WHEN I rename the column
+        new_column_name = "new_column_string"
+        submissionview.columns[old_column_name].name = new_column_name
 
         # AND I store the submissionview
-        await old_submissionview_instance.store_async(synapse_client=self.syn)
+        await submissionview.store_async(synapse_client=self.syn)
+
+        # THEN the column name should be updated on the existing submissionview instance
+        assert submissionview.columns[new_column_name] is not None
+        assert old_column_name not in submissionview.columns
+
+        # AND the new column name should be reflected in the Synapse submissionview
+        updated_view = await SubmissionView(id=submissionview.id).get_async(
+            synapse_client=self.syn
+        )
+        assert new_column_name in updated_view.columns
+        assert old_column_name not in updated_view.columns
+
+        # Test Case 2: Delete column
+        # WHEN I delete the renamed column
+        submissionview.delete_column(name=new_column_name)
+
+        # AND I store the submissionview
+        await submissionview.store_async(synapse_client=self.syn)
 
         # THEN the column should be removed from the submissionview instance
-        assert old_column_name not in old_submissionview_instance.columns
-
-        # AND the column to keep should still be in the submissionview instance
-        assert column_to_keep in old_submissionview_instance.columns
+        assert new_column_name not in submissionview.columns
+        assert column_to_keep in submissionview.columns
 
         # AND the column should be removed from the Synapse submissionview
-        new_submissionview_instance = await SubmissionView(
-            id=old_submissionview_instance.id
-        ).get_async(synapse_client=self.syn)
-        assert old_column_name not in new_submissionview_instance.columns
+        updated_view2 = await SubmissionView(id=submissionview.id).get_async(
+            synapse_client=self.syn
+        )
+        assert new_column_name not in updated_view2.columns
+        assert column_to_keep in updated_view2.columns
 
-        # AND the column to keep should still be in the Synapse submissionview
-        assert column_to_keep in new_submissionview_instance.columns
-
-
-class TestQuerying:
-    @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
-        self.syn = syn
-        self.schedule_for_cleanup = schedule_for_cleanup
-
-    async def test_query_submission_view(self, project_model: Project) -> None:
+    async def test_scope_modifications(self, project_model: Project) -> None:
         # GIVEN a project to work with
-
-        # AND an evaluation to use in the scope
-        evaluation = self.syn.store(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation.id)
-
-        # AND a submissionview
-        submissionview_name = str(uuid.uuid4())
-        submissionview = SubmissionView(
-            name=submissionview_name,
-            parent_id=project_model.id,
-            scope_ids=[evaluation.id],
-        )
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
-
-        # WHEN I query the submissionview
-        results = await submissionview.query_async(
-            f"SELECT * FROM {submissionview.id}",
-            synapse_client=self.syn,
-        )
-
-        # THEN results should be returned (even if empty)
-        assert results is not None
-        assert isinstance(results, pd.DataFrame)
-
-    async def test_part_mask_query(self, project_model: Project) -> None:
-        # GIVEN a project to work with
-
-        # AND an evaluation to use in the scope
-        evaluation = self.syn.store(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation.id)
-
-        # AND a submissionview
-        submissionview_name = str(uuid.uuid4())
-        submissionview = SubmissionView(
-            name=submissionview_name,
-            parent_id=project_model.id,
-            scope_ids=[evaluation.id],
-        )
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
-
-        # WHEN I query the submissionview with a part mask
-        query_results = 0x1
-        query_count = 0x2
-        last_updated_on = 0x80
-        part_mask = query_results | query_count | last_updated_on
-
-        results = await query_part_mask_async(
-            query=f"SELECT * FROM {submissionview.id}",
-            synapse_client=self.syn,
-            part_mask=part_mask,
-        )
-
-        # THEN the part mask should be reflected in the results
-        assert results is not None
-        assert results.result is not None
-        assert results.count is not None
-        assert results.last_updated_on is not None
-
-
-class TestSubmissionViewSnapshot:
-    @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
-        self.syn = syn
-        self.schedule_for_cleanup = schedule_for_cleanup
-
-    async def test_snapshot_with_activity(self, project_model: Project) -> None:
-        # GIVEN a project to work with
-
-        # AND an evaluation to use in the scope
-        evaluation = self.syn.store(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission view",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation.id)
-
-        # AND a submissionview with activity
-        submissionview_name = str(uuid.uuid4())
-        submissionview_description = "Test submissionview"
-        submissionview = SubmissionView(
-            name=submissionview_name,
-            parent_id=project_model.id,
-            description=submissionview_description,
-            scope_ids=[evaluation.id],
-            activity=Activity(
-                name="Activity for snapshot",
-                used=[UsedURL(name="Synapse", url="https://synapse.org")],
-            ),
-        )
-
-        # AND the submissionview is stored in Synapse
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
-        assert submissionview.id is not None
-
-        # WHEN I snapshot the submissionview
-        snapshot = await submissionview.snapshot_async(
-            comment="My snapshot",
-            label="My snapshot label",
-            include_activity=True,
-            associate_activity_to_new_version=True,
-            synapse_client=self.syn,
-        )
-
-        # THEN the view should be snapshotted
-        assert snapshot.results is not None
-
-        # AND getting the first version of the submissionview should return the snapshot instance
-        snapshot_instance = await SubmissionView(
-            id=submissionview.id, version_number=1
-        ).get_async(synapse_client=self.syn, include_activity=True)
-        assert snapshot_instance is not None
-        assert snapshot_instance.version_number == 1
-        assert snapshot_instance.id == submissionview.id
-        assert snapshot_instance.name == submissionview_name
-        assert snapshot_instance.description == submissionview_description
-        assert snapshot_instance.version_comment == "My snapshot"
-        assert snapshot_instance.version_label == "My snapshot label"
-        assert snapshot_instance.activity.name == "Activity for snapshot"
-        assert snapshot_instance.activity.used[0].name == "Synapse"
-        assert snapshot_instance.activity.used[0].url == "https://synapse.org"
-
-        # AND The activity should be associated with the new version
-        newest_instance = await SubmissionView(id=submissionview.id).get_async(
-            synapse_client=self.syn, include_activity=True
-        )
-        assert newest_instance.version_number == 2
-        assert newest_instance.activity is not None
-        assert newest_instance.activity.name == "Activity for snapshot"
-
-    async def test_snapshot_with_no_scope(self, project_model: Project) -> None:
-        # GIVEN a project to work with
-
-        # AND a submissionview with no scope
-        submissionview_name = str(uuid.uuid4())
-        submissionview_description = "Test submissionview"
-        submissionview = SubmissionView(
-            name=submissionview_name,
-            parent_id=project_model.id,
-            description=submissionview_description,
-        )
-
-        # AND the submissionview is stored in Synapse
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
-        assert submissionview.id is not None
-
-        # WHEN I snapshot the submissionview
-        with pytest.raises(SynapseHTTPError) as e:
-            await submissionview.snapshot_async(
-                comment="My snapshot",
-                label="My snapshot label",
-                synapse_client=self.syn,
-            )
-
-        # THEN the submissionview should not be snapshot
-        assert (
-            "400 Client Error: You cannot create a version of a view that has no scope."
-            in str(e.value)
-        )
-
-
-class TestUpdateScope:
-    @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
-        self.syn = syn
-        self.schedule_for_cleanup = schedule_for_cleanup
-
-    async def test_update_scope(self, project_model: Project) -> None:
-        # GIVEN a project to work with
-
-        # AND two evaluations
+        # AND two evaluations for testing scope changes
         evaluation1 = self.syn.store(
             Evaluation(
                 name=str(uuid.uuid4()),
@@ -636,6 +333,7 @@ class TestUpdateScope:
         submissionview = await submissionview.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(submissionview.id)
 
+        # Test Case 1: Update scope to include multiple evaluations
         # WHEN I update the scope to include both evaluations
         submissionview.scope_ids = [evaluation1.id, evaluation2.id]
         updated_submissionview = await submissionview.store_async(
@@ -647,24 +345,44 @@ class TestUpdateScope:
         assert evaluation1.id in updated_submissionview.scope_ids
         assert evaluation2.id in updated_submissionview.scope_ids
 
-        # AND when I retrieve the submissionview from Synapse
+        # AND when I retrieve the submissionview from Synapse it should have both evaluations
         retrieved_submissionview = await SubmissionView(id=submissionview.id).get_async(
             synapse_client=self.syn
         )
-
-        # THEN it should have both evaluations in its scope
         assert len(retrieved_submissionview.scope_ids) == 2
         assert evaluation1.id in retrieved_submissionview.scope_ids
         assert evaluation2.id in retrieved_submissionview.scope_ids
 
-    async def test_clear_scope(self, project_model: Project) -> None:
-        # GIVEN a project to work with
+        # Test Case 2: Clear scope completely
+        # WHEN I clear the scope
+        submissionview.scope_ids = []
+        cleared_submissionview = await submissionview.store_async(
+            synapse_client=self.syn
+        )
 
+        # THEN the submissionview should have an empty scope
+        assert len(cleared_submissionview.scope_ids) == 0
+
+        # AND when I retrieve the submissionview from Synapse it should have empty scope
+        retrieved_submissionview2 = await SubmissionView(
+            id=submissionview.id
+        ).get_async(synapse_client=self.syn)
+        assert len(retrieved_submissionview2.scope_ids) == 0
+
+
+class TestQuerying:
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    async def test_query_submissionview(self, project_model: Project) -> None:
+        # GIVEN a project to work with
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
             Evaluation(
                 name=str(uuid.uuid4()),
-                description="Test evaluation",
+                description="Test evaluation for submission view",
                 contentSource=project_model.id,
             )
         )
@@ -680,22 +398,131 @@ class TestUpdateScope:
         submissionview = await submissionview.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(submissionview.id)
 
-        # WHEN I clear the scope
-        submissionview.scope_ids = []
-        updated_submissionview = await submissionview.store_async(
-            synapse_client=self.syn
+        # Test Case 1: Simple query
+        # WHEN I query the submissionview with a standard query
+        results = await submissionview.query_async(
+            f"SELECT * FROM {submissionview.id}",
+            synapse_client=self.syn,
         )
 
-        # THEN the submissionview should have an empty scope
-        assert len(updated_submissionview.scope_ids) == 0
+        # THEN results should be returned (even if empty)
+        assert results is not None
+        assert isinstance(results, pd.DataFrame)
 
-        # AND when I retrieve the submissionview from Synapse
-        retrieved_submissionview = await SubmissionView(id=submissionview.id).get_async(
-            synapse_client=self.syn
+        # Test Case 2: Query with part mask
+        # WHEN I query the submissionview with a part mask
+        query_results = 0x1
+        query_count = 0x2
+        last_updated_on = 0x80
+        part_mask = query_results | query_count | last_updated_on
+
+        mask_results = await query_part_mask_async(
+            query=f"SELECT * FROM {submissionview.id}",
+            synapse_client=self.syn,
+            part_mask=part_mask,
         )
 
-        # THEN it should have an empty scope
-        assert len(retrieved_submissionview.scope_ids) == 0
+        # THEN the part mask should be reflected in the results
+        assert mask_results is not None
+        assert mask_results.result is not None
+        assert mask_results.count is not None
+        assert mask_results.last_updated_on is not None
+
+
+class TestSnapshotting:
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    async def test_submissionview_snapshots(self, project_model: Project) -> None:
+        # GIVEN a project to work with
+        # AND an evaluation to use in the scope
+        evaluation = self.syn.store(
+            Evaluation(
+                name=str(uuid.uuid4()),
+                description="Test evaluation for submission view",
+                contentSource=project_model.id,
+            )
+        )
+        self.schedule_for_cleanup(evaluation.id)
+
+        # Test Case 1: Snapshot with Activity
+        # GIVEN a submissionview with activity
+        submissionview_name = str(uuid.uuid4())
+        submissionview_description = "Test submissionview"
+        submissionview = SubmissionView(
+            name=submissionview_name,
+            parent_id=project_model.id,
+            description=submissionview_description,
+            scope_ids=[evaluation.id],
+            activity=Activity(
+                name="Activity for snapshot",
+                used=[UsedURL(name="Synapse", url="https://synapse.org")],
+            ),
+        )
+
+        # AND the submissionview is stored in Synapse
+        submissionview = await submissionview.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submissionview.id)
+
+        # WHEN I snapshot the submissionview
+        snapshot = await submissionview.snapshot_async(
+            comment="My snapshot",
+            label="My snapshot label",
+            include_activity=True,
+            associate_activity_to_new_version=True,
+            synapse_client=self.syn,
+        )
+
+        # THEN the view should be snapshotted
+        assert snapshot.results is not None
+
+        # AND getting the first version should return the snapshot instance
+        snapshot_instance = await SubmissionView(
+            id=submissionview.id, version_number=1
+        ).get_async(synapse_client=self.syn, include_activity=True)
+        assert snapshot_instance is not None
+        assert snapshot_instance.version_number == 1
+        assert snapshot_instance.id == submissionview.id
+        assert snapshot_instance.version_comment == "My snapshot"
+        assert snapshot_instance.version_label == "My snapshot label"
+        assert snapshot_instance.activity.name == "Activity for snapshot"
+        assert snapshot_instance.activity.used[0].name == "Synapse"
+
+        # AND The activity should be associated with the new version
+        newest_instance = await SubmissionView(id=submissionview.id).get_async(
+            synapse_client=self.syn, include_activity=True
+        )
+        assert newest_instance.version_number == 2
+        assert newest_instance.activity is not None
+        assert newest_instance.activity.name == "Activity for snapshot"
+
+        # Test Case 2: Snapshot with no scope
+        # GIVEN a submissionview with no scope
+        empty_view_name = str(uuid.uuid4())
+        empty_view = SubmissionView(
+            name=empty_view_name,
+            parent_id=project_model.id,
+            description="Test submissionview with no scope",
+        )
+
+        # AND the submissionview is stored in Synapse
+        empty_view = await empty_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(empty_view.id)
+
+        # WHEN I try to snapshot the submissionview
+        # THEN it should fail with a specific error
+        with pytest.raises(SynapseHTTPError) as e:
+            await empty_view.snapshot_async(
+                comment="My snapshot",
+                label="My snapshot label",
+                synapse_client=self.syn,
+            )
+        assert (
+            "400 Client Error: You cannot create a version of a view that has no scope."
+            in str(e.value)
+        )
 
 
 class TestSubmissionViewWithSubmissions:
@@ -704,10 +531,8 @@ class TestSubmissionViewWithSubmissions:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_submission_view_with_submissions(
-        self, project_model: Project
-    ) -> None:
-        """Test that submissions to an evaluation appear in a submission view."""
+    async def test_submission_lifecycle(self, project_model: Project) -> None:
+        """Test submission lifecycle in a submission view: adding and removing submissions."""
         # GIVEN an evaluation
         evaluation = self.syn.store(
             Evaluation(
@@ -722,122 +547,31 @@ class TestSubmissionViewWithSubmissions:
         submissionview = SubmissionView(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
-            description="Test submissionview with submissions",
+            description="Test submissionview for submissions",
             scope_ids=[evaluation.id],
         )
         submissionview = await submissionview.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(submissionview.id)
 
-        # WHEN I create and upload test files for submission
-        files = []
-        for i in range(3):
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False
-            ) as f:
-                filename = f.name
-                f.write(f"Test content for submission {i}")
-
-                self.schedule_for_cleanup(filename)
-
-            file_entity = File(
-                path=filename, parent_id=project_model.id, name=f"Test file {i}"
-            )
-            file_entity = await file_entity.store_async(synapse_client=self.syn)
-            self.schedule_for_cleanup(file_entity.id)
-            files.append(file_entity)
-
-        # AND submit these files to the evaluation
-        submissions = []
-        for i, file_entity in enumerate(files):
-            submission = self.syn.submit(
-                evaluation,
-                file_entity.id,  # Use the file ID for submission
-                name=f"Submission {i}",
-                submitterAlias=f"Test submitter {i}",
-            )
-            submissions.append(submission)
-
-        # THEN eventually the submissions should appear in the submission view
-        # (retry because of eventual consistency)
-        max_attempts = 10
-        wait_seconds = 3
-        success = False
-
-        for attempt in range(max_attempts):
-            # Query the view to see if submissions are available
-            results = await submissionview.query_async(
-                f"SELECT * FROM {submissionview.id}",
-                synapse_client=self.syn,
-            )
-
-            if len(results) == len(submissions):
-                success = True
-                break
-
-            # Wait before retrying
-            await asyncio.sleep(wait_seconds)
-            wait_seconds *= 1.5  # Exponential backoff
-
-        assert (
-            success
-        ), f"Submissions did not appear in the view after {max_attempts} attempts"
-
-        # Verify that we have the expected number of submissions
-        assert len(results) == len(submissions)
-
-        # Verify that each submission name exists in the results
-        for i in range(len(submissions)):
-            submission_name = f"Submission {i}"
-            matching_rows = results[results["name"] == submission_name]
-            assert (
-                len(matching_rows) > 0
-            ), f"Expected submission with name {submission_name} not found"
-
-    async def test_submission_removal_from_evaluation(
-        self, project_model: Project
-    ) -> None:
-        """Test that when a submission is deleted, it is removed from the submission view."""
-        # GIVEN an evaluation
-        evaluation = self.syn.store(
-            Evaluation(
-                name=str(uuid.uuid4()),
-                description="Test evaluation for submission removal",
-                contentSource=project_model.id,
-            )
-        )
-        self.schedule_for_cleanup(evaluation.id)
-
-        # AND a submissionview that includes the evaluation
-        submissionview = SubmissionView(
-            name=str(uuid.uuid4()),
-            parent_id=project_model.id,
-            description="Test submissionview for deletion",
-            scope_ids=[evaluation.id],
-        )
-        submissionview = await submissionview.store_async(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
-
-        # AND a file is submitted to the evaluation
+        # AND a file for submission
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             filename = f.name
-            f.write("Test content for submission that will be deleted")
+            f.write("Test content for submission")
             self.schedule_for_cleanup(filename)
 
-        file_entity = File(
-            path=filename, parent_id=project_model.id, name="Test file for deletion"
-        )
+        file_entity = File(path=filename, parent_id=project_model.id, name="Test file")
         file_entity = await file_entity.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(file_entity.id)
 
-        # Submit the file to the evaluation
+        # WHEN I submit the file to the evaluation
         submission = self.syn.submit(
             evaluation,
-            file_entity.id,  # Use the file ID for submission
-            name="Submission to be deleted",
+            file_entity.id,
+            name="Test submission",
             submitterAlias="Test submitter",
         )
 
-        # Wait for the submission to appear in the view (handle eventual consistency)
+        # THEN eventually the submission should appear in the submission view
         max_attempts = 10
         wait_seconds = 3
         success = False
@@ -856,6 +590,8 @@ class TestSubmissionViewWithSubmissions:
             wait_seconds *= 1.5
 
         assert success, "Submission did not appear in the view"
+        assert len(results) == 1
+        assert results["name"].iloc[0] == "Test submission"
 
         # WHEN I delete the submission
         self.syn.restDELETE(f"/evaluation/submission/{submission.id}")
@@ -878,3 +614,86 @@ class TestSubmissionViewWithSubmissions:
             wait_seconds *= 1.5
 
         assert success, "Deleted submission still appears in the view"
+
+    async def test_multiple_submissions(self, project_model: Project) -> None:
+        """Test that multiple submissions to an evaluation appear in a submission view."""
+        # GIVEN an evaluation
+        evaluation = self.syn.store(
+            Evaluation(
+                name=str(uuid.uuid4()),
+                description="Test evaluation for multiple submissions",
+                contentSource=project_model.id,
+            )
+        )
+        self.schedule_for_cleanup(evaluation.id)
+
+        # AND a submissionview that includes the evaluation
+        submissionview = SubmissionView(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            description="Test submissionview for multiple submissions",
+            scope_ids=[evaluation.id],
+        )
+        submissionview = await submissionview.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submissionview.id)
+
+        # WHEN I create and upload multiple test files for submission
+        files = []
+        submissions = []
+
+        for i in range(3):
+            # Create test file
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False
+            ) as f:
+                filename = f.name
+                f.write(f"Test content for submission {i}")
+                self.schedule_for_cleanup(filename)
+
+            # Store file in Synapse
+            file_entity = File(
+                path=filename, parent_id=project_model.id, name=f"Test file {i}"
+            )
+            file_entity = await file_entity.store_async(synapse_client=self.syn)
+            self.schedule_for_cleanup(file_entity.id)
+            files.append(file_entity)
+
+            # Submit to evaluation
+            submission = self.syn.submit(
+                evaluation,
+                file_entity.id,
+                name=f"Submission {i}",
+                submitterAlias=f"Test submitter {i}",
+            )
+            submissions.append(submission)
+
+        # THEN eventually all submissions should appear in the submission view
+        max_attempts = 10
+        wait_seconds = 3
+        success = False
+
+        for attempt in range(max_attempts):
+            results = await submissionview.query_async(
+                f"SELECT * FROM {submissionview.id}",
+                synapse_client=self.syn,
+            )
+
+            if len(results) == len(submissions):
+                success = True
+                break
+
+            await asyncio.sleep(wait_seconds)
+            wait_seconds *= 1.5
+
+        assert (
+            success
+        ), f"Submissions did not appear in the view after {max_attempts} attempts"
+        assert len(results) == len(submissions)
+
+        # Verify each submission is present
+        for i in range(len(submissions)):
+            submission_name = f"Submission {i}"
+            matching_rows = results[results["name"] == submission_name]
+            assert (
+                len(matching_rows) > 0
+            ), f"Expected submission {submission_name} not found"
