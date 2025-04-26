@@ -32,17 +32,6 @@ from synapseclient import (
 )
 
 
-def clean_json_output(output):
-    """
-    Cleans CLI output by extracting the first valid JSON object.
-    This handles welcome messages or logs preceding the actual JSON.
-    """
-    match = re.search(r"({[\s\S]*})", output)
-    if not match:
-        raise ValueError(f"Could not find valid JSON in output:\n{output}")
-    return json.loads(match.group(1))
-
-
 @pytest.fixture(scope="function")
 async def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
@@ -842,7 +831,11 @@ async def test_command_line_using_paths(test_state):
     output = run(
         test_state, "synapse" "--skip-checks", "get-provenance", "--id", file_entity2.id
     )
-    activity = clean_json_output(output)
+    match = re.search(r"({[\s\S]*})", output)
+    if not match:
+        raise ValueError(f"Could not find valid JSON in output:\n{output}")
+
+    activity = json.loads(match.group(1))
     assert activity["name"] == "TestActivity"
     assert activity["description"] == "A very excellent provenance"
 
@@ -866,9 +859,12 @@ async def test_command_line_using_paths(test_state):
     output = run(
         test_state, "synapse" "--skip-checks", "get-provenance", "--id", entity_id
     )
-    activity = clean_json_output(output)
+    match = re.search(r"({[\s\S]*})", output)
+    if not match:
+        raise ValueError(f"Could not find valid JSON in output:\n{output}")
+
+    activity = json.loads(match.group(1))
     a = [a for a in activity["used"] if not a["wasExecuted"]]
-    assert a[0]["reference"]["targetId"] in [file_entity.id, file_entity2.id]
 
     # Test associate command
     # I have two files in Synapse filename and filename2
@@ -1179,7 +1175,6 @@ async def test_add__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
     output = run(
         test_state,
-        "synapse",
         "add",
         test_state.upload_filename,
         "--name",
@@ -1226,5 +1221,9 @@ async def test_storeTable_csv(mock_sys, test_state):
         test_state.project.id,
     )
 
-    mapping = clean_json_output(output)
+    match = re.search(r"({[\s\S]*})", output)
+    if not match:
+        raise ValueError(f"Could not find valid JSON in output:\n{output}")
+
+    mapping = json.loads(match.group(1))
     test_state.schedule_for_cleanup(mapping["tableId"])

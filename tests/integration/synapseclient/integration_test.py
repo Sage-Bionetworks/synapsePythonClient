@@ -59,16 +59,16 @@ async def test_login(syn):
         syn.logout()
         assert syn.credentials == None
 
-        # login with config file no username
+        # Login by profile
         syn.login(profile=profile, silent=True)
         assert syn.credentials.username == username
 
-        # Login with ID only from config file
-        syn.login(profile=profile, silent=True)
-        assert syn.credentials.username == username
-
-        # Login with auth token
+        # Login by auth token
         syn.login(authToken=authtoken, silent=True)
+        assert syn.credentials.username == username
+
+        # Login by positional username
+        syn.login(email=username, profile=None, silent=True)
         assert syn.credentials.username == username
 
         # Login with ID not matching username

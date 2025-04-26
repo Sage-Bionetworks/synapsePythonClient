@@ -441,7 +441,7 @@ def test_login_with_prompt__user_supplied(mocker, syn):
 
     cmdline.login_with_prompt(syn=syn, user=username, password=None)
     mock_input.assert_called_once_with(
-        "Configuration profile name (Optional, 'default' used if not specified)): "
+        "Configuration profile name (Optional, 'default' used if not specified): "
     )
     mock_authenticate_login.assert_called_with(
         syn=syn,
