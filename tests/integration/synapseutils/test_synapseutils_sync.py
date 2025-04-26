@@ -8,6 +8,7 @@ from typing import Callable
 
 import pandas as pd
 import pytest
+import pytest_asyncio
 
 import synapseclient.core.utils as utils
 import synapseutils
@@ -76,8 +77,7 @@ ETAG = "etag"
 MODIFIED_ON = "modifiedOn"
 
 
-@pytest.mark.asyncio(scope="session")
-@pytest.fixture(scope="function", autouse=True)
+@pytest_asyncio.fixture(loop_scope="function", scope="function", autouse=True)
 async def test_state(syn: Synapse, schedule_for_cleanup: Callable[..., None]):
     class TestState:
         def __init__(self):

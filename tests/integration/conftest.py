@@ -45,12 +45,12 @@ def pytest_collection_modifyitems(items) -> None:
     all tests.
     """
     pytest_asyncio_tests = (item for item in items if is_async_test(item))
-    session_scope_marker = pytest.mark.asyncio(scope="session")
+    session_scope_marker = pytest.mark.asyncio(loop_scope="session")
     for async_test in pytest_asyncio_tests:
         async_test.add_marker(session_scope_marker, append=False)
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 def syn(request) -> Synapse:
     """
     Create a logged in Synapse instance that can be shared by all tests in the session.
@@ -79,7 +79,7 @@ def syn(request) -> Synapse:
     return syn
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def project_model(request, syn: Synapse) -> Project_Model:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
@@ -99,7 +99,7 @@ async def project_model(request, syn: Synapse) -> Project_Model:
     return proj
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def project(request, syn: Synapse) -> Project:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
@@ -133,7 +133,7 @@ def clear_cache() -> None:
     get_upload_destination.cache_clear()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def schedule_for_cleanup(request, syn: Synapse):
     """Returns a closure that takes an item that should be scheduled for cleanup.
     The cleanup will occur after the session finish to allow the deletes to take

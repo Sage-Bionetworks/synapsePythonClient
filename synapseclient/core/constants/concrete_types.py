@@ -67,6 +67,9 @@ LINK_ENTITY = "org.sagebionetworks.repo.model.Link"
 PROJECT_ENTITY = "org.sagebionetworks.repo.model.Project"
 TABLE_ENTITY = "org.sagebionetworks.repo.model.table.TableEntity"
 DATASET_ENTITY = "org.sagebionetworks.repo.model.table.Dataset"
+DATASET_COLLECTION_ENTITY = "org.sagebionetworks.repo.model.table.DatasetCollection"
+ENTITY_VIEW = "org.sagebionetworks.repo.model.table.EntityView"
+MATERIALIZED_VIEW = "org.sagebionetworks.repo.model.table.MaterializedView"
 
 # upload requests
 MULTIPART_UPLOAD_REQUEST = "org.sagebionetworks.repo.model.file.MultipartUploadRequest"

@@ -151,7 +151,7 @@ def async_to_sync(cls):
 
     methods_to_update = []
     for k in methods:
-        if "async" in k and (new_method_name := k.replace("_async", "")) not in methods:
+        if "async" in k and (new_method_name := k.replace("_async", "")):
             new_method = create_method(k)
 
             new_method.fn.__name__ = new_method_name

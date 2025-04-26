@@ -44,11 +44,25 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Example: Using this function:
             Getting permissions for a Synapse Entity
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
                 permissions = await File(id="syn123").get_permissions_async()
+
+            asyncio.run(main())
+            ```
 
             Getting access types list from the Permissions object
 
-                permissions.access_types
+            ```
+            permissions.access_types
+            ```
         """
         loop = asyncio.get_event_loop()
 
@@ -134,11 +148,35 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Example: Setting permissions
             Grant all registered users download access
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
                 await File(id="syn123").set_permissions_async(principal_id=273948, access_type=['READ','DOWNLOAD'])
+
+            asyncio.run(main())
+            ```
 
             Grant the public view access
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
                 await File(id="syn123").set_permissions_async(principal_id=273949, access_type=['READ'])
+
+            asyncio.run(main())
+            ```
         """
         if access_type is None:
             access_type = ["READ", "DOWNLOAD"]

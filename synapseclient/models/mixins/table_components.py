@@ -1,61 +1,68 @@
-"""Mixin for objects that may perform table like operations such as managing columns
-or querying for data."""
-
 import asyncio
 import hashlib
 import json
 import logging
 import os
+import re
 import tempfile
+import time
 import uuid
 from collections import OrderedDict
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Protocol, Tuple, TypeVar, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing_extensions import Self
 
-from synapseclient import Column as Synapse_Column
 from synapseclient import Synapse
 from synapseclient.api import (
+    ViewEntityType,
+    ViewTypeMask,
     delete_entity,
     get_columns,
+    get_default_columns,
     get_from_entity_factory,
     post_columns,
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.constants import concrete_types
+from synapseclient.core.exceptions import SynapseTimeoutError
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_dataframe_async,
     multipart_upload_file_async,
     multipart_upload_partial_file_async,
 )
-from synapseclient.core.utils import (
-    MB,
-    delete_none_keys,
-    log_dataclass_diff,
-    merge_dataclass_entities,
-)
+from synapseclient.core.utils import MB, log_dataclass_diff, merge_dataclass_entities
 from synapseclient.models import Activity
-from synapseclient.models.mixins import AsynchronousCommunicator
-from synapseclient.models.protocols.table_operator_protocol import (
-    TableOperatorSynchronousProtocol,
-    TableRowOperatorSynchronousProtocol,
-)
-from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
 )
+from synapseclient.models.table_components import (
+    AppendableRowSetRequest,
+    Column,
+    ColumnChange,
+    ColumnExpansionStrategy,
+    ColumnType,
+    CsvTableDescriptor,
+    PartialRow,
+    PartialRowSet,
+    QueryResultBundle,
+    SchemaStorageStrategy,
+    SnapshotRequest,
+    SumFileSizes,
+    TableSchemaChangeRequest,
+    TableUpdateTransaction,
+    UploadToTableRequest,
+)
 
-CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset"]
+CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView", "DatasetCollection"]
+CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView"]
 
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
@@ -67,7 +74,6 @@ PANDAS_TABLE_TYPE = {
     "datetime": "DATE",
     "date": "DATE",
 }
-
 
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
@@ -88,6 +94,7 @@ SERIES_TYPE = TypeVar("pd.Series")
 
 
 def test_import_pandas() -> None:
+    """This function is called within other functions and methods to ensure that pandas is installed."""
     try:
         import pandas as pd  # noqa F401
     # used to catch when pandas isn't installed
@@ -106,47 +113,11 @@ def test_import_pandas() -> None:
 
 
 @dataclass
-class SumFileSizes:
-    sum_file_size_bytes: int
-    """The sum of the file size in bytes."""
-
-    greater_than: bool
-    """When true, the actual sum of the files sizes is greater than the value provided with 'sum_file_size_bytes'. When false, the actual sum of the files sizes is equals the value provided with 'sum_file_size_bytes'"""
-
-
-@dataclass
-class QueryResultBundle:
+class TableBase:
+    """Base class for any `Table`-like entities in Synapse.
+    Provides the minimum required attributes for any such entity.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableEntity.html>
     """
-    The result of querying Synapse with an included `part_mask`. This class contains a
-    subnet of the available items that may be returned by specifying a `part_mask`.
-
-
-    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
-    """
-
-    result: "DATA_FRAME_TYPE"
-    """The result of the query"""
-
-    count: Optional[int] = None
-    """The total number of rows that match the query. Use mask = 0x2 to include in the
-    bundle."""
-
-    sum_file_sizes: Optional[SumFileSizes] = None
-    """The sum of the file size for all files in the given view query. Use mask = 0x40
-    to include in the bundle."""
-
-    last_updated_on: Optional[str] = None
-    """The date-time when this table/view was last updated. Note: Since views are
-    eventually consistent a view might still be out-of-date even if it was recently
-    updated. Use mask = 0x80 to include in the bundle. This is returned in the
-    ISO8601 format like `2000-01-01T00:00:00.000Z`."""
-
-
-@async_to_sync
-class TableOperator(TableOperatorSynchronousProtocol):
-    """Mixin that extends the functionality of any `table` like entities in Synapse
-    to perform a number of operations on the entity such as getting, deleting, or
-    updating columns, querying for data, and more."""
 
     id: None = None
     name: None = None
@@ -156,22 +127,72 @@ class TableOperator(TableOperatorSynchronousProtocol):
     _last_persistent_instance: None = None
     _columns_to_delete: Optional[Dict] = None
 
-    def _set_last_persistent_instance(self) -> None:
-        """Used to satisfy the usage in this mixin from the parent class."""
 
-    def to_synapse_request(self) -> Dict:
-        """Used to satisfy the usage in this mixin from the parent class."""
+@dataclass
+class ViewBase(TableBase):
+    """A class that extends TableBase for additional attributes specific to `View`-like objects.
 
-    def fill_from_dict(self, entity: Dict, set_annotations: bool) -> None:
-        """Used to satisfy the usage in this mixin from the parent class."""
+    In the Synapse API, a `View` is a sub-category of the `Table` model interface which includes other `Table`-like
+    entities including: `SubmissionView`, `EntityView`, and `Dataset`.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/View.html>
+    """
 
-    @property
-    def has_changed(self) -> bool:
-        """Used to satisfy the usage in this mixin from the parent class."""
+    view_entity_type: Optional[ViewEntityType] = field(default=None, compare=False)
+    """
+    The type of view. This is used to determine the default columns that are
+    added to the table. Must be defined as a `ViewEntityType` enum.
+    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ViewEntityType.html>
+    """
 
-    @property
-    def has_columns_changed(self) -> bool:
-        """Used to satisfy the usage in this mixin from the parent class."""
+    view_type_mask: Optional[ViewTypeMask] = field(default=None, compare=False)
+    """
+    Bit mask representing the types to include in the view. This is used to determine
+    the default columns that are added to the table. Must be defined as a `ViewTypeMask` enum.
+    <https://rest-docs.synapse.org/rest/GET/column/tableview/defaults.html>
+    """
+
+    include_default_columns: Optional[bool] = field(default=True, compare=False)
+    """
+    When creating a entityview or view, specifies if default columns should be included.
+    Default columns are columns that are automatically added to the entityview or view. These
+    columns are managed by Synapse and cannot be modified. If you attempt to create a
+    column with the same name as a default column, you will receive a warning when you
+    store the entityview.
+
+    **`include_default_columns` is only used if this is the first time that the view is
+    being stored.** If you are updating an existing view this attribute will be ignored.
+    If you want to add all default columns back to your view then you may use this code
+    snippet to accomplish this:
+
+    ```python
+    import asyncio
+    from synapseclient import Synapse
+    from synapseclient.models import EntityView # May also use: Dataset
+
+    syn = Synapse()
+    syn.login()
+
+    async def main():
+        view = await EntityView(id="syn1234").get_async()
+        await view._append_default_columns()
+        await view.store_async()
+
+    asyncio.run(main())
+    ```
+
+    The column you are overriding will not behave the same as a default column. For
+    example, suppose you create a column called `id` on a EntityView. When using a
+    default column, the `id` stores the Synapse ID of each of the entities included in
+    the scope of the view. If you override the `id` column with a new column, the `id`
+    column will no longer store the Synapse ID of the entities in the view. Instead, it
+    will store the values you provide when you store the entityview. It will be stored as an
+    annotation on the entity for the row you are modifying.
+    """
+
+
+@async_to_sync
+class TableStoreMixin:
+    """Mixin class providing methods for storing a `Table`-like entity."""
 
     async def _generate_schema_change_request(
         self, dry_run: bool = False, *, synapse_client: Optional[Synapse] = None
@@ -196,7 +217,11 @@ class TableOperator(TableOperatorSynchronousProtocol):
             of the table. If there are no changes to the columns this method will
             return `None`.
         """
-        if not self.has_columns_changed or not self.columns:
+        if (
+            self.__class__.__name__ in CLASSES_WITH_READ_ONLY_SCHEMA
+            or not self.has_columns_changed
+            or not self.columns
+        ):
             return None
 
         column_name_to_id = {}
@@ -214,7 +239,6 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     and column._last_persistent_instance.id
                 ):
                     column_name_to_id[column.name] = column._last_persistent_instance.id
-
                 if (
                     column._last_persistent_instance
                     and column._last_persistent_instance.id
@@ -232,6 +256,20 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     )
                 if not dry_run:
                     columns_to_persist.append(column)
+            # This conditional is to handle for cases where a Column object has not
+            # been modified (ie: It's a default Column in Synapse), but it hasn't been
+            # associated with this Table yet.
+            elif (
+                not self._last_persistent_instance
+                or not self._last_persistent_instance.columns
+                or column.name not in self._last_persistent_instance.columns
+            ):
+                client.logger.info(
+                    f"[{self.id}:{self.name}:Column_{column.name} (Add)]: {column}"
+                )
+                if not dry_run:
+                    columns_to_persist.append(column)
+                    column_changes.append(ColumnChange(new_column_id=column.id))
 
         if columns_to_persist:
             await post_columns(
@@ -315,7 +353,6 @@ class TableOperator(TableOperatorSynchronousProtocol):
     ) -> "Self":
         """Store non-row information about a table including the columns and annotations.
 
-
         Note the following behavior for the order of columns:
 
         - If a column is added via the `add_column` method it will be added at the
@@ -325,7 +362,6 @@ class TableOperator(TableOperatorSynchronousProtocol):
             of the columns list.
         - If you use the `store_rows` method and the `schema_storage_strategy` is set to
             `INFER_FROM_DATA` the columns will be added at the end of the columns list.
-
 
         Arguments:
             dry_run: If True, will not actually store the table but will log to
@@ -362,6 +398,26 @@ class TableOperator(TableOperatorSynchronousProtocol):
                 source=existing_entity,
                 destination=self,
             )
+
+        if (not self._last_persistent_instance) and (
+            hasattr(self, "_append_default_columns")
+            and hasattr(self, "include_default_columns")
+            and self.include_default_columns
+        ):
+            await self._append_default_columns(synapse_client=synapse_client)
+
+        if (
+            self.__class__.__name__ not in CLASSES_WITH_READ_ONLY_SCHEMA
+            and self.columns
+        ):
+            # check that column names match this regex "^[a-zA-Z0-9 _\-\.\+\(\)']+$"
+            for _, column in self.columns.items():
+                if not re.match(r"^[a-zA-Z0-9 _\-\.\+\(\)']+$", column.name):
+                    raise ValueError(
+                        f"Column name '{column.name}' contains invalid characters. "
+                        "Names may only contain: letters, numbers, spaces, underscores, "
+                        "hyphens, periods, plus signs, apostrophes, and parentheses."
+                    )
 
         if dry_run:
             client.logger.info(
@@ -442,6 +498,158 @@ class TableOperator(TableOperatorSynchronousProtocol):
 
         return self
 
+
+@async_to_sync
+class ViewStoreMixin(TableStoreMixin):
+    """Mixin class that extends `TableStoreMixin` providing methods for storing a `View`-like entity."""
+
+    async def _append_default_columns(
+        self, synapse_client: Optional[Synapse] = None
+    ) -> None:
+        """
+        Append default columns to the table. This method will only append default
+        columns if the `include_default_columns` attribute is set to `True`. This is
+        called in the `super().store_async()` method because we need to respect the
+        ordering of columns that are already present on the View.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+        Returns:
+            None
+        """
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if self.include_default_columns:
+            view_type_mask = None
+            if self.view_type_mask:
+                if isinstance(self.view_type_mask, ViewTypeMask):
+                    view_type_mask = self.view_type_mask.value
+                else:
+                    view_type_mask = self.view_type_mask
+
+            default_columns = await get_default_columns(
+                view_entity_type=(
+                    self.view_entity_type if self.view_entity_type else None
+                ),
+                view_type_mask=view_type_mask,
+                synapse_client=synapse_client,
+            )
+            for default_column in default_columns:
+                if (
+                    default_column.name in self.columns
+                    and default_column != self.columns[default_column.name]
+                ):
+                    client.logger.warning(
+                        f"Column '{default_column.name}' already exists in dataset. "
+                        "Overwriting with default column."
+                    )
+                self.columns[default_column.name] = default_column
+
+    async def store_async(
+        self,
+        dry_run: bool = False,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Self":
+        """Store non-row information about a View-like entity
+        including the columns and annotations.
+
+        View-like entities often have default columns that are managed by Synapse.
+        The default behavior of this function is to include these default columns in the
+        table when it is stored. This means that with the default behavior, any columns that
+        you have added to your View will be overwritten by the default columns if they have
+        the same name. To avoid this behavior, set the `include_default_columns` attribute
+        to `False`.
+
+        Note the following behavior for the order of columns:
+
+        - If a column is added via the `add_column` method it will be added at the
+            index you specify, or at the end of the columns list.
+        - If column(s) are added during the contruction of your `Table` instance, ie.
+            `Table(columns=[Column(name="foo")])`, they will be added at the begining
+            of the columns list.
+        - If you use the `store_rows` method and the `schema_storage_strategy` is set to
+            `INFER_FROM_DATA` the columns will be added at the end of the columns list.
+
+
+        Arguments:
+            dry_run: If True, will not actually store the table but will log to
+                the console what would have been stored.
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when updating the table schema. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+
+        Returns:
+            The View instance stored in synapse.
+        """
+        return await super().store_async(
+            dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client
+        )
+
+
+@async_to_sync
+class DeleteMixin:
+    """Mixin class providing methods for deleting a `Table`-like entity."""
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Delete: {self.name}"
+    )
+    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
+        """Delete the entity from synapse. This is not version specific. If you'd like
+        to delete a specific version of the entity you must use the
+        [synapseclient.api.delete_entity][] function directly.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Example: Deleting a table
+            Deleting a table is only supported by the ID of the table.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await Table(id="syn4567").delete_async()
+
+            asyncio.run(main())
+            ```
+        """
+        if not (self.id or (self.name and self.parent_id)):
+            raise ValueError(
+                "The table must have an id or a (name and `parent_id`) set."
+            )
+
+        entity_id = await get_id(entity=self, synapse_client=synapse_client)
+
+        await delete_entity(
+            entity_id=entity_id,
+            synapse_client=synapse_client,
+        )
+
+
+@async_to_sync
+class GetMixin:
+    """Mixin class providing methods for getting information about a `Table`-like entity."""
+
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Get: {self.name}"
     )
@@ -477,7 +685,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table # Also works with `Dataset`
+            from synapseclient.models import Table
 
             syn = Synapse()
             syn.login()
@@ -503,7 +711,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table # Also works with `Dataset`
+            from synapseclient.models import Table
 
             syn = Synapse()
             syn.login()
@@ -519,13 +727,14 @@ class TableOperator(TableOperatorSynchronousProtocol):
         """
         if not (self.id or (self.name and self.parent_id)):
             raise ValueError(
-                "The table must have an id or a " "(name and `parent_id`) set."
+                "The table must have an id or a (name and `parent_id`) set."
             )
 
         entity_id = await get_id(entity=self, synapse_client=synapse_client)
 
         await get_from_entity_factory(
             entity_to_update=self,
+            version=self.version_number,
             synapse_id_or_path=entity_id,
             synapse_client=synapse_client,
         )
@@ -546,49 +755,9 @@ class TableOperator(TableOperatorSynchronousProtocol):
         self._set_last_persistent_instance()
         return self
 
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"{self.__class__}_Delete: {self.name}"
-    )
-    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
-        """Delete the entity from synapse. This is not version specific. If you'd like
-        to delete a specific version of the entity you must use the
-        [synapseclient.api.delete_entity][] function directly.
 
-        Arguments:
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            None
-
-        Example: Deleting a table
-            Deleting a table is only supported by the ID of the table.
-
-            ```python
-            import asyncio
-            from synapseclient import Synapse
-
-            syn = Synapse()
-            syn.login()
-
-            async def main():
-                await Table(id="syn4567").delete_async()
-
-            asyncio.run(main())
-            ```
-        """
-        if not (self.id or (self.name and self.parent_id)):
-            raise ValueError(
-                "The table must have an id or a " "(name and `parent_id`) set."
-            )
-
-        entity_id = await get_id(entity=self, synapse_client=synapse_client)
-
-        await delete_entity(
-            entity_id=entity_id,
-            synapse_client=synapse_client,
-        )
+class ColumnMixin:
+    """Mixin class providing methods for managing columns in a `Table`-like entity."""
 
     def delete_column(self, name: str) -> None:
         """
@@ -843,7 +1012,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
                     if col.name in self.columns:
                         raise ValueError(f"Duplicate column name: {col.name}")
                     columns_to_insert.append((col.name, col))
-                insert_index = min(index + i, len(self.columns))
+                insert_index = min(index, len(self.columns))
                 self.columns = OrderedDict(
                     list(self.columns.items())[:insert_index]
                     + columns_to_insert
@@ -952,7 +1121,7 @@ class TableOperator(TableOperatorSynchronousProtocol):
     def _convert_columns_to_ordered_dict(
         columns: Union[
             List["Column"], OrderedDict[str, "Column"], Dict[str, "Column"], None
-        ]
+        ],
     ) -> OrderedDict[str, "Column"]:
         """Converts the columns attribute to an OrderedDict if it is a list or dict."""
         if not columns:
@@ -982,17 +1151,899 @@ class TableOperator(TableOperatorSynchronousProtocol):
         else:
             raise ValueError("columns must be a list, dict, or OrderedDict")
 
+    """Mixin class providing methods for upserting data into a `Table`-like entity."""
+
+
+def _construct_select_statement_for_upsert(
+    entity: TableBase,
+    df: DATA_FRAME_TYPE,
+    all_columns_from_df: List[str],
+    primary_keys: List[str],
+    wait_for_eventually_consistent_view: bool,
+) -> str:
+    """
+    Create the select statement for a given DataFrame. This is used to select data
+    from Synapse to determine if a row already exists in the table. This is used
+    in the upsert method to determine if a row should be updated or inserted.
+
+    Arguments:
+        df: The DataFrame that contains the data to be upserted.
+        all_columns_from_df: A list of all the columns in the DataFrame.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+        wait_for_eventually_consistent_view: If True, the select statement will
+            include the ROW_ID, ROW_ETAG, and id columns. If False, the select
+            statement will only include the ROW_ID column.
+
+    Returns:
+        The select statement that can be used to query Synapse to determine if a row
+        already exists in the
+    """
+
+    if entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
+        if wait_for_eventually_consistent_view:
+            select_statement = "SELECT id, ROW_ID, ROW_ETAG, "
+
+            if "id" in all_columns_from_df:
+                all_columns_from_df.remove("id")
+        else:
+            select_statement = "SELECT ROW_ID, ROW_ETAG, "
+
+    else:
+        select_statement = "SELECT ROW_ID, "
+
+    select_statement += f"{', '.join(all_columns_from_df)} FROM {entity.id} WHERE "
+    where_statements = []
+    for upsert_column in primary_keys:
+        column_model = entity.columns[upsert_column]
+        if (
+            column_model.column_type
+            in (
+                ColumnType.STRING_LIST,
+                ColumnType.INTEGER_LIST,
+                ColumnType.BOOLEAN_LIST,
+                ColumnType.ENTITYID_LIST,
+                ColumnType.USERID_LIST,
+            )
+            or column_model.column_type == ColumnType.JSON
+        ):
+            raise ValueError(
+                f"Column type {column_model.column_type} is not supported for primary_keys"
+            )
+        elif column_model.column_type in (
+            ColumnType.STRING,
+            ColumnType.MEDIUMTEXT,
+            ColumnType.LARGETEXT,
+            ColumnType.LINK,
+            ColumnType.ENTITYID,
+        ):
+            values_for_where_statement = set(
+                [f"'{value}'" for value in df[upsert_column] if value is not None]
+            )
+
+        elif column_model.column_type == ColumnType.BOOLEAN:
+            include_true = False
+            include_false = False
+            for value in df[upsert_column]:
+                if value is None:
+                    continue
+                if value:
+                    include_true = True
+                else:
+                    include_false = True
+                if include_true and include_false:
+                    break
+            if include_true and include_false:
+                values_for_where_statement = ["'true'", "'false'"]
+            elif include_true:
+                values_for_where_statement = ["'true'"]
+            elif include_false:
+                values_for_where_statement = ["'false'"]
+        else:
+            values_for_where_statement = set(
+                [str(value) for value in df[upsert_column] if value is not None]
+            )
+        if not values_for_where_statement:
+            continue
+        where_statements.append(
+            f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
+        )
+
+    where_statement = " AND ".join(where_statements)
+    select_statement += where_statement
+    return select_statement
+
+
+def _construct_partial_rows_for_upsert(
+    entity: TableBase,
+    results: DATA_FRAME_TYPE,
+    chunk_to_check_for_upsert: DATA_FRAME_TYPE,
+    primary_keys: List[str],
+    contains_etag: bool,
+    wait_for_eventually_consistent_view: bool,
+) -> Tuple[List[PartialRow], List[int], List[int], Dict[str, str]]:
+    """
+    Handles the construction of the PartialRow objects that will be used to update
+    rows in Synapse. This method is used in the upsert method to determine which
+    rows need to be updated.
+
+    Arguments:
+        results: The DataFrame that contains the data that was queried from Synapse.
+        chunk_to_check_for_upsert: The DataFrame that contains the data that is
+            being upserted.
+        primary_keys: A list of the columns that are used to determine if a row
+            already exists in the table.
+        contains_etag: If True, the results DataFrame contains the ROW_ETAG column.
+        wait_for_eventually_consistent_view: If True, the results DataFrame contains
+            the id columns.
+
+    Returns:
+        A tuple containing a list of PartialRow objects that will be used to update
+        rows in Synapse, a list of the indexs of the rows in the original
+        DataFrame that have changes, a list of the indexes of the rows in the
+        original DataFrame that do not have changes, and a dictionary of the synapse IDs
+        for the key with the etag of the row that was changed.
+    """
+
+    from pandas import isna
+
+    rows_to_update: List[PartialRow] = []
+    indexs_of_original_df_with_changes = []
+    indexs_of_original_df_without_changes = []
+    syn_id_and_etags = {}
+    for row in results.itertuples(index=False):
+        row_etag = None
+
+        if contains_etag:
+            row_etag = row.ROW_ETAG
+
+        partial_change_values = {}
+
+        # Find the matching row in `values` that matches the row in `results` for the primary_keys
+        matching_conditions = chunk_to_check_for_upsert[primary_keys[0]] == getattr(
+            row, primary_keys[0]
+        )
+        for col in primary_keys[1:]:
+            matching_conditions &= chunk_to_check_for_upsert[col] == getattr(row, col)
+        matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
+
+        # Determines which cells need to be updated
+        for column in chunk_to_check_for_upsert.columns:
+            if len(matching_row[column].values) > 1:
+                raise ValueError(
+                    f"The values for the keys being upserted must be unique in the table: [{matching_row}]"
+                )
+            elif column not in entity.columns:
+                continue
+            if len(matching_row[column].values) == 0:
+                continue
+            column_id = entity.columns[column].id
+            column_type = entity.columns[column].column_type
+            cell_value = matching_row[column].values[0]
+            if not hasattr(row, column) or cell_value != getattr(row, column):
+                if (isinstance(cell_value, list) and len(cell_value) > 0) or not isna(
+                    cell_value
+                ):
+                    partial_change_values[
+                        column_id
+                    ] = _convert_pandas_row_to_python_types(
+                        cell=cell_value, column_type=column_type
+                    )
+                else:
+                    partial_change_values[column_id] = None
+
+        if partial_change_values:
+            partial_change = PartialRow(
+                row_id=row.ROW_ID,
+                etag=row_etag,
+                values=[
+                    {
+                        "key": partial_change_key,
+                        "value": partial_change_value,
+                    }
+                    for partial_change_key, partial_change_value in partial_change_values.items()
+                ],
+            )
+            rows_to_update.append(partial_change)
+            indexs_of_original_df_with_changes.append(matching_row.index[0])
+            if wait_for_eventually_consistent_view and row_etag and row.id:
+                syn_id_and_etags[row.id] = row_etag
+        else:
+            indexs_of_original_df_without_changes.append(matching_row.index[0])
+    return (
+        rows_to_update,
+        indexs_of_original_df_with_changes,
+        indexs_of_original_df_without_changes,
+        syn_id_and_etags,
+    )
+
+
+async def _push_row_updates_to_synapse(
+    entity: TableBase,
+    rows_to_update: List[PartialRow],
+    update_size_bytes: int,
+    progress_bar: tqdm,
+    job_timeout: int,
+    client: Synapse,
+) -> List[TableUpdateTransaction]:
+    results = []
+    current_chunk_size = 0
+    chunk = []
+    for row in rows_to_update:
+        row_size = row.size()
+        if current_chunk_size + row_size > update_size_bytes:
+            change = AppendableRowSetRequest(
+                entity_id=entity.id,
+                to_append=PartialRowSet(
+                    table_id=entity.id,
+                    rows=chunk,
+                ),
+            )
+
+            request = TableUpdateTransaction(
+                entity_id=entity.id,
+                changes=[change],
+            )
+
+            result = await request.send_job_and_wait_async(
+                synapse_client=client, timeout=job_timeout
+            )
+            results.append(result)
+            progress_bar.update(len(chunk))
+            chunk = []
+            current_chunk_size = 0
+        chunk.append(row)
+        current_chunk_size += row_size
+
+    if chunk:
+        change = AppendableRowSetRequest(
+            entity_id=entity.id,
+            to_append=PartialRowSet(
+                table_id=entity.id,
+                rows=chunk,
+            ),
+        )
+
+        result = await TableUpdateTransaction(
+            entity_id=entity.id,
+            changes=[change],
+        ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
+        progress_bar.update(len(chunk))
+        results.append(result)
+    return results
+
+
+async def _wait_for_eventually_consistent_changes(
+    entity: TableBase,
+    original_synids_and_etags_to_track: Dict[str, str],
+    wait_for_eventually_consistent_view_timeout: int,
+    row_update_results: List[TableUpdateTransaction],
+    synapse_client: Synapse,
+) -> None:
+    """
+    Given that a change has been made to a view, this method will wait for the
+    changes to be reflected in the view. This is done by querying the view for the
+    etags that were changed. If the etags are found in the view then we know that
+    the view has not yet been updated with the changes that were made. This method
+    will wait for the changes to be reflected in the view.
+
+    Arguments:
+        original_synids_and_etags_to_track: A dictionary of the synapse IDs for the
+            key with the etag of the row that was changed.
+        wait_for_eventually_consistent_view_timeout: The maximum amount of time to
+            wait for the changes to be reflected in the view.
+        row_update_results: The result of the row updates that were made. Used to
+            determine which changes we should wait for, and which changes we should not
+            wait for.
+        synapse_client: The Synapse client to use to query the view.
+
+    Raises:
+        SynapseTimeoutError: If the changes are not reflected in the view within
+            the timeout period.
+
+    Returns:
+        None
+    """
+    with logging_redirect_tqdm(loggers=[synapse_client.logger]):
+        etags_to_track = []
+        for row_update_result in row_update_results:
+            if row_update_result.entities_with_changes_applied:
+                for (
+                    entity_with_change
+                ) in row_update_result.entities_with_changes_applied:
+                    etags_to_track.append(
+                        original_synids_and_etags_to_track.get(entity_with_change)
+                    )
+        number_of_changes_to_wait_for = len(etags_to_track)
+        progress_bar = tqdm(
+            total=number_of_changes_to_wait_for,
+            desc="Waiting for eventually-consistent changes to show up in the view",
+            unit_scale=True,
+            smoothing=0,
+        )
+        start_time = time.time()
+
+        while time.time() - start_time < wait_for_eventually_consistent_view_timeout:
+            quoted_etags = [f"'{etag}'" for etag in etags_to_track]
+            wait_select_statement = (
+                f"select etag from {entity.id} where etag IN ({','.join(quoted_etags)})"
+            )
+            results = await entity.query_async(
+                query=wait_select_statement,
+                synapse_client=synapse_client,
+                include_row_id_and_row_version=False,
+            )
+
+            etags_in_results = results["etag"].values
+            etags_to_remove = []
+            for etag in etags_to_track:
+                if etag not in etags_in_results:
+                    etags_to_remove.append(etag)
+            for etag in etags_to_remove:
+                etags_to_track.remove(etag)
+                progress_bar.update(1)
+
+            progress_bar.refresh()
+            if not etags_to_track:
+                progress_bar.close()
+                break
+            await asyncio.sleep(1)
+        else:
+            raise SynapseTimeoutError(
+                f"Timeout waiting for eventually consistent view: {time.time() - start_time} seconds"
+            )
+
+
+async def _upsert_rows_async(
+    entity: Union[TableBase, ViewBase],
+    values: DATA_FRAME_TYPE,
+    primary_keys: List[str],
+    dry_run: bool = False,
+    *,
+    rows_per_query: int = 50000,
+    update_size_bytes: int = 1.9 * MB,
+    insert_size_bytes: int = 900 * MB,
+    job_timeout: int = 600,
+    wait_for_eventually_consistent_view: bool = False,
+    wait_for_eventually_consistent_view_timeout: int = 600,
+    synapse_client: Optional[Synapse] = None,
+    **kwargs,
+) -> None:
+    """
+    This is used to internally wrap the upsert_rows_async method. This is used to
+    allow for the method to be overridden in the ViewUpdateMixin class with another
+    method name.
+    """
+    test_import_pandas()
+    from pandas import DataFrame
+
+    if not entity._last_persistent_instance:
+        await entity.get_async(include_columns=True, synapse_client=synapse_client)
+
+    if not entity.columns:
+        raise ValueError(
+            "There are no columns on this table. Unable to proceed with an upsert operation."
+        )
+
+    if wait_for_eventually_consistent_view and "id" not in entity.columns:
+        raise ValueError(
+            "The 'id' column is required to wait for eventually consistent views."
+        )
+
+    if isinstance(values, dict):
+        values = DataFrame(values)
+    elif isinstance(values, str):
+        values = csv_to_pandas_df(filepath=values, **kwargs)
+    elif isinstance(values, DataFrame):
+        pass
+    else:
+        raise ValueError(
+            "Don't know how to make tables from values of type %s." % type(values)
+        )
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    rows_to_update: List[PartialRow] = []
+    chunk_list: List[DataFrame] = []
+    for i in range(0, len(values), rows_per_query):
+        chunk_list.append(values[i : i + rows_per_query])
+
+    all_columns_from_df = [f'"{column}"' for column in values.columns]
+    contains_etag = entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
+    original_synids_and_etags_to_track = {}
+    indexes_of_original_df_with_changes = []
+    indexes_of_original_df_with_no_changes = []
+    total_row_count_to_update = 0
+    row_update_results = None
+
+    with logging_redirect_tqdm(loggers=[client.logger]):
+        progress_bar = tqdm(
+            total=len(values),
+            desc="Querying & Updating rows",
+            unit_scale=True,
+            smoothing=0,
+        )
+        for individual_chunk in chunk_list:
+            select_statement = _construct_select_statement_for_upsert(
+                entity=entity,
+                df=individual_chunk,
+                all_columns_from_df=all_columns_from_df,
+                primary_keys=primary_keys,
+                wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+            )
+
+            results = await entity.query_async(
+                query=select_statement, synapse_client=synapse_client
+            )
+
+            (
+                rows_to_update,
+                indexes_with_updates,
+                indexes_without_updates,
+                syn_id_and_etag_dict,
+            ) = _construct_partial_rows_for_upsert(
+                entity=entity,
+                results=results,
+                chunk_to_check_for_upsert=individual_chunk,
+                primary_keys=primary_keys,
+                contains_etag=contains_etag,
+                wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+            )
+            total_row_count_to_update += len(rows_to_update)
+            indexes_of_original_df_with_changes.extend(indexes_with_updates)
+            indexes_of_original_df_with_no_changes.extend(indexes_without_updates)
+            if syn_id_and_etag_dict:
+                original_synids_and_etags_to_track.update(syn_id_and_etag_dict)
+
+            if not dry_run and rows_to_update:
+                row_update_results = await _push_row_updates_to_synapse(
+                    entity=entity,
+                    rows_to_update=rows_to_update,
+                    update_size_bytes=update_size_bytes,
+                    progress_bar=progress_bar,
+                    client=client,
+                    job_timeout=job_timeout,
+                )
+            elif dry_run:
+                progress_bar.update(len(rows_to_update))
+            progress_bar.update(len(individual_chunk.index) - len(rows_to_update))
+
+            rows_to_update: List[PartialRow] = []
+        progress_bar.update(progress_bar.total - progress_bar.n)
+        progress_bar.refresh()
+        progress_bar.close()
+
+    rows_to_insert_df = values.loc[
+        ~values.index.isin(
+            indexes_of_original_df_with_changes + indexes_of_original_df_with_no_changes
+        )
+    ]
+
+    total_row_count_actually_updated = 0
+    if row_update_results:
+        for result in row_update_results:
+            if result.entities_with_changes_applied:
+                total_row_count_actually_updated += len(
+                    result.entities_with_changes_applied
+                )
+
+    additional_message = ""
+    if total_row_count_actually_updated < total_row_count_to_update:
+        additional_message = f". {total_row_count_to_update - total_row_count_actually_updated} rows could not be updated."
+
+    client.logger.info(
+        f"[{entity.id}:{entity.name}]: Found {total_row_count_actually_updated or total_row_count_to_update}"
+        f" rows to update and {len(rows_to_insert_df)} rows to insert"
+        + additional_message
+    )
+
+    if wait_for_eventually_consistent_view and original_synids_and_etags_to_track:
+        await _wait_for_eventually_consistent_changes(
+            entity=entity,
+            original_synids_and_etags_to_track=original_synids_and_etags_to_track,
+            wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
+            row_update_results=row_update_results,
+            synapse_client=client,
+        )
+
+    # Only Tables can insert rows directly. Views and other table-like objects cannot.
+    if not isinstance(entity, ViewBase):
+        if not dry_run and not rows_to_insert_df.empty:
+            await entity.store_rows_async(
+                values=rows_to_insert_df,
+                dry_run=dry_run,
+                insert_size_bytes=insert_size_bytes,
+                synapse_client=synapse_client,
+            )
+
+
+@async_to_sync
+class TableUpsertMixin:
+    async def upsert_rows_async(
+        self,
+        values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
+        primary_keys: List[str],
+        dry_run: bool = False,
+        *,
+        rows_per_query: int = 50000,
+        update_size_bytes: int = 1.9 * MB,
+        insert_size_bytes: int = 900 * MB,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+        **kwargs,
+    ) -> None:
+        """
+        This method allows you to perform an `upsert` (Update and Insert) for row(s).
+        This means that you may update a row with only the data that you want to change.
+        When supplied with a row that does not match the given `primary_keys` a new
+        row will be inserted.
+
+
+        Using the `primary_keys` argument you may specify which columns to use to
+        determine if a row already exists. If a row exists with the same values in the
+        columns specified in this list the row will be updated. If a row does not exist
+        it will be inserted.
+
+
+        Limitations:
+
+        - The request to update, and the request to insert data does not occur in a
+            single transaction. This means that the update of data may succeed, but the
+            insert of data may fail. Additionally, as noted in the limitation below, if
+            data is chunked up into multiple requests you may find that a portion of
+            your data is updated, but another portion is not.
+        - The number of rows that may be upserted in a single call should be
+            kept to a minimum (< 50,000). There is significant overhead in the request
+            to Synapse for each row that is upserted. If you are upserting a large
+            number of rows a better approach may be to query for the data you want
+            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_components.TableStoreRowMixin.store_rows_async] method to
+            update the data in Synapse. Any rows you want to insert may be added
+            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_components.TableStoreRowMixin.store_rows_async] method.
+        - When upserting mnay rows the requests to Synapse will be chunked into smaller
+            requests. The limit is 2MB per request. This chunking will happen
+            automatically and should not be a concern for most users. If you are
+            having issues with the request being too large you may lower the
+            number of rows you are trying to upsert, or note the above limitation.
+        - The `primary_keys` argument must contain at least one column.
+        - The `primary_keys` argument cannot contain columns that are a LIST type.
+        - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The values used as the `primary_keys` must be unique in the table. If there
+            are multiple rows with the same values in the `primary_keys` the behavior
+            is that an exception will be raised.
+        - The columns used in `primary_keys` cannot contain updated values. Since
+            the values in these columns are used to determine if a row exists, they
+            cannot be updated in the same transaction.
+
+        The following is a Sequence Diagram that describces the upsert process at a
+        high level:
+
+        ```mermaid
+        sequenceDiagram
+            participant User
+            participant Table
+            participant Synapse
+
+            User->>Table: upsert_rows()
+
+            loop Query and Process Updates in Chunks (rows_per_query)
+                Table->>Synapse: Query existing rows using primary keys
+                Synapse-->>Table: Return matching rows
+                Note Over Table: Create partial row updates
+
+                loop For results from query
+                    Note Over Table: Sum row/chunk size
+                    alt Chunk size exceeds update_size_bytes
+                        Table->>Synapse: Push update chunk
+                        Synapse-->>Table: Acknowledge update
+                    end
+                    Table->>Table: Add row to chunk
+                end
+
+                alt Remaining updates exist
+                    Table->>Synapse: Push final update chunk
+                    Synapse-->>Table: Acknowledge update
+                end
+            end
+
+            alt New rows exist
+                Table->>Table: Identify new rows for insertion
+                Table->>Table: Call `store_rows()` function
+            end
+
+            Table-->>User: Upsert complete
+        ```
+
+        Arguments:
+            values: Supports storing data from the following sources:
+
+                - A string holding the path to a CSV file. The data will be read into a
+                    [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
+                    The code makes assumptions about the format of the columns in the
+                    CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df]
+                    function. You may pass in additional arguments to the `csv_to_pandas_df`
+                    function by passing them in as keyword arguments to this function.
+                - A dictionary where the key is the column name and the value is one or
+                    more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            primary_keys: The columns to use to determine if a row already exists. If
+                a row exists with the same values in the columns specified in this list
+                the row will be updated. If a row does not exist it will be inserted.
+
+            dry_run: If set to True the data will not be updated in Synapse. A message
+                will be printed to the console with the number of rows that would have
+                been updated and inserted. If you would like to see the data that would
+                be updated and inserted you may set the `dry_run` argument to True and
+                set the log level to DEBUG by setting the debug flag when creating
+                your Synapse class instance like: `syn = Synapse(debug=True)`.
+
+            rows_per_query: The number of rows that will be queries from Synapse per
+                request. Since we need to query for the data that is being updated
+                this will determine the number of rows that are queried at a time.
+                The default is 50,000 rows.
+
+            update_size_bytes: The maximum size of the request that will be sent to Synapse
+                when updating rows of data. The default is 1.9MB.
+
+            insert_size_bytes: The maximum size of the request that will be sent to Synapse
+                when inserting rows of data. The default is 900MB.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when inserting, and updating rows of data. Each individual
+                request to Synapse will be sent as an independent job. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+                function when the `values` argument is a path to a csv file.
+
+
+        Example: Updating 2 rows and inserting 1 row
+            In this given example we have a table with the following data:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+
+            The following code will update the first row's `col2` to `22`, update the
+            second row's `col3` to `33`, and insert a new row:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+            import pandas as pd
+
+            syn = Synapse()
+            syn.login()
+
+
+            async def main():
+                table = await Table(id="syn123").get_async(include_columns=True)
+
+                df = pd.DataFrame({
+                    'col1': ['A', 'B', 'C'],
+                    'col2': [22, 2, 3],
+                    'col3': [1, 33, 3],
+                })
+
+                await table.upsert_rows_async(values=df, primary_keys=["col1"])
+
+            asyncio.run(main())
+            ```
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 22   | 1    |
+            | B    | 2    | 33   |
+            | C    | 3    | 3    |
+
+        Example: Deleting data from a specific cell
+            In this given example we have a table with the following data:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    | 1    | 1    |
+            | B    | 2    | 2    |
+
+            The following code will update the first row's `col2` to `22`, update the
+            second row's `col3` to `33`, and insert a new row:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+
+            async def main():
+                table = await Table(id="syn123").get_async(include_columns=True)
+
+                dictionary_of_data = {
+                    'col1': ['A', 'B'],
+                    'col2': [None, 2],
+                    'col3': [1, None],
+                }
+
+                await table.upsert_rows_async(values=dictionary_of_data, primary_keys=["col1"])
+
+            asyncio.run(main())
+            ```
+
+
+            The resulting table will look like this:
+
+            | col1 | col2 | col3 |
+            |------|------| -----|
+            | A    |      | 1    |
+            | B    | 2    |      |
+
+        """
+        return await _upsert_rows_async(
+            entity=self,
+            values=values,
+            primary_keys=primary_keys,
+            dry_run=dry_run,
+            rows_per_query=rows_per_query,
+            update_size_bytes=update_size_bytes,
+            insert_size_bytes=insert_size_bytes,
+            job_timeout=job_timeout,
+            synapse_client=synapse_client,
+            **kwargs,
+        )
+
+
+@async_to_sync
+class ViewUpdateMixin:
+    """Mixin class providing methods for updating rows in a `View`-like entity.
+    Functionality for inserting rows is not supported for `View`-like entities. The update
+    functionality will only work for values in custom columns within a `View`-like
+    entity.
+    """
+
+    async def update_rows_async(
+        self,
+        values: Union[str, Dict[str, Any], DATA_FRAME_TYPE],
+        primary_keys: List[str],
+        dry_run: bool = False,
+        *,
+        rows_per_query: int = 50000,
+        update_size_bytes: int = 1.9 * MB,
+        insert_size_bytes: int = 900 * MB,
+        job_timeout: int = 600,
+        wait_for_eventually_consistent_view: bool = False,
+        wait_for_eventually_consistent_view_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
+        **kwargs,
+    ) -> None:
+        """This method leverages the logic provided by [upsert_rows_async][synapseclient.models.Table.upsert_rows_async] to provide
+        an interface for updating rows in a `View`-like entity. Update functionality will only work for
+        values in custom columns within a `View`-like entity.
+
+        Limitations:
+
+        - When updating many rows the requests to Synapse will be chunked into smaller
+            requests. The limit is 2MB per request. This chunking will happen
+            automatically and should not be a concern for most users. If you are
+            having issues with the request being too large you may lower the
+            number of rows you are trying to update.
+        - The `primary_keys` argument must contain at least one column.
+        - The `primary_keys` argument cannot contain columns that are a LIST type.
+        - The `primary_keys` argument cannot contain columns that are a JSON type.
+        - The values used as the `primary_keys` must be unique in the table. If there
+            are multiple rows with the same values in the `primary_keys` the behavior
+            is that an exception will be raised.
+        - The columns used in `primary_keys` cannot contain updated values. Since
+            the values in these columns are used to determine if a row exists, they
+            cannot be updated in the same transaction.
+
+        Arguments:
+            values: Supports storing data from the following sources:
+
+                - A string holding the path to a CSV file. The data will be read into a
+                    [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe).
+                    The code makes assumptions about the format of the columns in the
+                    CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df]
+                    function. You may pass in additional arguments to the `csv_to_pandas_df`
+                    function by passing them in as keyword arguments to this function.
+                - A dictionary where the key is the column name and the value is one or
+                    more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
+                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+
+            primary_keys: The columns to use to determine if a row already exists. If
+                a row exists with the same values in the columns specified in this list
+                the row will be updated. If a row does not exist nothing will be done.
+
+            dry_run: If set to True the data will not be updated in Synapse. A message
+                will be printed to the console with the number of rows that would have
+                been updated and inserted. If you would like to see the data that would
+                be updated and inserted you may set the `dry_run` argument to True and
+                set the log level to DEBUG by setting the debug flag when creating
+                your Synapse class instance like: `syn = Synapse(debug=True)`.
+
+            rows_per_query: The number of rows that will be queried from Synapse per
+                request. Since we need to query for the data that is being updated
+                this will determine the number of rows that are queried at a time.
+                The default is 50,000 rows.
+
+            update_size_bytes: The maximum size of the request that will be sent to Synapse
+                when updating rows of data. The default is 1.9MB.
+
+            insert_size_bytes: The maximum size of the request that will be sent to Synapse
+                when inserting rows of data. The default is 900MB.
+
+            job_timeout: The maximum amount of time to wait for a job to complete.
+                This is used when inserting, and updating rows of data. Each individual
+                request to Synapse will be sent as an independent job. If the timeout
+                is reached a `SynapseTimeoutError` will be raised.
+                The default is 600 seconds
+
+            wait_for_eventually_consistent_view: Only used if the table is a view. If
+                set to True this will wait for the view to reflect any changes that
+                you've made to the view. This is useful if you need to query the view
+                after making changes to the data. If you set this value to `True` your
+                view must contain the default `id` column which is the Synapse ID of the
+                row. If you do not have this column in your view you will need to add it
+                to the view before you can use this feature. The default is False
+
+            wait_for_eventually_consistent_view_timeout: The maximum amount of time to
+                wait for a view to be eventually consistent. The default is 600 seconds.
+
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
+                function when the `values` argument is a path to a csv file.
+        """
+        await _upsert_rows_async(
+            entity=self,
+            values=values,
+            primary_keys=primary_keys,
+            dry_run=dry_run,
+            rows_per_query=rows_per_query,
+            update_size_bytes=update_size_bytes,
+            insert_size_bytes=insert_size_bytes,
+            job_timeout=job_timeout,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+            wait_for_eventually_consistent_view_timeout=wait_for_eventually_consistent_view_timeout,
+            synapse_client=synapse_client,
+            **kwargs,
+        )
+
+
+class QueryMixinSynchronousProtocol(Protocol):
+    """Protocol for the synchronous query methods."""
+
     @staticmethod
-    async def query_async(
+    def query(
         query: str,
         include_row_id_and_row_version: bool = True,
         convert_to_datetime: bool = False,
+        download_location=None,
+        quote_character='"',
+        escape_character="\\",
+        line_end=str(os.linesep),
+        separator=",",
+        header=True,
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
-    ) -> DATA_FRAME_TYPE:
+    ) -> Union[DATA_FRAME_TYPE, str]:
         """Query for data on a table stored in Synapse. The results will always be
-        returned as a Pandas DataFrame.
+        returned as a Pandas DataFrame unless you specify a `download_location` in which
+        case the results will be downloaded to that location. There are a number of
+        arguments that you may pass to this function depending on if you are getting
+        the results back as a DataFrame or downloading the results to a file.
 
         Arguments:
             query: The query to run. The query must be valid syntax that Synapse can
@@ -1004,20 +2055,200 @@ class TableOperator(TableOperatorSynchronousProtocol):
                 if using the query results to update rows in the table. These columns
                 are the primary keys used by Synapse to uniquely identify rows in the
                 table.
-            convert_to_datetime: If set to True, will convert all Synapse DATE columns
-                from UNIX timestamp integers into UTC datetime objects
+            convert_to_datetime: (DataFrame only) If set to True, will convert all
+                Synapse DATE columns from UNIX timestamp integers into UTC datetime
+                objects
 
-            **kwargs: Additional keyword arguments to pass to pandas.read_csv. See
-                    <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
-                    for complete list of supported arguments. This is exposed as
-                    internally the query downloads a CSV from Synapse and then loads
-                    it into a dataframe.
+            download_location: (CSV Only) If set to a path the results will be
+                downloaded to that directory. The results will be downloaded as a CSV
+                file. A path to the downloaded file will be returned instead of a
+                DataFrame.
+
+            quote_character: (CSV Only) The character to use to quote fields. The
+                default is a double quote.
+
+            escape_character: (CSV Only) The character to use to escape special
+                characters. The default is a backslash.
+
+            line_end: (CSV Only) The character to use to end a line. The default is
+                the system's line separator.
+
+            separator: (CSV Only) The character to use to separate fields. The default
+                is a comma.
+
+            header: (CSV Only) If set to True the first row will be used as the header
+                row. The default is True.
+
+            **kwargs: (DataFrame only) Additional keyword arguments to pass to
+                pandas.read_csv. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
+                for complete list of supported arguments. This is exposed as
+                internally the query downloads a CSV from Synapse and then loads
+                it into a dataframe.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The results of the query as a Pandas DataFrame or a path to the downloaded
+            query results if `download_location` is set.
+
+        Example: Querying for data
+            This example shows how you may query for data in a table and print out the
+            results.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import query
+
+            syn = Synapse()
+            syn.login()
+
+            results = query(query="SELECT * FROM syn1234")
+            print(results)
+            ```
+        """
+        # Replaced at runtime
+        return ""
+
+    @staticmethod
+    def query_part_mask(
+        query: str,
+        part_mask: int,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> QueryResultBundle:
+        """Query for data on a table stored in Synapse. This is a more advanced use case
+        of the `query` function that allows you to determine what addiitional metadata
+        about the table or query should also be returned. If you do not need this
+        additional information then you are better off using the `query` function.
+
+        The query for this method uses this Rest API:
+        <https://rest-docs.synapse.org/rest/POST/entity/id/table/query/async/start.html>
+
+        Arguments:
+            query: The query to run. The query must be valid syntax that Synapse can
+                understand. See this document that describes the expected syntax of the
+                query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            part_mask: The bitwise OR of the part mask values you want to return in the
+                results. The following list of part masks are implemented to be returned
+                in the results:
+
+                - Query Results (queryResults) = 0x1
+                - Query Count (queryCount) = 0x2
+                - The sum of the file sizes (sumFileSizesBytes) = 0x40
+                - The last updated on date of the table (lastUpdatedOn) = 0x80
+
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
             The results of the query as a Pandas DataFrame.
+
+        Example: Querying for data with a part mask
+            This example shows how to use the bitwise `OR` of Python to combine the
+            part mask values and then use that to query for data in a table and print
+            out the results.
+
+            In this case we are getting the results of the query, the count of rows, and
+            the last updated on date of the table.
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import query_part_mask
+
+            syn = Synapse()
+            syn.login()
+
+            QUERY_RESULTS = 0x1
+            QUERY_COUNT = 0x2
+            LAST_UPDATED_ON = 0x80
+
+            # Combine the part mask values using bitwise OR
+            part_mask = QUERY_RESULTS | QUERY_COUNT | LAST_UPDATED_ON
+
+            result = query_part_mask(query="SELECT * FROM syn1234", part_mask=part_mask)
+            print(result)
+            ```
+        """
+        # Replaced at runtime
+        return QueryResultBundle(result=None)
+
+
+@async_to_sync
+class QueryMixin(QueryMixinSynchronousProtocol):
+    """Mixin class providing methods for querying data from a `Table`-like entity."""
+
+    @staticmethod
+    async def query_async(
+        query: str,
+        include_row_id_and_row_version: bool = True,
+        convert_to_datetime: bool = False,
+        download_location=None,
+        quote_character='"',
+        escape_character="\\",
+        line_end=str(os.linesep),
+        separator=",",
+        header=True,
+        *,
+        synapse_client: Optional[Synapse] = None,
+        **kwargs,
+    ) -> DATA_FRAME_TYPE:
+        """Query for data on a table stored in Synapse. The results will always be
+        returned as a Pandas DataFrame unless you specify a `download_location` in which
+        case the results will be downloaded to that location. There are a number of
+        arguments that you may pass to this function depending on if you are getting
+        the results back as a DataFrame or downloading the results to a file.
+
+        Arguments:
+            query: The query to run. The query must be valid syntax that Synapse can
+                understand. See this document that describes the expected syntax of the
+                query:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            include_row_id_and_row_version: If True the `ROW_ID` and `ROW_VERSION`
+                columns will be returned in the DataFrame. These columns are required
+                if using the query results to update rows in the table. These columns
+                are the primary keys used by Synapse to uniquely identify rows in the
+                table.
+            convert_to_datetime: (DataFrame only) If set to True, will convert all
+                Synapse DATE columns from UNIX timestamp integers into UTC datetime
+                objects
+
+            download_location: (CSV Only) If set to a path the results will be
+                downloaded to that directory. The results will be downloaded as a CSV
+                file. A path to the downloaded file will be returned instead of a
+                DataFrame.
+
+            quote_character: (CSV Only) The character to use to quote fields. The
+                default is a double quote.
+
+            escape_character: (CSV Only) The character to use to escape special
+                characters. The default is a backslash.
+
+            line_end: (CSV Only) The character to use to end a line. The default is
+                the system's line separator.
+
+            separator: (CSV Only) The character to use to separate fields. The default
+                is a comma.
+
+            header: (CSV Only) If set to True the first row will be used as the header
+                row. The default is True.
+
+            **kwargs: (DataFrame only) Additional keyword arguments to pass to
+                pandas.read_csv. See
+                <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>
+                for complete list of supported arguments. This is exposed as
+                internally the query downloads a CSV from Synapse and then loads
+                it into a dataframe.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The results of the query as a Pandas DataFrame or a path to the downloaded
+            query results if `download_location` is set.
 
         Example: Querying for data
             This example shows how you may query for data in a table and print out the
@@ -1055,8 +2286,16 @@ class TableOperator(TableOperatorSynchronousProtocol):
             lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
                 query=query,
                 includeRowIdAndRowVersion=include_row_id_and_row_version,
+                quoteCharacter=quote_character,
+                escapeCharacter=escape_character,
+                lineEnd=line_end,
+                separator=separator,
+                header=header,
+                downloadLocation=download_location,
             ),
         )
+        if download_location:
+            return results.filepath
         return results.asDataFrame(
             rowIdAndVersionInIndex=False,
             convert_to_datetime=convert_to_datetime,
@@ -1151,1180 +2390,155 @@ class TableOperator(TableOperatorSynchronousProtocol):
         return QueryResultBundle(
             result=as_df,
             count=results.count,
-            sum_file_sizes=SumFileSizes(
-                sum_file_size_bytes=results.sumFileSizes.get("sumFileSizesBytes", None),
-                greater_than=results.sumFileSizes.get("greaterThan", None),
-            )
-            if results.sumFileSizes
-            else None,
+            sum_file_sizes=(
+                SumFileSizes(
+                    sum_file_size_bytes=results.sumFileSizes.get(
+                        "sumFileSizesBytes", None
+                    ),
+                    greater_than=results.sumFileSizes.get("greaterThan", None),
+                )
+                if results.sumFileSizes
+                else None
+            ),
             last_updated_on=results.lastUpdatedOn,
         )
 
 
-@dataclass
-class CsvTableDescriptor:
-    """Derived from <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/CsvTableDescriptor.html>"""
-
-    separator: str = ","
-    """The delimiter to be used for separating entries in the resulting file. The default character ',' will be used if this is not provided by the caller. For tab-separated values use '\t'"""
-
-    quote_character: str = '"'
-    """The character to be used for quoted elements in the resulting file. The default character '"' will be used if this is not provided by the caller."""
-
-    escape_character: str = "\\"
-    """The escape character to be used for escaping a separator or quote in the resulting file. The default character '\\' will be used if this is not provided by the caller."""
-
-    line_end: str = os.linesep
-    """The line feed terminator to be used for the resulting file. The default value of '\n' will be used if this is not provided by the caller."""
-
-    is_file_line_header: bool = True
-    """Is the first line a header? The default value of 'true' will be used if this is not provided by the caller."""
-
-    def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
-        request = {
-            "separator": self.separator,
-            "quoteCharacter": self.quote_character,
-            "escapeCharacter": self.escape_character,
-            "lineEnd": self.line_end,
-            "isFirstLineHeader": self.is_file_line_header,
-        }
-        delete_none_keys(request)
-        return request
-
-
-@dataclass
-class PartialRow:
-    """
-    A partial row to be added to a table. This is used in the `PartialRowSet` to
-    indicate what rows should be updated in a table during the upsert operation.
-    """
-
-    row_id: str
-    values: List[Dict[str, Any]]
-    etag: Optional[str] = None
-
-    def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
-        result = {
-            "etag": self.etag,
-            "rowId": self.row_id,
-            "values": self.values,
-        }
-        delete_none_keys(result)
-        return result
-
-    def size(self) -> int:
-        """
-        Returns the size of the PartialRow in bytes. This is not an exact size but
-        follows the calculation as used in the Rest API:
-
-        <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/blob/8bf7f60c46b76625c0d4be33fafc5cf896e50b36/lib/lib-table-cluster/src/main/java/org/sagebionetworks/table/cluster/utils/TableModelUtils.java#L952-L965>
-        """
-        char_count = 0
-        if self.values:
-            for value in self.values:
-                char_count += len(value["key"])
-                if value["value"] is not None:
-                    char_count += len(str(value["value"]))
-        return 4 * char_count
-
-
-@dataclass
-class PartialRowSet:
-    """
-    A set of partial rows to be added to a table. This is used in the
-    `AppendableRowSetRequest` to indicate what rows should be updated in a table
-    during the upsert operation.
-    """
-
-    table_id: str
-    rows: List[PartialRow]
-    concrete_type: str = concrete_types.PARTIAL_ROW_SET
-
-    def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
-        return {
-            "concreteType": self.concrete_type,
-            "tableId": self.table_id,
-            "rows": [row.to_synapse_request() for row in self.rows],
-        }
-
-
-@dataclass
-class AppendableRowSetRequest:
-    """
-    A request to append rows to a table. This is used to append rows to a table. This
-    request is used in the `TableUpdateTransaction` to indicate what rows should
-    be upserted in the table.
-    """
-
-    entity_id: str
-    to_append: PartialRowSet
-    concrete_type: str = concrete_types.APPENDABLE_ROWSET_REQUEST
-
-    def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
-        return {
-            "concreteType": self.concrete_type,
-            "entityId": self.entity_id,
-            "toAppend": self.to_append.to_synapse_request(),
-        }
-
-
-@dataclass
-class UploadToTableRequest:
-    """
-    A request to upload a file to a table. This is used to insert any rows via a CSV
-    file into a table. This request is used in the `TableUpdateTransaction`.
-    """
-
-    table_id: str
-    upload_file_handle_id: str
-    update_etag: str
-    lines_to_skip: int = 0
-    csv_table_descriptor: CsvTableDescriptor = field(default_factory=CsvTableDescriptor)
-    concrete_type: str = concrete_types.UPLOAD_TO_TABLE_REQUEST
-
-    def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
-        request = {
-            "concreteType": self.concrete_type,
-            "tableId": self.table_id,
-            "uploadFileHandleId": self.upload_file_handle_id,
-            "updateEtag": self.update_etag,
-            "linesToSkip": self.lines_to_skip,
-            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
-        }
-
-        delete_none_keys(request)
-        return request
-
-
-@dataclass
-class ColumnChange:
-    """
-    A change to a column in a table. This is used in the `TableSchemaChangeRequest` to
-    indicate what changes should be made to the columns in the table.
-    """
-
-    concrete_type: str = concrete_types.COLUMN_CHANGE
-
-    old_column_id: Optional[str] = None
-    """The ID of the old ColumnModel to be replaced with the new. Set to null to indicate a new column should be added without replacing an old column."""
-
-    new_column_id: Optional[str] = None
-    """The ID of the new ColumnModel to replace the old. Set to null to indicate the old column should be removed without being replaced."""
-
-    def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
-
-        return {
-            "concreteType": self.concrete_type,
-            "oldColumnId": self.old_column_id,
-            "newColumnId": self.new_column_id,
-        }
-
-
-@dataclass
-class TableSchemaChangeRequest:
-    """
-    A request to change the schema of a table. This is used to change the columns in a
-    table. This request is used in the `TableUpdateTransaction` to indicate what
-    changes should be made to the columns in the table.
-    """
-
-    entity_id: str
-    changes: List[ColumnChange]
-    ordered_column_ids: List[str]
-    concrete_type: str = concrete_types.TABLE_SCHEMA_CHANGE_REQUEST
-
-    def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
-        return {
-            "concreteType": self.concrete_type,
-            "entityId": self.entity_id,
-            "changes": [change.to_synapse_request() for change in self.changes],
-            "orderedColumnIds": self.ordered_column_ids,
-        }
-
-
-@dataclass
-class TableUpdateTransaction(AsynchronousCommunicator):
-    """
-    A request to update a table. This is used to update a table with a set of changes.
-
-    After calling the `send_job_and_wait_async` method the `results` attribute will be
-    filled in based off <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>.
-    """
-
-    entity_id: str
-    changes: List[
-        Union[TableSchemaChangeRequest, UploadToTableRequest, AppendableRowSetRequest]
-    ]
-    concrete_type: str = concrete_types.TABLE_UPDATE_TRANSACTION_REQUEST
-    results: Optional[List[Dict[str, Any]]] = None
-    """This will be an array of
-    <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateResponse.html>."""
-
-    def to_synapse_request(self):
-        """Converts the request to a request expected of the Synapse REST API."""
-        return {
-            "concreteType": self.concrete_type,
-            "entityId": self.entity_id,
-            "changes": [change.to_synapse_request() for change in self.changes],
-        }
-
-    def fill_from_dict(self, synapse_response: Dict[str, str]) -> "Self":
-        """
-        Converts a response from the REST API into this dataclass.
-
-        Arguments:
-            synapse_response: The response from the REST API that matches <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableUpdateTransactionResponse.html>
-
-        Returns:
-            An instance of this class.
-        """
-        self.results = synapse_response.get("results", None)
-        return self
-
-
-class FacetType(str, Enum):
-    """Set to one of the enumerated values to indicate a column should be treated as
-    a facet."""
-
-    ENUMERATION = "enumeration"
-    """Returns the most frequently seen values and their respective frequency counts;
-    selecting these returned values will cause the table results to be filtered such
-    that only rows with the selected values are returned."""
-
-    RANGE = "range"
-    """Allows the column to be filtered by a chosen lower and upper bound; these bounds
-    are inclusive."""
-
-
-class ColumnType(str, Enum):
-    """The column type determines the type of data that can be stored in a column.
-    Switching between types (using a transaction with TableUpdateTransaction
-    in the "changes" list) is generally allowed except for switching to "_LIST"
-    suffixed types. In such cases, a new column must be created and data must be
-    copied over manually"""
-
-    STRING = "STRING"
-    """The STRING data type is a small text strings with between 1 and 1,000 characters.
-    Each STRING column will have a declared maximum size between 1 and 1,000 characters
-    (with 50 characters as the default when maximumSize = null). The maximum STRING size
-    is applied to the budget of the maximum table width, therefore it is best to use the
-    smallest possible maximum size for the data. For strings larger than 250 characters,
-    consider using the LARGETEXT column type for improved performance. Each STRING column
-    counts as maxSize*4 (4 bytes per character) towards the total width of a table."""
-
-    DOUBLE = "DOUBLE"
-    """The DOUBLE data type is a double-precision 64-bit IEEE 754 floating point. Its
-    range of values is approximately +/-1.79769313486231570E+308 (15 significant decimal
-    digits). Each DOUBLE column counts as 23 bytes towards the total width of a table."""
-
-    INTEGER = "INTEGER"
-    """The INTEGER data type is a 64-bit two's complement integer. The signed integer has
-    a minimum value of -2^63 and a maximum value of 2^63-1. Each INTEGER column counts as
-    20 bytes towards the total width of a table."""
-
-    BOOLEAN = "BOOLEAN"
-    """The BOOLEAN data type has only two possible values: 'true' and 'false'. Each
-    BOOLEAN column counts as 5 bytes towards the total width of a table."""
-
-    DATE = "DATE"
-    """The DATE data type represent the specified number of milliseconds since the
-    standard base time known as 'the epoch', namely January 1, 1970, 00:00:00 GM.
-    Each DATE column counts as 20 bytes towards the total width of a table."""
-
-    FILEHANDLEID = "FILEHANDLEID"
-    """The FILEHANDLEID data type represents a file stored within a table. To store a
-    file in a table, first use the 'File Services' to upload a file to generate a new
-    FileHandle, then apply the fileHandle.id as the value for this column. Note: This
-    column type works best for files that are binary (non-text) or text files that are 1
-    MB or larger. For text files that are smaller than 1 MB consider using the LARGETEXT
-    column type to improve download performance. Each FILEHANDLEID column counts as 20
-    bytes towards the total width of a table."""
-
-    ENTITYID = "ENTITYID"
-    """The ENTITYID type represents a reference to a Synapse Entity. Values will include
-    the 'syn' prefix, such as 'syn123'. Each ENTITYID column counts as 44 bytes towards
-    the total width of a table."""
-
-    SUBMISSIONID = "SUBMISSIONID"
-    """The SUBMISSIONID type represents a reference to an evaluation submission. The
-    value should be the ID of the referenced submission. Each SUBMISSIONID column counts
-    as 20 bytes towards the total width of a table."""
-
-    EVALUATIONID = "EVALUATIONID"
-    """The EVALUATIONID type represents a reference to an evaluation. The value should be
-    the ID of the referenced evaluation. Each EVALUATIONID column counts as 20 bytes
-    towards the total width of a table."""
-
-    LINK = "LINK"
-    """The LINK data type represents any URL with 1,000 characters or less. Each LINK
-    column counts as maxSize*4 (4 bytes per character) towards the total width of a
-    table."""
-
-    MEDIUMTEXT = "MEDIUMTEXT"
-    """The MEDIUMTEXT data type represents a string that is between 1 and 2,000
-    characters without the need to specify a maximum size. For smaller strings where the
-    maximum size is known consider using the STRING column type. For larger strings,
-    consider using the LARGETEXT or FILEHANDLEID column types. Each MEDIUMTEXT column
-    counts as 421 bytes towards the total width of a table."""
-
-    LARGETEXT = "LARGETEXT"
-    """The LARGETEXT data type represents a string that is greater than 250 characters
-    but less than 524,288 characters (2 MB of UTF-8 4 byte chars). For smaller strings
-    consider using the STRING or MEDIUMTEXT column types. For larger strings, consider
-    using the FILEHANDELID column type. Each LARGE_TEXT column counts as 2133 bytes
-    towards the total width of a table."""
-
-    USERID = "USERID"
-    """The USERID data type represents a reference to a Synapse User. The value should
-    be the ID of the referenced User. Each USERID column counts as 20 bytes towards the
-    total width of a table."""
-
-    STRING_LIST = "STRING_LIST"
-    """Multiple values of STRING."""
-
-    INTEGER_LIST = "INTEGER_LIST"
-    """Multiple values of INTEGER."""
-
-    BOOLEAN_LIST = "BOOLEAN_LIST"
-    """Multiple values of BOOLEAN."""
-
-    DATE_LIST = "DATE_LIST"
-    """Multiple values of DATE."""
-
-    ENTITYID_LIST = "ENTITYID_LIST"
-    """Multiple values of ENTITYID."""
-
-    USERID_LIST = "USERID_LIST"
-    """Multiple values of USERID."""
-
-    JSON = "JSON"
-    """A flexible type that allows to store JSON data. Each JSON column counts as 2133
-    bytes towards the total width of a table. A JSON value string should be less than
-    524,288 characters (2 MB of UTF-8 4 byte chars)."""
-
-    def __repr__(self) -> str:
-        """Print out the string value of self"""
-        return self.value
-
-
-@dataclass
-class JsonSubColumn:
-    """For column of type JSON that represents the combination of multiple
-    sub-columns, this property is used to define each sub-column."""
-
-    name: str
-    """The display name of the column."""
-
-    column_type: ColumnType
-    """The column type determines the type of data that can be stored in a column.
-    Switching between types (using a transaction with TableUpdateTransaction
-    in the "changes" list) is generally allowed except for switching to "_LIST" suffixed
-    types. In such cases, a new column must be created and data must be copied
-    over manually"""
-
-    json_path: str
-    """Defines the JSON path of the sub column. Use the '$' char to represent the root
-    of JSON object. If the JSON key of a sub column is 'a', then the jsonPath for that
-    column would be: '$.a'."""
-
-    facet_type: Optional[FacetType] = None
-    """Set to one of the enumerated values to indicate a column should be
-    treated as a facet"""
-
-    def to_synapse_request(self) -> Dict[str, Any]:
-        """Converts the Column object into a dictionary that can be passed into the
-        REST API."""
-        result = {
-            "name": self.name,
-            "columnType": self.column_type.value if self.column_type else None,
-            "jsonPath": self.json_path,
-            "facetType": self.facet_type.value if self.facet_type else None,
-        }
-        delete_none_keys(result)
-        return result
-
-
-@dataclass()
 @async_to_sync
-class Column(ColumnSynchronousProtocol):
-    """A column model contains the metadata of a single column of a table or view."""
+class ViewSnapshotMixin:
+    """A mixin providing methods for creating a snapshot of a `View`-like entity."""
 
-    id: Optional[str] = None
-    """The immutable ID issued to new columns"""
-
-    name: Optional[str] = None
-    """The display name of the column"""
-
-    column_type: Optional[ColumnType] = None
-    """The column type determines the type of data that can be stored in a column.
-    Switching between types (using a transaction with TableUpdateTransaction
-    in the "changes" list) is generally allowed except for switching to "_LIST"
-    suffixed types. In such cases, a new column must be created and data must be
-    copied over manually"""
-
-    facet_type: Optional[FacetType] = None
-    """Set to one of the enumerated values to indicate a column should be
-    treated as a facet"""
-
-    default_value: Optional[str] = None
-    """The default value for this column. Columns of type ENTITYID, FILEHANDLEID,
-    USERID, and LARGETEXT are not allowed to have default values."""
-
-    maximum_size: Optional[int] = None
-    """A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs
-    have a default maximum size of 50 characters, but can be set to a maximumSize
-    of 1 to 1000 characters. For columnType of STRING_LIST, this limits the size
-    of individual string elements in the list"""
-
-    maximum_list_length: Optional[int] = None
-    """Required if using a columnType with a "_LIST" suffix. Describes the maximum number
-    of values that will appear in that list. Value range 1-100 inclusive. Default 100"""
-
-    enum_values: Optional[List[str]] = None
-    """Columns of type STRING can be constrained to an enumeration values set on this
-    list. The maximum number of entries for an enum is 100"""
-
-    json_sub_columns: Optional[List[JsonSubColumn]] = None
-    """For column of type JSON that represents the combination of multiple sub-columns,
-    this property is used to define each sub-column."""
-
-    _last_persistent_instance: Optional["Column"] = field(
-        default=None, repr=False, compare=False
-    )
-    """The last persistent instance of this object. This is used to determine if the
-    object has been changed and needs to be updated in Synapse."""
-
-    def fill_from_dict(
-        self, synapse_column: Union[Synapse_Column, Dict[str, Any]]
-    ) -> "Column":
-        """Converts a response from the synapseclient into this dataclass."""
-        self.id = synapse_column.get("id", None)
-        self.name = synapse_column.get("name", None)
-        self.column_type = (
-            ColumnType(synapse_column.get("columnType", None))
-            if synapse_column.get("columnType", None)
-            else None
-        )
-        self.facet_type = (
-            FacetType(synapse_column.get("facetType", None))
-            if synapse_column.get("facetType", None)
-            else None
-        )
-        self.default_value = synapse_column.get("defaultValue", None)
-        self.maximum_size = synapse_column.get("maximumSize", None)
-        self.maximum_list_length = synapse_column.get("maximumListLength", None)
-        self.enum_values = synapse_column.get("enumValues", None)
-        # TODO: This needs to be converted to it's Dataclass. It also needs to be tested to verify conversion.
-        self.json_sub_columns = synapse_column.get("jsonSubColumns", None)
-        self._set_last_persistent_instance()
-        return self
-
-    @property
-    def has_changed(self) -> bool:
-        """Determines if the object has been changed and needs to be updated in Synapse."""
-        return (
-            not self._last_persistent_instance or self._last_persistent_instance != self
-        )
-
-    def _set_last_persistent_instance(self) -> None:
-        """Stash the last time this object interacted with Synapse. This is used to
-        determine if the object has been changed and needs to be updated in Synapse."""
-        del self._last_persistent_instance
-        self._last_persistent_instance = replace(self)
-        self._last_persistent_instance.json_sub_columns = (
-            replace(self.json_sub_columns) if self.json_sub_columns else None
-        )
-
-    def to_synapse_request(self) -> Dict[str, Any]:
-        """Converts the Column object into a dictionary that can be passed into the
-        REST API."""
-        result = {
-            "concreteType": concrete_types.COLUMN_MODEL,
-            "name": self.name,
-            "columnType": self.column_type.value if self.column_type else None,
-            "facetType": self.facet_type.value if self.facet_type else None,
-            "defaultValue": self.default_value,
-            "maximumSize": self.maximum_size,
-            "maximumListLength": self.maximum_list_length,
-            "enumValues": self.enum_values,
-            "jsonSubColumns": [
-                sub_column.to_synapse_request() for sub_column in self.json_sub_columns
-            ]
-            if self.json_sub_columns
-            else None,
-        }
-        delete_none_keys(result)
-        return result
-
-
-class SchemaStorageStrategy(str, Enum):
-    """Enum used to determine how to store the schema of a table in Synapse."""
-
-    INFER_FROM_DATA = "INFER_FROM_DATA"
-    """
-    (Default)
-    Allow the data to define which columns are created on the Synapse table
-    automatically. The limitation with this behavior is that the columns created may
-    only be of the following types:
-
-    - STRING
-    - LARGETEXT
-    - INTEGER
-    - DOUBLE
-    - BOOLEAN
-    - DATE
-
-    The determination of the column type is based on the data that is passed in
-    using the pandas function
-    [infer_dtype](https://pandas.pydata.org/docs/reference/api/pandas.api.types.infer_dtype.html).
-    If you need a more specific column type, or need to add options to the colums
-    follow the examples shown in the [Table][synapseclient.models.Table] class.
-
-
-    The columns created as a result of this strategy will be appended to the end of the
-    existing columns if the table already exists.
-    """
-
-
-class ColumnExpansionStrategy(str, Enum):
-    """
-    Determines how to automate the expansion of columns based on the data
-    that is being stored. The options given allow cells with a limit on the length of
-    content (Such as strings) to be expanded to a larger size if the data being stored
-    exceeds the limit. A limit to list length is also enforced in Synapse by automatic
-    expansion for lists is not yet supported through this interface.
-    """
-
-    # To be supported at a later time
-    # AUTO_EXPAND_CONTENT_AND_LIST_LENGTH = "AUTO_EXPAND_CONTENT_AND_LIST_LENGTH"
-    # """
-    # (Default)
-    # Automatically expand both the content length and list length of columns if the data
-    # being stored exceeds the limit.
-    # """
-
-    AUTO_EXPAND_CONTENT_LENGTH = "AUTO_EXPAND_CONTENT_LENGTH"
-    """
-    (Default)
-    Automatically expand the content length of columns if the data being stored exceeds
-    the limit.
-    """
-
-    # To be supported at a later time
-    # AUTO_EXPAND_LIST_LENGTH = "AUTO_EXPAND_LIST_LENGTH"
-    # """
-    # Automatically expand the list length of columns if the data being stored exceeds
-    # the limit.
-    # """
-
-
-# TODO: Determine if Datasets, and other table type things have all this functionality
-@async_to_sync
-class TableRowOperator(TableRowOperatorSynchronousProtocol):
-    id: str = None
-    name: str = None
-    parent_id: str = None
-    activity: None = None
-    columns: OrderedDict = None
-    _last_persistent_instance: None = None
-    _columns_to_delete: None = None
-
-    def _set_last_persistent_instance(self) -> None:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    def to_synapse_request(self) -> Dict:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    def fill_from_dict(self, *args, **kwargs) -> None:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    def get_async(self, *args, **kwargs) -> None:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    def _generate_schema_change_request(
-        self, *args, **kwargs
-    ) -> TableSchemaChangeRequest:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    def query_async(self, *args, **kwargs) -> None:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    @property
-    def has_changed(self) -> bool:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    @property
-    def has_columns_changed(self) -> bool:
-        """Used to satisfy the usage in this mixin from the parent class."""
-
-    def _construct_select_statement_for_upsert(
+    async def snapshot_async(
         self,
-        df: DATA_FRAME_TYPE,
-        all_columns_from_df: List[str],
-        primary_keys: List[str],
-    ) -> str:
-        """
-        Create the select statement for a given DataFrame. This is used to select data
-        from Synapse to determine if a row already exists in the table. This is used
-        in the upsert method to determine if a row should be updated or inserted.
-
-        Arguments:
-            df: The DataFrame that contains the data to be upserted.
-            all_columns_from_df: A list of all the columns in the DataFrame.
-            primary_keys: A list of the columns that are used to determine if a row
-                already exists in the table.
-
-        Returns:
-            The select statement that can be used to query Synapse to determine if a row
-            already exists in the
-        """
-
-        select_statement = "SELECT ROW_ID, "
-
-        if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
-            select_statement += "ROW_ETAG, "
-
-        select_statement += f"{', '.join(all_columns_from_df)} FROM {self.id} WHERE "
-        where_statements = []
-        for upsert_column in primary_keys:
-            column_model = self.columns[upsert_column]
-            if (
-                column_model.column_type
-                in (
-                    ColumnType.STRING_LIST,
-                    ColumnType.INTEGER_LIST,
-                    ColumnType.BOOLEAN_LIST,
-                    ColumnType.ENTITYID_LIST,
-                    ColumnType.USERID_LIST,
-                )
-                or column_model.column_type == ColumnType.JSON
-            ):
-                raise ValueError(
-                    f"Column type {column_model.column_type} is not supported for primary_keys"
-                )
-            elif column_model.column_type in (
-                ColumnType.STRING,
-                ColumnType.MEDIUMTEXT,
-                ColumnType.LARGETEXT,
-                ColumnType.LINK,
-                ColumnType.ENTITYID,
-            ):
-                values_for_where_statement = set(
-                    [f"'{value}'" for value in df[upsert_column] if value is not None]
-                )
-
-            elif column_model.column_type == ColumnType.BOOLEAN:
-                include_true = False
-                include_false = False
-                for value in df[upsert_column]:
-                    if value is None:
-                        continue
-                    if value:
-                        include_true = True
-                    else:
-                        include_false = True
-                    if include_true and include_false:
-                        break
-                if include_true and include_false:
-                    values_for_where_statement = ["'true'", "'false'"]
-                elif include_true:
-                    values_for_where_statement = ["'true'"]
-                elif include_false:
-                    values_for_where_statement = ["'false'"]
-            else:
-                values_for_where_statement = set(
-                    [str(value) for value in df[upsert_column] if value is not None]
-                )
-            if not values_for_where_statement:
-                continue
-            where_statements.append(
-                f"\"{upsert_column}\" IN ({', '.join(values_for_where_statement)})"
-            )
-
-        where_statement = " AND ".join(where_statements)
-        select_statement += where_statement
-        return select_statement
-
-    def _construct_partial_rows_for_upsert(
-        self,
-        results: DATA_FRAME_TYPE,
-        chunk_to_check_for_upsert: DATA_FRAME_TYPE,
-        primary_keys: List[str],
-        contains_etag: bool,
-    ) -> Tuple[List[PartialRow], List[int], List[int]]:
-        """
-        Handles the construction of the PartialRow objects that will be used to update
-        rows in Synapse. This method is used in the upsert method to determine which
-        rows need to be updated.
-
-        Arguments:
-            results: The DataFrame that contains the data that was queried from Synapse.
-            chunk_to_check_for_upsert: The DataFrame that contains the data that is
-                being upserted.
-            primary_keys: A list of the columns that are used to determine if a row
-                already exists in the table.
-
-        Returns:
-            A tuple containing a list of PartialRow objects that will be used to update
-            rows in Synapse, a list of the indexs of the rows in the original
-            DataFrame that have changes, and a list of the indexs of the rows in the
-            original DataFrame that do not have changes.
-        """
-
-        from pandas import isna
-
-        rows_to_update: List[PartialRow] = []
-        indexs_of_original_df_with_changes = []
-        indexs_of_original_df_without_changes = []
-        for row in results.itertuples(index=False):
-            row_etag = None
-
-            if contains_etag:
-                row_etag = row.ROW_ETAG
-
-            partial_change_values = {}
-
-            # Find the matching row in `values` that matches the row in `results` for the primary_keys
-            matching_conditions = chunk_to_check_for_upsert[primary_keys[0]] == getattr(
-                row, primary_keys[0]
-            )
-            for col in primary_keys[1:]:
-                matching_conditions &= chunk_to_check_for_upsert[col] == getattr(
-                    row, col
-                )
-            matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
-
-            # Determines which cells need to be updated
-            for column in chunk_to_check_for_upsert.columns:
-                if len(matching_row[column].values) > 1:
-                    raise ValueError(
-                        f"The values for the keys being upserted must be unique in the table: [{matching_row}]"
-                    )
-                elif column not in self.columns:
-                    continue
-
-                if len(matching_row[column].values) == 0:
-                    continue
-                column_id = self.columns[column].id
-                column_type = self.columns[column].column_type
-                cell_value = matching_row[column].values[0]
-                if cell_value != getattr(row, column):
-                    if (
-                        isinstance(cell_value, list) and len(cell_value) > 0
-                    ) or not isna(cell_value):
-                        partial_change_values[
-                            column_id
-                        ] = _convert_pandas_row_to_python_types(
-                            cell=cell_value, column_type=column_type
-                        )
-                    else:
-                        partial_change_values[column_id] = None
-
-            if partial_change_values:
-                partial_change = PartialRow(
-                    row_id=row.ROW_ID,
-                    etag=row_etag,
-                    values=[
-                        {
-                            "key": partial_change_key,
-                            "value": partial_change_value,
-                        }
-                        for partial_change_key, partial_change_value in partial_change_values.items()
-                    ],
-                )
-                rows_to_update.append(partial_change)
-                indexs_of_original_df_with_changes.append(matching_row.index[0])
-            else:
-                indexs_of_original_df_without_changes.append(matching_row.index[0])
-        return (
-            rows_to_update,
-            indexs_of_original_df_with_changes,
-            indexs_of_original_df_without_changes,
-        )
-
-    async def _push_row_updates_to_synapse(
-        self,
-        rows_to_update: List[PartialRow],
-        update_size_bytes: int,
-        progress_bar: tqdm,
-        job_timeout: int,
-        client: Synapse,
-    ) -> None:
-        current_chunk_size = 0
-        chunk = []
-        for row in rows_to_update:
-            row_size = row.size()
-            if current_chunk_size + row_size > update_size_bytes:
-                change = AppendableRowSetRequest(
-                    entity_id=self.id,
-                    to_append=PartialRowSet(
-                        table_id=self.id,
-                        rows=chunk,
-                    ),
-                )
-
-                request = TableUpdateTransaction(
-                    entity_id=self.id,
-                    changes=[change],
-                )
-
-                await request.send_job_and_wait_async(
-                    synapse_client=client, timeout=job_timeout
-                )
-                progress_bar.update(len(chunk))
-                chunk = []
-                current_chunk_size = 0
-            chunk.append(row)
-            current_chunk_size += row_size
-
-        if chunk:
-            change = AppendableRowSetRequest(
-                entity_id=self.id,
-                to_append=PartialRowSet(
-                    table_id=self.id,
-                    rows=chunk,
-                ),
-            )
-
-            await TableUpdateTransaction(
-                entity_id=self.id,
-                changes=[change],
-            ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
-            progress_bar.update(len(chunk))
-
-    async def upsert_rows_async(
-        self,
-        values: DATA_FRAME_TYPE,
-        primary_keys: List[str],
-        dry_run: bool = False,
         *,
-        rows_per_query: int = 50000,
-        update_size_bytes: int = 1.9 * MB,
-        insert_size_bytes: int = 900 * MB,
-        job_timeout: int = 600,
+        comment: Optional[str] = None,
+        label: Optional[str] = None,
+        include_activity: bool = True,
+        associate_activity_to_new_version: bool = True,
         synapse_client: Optional[Synapse] = None,
-        **kwargs,
-    ) -> None:
-        """
-        This method allows you to perform an `upsert` (Update and Insert) for row(s).
-        This means that you may update a row with only the data that you want to change.
-        When supplied with a row that does not match the given `primary_keys` a new
-        row will be inserted.
+    ) -> "TableUpdateTransaction":
+        """Creates a snapshot of the `View`-like entity.
+        Synapse handles snapshot creation differently for `Table`- and `View`-like
+        entities. `View` snapshots are created using the asyncronous job API.
 
 
-        Using the `primary_keys` argument you may specify which columns to use to
-        determine if a row already exists. If a row exists with the same values in the
-        columns specified in this list the row will be updated. If a row does not exist
-        it will be inserted.
-
-
-        Limitations:
-
-        - The request to update, and the request to insert data does not occur in a
-            single transaction. This means that the update of data may succeed, but the
-            insert of data may fail. Additionally, as noted in the limitation below, if
-            data is chunked up into multiple requests you may find that a portion of
-            your data is updated, but another portion is not.
-        - The number of rows that may be upserted in a single call should be
-            kept to a minimum (< 50,000). There is significant overhead in the request
-            to Synapse for each row that is upserted. If you are upserting a large
-            number of rows a better approach may be to query for the data you want
-            to update, update the data, then use the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method to
-            update the data in Synapse. Any rows you want to insert may be added
-            to the DataFrame that is passed to the [store_rows_async][synapseclient.models.mixins.table_operator.TableRowOperator.store_rows_async] method.
-        - When upserting mnay rows the requests to Synapse will be chunked into smaller
-            requests. The limit is 2MB per request. This chunking will happen
-            automatically and should not be a concern for most users. If you are
-            having issues with the request being too large you may lower the
-            number of rows you are trying to upsert, or note the above limitation.
-        - The `primary_keys` argument must contain at least one column.
-        - The `primary_keys` argument cannot contain columns that are a LIST type.
-        - The `primary_keys` argument cannot contain columns that are a JSON type.
-        - The values used as the `primary_keys` must be unique in the table. If there
-            are multiple rows with the same values in the `primary_keys` the behavior
-            is that an exception will be raised.
-        - The columns used in `primary_keys` cannot contain updated values. Since
-            the values in these columns are used to determine if a row exists, they
-            cannot be updated in the same transaction.
-
-        The following is a Sequence Diagram that describces the upsert process at a
-        high level:
-
-        ```mermaid
-        sequenceDiagram
-            participant User
-            participant Table
-            participant Synapse
-
-            User->>Table: upsert_rows()
-
-            loop Query and Process Updates in Chunks (rows_per_query)
-                Table->>Synapse: Query existing rows using primary keys
-                Synapse-->>Table: Return matching rows
-                Note Over Table: Create partial row updates
-
-                loop For results from query
-                    Note Over Table: Sum row/chunk size
-                    alt Chunk size exceeds update_size_bytes
-                        Table->>Synapse: Push update chunk
-                        Synapse-->>Table: Acknowledge update
-                    end
-                    Table->>Table: Add row to chunk
-                end
-
-                alt Remaining updates exist
-                    Table->>Synapse: Push final update chunk
-                    Synapse-->>Table: Acknowledge update
-                end
-            end
-
-            alt New rows exist
-                Table->>Table: Identify new rows for insertion
-                Table->>Table: Call `store_rows()` function
-            end
-
-            Table-->>User: Upsert complete
-        ```
+        Making a snapshot of a view allows you to create an immutable version of the
+        view at the time of the snapshot. This is useful to create checkpoints in time
+        that you may go back and reference, or use in a publication. Snapshots are
+        immutable and cannot be changed. They may only be deleted.
 
         Arguments:
-            values: Supports storing data from the following sources:
-
-                - A string holding the path to a CSV file. Tthe data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_operator.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
-                - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
-                - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
-
-            primary_keys: The columns to use to determine if a row already exists. If
-                a row exists with the same values in the columns specified in this list
-                the row will be updated. If a row does not exist it will be inserted.
-
-            dry_run: If set to True the data will not be updated in Synapse. A message
-                will be printed to the console with the number of rows that would have
-                been updated and inserted. If you would like to see the data that would
-                be updated and inserted you may set the `dry_run` argument to True and
-                set the log level to DEBUG by setting the debug flag when creating
-                your Synapse class instance like: `syn = Synapse(debug=True)`.
-
-            rows_per_query: The number of rows that will be queries from Synapse per
-                request. Since we need to query for the data that is being updated
-                this will determine the number of rows that are queried at a time.
-                The default is 50,000 rows.
-
-            update_size_bytes: The maximum size of the request that will be sent to Synapse
-                when updating rows of data. The default is 1.9MB.
-
-            insert_size_bytes: The maximum size of the request that will be sent to Synapse
-                when inserting rows of data. The default is 900MB.
-
-            job_timeout: The maximum amount of time to wait for a job to complete.
-                This is used when inserting, and updating rows of data. Each individual
-                request to Synapse will be sent as an independent job. If the timeout
-                is reached a `SynapseTimeoutError` will be raised.
-                The default is 600 seconds
-
+            comment: A unique comment to associate with the snapshot.
+            label: A unique label to associate with the snapshot. If this is not a
+                unique label an exception will be raised when you store this to Synapse.
+            include_activity: If True the activity will be included in snapshot if it
+                exists. In order to include the activity, the activity must have already
+                been stored in Synapse by using the `activity` attribute on the Table
+                and calling the `store()` method on the Table instance. Adding an
+                activity to a snapshot of a table is meant to capture the provenance of
+                the data at the time of the snapshot. Defaults to True.
+            associate_activity_to_new_version: If True the activity will be associated
+                with the new version of the table. If False the activity will not be
+                associated with the new version of the table. Defaults to True.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor
+                instance from the Synapse class constructor.
 
-            **kwargs: Additional arguments that are passed to the `pd.DataFrame`
-                function when the `values` argument is a path to a csv file.
+        Returns:
+            A `TableUpdateTransaction` object which includes the version number of the snapshot.
 
-
-        Example: Updating 2 rows and inserting 1 row
-            In this given example we have a table with the following data:
-
-            | col1 | col2 | col3 |
-            |------|------| -----|
-            | A    | 1    | 1    |
-            | B    | 2    | 2    |
-
-            The following code will update the first row's `col2` to `22`, update the
-            second row's `col3` to `33`, and insert a new row:
+        Example: Creating a snapshot of a view with an activity
+            Create a snapshot of a view and include the activity. The activity must
+            have been stored in Synapse by using the `activity` attribute on the EntityView
+            and calling the `store_async()` method on the EntityView instance. Adding an activity
+            to a snapshot of a entityview is meant to capture the provenance of the data at
+            the time of the snapshot.
 
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table # Also works with `Dataset`
-            import pandas as pd
+            from synapseclient.models import EntityView
 
             syn = Synapse()
             syn.login()
 
-
             async def main():
-                table = await Table(id="syn123").get_async(include_columns=True)
-
-                df = {
-                    'col1': ['A', 'B', 'C'],
-                    'col2': [22, 2, 3],
-                    'col3': [1, 33, 3],
-                }
-
-                await table.upsert_rows_async(values=df, primary_keys=["col1"])
+                view = EntityView(id="syn4567")
+                snapshot = await view.snapshot_async(label="Q1 2025", comment="Results collected in Lab A", include_activity=True, associate_activity_to_new_version=True)
+                print(snapshot)
 
             asyncio.run(main())
             ```
 
-            The resulting table will look like this:
-
-            | col1 | col2 | col3 |
-            |------|------| -----|
-            | A    | 22   | 1    |
-            | B    | 2    | 33   |
-            | C    | 3    | 3    |
-
-        Example: Deleting data from a specific cell
-            In this given example we have a table with the following data:
-
-            | col1 | col2 | col3 |
-            |------|------| -----|
-            | A    | 1    | 1    |
-            | B    | 2    | 2    |
-
-            The following code will update the first row's `col2` to `22`, update the
-            second row's `col3` to `33`, and insert a new row:
+        Example: Creating a snapshot of a view without an activity
+            Create a snapshot of a view without including the activity. This is used in
+            cases where we do not have any Provenance to associate with the snapshot and
+            we do not want to persist any activity that may be present on the view to
+            the new version of the view.
 
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table # Also works with `Dataset`
+            from synapseclient.models import EntityView
 
             syn = Synapse()
             syn.login()
 
-
             async def main():
-                table = await Table(id="syn123").get_async(include_columns=True)
-
-                df = {
-                    'col1': ['A', 'B'],
-                    'col2': [None, 2],
-                    'col3': [1, None],
-                }
-
-                await table.upsert_rows_async(values=df, primary_keys=["col1"])
+                view = EntityView(id="syn4567")
+                snapshot = await view.snapshot_async(label="Q1 2025", comment="Results collected in Lab A", include_activity=False, associate_activity_to_new_version=False)
+                print(snapshot)
 
             asyncio.run(main())
             ```
-
-
-            The resulting table will look like this:
-
-            | col1 | col2 | col3 |
-            |------|------| -----|
-            | A    |      | 1    |
-            | B    | 2    |      |
-
         """
-        test_import_pandas()
-        from pandas import DataFrame
-
-        if not self._last_persistent_instance:
-            await self.get_async(include_columns=True, synapse_client=synapse_client)
-        if not self.columns:
-            raise ValueError(
-                "There are no columns on this table. Unable to proceed with an upsert operation."
-            )
-
-        if isinstance(values, dict):
-            values = DataFrame(values)
-        elif isinstance(values, str):
-            values = csv_to_pandas_df(filepath=values, **kwargs)
-        elif isinstance(values, DataFrame):
-            pass
-        else:
-            raise ValueError(
-                "Don't know how to make tables from values of type %s." % type(values)
-            )
-
         client = Synapse.get_client(synapse_client=synapse_client)
-
-        rows_to_update: List[PartialRow] = []
-        chunk_list: List[DataFrame] = []
-        for i in range(0, len(values), rows_per_query):
-            chunk_list.append(values[i : i + rows_per_query])
-
-        all_columns_from_df = [f'"{column}"' for column in values.columns]
-        contains_etag = self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
-        indexes_of_original_df_with_changes = []
-        indexes_of_original_df_with_no_changes = []
-        total_row_count_updated = 0
-
-        with logging_redirect_tqdm(loggers=[client.logger]):
-            progress_bar = tqdm(
-                total=len(values),
-                desc="Querying & Updating rows",
-                unit_scale=True,
-                smoothing=0,
-                leave=None,
-            )
-            for individual_chunk in chunk_list:
-                select_statement = self._construct_select_statement_for_upsert(
-                    df=individual_chunk,
-                    all_columns_from_df=all_columns_from_df,
-                    primary_keys=primary_keys,
-                )
-
-                results = await self.query_async(
-                    query=select_statement, synapse_client=synapse_client
-                )
-
-                (
-                    rows_to_update,
-                    indexes_with_updates,
-                    indexes_without_updates,
-                ) = self._construct_partial_rows_for_upsert(
-                    results=results,
-                    chunk_to_check_for_upsert=individual_chunk,
-                    primary_keys=primary_keys,
-                    contains_etag=contains_etag,
-                )
-                total_row_count_updated += len(rows_to_update)
-                indexes_of_original_df_with_changes.extend(indexes_with_updates)
-                indexes_of_original_df_with_no_changes.extend(indexes_without_updates)
-
-                if not dry_run and rows_to_update:
-                    await self._push_row_updates_to_synapse(
-                        rows_to_update=rows_to_update,
-                        update_size_bytes=update_size_bytes,
-                        progress_bar=progress_bar,
-                        client=client,
-                        job_timeout=job_timeout,
-                    )
-                elif dry_run:
-                    progress_bar.update(len(rows_to_update))
-                progress_bar.update(len(individual_chunk.index) - len(rows_to_update))
-
-                rows_to_update: List[PartialRow] = []
-            progress_bar.update(progress_bar.total - progress_bar.n)
-            progress_bar.refresh()
-            progress_bar.close()
-
-        rows_to_insert_df = values.loc[
-            ~values.index.isin(
-                indexes_of_original_df_with_changes
-                + indexes_of_original_df_with_no_changes
-            )
-        ]
-
         client.logger.info(
-            f"[{self.id}:{self.name}]: Found {total_row_count_updated}"
-            f" rows to update and {len(rows_to_insert_df)} rows to insert"
+            f"[{self.id}:{self.name}]: Creating a snapshot of the {type(self)}."
         )
 
-        if not dry_run and not rows_to_insert_df.empty:
-            await self.store_rows_async(
-                values=rows_to_insert_df,
-                dry_run=dry_run,
-                insert_size_bytes=insert_size_bytes,
-                synapse_client=synapse_client,
-            )
+        await self.get_async(include_activity=True, synapse_client=client)
+
+        result = await TableUpdateTransaction(
+            entity_id=self.id,
+            changes=None,
+            create_snapshot=True,
+            snapshot_options=SnapshotRequest(
+                comment=comment,
+                label=label,
+                activity=self.activity.id
+                if self.activity and include_activity
+                else None,
+            ),
+        ).send_job_and_wait_async(synapse_client=client)
+
+        if not self.version_number:
+            # set to latest drafting version if the first snapshot was just created
+            self.version_number = 2
+        else:
+            # increment the version number for each subsequent snapshot
+            self.version_number += 1
+
+        if associate_activity_to_new_version and self.activity:
+            self._last_persistent_instance.activity = None
+            await self.store_async(synapse_client=synapse_client)
+        else:
+            await self.get_async(include_activity=True, synapse_client=synapse_client)
+
+        return result
+
+
+@async_to_sync
+class TableStoreRowMixin:
+    """Mixin class providing methods for storing rows in a `Table`-like entity."""
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    parent_id: Optional[str] = None
+    columns: Optional[OrderedDict] = None
+    activity: None = None
+    _last_persistent_instance: None = None
+    _columns_to_delete: None = None
 
     def _infer_columns_from_data(
         self,
@@ -2518,7 +2732,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         Arguments:
             values: Supports storing data from the following sources:
 
-                - A string holding the path to a CSV file. If the `schema_storage_strategy` is set to `None` the data will be uploaded as is. If `schema_storage_strategy` is set to `INFER_FROM_DATA` the data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_operator.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
+                - A string holding the path to a CSV file. If the `schema_storage_strategy` is set to `None` the data will be uploaded as is. If `schema_storage_strategy` is set to `INFER_FROM_DATA` the data will be read into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). The code makes assumptions about the format of the columns in the CSV as detailed in the [csv_to_pandas_df][synapseclient.models.mixins.table_components.csv_to_pandas_df] function. You may pass in additional arguments to the `csv_to_pandas_df` function by passing them in as keyword arguments to this function.
                 - A dictionary where the key is the column name and the value is one or more values. The values will be wrapped into a [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe). You may pass in additional arguments to the `pd.DataFrame` function by passing them in as keyword arguments to this function. Read about the available arguments in the [Pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) documentation.
                 - A [Pandas DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
@@ -3314,7 +3528,9 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         )
         progress_bar = tqdm(
             total=total_df_bytes,
-            desc="Splitting DataFrame and uploading chunks",
+            desc="Splitting DataFrame and uploading chunks"
+            if len(chunks_to_upload) > 1
+            else "Uploading DataFrame",
             unit_scale=True,
             smoothing=0,
             unit="B",
@@ -3375,7 +3591,11 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
         progress_bar.refresh()
         progress_bar.close()
 
-    # TODO: Determine if it is possible to delete rows from a `Dataset` entity, or if it's only possible to delete the rows by setting the `items` attribute and storing the entity
+
+@async_to_sync
+class TableDeleteRowMixin:
+    """Mixin class providing methods for deleting rows from a `Table`-like entity."""
+
     async def delete_rows_async(
         self,
         query: str,
@@ -3440,9 +3660,7 @@ class TableRowOperator(TableRowOperatorSynchronousProtocol):
             ```
         """
         client = Synapse.get_client(synapse_client=synapse_client)
-        results_from_query = await TableOperator.query_async(
-            query=query, synapse_client=client
-        )
+        results_from_query = await self.query_async(query=query, synapse_client=client)
         client.logger.info(
             f"Found {len(results_from_query)} rows to delete for given query: {query}"
         )
@@ -3573,7 +3791,16 @@ def _convert_df_date_cols_to_datetime(
     return df
 
 
-def _row_labels_from_id_and_version(rows):
+def _row_labels_from_id_and_version(rows: List[Tuple[str, str]]) -> List[str]:
+    """
+    Create a list of row labels from a list of tuples containing row IDs and versions.
+
+    Arguments:
+        rows: A list of tuples containing row IDs and versions.
+
+    Returns:
+        A list of row labels.
+    """
     return ["_".join(map(str, row)) for row in rows]
 
 
@@ -3589,7 +3816,7 @@ def csv_to_pandas_df(
     row_id_and_version_in_index: bool = True,
     dtype: Optional[Dict[str, Any]] = None,
     **kwargs,
-):
+) -> DATA_FRAME_TYPE:
     """
     Convert a csv file to a pandas dataframe
 

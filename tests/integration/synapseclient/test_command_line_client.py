@@ -8,12 +8,12 @@ import re
 import shutil
 import sys
 import tempfile
-import time
 import uuid
 from io import StringIO
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
 
 import synapseclient.__main__ as cmdline
 import synapseclient.core.utils as utils
@@ -32,7 +32,7 @@ from synapseclient import (
 )
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(loop_scope="function", scope="function")
 async def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
         def __init__(self):

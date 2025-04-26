@@ -36,11 +36,21 @@ class AccessControllableSynchronousProtocol(Protocol):
         Example: Using this function:
             Getting permissions for a Synapse Entity
 
-                permissions = File(id="syn123").get_permissions()
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            permissions = File(id="syn123").get_permissions()
+            ```
 
             Getting access types list from the Permissions object
 
-                permissions.access_types
+            ```
+            permissions.access_types
+            ```
         """
         return self
 
@@ -112,10 +122,26 @@ class AccessControllableSynchronousProtocol(Protocol):
         Example: Setting permissions
             Grant all registered users download access
 
-                File(id="syn123").set_permissions(principal_id=273948, access_type=['READ','DOWNLOAD'])
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            File(id="syn123").set_permissions(principal_id=273948, access_type=['READ','DOWNLOAD'])
+            ```
 
             Grant the public view access
 
-                File(id="syn123").set_permissions(principal_id=273949, access_type=['READ'])
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            File(id="syn123").set_permissions(principal_id=273949, access_type=['READ'])
+            ```
         """
         return {}

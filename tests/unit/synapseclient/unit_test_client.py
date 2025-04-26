@@ -1158,121 +1158,169 @@ def test_get_children_next_page_token(syn: Synapse) -> None:
         )
 
 
-def test_check_entity_restrictions_no_unmet_restriction(syn: Synapse) -> None:
-    with patch("warnings.warn") as mocked_warn:
-        bundle = {
-            "entity": {
-                "id": "syn123",
-                "name": "anonymous",
-                "concreteType": "org.sagebionetworks.repo.model.FileEntity",
-                "parentId": "syn12345",
-            },
-            "restrictionInformation": {"hasUnmetAccessRequirement": False},
-        }
-        entity = "syn123"
-        syn._check_entity_restrictions(bundle, entity, True)
+class TestCheckEntityRestrictions:
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+        self.syn.credentials = SynapseAuthTokenCredentials(token="abc", username="def")
+
+    def test_check_entity_restrictions_no_unmet_restriction(self) -> None:
+        with patch("logging.Logger.warning") as mocked_warn:
+            bundle = {
+                "entity": {
+                    "id": "syn123",
+                    "name": "anonymous",
+                    "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                    "parentId": "syn12345",
+                },
+                "restrictionInformation": {"hasUnmetAccessRequirement": False},
+            }
+            entity = "syn123"
+            self.syn._check_entity_restrictions(bundle, entity, True)
+            mocked_warn.assert_not_called()
+
+    def test_check_entity_restrictions_unmet_restriction_entity_file_with_download_file_is_true(
+        self,
+    ) -> None:
+        with patch("logging.Logger.warning") as mocked_warn:
+            bundle = {
+                "entity": {
+                    "id": "syn123",
+                    "name": "anonymous",
+                    "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                    "parentId": "syn12345",
+                },
+                "entityType": "file",
+                "restrictionInformation": {"hasUnmetAccessRequirement": True},
+            }
+            entity = "syn123"
+            pytest.raises(
+                SynapseUnmetAccessRestrictions,
+                self.syn._check_entity_restrictions,
+                bundle,
+                entity,
+                True,
+            )
         mocked_warn.assert_not_called()
 
-
-def test_check_entity_restrictions_unmet_restriction_entity_file_with_download_file_is_true(
-    syn: Synapse,
-) -> None:
-    with patch("warnings.warn") as mocked_warn:
-        bundle = {
-            "entity": {
-                "id": "syn123",
-                "name": "anonymous",
-                "concreteType": "org.sagebionetworks.repo.model.FileEntity",
-                "parentId": "syn12345",
-            },
-            "entityType": "file",
-            "restrictionInformation": {"hasUnmetAccessRequirement": True},
-        }
-        entity = "syn123"
-        pytest.raises(
-            SynapseUnmetAccessRestrictions,
-            syn._check_entity_restrictions,
-            bundle,
-            entity,
-            True,
+    def test_check_entity_restrictions_unmet_restriction_entity_project_with_download_file_is_true(
+        self,
+    ) -> None:
+        with patch("logging.Logger.warning") as mocked_warn:
+            bundle = {
+                "entity": {
+                    "id": "syn123",
+                    "name": "anonymous",
+                    "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                    "parentId": "syn12345",
+                },
+                "entityType": "project",
+                "restrictionInformation": {"hasUnmetAccessRequirement": True},
+            }
+            entity = "syn123"
+            self.syn._check_entity_restrictions(bundle, entity, True)
+        mocked_warn.assert_called_with(
+            "\nThis entity has access restrictions. Please visit the web page for this entity "
+            '(syn.onweb("syn123")). Look for the "Access" label and the lock icon underneath '
+            'the file name. Click "Request Access", and then review and fulfill the file '
+            "download requirement(s).\n"
         )
-    mocked_warn.assert_not_called()
 
+    def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true_and_no_token(
+        self,
+    ) -> None:
+        with patch("logging.Logger.warning") as mocked_warn:
+            bundle = {
+                "entity": {
+                    "id": "syn123",
+                    "name": "anonymous",
+                    "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                    "parentId": "syn12345",
+                },
+                "entityType": "folder",
+                "restrictionInformation": {"hasUnmetAccessRequirement": True},
+            }
+            entity = "syn123"
+            self.syn.credentials = SynapseAuthTokenCredentials(token="")
+            self.syn._check_entity_restrictions(bundle, entity, True)
+            mocked_warn.assert_called_with(
+                "You have not provided valid credentials for authentication with Synapse."
+                " Please provide an authentication token and use `synapseclient.login()` before your next attempt."
+                " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
+            )
 
-def test_check_entity_restrictions_unmet_restriction_entity_project_with_download_file_is_true(
-    syn: Synapse,
-) -> None:
-    with patch("warnings.warn") as mocked_warn:
-        bundle = {
-            "entity": {
-                "id": "syn123",
-                "name": "anonymous",
-                "concreteType": "org.sagebionetworks.repo.model.FileEntity",
-                "parentId": "syn12345",
-            },
-            "entityType": "project",
-            "restrictionInformation": {"hasUnmetAccessRequirement": True},
-        }
-        entity = "syn123"
-        syn._check_entity_restrictions(bundle, entity, True)
-    mocked_warn.assert_called_with(
-        "\nThis entity has access restrictions. Please visit the web page for this entity "
-        '(syn.onweb("syn123")). Look for the "Access" label and the lock icon underneath '
-        'the file name. Click "Request Access", and then review and fulfill the file '
-        "download requirement(s).\n"
-    )
+    def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true_and_no_credentials(
+        self,
+    ) -> None:
+        with patch("logging.Logger.warning") as mocked_warn:
+            bundle = {
+                "entity": {
+                    "id": "syn123",
+                    "name": "anonymous",
+                    "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                    "parentId": "syn12345",
+                },
+                "entityType": "folder",
+                "restrictionInformation": {"hasUnmetAccessRequirement": True},
+            }
+            entity = "syn123"
+            self.syn.credentials = None
+            self.syn._check_entity_restrictions(bundle, entity, True)
+            mocked_warn.assert_called_with(
+                "You have not provided valid credentials for authentication with Synapse."
+                " Please provide an authentication token and use `synapseclient.login()` before your next attempt."
+                " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
+            )
 
+    def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true(
+        self,
+    ) -> None:
+        with patch("logging.Logger.warning") as mocked_warn:
+            bundle = {
+                "entity": {
+                    "id": "syn123",
+                    "name": "anonymous",
+                    "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                    "parentId": "syn12345",
+                },
+                "entityType": "folder",
+                "restrictionInformation": {"hasUnmetAccessRequirement": True},
+            }
+            entity = "syn123"
+            self.syn._check_entity_restrictions(bundle, entity, True)
+        mocked_warn.assert_called_with(
+            "\nThis entity has access restrictions. Please visit the web page for this entity "
+            '(syn.onweb("syn123")). Look for the "Access" label and the lock icon underneath '
+            'the file name. Click "Request Access", and then review and fulfill the file '
+            "download requirement(s).\n"
+        )
 
-def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true(
-    syn: Synapse,
-) -> None:
-    with patch("warnings.warn") as mocked_warn:
-        bundle = {
-            "entity": {
-                "id": "syn123",
-                "name": "anonymous",
-                "concreteType": "org.sagebionetworks.repo.model.FileEntity",
-                "parentId": "syn12345",
-            },
-            "entityType": "folder",
-            "restrictionInformation": {"hasUnmetAccessRequirement": True},
-        }
-        entity = "syn123"
-        syn._check_entity_restrictions(bundle, entity, True)
-    mocked_warn.assert_called_with(
-        "\nThis entity has access restrictions. Please visit the web page for this entity "
-        '(syn.onweb("syn123")). Look for the "Access" label and the lock icon underneath '
-        'the file name. Click "Request Access", and then review and fulfill the file '
-        "download requirement(s).\n"
-    )
+    def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(
+        self,
+    ) -> None:
+        with patch("logging.Logger.warning") as mocked_warn:
+            bundle = {
+                "entity": {
+                    "id": "syn123",
+                    "name": "anonymous",
+                    "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                    "parentId": "syn12345",
+                },
+                "entityType": "file",
+                "restrictionInformation": {"hasUnmetAccessRequirement": True},
+            }
+            entity = "syn123"
 
+            self.syn._check_entity_restrictions(bundle, entity, False)
+            mocked_warn.assert_called_once()
 
-def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(
-    syn: Synapse,
-) -> None:
-    with patch("warnings.warn") as mocked_warn:
-        bundle = {
-            "entity": {
-                "id": "syn123",
-                "name": "anonymous",
-                "concreteType": "org.sagebionetworks.repo.model.FileEntity",
-                "parentId": "syn12345",
-            },
-            "entityType": "file",
-            "restrictionInformation": {"hasUnmetAccessRequirement": True},
-        }
-        entity = "syn123"
+            bundle["entityType"] = "project"
+            self.syn._check_entity_restrictions(bundle, entity, False)
+            assert mocked_warn.call_count == 2
 
-        syn._check_entity_restrictions(bundle, entity, False)
-        mocked_warn.assert_called_once()
-
-        bundle["entityType"] = "project"
-        syn._check_entity_restrictions(bundle, entity, False)
-        assert mocked_warn.call_count == 2
-
-        bundle["entityType"] = "folder"
-        syn._check_entity_restrictions(bundle, entity, False)
-        assert mocked_warn.call_count == 3
+            bundle["entityType"] = "folder"
+            self.syn._check_entity_restrictions(bundle, entity, False)
+            assert mocked_warn.call_count == 3
 
 
 class TestGetColumns(object):
@@ -1300,6 +1348,7 @@ class TestPrivateGetEntityBundle:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
+        self.syn.credentials = SynapseAuthTokenCredentials(token="abc", username="def")
 
     @pytest.fixture(scope="function", autouse=True)
     def setup_method(self) -> None:
@@ -2264,7 +2313,12 @@ class TestRestCalls:
         mock_build_retry_policy.assert_called_once_with(retryPolicy)
         mock_handle_synapse_http_error.assert_called_once_with(response)
         mock_requests_call.assert_called_once_with(
-            uri, data=data, headers=headers, auth=self.syn.credentials, **kwargs
+            uri,
+            data=data,
+            headers=headers,
+            auth=self.syn.credentials,
+            timeout=70,
+            **kwargs,
         )
 
         return response

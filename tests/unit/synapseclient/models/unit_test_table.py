@@ -1,15 +1,8 @@
-"""Tests for the Folder class."""
-import uuid
-from typing import Dict
-from unittest.mock import AsyncMock, patch
+"""Tests for the Table class."""
 
 import pytest
 
-from synapseclient import Folder as Synapse_Folder
 from synapseclient import Synapse
-from synapseclient.core.constants import concrete_types
-from synapseclient.core.constants.concrete_types import FILE_ENTITY
-from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models import Column, ColumnType, Table
 
 SYN_123 = "syn123"

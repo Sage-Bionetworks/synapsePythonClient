@@ -252,7 +252,6 @@ class Synapse(object):
         authEndpoint:          Location of authentication service
         fileHandleEndpoint:    Location of file service
         portalEndpoint:        Location of the website
-        serviceTimeoutSeconds: Wait time before timeout (currently unused)
         debug:                 Print debugging messages if True
         skip_checks:           Skip version and endpoint checks
         configPath:            Path to config File with setting for Synapse. Defaults to ~/.synapseConfig
@@ -285,6 +284,9 @@ class Synapse(object):
             raised. These will be appended to the default `User-Agent` header that
             already includes the version of this client that you are using, and the
             HTTP library used to make the request.
+        timeout: The timeout in seconds for HTTP requests. The default is 70 seconds.
+            You may increase this if you are experiencing timeouts when interacting
+            with slow services.
 
     Example: Getting started
         Logging in to Synapse using an authToken
@@ -340,6 +342,7 @@ class Synapse(object):
         asyncio_event_loop: asyncio.AbstractEventLoop = None,
         cache_client: bool = True,
         user_agent: Union[str, List[str]] = None,
+        http_timeout_seconds: int = 70,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -378,6 +381,9 @@ class Synapse(object):
                 raised. These will be appended to the default `User-Agent` header that
                 already includes the version of this client that you are using, and the
                 HTTP library used to make the request.
+            http_timeout_seconds: The timeout in seconds for HTTP requests.
+                The default is 70 seconds. You may increase this if you are
+                experiencing timeouts when interacting with slow services.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
@@ -395,7 +401,8 @@ class Synapse(object):
         else:
             self._requests_session_async_synapse = {}
 
-        httpx_timeout = httpx.Timeout(70, pool=None)
+        self._http_timeout_seconds = http_timeout_seconds
+        httpx_timeout = httpx.Timeout(http_timeout_seconds, pool=None)
         self._requests_session_storage = requests_session_storage or httpx.Client(
             timeout=httpx_timeout
         )
@@ -509,7 +516,7 @@ class Synapse(object):
             await self._requests_session_async_synapse[asyncio_event_loop].aclose()
             del self._requests_session_async_synapse[asyncio_event_loop]
 
-        httpx_timeout = httpx.Timeout(70, pool=None)
+        httpx_timeout = httpx.Timeout(self._http_timeout_seconds, pool=None)
         self._requests_session_async_synapse.update(
             {
                 asyncio_event_loop: httpx.AsyncClient(
@@ -762,6 +769,7 @@ class Synapse(object):
                         endpoints[point],
                         allow_redirects=False,
                         headers=synapseclient.USER_AGENT,
+                        timeout=self._http_timeout_seconds,
                     ),
                     verbose=self.debug,
                     **STANDARD_RETRY_PARAMS,
@@ -818,7 +826,7 @@ class Synapse(object):
 
         # Check version before logging in
         if not self.skip_checks:
-            version_check()
+            version_check(logger=self.logger)
 
         # Make sure to invalidate the existing session
         self.logout()
@@ -1461,17 +1469,26 @@ class Synapse(object):
         Raises:
             SynapseUnmetAccessRestrictions: Warning for unmet access requirements.
         """
-        restrictionInformation = bundle["restrictionInformation"]
-        if restrictionInformation["hasUnmetAccessRequirement"]:
-            warning_message = (
-                "\nThis entity has access restrictions. Please visit the web page for this entity "
-                f'(syn.onweb("{id_of(entity)}")). Look for the "Access" label and the lock icon underneath '
-                'the file name. Click "Request Access", and then review and fulfill the file '
-                "download requirement(s).\n"
-            )
+        restriction_information = bundle.get("restrictionInformation", None)
+        if restriction_information and restriction_information.get(
+            "hasUnmetAccessRequirement", None
+        ):
+            if not self.credentials or not self.credentials._token:
+                warning_message = (
+                    "You have not provided valid credentials for authentication with Synapse."
+                    " Please provide an authentication token and use `synapseclient.login()` before your next attempt."
+                    " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
+                )
+            else:
+                warning_message = (
+                    "\nThis entity has access restrictions. Please visit the web page for this entity "
+                    f'(syn.onweb("{id_of(entity)}")). Look for the "Access" label and the lock icon underneath '
+                    'the file name. Click "Request Access", and then review and fulfill the file '
+                    "download requirement(s).\n"
+                )
             if downloadFile and bundle.get("entityType") not in ("project", "folder"):
                 raise SynapseUnmetAccessRestrictions(warning_message)
-            warnings.warn(warning_message)
+            self.logger.warning(warning_message)
 
     def _getFromFile(
         self, filepath: str, limitSearch: str = None, md5: str = None
@@ -6223,12 +6240,14 @@ class Synapse(object):
 
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
+        timeout = kwargs.pop("timeout", self._http_timeout_seconds)
         response = with_retry(
             lambda: requests_method_fn(
                 uri,
                 data=data,
                 headers=headers,
                 auth=auth,
+                timeout=timeout,
                 **kwargs,
             ),
             verbose=self.debug,
@@ -6444,6 +6463,7 @@ class Synapse(object):
         Returns:
             JSON encoding of response
         """
+        self.logger.debug(f"Sending {method} request to {uri}")
         uri, headers = self._build_uri_and_headers(
             uri, endpoint=endpoint, headers=headers, is_httpx=True
         )

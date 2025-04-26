@@ -25,7 +25,6 @@ from synapseclient.core.upload.multipart_upload import (
 from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
 
 
-@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 async def test_round_trip(syn: Synapse, project: Project, schedule_for_cleanup):
     fhid = None
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE + 777771)
@@ -284,7 +283,6 @@ def _multipart_copy_test(
     assert file_content == dest_file_content
 
 
-@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 async def test_multipart_copy(syn: Synapse, project: Project, schedule_for_cleanup):
     """Test multi part copy using the minimum part size."""
     _multipart_copy_test(syn, project, schedule_for_cleanup, MIN_PART_SIZE)

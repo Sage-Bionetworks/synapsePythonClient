@@ -124,7 +124,8 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         self._profile_name = profile_name
 
     def __call__(self, r):
-        r.headers.update({"Authorization": f"Bearer {self.secret}"})
+        if self.secret:
+            r.headers.update({"Authorization": f"Bearer {self.secret}"})
         return r
 
     def __repr__(self):
