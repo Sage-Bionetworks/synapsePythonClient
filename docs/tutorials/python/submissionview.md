@@ -125,7 +125,7 @@ time the snapshot was created. This is useful for historical analysis or auditin
 </details>
 
 ## References
-- [SubmissionView][synapseclient.models.SubmissionView]
+- [SubmissionView][submissionview-reference-sync]
 - [Evaluation][synapseclient.evaluation]
 - [syn.submit][synapseclient.Synapse.submit]
 - [syn.getSubmissionStatus][synapseclient.Synapse.getSubmissionStatus]
@@ -133,7 +133,7 @@ time the snapshot was created. This is useful for historical analysis or auditin
 - [syn.getSubmissions][synapseclient.Synapse.getSubmissions]
 - [syn.getSubmissionBundles][synapseclient.Synapse.getSubmissionBundles]
 - [syn.store][synapseclient.Synapse.store]
-- [Column][synapseclient.models.Column]
-- [Project][synapseclient.models.Project]
+- [Column][column-reference-sync]
+- [Project][project-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
 - [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html)

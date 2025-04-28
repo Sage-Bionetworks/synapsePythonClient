@@ -1,3 +1,4 @@
+[](){ #user-profile-reference-sync }
 # UserProfile
 
 Contained within this file are experimental interfaces for working with the Synapse Python
@@ -15,5 +16,6 @@ at your own risk.
         - from_username
         - is_certified
 ---
+[](){ #user-preference-reference-sync }
 ::: synapseclient.models.UserPreference
 ---

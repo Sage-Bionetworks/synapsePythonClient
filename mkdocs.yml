@@ -184,7 +184,8 @@ plugins:
             show_signature_annotations: True
             signature_crossrefs: True
 
-  - autorefs
+  - autorefs:
+      resolve_closest: True
   - termynal:
       prompt_literal_start:
         - "$"
@@ -216,3 +217,4 @@ markdown_extensions:
 
   - toc:
       permalink: true
+  - attr_list

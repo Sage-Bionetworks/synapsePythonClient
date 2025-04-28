@@ -1,3 +1,4 @@
+[](){ #table-reference-sync }
 # Table
 
 Contained within this file are experimental interfaces for working with the Synapse Python
@@ -37,24 +38,39 @@ at your own risk.
         - get_acl
         - set_permissions
 
+[](){ #column-reference-sync }
 ::: synapseclient.models.Column
     options:
         members:
 
+[](){ #schema-storage-strategy-reference-sync }
 ::: synapseclient.models.SchemaStorageStrategy
+[](){ #column-expansion-strategy-reference-sync }
 ::: synapseclient.models.ColumnExpansionStrategy
 
+[](){ #facet-type-reference-sync }
 ::: synapseclient.models.FacetType
+[](){ #column-type-reference-sync }
 ::: synapseclient.models.ColumnType
+[](){ #json-sub-column-reference-sync }
 ::: synapseclient.models.JsonSubColumn
 
 
+[](){ #column-change-reference-sync }
 ::: synapseclient.models.ColumnChange
+[](){ #partial-row-reference-sync }
 ::: synapseclient.models.PartialRow
+[](){ #partial-row-set-reference-sync }
 ::: synapseclient.models.PartialRowSet
+[](){ #table-schema-change-request-reference-sync }
 ::: synapseclient.models.TableSchemaChangeRequest
+[](){ #appendable-row-set-request-reference-sync }
 ::: synapseclient.models.AppendableRowSetRequest
+[](){ #upload-to-table-request-reference-sync }
 ::: synapseclient.models.UploadToTableRequest
+[](){ #table-update-transaction-reference-sync }
 ::: synapseclient.models.TableUpdateTransaction
+[](){ #csv-table-descriptor-reference-sync }
 ::: synapseclient.models.CsvTableDescriptor
+[](){ #csv-to-pandas-df-reference-sync }
 ::: synapseclient.models.mixins.table_components.csv_to_pandas_df

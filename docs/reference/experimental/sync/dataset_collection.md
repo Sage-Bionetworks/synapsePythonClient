@@ -1,3 +1,4 @@
+[](){ #dataset-collection-reference-sync }
 # Dataset Collection
 
 Contained within this file are experimental interfaces for working with the Synapse Python
@@ -27,5 +28,6 @@ at your own risk.
             - get_acl
             - set_permissions
 ---
+[](){ #entity-ref-dataset-collection-reference-sync }
 ::: synapseclient.models.EntityRef
 ---

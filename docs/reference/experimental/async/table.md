@@ -6,6 +6,7 @@ at your own risk.
 
 ## API Reference
 
+[](){ #table-reference-async }
 ::: synapseclient.models.Table
     options:
         inherited_members: true
@@ -26,24 +27,39 @@ at your own risk.
         - get_acl
         - set_permissions
 
+[](){ #column-reference-async }
 ::: synapseclient.models.Column
     options:
         members:
 
+[](){ #schema-storage-strategy-reference-async }
 ::: synapseclient.models.SchemaStorageStrategy
+[](){ #column-expansion-strategy-reference-async }
 ::: synapseclient.models.ColumnExpansionStrategy
 
+[](){ #facet-type-reference-async }
 ::: synapseclient.models.FacetType
+[](){ #column-type-reference-async }
 ::: synapseclient.models.ColumnType
+[](){ #json-sub-column-reference-async }
 ::: synapseclient.models.JsonSubColumn
 
 
+[](){ #column-change-reference-async }
 ::: synapseclient.models.ColumnChange
+[](){ #partial-row-reference-async }
 ::: synapseclient.models.PartialRow
+[](){ #partial-row-set-reference-async }
 ::: synapseclient.models.PartialRowSet
+[](){ #table-schema-change-request-reference-async }
 ::: synapseclient.models.TableSchemaChangeRequest
+[](){ #appendable-row-set-request-reference-async }
 ::: synapseclient.models.AppendableRowSetRequest
+[](){ #upload-to-table-request-reference-async }
 ::: synapseclient.models.UploadToTableRequest
+[](){ #table-update-transaction-reference-async }
 ::: synapseclient.models.TableUpdateTransaction
+[](){ #csv-table-descriptor-reference-async }
 ::: synapseclient.models.CsvTableDescriptor
+[](){ #csv-to-pandas-df-reference-async }
 ::: synapseclient.models.mixins.table_components.csv_to_pandas_df

@@ -1,3 +1,4 @@
+[](){ #submissionview-reference-sync }
 # SubmissionView
 
 Contained within this file are experimental interfaces for working with the Synapse Python
@@ -22,4 +23,3 @@ at your own risk.
             - get_acl
             - get_permissions
             - set_permissions
----

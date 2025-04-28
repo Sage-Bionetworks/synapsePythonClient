@@ -6,6 +6,7 @@ at your own risk.
 
 ## API reference
 
+[](){ #entityview-reference-async }
 ::: synapseclient.models.EntityView
     options:
         inherited_members: true
@@ -23,4 +24,8 @@ at your own risk.
             - get_acl_async
             - get_permissions_async
             - set_permissions_async
+---
+
+[](){ #view-type-mask-reference }
+::: synapseclient.api.ViewTypeMask
 ---
