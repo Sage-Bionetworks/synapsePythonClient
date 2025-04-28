@@ -1,3 +1,4 @@
+[](){ #folder-reference-sync }
 # Folder
 
 Contained within this file are experimental interfaces for working with the Synapse Python

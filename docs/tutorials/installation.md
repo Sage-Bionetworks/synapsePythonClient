@@ -13,6 +13,7 @@ pip install --upgrade synapseclient
 pip show synapseclient
 ```
 
+[](){ #pypi }
 ## Installation Guide For: PyPI Users
 
 The [synapseclient](https://pypi.python.org/pypi/synapseclient/) package is available from PyPI. It can be installed or upgraded with pip. Due to the nature of Python, we highly recommend you set up your python environment with [conda](https://www.anaconda.com/products/distribution) or [pyenv](https://github.com/pyenv/pyenv) and create virtual environments to control your Python dependencies for your work.

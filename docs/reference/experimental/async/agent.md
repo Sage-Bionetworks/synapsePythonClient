@@ -6,6 +6,7 @@ at your own risk.
 
 ## API reference
 
+[](){ #agent-reference-async }
 ::: synapseclient.models.Agent
     options:
         members:
@@ -16,6 +17,7 @@ at your own risk.
             - prompt_async
             - get_chat_history
 ---
+[](){ #agent-session-reference-async }
 ::: synapseclient.models.AgentSession
     options:
         members:
@@ -24,6 +26,7 @@ at your own risk.
             - update_async
             - prompt_async
 ---
+[](){ #agent-prompt-reference-async }
 ::: synapseclient.models.AgentPrompt
     options:
         inherited_members: true

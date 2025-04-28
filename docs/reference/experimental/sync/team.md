@@ -1,3 +1,4 @@
+[](){ #team-reference-sync }
 # Team
 
 Contained within this file are experimental interfaces for working with the Synapse Python
@@ -27,4 +28,3 @@ at your own risk.
             - members
             - invite
             - open_invitations
----

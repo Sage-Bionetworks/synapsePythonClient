@@ -1,3 +1,4 @@
+[](){ #activity-reference-sync }
 # Activity
 
 Contained within this file are experimental interfaces for working with the Synapse Python
@@ -24,11 +25,13 @@ at your own risk.
         - store
         - delete
 ---
+[](){ #used-entity-reference-sync }
 ::: synapseclient.models.UsedEntity
     options:
       filters:
       - "!"
 ---
+[](){ #used-url-reference-sync }
 ::: synapseclient.models.UsedURL
     options:
       filters:

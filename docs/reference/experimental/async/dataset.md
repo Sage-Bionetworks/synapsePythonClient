@@ -6,6 +6,7 @@ at your own risk.
 
 ## API reference
 
+[](){ #dataset-reference-async }
 ::: synapseclient.models.Dataset
     options:
         inherited_members: true
@@ -27,5 +28,6 @@ at your own risk.
             - get_acl
             - set_permissions
 ---
+[](){ #entity-ref-reference-async }
 ::: synapseclient.models.EntityRef
 ---

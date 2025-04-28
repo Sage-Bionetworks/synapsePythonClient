@@ -1,3 +1,4 @@
+[](){ #agent-reference-sync }
 # Agent
 
 Contained within this file are experimental interfaces for working with the Synapse Python
@@ -27,6 +28,7 @@ at your own risk.
             - prompt
             - get_chat_history
 ---
+[](){ #agent-session-reference-sync }
 ::: synapseclient.models.AgentSession
     options:
         inherited_members: true
@@ -36,7 +38,7 @@ at your own risk.
             - update
             - prompt
 ---
+[](){ #agent-prompt-reference-sync }
 ::: synapseclient.models.AgentPrompt
     options:
         inherited_members: true
----
