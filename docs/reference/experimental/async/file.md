@@ -6,6 +6,7 @@ at your own risk.
 
 ## API Reference
 
+[](){ #file-reference-async }
 ::: synapseclient.models.File
     options:
         inherited_members: true
@@ -21,6 +22,7 @@ at your own risk.
         - get_acl_async
         - set_permissions_async
 ---
+[](){ #filehandle-reference-async }
 ::: synapseclient.models.file.FileHandle
     options:
       filters:

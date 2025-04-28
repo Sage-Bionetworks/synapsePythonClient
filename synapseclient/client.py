@@ -29,6 +29,8 @@ import warnings
 import webbrowser
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from dataclasses import is_dataclass
 from http.client import HTTPResponse
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -42,6 +44,7 @@ from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.instrumentation.threading import ThreadingInstrumentor
 from opentelemetry.instrumentation.urllib import URLLibInstrumentor
 from opentelemetry.trace import Span
+from tqdm import tqdm
 
 import synapseclient
 import synapseclient.core.multithread_download as multithread_download
@@ -210,6 +213,8 @@ mimetypes.add_type("text/x-markdown", ".md", strict=False)
 mimetypes.add_type("text/x-markdown", ".markdown", strict=False)
 
 DEFAULT_STORAGE_LOCATION_ID = 1
+# Verifies the pattern matches something like "my-project-identifier/1.0.0"
+USER_AGENT_REGEX_PATTERN = r"^[a-zA-Z0-9-]+\/[0-9]+\.[0-9]+\.[0-9]+$"
 
 
 def login(*args, **kwargs):
@@ -244,7 +249,6 @@ class Synapse(object):
         authEndpoint:          Location of authentication service
         fileHandleEndpoint:    Location of file service
         portalEndpoint:        Location of the website
-        serviceTimeoutSeconds: Wait time before timeout (currently unused)
         debug:                 Print debugging messages if True
         skip_checks:           Skip version and endpoint checks
         configPath:            Path to config File with setting for Synapse. Defaults to ~/.synapseConfig
@@ -252,17 +256,64 @@ class Synapse(object):
                                when making http requests.
         cache_root_dir:        Root directory for storing cache data
         silent:                Defaults to False.
+        requests_session_async_synapse: A custom
+            [httpx.AsyncClient](https://www.python-httpx.org/async/) that this synapse
+            instance will use when making HTTP requests. `requests_session` is being
+            deprecated in favor of this.
+        requests_session_storage: A custom
+            [httpx.Client](https://www.python-httpx.org/advanced/clients/) that this synapse
+            instance will use when making HTTP requests to storage providers like AWS S3
+            and Google Cloud Storage.
+        asyncio_event_loop: The event loop that is going to be used while executing
+            this code. This is optional and only used when you are manually specifying
+            an async HTTPX client. This is important to pass when you are using the
+            `requests_session_async_synapse` kwarg because the connection pooling is
+            tied to the event loop.
+        cache_client: Whether to cache the Synapse client object in the Synapse module.
+            Defaults to True. When set to True anywhere a `Synapse` object is optional
+            you do not need to pass an instance of `Synapse` to that function, method,
+            or class. When working in a multi-user environment it is recommended to set
+            this to False, or use `Synapse.allow_client_caching(False)`.
+        user_agent: Additional values to add to the `User-Agent` header on HTTP
+            requests. This should be in the format of `"my-project-identifier/1.0.0"`.
+            This may be a single string or a list of strings to add onto the
+            header. If the format is incorrect a `ValueError` exception will be
+            raised. These will be appended to the default `User-Agent` header that
+            already includes the version of this client that you are using, and the
+            HTTP library used to make the request.
+        timeout: The timeout in seconds for HTTP requests. The default is 70 seconds.
+            You may increase this if you are experiencing timeouts when interacting
+            with slow services.
 
     Example: Getting started
         Logging in to Synapse using an authToken
 
+            ```python
             import synapseclient
             syn = synapseclient.login(authToken="authtoken")
+            ```
 
         Using environment variable or `.synapseConfig`
 
+            ```python
             import synapseclient
             syn = synapseclient.login()
+            ```
+
+    Example: Adding an additional `user_agent` value
+        This example shows how to add an additional `user_agent` to the HTTP headers
+        on the request. This is useful for tracking the requests that are being made
+        from your application.
+
+        ```python
+        from synapseclient import Synapse
+
+        my_agent = "my-project-identifier/1.0.0"
+        # You may also provide a list of strings to add to the User-Agent header.
+        # my_agent = ["my-sub-library/1.0.0", "my-parent-project/2.0.0"]
+
+        syn = Synapse(user_agent=my_agent)
+        ```
 
     """
 
@@ -287,6 +338,8 @@ class Synapse(object):
         requests_session_storage: httpx.Client = None,
         asyncio_event_loop: asyncio.AbstractEventLoop = None,
         cache_client: bool = True,
+        user_agent: Union[str, List[str]] = None,
+        http_timeout_seconds: int = 70,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -316,6 +369,18 @@ class Synapse(object):
                              When working in a multi-user environment it is
                              recommended to set this to False, or use
                              `Synapse.allow_client_caching(False)`.
+            user_agent: Additional values to add to the `User-Agent` header on HTTP
+                requests. This should be in the format of
+                `"my-project-identifier/1.0.0"`. Only
+                [Semantic Versioning](https://semver.org/) is expected.
+                This may be a single string or a list of strings to add onto the
+                header. If the format is incorrect a `ValueError` exception will be
+                raised. These will be appended to the default `User-Agent` header that
+                already includes the version of this client that you are using, and the
+                HTTP library used to make the request.
+            http_timeout_seconds: The timeout in seconds for HTTP requests.
+                The default is 70 seconds. You may increase this if you are
+                experiencing timeouts when interacting with slow services.
 
         Raises:
             ValueError: Warn for non-boolean debug value.
@@ -333,7 +398,8 @@ class Synapse(object):
         else:
             self._requests_session_async_synapse = {}
 
-        httpx_timeout = httpx.Timeout(70, pool=None)
+        self._http_timeout_seconds = http_timeout_seconds
+        httpx_timeout = httpx.Timeout(http_timeout_seconds, pool=None)
         self._requests_session_storage = requests_session_storage or httpx.Client(
             timeout=httpx_timeout
         )
@@ -372,6 +438,12 @@ class Synapse(object):
         }
         self.credentials = None
 
+        self._validate_user_agent_format(user_agent)
+        if isinstance(user_agent, str):
+            self.user_agent = [user_agent]
+        else:
+            self.user_agent = user_agent
+
         self.silent = silent
         self._init_logger()  # initializes self.logger
 
@@ -392,6 +464,24 @@ class Synapse(object):
         self._parts_transfered_counter = 0
         if cache_client and Synapse._allow_client_caching:
             Synapse.set_client(synapse_client=self)
+
+    def _validate_user_agent_format(self, agent: Union[str, List[str]]) -> None:
+        if not agent:
+            return
+
+        if not isinstance(agent, str) and not isinstance(agent, list):
+            raise ValueError(
+                f"user_agent must be a string or a list of strings to add to the User-Agent header. Current value: {agent}"
+            )
+
+        if isinstance(agent, str):
+            if not re.match(USER_AGENT_REGEX_PATTERN, agent):
+                raise ValueError(
+                    f"user_agent must be in the format of 'my-project-identifier/1.0.0'. Current value: {agent}"
+                )
+        else:
+            for value in agent:
+                self._validate_user_agent_format(agent=value)
 
     def _get_requests_session_async_synapse(
         self, asyncio_event_loop: asyncio.AbstractEventLoop
@@ -423,7 +513,7 @@ class Synapse(object):
             await self._requests_session_async_synapse[asyncio_event_loop].aclose()
             del self._requests_session_async_synapse[asyncio_event_loop]
 
-        httpx_timeout = httpx.Timeout(70, pool=None)
+        httpx_timeout = httpx.Timeout(self._http_timeout_seconds, pool=None)
         self._requests_session_async_synapse.update(
             {
                 asyncio_event_loop: httpx.AsyncClient(
@@ -676,6 +766,7 @@ class Synapse(object):
                         endpoints[point],
                         allow_redirects=False,
                         headers=synapseclient.USER_AGENT,
+                        timeout=self._http_timeout_seconds,
                     ),
                     verbose=self.debug,
                     **STANDARD_RETRY_PARAMS,
@@ -731,7 +822,7 @@ class Synapse(object):
 
         # Check version before logging in
         if not self.skip_checks:
-            version_check()
+            version_check(logger=self.logger)
 
         # Make sure to invalidate the existing session
         self.logout()
@@ -1206,7 +1297,10 @@ class Synapse(object):
         If self.silent is True, no need to print out transfer progress.
         """
         if self.silent is not True:
-            cumulative_transfer_progress.printTransferProgress(*args, **kwargs)
+            logger = kwargs.pop("logger", self.logger)
+            cumulative_transfer_progress.printTransferProgress(
+                *args, logger=logger, **kwargs
+            )
 
     ############################################################
     #                      Service methods                     #
@@ -1360,17 +1454,26 @@ class Synapse(object):
         Raises:
             SynapseUnmetAccessRestrictions: Warning for unmet access requirements.
         """
-        restrictionInformation = bundle["restrictionInformation"]
-        if restrictionInformation["hasUnmetAccessRequirement"]:
-            warning_message = (
-                "\nThis entity has access restrictions. Please visit the web page for this entity "
-                f'(syn.onweb("{id_of(entity)}")). Look for the "Access" label and the lock icon underneath '
-                'the file name. Click "Request Access", and then review and fulfill the file '
-                "download requirement(s).\n"
-            )
+        restriction_information = bundle.get("restrictionInformation", None)
+        if restriction_information and restriction_information.get(
+            "hasUnmetAccessRequirement", None
+        ):
+            if not self.credentials or not self.credentials._token:
+                warning_message = (
+                    "You have not provided valid credentials for authentication with Synapse."
+                    " Please provide an authentication token and use `synapseclient.login()` before your next attempt."
+                    " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
+                )
+            else:
+                warning_message = (
+                    "\nThis entity has access restrictions. Please visit the web page for this entity "
+                    f'(syn.onweb("{id_of(entity)}")). Look for the "Access" label and the lock icon underneath '
+                    'the file name. Click "Request Access", and then review and fulfill the file '
+                    "download requirement(s).\n"
+                )
             if downloadFile and bundle.get("entityType") not in ("project", "folder"):
                 raise SynapseUnmetAccessRestrictions(warning_message)
-            warnings.warn(warning_message)
+            self.logger.warning(warning_message)
 
     def _getFromFile(
         self, filepath: str, limitSearch: str = None, md5: str = None
@@ -2908,9 +3011,18 @@ class Synapse(object):
                             and '273949' is for public access. None implies public access.
             accessType: Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
                             DELETE, CHANGE_PERMISSIONS
-            modify_benefactor: Set as True when modifying a benefactor's ACL
-            warn_if_inherits: Set as False, when creating a new ACL.
-                                Trying to modify the ACL of an Entity that inherits its ACL will result in a warning
+            modify_benefactor: Set as True when modifying a benefactor's ACL. The term
+                'benefactor' is used to indicate which Entity an Entity inherits its
+                ACL from. For example, a newly created Project will be its own
+                benefactor, while a new FileEntity's benefactor will start off as its
+                containing Project. If the entity already has local sharing settings
+                the benefactor would be itself. It may also be the immediate parent,
+                somewhere in the parent tree, or the project itself.
+            warn_if_inherits: When `modify_benefactor` is True, this does not have any
+                effect. When `modify_benefactor` is False, and `warn_if_inherits` is
+                True, a warning log message is produced if the benefactor for the
+                entity you passed into the function is not itself, i.e., it's the
+                parent folder, or another entity in the parent tree.
             overwrite: By default this function overwrites existing permissions for the specified user.
                         Set this flag to False to add new permissions non-destructively.
 
@@ -4464,14 +4576,26 @@ class Synapse(object):
         else:
             docker_repository = None
 
-        if "versionNumber" not in entity:
-            entity = self.get(entity, downloadFile=False)
-        # version defaults to 1 to hack around required version field and allow submission of files/folders
-        entity_version = entity.get("versionNumber", 1)
+        # Some hacks to make sure that new OOP models will also work with this interface
+        entity_is_dataclass = is_dataclass(entity)
+        if entity_is_dataclass:
+            if not entity.version_number:
+                if hasattr(entity, "download_file"):
+                    entity.download_file = False
+                entity.get(synapse_client=self)
+            entity_version = entity.version_number
+        else:
+            if "versionNumber" not in entity:
+                entity = self.get(entity, downloadFile=False)
+            # version defaults to 1 to hack around required version field and allow submission of files/folders
+            entity_version = entity.get("versionNumber", 1)
 
         # default name of submission to name of entity
-        if name is None and "name" in entity:
-            name = entity["name"]
+        if name is None:
+            if entity_is_dataclass:
+                name = entity.name
+            elif "name" in entity:
+                name = entity["name"]
 
         team_id = None
         if team:
@@ -4504,7 +4628,11 @@ class Synapse(object):
             "submitterAlias": submitterAlias,
         }
 
-        submitted = self._submit(submission, entity["etag"], eligibility_hash)
+        if entity_is_dataclass:
+            entity_etag = entity.etag
+        else:
+            entity_etag = entity["etag"]
+        submitted = self._submit(submission, entity_etag, eligibility_hash)
 
         # if we want to display the receipt message, we need the full object
         if not silent:
@@ -4987,7 +5115,7 @@ class Synapse(object):
                 if createOrUpdate and (
                     (
                         err.response.status_code == 400
-                        and "DuplicateKeyException" in err.message
+                        and "DuplicateKeyException" in err.response.text
                     )
                     or err.response.status_code == 409
                 ):
@@ -5036,22 +5164,27 @@ class Synapse(object):
         # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
-        lastMessage, lastProgress, lastTotal, progressed = "", 0, 1, False
+        lastMessage, lastProgress, lastTotal = "", 0, 1
+        progress_bar = tqdm(desc=uri, unit_scale=True, smoothing=0, leave=None)
         while time.time() - start_time < self.table_query_timeout:
             result = self.restGET(
                 uri + "/get/%s" % async_job_id["token"], endpoint=endpoint
             )
             if result.get("jobState", None) == "PROCESSING":
-                progressed = True
                 message = result.get("progressMessage", lastMessage)
                 progress = result.get("progressCurrent", lastProgress)
                 total = result.get("progressTotal", lastTotal)
+                if total and progress_bar.total != total:
+                    progress_bar.total = total
+                    progress_bar.refresh()
+
                 if message != "":
-                    self._print_transfer_progress(
-                        progress, total, message, isBytes=False
-                    )
+                    progress_bar.desc = message
+                    progress_bar.refresh()
+
                 # Reset the time if we made progress (fix SYNPY-214)
                 if message != lastMessage or lastProgress != progress:
+                    progress_bar.update(progress)
                     start_time = time.time()
                     lastMessage, lastProgress, lastTotal = message, progress, total
                 sleep = min(
@@ -5072,8 +5205,10 @@ class Synapse(object):
                 + result.get("errorDetails", None),
                 asynchronousJobStatus=result,
             )
-        if progressed:
-            self._print_transfer_progress(total, total, message, isBytes=False)
+        if progress_bar.total and progress_bar.n:
+            progress_bar.update(progress_bar.total - progress_bar.n)
+        progress_bar.refresh()
+        progress_bar.close()
         return result
 
     def getColumn(self, id):
@@ -5998,14 +6133,32 @@ class Synapse(object):
     #                   Low level Rest calls                   #
     ############################################################
 
-    def _generate_headers(self, headers: Dict[str, str] = None) -> Dict[str, str]:
+    def _generate_headers(
+        self, headers: Dict[str, str] = None, is_httpx: bool = False
+    ) -> Dict[str, str]:
         """
         Generate headers (auth headers produced separately by credentials object)
 
         """
         if headers is None:
             headers = dict(self.default_headers)
-        headers.update(synapseclient.USER_AGENT)
+
+        # Replace the `requests` package's default user-agent with the httpx user agent
+        if is_httpx:
+            httpx_agent = f"{httpx.__title__}/{httpx.__version__}"
+            requests_agent = requests.utils.default_user_agent()
+            agent = deepcopy(synapseclient.USER_AGENT)
+            agent["User-Agent"] = agent["User-Agent"].replace(
+                requests_agent, httpx_agent
+            )
+            headers.update(agent)
+        else:
+            headers.update(synapseclient.USER_AGENT)
+
+        if self.user_agent:
+            headers["User-Agent"] = (
+                headers["User-Agent"] + " " + " ".join(self.user_agent)
+            )
 
         return headers
 
@@ -6088,12 +6241,14 @@ class Synapse(object):
 
         auth = kwargs.pop("auth", self.credentials)
         requests_method_fn = getattr(requests_session, method)
+        timeout = kwargs.pop("timeout", self._http_timeout_seconds)
         response = with_retry(
             lambda: requests_method_fn(
                 uri,
                 data=data,
                 headers=headers,
                 auth=auth,
+                timeout=timeout,
                 **kwargs,
             ),
             verbose=self.debug,
@@ -6233,7 +6388,11 @@ class Synapse(object):
         )
 
     def _build_uri_and_headers(
-        self, uri: str, endpoint: str = None, headers: Dict[str, str] = None
+        self,
+        uri: str,
+        endpoint: str = None,
+        headers: Dict[str, str] = None,
+        is_httpx: bool = False,
     ) -> Tuple[str, Dict[str, str]]:
         """Returns a tuple of the URI and headers to request with."""
 
@@ -6249,7 +6408,7 @@ class Synapse(object):
             uri = endpoint + uri
 
         if headers is None:
-            headers = self._generate_headers()
+            headers = self._generate_headers(is_httpx=is_httpx)
         return uri, headers
 
     def _build_retry_policy(self, retryPolicy={}):
@@ -6305,8 +6464,9 @@ class Synapse(object):
         Returns:
             JSON encoding of response
         """
+        self.logger.debug(f"Sending {method} request to {uri}")
         uri, headers = self._build_uri_and_headers(
-            uri, endpoint=endpoint, headers=headers
+            uri, endpoint=endpoint, headers=headers, is_httpx=True
         )
 
         retry_policy = self._build_retry_policy_async(retry_policy)

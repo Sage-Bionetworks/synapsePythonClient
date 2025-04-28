@@ -9,6 +9,64 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.8.0 (2025-04-28)
+
+### Highlights
+
+- Introduced new object-oriented models for working with Synapse [Datasets](https://python-docs.synapse.org/en/stable/tutorials/python/dataset/), [DatasetCollections](https://python-docs.synapse.org/en/stable/tutorials/python/dataset_collection/), [EntityViews](https://python-docs.synapse.org/en/stable/tutorials/python/entityview/), [MaterializedViews](https://python-docs.synapse.org/en/stable/tutorials/python/materializedview/), and [SubmissionViews](https://python-docs.synapse.org/en/stable/tutorials/python/submissionview/). This includes tutorials for each of these models.
+- Improved handling of progress bars, logging, and error messages
+- Added support for Python 3.13
+
+### Features
+
+- [SYNPY-1571] Introduced `Dataset` model and composition model for `Table`/`View`-like classes ([#1175](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1175))
+- [SYNPY-1575] Introduced `EntityView` model ([#1181](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1181))
+- [SYNPY-1579] Introduced `MaterializedView` model ([#1190](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1190))
+- [SYNPY-1577] Introduced `SubmissionView` model ([#1192](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1192))
+- [SYNPY-1578] Introduced `DatasetCollection` model ([#1189](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1189))
+
+### Bug Fixes
+
+- [SYNPY-1593] Enforce minimum httpcore dependency to prevent critical CVE ([#1197](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1197))
+- [SYNPY-1547] Fixed `parentWikiId=""` bug ([#1165](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1165))
+- [SYNPY-1553] Removed blank auth header and improved error message for unauthenticated requests ([#1171](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1171), [#1185](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1185))
+- [SYNPY-1584] Fixed issue with DataFrame upload and header writing ([#1193](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1193))
+
+### Tech Debt
+
+- [SYNPY-1551] Refactored `Table` model ([#1151](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1151))
+- [SYNPY-1488] Patched nested TQDM progress bars and messages to logger ([#1177](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1177))
+- [SYNPY-1497] Refactored version check to use PyPI for version info ([#1191](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1191))
+
+### Other
+
+- [DPE-1253] Added PR template for GitHub Pull requests ([#1182](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1182))
+- [SYNPY-1542] Upgraded ReadTheDocs OS, Python version, and search ranking ([#1184](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1184))
+- Updated Dockerfile to fix `pandas` installation ([#1169](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1169))
+- Updated table and file versioning tutorials ([#1172](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1172))
+- Prevented concurrent builds per branch ([#1178](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1178))
+- Included default timeout for HTTP requests ([#1188](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1188))
+- Corrected regular expression for invalid column name ([#1187](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1187))
+- Updated docstring for `setPermissions` function ([#1164](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1164))
+- Added SECURITY.md ([#1166](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1166))
+- Fixed typo in dataset tutorial ([#1186](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1186))
+
+
+## 4.7.0 (2025-01-31)
+
+### Highlights
+- **Added functionality for interacting with Synapse Agents:**
+    - The new `Agent` OOP model allows you to chat with the baseline Synapse Agent,
+    register and chat with custom Synapse Agents, manage multiple chat sessions and more.
+    - See the `Agent` documentation for more details and example code to get started.
+
+### Bug Fixes
+-  \[[SYNPY-1557](https://sagebionetworks.jira.com/browse/SYNPY-1557)\] - Synapse get recursive link download issue
+
+### Stories
+-  \[[SYNPY-1544](https://sagebionetworks.jira.com/browse/SYNPY-1544)\] - Create Synapse Agent OOP Model
+-  \[[SYNPY-1566](https://sagebionetworks.jira.com/browse/SYNPY-1566)\] - Release python client v4.7.0
+
 ## 4.7.0 (2025-01-31)
 
 ### Highlights
@@ -123,7 +181,7 @@ stored in the `~/.synapseConfig` file.
 ## 4.3.0 (2024-05-30)
 ### Highlights
 - **New tutorial:**
-    - [Uploading data in bulk](../tutorials/python/upload_data_in_bulk)
+    - [Uploading data in bulk](tutorials/python/upload_data_in_bulk.md)
     is our newest tutorial. It covers the basics of working with manifest files to manage synapse projects.
 - **Updates to syncToSynapse:**
     - The `syncToSynapse` function has been refactored to improve performance and
@@ -167,7 +225,7 @@ stored in the `~/.synapseConfig` file.
 
 ### Highlights
 - **New Downloading Data in Bulk Tutorial**
-    - See [Downloading data in bulk tutorial](https://python-docs.synapse.org/tutorials/python/download_data_in_bulk/) for more details on downloading data in bulk from Synapse.
+    - See [Downloading data in bulk tutorial][tutorial-downloading-data-in-bulk] for more details on downloading data in bulk from Synapse.
 - **Downloading Files Troubleshooting Improvement**
     - Improved error logging for when users are downloading files using commands like `get-download-list` from Synapse.
 
@@ -222,27 +280,27 @@ stored in the `~/.synapseConfig` file.
 
 -   **Only authentication through Personal Access Token**
     **(aka: Authentication bearer token) is supported**. Review the
-    [Authentication document](https://python-docs.synapse.org/tutorials/authentication/)
+    [Authentication document][tutorial-authentication]
     for information on setting up your usage of a Personal Access Token to authenticate
     with Synapse.
 -   **Date type Annotations on Synapse entities are now timezone aware**. Review our
-    [reference documentation for Annotations](https://python-docs.synapse.org/reference/annotations/).
+    [reference documentation for Annotations][synapseclient.annotations].
     The [`pytz` package](https://pypi.org/project/pytz/) is recommended if you regularly
     work with data across time zones.
     - If you do not set the `tzinfo` field on a date or datetime instance we will use the
         timezone of the machine where the code is executing.
     - If you are using the
-        [Manifest TSV](https://python-docs.synapse.org/explanations/manifest_tsv/#annotations)
+        [Manifest TSV][manifest-tsv-explanation-annotations]
         for bulk actions on your projects you'll now see that
         [synapseutils.sync.syncFromSynapse][] will store dates as `YYYY-MM-DDTHH:MM:SSZ`.
         Review our documentation for an
-        [example manifest file](https://python-docs.synapse.org/explanations/manifest_tsv/#example-manifest-file).
+        [example manifest file][manifest-tsv-explanation-example-file].
         Additionally, if you'd like to upload an annotation in a specific timezone please
         make sure that it is in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601).
         If you do not specify a timezone it is assumed to use the timezone of the machine
         where the code is executing.
 -   **Support for annotations with multiple values through the**
-    [**Manifest TSV**](https://python-docs.synapse.org/explanations/manifest_tsv/#multiple-values-of-annotations-per-key)
+    [**Manifest TSV**][manifest-tsv-explanation-multiple-annotations]
     with the usage of a comma delimited bracket wrapped list. Any manifest files wishing
     to take advantage of multi-value annotations need to match this format. Examples:
     - `["Annotation, with a comma", another annotation]`
@@ -253,7 +311,7 @@ stored in the `~/.synapseConfig` file.
     that you'll
     [provide the Data Processing and Engineering team feedback on areas we can improve](https://sagebionetworks.jira.com/servicedesk/customer/portal/5/group/7).
 -   Expansion of the available Python Tutorials can be found
-    [starting here](https://python-docs.synapse.org/tutorials/python_client/).
+    [starting here][tutorials-home].
 
 ### Bug Fixes
 -  \[[SYNPY-1357](https://sagebionetworks.jira.com/browse/SYNPY-1357)\] - Manifest does not support annotations with multiple values
@@ -925,7 +983,7 @@ stored in the `~/.synapseConfig` file.
     syn = synapseclient.Synapse(cache_root_dir=<directory path>)
     ```
 
--   A [helper method](index.html#synapseclient.Synapse.is_certified) on
+-   A [helper method][synapseclient.Synapse.is_certified] on
     the Synapse object has been added to enable obtaining the Synapse
     certification quiz status of a user.
 
@@ -981,7 +1039,7 @@ stored in the `~/.synapseConfig` file.
 -   This version addresses an issue with downloads being retried
     unsuccessfully after encountering certain types of errors.
 -   A
-    [create_snapshot_version](index.html#synapseclient.Synapse.create_snapshot_version)
+    [create_snapshot_version][synapseclient.Synapse.create_snapshot_version]
     function is added for making table and view snapshots.
 
 ### Bug Fixes
@@ -1008,9 +1066,9 @@ stored in the `~/.synapseConfig` file.
 ### Highlights
 
 -   Files that are part of
-    [syncFromSynapse](https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse)
+    [syncFromSynapse][synapseutils.sync.syncFromSynapse]
     and
-    [syncToSynapse](https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncToSynapse)
+    [syncToSynapse][synapseutils.sync.syncToSynapse]
     operations (`synapse get -r` and `synapse sync` in the command line
     client, respectively) are transferred in in parallel threads rather
     than serially, substantially improving the performance of these
@@ -1056,7 +1114,7 @@ stored in the `~/.synapseConfig` file.
 ### Highlights
 
 -   This version includes a performance improvement for
-    [syncFromSynapse](https://python-docs.synapse.org/build/html/synapseutils.html#synapseutils.sync.syncFromSynapse)
+    [syncFromSynapse][synapseutils.sync.syncFromSynapse]
     downloads of deep folder hierarchies to local filesystem locations
     outside of the [Synapse
     cache](https://help.synapse.org/docs/Downloading-Data-Programmatically.2003796248.html#DownloadingDataProgrammatically-DownloadingFiles).
@@ -1837,8 +1895,7 @@ Below are the full list of issues addressed by this release:
 Release 1.7 is a large bugfix release with several new features. The
 main ones include:
 
--   We have expanded the [synapseutils
-    packages](python-docs.synapse.org/build/html/synapseutils.html#module-synapseutils)
+-   We have expanded the [synapseutils packages][synapseutils]
     to add the ability to:
 
     > -   Bulk upload files to synapse (synapseutils.syncToSynapse).

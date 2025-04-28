@@ -6,6 +6,7 @@ at your own risk.
 
 ## API Reference
 
+[](){ #team-reference-async }
 ::: synapseclient.models.Team
     options:
         members:

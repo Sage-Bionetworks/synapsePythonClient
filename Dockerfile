@@ -8,7 +8,6 @@ RUN apt-get update \
     python3-dev \
     python3-setuptools \
     python3-pip \
-    python3-pandas \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --upgrade pip
@@ -16,7 +15,7 @@ RUN pip3 install --upgrade pip
 WORKDIR /synapsePythonClient
 COPY . .
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir .[pandas]
 
 
 LABEL org.opencontainers.image.source='https://github.com/Sage-Bionetworks/synapsePythonClient'

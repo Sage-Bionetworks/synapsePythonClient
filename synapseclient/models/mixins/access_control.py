@@ -44,11 +44,25 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Example: Using this function:
             Getting permissions for a Synapse Entity
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
                 permissions = await File(id="syn123").get_permissions_async()
+
+            asyncio.run(main())
+            ```
 
             Getting access types list from the Permissions object
 
-                permissions.access_types
+            ```
+            permissions.access_types
+            ```
         """
         loop = asyncio.get_event_loop()
 
@@ -109,9 +123,18 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 READ, DOWNLOAD, UPDATE, DELETE, CHANGE_PERMISSIONS.
 
                 **Defaults to ['READ', 'DOWNLOAD']**
-            modify_benefactor: Set as True when modifying a benefactor's ACL
-            warn_if_inherits: Set as False, when creating a new ACL. Trying to modify
-                the ACL of an Entity that inherits its ACL will result in a warning
+            modify_benefactor: Set as True when modifying a benefactor's ACL. The term
+                'benefactor' is used to indicate which Entity an Entity inherits its
+                ACL from. For example, a newly created Project will be its own
+                benefactor, while a new FileEntity's benefactor will start off as its
+                containing Project. If the entity already has local sharing settings
+                the benefactor would be itself. It may also be the immediate parent,
+                somewhere in the parent tree, or the project itself.
+            warn_if_inherits: When `modify_benefactor` is True, this does not have any
+                effect. When `modify_benefactor` is False, and `warn_if_inherits` is
+                True, a warning log message is produced if the benefactor for the
+                entity you passed into the function is not itself, i.e., it's the
+                parent folder, or another entity in the parent tree.
             overwrite: By default this function overwrites existing permissions for
                 the specified user. Set this flag to False to add new permissions
                 non-destructively.
@@ -125,11 +148,35 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Example: Setting permissions
             Grant all registered users download access
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
                 await File(id="syn123").set_permissions_async(principal_id=273948, access_type=['READ','DOWNLOAD'])
+
+            asyncio.run(main())
+            ```
 
             Grant the public view access
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
                 await File(id="syn123").set_permissions_async(principal_id=273949, access_type=['READ'])
+
+            asyncio.run(main())
+            ```
         """
         if access_type is None:
             access_type = ["READ", "DOWNLOAD"]

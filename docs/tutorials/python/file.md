@@ -139,7 +139,7 @@ Now that you have created your files you'll be able to inspect this on the Files
 
 ## References used in this tutorial
 
-- [File][synapseclient.File]
+- [File][file-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
 - [syn.findEntityId][synapseclient.Synapse.findEntityId]
 - [syn.store][synapseclient.Synapse.store]

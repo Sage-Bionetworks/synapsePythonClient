@@ -336,18 +336,18 @@ class AgentSynchronousProtocol(Protocol):
         Example: Prompt the baseline Synapse Agent.
             The baseline Synapse Agent is equivilent to the Agent available in the Synapse UI.
 
-            from synapseclient import Synapse
-            from synapseclient.models import Agent
+                from synapseclient import Synapse
+                from synapseclient.models import Agent
 
-            syn = Synapse()
-            syn.login()
+                syn = Synapse()
+                syn.login()
 
-            my_agent = Agent()
-            my_agent.prompt(
-                prompt="Can you tell me about the AD Knowledge Portal dataset?",
-                enable_trace=True,
-                print_response=True,
-            )
+                my_agent = Agent()
+                my_agent.prompt(
+                    prompt="Can you tell me about the AD Knowledge Portal dataset?",
+                    enable_trace=True,
+                    print_response=True,
+                )
 
         Example: Prompt a custom agent.
             If you have already registered a custom agent, you can prompt it by providing the agent's registration ID.

@@ -3,7 +3,6 @@ Utility functions useful in the implementation and testing of the Synapse client
 """
 
 import base64
-import cgi
 import collections.abc
 import datetime
 import errno
@@ -25,16 +24,20 @@ import urllib.parse as urllib_parse
 import uuid
 import warnings
 import zipfile
-from dataclasses import asdict, is_dataclass
-from typing import TYPE_CHECKING, TypeVar
+from dataclasses import asdict, fields, is_dataclass
+from email.message import Message
+from typing import TYPE_CHECKING, List, Optional, TypeVar
 
 import requests
+from deprecated import deprecated
 from opentelemetry import trace
+from tqdm import tqdm
 
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import Column, File, Folder, Project, Table
+    from synapseclient.models.dataset import EntityRef
 
 R = TypeVar("R")
 
@@ -56,7 +59,10 @@ LOGGER = logging.getLogger(LOGGER_NAME)
 
 
 def md5_for_file(
-    filename: str, block_size: int = 2 * MB, callback: typing.Callable = None
+    filename: str,
+    block_size: int = 2 * MB,
+    callback: typing.Callable = None,
+    progress_bar: Optional[tqdm] = None,
 ):
     """
     Calculates the MD5 of the given file.
@@ -81,8 +87,14 @@ def md5_for_file(
                 callback()
             data = f.read(block_size)
             if not data:
+                if progress_bar:
+                    progress_bar.update(progress_bar.total - progress_bar.n)
+                    progress_bar.refresh()
+                    progress_bar.close()
                 break
             md5.update(data)
+            if progress_bar:
+                progress_bar.update(len(data))
             del data
             # Garbage collect every 100 iterations
             if loop_iteration % 100 == 0:
@@ -173,8 +185,9 @@ def extract_filename(content_disposition_header, default_filename=None):
 
     if not content_disposition_header:
         return default_filename
-    value, params = cgi.parse_header(content_disposition_header)
-    return params.get("filename", default_filename)
+    message = Message()
+    message.add_header("content-disposition", content_disposition_header)
+    return message.get_filename(failobj=default_filename)
 
 
 def extract_user_name(profile):
@@ -615,7 +628,18 @@ def make_bogus_binary_file(
     Returns:
         The name of the file
     """
-
+    progress_bar = (
+        tqdm(
+            desc=f"Generating {filepath}",
+            unit_scale=True,
+            total=n,
+            smoothing=0,
+            unit="B",
+            leave=None,
+        )
+        if printprogress
+        else None
+    )
     with (
         open(filepath, "wb")
         if filepath
@@ -623,15 +647,17 @@ def make_bogus_binary_file(
     ) as f:
         if not filepath:
             filepath = f.name
-        progress = 0
         remaining = n
         while remaining > 0:
             buff_size = int(min(remaining, 1 * KB))
             f.write(os.urandom(buff_size))
+            if progress_bar:
+                progress_bar.update(buff_size)
             remaining -= buff_size
-            if printprogress:
-                progress += buff_size
-                printTransferProgress(progress, n, "Generated ", filepath)
+        if progress_bar:
+            progress_bar.update(progress_bar.total - progress_bar.n)
+            progress_bar.refresh()
+            progress_bar.close()
         return normalize_path(filepath)
 
 
@@ -958,6 +984,7 @@ def printTransferProgress(
     isBytes: bool = True,
     dt: float = None,
     previouslyTransferred: int = 0,
+    logger: logging.Logger = None,
 ):
     """Prints a progress bar
 
@@ -1014,8 +1041,12 @@ def printTransferProgress(
         postfix,
         status,
     )
-    sys.stdout.write(text)
-    sys.stdout.flush()
+    # Used for backwards compatability if anyone happens to be using this function
+    if logger:
+        logger.info(text)
+    else:
+        sys.stdout.write(text)
+        sys.stdout.flush()
 
 
 def humanizeBytes(num_bytes):
@@ -1354,6 +1385,11 @@ class deprecated_keyword_param:
         return wrapper
 
 
+@deprecated(
+    version="4.8.0",
+    reason="To be removed in 5.0.0. "
+    "This is removed in favor of using the tqdm library for progress bars.",
+)
 class Spinner:
     def __init__(self, msg=""):
         self._tick = 0
@@ -1376,10 +1412,10 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 
 def merge_dataclass_entities(
-    source: typing.Union["Project", "Folder", "File"],
-    destination: typing.Union["Project", "Folder", "File"],
+    source: typing.Union["Project", "Folder", "File", "Table", "Column"],
+    destination: typing.Union["Project", "Folder", "File", "Table", "Column"],
     fields_to_ignore: typing.List[str] = None,
-) -> typing.Union["Project", "Folder", "File"]:
+) -> typing.Union["Project", "Folder", "File", "Table"]:
     """
     Utility function to merge two dataclass entities together. This is used when we are
     upserting an entity from the Synapse service with the requested changes.
@@ -1388,6 +1424,8 @@ def merge_dataclass_entities(
         source: The source entity to merge from.
         destination: The destination entity to merge into.
         fields_to_ignore: A list of fields to ignore when merging.
+        fields_to_persist_to_last_instance: A list of fields to persist to the last
+            instance attribute of the destination entity if it exists.
 
     Returns:
         The destination entity with the merged values.
@@ -1415,9 +1453,51 @@ def merge_dataclass_entities(
                 **(value or {}),
                 **destination_dict[key],
             }
+        elif key == "columns":
+            source_columns = getattr(source, key)
+            destination_columns = getattr(destination, key)
+
+            for source_column_key, source_column_value in source_columns.items():
+                if source_column_key not in destination_columns:
+                    destination_columns[source_column_key] = source_column_value
+                else:
+                    destination_columns[source_column_key] = merge_dataclass_entities(
+                        source=source_column_value,
+                        destination=destination_columns[source_column_key],
+                        fields_to_ignore=["id"],
+                    )
+        elif key == "items":
+            source_items: List["EntityRef"] = getattr(source, key)
+            destination_items: List["EntityRef"] = getattr(destination, key)
+            destination_item_synapse_ids = [item.id for item in destination_items]
+
+            for source_item in source_items:
+                if source_item.id not in destination_item_synapse_ids:
+                    destination_items.append(source_item)
 
     # Update destination's fields with the merged dictionary
     for key, value in modified_items.items():
         setattr(destination, key, value)
 
     return destination
+
+
+def log_dataclass_diff(
+    logger: logging.Logger,
+    prefix: str,
+    obj1,
+    obj2,
+    fields_to_ignore: typing.List[str] = None,
+):
+    if type(obj1) != type(obj2):
+        logger.info("Objects are of different types, not logging a diff.")
+        return
+
+    for field in fields(obj1):
+        if fields_to_ignore and field.name in fields_to_ignore:
+            continue
+        else:
+            value1 = getattr(obj1, field.name)
+            value2 = getattr(obj2, field.name)
+            if value1 != value2:
+                logger.info(f"{prefix}{field.name}: {value1} -> {value2}")

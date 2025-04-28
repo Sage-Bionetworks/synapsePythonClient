@@ -1,6 +1,9 @@
 import threading
 from unittest import mock
 
+from pytest_mock import MockerFixture
+from tqdm import tqdm
+
 from synapseclient.core import cumulative_transfer_progress, utils
 
 
@@ -22,12 +25,7 @@ def test_not_configured(mock_utils_print_transfer_progress):
 
 
 @mock.patch.object(cumulative_transfer_progress, "time")
-@mock.patch.object(cumulative_transfer_progress, "sys")
-@mock.patch.object(cumulative_transfer_progress.utils, "Spinner")
-@mock.patch.object(utils, "printTransferProgress")
-def test_progress(
-    mock_utils_print_transfer_progress, mock_spinner, mock_sys, mock_time
-):
+def test_progress(mock_time, mocker: MockerFixture) -> None:
     """Verify writing progress via a CumulativeProgress"""
 
     # mock time for predictability
@@ -77,9 +75,7 @@ def test_progress(
 
     thread.join()
 
-    # the second print for the first file should have passed through to utils
-    # since it indicated the file was complete
-    mock_utils_print_transfer_progress.assert_called_once_with(*args1b, **kwargs1b)
+    spy_tqdm_update = mocker.spy(tqdm, "update")
 
     with progress.accumulate_progress():
         assert progress is getattr(
@@ -94,30 +90,10 @@ def test_progress(
     # 150 from the transfer above from this thread
     assert 350 == progress._total_transferred
 
-    expected_stdout_writes = [
-        mock.call("Testing 100.0bytes (1.0bytes/s)"),
-        mock.call("Testing 200.0bytes (1.0bytes/s)"),
-        mock.call("Testing 350.0bytes (1.2bytes/s)"),
-    ]
-    mock_spinner.assert_called_once_with()
-    assert mock_spinner.return_value.print_tick.call_count == 3
-    assert expected_stdout_writes == mock_sys.stdout.write.call_args_list
+    assert spy_tqdm_update.called
 
     # test thread local props cleaned up
     assert not hasattr(cumulative_transfer_progress._thread_local, "thread_transferred")
     assert not hasattr(
         cumulative_transfer_progress._thread_local, "cumulative_transfer_progress"
     )
-
-
-@mock.patch.object(cumulative_transfer_progress, "sys")
-@mock.patch.object(utils, "printTransferProgress")
-def test_progress__not_tty(mock_utils_print_transfer_progress, mock_sys):
-    """Verify nothing written if stdout is not a tty"""
-    mock_sys.stdout.isatty.return_value = False
-    progress = cumulative_transfer_progress.CumulativeTransferProgress("Testing")
-
-    with progress.accumulate_progress():
-        cumulative_transfer_progress.printTransferProgress(100, 100)
-        assert not mock_sys.stdout.write.called
-        assert not mock_utils_print_transfer_progress.called

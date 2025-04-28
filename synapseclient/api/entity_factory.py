@@ -19,8 +19,10 @@ from synapseclient.core.exceptions import (
 )
 
 if TYPE_CHECKING:
+    from models.entityview import EntityView
+
     from synapseclient import Synapse
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import Dataset, File, Folder, Project, Table
 
 
 async def get_from_entity_factory(
@@ -32,7 +34,9 @@ async def get_from_entity_factory(
     download_file: bool = True,
     download_location: str = None,
     follow_link: bool = False,
-    entity_to_update: Union["Project", "File", "Folder"] = None,
+    entity_to_update: Union[
+        "Project", "File", "Folder", "Table", "Dataset", "EntityView"
+    ] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union["Project", "File", "Folder"]:
@@ -228,6 +232,64 @@ async def _search_for_file_by_md5(
     return bundle
 
 
+async def _handle_file_entity(
+    entity_instance: "File",
+    entity_bundle: Dict[str, Any],
+    download_file: bool,
+    download_location: str,
+    if_collision: str,
+    submission: str,
+    synapse_client: "Synapse",
+) -> "File":
+    """Helper function to handle File entity specific logic."""
+    from synapseclient.models import FileHandle
+
+    entity_instance.fill_from_dict(
+        synapse_file=entity_bundle["entity"], set_annotations=False
+    )
+
+    # Update entity with FileHandle metadata
+    file_handle = next(
+        (
+            handle
+            for handle in entity_bundle.get("fileHandles", [])
+            if handle and handle["id"] == entity_instance.data_file_handle_id
+        ),
+        {},
+    )
+
+    entity_instance.file_handle = FileHandle().fill_from_dict(
+        synapse_instance=file_handle
+    )
+    entity_instance._fill_from_file_handle()
+
+    if download_file:
+        if file_handle:
+            await download_file_entity_model(
+                download_location=download_location,
+                file=entity_instance,
+                if_collision=if_collision,
+                submission=submission,
+                synapse_client=synapse_client,
+            )
+        else:
+            warning_message = (
+                "WARNING: You have READ permission on this file entity but not DOWNLOAD "
+                "permission. The file has NOT been downloaded."
+            )
+            synapse_client.logger.warning(
+                "\n"
+                + "!" * len(warning_message)
+                + "\n"
+                + warning_message
+                + "\n"
+                + "!" * len(warning_message)
+                + "\n"
+            )
+
+    return entity_instance
+
+
 async def _cast_into_class_type(
     entity_bundle: Dict[str, Any],
     download_file: bool = True,
@@ -238,7 +300,7 @@ async def _cast_into_class_type(
     entity_to_update: Union["Project", "File", "Folder"] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Union["Project", "File", "Folder"]:
+) -> Union["Project", "File", "Folder", "Table", "Dataset", "EntityView"]:
     """
     Take an entity_bundle returned from the Synapse API and cast it into the appropriate
     class type. This will also download the file if `download_file` is set to True.
@@ -271,6 +333,18 @@ async def _cast_into_class_type(
         ValueError: If the entity type is not supported.
     """
     from synapseclient import Synapse
+    from synapseclient.models import (
+        Annotations,
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        File,
+        Folder,
+        MaterializedView,
+        Project,
+        SubmissionView,
+        Table,
+    )
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 
@@ -284,79 +358,53 @@ async def _cast_into_class_type(
         entity_bundle = await get_entity_id_version_bundle2(
             entity_id=target_id, version=target_version, synapse_client=synapse_client
         )
+
     entity = entity_bundle["entity"]
-
-    from synapseclient.models import Annotations
-
     annotations = Annotations.from_dict(
         synapse_annotations=entity_bundle.get("annotations", None)
     )
 
-    from synapseclient.models import File, Folder, Project
+    # Map concrete types to their corresponding classes
+    ENTITY_TYPE_MAP = {
+        concrete_types.PROJECT_ENTITY: Project,
+        concrete_types.FOLDER_ENTITY: Folder,
+        concrete_types.FILE_ENTITY: File,
+        concrete_types.TABLE_ENTITY: Table,
+        concrete_types.DATASET_ENTITY: Dataset,
+        concrete_types.DATASET_COLLECTION_ENTITY: DatasetCollection,
+        concrete_types.ENTITY_VIEW: EntityView,
+        concrete_types.MATERIALIZED_VIEW: MaterializedView,
+        concrete_types.SUBMISSION_VIEW: SubmissionView,
+    }
 
-    if entity["concreteType"] == concrete_types.PROJECT_ENTITY:
-        if not entity_to_update:
-            entity_to_update = Project()
-        entity = entity_to_update.fill_from_dict(
-            synapse_project=entity_bundle["entity"], set_annotations=False
-        )
-    elif entity["concreteType"] == concrete_types.FOLDER_ENTITY:
-        if not entity_to_update:
-            entity_to_update = Folder()
-        entity = entity_to_update.fill_from_dict(
-            synapse_folder=entity_bundle["entity"], set_annotations=False
-        )
-    elif entity["concreteType"] == concrete_types.FILE_ENTITY:
-        if not entity_to_update:
-            entity_to_update = File()
-        entity = entity_to_update.fill_from_dict(
-            synapse_file=entity_bundle["entity"], set_annotations=False
-        )
-        # update the entity with FileHandle metadata
-        file_handle = next(
-            (
-                handle
-                for handle in entity_bundle.get("fileHandles", [])
-                if handle and handle["id"] == entity.data_file_handle_id
-            ),
-            {},
-        )
-        from synapseclient.models import FileHandle
-
-        entity.file_handle = FileHandle().fill_from_dict(synapse_instance=file_handle)
-        entity._fill_from_file_handle()
-
-        if download_file:
-            if file_handle:
-                await download_file_entity_model(
-                    download_location=download_location,
-                    file=entity,
-                    if_collision=if_collision,
-                    submission=submission,
-                    synapse_client=synapse_client,
-                )
-            else:  # no filehandle means that we do not have DOWNLOAD permission
-                warning_message = (
-                    "WARNING: You have READ permission on this file entity but not DOWNLOAD "
-                    "permission. The file has NOT been downloaded."
-                )
-                syn.logger.warning(
-                    "\n"
-                    + "!" * len(warning_message)
-                    + "\n"
-                    + warning_message
-                    + "\n"
-                    + "!" * len(warning_message)
-                    + "\n"
-                )
-    else:
+    entity_class = ENTITY_TYPE_MAP.get(entity["concreteType"], None)
+    if not entity_class:
         raise ValueError(
             f"Attempting to retrieve an unsupported entity type of {entity['concreteType']}."
         )
-    if annotations:
-        entity.annotations = annotations
 
-    return entity
+    # Create or use existing entity instance
+    entity_instance = entity_to_update or entity_class()
+
+    # Handle special case for File entities
+    if entity["concreteType"] == concrete_types.FILE_ENTITY:
+        entity_instance = await _handle_file_entity(
+            entity_instance=entity_instance,
+            entity_bundle=entity_bundle,
+            download_file=download_file,
+            download_location=download_location,
+            if_collision=if_collision,
+            submission=submission,
+            synapse_client=syn,
+        )
+    else:
+        # Handle all other entity types
+        entity_instance.fill_from_dict(entity_bundle["entity"], set_annotations=False)
+
+    if annotations:
+        entity_instance.annotations = annotations
+
+    return entity_instance
 
 
 def _check_entity_restrictions(
@@ -386,12 +434,19 @@ def _check_entity_restrictions(
     if restriction_information and restriction_information.get(
         "hasUnmetAccessRequirement", None
     ):
-        warning_message = (
-            "\nThis entity has access restrictions. Please visit the web page for this entity "
-            f'(syn.onweb("{synapse_id}")). Look for the "Access" label and the lock icon underneath '
-            'the file name. Click "Request Access", and then review and fulfill the file '
-            "download requirement(s).\n"
-        )
+        if not syn.credentials or not syn.credentials._token:
+            warning_message = (
+                "You have not provided valid credentials for authentication with Synapse."
+                " Please provide an authentication token and use `synapseclient.login()` before your next attempt."
+                " See https://python-docs.synapse.org/tutorials/authentication/ for more information."
+            )
+        else:
+            warning_message = (
+                "\nThis entity has access restrictions. Please visit the web page for this entity "
+                f'(syn.onweb("{synapse_id}")). Look for the "Access" label and the lock icon underneath '
+                'the file name. Click "Request Access", and then review and fulfill the file '
+                "download requirement(s).\n"
+            )
         if download_file and bundle.get("entityType") not in ("project", "folder"):
             raise SynapseUnmetAccessRestrictions(warning_message)
-        syn.logger.warn(warning_message)
+        syn.logger.warning(warning_message)

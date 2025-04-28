@@ -24,6 +24,7 @@ from .entity_bundle_services_v2 import (
 from .entity_factory import get_from_entity_factory
 from .entity_services import (
     create_access_requirements_if_none,
+    delete_entity,
     delete_entity_generated_by,
     get_entities_by_md5,
     get_entity,
@@ -45,6 +46,13 @@ from .file_services import (
     post_file_multipart_presigned_urls,
     put_file_multipart_add,
     put_file_multipart_complete,
+)
+from .table_services import (
+    ViewEntityType,
+    ViewTypeMask,
+    get_columns,
+    get_default_columns,
+    post_columns,
 )
 
 __all__ = [
@@ -72,6 +80,7 @@ __all__ = [
     "get_entity",
     "put_entity",
     "post_entity",
+    "delete_entity",
     "get_upload_destination",
     "get_upload_destination_location",
     "create_access_requirements_if_none",
@@ -93,4 +102,10 @@ __all__ = [
     "get_session",
     "update_session",
     "get_trace",
+    # columns
+    "get_columns",
+    "post_columns",
+    "get_default_columns",
+    "ViewTypeMask",
+    "ViewEntityType",
 ]

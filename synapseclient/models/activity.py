@@ -13,7 +13,7 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models.protocols.activity_protocol import ActivitySynchronousProtocol
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Table
+    from synapseclient.models import Dataset, EntityView, File, Table
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -94,7 +94,6 @@ class UsedAndExecutedSynapseActivities(NamedTuple):
     executed: List[Dict]
 
 
-# TODO: When Views and Datasets are added we should add Activity to them.
 @dataclass
 @async_to_sync
 class Activity(ActivitySynchronousProtocol):
@@ -260,7 +259,7 @@ class Activity(ActivitySynchronousProtocol):
     )
     async def store_async(
         self,
-        parent: Optional[Union["Table", "File"]] = None,
+        parent: Optional[Union["Table", "File", "EntityView", "Dataset"]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Activity":
@@ -319,8 +318,10 @@ class Activity(ActivitySynchronousProtocol):
                 ),
             )
         self.fill_from_dict(synapse_activity=saved_activity)
-        Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Stored activity {self.id}"
+        Synapse.get_client(synapse_client=synapse_client).logger.info(
+            f"[{parent.id}]: Stored activity"
+            if parent
+            else f"[{self.id}]: Stored activity"
         )
 
         return self
@@ -328,7 +329,7 @@ class Activity(ActivitySynchronousProtocol):
     @classmethod
     async def from_parent_async(
         cls,
-        parent: Union["Table", "File"],
+        parent: Union["Table", "File", "EntityView", "Dataset"],
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Union["Activity", None]:

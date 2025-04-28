@@ -19,7 +19,6 @@ def js(syn: synapseclient.Synapse):
     return syn.service("json_schema")
 
 
-@pytest.mark.flaky(reruns=3, only_rerun=["SynapseHTTPError"])
 async def test_json_schema_organization(js):
     # Schema organizations must start with a string
     js_org = "a" + str(uuid.uuid4()).replace("-", "")

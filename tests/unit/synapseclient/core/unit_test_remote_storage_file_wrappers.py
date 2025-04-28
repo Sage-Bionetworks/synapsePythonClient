@@ -52,7 +52,7 @@ class TestS3ClientWrapper:
                 endpoint_url,
                 remote_file_key,
                 download_file_path,
-                progress_bar=tqdm() if show_progress else None,
+                progress_bar=tqdm(leave=None) if show_progress else None,
                 **kwargs,
             )
 

@@ -1,7 +1,8 @@
-import sys
 import threading
 import time
 from contextlib import contextmanager
+
+from tqdm import tqdm
 
 from synapseclient.core import utils
 
@@ -42,7 +43,7 @@ class CumulativeTransferProgress:
         self._lock = threading.Lock()
         self._label = label
 
-        self._spinner = utils.Spinner()
+        self._progress_bar: tqdm = None
         self._start = start if start is not None else time.time()
 
         self._total_transferred = 0
@@ -61,36 +62,42 @@ class CumulativeTransferProgress:
 
     def printTransferProgress(
         self,
-        transferred,
-        toBeTransferred,
-        prefix="",
-        postfix="",
-        isBytes=True,
-        dt=None,
-        previouslyTransferred=0,
-    ):
+        transferred: int,
+        toBeTransferred: int,
+        prefix: str = "",
+        postfix: str = "",
+        isBytes: bool = True,
+        dt: None = None,
+        previouslyTransferred: int = 0,
+    ) -> None:
         """
         Parameters match those of synapseclient.core.utils.printTransferProgress.
+
+        Arguments:
+            transferred: The number of bytes transferred in the current transfer.
+            toBeTransferred: The total number of bytes to be transferred in the current
+                transfer.
+            prefix: A string to prepend to the progress bar.
+            postfix: A string to append to the progress bar.
+            isBytes: If True, the progress bar will display bytes. If False, the
+                progress bar will display the unit of the transferred data.
+            dt: Deprecated.
+            previouslyTransferred: Deprecated.
+
+        Returns:
+            None
         """
-
-        if not sys.stdout.isatty():
-            return
-
         with self._lock:
-            if toBeTransferred == 0 or float(transferred) / toBeTransferred >= 1:
-                # if the individual transfer is complete then we pass through the print
-                # to the underlying utility method which will print a complete 100%
-                # progress bar on a newline.
-                utils.printTransferProgress(
-                    transferred,
-                    toBeTransferred,
-                    prefix=prefix,
+            if not self._progress_bar:
+                self._progress_bar = tqdm(
+                    desc=prefix if prefix else "Transfer Progress",
+                    unit_scale=True,
+                    total=toBeTransferred,
+                    smoothing=0,
                     postfix=postfix,
-                    isBytes=isBytes,
-                    dt=dt,
-                    previouslyTransferred=previouslyTransferred,
+                    unit="B" if isBytes else None,
+                    leave=None,
                 )
-
             # in order to know how much of the transferred data is newly transferred
             # we subtract the previously reported amount. this assumes that the printing
             # of the progress for any particular transfer is always conducted by the same
@@ -98,14 +105,4 @@ class CumulativeTransferProgress:
             self._total_transferred += transferred - _thread_local.thread_transferred
             _thread_local.thread_transferred = transferred
 
-            cumulative_dt = time.time() - self._start
-            rate = self._total_transferred / float(cumulative_dt)
-            rate = "(%s/s)" % utils.humanizeBytes(rate) if isBytes else rate
-
-            # we print a rotating tick with each update
-            self._spinner.print_tick()
-
-            sys.stdout.write(
-                f"{self._label} {utils.humanizeBytes(self._total_transferred)} {rate}"
-            )
-            sys.stdout.flush()
+            self._progress_bar.update(transferred - _thread_local.thread_transferred)
