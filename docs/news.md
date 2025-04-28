@@ -9,7 +9,7 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
-## 4.8.0 (2025-04-23)
+## 4.8.0 (2025-04-28)
 
 ### Highlights
 
@@ -27,6 +27,7 @@ breaking changes will not be included until v5.0.
 
 ### Bug Fixes
 
+- [SYNPY-1593] Enforce minimum httpcore dependency to prevent critical CVE ([#1197](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1197))
 - [SYNPY-1547] Fixed `parentWikiId=""` bug ([#1165](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1165))
 - [SYNPY-1553] Removed blank auth header and improved error message for unauthenticated requests ([#1171](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1171), [#1185](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1185))
 - [SYNPY-1584] Fixed issue with DataFrame upload and header writing ([#1193](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1193))
