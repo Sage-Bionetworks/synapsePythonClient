@@ -3,7 +3,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Dict, List, Optional, Protocol, Union
+from typing import Any, Dict, List, Optional, Protocol, Union
 
 from typing_extensions import Self
 
@@ -11,7 +11,7 @@ from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
-from synapseclient.models import Activity
+from synapseclient.models import Activity, Column
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
     DeleteMixin,
@@ -53,7 +53,8 @@ class VirtualTableSynchronousProtocol(Protocol):
             The VirtualTable instance stored in synapse.
 
         Raises:
-            ValueError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
+            ValueError: If the defining_sql contains JOIN or UNION operations,
+                which are not supported in VirtualTables.
 
         Example: Create a new virtual table with a defining SQL query.
             &nbsp;
@@ -152,7 +153,10 @@ class VirtualTableSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            virtual_table = VirtualTable(name="my_virtual_table", parent_id="syn1234").get(include_columns=True, include_activity=True)
+            virtual_table = VirtualTable(name="my_virtual_table", parent_id="syn1234").get(
+                include_columns=True,
+                include_activity=True
+            )
             print(virtual_table)
             print(virtual_table.columns)
             print(virtual_table.activity)
@@ -360,7 +364,9 @@ class VirtualTable(
     is_latest_version: Optional[bool] = field(default=None, compare=False)
     """If this is the latest version of the object."""
 
-    columns: Optional[OrderedDict] = field(default_factory=OrderedDict, compare=False)
+    columns: Optional[OrderedDict[str, Column]] = field(
+        default_factory=OrderedDict, compare=False
+    )
     """(Read Only) The columns of a virtual table are dynamic based on
     the select statement of the definingSQL. This list of columnIds is for
     read-only purposes."""
@@ -421,7 +427,7 @@ class VirtualTable(
         )
 
     def fill_from_dict(
-        self, entity: Dict, set_annotations: bool = True
+        self, entity: Dict[str, Any], set_annotations: bool = True
     ) -> "VirtualTable":
         """
         Converts the data coming from the Synapse API into this datamodel.
@@ -453,7 +459,7 @@ class VirtualTable(
 
         return self
 
-    def to_synapse_request(self):
+    def to_synapse_request(self) -> Dict[str, Any]:
         """Converts the request to a request expected of the Synapse REST API."""
 
         entity = {
@@ -509,7 +515,8 @@ class VirtualTable(
             The VirtualTable instance stored in synapse.
 
         Raises:
-            ValueError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
+            ValueError: If the defining_sql contains JOIN or UNION operations,
+                which are not supported in VirtualTables.
 
         Example: Create a new virtual table with a defining SQL query.
             &nbsp;
@@ -539,12 +546,9 @@ class VirtualTable(
 
         if self.defining_sql:
             sql_upper = self.defining_sql.upper()
-            join_pattern = r"(?:^|\s|\n)JOIN(?:\s|\n|$)"
-            union_pattern = r"(?:^|\s|\n)UNION(?:\s|\n|$)"
+            join_union_pattern = r"(?:^|\s)(?:JOIN|UNION)(?:\s|$)"
 
-            if re.search(join_pattern, sql_upper) or re.search(
-                union_pattern, sql_upper
-            ):
+            if re.search(join_union_pattern, sql_upper):
                 raise ValueError(
                     "VirtualTables do not support JOIN or UNION operations in the defining_sql. "
                     "If you need to combine data from multiple tables, consider using a MaterializedView instead."
