@@ -3,7 +3,6 @@ from unittest.mock import patch
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.core.exceptions import SynapseQueryError
 from synapseclient.models import VirtualTable
 from synapseclient.models.mixins.table_components import TableStoreMixin
 
@@ -31,9 +30,9 @@ class TestVirtualTable:
 
         with patch.object(TableStoreMixin, "store_async") as mock_super_store_async:
             # WHEN I store the VirtualTable
-            # THEN I expect a SynapseQueryError to be raised
+            # THEN I expect a ValueError to be raised
             with pytest.raises(
-                SynapseQueryError,
+                ValueError,
                 match="VirtualTables do not support JOIN or UNION operations in the defining_sql. "
                 "If you need to combine data from multiple tables, "
                 "consider using a MaterializedView instead.",
@@ -58,9 +57,9 @@ class TestVirtualTable:
 
         with patch.object(TableStoreMixin, "store_async") as mock_super_store_async:
             # WHEN I store the VirtualTable
-            # THEN I expect a SynapseQueryError to be raised
+            # THEN I expect a ValueError to be raised
             with pytest.raises(
-                SynapseQueryError,
+                ValueError,
                 match="VirtualTables do not support JOIN or UNION operations in the defining_sql. "
                 "If you need to combine data from multiple tables, "
                 "consider using a MaterializedView instead.",

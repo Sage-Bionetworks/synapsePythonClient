@@ -81,10 +81,6 @@ class SynapseUploadFailedException(SynapseError):
     """Raised when an upload failed. Should be chained to a cause Exception"""
 
 
-class SynapseQueryError(SynapseError):
-    """Raised when an invalid SQL query is passed to a Synapse Table-like object"""
-
-
 def _get_message(response: httpx.Response, logger: logging.Logger) -> Union[str, None]:
     """Extracts the message body or a response object by checking for a json response
     and returning the reason otherwise getting body.

@@ -10,7 +10,6 @@ from typing_extensions import Self
 from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.exceptions import SynapseQueryError
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models import Activity
 from synapseclient.models.mixins.access_control import AccessControllable
@@ -54,7 +53,7 @@ class VirtualTableSynchronousProtocol(Protocol):
             The VirtualTable instance stored in synapse.
 
         Raises:
-            SynapseQueryError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
+            ValueError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
 
         Example: Create a new virtual table with a defining SQL query.
             &nbsp;
@@ -237,7 +236,7 @@ class VirtualTable(
             text search should be enabled.
         defining_sql: The synapse SQL statement that defines the data in the
             virtual table. This field may NOT contain JOIN or UNION clauses.
-            If a JOIN or UNION clause is present, a `SynapseQueryError` will be raised
+            If a JOIN or UNION clause is present, a `ValueError` will be raised
             when the `store` method is called.
         annotations: Additional metadata associated with the entityview. The key is
             the name of your desired annotations. The value is an object containing a
@@ -373,7 +372,7 @@ class VirtualTable(
     defining_sql: Optional[str] = None
     """The synapse SQL statement that defines the data in the virtual
     table. This field may NOT contain JOIN or UNION clauses. If a JOIN or UNION
-    clause is present, a `SynapseQueryError` will be raised when the `store`
+    clause is present, a `ValueError` will be raised when the `store`
     method is called."""
 
     _last_persistent_instance: Optional["VirtualTable"] = field(
@@ -510,7 +509,7 @@ class VirtualTable(
             The VirtualTable instance stored in synapse.
 
         Raises:
-            SynapseQueryError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
+            ValueError: If the defining_sql contains JOIN or UNION operations, which are not supported in VirtualTables.
 
         Example: Create a new virtual table with a defining SQL query.
             &nbsp;
@@ -546,7 +545,7 @@ class VirtualTable(
             if re.search(join_pattern, sql_upper) or re.search(
                 union_pattern, sql_upper
             ):
-                raise SynapseQueryError(
+                raise ValueError(
                     "VirtualTables do not support JOIN or UNION operations in the defining_sql. "
                     "If you need to combine data from multiple tables, consider using a MaterializedView instead."
                 )
