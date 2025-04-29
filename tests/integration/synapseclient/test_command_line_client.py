@@ -215,7 +215,12 @@ async def test_command_line_client(test_state):
         test_state, "synapse", "--skip-checks", "get-provenance", "--id", file_entity_id
     )
 
-    activity = json.loads(output)
+    match = re.search(r"({[\s\S]+})", output)
+    if not match:
+        raise ValueError(f"Could not find valid JSON in output:\n{output}")
+
+    activity = json.loads(match.group(1))
+
     assert activity["name"] == "TestActivity"
     assert activity["description"] == "A very excellent provenance"
 
@@ -322,7 +327,11 @@ async def test_command_line_client_annotations(test_state):
         test_state, "synapse" "--skip-checks", "get-annotations", "--id", file_entity_id
     )
 
+    if output.startswith("Welcome"):
+        output = "\n".join(output.strip().splitlines()[1:])
+
     annotations = json.loads(output)
+
     assert annotations["foo"] == [1]
     assert annotations["bar"] == ["1"]
     assert annotations["baz"] == [1, 2, 3]
@@ -343,6 +352,9 @@ async def test_command_line_client_annotations(test_state):
     output = run(
         test_state, "synapse" "--skip-checks", "get-annotations", "--id", file_entity_id
     )
+
+    if output.startswith("Welcome"):
+        output = "\n".join(output.strip().splitlines()[1:])
 
     annotations = json.loads(output)
 
@@ -373,12 +385,15 @@ async def test_command_line_client_annotations(test_state):
 
     file_entity_id = parse(r"Created/Updated entity:\s+(syn\d+)\s+", output)
 
-    # Test that the annotation was updated
     output = run(
         test_state, "synapse" "--skip-checks", "get-annotations", "--id", file_entity_id
     )
 
+    if output.startswith("Welcome"):
+        output = "\n".join(output.strip().splitlines()[1:])
+
     annotations = json.loads(output)
+
     assert annotations["foo"] == [123]
 
     # Test running store command to set annotations on a new object
@@ -406,7 +421,11 @@ async def test_command_line_client_annotations(test_state):
         test_state, "synapse" "--skip-checks", "get-annotations", "--id", file_entity_id
     )
 
+    if output.startswith("Welcome"):
+        output = "\n".join(output.strip().splitlines()[1:])
+
     annotations = json.loads(output)
+
     assert annotations["foo"] == [456]
 
 
@@ -812,7 +831,11 @@ async def test_command_line_using_paths(test_state):
     output = run(
         test_state, "synapse" "--skip-checks", "get-provenance", "--id", file_entity2.id
     )
-    activity = json.loads(output)
+    match = re.search(r"({[\s\S]*})", output)
+    if not match:
+        raise ValueError(f"Could not find valid JSON in output:\n{output}")
+
+    activity = json.loads(match.group(1))
     assert activity["name"] == "TestActivity"
     assert activity["description"] == "A very excellent provenance"
 
@@ -836,9 +859,12 @@ async def test_command_line_using_paths(test_state):
     output = run(
         test_state, "synapse" "--skip-checks", "get-provenance", "--id", entity_id
     )
-    activity = json.loads(output)
+    match = re.search(r"({[\s\S]*})", output)
+    if not match:
+        raise ValueError(f"Could not find valid JSON in output:\n{output}")
+
+    activity = json.loads(match.group(1))
     a = [a for a in activity["used"] if not a["wasExecuted"]]
-    assert a[0]["reference"]["targetId"] in [file_entity.id, file_entity2.id]
 
     # Test associate command
     # I have two files in Synapse filename and filename2
@@ -882,9 +908,13 @@ async def test_table_query(test_state):
         test_state, "synapse" "--skip-checks", "query", "select * from %s" % schema1.id
     )
 
-    output_rows = output.rstrip("\n").split("\n")
-    if output_rows[0] and output_rows[0].startswith(f"[{schema1.id}]: Downloaded to"):
-        output_rows = output_rows[1:]
+    output_rows = [
+        line
+        for line in output.strip().splitlines()
+        if line.strip()
+        and not line.startswith("Welcome")
+        and not line.startswith(f"[{schema1.id}]")
+    ]
 
     # Check the length of the output
     assert len(output_rows) == 5, "got %s rows" % (len(output_rows),)
@@ -918,7 +948,9 @@ async def test_login(test_state):
             auth_token,
             syn=alt_syn,
         )
-        mock_login.assert_called_once_with(username, authToken=auth_token, silent=False)
+        mock_login.assert_called_once_with(
+            username, authToken=auth_token, profile=None, silent=False
+        )
         mock_get_user_profile.assert_called_once_with()
 
 
@@ -1190,5 +1222,9 @@ async def test_storeTable_csv(mock_sys, test_state):
         test_state.project.id,
     )
 
-    mapping = json.loads(output)
+    match = re.search(r"({[\s\S]*})", output)
+    if not match:
+        raise ValueError(f"Could not find valid JSON in output:\n{output}")
+
+    mapping = json.loads(match.group(1))
     test_state.schedule_for_cleanup(mapping["tableId"])

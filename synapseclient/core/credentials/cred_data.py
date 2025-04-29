@@ -1,8 +1,9 @@
 import abc
 import base64
-import collections
 import json
 import typing
+from dataclasses import dataclass, field
+from typing import Optional
 
 import requests.auth
 
@@ -24,6 +25,11 @@ class SynapseCredentials(requests.auth.AuthBase, abc.ABC):
     @abc.abstractmethod
     def owner_id(self) -> None:
         """The owner id, or profile id, associated with these credentials."""
+
+    @property
+    @abc.abstractmethod
+    def profile_name(self) -> None:
+        """The name of the profile used to find these credentials. May be None."""
 
 
 class SynapseAuthTokenCredentials(SynapseCredentials):
@@ -108,6 +114,15 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         """The bearer token."""
         return self._token
 
+    @property
+    def profile_name(self) -> str:
+        """The name of the profile used to find these credentials."""
+        return self._profile_name
+
+    @profile_name.setter
+    def profile_name(self, profile_name: str) -> None:
+        self._profile_name = profile_name
+
     def __call__(self, r):
         if self.secret:
             r.headers.update({"Authorization": f"Bearer {self.secret}"})
@@ -123,15 +138,22 @@ class SynapseAuthTokenCredentials(SynapseCredentials):
         )
 
 
-# a class that just contains args passed form synapse client login
-UserLoginArgs = collections.namedtuple(
-    "UserLoginArgs",
-    [
-        "username",
-        "auth_token",
-    ],
-)
+@dataclass
+class UserLoginArgs:
+    """
+    Data class representing user login arguments for authentication.
 
-# make the namedtuple's arguments optional instead of positional. All values default to None
-# when we require Python 3.6.1 we can use typing.NamedTuple's built-in default support
-UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)
+    Attributes:
+        profile (Optional[str]): The profile name to use for authentication.
+                                 Defaults to "default".
+        username (Optional[str]): The Synapse username associated with the login profile.
+                                  Defaults to None.
+        auth_token (Optional[str]): The authentication token for logging in.
+                                    Hidden from debug logs for security.
+    """
+
+    profile: Optional[str] = field(default="default")
+    username: Optional[str] = field(default=None)
+    auth_token: Optional[str] = field(
+        default=None, repr=False
+    )  # Hide auth_token from debug logs
