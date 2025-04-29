@@ -61,8 +61,13 @@ from synapseclient.models.table_components import (
     UploadToTableRequest,
 )
 
-CLASSES_THAT_CONTAIN_ROW_ETAG = ["Dataset", "EntityView", "DatasetCollection"]
-CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView"]
+CLASSES_THAT_CONTAIN_ROW_ETAG = [
+    "Dataset",
+    "EntityView",
+    "DatasetCollection",
+    "SubmissionView",
+]
+CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView", "VirtualTable"]
 
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
@@ -758,6 +763,15 @@ class GetMixin:
 
 class ColumnMixin:
     """Mixin class providing methods for managing columns in a `Table`-like entity."""
+
+    @property
+    def has_columns_changed(self) -> bool:
+        """Determines if the object has been changed and needs to be updated in Synapse."""
+        return (
+            not self._last_persistent_instance
+            or (not self._last_persistent_instance.columns and self.columns)
+            or self._last_persistent_instance.columns != self.columns
+        )
 
     def delete_column(self, name: str) -> None:
         """
@@ -2506,9 +2520,9 @@ class ViewSnapshotMixin:
             snapshot_options=SnapshotRequest(
                 comment=comment,
                 label=label,
-                activity=self.activity.id
-                if self.activity and include_activity
-                else None,
+                activity=(
+                    self.activity.id if self.activity and include_activity else None
+                ),
             ),
         ).send_job_and_wait_async(synapse_client=client)
 
@@ -3468,10 +3482,8 @@ class TableStoreRowMixin:
 
         chunks_to_upload = []
         size_of_chunk = 0
-        previous_chunk_byte_offset = 0
         buffer = BytesIO()
         total_df_bytes = 0
-        size_of_header = 0
         header_line = None
         md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
         line_start_index_for_chunk = 0
@@ -3494,28 +3506,23 @@ class TableStoreRowMixin:
             if start == 0:
                 buffer.seek(0)
                 header_line = buffer.readline()
-                size_of_header = len(header_line)
-                previous_chunk_byte_offset = size_of_header
             md5_hashlib.update(buffer.getvalue())
 
             if size_of_chunk >= insert_size_bytes:
                 chunks_to_upload.append(
                     (
-                        previous_chunk_byte_offset,
                         size_of_chunk,
                         md5_hashlib.hexdigest(),
                         line_start_index_for_chunk,
                         line_end_index_for_chunk,
                     )
                 )
-                previous_chunk_byte_offset = size_of_header
                 size_of_chunk = 0
                 line_start_index_for_chunk = line_end_index_for_chunk
                 md5_hashlib = hashlib.new("md5", usedforsecurity=False)  # nosec
         if size_of_chunk > 0:
             chunks_to_upload.append(
                 (
-                    previous_chunk_byte_offset,
                     size_of_chunk,
                     md5_hashlib.hexdigest(),
                     line_start_index_for_chunk,
@@ -3528,9 +3535,11 @@ class TableStoreRowMixin:
         )
         progress_bar = tqdm(
             total=total_df_bytes,
-            desc="Splitting DataFrame and uploading chunks"
-            if len(chunks_to_upload) > 1
-            else "Uploading DataFrame",
+            desc=(
+                "Splitting DataFrame and uploading chunks"
+                if len(chunks_to_upload) > 1
+                else "Uploading DataFrame"
+            ),
             unit_scale=True,
             smoothing=0,
             unit="B",
@@ -3558,7 +3567,6 @@ class TableStoreRowMixin:
         wait_for_update_semaphore = asyncio.Semaphore(value=1)
         part = 0
         for (
-            byte_chunk_offset,
             size_of_chunk,
             md5,
             line_start,
@@ -3569,7 +3577,7 @@ class TableStoreRowMixin:
                     self._stream_and_update_from_df(
                         client=client,
                         size_of_chunk=size_of_chunk,
-                        byte_chunk_offset=byte_chunk_offset,
+                        byte_chunk_offset=0,
                         md5=md5,
                         csv_table_descriptor=csv_table_descriptor,
                         job_timeout=job_timeout,

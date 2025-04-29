@@ -122,7 +122,7 @@ files in the synapse web UI. It should look similar to:
 ## References used in this tutorial
 
 - [Annotations][synapseclient.Annotations]
-- [File][synapseclient.File]
+- [File][file-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
 - [syn.findEntityId][synapseclient.Synapse.findEntityId]
 - [syn.getChildren][synapseclient.Synapse.getChildren]

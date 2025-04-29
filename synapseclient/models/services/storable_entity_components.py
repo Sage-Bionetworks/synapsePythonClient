@@ -6,7 +6,15 @@ from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseError
 
 if TYPE_CHECKING:
-    from synapseclient.models import Dataset, EntityView, File, Folder, Project, Table
+    from synapseclient.models import (
+        Dataset,
+        EntityView,
+        File,
+        Folder,
+        Project,
+        SubmissionView,
+        Table,
+    )
 
 
 class FailureStrategy(Enum):
@@ -161,9 +169,11 @@ def _resolve_store_task(
 
 
 def _has_activity_change_to_apply(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
+    root_resource: Union[
+        "File", "Folder", "Project", "Table", "Dataset", "EntityView", "SubmissionView"
+    ],
     last_persistent_instance: Union[
-        "File", "Folder", "Project", "Table", "Dataset", "EntityView"
+        "File", "Folder", "Project", "Table", "Dataset", "EntityView", "SubmissionView"
     ],
 ) -> bool:
     """Determines if there is a change on the Activity to apply to the root_resource.
@@ -177,6 +187,7 @@ def _has_activity_change_to_apply(
     """
     return last_persistent_instance is None or (
         (last_persistent_instance.activity != root_resource.activity)
+        or (root_resource.activity and root_resource.activity.id is None)
         or _pull_activity_forward_to_new_version(
             root_resource=root_resource,
             last_persistent_instance=last_persistent_instance,

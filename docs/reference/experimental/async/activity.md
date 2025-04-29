@@ -6,6 +6,7 @@ at your own risk.
 
 ## API Reference
 
+[](){ #activity-reference-async }
 ::: synapseclient.models.Activity
     options:
       members:
@@ -14,11 +15,13 @@ at your own risk.
         - delete_async
         - disassociate_from_entity_async
 ---
+[](){ #used-entity-reference-async }
 ::: synapseclient.models.UsedEntity
     options:
       filters:
       - "!"
 ---
+[](){ #used-url-reference-async }
 ::: synapseclient.models.UsedURL
     options:
       filters:

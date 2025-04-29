@@ -1,3 +1,4 @@
+[](){ #tutorial-authentication }
 # Authentication
 
 There are multiple ways one can login to Synapse. We recommend users choose the method that fits their workflow best.

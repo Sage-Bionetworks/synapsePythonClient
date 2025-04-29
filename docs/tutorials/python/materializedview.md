@@ -165,7 +165,8 @@ Results from the materialized view with UNION:
 </details>
 
 ## References
-- [MaterializedView][synapseclient.models.MaterializedView]
-- [Column][synapseclient.models.Column]
-- [Project][synapseclient.models.Project]
+- [MaterializedView][materializedview-reference-sync]
+- [Column][column-reference-sync]
+- [Project][project-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
+- [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html)

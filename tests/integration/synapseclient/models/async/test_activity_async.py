@@ -21,17 +21,60 @@ class TestActivity:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_store_with_parent_and_id(self, project: Synapse_Project) -> None:
-        # GIVEN a file in a project
+    async def create_file_with_activity(
+        self,
+        project: Synapse_Project,
+        activity: Activity = None,
+        store_file: bool = True,
+    ) -> File:
+        """Helper to create a file with optional activity"""
         path = utils.make_bogus_uuid_file()
         file = File(
-            parent_id=project["id"], path=path, name=f"bogus_file_{str(uuid.uuid4())}"
+            parent_id=project["id"],
+            path=path,
+            name=f"bogus_file_{str(uuid.uuid4())}",
+            activity=activity,
         )
         self.schedule_for_cleanup(file.path)
-        await file.store_async()
-        self.schedule_for_cleanup(file.id)
 
-        # AND an activity I want to store
+        if store_file:
+            await file.store_async()
+            self.schedule_for_cleanup(file.id)
+
+        return file
+
+    async def verify_activity_properties(
+        self, activity, expected_name, expected_description, has_references=False
+    ):
+        """Helper to verify common activity properties"""
+        assert activity.name == expected_name
+        assert activity.description == expected_description
+        assert activity.id is not None
+        assert activity.etag is not None
+        assert activity.created_on is not None
+        assert activity.modified_on is not None
+        assert activity.created_by is not None
+        assert activity.modified_by is not None
+
+        if has_references:
+            assert activity.used[0].url == BOGUS_URL
+            assert activity.used[0].name == "example"
+            assert activity.used[1].target_id == "syn456"
+            assert activity.used[1].target_version_number == 1
+            assert activity.executed[0].url == BOGUS_URL
+            assert activity.executed[0].name == "example"
+            assert activity.executed[1].target_id == "syn789"
+            assert activity.executed[1].target_version_number == 1
+        else:
+            assert activity.used == []
+            assert activity.executed == []
+
+    async def test_activity_lifecycle(self, project: Synapse_Project) -> None:
+        """Test complete activity lifecycle - create, update, retrieve, and delete"""
+        # GIVEN a file in a project
+        file = await self.create_file_with_activity(project)
+
+        # AND an activity with references
         activity = Activity(
             name="some_name",
             description="some_description",
@@ -49,94 +92,77 @@ class TestActivity:
         result = await activity.store_async(parent=file)
         self.schedule_for_cleanup(result.id)
 
-        # THEN I expect the activity to be stored
+        # THEN I expect the activity to be stored correctly
         assert result == activity
-        assert result.id is not None
-        assert result.etag is not None
-        assert result.created_on is not None
-        assert result.modified_on is not None
-        assert result.created_by is not None
-        assert result.modified_by is not None
-        assert result.used[0].url == BOGUS_URL
-        assert result.used[0].name == "example"
-        assert result.used[1].target_id == "syn456"
-        assert result.used[1].target_version_number == 1
-        assert result.executed[0].url == BOGUS_URL
-        assert result.executed[0].name == "example"
-        assert result.executed[1].target_id == "syn789"
-        assert result.executed[1].target_version_number == 1
+        await self.verify_activity_properties(
+            result, "some_name", "some_description", has_references=True
+        )
 
-        # GIVEN our already stored activity
-        modified_activity = activity
-
-        # WHEN I modify the activity
-        modified_activity.name = "modified_name"
-        modified_activity.description = "modified_description"
-
-        # AND I store the modified activity without a parent
-        modified_result = await modified_activity.store_async()
+        # WHEN I modify and store the activity
+        result.name = "modified_name"
+        result.description = "modified_description"
+        modified_result = await result.store_async()
 
         # THEN I expect the modified activity to be stored
-        assert modified_result == modified_activity
-        assert modified_result.id is not None
-        assert modified_result.etag is not None
-        assert modified_result.created_on is not None
-        assert modified_result.modified_on is not None
-        assert modified_result.created_by is not None
-        assert modified_result.modified_by is not None
-        assert modified_result.name == "modified_name"
-        assert modified_result.description == "modified_description"
-        assert modified_result.used[0].url == BOGUS_URL
-        assert modified_result.used[0].name == "example"
-        assert modified_result.used[1].target_id == "syn456"
-        assert modified_result.used[1].target_version_number == 1
-        assert modified_result.executed[0].url == BOGUS_URL
-        assert modified_result.executed[0].name == "example"
-        assert modified_result.executed[1].target_id == "syn789"
-        assert modified_result.executed[1].target_version_number == 1
+        await self.verify_activity_properties(
+            modified_result,
+            "modified_name",
+            "modified_description",
+            has_references=True,
+        )
 
-        # Clean up
+        # WHEN I get the activity from the file
+        retrieved_activity = await Activity.from_parent_async(parent=file)
+
+        # THEN I expect the retrieved activity to match the modified one
+        assert retrieved_activity.name == "modified_name"
+        assert retrieved_activity.description == "modified_description"
+        await self.verify_activity_properties(
+            retrieved_activity,
+            "modified_name",
+            "modified_description",
+            has_references=True,
+        )
+
+        # WHEN I delete the activity
         await result.delete_async(parent=file)
 
-    async def test_store_with_no_references(self, project: Synapse_Project) -> None:
-        # GIVEN a file in a project that has an activity with no references
+        # THEN I expect no activity to be associated with the file
+        activity_after_delete = await Activity.from_parent_async(parent=file)
+        assert activity_after_delete is None
+
+    async def test_store_activity_with_no_references(
+        self, project: Synapse_Project
+    ) -> None:
+        """Test storing an activity without references"""
+        # GIVEN an activity with no references
         activity = Activity(
-            name="some_name",
-            description="some_description",
+            name="simple_activity",
+            description="activity with no references",
         )
-        path = utils.make_bogus_uuid_file()
-        file = File(
-            parent_id=project["id"],
-            path=path,
-            name=f"bogus_file_{str(uuid.uuid4())}",
-            activity=activity,
+
+        # AND a file with that activity
+        file = await self.create_file_with_activity(project, activity=activity)
+
+        # THEN I expect the activity to have been stored properly
+        await self.verify_activity_properties(
+            file.activity,
+            "simple_activity",
+            "activity with no references",
+            has_references=False,
         )
-        self.schedule_for_cleanup(file.path)
-
-        # WHEN I store the file with the activity
-        await file.store_async()
-        self.schedule_for_cleanup(file.id)
-
-        # THEN I expect the activity to have been stored
-        assert file.activity.name == activity.name
-        assert file.activity.description == activity.description
-        assert file.activity.used == []
-        assert file.activity.executed == []
-        assert file.activity.id is not None
-        assert file.activity.etag is not None
-        assert file.activity.created_on is not None
-        assert file.activity.modified_on is not None
-        assert file.activity.created_by is not None
-        assert file.activity.modified_by is not None
 
         # Clean up
         await file.activity.delete_async(parent=file)
 
-    async def test_from_parent(self, project: Synapse_Project) -> None:
-        # GIVEN a file in a project that has an activity
+    async def test_store_activity_via_file_creation(
+        self, project: Synapse_Project
+    ) -> None:
+        """Test storing an activity as part of file creation"""
+        # GIVEN an activity with references
         activity = Activity(
-            name="some_name",
-            description="some_description",
+            name="file_activity",
+            description="activity stored with file",
             used=[
                 UsedURL(name="example", url=BOGUS_URL),
                 UsedEntity(target_id="syn456", target_version_number=1),
@@ -146,67 +172,17 @@ class TestActivity:
                 UsedEntity(target_id="syn789", target_version_number=1),
             ],
         )
-        path = utils.make_bogus_uuid_file()
-        file = File(
-            parent_id=project["id"],
-            path=path,
-            name=f"bogus_file_{str(uuid.uuid4())}",
-            activity=activity,
+
+        # WHEN I create a file with the activity
+        file = await self.create_file_with_activity(project, activity=activity)
+
+        # THEN I expect the activity to have been stored with the file
+        await self.verify_activity_properties(
+            file.activity,
+            "file_activity",
+            "activity stored with file",
+            has_references=True,
         )
-        self.schedule_for_cleanup(file.path)
-        await file.store_async()
-        self.schedule_for_cleanup(file.id)
-
-        # WHEN I get the activity from the file
-        result = await Activity.from_parent_async(parent=file)
-
-        # THEN I expect the activity to be returned
-        assert result == activity
-        assert result.name == "some_name"
-        assert result.description == "some_description"
-        assert result.id is not None
-        assert result.etag is not None
-        assert result.created_on is not None
-        assert result.modified_on is not None
-        assert result.created_by is not None
-        assert result.modified_by is not None
-        assert result.used[0].url == BOGUS_URL
-        assert result.used[0].name == "example"
-        assert result.used[1].target_id == "syn456"
-        assert result.used[1].target_version_number == 1
-        assert result.executed[0].url == BOGUS_URL
-        assert result.executed[0].name == "example"
-        assert result.executed[1].target_id == "syn789"
-        assert result.executed[1].target_version_number == 1
 
         # Clean up
-        await result.delete_async(parent=file)
-
-    async def test_delete(self, project: Synapse_Project) -> None:
-        # GIVEN a file in a project that has an activity
-        activity = Activity(
-            name="some_name",
-            description="some_description",
-        )
-        path = utils.make_bogus_uuid_file()
-        file = File(
-            parent_id=project["id"],
-            path=path,
-            name=f"bogus_file_{str(uuid.uuid4())}",
-            activity=activity,
-        )
-        self.schedule_for_cleanup(file.path)
-
-        # AND I store the file with the activity
-        await file.store_async()
-        self.schedule_for_cleanup(file.id)
-
-        # AND the activity exists
-        assert file.activity.id is not None
-
-        # WHEN I delete the activity
         await file.activity.delete_async(parent=file)
-
-        # THEN I expect to receieve None
-        activity = await Activity.from_parent_async(parent=file)
-        assert activity is None

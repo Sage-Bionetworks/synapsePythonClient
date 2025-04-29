@@ -119,7 +119,8 @@ Finally, let's save a snapshot of the dataset. This creates a read-only version 
 </details>
 
 ## References
-- [Dataset](../../reference/experimental/sync/dataset.md)
-- [Column][synapseclient.models.Column]
+- [Dataset][dataset-reference-sync]
+- [Column][column-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
-- [Project](../../reference/experimental/sync/project.md)
+- [Project][project-reference-sync]
+- [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html)

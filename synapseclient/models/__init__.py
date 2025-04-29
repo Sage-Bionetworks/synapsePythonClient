@@ -15,6 +15,7 @@ from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
 from synapseclient.models.services import FailureStrategy
+from synapseclient.models.submissionview import SubmissionView
 from synapseclient.models.table import Table
 from synapseclient.models.table_components import (
     AppendableRowSetRequest,
@@ -35,6 +36,7 @@ from synapseclient.models.table_components import (
 )
 from synapseclient.models.team import Team, TeamMember
 from synapseclient.models.user import UserPreference, UserProfile
+from synapseclient.models.virtualtable import VirtualTable
 
 __all__ = [
     "Activity",
@@ -79,10 +81,13 @@ __all__ = [
     "TableUpdateTransaction",
     "CsvTableDescriptor",
     "MaterializedView",
-    # Dataset model
+    "VirtualTable",
+    # Dataset models
     "Dataset",
     "EntityRef",
     "DatasetCollection",
+    # Submission models
+    "SubmissionView",
 ]
 
 # Static methods to expose as functions
