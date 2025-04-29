@@ -1175,6 +1175,7 @@ async def test_add__update_description(test_state):
     _description_wiki_check(test_state.syn, output, test_state.description_text)
     output = run(
         test_state,
+        "synapse",
         "add",
         test_state.upload_filename,
         "--name",
