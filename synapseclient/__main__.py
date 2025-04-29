@@ -1870,7 +1870,7 @@ def _prompt_for_credentials(
 
     if not profile:
         input_profile = input(
-            "Configuration profile name (Optional, 'default' used if not specified)): "
+            "Configuration profile name (Optional, 'default' used if not specified): "
         )
         if not input_profile:
             input_profile = "default"
