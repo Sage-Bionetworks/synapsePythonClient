@@ -36,6 +36,7 @@ from synapseclient.models.table_components import (
 )
 from synapseclient.models.team import Team, TeamMember
 from synapseclient.models.user import UserPreference, UserProfile
+from synapseclient.models.virtualtable import VirtualTable
 
 __all__ = [
     "Activity",
@@ -80,10 +81,12 @@ __all__ = [
     "TableUpdateTransaction",
     "CsvTableDescriptor",
     "MaterializedView",
-    # Dataset model
+    "VirtualTable",
+    # Dataset models
     "Dataset",
     "EntityRef",
     "DatasetCollection",
+    # Submission models
     "SubmissionView",
 ]
 

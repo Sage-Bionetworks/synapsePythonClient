@@ -1,3 +1,4 @@
+[](){ #file-reference-sync }
 # File
 
 Contained within this file are experimental interfaces for working with the Synapse Python
@@ -31,6 +32,7 @@ at your own risk.
         - get_acl
         - set_permissions
 ---
+[](){ #filehandle-reference-sync }
 ::: synapseclient.models.file.FileHandle
     options:
       filters:

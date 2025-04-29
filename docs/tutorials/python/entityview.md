@@ -134,8 +134,8 @@ Synapse web UI. It should look similar to:
 
 ## References used in this tutorial
 
-- [EntityView](../../reference/experimental/sync/entityview.md)
-- [Column][synapseclient.models.Column]
+- [EntityView][entityview-reference-sync]
+- [Column][column-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
-- [Project](../../reference/experimental/sync/project.md)
+- [Project][project-reference-sync]
 - [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html)

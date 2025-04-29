@@ -71,6 +71,7 @@ DATASET_COLLECTION_ENTITY = "org.sagebionetworks.repo.model.table.DatasetCollect
 ENTITY_VIEW = "org.sagebionetworks.repo.model.table.EntityView"
 MATERIALIZED_VIEW = "org.sagebionetworks.repo.model.table.MaterializedView"
 SUBMISSION_VIEW = "org.sagebionetworks.repo.model.table.SubmissionView"
+VIRTUAL_TABLE = "org.sagebionetworks.repo.model.table.VirtualTable"
 
 # upload requests
 MULTIPART_UPLOAD_REQUEST = "org.sagebionetworks.repo.model.file.MultipartUploadRequest"

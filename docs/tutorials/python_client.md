@@ -1,3 +1,5 @@
+[](){ #tutorials-home }
+
 # Working with the Python client
 
 Welcome to the Synapse Python client! In the following tutorials you'll create a

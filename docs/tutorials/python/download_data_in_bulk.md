@@ -1,3 +1,4 @@
+[](){ #tutorial-downloading-data-in-bulk }
 # Downloading data in bulk
 Contained within this tutorial is an experimental interface for working with the
 Synapse Python Client. These interfaces are subject to change at any time.

@@ -344,6 +344,7 @@ async def _cast_into_class_type(
         Project,
         SubmissionView,
         Table,
+        VirtualTable,
     )
 
     syn = Synapse.get_client(synapse_client=synapse_client)
@@ -375,6 +376,7 @@ async def _cast_into_class_type(
         concrete_types.ENTITY_VIEW: EntityView,
         concrete_types.MATERIALIZED_VIEW: MaterializedView,
         concrete_types.SUBMISSION_VIEW: SubmissionView,
+        concrete_types.VIRTUAL_TABLE: VirtualTable,
     }
 
     entity_class = ENTITY_TYPE_MAP.get(entity["concreteType"], None)
