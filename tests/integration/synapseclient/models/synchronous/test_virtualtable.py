@@ -10,201 +10,138 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Column, ColumnType, Project, Table, VirtualTable
 
 
-class TestVirtualTableWithoutData:
+class TestVirtualTableCreationAndManagement:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_empty_virtual_table(self, project_model: Project) -> None:
-        # GIVEN a VirtualTable with an empty definingSQL
-        virtual_table = VirtualTable(
+    @pytest.fixture(scope="function")
+    def base_table_with_columns(self, project_model: Project) -> Table:
+        # Create a table with columns for testing
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[
+                Column(name="test_column", column_type=ColumnType.STRING),
+                Column(name="test_column2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = table.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+        return table
+
+    async def test_virtual_table_validation_scenarios(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN different virtual table scenarios with validation issues
+
+        # Test case 1: Empty defining SQL
+        empty_sql_virtual_table = VirtualTable(
             name=str(uuid.uuid4()),
             description="Test virtual table",
             parent_id=project_model.id,
             defining_sql="",
         )
 
-        # WHEN I try to store the virtual table
+        # WHEN/THEN empty SQL should be rejected
         with pytest.raises(
             SynapseHTTPError,
             match="400 Client Error: The definingSQL of the virtual table is required "
             "and must not be the empty string.",
         ):
-            virtual_table.store(synapse_client=self.syn)
+            empty_sql_virtual_table.store(synapse_client=self.syn)
 
-    async def test_create_virtual_table_without_columns(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a table with no columns
+        # Test case 2: Table with no columns
         table_name = str(uuid.uuid4())
-        table = Table(
+        empty_column_table = Table(
             name=table_name,
             parent_id=project_model.id,
         )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
+        empty_column_table = empty_column_table.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(empty_column_table.id)
 
-        # AND a virtual table that uses the table in its defining SQL
-        virtual_table_name = str(uuid.uuid4())
-        virtual_table_description = "Test virtual table"
-        virtual_table = VirtualTable(
-            name=virtual_table_name,
-            parent_id=project_model.id,
-            description=virtual_table_description,
-            defining_sql=f"SELECT * FROM {table.id}",
-        )
-
-        # WHEN I try to store the virtual table
+        # WHEN/THEN using a table with empty schema should be rejected
         with pytest.raises(
-            SynapseHTTPError, match=f"400 Client Error: Schema for {table.id} is empty."
+            SynapseHTTPError,
+            match=f"400 Client Error: Schema for {empty_column_table.id} is empty.",
         ):
-            virtual_table.store(synapse_client=self.syn)
+            VirtualTable(
+                name=str(uuid.uuid4()),
+                parent_id=project_model.id,
+                description="Test virtual table",
+                defining_sql=f"SELECT * FROM {empty_column_table.id}",
+            ).store(synapse_client=self.syn)
 
-    async def test_create_virtual_table_with_columns(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a table with columns
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
+        # Test case 3: Invalid SQL syntax
+        invalid_sql_virtual_table = VirtualTable(
+            name=str(uuid.uuid4()),
             parent_id=project_model.id,
-            columns=[
-                Column(name="test_column", column_type=ColumnType.STRING),
-                Column(name="test_column2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND a virtual table that uses the table in its defining SQL
-        virtual_table_name = str(uuid.uuid4())
-        virtual_table_description = "Test virtual table"
-        virtual_table = VirtualTable(
-            name=virtual_table_name,
-            parent_id=project_model.id,
-            description=virtual_table_description,
-            defining_sql=f"SELECT * FROM {table.id}",
-        )
-
-        # WHEN I store the virtual table
-        virtual_table = virtual_table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table.id)
-
-        # THEN the virtual table should be created
-        assert virtual_table.id is not None
-
-        # AND I can retrieve that virtual table from Synapse
-        new_virtual_table_instance = VirtualTable(id=virtual_table.id).get(
-            synapse_client=self.syn
-        )
-        assert new_virtual_table_instance is not None
-        assert new_virtual_table_instance.name == virtual_table_name
-        assert new_virtual_table_instance.id == virtual_table.id
-        assert new_virtual_table_instance.description == virtual_table_description
-
-    async def test_create_virtual_table_with_invalid_sql(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a virtual table with invalid SQL
-        virtual_table_name = str(uuid.uuid4())
-        virtual_table_description = "Test virtual table"
-        virtual_table = VirtualTable(
-            name=virtual_table_name,
-            parent_id=project_model.id,
-            description=virtual_table_description,
+            description="Test virtual table",
             defining_sql="INVALID SQL",
         )
 
-        # WHEN I store the virtual table
+        # WHEN/THEN invalid SQL should be rejected
         with pytest.raises(
             SynapseHTTPError,
             match='400 Client Error: Encountered " <regular_identifier> "INVALID "" '
             "at line 1, column 1.\nWas expecting one of:",
         ):
-            virtual_table.store(synapse_client=self.syn)
+            invalid_sql_virtual_table.store(synapse_client=self.syn)
 
-    async def test_update_virtual_table_attributes(
-        self, project_model: Project
+    async def test_virtual_table_lifecycle(
+        self, base_table_with_columns: Table
     ) -> None:
-        # GIVEN a table to use in the defining SQL
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="test_column", column_type=ColumnType.STRING),
-                Column(name="test_column2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND a virtual table
-        original_virtual_table = VirtualTable(
-            name=str(uuid.uuid4()),
-            description="Test virtual table",
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id}",
-        )
-        original_virtual_table = original_virtual_table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(original_virtual_table.id)
-
-        # AND I update attributes of the virtual table
-        updated_virtual_table = VirtualTable(id=original_virtual_table.id).get(
-            synapse_client=self.syn
-        )
-        updated_virtual_table.name = str(uuid.uuid4())
-        updated_virtual_table.description = "Updated description"
-        updated_virtual_table.defining_sql = f"SELECT test_column FROM {table.id}"
-        updated_virtual_table = updated_virtual_table.store(synapse_client=self.syn)
-
-        # AND I retrieve the virtual table with its original id
-        retrieved_virtual_table = VirtualTable(id=original_virtual_table.id).get(
-            synapse_client=self.syn
-        )
-
-        # THEN the virtual table should be updated
-        assert retrieved_virtual_table is not None
-        assert retrieved_virtual_table.name == updated_virtual_table.name
-        assert retrieved_virtual_table.description == updated_virtual_table.description
-        assert (
-            retrieved_virtual_table.defining_sql == updated_virtual_table.defining_sql
-        )
-
-        # AND all versions should have the same id
-        assert (
-            retrieved_virtual_table.id
-            == updated_virtual_table.id
-            == original_virtual_table.id
-        )
-
-    async def test_delete_virtual_table(self, project_model: Project) -> None:
-        # GIVEN a table to use in the defining SQL
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="test_column", column_type=ColumnType.STRING),
-                Column(name="test_column2", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND a virtual table
+        # GIVEN a table with columns and a new virtual table
+        table = base_table_with_columns
+        virtual_table_name = str(uuid.uuid4())
+        virtual_table_description = "Test virtual table"
         virtual_table = VirtualTable(
-            name=str(uuid.uuid4()),
-            description="Test virtual table",
-            parent_id=project_model.id,
+            name=virtual_table_name,
+            parent_id=table.parent_id,
+            description=virtual_table_description,
             defining_sql=f"SELECT * FROM {table.id}",
         )
+
+        # WHEN creating the virtual table
         virtual_table = virtual_table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(virtual_table.id)
+
+        # THEN the virtual table should be created successfully
         assert virtual_table.id is not None
 
-        # WHEN I delete the virtual table
+        # WHEN retrieving the virtual table
+        retrieved_virtual_table = VirtualTable(id=virtual_table.id).get(
+            synapse_client=self.syn
+        )
+
+        # THEN the retrieved virtual table should match the created one
+        assert retrieved_virtual_table is not None
+        assert retrieved_virtual_table.name == virtual_table_name
+        assert retrieved_virtual_table.id == virtual_table.id
+        assert retrieved_virtual_table.description == virtual_table_description
+
+        # WHEN updating the virtual table attributes
+        updated_name = str(uuid.uuid4())
+        updated_description = "Updated description"
+        updated_sql = f"SELECT test_column FROM {table.id}"
+
+        retrieved_virtual_table.name = updated_name
+        retrieved_virtual_table.description = updated_description
+        retrieved_virtual_table.defining_sql = updated_sql
+        retrieved_virtual_table.store(synapse_client=self.syn)
+
+        # THEN the updates should be reflected when retrieving again
+        latest_virtual_table = VirtualTable(id=virtual_table.id).get(
+            synapse_client=self.syn
+        )
+        assert latest_virtual_table.name == updated_name
+        assert latest_virtual_table.description == updated_description
+        assert latest_virtual_table.defining_sql == updated_sql
+        assert latest_virtual_table.id == virtual_table.id  # ID should remain the same
+
+        # WHEN deleting the virtual table
         virtual_table.delete(synapse_client=self.syn)
 
         # THEN the virtual table should be deleted
@@ -215,223 +152,15 @@ class TestVirtualTableWithoutData:
             VirtualTable(id=virtual_table.id).get(synapse_client=self.syn)
 
 
-class TestVirtualTableWithData:
+class TestVirtualTableWithDataOperations:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_query_data_from_virtual_table(self, project_model: Project) -> None:
-        # GIVEN a table with data
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="name", column_type=ColumnType.STRING),
-                Column(name="age", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # Insert data into the table
-        data = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
-        table.store_rows(data, synapse_client=self.syn)
-
-        # AND a virtual table that uses the table in its defining SQL
-        virtual_table_name = str(uuid.uuid4())
-        virtual_table = VirtualTable(
-            name=virtual_table_name,
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id}",
-        )
-        virtual_table = virtual_table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table.id)
-
-        # Wait for the virtual table to be ready
-        await asyncio.sleep(2)
-
-        # WHEN I query the virtual table
-        query_result = virtual_table.query(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
-        )
-
-        # THEN the data should match the table data
-        assert len(query_result) == 2
-        assert query_result["name"].tolist() == ["Alice", "Bob"]
-        assert query_result["age"].tolist() == [30, 25]
-
-    async def test_update_defining_sql(self, project_model: Project) -> None:
-        # GIVEN a table with data
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="name", column_type=ColumnType.STRING),
-                Column(name="age", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # Insert data into the table
-        data = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
-        table.store_rows(data, synapse_client=self.syn)
-
-        # AND a virtual table that uses the table in its defining SQL
-        virtual_table_name = str(uuid.uuid4())
-        virtual_table = VirtualTable(
-            name=virtual_table_name,
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id}",
-        )
-        virtual_table = virtual_table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table.id)
-
-        # WHEN I update the defining SQL of the virtual table
-        virtual_table.defining_sql = f"SELECT name FROM {table.id}"
-        virtual_table = virtual_table.store(synapse_client=self.syn)
-
-        # AND I query the updated virtual table
-        query_result = virtual_table.query(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
-        )
-
-        # THEN the data should match the updated SQL
-        assert len(query_result) == 2
-        assert query_result["name"].tolist() == ["Alice", "Bob"]
-        assert "age" not in query_result.columns
-
-        # AND the column is not present the next time the `virtual_table` is retrieved
-        retrieved_virtual_table = VirtualTable(id=virtual_table.id).get(
-            synapse_client=self.syn
-        )
-        assert "age" not in retrieved_virtual_table.columns.keys()
-        assert "name" in retrieved_virtual_table.columns.keys()
-
-    async def test_virtual_table_updates_with_table_data(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a table with columns but no data
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="test_name", column_type=ColumnType.STRING),
-                Column(name="test_age", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # AND a virtual table that uses the table in its defining SQL
-        virtual_table_name = str(uuid.uuid4())
-        virtual_table = VirtualTable(
-            name=virtual_table_name,
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id}",
-        )
-        virtual_table = virtual_table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table.id)
-
-        # Wait a moment for the virtual table to be ready
-        await asyncio.sleep(2)
-
-        # WHEN I query the virtual table before adding data to the table
-        query_result = virtual_table.query(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
-        )
-
-        # THEN no data should be returned
-        assert len(query_result) == 0
-
-        # AND WHEN I add data to the table
-        data = pd.DataFrame({"test_name": ["Alice", "Bob"], "test_age": [30, 25]})
-        table.store_rows(data, synapse_client=self.syn)
-
-        # Wait for updates to propagate
-        await asyncio.sleep(2)
-
-        # AND I query the virtual table again
-        query_result = virtual_table.query(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
-        )
-
-        # THEN the data should match the table data
-        assert len(query_result) == 2
-        assert query_result["test_name"].tolist() == ["Alice", "Bob"]
-        assert query_result["test_age"].tolist() == [30, 25]
-
-    async def test_virtual_table_reflects_table_data_removal(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a table with columns and data
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="name", column_type=ColumnType.STRING),
-                Column(name="age", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # Insert data into the table
-        data = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
-        table.store_rows(data, synapse_client=self.syn)
-
-        # AND a virtual table that uses the table in its defining SQL
-        virtual_table_name = str(uuid.uuid4())
-        virtual_table = VirtualTable(
-            name=virtual_table_name,
-            parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id}",
-        )
-        virtual_table = virtual_table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table.id)
-
-        # Wait for the virtual table to be ready
-        await asyncio.sleep(2)
-
-        # WHEN I query the virtual table
-        query_result = virtual_table.query(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
-        )
-
-        # THEN the data should match the table data
-        assert len(query_result) == 2
-        assert query_result["name"].tolist() == ["Alice", "Bob"]
-        assert query_result["age"].tolist() == [30, 25]
-
-        # AND WHEN I remove data from the table
-        table.delete_rows(
-            query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id}", synapse_client=self.syn
-        )
-
-        # Ensure the table contains no rows after deletion
-        query_result = table.query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
-        assert len(query_result) == 0
-
-        # Wait for changes to propagate to the virtual table
-        await asyncio.sleep(2)
-
-        # AND I query the virtual table again
-        query_result = virtual_table.query(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
-        )
-
-        # THEN no data should be returned
-        assert len(query_result) == 0
-
-    async def test_virtual_table_with_column_selection(
-        self, project_model: Project
-    ) -> None:
-        # GIVEN a table with data
+    @pytest.fixture(scope="function")
+    async def base_table_with_data(self, project_model: Project) -> Table:
+        # Create a table with columns and data
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
@@ -447,74 +176,109 @@ class TestVirtualTableWithData:
 
         # Insert data into the table
         data = pd.DataFrame(
-            {"name": ["Alice", "Bob"], "age": [30, 25], "city": ["New York", "Boston"]}
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Boston", "Chicago"],
+            }
         )
         table.store_rows(data, synapse_client=self.syn)
 
-        # AND a virtual table with column selection
-        virtual_table = VirtualTable(
+        return table
+
+    async def test_virtual_table_data_queries(
+        self, project_model: Project, base_table_with_data: Table
+    ) -> None:
+        # GIVEN a table with data and various virtual tables with different SQL transformations
+        table = base_table_with_data
+
+        # Test case 1: Basic selection of all data
+        virtual_table_all = VirtualTable(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        virtual_table_all = virtual_table_all.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table_all.id)
+
+        # Test case 2: Column selection
+        virtual_table_columns = VirtualTable(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
             defining_sql=f"SELECT name, city FROM {table.id}",
         )
-        virtual_table = virtual_table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table.id)
+        virtual_table_columns = virtual_table_columns.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table_columns.id)
 
-        # Wait for the virtual table to be ready
-        await asyncio.sleep(2)
-
-        # WHEN I query the virtual table
-        query_result = virtual_table.query(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
-        )
-
-        # THEN the data should only include the selected columns
-        assert len(query_result) == 2
-        assert "name" in query_result.columns
-        assert "city" in query_result.columns
-        assert "age" not in query_result.columns
-        assert query_result["name"].tolist() == ["Alice", "Bob"]
-        assert query_result["city"].tolist() == ["New York", "Boston"]
-
-    async def test_virtual_table_with_filtering(self, project_model: Project) -> None:
-        # GIVEN a table with data
-        table_name = str(uuid.uuid4())
-        table = Table(
-            name=table_name,
-            parent_id=project_model.id,
-            columns=[
-                Column(name="name", column_type=ColumnType.STRING),
-                Column(name="age", column_type=ColumnType.INTEGER),
-            ],
-        )
-        table = table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(table.id)
-
-        # Insert data into the table
-        data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie"], "age": [30, 25, 35]})
-        table.store_rows(data, synapse_client=self.syn)
-
-        # AND a virtual table with filtering
-        virtual_table = VirtualTable(
+        # Test case 3: Filtering
+        virtual_table_filtered = VirtualTable(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
             defining_sql=f"SELECT * FROM {table.id} WHERE age > 25",
         )
-        virtual_table = virtual_table.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(virtual_table.id)
+        virtual_table_filtered = virtual_table_filtered.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table_filtered.id)
 
-        # WHEN I query the virtual table
-        query_result = virtual_table.query(
-            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        # Test case 4: Ordering
+        virtual_table_ordered = VirtualTable(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table.id} ORDER BY age DESC",
+        )
+        virtual_table_ordered = virtual_table_ordered.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table_ordered.id)
+
+        # Wait for the virtual tables to be ready
+        await asyncio.sleep(2)
+
+        # WHEN querying the full-data virtual table
+        all_result = virtual_table_all.query(
+            f"SELECT * FROM {virtual_table_all.id}", synapse_client=self.syn
         )
 
-        # THEN the data should only include filtered rows
-        assert len(query_result) == 2
-        assert set(query_result["name"].tolist()) == {"Alice", "Charlie"}
-        assert set(query_result["age"].tolist()) == {30, 35}
+        # THEN all data should be returned
+        assert len(all_result) == 3
+        assert set(all_result["name"].tolist()) == {"Alice", "Bob", "Charlie"}
+        assert set(all_result["age"].tolist()) == {30, 25, 35}
+        assert set(all_result["city"].tolist()) == {"New York", "Boston", "Chicago"}
 
-    async def test_virtual_table_with_ordering(self, project_model: Project) -> None:
-        # GIVEN a table with data
+        # WHEN querying the column-selection virtual table
+        columns_result = virtual_table_columns.query(
+            f"SELECT * FROM {virtual_table_columns.id}", synapse_client=self.syn
+        )
+
+        # THEN only specified columns should be returned
+        assert len(columns_result) == 3
+        assert "name" in columns_result.columns
+        assert "city" in columns_result.columns
+        assert "age" not in columns_result.columns
+        assert set(columns_result["name"].tolist()) == {"Alice", "Bob", "Charlie"}
+        assert set(columns_result["city"].tolist()) == {"New York", "Boston", "Chicago"}
+
+        # WHEN querying the filtered virtual table
+        filtered_result = virtual_table_filtered.query(
+            f"SELECT * FROM {virtual_table_filtered.id}", synapse_client=self.syn
+        )
+
+        # THEN only filtered rows should be returned
+        assert len(filtered_result) == 2
+        assert set(filtered_result["name"].tolist()) == {"Alice", "Charlie"}
+        assert set(filtered_result["age"].tolist()) == {30, 35}
+
+        # WHEN querying the ordered virtual table
+        ordered_result = virtual_table_ordered.query(
+            f"SELECT * FROM {virtual_table_ordered.id}", synapse_client=self.syn
+        )
+
+        # THEN data should be in the specified order
+        assert len(ordered_result) == 3
+        assert ordered_result["age"].tolist() == [35, 30, 25]
+        assert ordered_result["name"].tolist() == ["Charlie", "Alice", "Bob"]
+
+    async def test_virtual_table_data_synchronization(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a table with columns but no initial data
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
@@ -527,15 +291,11 @@ class TestVirtualTableWithData:
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
-        # Insert data into the table
-        data = pd.DataFrame({"name": ["Alice", "Bob", "Charlie"], "age": [30, 25, 35]})
-        table.store_rows(data, synapse_client=self.syn)
-
-        # AND a virtual table with ordering
+        # AND a virtual table based on that table
         virtual_table = VirtualTable(
             name=str(uuid.uuid4()),
             parent_id=project_model.id,
-            defining_sql=f"SELECT * FROM {table.id} ORDER BY age DESC",
+            defining_sql=f"SELECT * FROM {table.id}",
         )
         virtual_table = virtual_table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(virtual_table.id)
@@ -543,18 +303,102 @@ class TestVirtualTableWithData:
         # Wait for the virtual table to be ready
         await asyncio.sleep(2)
 
-        # WHEN I query the virtual table
-        query_result = virtual_table.query(
+        # WHEN querying the virtual table with empty source table
+        empty_result = virtual_table.query(
             f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
         )
 
-        # THEN the data should be ordered by age descending
-        assert len(query_result) == 3
-        assert query_result["age"].tolist() == [35, 30, 25]
-        assert query_result["name"].tolist() == ["Charlie", "Alice", "Bob"]
+        # THEN no data should be returned
+        assert len(empty_result) == 0
+
+        # WHEN adding data to the source table
+        data = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
+        table.store_rows(data, synapse_client=self.syn)
+
+        # Wait for the updates to propagate
+        await asyncio.sleep(2)
+
+        # AND querying the virtual table again
+        added_data_result = virtual_table.query(
+            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        )
+
+        # THEN the virtual table should reflect the new data
+        assert len(added_data_result) == 2
+        assert added_data_result["name"].tolist() == ["Alice", "Bob"]
+        assert added_data_result["age"].tolist() == [30, 25]
+
+        # WHEN removing data from the source table
+        table.delete_rows(
+            query=f"SELECT ROW_ID, ROW_VERSION FROM {table.id}", synapse_client=self.syn
+        )
+
+        # Wait for changes to propagate
+        await asyncio.sleep(2)
+
+        # AND querying the virtual table again
+        removed_data_result = virtual_table.query(
+            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        )
+
+        # THEN the virtual table should reflect the removed data
+        assert len(removed_data_result) == 0
+
+    async def test_virtual_table_sql_updates(
+        self, project_model: Project, base_table_with_data: Table
+    ) -> None:
+        # GIVEN a table with data and a virtual table with initial SQL
+        table = base_table_with_data
+        virtual_table = VirtualTable(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        virtual_table = virtual_table.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table.id)
+
+        # Wait for the virtual table to be ready
+        await asyncio.sleep(2)
+
+        # WHEN querying the virtual table with initial SQL
+        initial_result = virtual_table.query(
+            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        )
+
+        # THEN all columns should be present
+        assert len(initial_result) == 3
+        assert "name" in initial_result.columns
+        assert "age" in initial_result.columns
+        assert "city" in initial_result.columns
+
+        # WHEN updating the defining SQL to select fewer columns
+        virtual_table.defining_sql = f"SELECT name, city FROM {table.id}"
+        virtual_table = virtual_table.store(synapse_client=self.syn)
+
+        # Wait for the update to propagate
+        await asyncio.sleep(2)
+
+        # AND querying the virtual table again
+        updated_result = virtual_table.query(
+            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        )
+
+        # THEN the result should reflect the SQL change
+        assert len(updated_result) == 3
+        assert "name" in updated_result.columns
+        assert "city" in updated_result.columns
+        assert "age" not in updated_result.columns
+
+        # AND the schema should be updated when retrieving the virtual table
+        retrieved_virtual_table = VirtualTable(id=virtual_table.id).get(
+            synapse_client=self.syn
+        )
+        assert "name" in retrieved_virtual_table.columns.keys()
+        assert "city" in retrieved_virtual_table.columns.keys()
+        assert "age" not in retrieved_virtual_table.columns.keys()
 
     async def test_virtual_table_with_aggregation(self, project_model: Project) -> None:
-        # GIVEN a table with data
+        # GIVEN a table with data suitable for aggregation
         table_name = str(uuid.uuid4())
         table = Table(
             name=table_name,
@@ -576,8 +420,7 @@ class TestVirtualTableWithData:
         )
         table.store_rows(data, synapse_client=self.syn)
 
-        # AND a virtual table with aggregation
-        # Define SQL properly with consistent column names
+        # AND a virtual table with aggregation SQL
         defining_sql = f"""SELECT
             department,
             COUNT(*) as employee_count
@@ -595,17 +438,19 @@ class TestVirtualTableWithData:
         # Wait for virtual table to be ready
         await asyncio.sleep(3)
 
-        # Query without column names to avoid mismatches
-        query = f"SELECT * FROM {virtual_table.id}"
+        # WHEN querying the aggregation virtual table
+        query_result = virtual_table.query(
+            f"SELECT * FROM {virtual_table.id}", synapse_client=self.syn
+        )
 
-        # WHEN I query the virtual table
-        query_result = virtual_table.query(query, synapse_client=self.syn)
-
-        # THEN the data should be aggregated
+        # THEN the result should contain the aggregated data
         assert len(query_result) == 3
 
-        # Sort the result by department to ensure consistent ordering for the test
+        # Sort the result for consistent testing
         query_result = query_result.sort_values("department").reset_index(drop=True)
 
+        # Verify departments
         assert query_result["department"].tolist() == ["Finance", "HR", "IT"]
+
+        # Verify counts
         assert query_result["employee_count"].tolist() == [1, 2, 2]
