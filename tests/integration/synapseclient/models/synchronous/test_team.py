@@ -74,7 +74,7 @@ class TestTeam:
         self.verify_team_properties(from_id_team, test_team)
 
         # Name-based retrieval is eventually consistent, so we need to wait
-        asyncio.sleep(5)
+        await asyncio.sleep(10)
 
         # WHEN I retrieve the team using a Team object with name
         name_team = Team(name=test_team.name)
