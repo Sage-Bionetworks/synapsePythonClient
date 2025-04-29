@@ -66,7 +66,7 @@ def syn(request) -> Synapse:
     print("  " + syn.portalEndpoint + "\n")
 
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
-    syn.login(profile=os.getenv("SYNAPSE_PROFILE", "default"))
+    syn.login()
 
     # set the working directory to a temp directory
     _old_working_directory = os.getcwd()

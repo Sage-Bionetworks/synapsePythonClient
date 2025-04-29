@@ -110,7 +110,6 @@ class TestLogin:
             displayname="Azure Diamond",
             username="AzureDiamond",
         )
-        self.synapse_creds._profile_name = None
 
         self.mocked_credential_chain = create_autospec(SynapseCredentialsProviderChain)
         self.mocked_credential_chain.get_credentials.return_value = self.synapse_creds

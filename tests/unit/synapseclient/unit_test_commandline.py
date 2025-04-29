@@ -5,7 +5,7 @@
 import base64
 import os
 import tempfile
-from unittest.mock import MagicMock, Mock, call, mock_open, patch
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 
@@ -352,15 +352,15 @@ def test_login_with_prompt__getpass(mocker, username, expected_pass_prompt, syn)
 
     cmdline.login_with_prompt(syn=syn, user=None, password=None, silent=True)
 
-    assert mock_input.call_args_list[0] == call("Synapse username (Optional): ")
+    mock_input.assert_called_once_with("Synapse username (Optional): ")
     mock_getpass.getpass.assert_called_once_with(expected_pass_prompt)
 
-    profile_name = username or "default"
-
     expected_authenticate_calls = [
-        call(syn=syn, user=None, secret=None, profile=None, silent=True),
+        call(syn=syn, user=None, secret=None, silent=True),
         call(
-            syn=syn, user=username, secret=password, profile=profile_name, silent=True
+            syn=syn,
+            user=username,
+            secret=password,
         ),
     ]
 
@@ -435,20 +435,15 @@ def test_login_with_prompt__user_supplied(mocker, syn):
     mock_getpass.getpass.return_value = password
 
     mock_input = mocker.patch.object(cmdline, "input")
-    mock_input.return_value = username
     mock_authenticate_login = mocker.patch.object(cmdline, "_authenticate_login")
     mock_authenticate_login.side_effect = [SynapseNoCredentialsError(), None]
 
     cmdline.login_with_prompt(syn=syn, user=username, password=None)
-    mock_input.assert_called_once_with(
-        "Configuration profile name (Optional, 'default' used if not specified): "
-    )
+    assert not mock_input.called
     mock_authenticate_login.assert_called_with(
         syn=syn,
         user=username,
         secret=password,
-        profile=username,
-        silent=False,
     )
 
 
@@ -482,7 +477,7 @@ def test_command_auto_login(mock_login_with_prompt, mock_sys_exit, syn):
     cmdline.perform_main(args, syn)
 
     mock_login_with_prompt.assert_called_once_with(
-        syn=syn, user="test_user", password=None, silent=False, profile=None
+        syn=syn, user="test_user", password=None, silent=True
     )
     mock_sys_exit.assert_called_once_with(1)
 
@@ -501,10 +496,7 @@ def test__replace_existing_config__prepend(syn):
     new_auth_section = (
         "[authentication]\n" "username=foobar\n" "authToken=testingtesting\n\n"
     )
-    profile_name = "authentication"
-    new_config_text = cmdline._replace_existing_config(
-        f.name, new_auth_section, profile_name
-    )
+    new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
 
     expected_text = (
         "[authentication]\n"
@@ -518,12 +510,6 @@ def test__replace_existing_config__prepend(syn):
     assert new_config_text == expected_text
     f.close()
 
-    for suffix in ["", ".backup", ".backup2", ".backup3"]:
-        try:
-            os.remove(f.name + suffix)
-        except FileNotFoundError:
-            pass
-
 
 def test__replace_existing_config__backup(syn):
     """Replace backup files are created"""
@@ -532,11 +518,10 @@ def test__replace_existing_config__backup(syn):
     with open(f.name, "w") as config_f:
         config_f.write(auth_section)
     new_auth_section = "[authentication]\n" "username=foobar\n" "authToken=foobar\n\n"
-    profile_name = "authentication"
-    cmdline._replace_existing_config(f.name, new_auth_section, profile_name)
+    cmdline._replace_existing_config(f.name, new_auth_section)
     # If command is run again, it will make sure to save existing
     # backup files
-    cmdline._replace_existing_config(f.name, new_auth_section, profile_name)
+    cmdline._replace_existing_config(f.name, new_auth_section)
     assert os.path.exists(f.name + ".backup")
     assert os.path.exists(f.name + ".backup2")
     f.close()
@@ -554,10 +539,7 @@ def test__replace_existing_config__replace(syn):
     new_auth_section = (
         "[authentication]\n" "username=foobar\n" "authToken=testingtesting\n\n"
     )
-    profile_name = "authentication"
-    new_config_text = cmdline._replace_existing_config(
-        f.name, new_auth_section, profile_name
-    )
+    new_config_text = cmdline._replace_existing_config(f.name, new_auth_section)
 
     expected_text = (
         "[authentication]\n" "username=foobar\n" "authToken=testingtesting\n\n"
@@ -568,11 +550,11 @@ def test__replace_existing_config__replace(syn):
 
 def test__generate_new_config(syn):
     """Generate new configuration file"""
-    profile_name = "authentication"
-    new_auth_section = "username=foobar\nauthToken=testingtesting"
-    expected_section = f"[profile {profile_name}]\n{new_auth_section}"
-    new_config_text = cmdline._generate_new_config(new_auth_section, profile_name)
-    assert expected_section in new_config_text
+    new_auth_section = (
+        "[authentication]\n" "username=foobar\n" "authToken=testingtesting\n\n"
+    )
+    new_config_text = cmdline._generate_new_config(new_auth_section)
+    assert new_auth_section in new_config_text
 
 
 @patch.object(cmdline, "_generate_new_config")
@@ -585,19 +567,16 @@ def test_config_generate(
     syn,
 ):
     """Config when generating new configuration"""
-    mock__prompt_for_credentials.return_value = ("test", "wow", "authentication")
+    mock__prompt_for_credentials.return_value = ("test", "wow")
     mock__authenticate_login.return_value = "password"
     mock__generate_new_config.return_value = "test"
 
-    expected_auth_section = "[profile authentication]\nusername=test\npassword=wow\n\n"
+    expected_auth_section = "[authentication]\n" "username=test\n" "password=wow\n\n"
     args = Mock()
     args.configPath = "foo"
-    args.profile = "authentication"
     cmdline.config(args, syn)
     os.unlink("foo")
-    mock__generate_new_config.assert_called_once_with(
-        expected_auth_section, "authentication"
-    )
+    mock__generate_new_config.assert_called_once_with(expected_auth_section)
 
 
 @patch.object(cmdline, "_replace_existing_config")
@@ -610,137 +589,19 @@ def test_config_replace(
     syn,
 ):
     """Config when replacing configuration"""
-    mock__prompt_for_credentials.return_value = ("test", "wow", "authentication")
+    mock__prompt_for_credentials.return_value = ("test", "wow")
     mock__authenticate_login.return_value = "password"
     mock__replace_existing_config.return_value = "test"
 
-    expected_auth_section = "[profile authentication]\nusername=test\npassword=wow\n\n"
+    expected_auth_section = "[authentication]\n" "username=test\n" "password=wow\n\n"
     temp = tempfile.NamedTemporaryFile(mode="w", delete=False)
     args = Mock()
     args.configPath = temp.name
-    args.profile = "authentication"
     cmdline.config(args, syn)
     mock__replace_existing_config.assert_called_once_with(
-        temp.name, expected_auth_section, "authentication"
+        temp.name, expected_auth_section
     )
     temp.close()
-
-
-@patch("synapseclient.__main__.os.path.exists", return_value=False)
-@patch("synapseclient.__main__.open", new_callable=mock_open)
-@patch.object(cmdline, "_generate_new_config")
-@patch.object(cmdline, "_authenticate_login")
-@patch.object(cmdline, "_prompt_for_credentials")
-@patch.object(cmdline, "_replace_existing_config")
-def test_config_generate_named_profile(
-    mock_replace_existing_config,
-    mock_prompt_for_credentials,
-    mock_authenticate_login,
-    mock_generate_new_config,
-    mock_exists,
-    syn,
-):
-    """Test config command generates a new config with a named profile"""
-    mock_prompt_for_credentials.return_value = (
-        "testuser",
-        "authtoken123",
-        "devprofile",
-    )
-    mock_authenticate_login.return_value = "authtoken"
-    mock_generate_new_config.return_value = "config text"
-
-    args = Mock()
-    args.configPath = "test_config_path"
-    args.profile = "devprofile"
-
-    expected_auth_section = (
-        "[profile devprofile]\nusername=testuser\nauthtoken=authtoken123\n\n"
-    )
-    cmdline.config(args, syn)
-
-    # Assertions for the calls
-    mock_generate_new_config.assert_called_once_with(
-        expected_auth_section, "devprofile"
-    )
-
-    # Ensure that _authenticate_login was called once to validate credentials
-    mock_authenticate_login.assert_called_once()
-
-    # Ensure that _replace_existing_config was not called
-    mock_replace_existing_config.assert_not_called()
-
-    # Check that the open function was called with the correct parameters
-    mock_exists.assert_called_once_with(args.configPath, "w")
-
-
-@patch("synapseclient.__main__.os.path.exists", return_value=True)
-@patch("synapseclient.__main__.open", new_callable=mock_open)
-@patch.object(cmdline, "_generate_new_config")
-@patch.object(cmdline, "_replace_existing_config")
-@patch.object(cmdline, "_authenticate_login")
-@patch.object(cmdline, "_prompt_for_credentials")
-def test_config_replace_named_profile(
-    mock_prompt_for_credentials,
-    mock_authenticate_login,
-    mock_replace_existing_config,
-    mock_generate_new_config,
-    mock_open,
-    mock_exists,
-    syn,
-):
-    """Test config replacement logic for named profile"""
-    mock_prompt_for_credentials.return_value = ("testuser", "authtoken123", "prod")
-    mock_authenticate_login.return_value = "authtoken"
-    mock_replace_existing_config.return_value = "new config text"
-
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        config_path = tmp.name
-
-    args = Mock()
-    args.configPath = config_path
-    args.profile = "prod"
-
-    expected_auth_section = (
-        "[profile prod]\nusername=testuser\nauthtoken=authtoken123\n\n"
-    )
-    cmdline.config(args, syn)
-
-    # Assertions for the calls
-    mock_replace_existing_config.assert_called_once_with(
-        config_path, expected_auth_section, "prod"
-    )
-
-    # Ensure that _authenticate_login was called once to validate credentials
-    mock_authenticate_login.assert_called_once()
-
-    # Ensure that _generate_new_config was NOT called, since we are replacing the config
-    mock_generate_new_config.assert_not_called()
-
-    # Check that open was called with the correct parameters
-    mock_open.assert_called_once_with(config_path, "w")
-
-    # Clean up backups if any were made
-    for suffix in ["", ".backup", ".backup2", ".backup3"]:
-        try:
-            os.remove(config_path + suffix)
-        except FileNotFoundError:
-            pass
-
-
-def test_login_from_named_profile(mocker, syn):
-    """Test CLI login using a profile name"""
-    mock_login = mocker.patch.object(syn, "login")
-
-    args = Mock()
-    args.username = None
-    args.password = None
-    args.profile = "testprofile"
-    args.silent = False
-
-    cmdline._authenticate_login(
-        syn, args.username, args.password, profile=args.profile, silent=args.silent
-    )
-    mock_login.assert_called_once_with(None, profile="testprofile", silent=False)
 
 
 class TestGetFunction:

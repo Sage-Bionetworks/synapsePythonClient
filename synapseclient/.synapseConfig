@@ -4,18 +4,10 @@
 
 ## Used for logging in to Synapse. See https://python-docs.synapse.org/tutorials/authentication/
 ## for information on retrieving an auth token.
+#[authentication]
+#username = <username>
+#authtoken = <authtoken>
 
-#[default]
-#username = default_user
-#authtoken = default_auth_token
-
-#[profile user1]
-#username = user1
-#authtoken = user1_auth_token
-
-#[profile user2]
-#username = user2
-#authtoken = user2_auth_token
 
 ## If you have projects with file stored on SFTP servers, you can specify your credentials here
 ## You can specify multiple sftp credentials
