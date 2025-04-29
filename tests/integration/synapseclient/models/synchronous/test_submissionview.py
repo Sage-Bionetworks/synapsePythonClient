@@ -38,7 +38,7 @@ class TestSubmissionViewCreation:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation.id)
+        self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Submissionview with default columns
         # GIVEN a submissionview with default columns
@@ -150,7 +150,7 @@ class TestSubmissionViewCreation:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation.id)
+        self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Creating a submissionview with an invalid column
         # GIVEN a submissionview with an invalid column
@@ -247,7 +247,7 @@ class TestColumnAndScopeModifications:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation.id)
+        self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview in Synapse with two columns
         submissionview_name = str(uuid.uuid4())
@@ -310,7 +310,7 @@ class TestColumnAndScopeModifications:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation1.id)
+        self.schedule_for_cleanup(evaluation1)
 
         evaluation2 = self.syn.store(
             Evaluation(
@@ -319,7 +319,7 @@ class TestColumnAndScopeModifications:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation2.id)
+        self.schedule_for_cleanup(evaluation2)
 
         # AND a submissionview with one evaluation in scope
         submissionview_name = str(uuid.uuid4())
@@ -380,7 +380,7 @@ class TestQuerying:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation.id)
+        self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview with the evaluation in scope
         submissionview_name = str(uuid.uuid4())
@@ -439,7 +439,7 @@ class TestSnapshotting:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation.id)
+        self.schedule_for_cleanup(evaluation)
 
         # Test Case 1: Snapshot with Activity
         # GIVEN a submissionview with activity
@@ -535,7 +535,7 @@ class TestSubmissionViewWithSubmissions:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation.id)
+        self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview that includes the evaluation
         submissionview = SubmissionView(
@@ -619,7 +619,7 @@ class TestSubmissionViewWithSubmissions:
                 contentSource=project_model.id,
             )
         )
-        self.schedule_for_cleanup(evaluation.id)
+        self.schedule_for_cleanup(evaluation)
 
         # AND a submissionview that includes the evaluation
         submissionview = SubmissionView(

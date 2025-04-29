@@ -197,8 +197,21 @@ jobs:
             export SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER="file"
           fi
 
+          # Setup ignore patterns based on Python version
+          IGNORE_PATTERNS="tests/integration/synapseclient/test_command_line_client.py"
+
+          if [ "${{ matrix.python }}" == "3.9" ]; then
+            # For min Python version, ignore async tests
+            IGNORE_PATTERNS="$IGNORE_PATTERNS,tests/integration/synapseclient/models/async"
+            echo "Running integration tests for Min Python version (3.9) - ignoring async tests"
+          elif [ "${{ matrix.python }}" == "3.13" ]; then
+            # For max Python version, ignore synchronous tests
+            IGNORE_PATTERNS="$IGNORE_PATTERNS,tests/integration/synapseclient/models/synchronous"
+            echo "Running integration tests for Max Python version (3.13) - ignoring synchronous tests"
+          fi
+
           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n 8 --ignore=tests/integration/synapseclient/test_command_line_client.py --dist loadscope
+          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n 8 --ignore=$IGNORE_PATTERNS --dist loadscope
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
           pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
