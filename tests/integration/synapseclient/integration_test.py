@@ -39,23 +39,35 @@ async def test_login(syn):
         config = configparser.RawConfigParser()
         config.read(client.CONFIG_FILE)
 
+        profile = os.getenv("SYNAPSE_PROFILE", "default")
+
+        # Try the most specific: [profile <name>], then [default], then [authentication]
+        if config.has_section(f"profile {profile}"):
+            section = f"profile {profile}"
+        elif config.has_section("default"):
+            section = "default"
+        elif config.has_section("authentication"):
+            section = "authentication"
+        else:
+            raise ValueError("No valid credentials section found in .synapseConfig")
+
         # Added a section in the synapse config
-        username = config.get("authentication", "username")
-        authtoken = config.get("authentication", "authtoken")
+        username = config.get(section, "username")
+        authtoken = config.get(section, "authtoken")
 
         syn.logout()
         assert syn.credentials == None
 
-        # login with config file no username
-        syn.login(silent=True)
+        # Login by profile
+        syn.login(profile=profile, silent=True)
         assert syn.credentials.username == username
 
-        # Login with ID only from config file
-        syn.login(username, silent=True)
-        assert syn.credentials.username == username
-
-        # Login with auth token
+        # Login by auth token
         syn.login(authToken=authtoken, silent=True)
+        assert syn.credentials.username == username
+
+        # Login by positional username
+        syn.login(email=username, profile=None, silent=True)
         assert syn.credentials.username == username
 
         # Login with ID not matching username
@@ -68,7 +80,7 @@ async def test_login(syn):
 
     finally:
         # Login with config file
-        syn.login(silent=True)
+        syn.login(profile=profile, silent=True)
 
 
 async def testCustomConfigFile(schedule_for_cleanup):
@@ -77,8 +89,10 @@ async def testCustomConfigFile(schedule_for_cleanup):
         shutil.copyfile(client.CONFIG_FILE, configPath)
         schedule_for_cleanup(configPath)
 
+        profile = os.getenv("SYNAPSE_PROFILE", "default")
+
         syn2 = Synapse(configPath=configPath, cache_client=False)
-        syn2.login()
+        syn2.login(profile=profile)
     else:
         raise ValueError(
             "Please supply a username and authToken in the configuration file."
