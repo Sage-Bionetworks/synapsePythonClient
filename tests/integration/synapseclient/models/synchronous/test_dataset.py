@@ -288,7 +288,7 @@ class TestDataset:
     async def test_dataset_column_operations(self, project_model: Project) -> None:
         """Test operations on dataset columns: add, rename, reorder, delete"""
         # GIVEN a dataset with no custom columns
-        dataset = self.create_dataset_with_items(project_model)
+        dataset = await self.create_dataset_with_items(project_model)
 
         # WHEN I add a column to the dataset
         column_name = "test_column"
@@ -422,8 +422,8 @@ class TestDatasetCollection:
     async def test_dataset_collection_lifecycle(self, project_model: Project) -> None:
         """Test creating, updating, and deleting a DatasetCollection"""
         # GIVEN two datasets
-        dataset1 = self.create_dataset(project_model, has_file=True)
-        dataset2 = self.create_dataset(project_model, has_file=True)
+        dataset1 = await self.create_dataset(project_model, has_file=True)
+        dataset2 = await self.create_dataset(project_model, has_file=True)
 
         # WHEN I create a DatasetCollection with the first dataset
         collection = DatasetCollection(
@@ -483,7 +483,7 @@ class TestDatasetCollection:
     async def test_dataset_collection_queries(self, project_model: Project) -> None:
         """Test querying DatasetCollections with various part masks"""
         # GIVEN a dataset and a collection with that dataset
-        dataset = self.create_dataset(project_model, has_file=True)
+        dataset = await self.create_dataset(project_model, has_file=True)
 
         collection = DatasetCollection(
             name=str(uuid.uuid4()),
@@ -611,8 +611,8 @@ class TestDatasetCollection:
     async def test_dataset_collection_versioning(self, project_model: Project) -> None:
         """Test versioning of DatasetCollections"""
         # GIVEN a DatasetCollection and datasets
-        dataset1 = self.create_dataset(project_model)
-        dataset2 = self.create_dataset(project_model)
+        dataset1 = await self.create_dataset(project_model)
+        dataset2 = await self.create_dataset(project_model)
 
         collection = DatasetCollection(
             name=str(uuid.uuid4()),

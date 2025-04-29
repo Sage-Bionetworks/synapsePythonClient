@@ -104,7 +104,7 @@ class TestEntityView:
         ]
 
         # Get default column count to set expectation
-        default_columns = get_default_columns(
+        default_columns = await get_default_columns(
             view_type_mask=ViewTypeMask.FILE.value, synapse_client=self.syn
         )
         test_cases[0]["expected_column_count"] = len(default_columns)
@@ -191,7 +191,7 @@ class TestEntityView:
     async def test_entityview_with_files_in_scope(self, project_model: Project) -> None:
         """Test creating entity view with files in scope and querying it"""
         # GIVEN a folder with files
-        folder, files = self.setup_files_in_folder(project_model)
+        folder, files = await self.setup_files_in_folder(project_model)
 
         # WHEN I create an entity view with that folder in its scope
         entityview = EntityView(
@@ -219,7 +219,7 @@ class TestEntityView:
     ) -> None:
         """Test updating rows in an entity view from different sources and verifying annotations"""
         # GIVEN a folder with files
-        folder, files = self.setup_files_in_folder(project_model)
+        folder, files = await self.setup_files_in_folder(project_model)
 
         # AND an entity view with columns and files in scope
         entityview = EntityView(
@@ -356,7 +356,7 @@ class TestEntityView:
     async def test_update_rows_without_id_column(self, project_model: Project) -> None:
         """Test that updating rows requires the id column"""
         # GIVEN a folder with files and an entity view
-        folder, _ = self.setup_files_in_folder(project_model, num_files=1)
+        folder, _ = await self.setup_files_in_folder(project_model, num_files=1)
 
         entityview = EntityView(
             name=str(uuid.uuid4()),
@@ -441,7 +441,7 @@ class TestEntityView:
     async def test_query_with_part_mask(self, project_model: Project) -> None:
         """Test querying an entity view with different part masks"""
         # GIVEN a folder with files
-        folder, files = self.setup_files_in_folder(project_model, num_files=2)
+        folder, files = await self.setup_files_in_folder(project_model, num_files=2)
 
         # AND an entity view with the folder in scope
         entityview = EntityView(
@@ -492,7 +492,7 @@ class TestEntityView:
     async def test_snapshot_functionality(self, project_model: Project) -> None:
         """Test creating snapshots of entity views with different activity configurations"""
         # GIVEN a folder with a file
-        folder, [file] = self.setup_files_in_folder(project_model, num_files=1)
+        folder, [file] = await self.setup_files_in_folder(project_model, num_files=1)
 
         # AND an entity view with an activity
         entityview = EntityView(

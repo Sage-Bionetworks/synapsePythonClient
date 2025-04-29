@@ -331,6 +331,10 @@ class TestMaterializedViewWithData:
         query_result = await materialized_view.query_async(
             f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
         )
+        await asyncio.sleep(5)
+        query_result = await materialized_view.query_async(
+            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+        )
 
         # THEN the query results should reflect the added data
         assert len(query_result) == 2
@@ -359,6 +363,9 @@ class TestMaterializedViewWithData:
 
         # AND querying the materialized view (with delay for eventual consistency)
         await asyncio.sleep(5)
+        query_result = await materialized_view.query_async(
+            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+        )
         query_result = await materialized_view.query_async(
             f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
         )

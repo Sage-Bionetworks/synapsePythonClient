@@ -487,7 +487,7 @@ class TestRowStorage:
         # AND the table exists in Synapse
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
@@ -545,7 +545,7 @@ class TestRowStorage:
         # AND the table exists in Synapse
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
@@ -611,7 +611,7 @@ class TestRowStorage:
         # AND the table exists in Synapse
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data for a column stored to CSV
         data_for_table = pd.DataFrame(
@@ -708,7 +708,7 @@ class TestRowStorage:
         )
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data that will be split into multiple parts
         large_string_a = "A" * 5
@@ -774,7 +774,7 @@ class TestRowStorage:
         )
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data that will be split into multiple parts
         large_string_a = "A" * 5
@@ -838,7 +838,7 @@ class TestRowStorage:
         )
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # AND data that will be split into multiple parts
         rows_in_table = 20
@@ -913,7 +913,7 @@ class TestUpsertRows:
         table.store_rows(
             values=initial_data, schema_storage_strategy=None, synapse_client=self.syn
         )
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # Test 1: Basic update with no insertions
         # WHEN I upsert rows with modified values but no new rows
@@ -1148,7 +1148,7 @@ class TestUpsertRows:
         table.store_rows(
             values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
         )
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
 
         # WHEN I upsert rows with large data and control batch size
         large_string_b = "B" * 1000

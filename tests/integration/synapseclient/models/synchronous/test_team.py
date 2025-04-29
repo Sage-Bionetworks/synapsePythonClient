@@ -28,7 +28,7 @@ class TestTeam:
         self.TEST_USER = "DPETestUser2"
         self.TEST_MESSAGE = "test message"
 
-    async def verify_team_properties(self, actual_team, expected_team):
+    def verify_team_properties(self, actual_team, expected_team):
         """Helper to verify team properties match"""
         assert actual_team.id == expected_team.id
         assert actual_team.name == expected_team.name

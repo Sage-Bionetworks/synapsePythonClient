@@ -89,7 +89,7 @@ class TestAcl:
         self, entity_type, project_model: Project, file: File, table: Table
     ) -> None:
         # GIVEN an entity created with default permissions
-        entity = self.create_entity(
+        entity = await self.create_entity(
             entity_type, project_model, file, table, name_suffix="_test_get_acl_default"
         )
 
@@ -117,7 +117,7 @@ class TestAcl:
         self, entity_type, project_model: Project, file: File, table: Table
     ) -> None:
         # GIVEN an entity created with default permissions
-        entity = self.create_entity(
+        entity = await self.create_entity(
             entity_type, project_model, file, table, name_suffix="_test_get_acl_limited"
         )
 
@@ -148,12 +148,12 @@ class TestAcl:
         self, entity_type, project_model: Project, file: File, table: Table
     ) -> None:
         # GIVEN an entity created with default permissions
-        entity = self.create_entity(
+        entity = await self.create_entity(
             entity_type, project_model, file, table, name_suffix="_test_get_acl_team"
         )
 
         # AND a team
-        team = self.create_team()
+        team = await self.create_team()
 
         # AND the user that created the entity
         user = UserProfile().get(synapse_client=self.syn)
@@ -187,7 +187,7 @@ class TestAcl:
         self, entity_type, project_model: Project, file: File, table: Table
     ) -> None:
         # GIVEN an entity created with default permissions
-        entity = self.create_entity(
+        entity = await self.create_entity(
             entity_type,
             project_model,
             file,
@@ -196,8 +196,8 @@ class TestAcl:
         )
 
         # AND two teams
-        team_1 = self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - 1")
-        team_2 = self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - 2")
+        team_1 = await self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - 1")
+        team_2 = await self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - 2")
 
         # AND the user that created the entity
         user = UserProfile().get(synapse_client=self.syn)
@@ -245,7 +245,7 @@ class TestAcl:
         self, entity_type, project_model: Project, file: File, table: Table
     ) -> None:
         # GIVEN an entity created with default permissions
-        entity = self.create_entity(
+        entity = await self.create_entity(
             entity_type,
             project_model,
             file,
@@ -423,8 +423,8 @@ class TestPermissionsForCaller:
         self.schedule_for_cleanup(project.id)
 
         # AND two teams
-        team_1 = self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - 1")
-        team_2 = self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - 2")
+        team_1 = await self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - 1")
+        team_2 = await self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - 2")
 
         # AND the current user that created the project
         user = UserProfile().get(synapse_client=self.syn)

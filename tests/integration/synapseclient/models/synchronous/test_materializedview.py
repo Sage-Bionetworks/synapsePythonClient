@@ -207,7 +207,7 @@ class TestMaterializedViewWithData:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def setup_table_with_data(self, project_model: Project):
+    async def setup_table_with_data(self, project_model: Project) -> Table:
         """Helper method to create a table with data for testing"""
         table_name = str(uuid.uuid4())
         table = Table(
@@ -229,7 +229,7 @@ class TestMaterializedViewWithData:
 
     async def test_query_materialized_view(self, project_model: Project) -> None:
         # GIVEN a table with data
-        table = self.setup_table_with_data(project_model)
+        table = await self.setup_table_with_data(project_model)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -252,7 +252,7 @@ class TestMaterializedViewWithData:
 
     async def test_update_defining_sql(self, project_model: Project) -> None:
         # GIVEN a table with data
-        table = self.setup_table_with_data(project_model)
+        table = await self.setup_table_with_data(project_model)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -327,6 +327,10 @@ class TestMaterializedViewWithData:
         query_result = materialized_view.query(
             f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
         )
+        await asyncio.sleep(5)
+        query_result = materialized_view.query(
+            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+        )
 
         # THEN the query results should reflect the added data
         assert len(query_result) == 2
@@ -337,7 +341,7 @@ class TestMaterializedViewWithData:
         self, project_model: Project
     ) -> None:
         # GIVEN a table with data
-        table = self.setup_table_with_data(project_model)
+        table = await self.setup_table_with_data(project_model)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -358,13 +362,16 @@ class TestMaterializedViewWithData:
         query_result = materialized_view.query(
             f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
         )
+        query_result = materialized_view.query(
+            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+        )
 
         # THEN the query results should reflect the removed data
         assert len(query_result) == 0
 
     async def test_query_part_mask(self, project_model: Project) -> None:
         # GIVEN a table with data
-        table = self.setup_table_with_data(project_model)
+        table = await self.setup_table_with_data(project_model)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
