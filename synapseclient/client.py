@@ -769,7 +769,7 @@ class Synapse(object):
                         timeout=self._http_timeout_seconds,
                     ),
                     verbose=self.debug,
-                    **STANDARD_RETRY_PARAMS,
+                    **{**STANDARD_RETRY_PARAMS, "retries": 2},
                 )
                 if response.status_code == 301:
                     endpoints[point] = response.headers["location"]

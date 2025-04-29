@@ -2,7 +2,7 @@
 
 import os
 import uuid
-from typing import Callable
+from typing import Callable, List
 
 import pytest
 
@@ -33,6 +33,12 @@ class TestFolderStore:
             content_type=CONTENT_TYPE,
         )
 
+    def create_files(self, count: int) -> List[File]:
+        """Helper method to create multiple file instances"""
+        return [
+            self.create_file_instance(self.schedule_for_cleanup) for _ in range(count)
+        ]
+
     @pytest.fixture(autouse=True, scope="function")
     def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
         return self.create_file_instance(schedule_for_cleanup)
@@ -42,7 +48,57 @@ class TestFolderStore:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    async def test_store_folder(self, project_model: Project, folder: Folder) -> None:
+    def verify_folder_properties(
+        self,
+        folder: Folder,
+        parent_id: str,
+        expected_files: list = None,
+        expected_folders: list = None,
+    ):
+        """Helper method to verify folder properties"""
+        assert folder.id is not None
+        assert folder.name is not None
+        assert folder.parent_id == parent_id
+        assert folder.description is not None
+        assert folder.etag is not None
+        assert folder.created_on is not None
+        assert folder.modified_on is not None
+        assert folder.created_by is not None
+        assert folder.modified_by is not None
+
+        if expected_files is None:
+            assert folder.files == []
+        else:
+            assert folder.files == expected_files
+            # Verify files properties
+            for file in folder.files:
+                assert file.id is not None
+                assert file.name is not None
+                assert file.parent_id == folder.id
+                assert file.path is not None
+
+        if expected_folders is None:
+            assert folder.folders == []
+        else:
+            assert folder.folders == expected_folders
+            # Verify sub-folders properties
+            for sub_folder in folder.folders:
+                assert sub_folder.id is not None
+                assert sub_folder.name is not None
+                assert sub_folder.parent_id == folder.id
+                # Verify files in sub-folders
+                for sub_file in sub_folder.files:
+                    assert sub_file.id is not None
+                    assert sub_file.name is not None
+                    assert sub_file.parent_id == sub_folder.id
+                    assert sub_file.path is not None
+
+        assert isinstance(folder.annotations, dict)
+
+    async def test_store_folder_variations(
+        self, project_model: Project, folder: Folder
+    ) -> None:
+        # Test Case 1: Simple folder storage
         # GIVEN a Folder object and a Project object
 
         # WHEN I store the Folder on Synapse
@@ -50,160 +106,14 @@ class TestFolderStore:
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
-        assert stored_folder.id is not None
-        assert stored_folder.name is not None
-        assert stored_folder.parent_id == project_model.id
-        assert stored_folder.description is not None
-        assert stored_folder.etag is not None
-        assert stored_folder.created_on is not None
-        assert stored_folder.modified_on is not None
-        assert stored_folder.created_by is not None
-        assert stored_folder.modified_by is not None
-        assert stored_folder.files == []
-        assert stored_folder.folders == []
-        assert not stored_folder.annotations and isinstance(
-            stored_folder.annotations, dict
+        self.verify_folder_properties(stored_folder, project_model.id)
+        assert not stored_folder.annotations
+
+        # Test Case 2: Folder with annotations
+        # GIVEN a Folder object with annotations
+        folder_with_annotations = Folder(
+            name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER
         )
-
-    async def test_store_folder_with_file(
-        self, project_model: Project, file: File, folder: Folder
-    ) -> None:
-        # GIVEN a File on the folder
-        folder.files.append(file)
-
-        # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store_async(parent=project_model)
-        self.schedule_for_cleanup(folder.id)
-
-        # THEN I expect the stored Folder to have the expected properties
-        assert stored_folder.id is not None
-        assert stored_folder.name is not None
-        assert stored_folder.parent_id == project_model.id
-        assert stored_folder.description is not None
-        assert stored_folder.etag is not None
-        assert stored_folder.created_on is not None
-        assert stored_folder.modified_on is not None
-        assert stored_folder.created_by is not None
-        assert stored_folder.modified_by is not None
-        assert len(stored_folder.files) == 1
-        assert stored_folder.files == [file]
-        assert stored_folder.folders == []
-        assert not stored_folder.annotations and isinstance(
-            stored_folder.annotations, dict
-        )
-
-        # AND I expect the File to be stored on Synapse
-        assert file.id is not None
-        assert file.name is not None
-        assert file.parent_id == stored_folder.id
-        assert file.path is not None
-
-    async def test_store_folder_with_multiple_files(
-        self, project_model: Project, folder: Folder
-    ) -> None:
-        # GIVEN multiple files in a folder
-        files = []
-        for _ in range(3):
-            files.append(self.create_file_instance(self.schedule_for_cleanup))
-        folder.files = files
-
-        # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store_async(parent=project_model)
-        self.schedule_for_cleanup(folder.id)
-
-        # THEN I expect the stored Folder to have the expected properties
-        assert stored_folder.id is not None
-        assert stored_folder.name is not None
-        assert stored_folder.parent_id == project_model.id
-        assert stored_folder.description is not None
-        assert stored_folder.etag is not None
-        assert stored_folder.created_on is not None
-        assert stored_folder.modified_on is not None
-        assert stored_folder.created_by is not None
-        assert stored_folder.modified_by is not None
-        assert len(stored_folder.files) == 3
-        assert stored_folder.files == files
-        assert stored_folder.folders == []
-        assert not stored_folder.annotations and isinstance(
-            stored_folder.annotations, dict
-        )
-        # AND I expect the Files to be stored on Synapse
-        for file in files:
-            assert file.id is not None
-            assert file.name is not None
-            assert file.parent_id == stored_folder.id
-            assert file.path is not None
-
-    async def test_store_folder_with_multiple_files_and_folders(
-        self, project_model: Project, folder: Folder
-    ) -> None:
-        # GIVEN multiple files in a folder
-        files = []
-        for _ in range(3):
-            files.append(self.create_file_instance(self.schedule_for_cleanup))
-        folder.files = files
-
-        # AND multiple folders in a folder
-        folders = []
-        for _ in range(2):
-            sub_folder = Folder(name=str(uuid.uuid4()))
-            folders.append(sub_folder)
-
-            # AND multiple files in a folder
-            sub_folder_files = []
-            for _ in range(2):
-                sub_folder_files.append(
-                    self.create_file_instance(self.schedule_for_cleanup)
-                )
-            sub_folder.files = sub_folder_files
-        folder.folders = folders
-
-        # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store_async(parent=project_model)
-        self.schedule_for_cleanup(folder.id)
-
-        # THEN I expect the stored Folder to have the expected properties
-        assert stored_folder.id is not None
-        assert stored_folder.name is not None
-        assert stored_folder.parent_id == project_model.id
-        assert stored_folder.description is not None
-        assert stored_folder.etag is not None
-        assert stored_folder.created_on is not None
-        assert stored_folder.modified_on is not None
-        assert stored_folder.created_by is not None
-        assert stored_folder.modified_by is not None
-        assert len(stored_folder.files) == 3
-        assert stored_folder.files == files
-        assert len(stored_folder.folders) == 2
-        assert stored_folder.folders == folders
-        assert not stored_folder.annotations and isinstance(
-            stored_folder.annotations, dict
-        )
-
-        # AND I expect the Files to be stored on Synapse
-        for file in files:
-            assert file.id is not None
-            assert file.name is not None
-            assert file.parent_id == stored_folder.id
-            assert file.path is not None
-
-        # AND I expect the Folders to be stored on Synapse
-        for sub_folder in stored_folder.folders:
-            assert sub_folder.id is not None
-            assert sub_folder.name is not None
-            assert sub_folder.parent_id == stored_folder.id
-            # AND I expect the Files in the Folders to be stored on Synapse
-            for sub_file in sub_folder.files:
-                assert sub_file.id is not None
-                assert sub_file.name is not None
-                assert sub_file.parent_id == sub_folder.id
-                assert sub_file.path is not None
-
-    async def test_store_folder_with_annotations(
-        self, project_model: Project, folder: Folder
-    ) -> None:
-        # GIVEN a Folder object and a Project object
-        # AND annotations on the Folder
         annotations = {
             "my_single_key_string": ["a"],
             "my_key_string": ["b", "a", "c"],
@@ -211,35 +121,88 @@ class TestFolderStore:
             "my_key_double": [1.2, 3.4, 5.6],
             "my_key_long": [1, 2, 3],
         }
-        folder.annotations = annotations
+        folder_with_annotations.annotations = annotations
+
+        # WHEN I store the Folder on Synapse
+        stored_folder_with_annotations = await folder_with_annotations.store_async(
+            parent=project_model
+        )
+        self.schedule_for_cleanup(folder_with_annotations.id)
+
+        # THEN I expect the stored Folder to have the expected properties and annotations
+        self.verify_folder_properties(stored_folder_with_annotations, project_model.id)
+        assert stored_folder_with_annotations.annotations == annotations
+        assert (
+            await Folder(id=stored_folder_with_annotations.id).get_async(
+                synapse_client=self.syn
+            )
+        ).annotations == annotations
+
+    async def test_store_folder_with_files(
+        self, project_model: Project, file: File, folder: Folder
+    ) -> None:
+        # Test Case 1: Folder with a single file
+        # GIVEN a File on the folder
+        folder.files.append(file)
 
         # WHEN I store the Folder on Synapse
         stored_folder = await folder.store_async(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
-        # THEN I expect the stored Folder to have the expected properties
-        assert stored_folder.id is not None
-        assert stored_folder.name is not None
-        assert stored_folder.parent_id == project_model.id
-        assert stored_folder.description is not None
-        assert stored_folder.etag is not None
-        assert stored_folder.created_on is not None
-        assert stored_folder.modified_on is not None
-        assert stored_folder.created_by is not None
-        assert stored_folder.modified_by is not None
-        assert stored_folder.files == []
-        assert stored_folder.folders == []
-        assert stored_folder.annotations is not None
+        # THEN I expect the stored Folder to have the expected properties and files
+        self.verify_folder_properties(
+            stored_folder, project_model.id, expected_files=[file]
+        )
 
-        # AND I expect the annotations to be stored on Synapse
-        assert stored_folder.annotations == annotations
-        assert (
-            await Folder(id=stored_folder.id).get_async(synapse_client=self.syn)
-        ).annotations == annotations
+        # Test Case 2: Folder with multiple files
+        # GIVEN a folder with multiple files
+        folder_with_multiple_files = Folder(
+            name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER
+        )
+        files = self.create_files(3)
+        folder_with_multiple_files.files = files
+
+        # WHEN I store the Folder on Synapse
+        stored_folder_with_multiple_files = (
+            await folder_with_multiple_files.store_async(parent=project_model)
+        )
+        self.schedule_for_cleanup(folder_with_multiple_files.id)
+
+        # THEN I expect the stored Folder to have the expected properties and files
+        self.verify_folder_properties(
+            stored_folder_with_multiple_files, project_model.id, expected_files=files
+        )
+
+    async def test_store_folder_with_files_and_folders(
+        self, project_model: Project, folder: Folder
+    ) -> None:
+        # GIVEN a folder with nested structure (files and sub-folders with files)
+        files = self.create_files(3)
+        folder.files = files
+
+        # Create sub-folders with files
+        folders = []
+        for _ in range(2):
+            sub_folder = Folder(name=str(uuid.uuid4()))
+            sub_folder.files = self.create_files(2)
+            folders.append(sub_folder)
+        folder.folders = folders
+
+        # WHEN I store the Folder on Synapse
+        stored_folder = await folder.store_async(parent=project_model)
+        self.schedule_for_cleanup(folder.id)
+
+        # THEN I expect the stored Folder to have the expected properties, files, and folders
+        self.verify_folder_properties(
+            stored_folder,
+            project_model.id,
+            expected_files=files,
+            expected_folders=folders,
+        )
 
 
-class TestFolderGet:
-    """Tests for the synapseclient.models.Folder.get method."""
+class TestFolderGetDelete:
+    """Tests for the synapseclient.models.Folder.get and delete methods."""
 
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
@@ -251,108 +214,57 @@ class TestFolderGet:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    async def test_get_folder_by_id(
+    async def test_get_folder_methods(
         self, project_model: Project, folder: Folder
     ) -> None:
-        # GIVEN a Folder object and a Project object
-
-        # AND the folder is stored in synapse
+        # GIVEN a Folder object stored in Synapse
         stored_folder = await folder.store_async(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
-        # WHEN I get the Folder from Synapse
-        folder_copy = await Folder(id=stored_folder.id).get_async(
+        # Test Case 1: Get folder by ID
+        # WHEN I get the Folder from Synapse by ID
+        folder_by_id = await Folder(id=stored_folder.id).get_async(
             synapse_client=self.syn
         )
 
-        # THEN I expect the stored Folder to have the expected properties
-        assert folder_copy.id is not None
-        assert folder_copy.name is not None
-        assert folder_copy.parent_id == project_model.id
-        assert folder_copy.description is not None
-        assert folder_copy.etag is not None
-        assert folder_copy.created_on is not None
-        assert folder_copy.modified_on is not None
-        assert folder_copy.created_by is not None
-        assert folder_copy.modified_by is not None
-        assert folder_copy.files == []
-        assert folder_copy.folders == []
-        assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
+        # THEN I expect the retrieved Folder to have the expected properties
+        self.verify_folder_properties(folder_by_id, project_model.id)
 
-    async def test_get_folder_by_name_and_parent_id_attribute(
-        self, project_model: Project, folder: Folder
-    ) -> None:
-        # GIVEN a Folder object and a Project object
-
-        # AND the folder is stored in synapse
-        stored_folder = await folder.store_async(parent=project_model)
-        self.schedule_for_cleanup(folder.id)
-
-        # WHEN I get the Folder from Synapse
-        folder_copy = await Folder(
+        # Test Case 2: Get folder by name and parent_id attribute
+        # WHEN I get the Folder from Synapse by name and parent_id
+        folder_by_name_parent_id = await Folder(
             name=stored_folder.name, parent_id=stored_folder.parent_id
         ).get_async(synapse_client=self.syn)
 
-        # THEN I expect the stored Folder to have the expected properties
-        assert folder_copy.id is not None
-        assert folder_copy.name is not None
-        assert folder_copy.parent_id == project_model.id
-        assert folder_copy.description is not None
-        assert folder_copy.etag is not None
-        assert folder_copy.created_on is not None
-        assert folder_copy.modified_on is not None
-        assert folder_copy.created_by is not None
-        assert folder_copy.modified_by is not None
-        assert folder_copy.files == []
-        assert folder_copy.folders == []
-        assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
+        # THEN I expect the retrieved Folder to have the expected properties
+        self.verify_folder_properties(folder_by_name_parent_id, project_model.id)
 
-    async def test_get_folder_by_name_and_parent(
-        self, project_model: Project, folder: Folder
-    ) -> None:
-        # GIVEN a Folder object and a Project object
-
-        # AND the folder is stored in synapse
-        stored_folder = await folder.store_async(parent=project_model)
-        self.schedule_for_cleanup(folder.id)
-
-        # WHEN I get the Folder from Synapse
-        folder_copy = await Folder(name=stored_folder.name).get_async(
+        # Test Case 3: Get folder by name and parent object
+        # WHEN I get the Folder from Synapse by name and parent object
+        folder_by_name_parent = await Folder(name=stored_folder.name).get_async(
             parent=project_model, synapse_client=self.syn
         )
 
-        # THEN I expect the stored Folder to have the expected properties
-        assert folder_copy.id is not None
-        assert folder_copy.name is not None
-        assert folder_copy.parent_id == project_model.id
-        assert folder_copy.description is not None
-        assert folder_copy.etag is not None
-        assert folder_copy.created_on is not None
-        assert folder_copy.modified_on is not None
-        assert folder_copy.created_by is not None
-        assert folder_copy.modified_by is not None
-        assert folder_copy.files == []
-        assert folder_copy.folders == []
-        assert not folder_copy.annotations and isinstance(folder_copy.annotations, dict)
+        # THEN I expect the retrieved Folder to have the expected properties
+        self.verify_folder_properties(folder_by_name_parent, project_model.id)
 
-
-class TestFolderDelete:
-    """Tests for the synapseclient.models.Folder.delete method."""
-
-    @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
-        self.syn = syn
-        self.schedule_for_cleanup = schedule_for_cleanup
-
-    @pytest.fixture(autouse=True, scope="function")
-    def folder(self) -> Folder:
-        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
-        return folder
+    def verify_folder_properties(self, folder: Folder, parent_id: str):
+        """Helper method to verify folder properties"""
+        assert folder.id is not None
+        assert folder.name is not None
+        assert folder.parent_id == parent_id
+        assert folder.description is not None
+        assert folder.etag is not None
+        assert folder.created_on is not None
+        assert folder.modified_on is not None
+        assert folder.created_by is not None
+        assert folder.modified_by is not None
+        assert folder.files == []
+        assert folder.folders == []
+        assert not folder.annotations and isinstance(folder.annotations, dict)
 
     async def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
-        # GIVEN a Folder object and a Project object
-
-        # AND the folder is stored in synapse
+        # GIVEN a Folder object stored in Synapse
         stored_folder = await folder.store_async(parent=project_model)
         self.schedule_for_cleanup(folder.id)
 
@@ -385,151 +297,130 @@ class TestFolderCopy:
             content_type=CONTENT_TYPE,
         )
 
+    def create_files(self, count: int) -> List[File]:
+        """Helper method to create multiple file instances"""
+        return [
+            self.create_file_instance(self.schedule_for_cleanup) for _ in range(count)
+        ]
+
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    async def test_copy_folder_with_multiple_files_and_folders(
-        self, project_model: Project, folder: Folder
-    ) -> None:
-        # GIVEN a folder to copy to
-        destination_folder = await Folder(
-            name=str(uuid.uuid4()), description="Destination for folder copy"
-        ).store_async(parent=project_model)
+    def create_nested_folder(self) -> Folder:
+        """Helper method to create a folder with files and subfolders"""
+        folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
 
-        # AND multiple files in the source folder
-        files = []
-        for _ in range(3):
-            files.append(self.create_file_instance(self.schedule_for_cleanup))
-        folder.files = files
+        # Add files to folder
+        folder.files = self.create_files(3)
 
-        # AND multiple folders in the source folder
+        # Add subfolders with files
         folders = []
         for _ in range(2):
             sub_folder = Folder(name=str(uuid.uuid4()))
+            sub_folder.files = self.create_files(2)
             folders.append(sub_folder)
-
-            # AND multiple files in a folder
-            sub_folder_files = []
-            for _ in range(2):
-                sub_folder_files.append(
-                    self.create_file_instance(self.schedule_for_cleanup)
-                )
-            sub_folder.files = sub_folder_files
         folder.folders = folders
 
-        # WHEN I store the Folder on Synapse
-        folder.annotations = {"test": ["test"]}
-        folder = await folder.store_async(parent=project_model)
-        self.schedule_for_cleanup(folder.id)
+        return folder
 
-        # AND I copy the folder to the destination folder
-        copied_folder = await folder.copy_async(parent_id=destination_folder.id)
-
-        # AND I sync the destination folder from Synapse
-        await destination_folder.sync_from_synapse_async(
-            recursive=False, download_file=False
-        )
-
-        # THEN I expect the copied Folder to have the expected properties
-        assert len(destination_folder.folders) == 1
-        assert destination_folder.folders == [copied_folder]
+    def verify_copied_folder(
+        self,
+        copied_folder: Folder,
+        original_folder: Folder,
+        expected_files_empty: bool = False,
+    ):
+        """Helper method to verify copied folder properties"""
         assert copied_folder.id is not None
-        assert copied_folder.id is not folder.id
-        assert copied_folder.name is not None
-        assert copied_folder.parent_id != project_model.id
-        assert copied_folder.description is not None
+        assert copied_folder.id != original_folder.id
+        assert copied_folder.name == original_folder.name
+        assert copied_folder.parent_id != original_folder.parent_id
+        assert copied_folder.description == original_folder.description
         assert copied_folder.etag is not None
         assert copied_folder.created_on is not None
         assert copied_folder.modified_on is not None
         assert copied_folder.created_by is not None
         assert copied_folder.modified_by is not None
-        assert copied_folder.annotations == {"test": ["test"]}
+        assert copied_folder.annotations == original_folder.annotations
 
-        # AND I expect the Files to have been copied
-        for file in copied_folder.files:
-            assert file.id is not None
-            assert file.name is not None
-            assert file.parent_id == copied_folder.id
+        if expected_files_empty:
+            assert copied_folder.files == []
+        else:
+            assert len(copied_folder.files) == len(original_folder.files)
+            for file in copied_folder.files:
+                assert file.id is not None
+                assert file.name is not None
+                assert file.parent_id == copied_folder.id
 
-        # AND I expect the Folders to have been copied
-        for sub_folder in copied_folder.folders:
-            assert sub_folder.id is not None
-            assert sub_folder.name is not None
-            assert sub_folder.parent_id == copied_folder.id
-            # AND I expect the Files in the Folders to have been copied
-            for sub_file in sub_folder.files:
-                assert sub_file.id is not None
-                assert sub_file.name is not None
-                assert sub_file.parent_id == sub_folder.id
+        if len(copied_folder.folders) > 0:
+            for i, sub_folder in enumerate(copied_folder.folders):
+                assert sub_folder.id is not None
+                assert sub_folder.name is not None
+                assert sub_folder.parent_id == copied_folder.id
 
-    async def test_copy_folder_exclude_files(
-        self, project_model: Project, folder: Folder
+                if expected_files_empty:
+                    assert sub_folder.files == []
+                else:
+                    for sub_file in sub_folder.files:
+                        assert sub_file.id is not None
+                        assert sub_file.name is not None
+                        assert sub_file.parent_id == sub_folder.id
+
+    async def test_copy_folder_with_files_and_folders(
+        self, project_model: Project
     ) -> None:
-        # GIVEN a folder to copy to
-        destination_folder = await Folder(
-            name=str(uuid.uuid4()), description="Destination for folder copy"
+        # GIVEN a nested folder structure with files and folders
+        source_folder = self.create_nested_folder()
+        source_folder.annotations = {"test": ["test"]}
+        stored_source_folder = await source_folder.store_async(parent=project_model)
+        self.schedule_for_cleanup(stored_source_folder.id)
+
+        # Test Case 1: Copy folder with all contents
+        # Create first destination folder
+        destination_folder_1 = await Folder(
+            name=str(uuid.uuid4()), description="Destination for folder copy 1"
         ).store_async(parent=project_model)
+        self.schedule_for_cleanup(destination_folder_1.id)
 
-        # AND multiple files in the source folder
-        files = []
-        for _ in range(3):
-            files.append(self.create_file_instance(self.schedule_for_cleanup))
-        folder.files = files
-
-        # AND multiple folders in the source folder
-        folders = []
-        for _ in range(2):
-            sub_folder = Folder(name=str(uuid.uuid4()))
-            folders.append(sub_folder)
-
-            # AND multiple files in a folder
-            sub_folder_files = []
-            for _ in range(2):
-                sub_folder_files.append(
-                    self.create_file_instance(self.schedule_for_cleanup)
-                )
-            sub_folder.files = sub_folder_files
-        folder.folders = folders
-
-        # WHEN I store the Folder on Synapse
-        folder.annotations = {"test": ["test"]}
-        folder = await folder.store_async(parent=project_model)
-        self.schedule_for_cleanup(folder.id)
-
-        # AND I copy the folder to the destination folder
-        copied_folder = await folder.copy_async(
-            parent_id=destination_folder.id, exclude_types=["file"]
+        # WHEN I copy the folder to the destination folder
+        copied_folder = await stored_source_folder.copy_async(
+            parent_id=destination_folder_1.id
         )
 
         # AND I sync the destination folder from Synapse
-        await destination_folder.sync_from_synapse_async(
+        await destination_folder_1.sync_from_synapse_async(
             recursive=False, download_file=False
         )
 
         # THEN I expect the copied Folder to have the expected properties
-        assert len(destination_folder.folders) == 1
-        assert destination_folder.folders == [copied_folder]
-        assert copied_folder.id is not None
-        assert copied_folder.id is not folder.id
-        assert copied_folder.name is not None
-        assert copied_folder.parent_id != project_model.id
-        assert copied_folder.description is not None
-        assert copied_folder.etag is not None
-        assert copied_folder.created_on is not None
-        assert copied_folder.modified_on is not None
-        assert copied_folder.created_by is not None
-        assert copied_folder.modified_by is not None
-        assert copied_folder.annotations == {"test": ["test"]}
-        assert copied_folder.files == []
+        assert len(destination_folder_1.folders) == 1
+        assert destination_folder_1.folders == [copied_folder]
+        self.verify_copied_folder(copied_folder, stored_source_folder)
 
-        # AND I expect the Folders to have been copied
-        for sub_folder in copied_folder.folders:
-            assert sub_folder.id is not None
-            assert sub_folder.name is not None
-            assert sub_folder.parent_id == copied_folder.id
-            assert sub_folder.files == []
+        # Test Case 2: Copy folder excluding files
+        # Create a second destination folder for the second test case
+        destination_folder_2 = await Folder(
+            name=str(uuid.uuid4()), description="Destination for folder copy 2"
+        ).store_async(parent=project_model)
+        self.schedule_for_cleanup(destination_folder_2.id)
+
+        # WHEN I copy the folder to the destination folder excluding files
+        copied_folder_no_files = await stored_source_folder.copy_async(
+            parent_id=destination_folder_2.id, exclude_types=["file"]
+        )
+
+        # AND I sync the destination folder from Synapse
+        await destination_folder_2.sync_from_synapse_async(
+            recursive=False, download_file=False
+        )
+
+        # THEN I expect the copied Folder to have the expected properties but no files
+        assert len(destination_folder_2.folders) == 1
+        assert destination_folder_2.folders == [copied_folder_no_files]
+        self.verify_copied_folder(
+            copied_folder_no_files, stored_source_folder, expected_files_empty=True
+        )
 
 
 class TestFolderSyncFromSynapse:
@@ -549,6 +440,12 @@ class TestFolderSyncFromSynapse:
             content_type=CONTENT_TYPE,
         )
 
+    def create_files(self, count: int) -> List[File]:
+        """Helper method to create multiple file instances"""
+        return [
+            self.create_file_instance(self.schedule_for_cleanup) for _ in range(count)
+        ]
+
     @pytest.fixture(autouse=True, scope="function")
     def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
         return self.create_file_instance(schedule_for_cleanup)
@@ -561,28 +458,19 @@ class TestFolderSyncFromSynapse:
     async def test_sync_from_synapse(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
+        # GIVEN a nested folder structure with files and folders
         root_directory_path = os.path.dirname(file.path)
 
-        # GIVEN multiple files in the source folder
-        files = []
-        for _ in range(3):
-            files.append(self.create_file_instance(self.schedule_for_cleanup))
-        folder.files = files
+        # Add files to folder
+        folder.files = self.create_files(3)
 
-        # AND multiple folders in the source folder
-        folders = []
+        # Add subfolders with files
+        sub_folders = []
         for _ in range(2):
             sub_folder = Folder(name=str(uuid.uuid4()))
-            folders.append(sub_folder)
-
-            # AND multiple files in a folder
-            sub_folder_files = []
-            for _ in range(2):
-                sub_folder_files.append(
-                    self.create_file_instance(self.schedule_for_cleanup)
-                )
-            sub_folder.files = sub_folder_files
-        folder.folders = folders
+            sub_folder.files = self.create_files(2)
+            sub_folders.append(sub_folder)
+        folder.folders = sub_folders
 
         # WHEN I store the Folder on Synapse
         stored_folder = await folder.store_async(parent=project_model)
@@ -594,6 +482,7 @@ class TestFolderSyncFromSynapse:
         )
 
         # THEN I expect that the folder and its contents are synced from Synapse to disk
+        # Verify files in root folder
         for file in copied_folder.files:
             assert os.path.exists(file.path)
             assert os.path.isfile(file.path)
@@ -602,12 +491,12 @@ class TestFolderSyncFromSynapse:
                 == file.file_handle.content_md5
             )
 
-        # AND I expect the Folders to be stored on Synapse
+        # Verify subfolders and their files
         for sub_folder in stored_folder.folders:
             resolved_path = os.path.join(root_directory_path, sub_folder.name)
             assert os.path.exists(resolved_path)
             assert os.path.isdir(resolved_path)
-            # AND I expect the Files in the Folders to be stored on Synapse
+
             for sub_file in sub_folder.files:
                 assert os.path.exists(sub_file.path)
                 assert os.path.isfile(sub_file.path)
