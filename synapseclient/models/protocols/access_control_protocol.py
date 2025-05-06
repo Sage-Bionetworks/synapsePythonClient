@@ -183,7 +183,10 @@ class AccessControllableSynchronousProtocol(Protocol):
         determined by its own ACL.
 
         If the ACL of an Entity is deleted, then its benefactor will automatically be set
-        to its parent's benefactor. The ACL for a Project cannot be deleted.
+        to its parent's benefactor.
+
+        **Special notice for Projects:** The ACL for a Project cannot be deleted, you
+        must individually update or revoke the permissions for each user or group.
 
         Arguments:
             include_self: If True (default), delete the ACL of the current entity.

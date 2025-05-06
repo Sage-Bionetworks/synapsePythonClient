@@ -850,3 +850,23 @@ class TestDeletePermissions:
         assert "Invalid entity type" in str(exc_info.value)
         assert "folder" in str(exc_info.value)
         assert "file" in str(exc_info.value)
+
+    async def test_delete_permissions_on_new_project(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test deleting permissions on a newly created project."""
+        # GIVEN a newly created project with custom permissions
+        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async()
+        self.schedule_for_cleanup(project.id)
+
+        # AND custom permissions are set for authenticated users
+        await self._set_custom_permissions(project)
+
+        # WHEN I delete permissions on the project
+        await project.delete_permissions()
+
+        # THEN the permissions should not be deleted
+        assert (
+            "Cannot restore inheritance for resource which has no parent."
+            in caplog.text
+        )

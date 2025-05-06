@@ -235,7 +235,10 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         determined by its own ACL.
 
         If the ACL of an Entity is deleted, then its benefactor will automatically be set
-        to its parent's benefactor. The ACL for a Project cannot be deleted.
+        to its parent's benefactor.
+
+        **Special notice for Projects:** The ACL for a Project cannot be deleted, you
+        must individually update or revoke the permissions for each user or group.
 
         Arguments:
             include_self: If True (default), delete the ACL of the current entity.
@@ -411,6 +414,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             Exception: For any other errors that may occur during deletion.
         """
         if not entity_info["is_target_type"] and entity_info["entity_type"] is not None:
+            client.logger.debug(
+                f"Skipping ACL deletion for entity {self.id} as its type '{entity_info['entity_type']}' does not match the target types."
+            )
             return
 
         try:
