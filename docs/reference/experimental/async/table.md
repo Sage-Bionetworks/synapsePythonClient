@@ -23,9 +23,10 @@ at your own risk.
         - delete_column
         - add_column
         - reorder_column
-        - get_permissions
-        - get_acl
-        - set_permissions
+        - get_permissions_async
+        - get_acl_async
+        - set_permissions_async
+        - delete_permissions_async
 
 [](){ #column-reference-async }
 ::: synapseclient.models.Column

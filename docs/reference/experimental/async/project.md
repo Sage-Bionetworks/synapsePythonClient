@@ -17,3 +17,4 @@ at your own risk.
         - get_permissions_async
         - get_acl_async
         - set_permissions_async
+        - delete_permissions_async
