@@ -291,6 +291,60 @@ async def delete_entity(
         )
 
 
+async def delete_entity_acl(
+    entity_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Delete the Access Control List (ACL) for a given Entity.
+
+    By default, Entities such as FileEntity and Folder inherit their permission from
+    their containing Project. For such Entities the Project is the Entity's 'benefactor'.
+    This permission inheritance can be overridden by creating an ACL for the Entity.
+    When this occurs the Entity becomes its own benefactor and all permission are
+    determined by its own ACL.
+
+    If the ACL of an Entity is deleted, then its benefactor will automatically be set
+    to its parent's benefactor. The ACL for a Project cannot be deleted.
+
+    Note: The caller must be granted ACCESS_TYPE.CHANGE_PERMISSIONS on the Entity to
+    call this method.
+
+    Arguments:
+        entity_id: The ID of the entity that should have its ACL deleted.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Example: Delete the ACL for entity `syn123`:
+        This will delete the ACL for the entity, making it inherit permissions from
+        its parent.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import delete_entity_acl
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            await delete_entity_acl(entity_id="syn123")
+
+        asyncio.run(main())
+        ```
+
+    Returns: None
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_delete_async(
+        uri=f"/entity/{entity_id}/acl",
+    )
+
+
 async def get_entity_path(
     entity_id: str,
     *,

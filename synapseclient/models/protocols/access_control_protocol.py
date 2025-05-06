@@ -55,14 +55,32 @@ class AccessControllableSynchronousProtocol(Protocol):
         return self
 
     def get_acl(
-        self, principal_id: int = None, *, synapse_client: Optional[Synapse] = None
+        self,
+        principal_id: int = None,
+        check_benefactor: bool = True,
+        *,
+        synapse_client: Optional[Synapse] = None,
     ) -> List[str]:
         """
         Get the [ACL][synapseclient.core.models.permission.Permissions.access_types]
         that a user or group has on an Entity.
 
+        Note: If the entity does not have local sharing settings, or ACL set directly
+        on it, this will look up the ACL on the benefactor of the entity. The
+        benefactor is the entity that the current entity inherits its permissions from.
+        The benefactor is usually the parent entity, but it can be any ancestor in the
+        hierarchy. For example, a newly created Project will be its own benefactor,
+        while a new FileEntity's benefactor will start off as its containing Project or
+        Folder. If the entity already has local sharing settings, the benefactor would
+        be itself.
+
         Arguments:
             principal_id: Identifier of a user or group (defaults to PUBLIC users)
+            check_benefactor: If True (default), check the benefactor for the entity
+                to get the ACL. If False, only check the entity itself.
+                This is useful for checking the ACL of an entity that has local sharing
+                settings, but you want to check the ACL of the entity itself and not
+                the benefactor it may inherit from.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -145,3 +163,94 @@ class AccessControllableSynchronousProtocol(Protocol):
             ```
         """
         return {}
+
+    def delete_permissions(
+        self,
+        recursive: bool = False,
+        include_self: bool = True,
+        include_container_content: bool = False,
+        target_entity_types: Optional[List[str]] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        Delete the Access Control List (ACL) for a given Entity.
+
+        By default, Entities such as FileEntity and Folder inherit their permission from
+        their containing Project. For such Entities the Project is the Entity's 'benefactor'.
+        This permission inheritance can be overridden by creating an ACL for the Entity.
+        When this occurs the Entity becomes its own benefactor and all permission are
+        determined by its own ACL.
+
+        If the ACL of an Entity is deleted, then its benefactor will automatically be set
+        to its parent's benefactor. The ACL for a Project cannot be deleted.
+
+        Arguments:
+            include_self: If True (default), delete the ACL of the current entity.
+                If False, skip deleting the ACL of the current entity and only process
+                children if recursive=True or include_container_content=True.
+            recursive: If True and the entity is a container (e.g., Project or Folder),
+                recursively delete ACLs from all child containers and their children.
+                Only works on classes that support the `sync_from_synapse_async` method.
+            include_container_content: If True, delete ACLs from contents directly within
+                containers (files and folders inside Projects/Folders). Defaults to False.
+            target_entity_types: Specify which entity types to process when deleting ACLs.
+                Allowed values are "folder" and "file" (case-insensitive).
+                If None, defaults to ["folder", "file"].
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the entity does not have an ID or if an invalid entity type is provided.
+            SynapseHTTPError: If there are permission issues or if the entity already inherits permissions.
+            Exception: For any other errors that may occur during the process.
+
+        Note: The caller must be granted ACCESS_TYPE.CHANGE_PERMISSIONS on the Entity to
+        call this method.
+
+        Example: Delete permissions for a single entity
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import File
+
+            syn = Synapse()
+            syn.login()
+
+            File(id="syn123").delete_permissions()
+            ```
+
+        Example: Delete permissions recursively for a folder and all its children
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
+
+            syn = Synapse()
+            syn.login()
+
+            # Delete permissions for this folder and all container entities (folders) within it recursively
+            Folder(id="syn123").delete_permissions(recursive=True)
+
+            # Delete permissions for all entities within this folder, but not the folder itself
+            Folder(id="syn123").delete_permissions(
+                include_self=False,
+                include_container_content=True
+            )
+
+            # Delete permissions only for folder entities within this folder recursively
+            Folder(id="syn123").delete_permissions(
+                recursive=True,
+                target_entity_types=["folder"]
+            )
+
+            # Delete all permissions in the entire hierarchy
+            Folder(id="syn123").delete_permissions(
+                recursive=True,
+                include_container_content=True
+            )
+            ```
+        """
+        return None
