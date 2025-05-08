@@ -2814,6 +2814,7 @@ class Synapse(object):
         """
         if hasattr(entity, "getACLURI"):
             uri = entity.getACLURI()
+            return self.restGET(uri)
         else:
             if check_benefactor:
                 # Get the ACL from the benefactor (which may be the entity itself)
