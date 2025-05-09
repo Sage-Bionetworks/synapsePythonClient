@@ -24,9 +24,10 @@ at your own risk.
             - delete_column
             - reorder_column
             - rename_column
-            - get_permissions
-            - get_acl
-            - set_permissions
+            - get_permissions_async
+            - get_acl_async
+            - set_permissions_async
+            - delete_permissions_async
 ---
 [](){ #entity-ref-reference-async }
 ::: synapseclient.models.EntityRef

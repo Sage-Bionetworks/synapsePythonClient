@@ -2725,7 +2725,7 @@ class Synapse(object):
 
         Arguments:
             parent: An id or an object of a Synapse container or None to retrieve all projects
-            includeTypes: Must be a list of entity types (ie. ["folder","file"]) which can be found [here](http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
+            includeTypes: Must be a list of entity types (ie. ["folder","file"]) which can be found [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
             sortBy: How results should be sorted. Can be NAME, or CREATED_ON
             sortDirection: The direction of the result sort. Can be ASC, or DESC
 
@@ -2795,24 +2795,49 @@ class Synapse(object):
 
         return entity
 
-    def _getACL(self, entity: Union[Entity, str]) -> Dict[str, Union[str, list]]:
+    def _getACL(
+        self, entity: Union[Entity, str], check_benefactor: bool = True
+    ) -> Dict[str, Union[str, list]]:
         """
         Get the effective Access Control Lists (ACL) for a Synapse Entity.
 
         Arguments:
             entity: A Synapse Entity or Synapse ID
+            check_benefactor: If True (default), check the benefactor for the entity
+                to get the ACL. If False, only check the entity itself.
+                This is useful for checking the ACL of an entity that has local sharing
+                settings, but you want to check the ACL of the entity itself and not
+                the benefactor it may inherit from.
 
         Returns:
             A dictionary of the Entity's ACL
         """
         if hasattr(entity, "getACLURI"):
             uri = entity.getACLURI()
+            return self.restGET(uri)
         else:
-            # Get the ACL from the benefactor (which may be the entity itself)
-            benefactor = self._getBenefactor(entity)
-            trace.get_current_span().set_attributes({"synapse.id": benefactor["id"]})
-            uri = "/entity/%s/acl" % (benefactor["id"])
-        return self.restGET(uri)
+            if check_benefactor:
+                # Get the ACL from the benefactor (which may be the entity itself)
+                benefactor = self._getBenefactor(entity)
+                trace.get_current_span().set_attributes(
+                    {"synapse.id": benefactor["id"]}
+                )
+                uri = "/entity/%s/acl" % (benefactor["id"])
+                return self.restGET(uri)
+            else:
+                synid, _ = utils.get_synid_and_version(entity)
+                trace.get_current_span().set_attributes({"synapse.id": synid})
+                uri = "/entity/%s/acl" % (synid)
+                try:
+                    return self.restGET(uri)
+                except SynapseHTTPError as e:
+                    if (
+                        "The requested ACL does not exist. This entity inherits its permissions from:"
+                        in str(e)
+                    ):
+                        # If the entity does not have an ACL, return an empty ACL
+                        return {"resourceAccess": []}
+                    raise e
 
     def _storeACL(
         self, entity: Union[Entity, str], acl: Dict[str, Union[str, list]]
@@ -2889,6 +2914,7 @@ class Synapse(object):
         self,
         entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
         principal_id: str = None,
+        check_benefactor: bool = True,
     ) -> typing.List[str]:
         """
         Get the [ACL](https://rest-docs.synapse.org/rest/org/
@@ -2898,6 +2924,11 @@ class Synapse(object):
         Arguments:
             entity:      An Entity or Synapse ID to lookup
             principal_id: Identifier of a user or group (defaults to PUBLIC users)
+            check_benefactor: If True (default), check the benefactor for the entity
+                to get the ACL. If False, only check the entity itself.
+                This is useful for checking the ACL of an entity that has local sharing
+                settings, but you want to check the ACL of the entity itself and not
+                the benefactor it may inherit from.
 
         Returns:
             An array containing some combination of
@@ -2912,7 +2943,7 @@ class Synapse(object):
             {"synapse.id": id_of(entity), "synapse.principal_id": principal_id}
         )
 
-        acl = self._getACL(entity)
+        acl = self._getACL(entity=entity, check_benefactor=check_benefactor)
 
         team_list = self._find_teams_for_principal(principal_id)
         team_ids = [int(team.id) for team in team_list]
