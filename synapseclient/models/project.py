@@ -5,20 +5,21 @@ from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
 from opentelemetry import trace
+from typing_extensions import Any
 
 from synapseclient import Synapse
-from synapseclient.api import get_from_entity_factory
+from synapseclient.api import get_from_entity_factory, store_entity_with_bundle2
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
-from synapseclient.entity import Project as Synapse_Project
 from synapseclient.models import Annotations, File, Folder
 from synapseclient.models.mixins import AccessControllable, StorableContainer
 from synapseclient.models.protocols.project_protocol import ProjectSynchronousProtocol
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
-    store_entity_components,
+    store_entity_components_file_folder_only,
 )
 from synapseutils.copy_functions import copy
 
@@ -201,33 +202,55 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
 
     def fill_from_dict(
         self,
-        synapse_project: Union[Synapse_Project, Dict],
-        set_annotations: bool = True,
+        entity: Dict,
+        annotations: Optional[Dict] = None,
     ) -> "Project":
         """
         Converts a response from the REST API into this dataclass.
 
         Arguments:
-            synapse_project: The response from the REST API.
+            entity: The response from the REST API.
 
         Returns:
             The Project object.
         """
-        self.id = synapse_project.get("id", None)
-        self.name = synapse_project.get("name", None)
-        self.description = synapse_project.get("description", None)
-        self.etag = synapse_project.get("etag", None)
-        self.created_on = synapse_project.get("createdOn", None)
-        self.modified_on = synapse_project.get("modifiedOn", None)
-        self.created_by = synapse_project.get("createdBy", None)
-        self.modified_by = synapse_project.get("modifiedBy", None)
-        self.alias = synapse_project.get("alias", None)
-        self.parent_id = synapse_project.get("parentId", None)
-        if set_annotations:
-            self.annotations = Annotations.from_dict(
-                synapse_project.get("annotations", {})
-            )
+        self.id = entity.get("id", None)
+        self.name = entity.get("name", None)
+        self.description = entity.get("description", None)
+        self.etag = entity.get("etag", None)
+        self.created_on = entity.get("createdOn", None)
+        self.modified_on = entity.get("modifiedOn", None)
+        self.created_by = entity.get("createdBy", None)
+        self.modified_by = entity.get("modifiedBy", None)
+        self.alias = entity.get("alias", None)
+        self.parent_id = entity.get("parentId", None)
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
         return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass into a request that can be sent to the Synapse API.
+
+        Returns:
+            A dictionary that can be used in a request to the Synapse API.
+        """
+        entity = {
+            "name": self.name,
+            "description": self.description,
+            "id": self.id,
+            "etag": self.etag,
+            "createdOn": self.created_on,
+            "modifiedOn": self.modified_on,
+            "createdBy": self.created_by,
+            "modifiedBy": self.modified_by,
+            "parentId": self.parent_id,
+            "alias": self.alias,
+            "concreteType": concrete_types.PROJECT_ENTITY,
+        }
+        delete_none_keys(entity)
+
+        return entity
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Project_Store: ID: {self.id}, Name: {self.name}"
@@ -295,28 +318,21 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
                 "synapse.id": self.id or "",
             }
         )
-        if self.has_changed:
-            loop = asyncio.get_event_loop()
-            synapse_project = Synapse_Project(
-                id=self.id,
-                etag=self.etag,
-                name=self.name,
-                description=self.description,
-                alias=self.alias,
-                parentId=self.parent_id,
-            )
-            delete_none_keys(synapse_project)
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_project,
-                    set_annotations=False,
-                    createOrUpdate=False,
-                ),
-            )
-            self.fill_from_dict(synapse_project=entity, set_annotations=False)
 
-        await store_entity_components(
+        if self.has_changed:
+            entity = await store_entity_with_bundle2(
+                entity=self.to_synapse_request(),
+                parent_id=self.parent_id,
+                annotations=Annotations(self.annotations).to_synapse_request()
+                if self.annotations
+                else None,
+                synapse_client=synapse_client,
+            )
+            self.fill_from_dict(
+                entity=entity["entity"], annotations=entity.get("annotations", None)
+            )
+
+        await store_entity_components_file_folder_only(
             root_resource=self,
             failure_strategy=failure_strategy,
             synapse_client=synapse_client,
