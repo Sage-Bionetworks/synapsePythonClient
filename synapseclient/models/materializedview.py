@@ -667,7 +667,7 @@ class MaterializedView(
         )
 
     def fill_from_dict(
-        self, entity: Dict, set_annotations: bool = True
+        self, entity: Dict, annotations: Dict = None
     ) -> "MaterializedView":
         """
         Converts the data coming from the Synapse API into this datamodel.
@@ -694,8 +694,8 @@ class MaterializedView(
         self.is_search_enabled = entity.get("isSearchEnabled", False)
         self.defining_sql = entity.get("definingSQL", None)
 
-        if set_annotations:
-            self.annotations = entity.get("annotations", {})
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
 
         return self
 

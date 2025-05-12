@@ -61,7 +61,7 @@ class TestDataset:
         # GIVEN an empty Dataset
         dataset = Dataset()
         # WHEN I fill it from a Synapse response
-        dataset.fill_from_dict(self.synapse_response, set_annotations=True)
+        dataset.fill_from_dict(self.synapse_response, annotations=self.synapse_response)
         # THEN I expect the Dataset to be filled with the expected values
         assert dataset.id == self.synapse_response["id"]
         assert dataset.name == self.synapse_response["name"]
@@ -259,7 +259,9 @@ class TestDatasetCollection:
         # GIVEN an empty DatasetCollection
         dataset_collection = DatasetCollection()
         # WHEN I fill it from a Synapse response
-        dataset_collection.fill_from_dict(self.synapse_response, set_annotations=True)
+        dataset_collection.fill_from_dict(
+            self.synapse_response, annotations=self.synapse_response
+        )
         # THEN I expect the DatasetCollection to be filled with the expected values
         assert dataset_collection.id == self.synapse_response["id"]
         assert dataset_collection.name == self.synapse_response["name"]

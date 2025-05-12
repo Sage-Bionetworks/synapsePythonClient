@@ -6,7 +6,7 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from synapseclient import File as SynapseFile
 from synapseclient import Synapse
@@ -607,7 +607,7 @@ class File(FileSynchronousProtocol, AccessControllable):
     def fill_from_dict(
         self,
         synapse_file: Union[Synapse_File, Dict[str, Union[bool, str, int]]],
-        set_annotations: bool = True,
+        annotations: Dict = None,
     ) -> "File":
         """
         Converts a response from the REST API into this dataclass.
@@ -642,10 +642,8 @@ class File(FileSynchronousProtocol, AccessControllable):
             )
             self._fill_from_file_handle()
 
-        if set_annotations:
-            self.annotations = Annotations.from_dict(
-                synapse_file.get("annotations", {})
-            )
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
         return self
 
     def _cannot_store(self) -> bool:
@@ -866,10 +864,16 @@ class File(FileSynchronousProtocol, AccessControllable):
             delete_none_keys(synapse_file)
 
             entity = await store_entity(
-                resource=self, entity=synapse_file, synapse_client=client
+                entity=self.to_synapse_request(),
+                parent_id=self.parent_id,
+                annotations=Annotations(self.annotations).to_synapse_request()
+                if self.annotations
+                else None,
+                synapse_client=synapse_client,
             )
-
-            self.fill_from_dict(synapse_file=entity, set_annotations=False)
+            self.fill_from_dict(
+                entity=entity["entity"], annotations=entity.get("annotations", None)
+            )
 
         re_read_required = await store_entity_components(
             root_resource=self, synapse_client=client
@@ -948,7 +952,9 @@ class File(FileSynchronousProtocol, AccessControllable):
             ),
         )
 
-        self.fill_from_dict(synapse_file=entity, set_annotations=True)
+        self.fill_from_dict(
+            synapse_file=entity, annotations=entity.get("annotations", {})
+        )
         self._set_last_persistent_instance()
         Synapse.get_client(synapse_client=synapse_client).logger.debug(
             f"Change metadata for file {self.name}, id: {self.id}: {self.path}"
@@ -1391,3 +1397,32 @@ class File(FileSynchronousProtocol, AccessControllable):
         )
         delete_none_keys(return_data)
         return return_data
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass into a request that can be sent to the Synapse API.
+
+        Returns:
+            A dictionary that can be used in a request to the Synapse API.
+        """
+        from synapseclient.core.constants import concrete_types
+
+        entity = {
+            "name": self.name,
+            "description": self.description,
+            "id": self.id,
+            "etag": self.etag,
+            "createdOn": self.created_on,
+            "modifiedOn": self.modified_on,
+            "createdBy": self.created_by,
+            "modifiedBy": self.modified_by,
+            "parentId": self.parent_id,
+            "dataFileHandleId": self.data_file_handle_id,
+            "versionLabel": self.version_label,
+            "versionComment": self.version_comment,
+            "versionNumber": self.version_number,
+            "concreteType": concrete_types.FILE_ENTITY,
+        }
+        delete_none_keys(entity)
+
+        return entity

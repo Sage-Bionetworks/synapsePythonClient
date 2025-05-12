@@ -120,6 +120,77 @@ async def store_entity_components(
     return re_read_required
 
 
+async def store_entity_components_file_folder_only(
+    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
+    failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+    *,
+    synapse_client: Optional[Synapse] = None,
+) -> bool:
+    """
+    Function to store ancillary components of an entity to synapse. This function will
+    execute the stores in parallel.
+
+    This is responsible for storing the annotations, activity, files and folders of a
+    resource to synapse.
+
+
+    Arguments:
+        root_resource: The root resource to store objects on.
+        synapse_client: If not passed in or None this will use the last client from the Synapse class constructor.
+
+    Returns:
+        If a read from Synapse is required to retireve the current state of the entity.
+    """
+    re_read_required = False
+
+    tasks = []
+
+    if hasattr(root_resource, "files") and root_resource.files is not None:
+        for file in root_resource.files:
+            tasks.append(
+                asyncio.create_task(
+                    file.store_async(
+                        parent=root_resource, synapse_client=synapse_client
+                    )
+                )
+            )
+
+    if hasattr(root_resource, "folders") and root_resource.folders is not None:
+        for folder in root_resource.folders:
+            tasks.append(
+                asyncio.create_task(
+                    folder.store_async(
+                        parent=root_resource, synapse_client=synapse_client
+                    )
+                )
+            )
+
+    # tasks.append(
+    #     asyncio.create_task(
+    #         _store_activity_and_annotations(
+    #             root_resource, synapse_client=synapse_client
+    #         )
+    #     )
+    # )
+
+    try:
+        tasks = [wrap_coroutine(task) for task in tasks]
+        for task in asyncio.as_completed(tasks):
+            result = await task
+            _resolve_store_task(
+                result=result,
+                failure_strategy=failure_strategy,
+                synapse_client=synapse_client,
+            )
+    except Exception as ex:
+        Synapse.get_client(synapse_client=synapse_client).logger.exception(ex)
+        if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
+            raise ex
+
+    # TODO: Double check this logic. This might not be getting set properly from _resolve_store_task
+    return re_read_required
+
+
 def _resolve_store_task(
     result: Union[bool, "Folder", "File", BaseException],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,

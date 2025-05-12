@@ -245,7 +245,7 @@ async def _handle_file_entity(
     from synapseclient.models import FileHandle
 
     entity_instance.fill_from_dict(
-        synapse_file=entity_bundle["entity"], set_annotations=False
+        synapse_file=entity_bundle["entity"], annotations=None
     )
 
     # Update entity with FileHandle metadata
@@ -401,7 +401,7 @@ async def _cast_into_class_type(
         )
     else:
         # Handle all other entity types
-        entity_instance.fill_from_dict(entity_bundle["entity"], set_annotations=False)
+        entity_instance.fill_from_dict(entity_bundle["entity"], annotations=None)
 
     if annotations:
         entity_instance.annotations = annotations
