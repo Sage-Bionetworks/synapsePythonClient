@@ -165,24 +165,6 @@ class TestDeletePermissionsAsync:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_sync_failure_doesnt_process_children(self):
-        """Test that sync failure prevents processing children."""
-        # GIVEN a folder with an ID and mocked sync_from_synapse_async method that fails
-        folder = Folder(id="syn123")
-        folder.sync_from_synapse_async = AsyncMock(side_effect=Exception("Sync failed"))
-
-        # WHEN deleting permissions recursively
-        await folder.delete_permissions_async(recursive=True)
-
-        # THEN sync_from_synapse_async should be called
-        folder.sync_from_synapse_async.assert_called_once()
-
-        # AND delete_entity_acl should be called on the folder itself
-        self.mock_delete_acl.assert_called_once()
-
-        # AND a warning log message should be generated
-        self.synapse_client.logger.warning.assert_called_once()
-
     async def test_filter_by_entity_type_folder(self):
         """Test filtering deletion by folder entity type."""
         # GIVEN a folder with an ID and child folder and file
@@ -299,3 +281,23 @@ class TestDeletePermissionsAsync:
 
         # AND a warning log message should be generated
         self.synapse_client.logger.warning.assert_called_once()
+
+    async def test_invalid_recursive_without_include_container_content(self):
+        """Test that setting recursive=True without include_container_content=True raises ValueError."""
+        # GIVEN a folder with an ID
+        folder = Folder(id="syn123")
+
+        # WHEN attempting to delete permissions with recursive=True but include_container_content=False
+        # THEN a ValueError should be raised
+        with pytest.raises(
+            ValueError,
+            match="When recursive=True, include_container_content must also be True",
+        ):
+            await folder.delete_permissions_async(
+                recursive=True, include_container_content=False
+            )
+
+        # AND the delete_entity_acl function should still be called for the folder itself
+        self.mock_delete_acl.assert_called_once_with(
+            entity_id="syn123", synapse_client=self.synapse_client
+        )

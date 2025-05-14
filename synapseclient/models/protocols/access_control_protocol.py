@@ -191,12 +191,15 @@ class AccessControllableSynchronousProtocol(Protocol):
         Arguments:
             include_self: If True (default), delete the ACL of the current entity.
                 If False, skip deleting the ACL of the current entity and only process
-                children if recursive=True or include_container_content=True.
+                children if recursive=True and include_container_content=True.
             recursive: If True and the entity is a container (e.g., Project or Folder),
-                recursively delete ACLs from all child containers and their children.
+                recursively process child containers. Note that this must be used with
+                include_container_content=True to have any effect. Setting recursive=True
+                with include_container_content=False will raise a ValueError.
                 Only works on classes that support the `sync_from_synapse_async` method.
             include_container_content: If True, delete ACLs from contents directly within
-                containers (files and folders inside Projects/Folders). Defaults to False.
+                containers (files and folders inside Projects/Folders). This must be set to
+                True for recursive to have any effect. Defaults to False.
             target_entity_types: Specify which entity types to process when deleting ACLs.
                 Allowed values are "folder" and "file" (case-insensitive).
                 If None, defaults to ["folder", "file"].
@@ -234,25 +237,38 @@ class AccessControllableSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            # Delete permissions for this folder and all container entities (folders) within it recursively
-            Folder(id="syn123").delete_permissions(recursive=True)
+            # Delete permissions for this folder only (does not affect children)
+            Folder(id="syn123").delete_permissions()
 
-            # Delete permissions for all entities within this folder, but not the folder itself
+            # Delete permissions for all files and folders directly within this folder,
+            # but not the folder itself
             Folder(id="syn123").delete_permissions(
                 include_self=False,
                 include_container_content=True
             )
 
-            # Delete permissions only for folder entities within this folder recursively
-            Folder(id="syn123").delete_permissions(
-                recursive=True,
-                target_entity_types=["folder"]
-            )
-
-            # Delete all permissions in the entire hierarchy
+            # Delete permissions for all items in the entire hierarchy (folders and their files)
+            # Both recursive and include_container_content must be True
             Folder(id="syn123").delete_permissions(
                 recursive=True,
                 include_container_content=True
+            )
+
+            # Delete permissions only for folder entities within this folder recursively
+            # and their contents
+            Folder(id="syn123").delete_permissions(
+                recursive=True,
+                include_container_content=True,
+                target_entity_types=["folder"]
+            )
+
+            # Delete permissions only for files within this folder and all subfolders
+            # Both recursive and include_container_content must be True for this to work
+            Folder(id="syn123").delete_permissions(
+                include_self=False,
+                recursive=True,
+                include_container_content=True,
+                target_entity_types=["file"]
             )
             ```
         """

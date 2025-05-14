@@ -243,12 +243,15 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Arguments:
             include_self: If True (default), delete the ACL of the current entity.
                 If False, skip deleting the ACL of the current entity and only process
-                children if recursive=True or include_container_content=True.
+                children if recursive=True and include_container_content=True.
             recursive: If True and the entity is a container (e.g., Project or Folder),
-                recursively delete ACLs from all child containers and their children.
+                recursively process child containers. Note that this must be used with
+                include_container_content=True to have any effect. Setting recursive=True
+                with include_container_content=False will raise a ValueError.
                 Only works on classes that support the `sync_from_synapse_async` method.
             include_container_content: If True, delete ACLs from contents directly within
-                containers (files and folders inside Projects/Folders). Defaults to False.
+                containers (files and folders inside Projects/Folders). This must be set to
+                True for recursive to have any effect. Defaults to False.
             target_entity_types: Specify which entity types to process when deleting ACLs.
                 Allowed values are "folder" and "file" (case-insensitive).
                 If None, defaults to ["folder", "file"].
@@ -292,25 +295,37 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             syn.login()
 
             async def main():
-                # Delete permissions for this folder and all container entities (folders) within it recursively
-                await Folder(id="syn123").delete_permissions_async(recursive=True)
+                # Delete permissions for this folder only (does not affect children)
+                await Folder(id="syn123").delete_permissions_async()
 
-                # Delete permissions for all entities within this folder, but not the folder itself
+                # Delete permissions for all files and folders directly within this folder,
+                # but not the folder itself
                 await Folder(id="syn123").delete_permissions_async(
                     include_self=False,
                     include_container_content=True
                 )
 
-                # Delete permissions only for folder entities within this folder recursively
-                await Folder(id="syn123").delete_permissions_async(
-                    recursive=True,
-                    target_entity_types=["folder"]
-                )
-
-                # Delete all permissions in the entire hierarchy
+                # Delete permissions for all items in the entire hierarchy (folders and their files)
+                # Both recursive and include_container_content must be True
                 await Folder(id="syn123").delete_permissions_async(
                     recursive=True,
                     include_container_content=True
+                )
+
+                # Delete permissions only for folder entities within this folder recursively
+                # and their contents
+                await Folder(id="syn123").delete_permissions_async(
+                    recursive=True,
+                    include_container_content=True,
+                    target_entity_types=["folder"]
+                )
+
+                # Delete permissions only for files within this folder and all subfolders
+                await Folder(id="syn123").delete_permissions_async(
+                    include_self=False,
+                    recursive=True,
+                    include_container_content=True,
+                    target_entity_types=["file"]
                 )
             asyncio.run(main())
             ```
@@ -327,6 +342,12 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         should_process_children = recursive or include_container_content
         if should_process_children and hasattr(self, "sync_from_synapse_async"):
+            if recursive and not include_container_content:
+                raise ValueError(
+                    "When recursive=True, include_container_content must also be True. "
+                    "Setting recursive=True with include_container_content=False has no effect."
+                )
+
             synced = await self._sync_container_structure(client)
             if not synced:
                 return
