@@ -727,10 +727,14 @@ class TestDeletePermissions:
         await self._set_custom_permissions(folder_1)
         await self._set_custom_permissions(file_3)
 
-        # WHEN I delete permissions recursively but without container content
-        top_level_folder.delete_permissions(
-            recursive=True, include_container_content=False
-        )
+        with pytest.raises(
+            ValueError,
+            match="When recursive=True, include_container_content must also be True",
+        ) as exc_info:
+            # WHEN I delete permissions recursively but without container content
+            top_level_folder.delete_permissions(
+                recursive=True, include_container_content=False
+            )
 
         # THEN the top_level_folder permissions should be deleted
         await self._verify_permissions_deleted(top_level_folder)
@@ -738,7 +742,7 @@ class TestDeletePermissions:
         # AND the folder_1 permissions should remain (because include_container_content=False)
         await self._verify_permissions_not_deleted(folder_1)
 
-        # BUT the file_3 permissions should remain (because include_container_content=False)
+        # AND the file_3 permissions should remain (because include_container_content=False)
         assert await self._verify_permissions_not_deleted(file_3)
 
     async def test_delete_permissions_recursive_with_container_content(
