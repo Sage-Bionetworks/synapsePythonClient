@@ -166,9 +166,9 @@ class AccessControllableSynchronousProtocol(Protocol):
 
     def delete_permissions(
         self,
-        recursive: bool = False,
         include_self: bool = True,
         include_container_content: bool = False,
+        recursive: bool = False,
         target_entity_types: Optional[List[str]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
@@ -190,16 +190,15 @@ class AccessControllableSynchronousProtocol(Protocol):
 
         Arguments:
             include_self: If True (default), delete the ACL of the current entity.
-                If False, skip deleting the ACL of the current entity and only process
-                children if recursive=True and include_container_content=True.
+                If False, skip deleting the ACL of the current entity.
+            include_container_content: If True, delete ACLs from contents directly within
+                containers (files and folders inside self). This must be set to
+                True for recursive to have any effect. Defaults to False.
             recursive: If True and the entity is a container (e.g., Project or Folder),
                 recursively process child containers. Note that this must be used with
                 include_container_content=True to have any effect. Setting recursive=True
                 with include_container_content=False will raise a ValueError.
                 Only works on classes that support the `sync_from_synapse_async` method.
-            include_container_content: If True, delete ACLs from contents directly within
-                containers (files and folders inside Projects/Folders). This must be set to
-                True for recursive to have any effect. Defaults to False.
             target_entity_types: Specify which entity types to process when deleting ACLs.
                 Allowed values are "folder" and "file" (case-insensitive).
                 If None, defaults to ["folder", "file"].
