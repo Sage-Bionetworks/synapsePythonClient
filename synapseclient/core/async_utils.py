@@ -80,23 +80,17 @@ class ClassOrInstance:
 def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any], syn: "Synapse") -> Any:
     """Wrap an async function to be called in a sync context."""
     loop = None
+
     try:
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            pass
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        pass
 
-        if loop:
-            nest_asyncio.apply(loop=loop)
-            return loop.run_until_complete(coroutine)
-        else:
-            return asyncio.run(coroutine)
-
-    except Exception as ex:
-        syn.logger.exception(
-            f"Error occurred while running {coroutine} in a sync context."
-        )
-        raise ex
+    if loop:
+        nest_asyncio.apply(loop=loop)
+        return loop.run_until_complete(coroutine)
+    else:
+        return asyncio.run(coroutine)
 
 
 # Adapted from
@@ -122,28 +116,17 @@ def async_to_sync(cls):
                 return await getattr(self, async_method_name)(*args, **kwargs)
 
             loop = None
+
             try:
-                try:
-                    loop = asyncio.get_running_loop()
-                except RuntimeError:
-                    pass
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
 
-                if loop:
-                    nest_asyncio.apply(loop=loop)
-                    return loop.run_until_complete(wrapper(*args, **kwargs))
-                else:
-                    return asyncio.run(wrapper(*args, **kwargs))
-
-            except Exception as ex:
-                from synapseclient import Synapse
-
-                synapse_client = Synapse.get_client(
-                    getattr(kwargs, "synapse_client", None)
-                )
-                synapse_client.logger.exception(
-                    f"Error occurred while running {async_method_name} on {self.__class__}."
-                )
-                raise ex
+            if loop:
+                nest_asyncio.apply(loop=loop)
+                return loop.run_until_complete(wrapper(*args, **kwargs))
+            else:
+                return asyncio.run(wrapper(*args, **kwargs))
 
         return newmethod
 
