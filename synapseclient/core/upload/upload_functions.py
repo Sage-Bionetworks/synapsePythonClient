@@ -5,7 +5,7 @@ import numbers
 import os
 import urllib.parse as urllib_parse
 import uuid
-from typing import TYPE_CHECKING, Dict, Union
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from opentelemetry import trace
 
@@ -43,6 +43,7 @@ def upload_file_handle(
     file_size: int = None,
     mimetype: str = None,
     max_threads: int = None,
+    progress_callback: Optional[callable] = None,
 ):
     """
     Uploads the file in the provided path (if necessary) to a storage location based on project settings.
@@ -146,6 +147,7 @@ def upload_file_handle(
             mimetype=mimetype,
             max_threads=max_threads,
             md5=md5,
+            progress_callback=progress_callback,
         )
     # external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
@@ -251,7 +253,8 @@ def create_external_file_handle(
 
 
 def upload_external_file_handle_sftp(
-    syn: "Synapse", file_path: str, sftp_url: str, mimetype: str = None, md5: str = None
+    syn: "Synapse", file_path: str, sftp_url: str, mimetype: str = None, md5: str = None,
+    progress_callback: Optional[callable] = None,
 ) -> Dict[str, Union[str, int]]:
     username, password = syn._getUserCredentials(url=sftp_url)
     uploaded_url = SFTPWrapper.upload_file(
@@ -275,18 +278,52 @@ def upload_synapse_s3(
     mimetype: str = None,
     max_threads: int = None,
     md5: str = None,
+    progress_callback: Optional[callable] = None,
 ):
-    file_handle_id = multipart_upload_file(
-        syn=syn,
-        file_path=file_path,
-        content_type=mimetype,
-        storage_location_id=storageLocationId,
-        max_threads=max_threads,
-        md5=md5,
-    )
-    syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
+    from synapseclient.core.telemetry_integration import monitored_transfer
+    import os
 
-    return syn._get_file_handle_as_creator(fileHandle=file_handle_id)
+    # Get file size for telemetry tracking
+    file_size = os.path.getsize(file_path)
+
+    # Create a descriptive destination string
+    destination = f"synapse:s3:{storageLocationId if storageLocationId else 'default'}"
+
+    # Use monitored_transfer for OpenTelemetry tracing
+    with monitored_transfer(
+        operation="upload",
+        file_path=file_path,
+        file_size=file_size,
+        destination=destination,
+        with_progress_bar=False,  # Progress is handled by multipart upload
+        mime_type=mimetype,
+        md5=md5,
+        multipart=True,
+        storage_location_id=storageLocationId,
+        max_threads=max_threads
+    ) as monitor:
+        try:
+            file_handle_id = multipart_upload_file(
+                syn=syn,
+                file_path=file_path,
+                content_type=mimetype,
+                storage_location_id=storageLocationId,
+                max_threads=max_threads,
+                md5=md5,
+                progress_callback=progress_callback,
+            )
+            # Update monitor with completion
+            monitor.transferred_bytes = file_size
+            # Cache the file
+            syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
+            # Add file handle ID to span
+            monitor.span.set_attribute("synapse.file_handle_id", file_handle_id)
+            # Get and return the file handle
+            file_handle = syn._get_file_handle_as_creator(fileHandle=file_handle_id)
+            return file_handle
+        except Exception as ex:
+            monitor.record_retry(error=ex)
+            raise
 
 
 def upload_synapse_sts_boto_s3(

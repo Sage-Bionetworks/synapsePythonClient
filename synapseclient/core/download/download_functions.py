@@ -39,6 +39,7 @@ from synapseclient.core.exceptions import (
     SynapseMd5MismatchError,
 )
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
+from synapseclient.core.telemetry_integration import monitored_transfer
 from synapseclient.core.retry import (
     DEFAULT_RETRY_STATUS_CODES,
     RETRYABLE_CONNECTION_ERRORS,
@@ -311,6 +312,8 @@ def _get_aws_credentials() -> None:
     """This is a stub function and only used for testing purposes."""
     return None
 
+# TODO: Implement functionality in the calling functions to support metric collection for cache hits
+
 
 async def download_by_file_handle(
     file_handle_id: str,
@@ -418,8 +421,10 @@ async def download_by_file_handle(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
     os.makedirs(os.path.dirname(destination), exist_ok=True)
+    attempts = 0
 
     while retries > 0:
+        attempts += 1
         try:
             file_handle_result: Dict[
                 str, str
@@ -432,6 +437,10 @@ async def download_by_file_handle(
             file_handle = file_handle_result["fileHandle"]
             concrete_type = file_handle["concreteType"]
             storage_location_id = file_handle.get("storageLocationId")
+
+            actual_file_size = file_handle.get("contentSize", 0)
+            actual_mime_type = file_handle.get("contentType", None)
+            actual_md5 = file_handle.get("contentMd5")
 
             if concrete_type == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
                 profile = get_client_authenticated_s3_profile(
@@ -509,34 +518,99 @@ async def download_by_file_handle(
                 # and the file is large enough that it would be broken into parts to take advantage of
                 # multiple downloading threads. otherwise it's more efficient to run the download as a simple
                 # single threaded URL download.
-                downloaded_path = await download_from_url_multi_threaded(
-                    file_handle_id=file_handle_id,
-                    object_id=synapse_id,
-                    object_type=entity_type,
-                    destination=destination,
-                    expected_md5=file_handle.get("contentMd5"),
-                    synapse_client=syn,
-                )
+                with monitored_transfer(
+                    operation="download",
+                    file_path=destination,
+                    file_size=actual_file_size,
+                    destination=f"synapse:{synapse_id}",
+                    syn_id=synapse_id,
+                    with_progress_bar=False,  # progress bar is handled by the download function
+                    mime_type=actual_mime_type,
+                    md5=actual_md5,
+                    multipart=True,
+                    chunk_size=SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
+                    attempts=attempts,
+                    concrete_type=concrete_type
+                ) as monitor:
+                    try:
+                        downloaded_path = await download_from_url_multi_threaded(
+                            file_handle_id=file_handle_id,
+                            object_id=synapse_id,
+                            object_type=entity_type,
+                            destination=destination,
+                            expected_md5=actual_md5,
+                            synapse_client=syn,
+                            progress_callback=lambda bytes_transferred, total_bytes: monitor.update(
+                                bytes_transferred - getattr(monitor, '_last_transferred_bytes', 0)
+                            ) if hasattr(monitor, '_last_transferred_bytes') else setattr(monitor, '_last_transferred_bytes', bytes_transferred)
+                        )
+                        # Update the monitor with the result
+                        monitor.transferred_bytes = actual_file_size
+                    except Exception as download_ex:
+                        monitor.record_retry(error=download_ex)
+                        raise
 
             else:
+                # Standard pre-signed URL download
                 loop = asyncio.get_running_loop()
                 progress_bar = get_or_create_download_progress_bar(
-                    file_size=1, postfix=synapse_id, synapse_client=syn
+                    file_size=actual_file_size, postfix=synapse_id, synapse_client=syn
                 )
+                with monitored_transfer(
+                    operation="download",
+                    file_path=destination,
+                    file_size=actual_file_size,
+                    destination=f"synapse:{synapse_id}",
+                    syn_id=synapse_id,
+                    with_progress_bar=False,  # progress bar is handled separately
+                    mime_type=actual_mime_type,
+                    md5=actual_md5,
+                    attempts=attempts,
+                    concrete_type=concrete_type,
+                    pre_signed_url=True
+                ) as monitor:
+                    # Create a wrapper around the standard download function that updates both
+                    # the progress bar and our telemetry monitor
+                    def download_with_telemetry(**kwargs):
+                        # Get the original progress callback function
+                        original_progress_func = kwargs.get('progress_callback', None)
 
-                downloaded_path = await loop.run_in_executor(
-                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
-                    lambda: download_from_url(
-                        url=file_handle_result["preSignedURL"],
-                        destination=destination,
-                        entity_id=synapse_id,
-                        file_handle_associate_type=entity_type,
-                        file_handle_id=file_handle["id"],
-                        expected_md5=file_handle.get("contentMd5"),
-                        progress_bar=progress_bar,
-                        synapse_client=syn,
-                    ),
-                )
+                        def combined_progress_callback(bytes_transferred, total_bytes):
+                            # Calculate bytes since last update
+                            bytes_delta = bytes_transferred - getattr(combined_progress_callback, 'last_bytes', 0)
+                            setattr(combined_progress_callback, 'last_bytes', bytes_transferred)
+                            # Update telemetry monitor if bytes were transferred
+                            if bytes_delta > 0:
+                                monitor.update(bytes_delta)
+                            # Call the original callback if it exists
+                            if original_progress_func:
+                                original_progress_func(bytes_transferred, total_bytes)
+                        # Initialize the last bytes counter
+                        setattr(combined_progress_callback, 'last_bytes', 0)
+                        # Replace the progress callback
+                        kwargs['progress_callback'] = combined_progress_callback
+                        # Perform the download with original function
+                        try:
+                            result = download_from_url(**kwargs)
+                            return result
+                        except Exception as inner_ex:
+                            monitor.record_retry(error=inner_ex)
+                            raise
+
+                    # Execute the download
+                    downloaded_path = await loop.run_in_executor(
+                        syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                        lambda: download_with_telemetry(
+                            url=file_handle_result["preSignedURL"],
+                            destination=destination,
+                            entity_id=synapse_id,
+                            file_handle_associate_type=entity_type,
+                            file_handle_id=file_handle["id"],
+                            expected_md5=actual_md5,
+                            progress_bar=progress_bar,
+                            synapse_client=syn,
+                        ),
+                    )
 
             syn.logger.info(f"[{synapse_id}]: Downloaded to {downloaded_path}")
             syn.cache.add(
@@ -576,6 +650,7 @@ async def download_from_url_multi_threaded(
     *,
     expected_md5: str = None,
     synapse_client: Optional["Synapse"] = None,
+    progress_callback: Optional[callable] = None,
 ) -> str:
     """
     Download a file from the given URL using multiple threads.
@@ -615,7 +690,20 @@ async def download_from_url_multi_threaded(
         debug=client.debug,
     )
 
-    await download_file(client=client, download_request=request)
+    # Wrap the progress_callback to ensure consistent signature and error handling
+    def proxy_progress_callback(bytes_transferred, total_bytes):
+        if progress_callback is not None:
+            try:
+                progress_callback(bytes_transferred, total_bytes)
+            except Exception:
+                pass
+
+    # Pass progress_callback to download_file if supported
+    await download_file(
+        client=client,
+        download_request=request,
+        progress_callback=proxy_progress_callback if progress_callback else None
+    )
 
     if expected_md5:  # if md5 not set (should be the case for all except http download)
         actual_md5 = utils.md5_for_file_hex(filename=temp_destination)
@@ -643,6 +731,7 @@ def download_from_url(
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
     progress_bar: Optional[tqdm] = None,
+    progress_callback: Optional[callable] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
@@ -808,14 +897,18 @@ def download_from_url(
                             synapse_client=client,
                         )
                         refreshed_url = response["preSignedURL"]
-                        response = with_retry(
-                            lambda url=refreshed_url, range_header=range_header, auth=auth: client._requests_session.get(
+
+                        def get_request(url=refreshed_url, range_header=range_header, auth=auth): return (
+                            client._requests_session.get(
                                 url=url,
                                 headers=client._generate_headers(range_header),
                                 stream=True,
                                 allow_redirects=False,
                                 auth=auth,
-                            ),
+                            )
+                        )
+                        response = with_retry(
+                            get_request,
                             verbose=client.debug,
                             **STANDARD_RETRY_PARAMS,
                         )
@@ -899,6 +992,12 @@ def download_from_url(
                             increment_progress_bar(
                                 n=len(chunk), progress_bar=progress_bar
                             )
+                            # Call the progress_callback if provided
+                            if progress_callback is not None:
+                                try:
+                                    progress_callback(transferred, to_be_transferred)
+                                except Exception:
+                                    pass
                 except (
                     Exception
                 ) as ex:  # We will add a progress parameter then push it back to retry.

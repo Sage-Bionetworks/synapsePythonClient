@@ -64,6 +64,7 @@ class DownloadRequest(NamedTuple):
 async def download_file(
     client: "Synapse",
     download_request: DownloadRequest,
+    progress_callback: Optional[callable] = None,
 ) -> None:
     """
     Main driver for the multi-threaded download. Users an ExecutorService,
@@ -74,8 +75,14 @@ async def download_file(
         client: A synapseclient
         download_request: A batch of DownloadRequest objects specifying what
                             Synapse files to download
+        progress_callback: Optional callback function to report download progress,
+                          called with (bytes_transferred, total_bytes)
     """
-    downloader = _MultithreadedDownloader(syn=client, download_request=download_request)
+    downloader = _MultithreadedDownloader(
+        syn=client, 
+        download_request=download_request,
+        progress_callback=progress_callback
+    )
     await downloader.download_file()
 
 
@@ -251,20 +258,25 @@ class _MultithreadedDownloader:
         self,
         syn: "Synapse",
         download_request: DownloadRequest,
+        progress_callback: Optional[callable] = None,
     ) -> None:
         """
         Initializes the class
 
         Arguments:
             syn: A synapseclient
-            executor: An ExecutorService that will be used to run part downloads
-                         in separate threads
+            download_request: A download request object specifying the file to download
+            progress_callback: Optional callback function to report download progress,
+                              called with (bytes_transferred, total_bytes)
         """
         self._syn = syn
         self._thread_lock = _threading.Lock()
         self._aborted = False
         self._download_request = download_request
         self._progress_bar = None
+        self._progress_callback = progress_callback
+        self._total_downloaded = 0
+        self._total_size = 0
 
     async def download_file(self) -> None:
         """
@@ -282,6 +294,7 @@ class _MultithreadedDownloader:
             retry_max_wait_before_failure=30,
             read_response_content=False,
         )
+        self._total_size = file_size
         self._progress_bar = get_or_create_download_progress_bar(
             file_size=file_size,
             postfix=self._download_request.object_id,
@@ -454,7 +467,7 @@ class _MultithreadedDownloader:
         self, request: DownloadRequest, chunk: bytes, start: int, length: int
     ) -> None:
         """Open the file and write the chunk to the specified byte range. Also update
-        the progress bar.
+        the progress bar and call the progress callback if provided.
 
         Arguments:
             request: A DownloadRequest object specifying what Synapse file to download
@@ -470,6 +483,15 @@ class _MultithreadedDownloader:
                 file_write.seek(start)
                 file_write.write(chunk)
                 self._update_progress_bar(part_size=length)
+                
+                # Update total downloaded and notify via progress_callback
+                self._total_downloaded += length
+                if self._progress_callback is not None:
+                    try:
+                        self._progress_callback(self._total_downloaded, self._total_size)
+                    except Exception:
+                        # Ignore errors in the progress callback to avoid breaking the download
+                        pass
 
 
 def _execute_stream_and_write_chunk(

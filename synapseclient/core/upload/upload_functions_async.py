@@ -35,6 +35,7 @@ async def upload_file_handle(
     md5: str = None,
     file_size: int = None,
     mimetype: str = None,
+    progress_callback: Optional[callable] = None,
 ) -> Dict[str, Union[str, int]]:
     """
     Uploads the file in the provided path (if necessary) to a storage location based
@@ -253,6 +254,7 @@ async def upload_synapse_s3(
     force_restart: bool = False,
     md5: str = None,
     storage_str: str = None,
+    progress_callback: Optional[callable] = None,
 ) -> Dict[str, Union[str, int]]:
     """Upload a file to Synapse storage and create a file handle in Synapse.
 
@@ -268,18 +270,63 @@ async def upload_synapse_s3(
     Returns:
         A dictionary of the file handle.
     """
-    file_handle_id = await multipart_upload_file_async(
-        syn=syn,
-        file_path=file_path,
-        content_type=mimetype,
-        storage_location_id=storage_location_id,
-        md5=md5,
-        force_restart=force_restart,
-        storage_str=storage_str,
-    )
-    syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
+    from synapseclient.core.telemetry_integration import monitored_transfer
 
-    return await get_file_handle(file_handle_id=file_handle_id, synapse_client=syn)
+    # Get file size for telemetry tracking
+    file_size = os.path.getsize(file_path)
+
+    # Create a descriptive destination string
+    destination = f"synapse:s3:{storage_location_id if storage_location_id else 'default'}"
+
+    # Use monitored_transfer for OpenTelemetry tracing
+    with monitored_transfer(
+        operation="upload",
+        file_path=file_path,
+        file_size=file_size,
+        destination=destination,
+        with_progress_bar=False,  # Progress is handled by multipart upload
+        mime_type=mimetype,
+        md5=md5,
+        multipart=True,
+        storage_location_id=storage_location_id,
+        force_restart=force_restart,
+    ) as monitor:
+        try:
+            # Track if an actual transfer occurs
+            initial_transferred_bytes = monitor.transferred_bytes
+            
+            file_handle_id = await multipart_upload_file_async(
+                syn=syn,
+                file_path=file_path,
+                content_type=mimetype,
+                storage_location_id=storage_location_id,
+                md5=md5,
+                force_restart=force_restart,
+                storage_str=storage_str,
+                progress_callback=progress_callback,
+            )
+            
+            # Check if any bytes were actually transferred during the operation
+            # If no bytes were transferred (e.g., file exists and hasn't changed),
+            # set transferred_bytes, bandwidth_mbps, and transfer_size_bytes to 0 to indicate no actual transfer occurred
+            if monitor.transferred_bytes == initial_transferred_bytes:
+                monitor.transferred_bytes = 0
+                monitor.span.set_attribute("synapse.transfer.bandwidth_mbps", 0)
+                monitor.span.set_attribute("synapse.file.transfer_size_bytes", 0)
+            else:
+                # Only set to file_size if actual transfer happened
+                monitor.transferred_bytes = file_size
+                
+            # Cache the file
+            syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
+            # Add file handle ID to span
+            monitor.span.set_attribute("synapse.file_handle_id", file_handle_id)
+            # Get and return the file handle
+            file_handle = await get_file_handle(file_handle_id=file_handle_id, synapse_client=syn)
+            return file_handle
+        except Exception as ex:
+            monitor.record_retry(error=ex)
+            raise
 
 
 def _get_aws_credentials() -> None:
