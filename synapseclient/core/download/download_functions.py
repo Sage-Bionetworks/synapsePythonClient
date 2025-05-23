@@ -7,6 +7,7 @@ import hashlib
 import os
 import shutil
 import sys
+import threading
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
@@ -533,6 +534,27 @@ async def download_by_file_handle(
                     concrete_type=concrete_type
                 ) as monitor:
                     try:
+                        # Create a thread-safe progress callback that properly tracks delta
+                        def multi_thread_progress_callback(bytes_transferred, total_bytes):
+                            # Use a thread local storage to track last bytes per thread
+                            thread_id = threading.get_ident()
+                            with monitor._lock:  # Use monitor's lock for thread safety
+                                if not hasattr(monitor, '_thread_bytes'):
+                                    # Initialize thread-local storage for byte tracking
+                                    monitor._thread_bytes = {}
+
+                                # Calculate bytes transferred since last update for this thread
+                                last_bytes = monitor._thread_bytes.get(thread_id, 0)
+                                bytes_delta = bytes_transferred - last_bytes
+
+                                # Only update if we have actual progress
+                                if bytes_delta > 0:
+                                    # Store the new value for next comparison
+                                    monitor._thread_bytes[thread_id] = bytes_transferred
+                                    # Update the monitor with the bytes transferred in this update
+                                    # (update method has its own lock)
+                                    monitor.update(bytes_delta)
+
                         downloaded_path = await download_from_url_multi_threaded(
                             file_handle_id=file_handle_id,
                             object_id=synapse_id,
@@ -540,9 +562,7 @@ async def download_by_file_handle(
                             destination=destination,
                             expected_md5=actual_md5,
                             synapse_client=syn,
-                            progress_callback=lambda bytes_transferred, total_bytes: monitor.update(
-                                bytes_transferred - getattr(monitor, '_last_transferred_bytes', 0)
-                            ) if hasattr(monitor, '_last_transferred_bytes') else setattr(monitor, '_last_transferred_bytes', bytes_transferred)
+                            progress_callback=multi_thread_progress_callback
                         )
                         # Update the monitor with the result
                         monitor.transferred_bytes = actual_file_size

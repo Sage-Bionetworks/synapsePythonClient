@@ -525,6 +525,7 @@ class TransferMonitor:
     """
     Helper class to track progress during file transfers.
     Separates metrics collection from trace data.
+    Thread-safe for multi-threaded environments.
     """
 
     def __init__(
@@ -553,6 +554,11 @@ class TransferMonitor:
         self.metric_attributes = metric_attributes or {}
         self._events = []
 
+        # Thread lock for safe updates in multi-threaded environments
+        self._lock = threading.RLock()
+        # Dictionary to track per-thread byte progress
+        self._thread_bytes = {}
+
         # For tracking throughput statistics
         self._throughput_window_size = 10  # Number of recent updates to track
         self._throughput_samples = deque(maxlen=self._throughput_window_size)
@@ -570,31 +576,32 @@ class TransferMonitor:
         if bytes_count <= 0:
             return
 
-        # Update internal counter
-        self.transferred_bytes += bytes_count
+        with self._lock:
+            # Update internal counter
+            self.transferred_bytes += bytes_count
 
-        # Update progress bar if available
-        if self.progress_bar:
-            self.progress_bar.update(bytes_count)
+            # Update progress bar if available
+            if self.progress_bar:
+                self.progress_bar.update(bytes_count)
 
-        # Calculate throughput for this update
-        current_time = time.time()
-        time_delta = current_time - self._last_update_time
+            # Calculate throughput for this update
+            current_time = time.time()
+            time_delta = current_time - self._last_update_time
 
-        if time_delta > 0:
-            # Only record throughput if time has passed
-            throughput_mbps = (bytes_count / 1_000_000) / time_delta
-            self._throughput_samples.append(throughput_mbps)
+            if time_delta > 0:
+                # Only record throughput if time has passed
+                throughput_mbps = (bytes_count / 1_000_000) / time_delta
+                self._throughput_samples.append(throughput_mbps)
 
-            # Update metrics in real-time
-            transfer_bytes_counter.add(bytes_count, self.metric_attributes)
+                # Update metrics in real-time
+                transfer_bytes_counter.add(bytes_count, self.metric_attributes)
 
-            # Record trace data
-            self._record_trace_progress(bytes_count)
+                # Record trace data
+                self._record_trace_progress(bytes_count)
 
-        # Update state for next calculation
-        self._last_update_time = current_time
-        self._last_bytes = bytes_count
+            # Update state for next calculation
+            self._last_update_time = current_time
+            self._last_bytes = bytes_count
 
     def _record_trace_progress(self, bytes_count: int):
         """
@@ -616,9 +623,10 @@ class TransferMonitor:
         """
         Update the progress percentage attribute in the span.
         """
-        if self.total_size and self.total_size > 0:
-            progress_percent = min(100.0, (self.transferred_bytes / self.total_size) * 100)
-            self.span.set_attribute("synapse.transfer.progress_percent", progress_percent)
+        with self._lock:
+            if self.total_size and self.total_size > 0:
+                progress_percent = min(100.0, (self.transferred_bytes / self.total_size) * 100)
+                self.span.set_attribute("synapse.transfer.progress_percent", progress_percent)
 
     def set_chunks_info(self, total_chunks: int):
         """
@@ -627,28 +635,30 @@ class TransferMonitor:
         Args:
             total_chunks: Total number of chunks to transfer
         """
-        self.chunks_total = total_chunks
-        self.span.set_attribute("synapse.transfer.chunks_total", total_chunks)
+        with self._lock:
+            self.chunks_total = total_chunks
+            self.span.set_attribute("synapse.transfer.chunks_total", total_chunks)
 
     def chunk_completed(self):
         """Mark a chunk as completed in a multipart transfer."""
-        self.chunks_completed += 1
+        with self._lock:
+            self.chunks_completed += 1
 
-        # Update metrics
-        chunk_counter.add(1, self.metric_attributes)
+            # Update metrics
+            chunk_counter.add(1, self.metric_attributes)
 
-        # Update trace attributes
-        self.span.set_attribute("synapse.transfer.chunks_completed", self.chunks_completed)
+            # Update trace attributes
+            self.span.set_attribute("synapse.transfer.chunks_completed", self.chunks_completed)
 
-        # Update progress percentage based on chunks if available
-        if self.chunks_total > 0:
-            chunk_progress = (self.chunks_completed / self.chunks_total) * 100
-            self.span.set_attribute("synapse.transfer.chunks_progress_percent", chunk_progress)
+            # Update progress percentage based on chunks if available
+            if self.chunks_total > 0:
+                chunk_progress = (self.chunks_completed / self.chunks_total) * 100
+                self.span.set_attribute("synapse.transfer.chunks_progress_percent", chunk_progress)
 
-        self._add_event("chunk_completed", {
-            "chunk_number": self.chunks_completed,
-            "chunks_total": self.chunks_total
-        })
+            self._add_event("chunk_completed", {
+                "chunk_number": self.chunks_completed,
+                "chunks_total": self.chunks_total
+            })
 
     def chunk_retry(self, chunk_number: int, error: Optional[Exception] = None):
         """
@@ -658,18 +668,19 @@ class TransferMonitor:
             chunk_number: The chunk number that failed
             error: Optional exception that caused the retry
         """
-        # Update metrics
-        retry_attributes = dict(self.metric_attributes)
-        if error:
-            retry_attributes["error_type"] = type(error).__name__
-        chunk_retry_counter.add(1, retry_attributes)
+        with self._lock:
+            # Update metrics
+            retry_attributes = dict(self.metric_attributes)
+            if error:
+                retry_attributes["error_type"] = type(error).__name__
+            chunk_retry_counter.add(1, retry_attributes)
 
-        event_attrs = {"chunk_number": chunk_number}
-        if error:
-            event_attrs["error"] = str(error)
-            event_attrs["error_type"] = type(error).__name__
+            event_attrs = {"chunk_number": chunk_number}
+            if error:
+                event_attrs["error"] = str(error)
+                event_attrs["error_type"] = type(error).__name__
 
-        self._add_event("chunk_retry", event_attrs)
+            self._add_event("chunk_retry", event_attrs)
 
     def record_retry(self, error: Optional[Exception] = None):
         """
@@ -678,23 +689,24 @@ class TransferMonitor:
         Args:
             error: Optional exception that caused the retry
         """
-        self.retry_count += 1
+        with self._lock:
+            self.retry_count += 1
 
-        # Update metrics
-        retry_attributes = dict(self.metric_attributes)
-        if error:
-            retry_attributes["error_type"] = type(error).__name__
-        retry_counter.add(1, retry_attributes)
+            # Update metrics
+            retry_attributes = dict(self.metric_attributes)
+            if error:
+                retry_attributes["error_type"] = type(error).__name__
+            retry_counter.add(1, retry_attributes)
 
-        # Update trace attributes
-        self.span.set_attribute("synapse.operation.retry_count", self.retry_count)
+            # Update trace attributes
+            self.span.set_attribute("synapse.operation.retry_count", self.retry_count)
 
-        event_attrs = {"retry_number": self.retry_count}
-        if error:
-            event_attrs["error"] = str(error)
-            event_attrs["error_type"] = type(error).__name__
+            event_attrs = {"retry_number": self.retry_count}
+            if error:
+                event_attrs["error"] = str(error)
+                event_attrs["error_type"] = type(error).__name__
 
-        self._add_event("transfer_retry", event_attrs)
+            self._add_event("transfer_retry", event_attrs)
 
     def record_cache_hit(self, hit: bool = True):
         """
@@ -703,90 +715,68 @@ class TransferMonitor:
         Args:
             hit: Whether the cache was hit (True) or missed (False)
         """
-        self.span.set_attribute("synapse.cache.hit", hit)
+        with self._lock:
+            self.span.set_attribute("synapse.cache.hit", hit)
 
-        # Record in metrics
-        cache_attributes = dict(self.metric_attributes)
-        cache_attributes["cache_hit"] = hit
-        cache_counter.add(1, cache_attributes)
+            # Record in metrics
+            cache_attributes = dict(self.metric_attributes)
+            cache_attributes["cache_hit"] = hit
+            cache_counter.add(1, cache_attributes)
 
-        self._add_event("cache_access", {"hit": hit})
+            self._add_event("cache_access", {"hit": hit})
 
     def record_final_statistics(self):
         """
         Record final throughput statistics at the end of the transfer.
         """
-        if not self._throughput_samples:
-            return
+        with self._lock:
+            if not self._throughput_samples:
+                return
 
-        # Calculate statistics only if we have samples
-        try:
-            avg_throughput = sum(self._throughput_samples) / len(self._throughput_samples)
-            max_throughput = max(self._throughput_samples)
-            min_throughput = min(self._throughput_samples)
+            # Calculate statistics only if we have samples
+            try:
+                avg_throughput = sum(self._throughput_samples) / len(self._throughput_samples)
+                max_throughput = max(self._throughput_samples)
+                min_throughput = min(self._throughput_samples)
 
-            # Record in trace for detailed analysis
-            self.span.set_attribute("synapse.transfer.throughput.avg_mbps", avg_throughput)
-            self.span.set_attribute("synapse.transfer.throughput.max_mbps", max_throughput)
-            self.span.set_attribute("synapse.transfer.throughput.min_mbps", min_throughput)
+                # Record in trace for detailed analysis
+                self.span.set_attribute("synapse.transfer.throughput.avg_mbps", avg_throughput)
+                self.span.set_attribute("synapse.transfer.throughput.max_mbps", max_throughput)
+                self.span.set_attribute("synapse.transfer.throughput.min_mbps", min_throughput)
 
-            if len(self._throughput_samples) >= 2:
-                # Only calculate standard deviation if we have multiple samples
-                stdev = statistics.stdev(self._throughput_samples)
-                self.span.set_attribute("synapse.transfer.throughput.stdev_mbps", stdev)
+                if len(self._throughput_samples) >= 2:
+                    # Only calculate standard deviation if we have multiple samples
+                    stdev = statistics.stdev(self._throughput_samples)
+                    self.span.set_attribute("synapse.transfer.throughput.stdev_mbps", stdev)
 
-                # Calculate jitter (variability)
-                jitter = stdev / avg_throughput if avg_throughput > 0 else 0
-                self.span.set_attribute("synapse.transfer.throughput.jitter", jitter)
+                    # Calculate jitter (variability)
+                    jitter = stdev / avg_throughput if avg_throughput > 0 else 0
+                    self.span.set_attribute("synapse.transfer.throughput.jitter", jitter)
 
-                # Calculate and record percentiles
-                sorted_samples = sorted(self._throughput_samples)
-                median = sorted_samples[len(sorted_samples) // 2]
-                self.span.set_attribute("synapse.transfer.throughput.median_mbps", median)
+                    # Calculate and record percentiles
+                    sorted_samples = sorted(self._throughput_samples)
+                    median = sorted_samples[len(sorted_samples) // 2]
+                    self.span.set_attribute("synapse.transfer.throughput.median_mbps", median)
 
-                # Record 95th percentile if we have enough samples
-                if len(sorted_samples) >= 5:
-                    p95_index = int(len(sorted_samples) * 0.95)
-                    p95 = sorted_samples[p95_index]
-                    self.span.set_attribute("synapse.transfer.throughput.p95_mbps", p95)
-
-        except (ValueError, ZeroDivisionError, statistics.StatisticsError):
-            # Catch specific calculation errors
-            pass
-
-    def set_http_attributes(self, method: str, status_code: int, route: Optional[str] = None):
-        """
-        Set HTTP method and status code attributes.
-
-        Args:
-            method: HTTP method (GET, POST, PUT, DELETE, etc.)
-            status_code: HTTP status code (200, 404, 500, etc.)
-            route: API endpoint pattern (not full URL)
-        """
-        self.span.set_attribute("http.method", method)
-        self.span.set_attribute("http.status_code", status_code)
-        if route:
-            self.span.set_attribute("http.route", route)
-
-    def set_storage_provider(self, provider: str):
-        """
-        Set the storage provider attribute.
-
-        Args:
-            provider: Storage provider (S3, SFTP, Azure, GCS, Local)
-        """
-        self.span.set_attribute("synapse.storage.provider", provider)
-
-        # Update metric attributes for future metrics
-        self.metric_attributes["storage_provider"] = provider
+                    # Record 95th percentile if we have enough samples
+                    if len(sorted_samples) >= 5:
+                        p95_index = int(len(sorted_samples) * 0.95)
+                        p95 = sorted_samples[p95_index]
+                        self.span.set_attribute("synapse.transfer.throughput.p95_mbps", p95)
+            except Exception:
+                # Don't fail the transfer if statistics calculation fails
+                pass
 
     def _add_event(self, name: str, attributes: Dict[str, Any]):
         """
-        Add an event to the span with the given name and attributes.
+        Add a timestamped event to the span.
 
         Args:
-            name: Name of the event
-            attributes: Attributes to add to the event
+            name: Event name
+            attributes: Event attributes dictionary
         """
+        # Store events for potential later analysis
+        self._events.append((name, attributes))
+
+        # Add to trace
         self.span.add_event(name, attributes)
-        self._events.append({"name": name, "attributes": attributes})
