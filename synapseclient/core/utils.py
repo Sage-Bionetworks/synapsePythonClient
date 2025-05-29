@@ -79,6 +79,7 @@ def md5_for_file(
         The MD5 Checksum
     """
     loop_iteration = 0
+    data_read = 0
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     with open(filename, "rb") as f:
         while True:
@@ -93,12 +94,17 @@ def md5_for_file(
                     progress_bar.close()
                 break
             md5.update(data)
+            data_length = len(data)
+            data_read += data_length
             if progress_bar:
-                progress_bar.update(len(data))
+                progress_bar.update(data_length)
             del data
             # Garbage collect every 100 iterations
             if loop_iteration % 100 == 0:
                 gc.collect()
+
+    trace.get_current_span().add_event("md5_complete", {"size": data_read})
+
     return md5
 
 
@@ -135,6 +141,7 @@ def md5_fn(part, _) -> str:
     """
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     md5.update(part)
+    trace.get_current_span().add_event("md5_complete", {"size": len(part)})
     return md5.hexdigest()
 
 
