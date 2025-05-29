@@ -97,7 +97,6 @@ class UploadAttempt:
         md5_fn,
         max_threads: int,
         force_restart: bool,
-        progress_callback: callable = None,
     ):
         self._syn = syn
         self._dest_file_name = dest_file_name
@@ -110,7 +109,6 @@ class UploadAttempt:
 
         self._max_threads = max_threads
         self._force_restart = force_restart
-        self._progress_callback = progress_callback
 
         self._lock = threading.Lock()
         self._aborted = False
@@ -363,16 +361,7 @@ class UploadAttempt:
                         dt=time.time() - time_upload_started,
                         previouslyTransferred=previously_transferred,
                     )
-                    
-                    # Update total uploaded and notify via progress_callback
-                    with self._lock:
-                        self._total_uploaded += part_size
-                        if self._progress_callback is not None:
-                            try:
-                                self._progress_callback(min(self._total_uploaded, self._total_size), self._total_size)
-                            except Exception:
-                                # Ignore errors in the progress callback to avoid breaking the upload
-                                pass
+
             except (Exception, KeyboardInterrupt) as cause:
                 with self._lock:
                     self._aborted = True
@@ -437,7 +426,6 @@ def multipart_upload_file(
     force_restart: bool = False,
     max_threads: int = None,
     md5: str = None,
-    progress_callback: callable = None,
 ) -> str:
     """Upload a file to a Synapse upload destination in chunks.
 
@@ -676,7 +664,6 @@ def _multipart_upload(
     md5_fn,
     force_restart: bool = False,
     max_threads: int = None,
-    progress_callback: callable = None,
 ):
     """Calls upon an [UploadAttempt][synapseclient.core.upload.multipart_upload.UploadAttempt]
     object to initiate and/or retry a multipart file upload or copy. This function is wrapped by
@@ -693,8 +680,6 @@ def _multipart_upload(
         part_fn: Function to calculate the partSize of each part
         md5_fn: Function to calculate the MD5 of the file-like object
         max_threads: number of concurrent threads to devote to upload.
-        progress_callback: Optional callback function to report upload progress,
-                          called with (bytes_transferred, total_bytes)
 
     Returns:
         A File Handle ID
@@ -719,7 +704,6 @@ def _multipart_upload(
                 # a retry after a caught exception will not restart the upload
                 # from scratch.
                 force_restart and retry == 0,
-                progress_callback=progress_callback,
             )()
 
             # success
