@@ -40,7 +40,7 @@ from synapseclient.core.exceptions import (
     SynapseMd5MismatchError,
 )
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from synapseclient.core.telemetry_integration import monitored_transfer
+from synapseclient.core.telemetry_integration import TransferMonitor, monitored_transfer
 from synapseclient.core.retry import (
     DEFAULT_RETRY_STATUS_CODES,
     RETRYABLE_CONNECTION_ERRORS,
@@ -53,6 +53,8 @@ from synapseclient.core.transfer_bar import (
     increment_progress_bar,
     increment_progress_bar_total,
 )
+from synapseclient.core.telemetry_integration import monitored_transfer
+from opentelemetry import trace
 from synapseclient.core.utils import MB
 
 if TYPE_CHECKING:
@@ -204,7 +206,7 @@ async def download_file_entity_model(
     synapse_client: Optional["Synapse"] = None,
 ) -> None:
     """
-    Download file entity
+    Download file entity with comprehensive telemetry tracking.
 
     Arguments:
         download_location: The location on disk where the entity will be downloaded. If
@@ -225,88 +227,166 @@ async def download_file_entity_model(
     """
     from synapseclient import Synapse
 
-    client = Synapse.get_client(synapse_client=synapse_client)
-    # set the initial local state
-    file.path = None
+    # Get metadata for monitoring
+    file_size = file.file_handle.content_size if file.file_handle and hasattr(file.file_handle, 'content_size') else 0
+    mime_type = file.file_handle.content_type if file.file_handle and hasattr(
+        file.file_handle, 'content_type') else None
+    file_name = file.file_handle.file_name if file.file_handle and hasattr(file.file_handle, 'file_name') else None
 
-    # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
-    # this location could be either in .synapseCache or a user specified location to which the user previously
-    # downloaded the file
-    cached_file_path = client.cache.get(
-        file_handle_id=file.data_file_handle_id, path=download_location
-    )
+    # Create a monitored transfer context that will be used throughout the function
+    with monitored_transfer(
+        operation="download_file",
+        file_path=download_location or "",
+        file_size=file_size,
+        destination=f"synapse:{file.id}",
+        syn_id=file.id,
+        with_progress_bar=False,  # Progress bars will be handled separately
+        mime_type=mime_type,
+        file_version=file.versionNumber if hasattr(file, 'versionNumber') else None,
+        concrete_type=file.file_handle.concreteType if file.file_handle and hasattr(
+            file.file_handle, 'concreteType') else None,
+    ) as monitor:
+        try:
+            # Add file metadata to span
+            if file_name:
+                monitor.span.set_attribute("synapse.file.name", file_name)
+            if file_size:
+                monitor.span.set_attribute("synapse.file.size_bytes", file_size)
+            if mime_type:
+                monitor.span.set_attribute("synapse.file.mime_type", mime_type)
 
-    # location in .synapseCache where the file would be corresponding to its FileHandleId
-    synapse_cache_location = client.cache.get_cache_dir(
-        file_handle_id=file.data_file_handle_id
-    )
+            client = Synapse.get_client(synapse_client=synapse_client)
+            # set the initial local state
+            file.path = None
 
-    file_name = (
-        file.file_handle.file_name
-        if cached_file_path is None
-        else os.path.basename(cached_file_path)
-    )
-
-    # Decide the best download location for the file
-    if download_location is not None:
-        # Make sure the specified download location is a fully resolved directory
-        download_location = ensure_download_location_is_directory(download_location)
-    elif cached_file_path is not None:
-        # file already cached so use that as the download location
-        download_location = os.path.dirname(cached_file_path)
-    else:
-        # file not cached and no user-specified location so default to .synapseCache
-        download_location = synapse_cache_location
-
-    # resolve file path collisions by either overwriting, renaming, or not downloading, depending on the
-    # ifcollision value
-    download_path = resolve_download_path_collisions(
-        download_location=download_location,
-        file_name=file_name,
-        if_collision=if_collision,
-        synapse_cache_location=synapse_cache_location,
-        cached_file_path=cached_file_path,
-        entity_id=file.id,
-        synapse_client=client,
-    )
-    if download_path is None:
-        return
-
-    if cached_file_path is not None:  # copy from cache
-        if download_path != cached_file_path:
-            # create the foider if it does not exist already
-            if not os.path.exists(download_location):
-                os.makedirs(download_location)
-            client.logger.info(
-                f"[{file.id}:{file_name}]: Copying existing file from {cached_file_path} to {download_path}"
-            )
-            shutil.copy(cached_file_path, download_path)
-        else:
-            client.logger.info(
-                f"[{file.id}:{file_name}]: Found existing file at {download_path}, skipping download."
+            # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
+            # this location could be either in .synapseCache or a user specified location to which the user previously
+            # downloaded the file
+            cached_file_path = client.cache.get(
+                file_handle_id=file.data_file_handle_id, path=download_location
             )
 
-    else:  # download the file from URL (could be a local file)
-        object_type = "FileEntity" if submission is None else "SubmissionAttachment"
-        object_id = file.id if submission is None else submission
+            # Record cache access (hit or miss)
+            monitor.record_cache_hit(cached_file_path is not None)
 
-        # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
-        # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
-        # _downloadFileHandle may also return None to indicate that the download failed
-        with logging_redirect_tqdm(loggers=[client.logger]):
-            download_path = await download_by_file_handle(
-                file_handle_id=file.data_file_handle_id,
-                synapse_id=object_id,
-                entity_type=object_type,
-                destination=download_path,
+            # location in .synapseCache where the file would be corresponding to its FileHandleId
+            synapse_cache_location = client.cache.get_cache_dir(
+                file_handle_id=file.data_file_handle_id
+            )
+
+            file_name = (
+                file.file_handle.file_name
+                if cached_file_path is None
+                else os.path.basename(cached_file_path)
+            )
+
+            # Decide the best download location for the file
+            if download_location is not None:
+                # Make sure the specified download location is a fully resolved directory
+                download_location = ensure_download_location_is_directory(download_location)
+            elif cached_file_path is not None:
+                # file already cached so use that as the download location
+                download_location = os.path.dirname(cached_file_path)
+            else:
+                # file not cached and no user-specified location so default to .synapseCache
+                download_location = synapse_cache_location
+
+            # resolve file path collisions by either overwriting, renaming, or not downloading, depending on the
+            # ifcollision value
+            download_path = resolve_download_path_collisions(
+                download_location=download_location,
+                file_name=file_name,
+                if_collision=if_collision,
+                synapse_cache_location=synapse_cache_location,
+                cached_file_path=cached_file_path,
+                entity_id=file.id,
                 synapse_client=client,
             )
 
-        if download_path is None or not os.path.exists(download_path):
-            return
+            # If download_path is None, file was skipped due to collision policy (keep.local)
+            if download_path is None:
+                monitor.span.set_attribute("synapse.transfer.status", "skipped")
+                monitor.span.set_attribute("synapse.transfer.skip_reason", "collision_policy")
+                return
 
-    # converts the path format from forward slashes back to backward slashes on Windows
-    file.path = os.path.normpath(download_path)
+            if cached_file_path is not None:  # copy from cache
+                if download_path != cached_file_path:
+                    # create the folder if it does not exist already
+                    if not os.path.exists(download_location):
+                        os.makedirs(download_location)
+                    client.logger.info(
+                        f"[{file.id}:{file_name}]: Copying existing file from {cached_file_path} to {download_path}"
+                    )
+                    try:
+                        shutil.copy(cached_file_path, download_path)
+                        # Record successful copy from cache
+                        monitor.update(file_size)  # Mark the entire file as transferred at once
+                        monitor.span.set_attribute("synapse.transfer.source", "cache_copy")
+                        monitor.span.set_attribute("synapse.transfer.status", "completed")
+                    except Exception as e:
+                        # Record copy failure
+                        monitor.span.set_attribute("synapse.transfer.status", "failed")
+                        monitor.span.set_attribute("synapse.transfer.error_message", str(e))
+                        monitor.span.set_attribute("synapse.transfer.error_type", type(e).__name__)
+                        raise
+                else:
+                    client.logger.info(
+                        f"[{file.id}:{file_name}]: Found existing file at {download_path}, skipping download."
+                    )
+                    monitor.span.set_attribute("synapse.transfer.source", "cache_reuse")
+                    monitor.span.set_attribute("synapse.transfer.status", "completed")
+
+            else:  # download the file from URL (could be a local file)
+                # Set download source attribute
+                monitor.span.set_attribute("synapse.transfer.source", "remote_download")
+
+                object_type = "FileEntity" if submission is None else "SubmissionAttachment"
+                object_id = file.id if submission is None else submission
+
+                # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
+                # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
+                # _downloadFileHandle may also return None to indicate that the download failed
+                try:
+                    with logging_redirect_tqdm(loggers=[client.logger]):
+                        download_path = await download_by_file_handle(
+                            file_handle_id=file.data_file_handle_id,
+                            synapse_id=object_id,
+                            entity_type=object_type,
+                            destination=download_path,
+                            transfer_monitor=monitor,
+                            synapse_client=client,
+                        )
+
+                    if download_path is None or not os.path.exists(download_path):
+                        monitor.span.set_attribute("synapse.transfer.status", "failed")
+                        monitor.span.set_attribute("synapse.transfer.error_message",
+                                                   "Download failed - no file created")
+                        return
+
+                    # Verify the downloaded file size matches expected size if available
+                    if file_size > 0 and os.path.getsize(download_path) != file_size:
+                        monitor.span.set_attribute("synapse.transfer.status", "failed")
+                        monitor.span.set_attribute("synapse.transfer.error_message", "Downloaded file size mismatch")
+                        return
+
+                    # Mark successful download
+                    monitor.span.set_attribute("synapse.transfer.status", "completed")
+                except Exception as e:
+                    # Record download failure with specific error
+                    monitor.span.set_attribute("synapse.transfer.status", "failed")
+                    monitor.span.set_attribute("synapse.transfer.error_message", str(e))
+                    monitor.span.set_attribute("synapse.transfer.error_type", type(e).__name__)
+                    raise
+
+            # converts the path format from forward slashes back to backward slashes on Windows
+            file.path = os.path.normpath(download_path)
+
+        except Exception as e:
+            # Ensure we record errors in the telemetry
+            monitor.span.set_attribute("synapse.transfer.status", "failed")
+            monitor.span.set_attribute("synapse.transfer.error_message", str(e))
+            monitor.span.set_attribute("synapse.transfer.error_type", type(e).__name__)
+            raise
 
 
 def _get_aws_credentials() -> None:
@@ -323,6 +403,7 @@ async def download_by_file_handle(
     destination: str,
     retries: int = 5,
     *,
+    transfer_monitor: TransferMonitor = None,
     synapse_client: Optional["Synapse"] = None,
 ) -> str:
     """
@@ -424,242 +505,375 @@ async def download_by_file_handle(
     os.makedirs(os.path.dirname(destination), exist_ok=True)
     attempts = 0
 
-    while retries > 0:
-        attempts += 1
-        try:
-            file_handle_result: Dict[
-                str, str
-            ] = await get_file_handle_for_download_async(
-                file_handle_id=file_handle_id,
-                synapse_id=synapse_id,
-                entity_type=entity_type,
-                synapse_client=syn,
-            )
-            file_handle = file_handle_result["fileHandle"]
-            concrete_type = file_handle["concreteType"]
-            storage_location_id = file_handle.get("storageLocationId")
+    # Create a top-level monitoring span for this download attempt that will track all retries
+    # We'll set detailed properties on this later when we know more about the file
+    with monitored_transfer(
+        operation="download_by_filehandle",
+        file_path=destination,
+        file_size=0,  # We'll update this once we get file metadata
+        destination=f"synapse:{synapse_id}",
+        syn_id=synapse_id,
+        with_progress_bar=False,  # Progress bars are handled separately
+        attempts_allowed=retries,
+        reuse_monitor=transfer_monitor,
+    ) as top_monitor:
+        # Set basic properties we already know
+        top_monitor.span.set_attribute("synapse.file_handle.id", file_handle_id)
+        top_monitor.span.set_attribute("synapse.entity.id", synapse_id)
+        top_monitor.span.set_attribute("synapse.entity.type", entity_type)
 
-            actual_file_size = file_handle.get("contentSize", 0)
-            actual_mime_type = file_handle.get("contentType", None)
-            actual_md5 = file_handle.get("contentMd5")
+        while retries > 0:
+            attempts += 1
+            top_monitor.span.set_attribute("synapse.transfer.attempt", attempts)
 
-            if concrete_type == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
-                profile = get_client_authenticated_s3_profile(
-                    endpoint=file_handle["endpointUrl"],
-                    bucket=file_handle["bucket"],
-                    config_path=syn.configPath,
+            try:
+                file_handle_result: Dict[
+                    str, str
+                ] = await get_file_handle_for_download_async(
+                    file_handle_id=file_handle_id,
+                    synapse_id=synapse_id,
+                    entity_type=entity_type,
+                    synapse_client=syn,
                 )
+                file_handle = file_handle_result["fileHandle"]
+                concrete_type = file_handle["concreteType"]
+                storage_location_id = file_handle.get("storageLocationId")
 
-                progress_bar = get_or_create_download_progress_bar(
-                    file_size=1, postfix=synapse_id, synapse_client=syn
-                )
-                loop = asyncio.get_running_loop()
-                downloaded_path = await loop.run_in_executor(
-                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
-                    lambda: S3ClientWrapper.download_file(
+                actual_file_size = file_handle.get("contentSize", 0)
+                actual_mime_type = file_handle.get("contentType", None)
+                actual_md5 = file_handle.get("contentMd5")
+
+                # Update the monitor with file metadata now that we have it
+                top_monitor.file_size = actual_file_size
+                if actual_file_size:
+                    top_monitor.span.set_attribute("synapse.file.size_bytes", actual_file_size)
+                if actual_mime_type:
+                    top_monitor.span.set_attribute("synapse.file.mime_type", actual_mime_type)
+                top_monitor.span.set_attribute("synapse.file_handle.concrete_type", concrete_type)
+                if storage_location_id:
+                    top_monitor.span.set_attribute("synapse.storage_location.id", storage_location_id)
+
+                if concrete_type == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
+                    # Set download type for telemetry
+                    top_monitor.span.set_attribute("synapse.download.type", "external_object_store")
+
+                    profile = get_client_authenticated_s3_profile(
+                        endpoint=file_handle["endpointUrl"],
                         bucket=file_handle["bucket"],
-                        endpoint_url=file_handle["endpointUrl"],
-                        remote_file_key=file_handle["fileKey"],
-                        download_file_path=destination,
-                        profile_name=profile,
-                        credentials=_get_aws_credentials(),
-                        progress_bar=progress_bar,
-                    ),
-                )
-
-            elif (
-                sts_transfer.is_boto_sts_transfer_enabled(syn=syn)
-                and await sts_transfer.is_storage_location_sts_enabled_async(
-                    syn=syn, entity_id=synapse_id, location=storage_location_id
-                )
-                and concrete_type == concrete_types.S3_FILE_HANDLE
-            ):
-                progress_bar = get_or_create_download_progress_bar(
-                    file_size=1, postfix=synapse_id, synapse_client=syn
-                )
-
-                def download_fn(
-                    credentials: Dict[str, str],
-                    file_handle: Dict[str, str] = file_handle,
-                ) -> str:
-                    """Use the STS credentials to download the file from S3.
-
-                    Arguments:
-                        credentials: The STS credentials
-
-                    Returns:
-                        The path to the downloaded file
-                    """
-                    return S3ClientWrapper.download_file(
-                        bucket=file_handle["bucketName"],
-                        endpoint_url=None,
-                        remote_file_key=file_handle["key"],
-                        download_file_path=destination,
-                        credentials=credentials,
-                        progress_bar=progress_bar,
-                        # pass through our synapse threading config to boto s3
-                        transfer_config_kwargs={"max_concurrency": syn.max_threads},
+                        config_path=syn.configPath,
                     )
 
-                loop = asyncio.get_running_loop()
-                downloaded_path = await loop.run_in_executor(
-                    syn._get_thread_pool_executor(asyncio_event_loop=loop),
-                    lambda: sts_transfer.with_boto_sts_credentials(
-                        download_fn, syn, synapse_id, "read_only"
-                    ),
-                )
-
-            elif (
-                syn.multi_threaded
-                and concrete_type == concrete_types.S3_FILE_HANDLE
-                and file_handle.get("contentSize", 0)
-                > SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
-            ):
-                # run the download multi threaded if the file supports it, we're configured to do so,
-                # and the file is large enough that it would be broken into parts to take advantage of
-                # multiple downloading threads. otherwise it's more efficient to run the download as a simple
-                # single threaded URL download.
-                with monitored_transfer(
-                    operation="download",
-                    file_path=destination,
-                    file_size=actual_file_size,
-                    destination=f"synapse:{synapse_id}",
-                    syn_id=synapse_id,
-                    with_progress_bar=False,  # progress bar is handled by the download function
-                    mime_type=actual_mime_type,
-                    md5=actual_md5,
-                    multipart=True,
-                    chunk_size=SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
-                    attempts=attempts,
-                    concrete_type=concrete_type
-                ) as monitor:
-                    try:
-                        # Create a thread-safe progress callback that properly tracks delta
-                        def multi_thread_progress_callback(bytes_transferred, total_bytes):
-                            # Use a thread local storage to track last bytes per thread
-                            thread_id = threading.get_ident()
-                            with monitor._lock:  # Use monitor's lock for thread safety
-                                if not hasattr(monitor, '_thread_bytes'):
-                                    # Initialize thread-local storage for byte tracking
-                                    monitor._thread_bytes = {}
-
-                                # Calculate bytes transferred since last update for this thread
-                                last_bytes = monitor._thread_bytes.get(thread_id, 0)
-                                bytes_delta = bytes_transferred - last_bytes
-
-                                # Only update if we have actual progress
-                                if bytes_delta > 0:
-                                    # Store the new value for next comparison
-                                    monitor._thread_bytes[thread_id] = bytes_transferred
-                                    # Update the monitor with the bytes transferred in this update
-                                    # (update method has its own lock)
-                                    monitor.update(bytes_delta)
-
-                        downloaded_path = await download_from_url_multi_threaded(
-                            file_handle_id=file_handle_id,
-                            object_id=synapse_id,
-                            object_type=entity_type,
-                            destination=destination,
-                            expected_md5=actual_md5,
-                            synapse_client=syn,
-                            progress_callback=multi_thread_progress_callback
-                        )
-                        # Update the monitor with the result
-                        monitor.transferred_bytes = actual_file_size
-                    except Exception as download_ex:
-                        monitor.record_retry(error=download_ex)
-                        raise
-
-            else:
-                # Standard pre-signed URL download
-                loop = asyncio.get_running_loop()
-                progress_bar = get_or_create_download_progress_bar(
-                    file_size=actual_file_size, postfix=synapse_id, synapse_client=syn
-                )
-                with monitored_transfer(
-                    operation="download",
-                    file_path=destination,
-                    file_size=actual_file_size,
-                    destination=f"synapse:{synapse_id}",
-                    syn_id=synapse_id,
-                    with_progress_bar=False,  # progress bar is handled separately
-                    mime_type=actual_mime_type,
-                    md5=actual_md5,
-                    attempts=attempts,
-                    concrete_type=concrete_type,
-                    pre_signed_url=True
-                ) as monitor:
-                    # Create a wrapper around the standard download function that updates both
-                    # the progress bar and our telemetry monitor
-                    def download_with_telemetry(**kwargs):
-                        # Get the original progress callback function
-                        original_progress_func = kwargs.get('progress_callback', None)
-
-                        def combined_progress_callback(bytes_transferred, total_bytes):
-                            # Calculate bytes since last update
-                            bytes_delta = bytes_transferred - getattr(combined_progress_callback, 'last_bytes', 0)
-                            setattr(combined_progress_callback, 'last_bytes', bytes_transferred)
-                            # Update telemetry monitor if bytes were transferred
-                            if bytes_delta > 0:
-                                monitor.update(bytes_delta)
-                            # Call the original callback if it exists
-                            if original_progress_func:
-                                original_progress_func(bytes_transferred, total_bytes)
-                        # Initialize the last bytes counter
-                        setattr(combined_progress_callback, 'last_bytes', 0)
-                        # Replace the progress callback
-                        kwargs['progress_callback'] = combined_progress_callback
-                        # Perform the download with original function
+                    progress_bar = get_or_create_download_progress_bar(
+                        file_size=1, postfix=synapse_id, synapse_client=syn
+                    )
+                    loop = asyncio.get_running_loop()                    # Execute the download and track with telemetry
+                    with monitored_transfer(
+                        operation="download_s3_external",
+                        file_path=destination,
+                        file_size=actual_file_size,
+                        destination=f"synapse:{synapse_id}",
+                        syn_id=synapse_id,
+                        with_progress_bar=False,  # Progress bar is handled separately
+                        mime_type=actual_mime_type,
+                        reuse_monitor=top_monitor,
+                        attempt=attempts
+                    ) as s3_monitor:
                         try:
-                            result = download_from_url(**kwargs)
-                            return result
-                        except Exception as inner_ex:
-                            monitor.record_retry(error=inner_ex)
+                            # Set specific S3 attributes
+                            s3_monitor.span.set_attribute("synapse.s3.bucket", file_handle["bucket"])
+                            s3_monitor.span.set_attribute("synapse.s3.endpoint", file_handle["endpointUrl"])
+                            s3_monitor.span.set_attribute("synapse.s3.key", file_handle["fileKey"])
+
+                            downloaded_path = await loop.run_in_executor(
+                                syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                                lambda: S3ClientWrapper.download_file(
+                                    bucket=file_handle["bucket"],
+                                    endpoint_url=file_handle["endpointUrl"],
+                                    remote_file_key=file_handle["fileKey"],
+                                    download_file_path=destination,
+                                    profile_name=profile,
+                                    credentials=_get_aws_credentials(),
+                                    progress_bar=progress_bar,
+                                ),
+                            )
+                            # Mark as completed
+                            s3_monitor.span.set_attribute("synapse.transfer.status", "completed")
+                            # Copy metrics to parent
+                            top_monitor.transferred_bytes = s3_monitor.transferred_bytes
+                        except Exception as e:
+                            # Record failure in child span
+                            s3_monitor.span.set_attribute("synapse.transfer.status", "failed")
+                            s3_monitor.span.set_attribute("synapse.transfer.error_message", str(e))
+                            s3_monitor.span.set_attribute("synapse.transfer.error_type", type(e).__name__)
+                            s3_monitor.record_retry(error=e)
+                            # Re-raise for outer retry logic
                             raise
 
-                    # Execute the download
-                    downloaded_path = await loop.run_in_executor(
-                        syn._get_thread_pool_executor(asyncio_event_loop=loop),
-                        lambda: download_with_telemetry(
-                            url=file_handle_result["preSignedURL"],
-                            destination=destination,
-                            entity_id=synapse_id,
-                            file_handle_associate_type=entity_type,
-                            file_handle_id=file_handle["id"],
-                            expected_md5=actual_md5,
-                            progress_bar=progress_bar,
-                            synapse_client=syn,
-                        ),
+                elif (
+                    sts_transfer.is_boto_sts_transfer_enabled(syn=syn)
+                    and await sts_transfer.is_storage_location_sts_enabled_async(
+                        syn=syn, entity_id=synapse_id, location=storage_location_id
                     )
+                    and concrete_type == concrete_types.S3_FILE_HANDLE
+                ):
+                    # Set download type for telemetry
+                    top_monitor.span.set_attribute("synapse.download.type", "s3_sts")
 
-            syn.logger.info(f"[{synapse_id}]: Downloaded to {downloaded_path}")
-            syn.cache.add(
-                file_handle["id"], downloaded_path, file_handle.get("contentMd5", None)
-            )
-            close_download_progress_bar()
-            return downloaded_path
+                    progress_bar = get_or_create_download_progress_bar(
+                        file_size=1, postfix=synapse_id, synapse_client=syn
+                    )                    # Execute the download with STS credentials
+                    with monitored_transfer(
+                        operation="download_s3_sts",
+                        file_path=destination,
+                        file_size=actual_file_size,
+                        destination=f"synapse:{synapse_id}",
+                        syn_id=synapse_id,
+                        with_progress_bar=False,  # Progress bar is handled separately
+                        mime_type=actual_mime_type,
+                        reuse_monitor=top_monitor,
+                        attempt=attempts
+                    ) as sts_monitor:
+                        try:
+                            # Set specific S3 attributes
+                            sts_monitor.span.set_attribute("synapse.s3.bucket", file_handle["bucketName"])
+                            sts_monitor.span.set_attribute("synapse.s3.key", file_handle["key"])
 
-        except Exception as ex:
-            if not is_retryable_download_error(ex):
+                            def download_fn(
+                                credentials: Dict[str, str],
+                                file_handle: Dict[str, str] = file_handle,
+                            ) -> str:
+                                """Use the STS credentials to download the file from S3.
+
+                                Arguments:
+                                    credentials: The STS credentials
+
+                                Returns:
+                                    The path to the downloaded file
+                                """
+                                return S3ClientWrapper.download_file(
+                                    bucket=file_handle["bucketName"],
+                                    endpoint_url=None,
+                                    remote_file_key=file_handle["key"],
+                                    download_file_path=destination,
+                                    credentials=credentials,
+                                    progress_bar=progress_bar,
+                                    # pass through our synapse threading config to boto s3
+                                    transfer_config_kwargs={"max_concurrency": syn.max_threads},
+                                )
+
+                            loop = asyncio.get_running_loop()
+                            downloaded_path = await loop.run_in_executor(
+                                syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                                lambda: sts_transfer.with_boto_sts_credentials(
+                                    download_fn, syn, synapse_id, "read_only"
+                                ),
+                            )
+                            # Mark as completed
+                            sts_monitor.span.set_attribute("synapse.transfer.status", "completed")
+                            # Copy metrics to parent
+                            top_monitor.transferred_bytes = sts_monitor.transferred_bytes
+                        except Exception as e:
+                            # Record failure in child span
+                            sts_monitor.span.set_attribute("synapse.transfer.status", "failed")
+                            sts_monitor.span.set_attribute("synapse.transfer.error_message", str(e))
+                            sts_monitor.span.set_attribute("synapse.transfer.error_type", type(e).__name__)
+                            sts_monitor.record_retry(error=e)
+                            # Re-raise for outer retry logic
+                            raise
+
+                elif (
+                    syn.multi_threaded
+                    and concrete_type == concrete_types.S3_FILE_HANDLE
+                    and file_handle.get("contentSize", 0)
+                    > SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
+                ):
+                    # Set download type for telemetry
+                    top_monitor.span.set_attribute("synapse.download.type", "multi_threaded")
+
+                    # run the download multi threaded if the file supports it, we're configured to do so,
+                    # and the file is large enough that it would be broken into parts to take advantage of
+                    # multiple downloading threads. otherwise it's more efficient to run the download as a simple
+                    # single threaded URL download.
+                    with monitored_transfer(
+                        operation="download",
+                        file_path=destination,
+                        file_size=actual_file_size,
+                        destination=f"synapse:{synapse_id}",
+                        syn_id=synapse_id,
+                        with_progress_bar=False,  # progress bar is handled by the download function
+                        mime_type=actual_mime_type,
+                        multipart=True,
+                        chunk_size=SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
+                        attempts=attempts,
+                        concrete_type=concrete_type,
+                        reuse_monitor=top_monitor
+                    ) as monitor:
+                        try:
+                            # Create a thread-safe progress callback that properly tracks delta
+                            def multi_thread_progress_callback(bytes_transferred, total_bytes):
+                                # Use a thread local storage to track last bytes per thread
+                                thread_id = threading.get_ident()
+                                with monitor._lock:  # Use monitor's lock for thread safety
+                                    if not hasattr(monitor, '_thread_bytes'):
+                                        # Initialize thread-local storage for byte tracking
+                                        monitor._thread_bytes = {}
+
+                                    # Calculate bytes transferred since last update for this thread
+                                    last_bytes = monitor._thread_bytes.get(thread_id, 0)
+                                    bytes_delta = bytes_transferred - last_bytes
+
+                                    # Only update if we have actual progress
+                                    if bytes_delta > 0:
+                                        # Store the new value for next comparison
+                                        monitor._thread_bytes[thread_id] = bytes_transferred
+                                        # Update the monitor with the bytes transferred in this update
+                                        # (update method has its own lock)
+                                        monitor.update(bytes_delta)
+
+                            downloaded_path = await download_from_url_multi_threaded(
+                                file_handle_id=file_handle_id,
+                                object_id=synapse_id,
+                                object_type=entity_type,
+                                destination=destination,
+                                expected_md5=actual_md5,
+                                synapse_client=syn,
+                                progress_callback=multi_thread_progress_callback
+                            )
+                            # Update the monitor with the result
+                            monitor.transferred_bytes = actual_file_size
+                            monitor.span.set_attribute("synapse.transfer.status", "completed")
+                            # Copy metrics to parent
+                            top_monitor.transferred_bytes = monitor.transferred_bytes
+                        except Exception as download_ex:
+                            monitor.span.set_attribute("synapse.transfer.status", "failed")
+                            monitor.span.set_attribute("synapse.transfer.error_message", str(download_ex))
+                            monitor.span.set_attribute("synapse.transfer.error_type", type(download_ex).__name__)
+                            monitor.record_retry(error=download_ex)
+                            raise
+
+                else:                    # Set download type for telemetry
+                    top_monitor.span.set_attribute("synapse.download.type", "pre_signed_url")
+
+                    # Standard pre-signed URL download
+                    loop = asyncio.get_running_loop()
+                    progress_bar = get_or_create_download_progress_bar(
+                        file_size=actual_file_size, postfix=synapse_id, synapse_client=syn
+                    )
+                    with monitored_transfer(
+                        operation="download",
+                        file_path=destination,
+                        file_size=actual_file_size,
+                        destination=f"synapse:{synapse_id}",
+                        syn_id=synapse_id,
+                        with_progress_bar=False,  # progress bar is handled separately
+                        mime_type=actual_mime_type,
+                        attempts=attempts,
+                        concrete_type=concrete_type,
+                        pre_signed_url=True,
+                        reuse_monitor=top_monitor  # Reuse the parent monitor instead of creating a new one
+                    ) as monitor:
+                        # Create a wrapper around the standard download function that updates both
+                        # the progress bar and our telemetry monitor
+                        def download_with_telemetry(**kwargs):
+                            # Get the original progress callback function
+                            original_progress_func = kwargs.get('progress_callback', None)
+
+                            def combined_progress_callback(bytes_transferred, total_bytes):
+                                # Calculate bytes since last update
+                                bytes_delta = bytes_transferred - getattr(combined_progress_callback, 'last_bytes', 0)
+                                setattr(combined_progress_callback, 'last_bytes', bytes_transferred)
+                                # Update telemetry monitor if bytes were transferred
+                                if bytes_delta > 0:
+                                    monitor.update(bytes_delta)
+                                # Call the original callback if it exists
+                                if original_progress_func:
+                                    original_progress_func(bytes_transferred, total_bytes)
+                            # Initialize the last bytes counter
+                            setattr(combined_progress_callback, 'last_bytes', 0)
+                            # Replace the progress callback
+                            kwargs['progress_callback'] = combined_progress_callback
+                            # Perform the download with original function
+                            try:
+                                result = download_from_url(**kwargs)
+                                # If we get here, download succeeded
+                                monitor.span.set_attribute("synapse.transfer.status", "completed")
+                                return result
+                            except Exception as inner_ex:
+                                monitor.span.set_attribute("synapse.transfer.status", "failed")
+                                monitor.span.set_attribute("synapse.transfer.error_message", str(inner_ex))
+                                monitor.span.set_attribute("synapse.transfer.error_type", type(inner_ex).__name__)
+                                monitor.record_retry(error=inner_ex)
+                                raise
+
+                        # Execute the download
+                        try:
+                            # Add URL info to span
+                            monitor.span.set_attribute("synapse.url", file_handle_result["preSignedURL"])
+
+                            downloaded_path = await loop.run_in_executor(
+                                syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                                lambda: download_with_telemetry(
+                                    url=file_handle_result["preSignedURL"],
+                                    destination=destination,
+                                    entity_id=synapse_id,
+                                    file_handle_associate_type=entity_type,
+                                    file_handle_id=file_handle["id"],
+                                    expected_md5=actual_md5,
+                                    progress_bar=progress_bar,
+                                    synapse_client=syn,
+                                ),
+                            )
+                            # Copy metrics to parent
+                            top_monitor.transferred_bytes = monitor.transferred_bytes
+                        except Exception as e:
+                            # Error is already recorded in download_with_telemetry
+                            raise
+
+                syn.logger.info(f"[{synapse_id}]: Downloaded to {downloaded_path}")
+                syn.cache.add(
+                    file_handle["id"], downloaded_path, file_handle.get("contentMd5", None)
+                )
                 close_download_progress_bar()
-                raise
 
-            exc_info = sys.exc_info()
-            ex.progress = 0 if not hasattr(ex, "progress") else ex.progress
-            syn.logger.debug(
-                f"\n[{synapse_id}]: Retrying "
-                f"download on error: [{exc_info[0]}] after progressing {ex.progress} bytes",
-                exc_info=True,
-            )  # this will include stack trace
-            if ex.progress == 0:  # No progress was made reduce remaining retries.
-                retries -= 1
-            if retries <= 0:
-                close_download_progress_bar()
-                # Re-raise exception
-                raise
+                # Mark the overall download as successful
+                top_monitor.span.set_attribute("synapse.transfer.status", "completed")
+                return downloaded_path
 
-    close_download_progress_bar()
-    raise RuntimeError("should not reach this line")
+            except Exception as ex:
+                if not is_retryable_download_error(ex):
+                    close_download_progress_bar()
+                    # Mark the overall download as failed
+                    top_monitor.span.set_attribute("synapse.transfer.status", "failed")
+                    top_monitor.span.set_attribute("synapse.transfer.error_message", str(ex))
+                    top_monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
+                    top_monitor.span.set_attribute("synapse.transfer.error_is_retryable", False)
+                    raise
+
+                exc_info = sys.exc_info()
+                ex.progress = 0 if not hasattr(ex, "progress") else ex.progress
+                syn.logger.debug(
+                    f"\n[{synapse_id}]: Retrying "
+                    f"download on error: [{exc_info[0]}] after progressing {ex.progress} bytes",
+                    exc_info=True,
+                )  # this will include stack trace
+
+                # Record retry information
+                top_monitor.record_retry(error=ex)
+                top_monitor.span.set_attribute("synapse.transfer.error_is_retryable", True)
+
+                if ex.progress == 0:  # No progress was made reduce remaining retries.
+                    retries -= 1
+                if retries <= 0:
+                    close_download_progress_bar()
+                    # Mark as permanently failed after all retries
+                    top_monitor.span.set_attribute("synapse.transfer.status", "failed")
+                    top_monitor.span.set_attribute("synapse.transfer.error_message", f"All retries failed: {str(ex)}")
+                    top_monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
+                    # Re-raise exception
+                    raise
+
+        close_download_progress_bar()
+        raise RuntimeError("should not reach this line")
 
 
 async def download_from_url_multi_threaded(
@@ -792,273 +1006,420 @@ def download_from_url(
     redirect_count = 0
     delete_on_md5_mismatch = True
     client.logger.debug(f"[{entity_id}]: Downloading from {url} to {destination}")
-    while redirect_count < REDIRECT_LIMIT:
-        redirect_count += 1
-        scheme = urllib_urlparse.urlparse(url).scheme
-        if scheme == "file":
-            delete_on_md5_mismatch = False
-            destination = utils.file_url_to_path(url, verify_exists=True)
-            if destination is None:
-                raise IOError(f"Local file ({url}) does not exist.")
-            if progress_bar is not None:
-                file_size = os.path.getsize(destination)
-                increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
-                increment_progress_bar(n=progress_bar.total, progress_bar=progress_bar)
-            break
-        elif scheme == "sftp":
-            username, password = client._getUserCredentials(url)
-            destination = SFTPWrapper.download_file(
-                url=url,
-                localFilepath=destination,
-                username=username,
-                password=password,
-                progress_bar=progress_bar,
-            )
-            break
-        elif scheme == "ftp":
-            updated_progress_bar_with_total = False
 
-            def _ftp_report_hook(
-                _: int,
-                read_size: int,
-                total_size: int,
-            ) -> None:
-                """Report hook for urllib.request.urlretrieve to show download progress.
+    # Use telemetry context to track the download operation
+    with monitored_transfer(
+        operation="download_from_url",
+        file_path=destination,
+        file_size=0,  # Will be updated once we get file size from headers
+        destination=f"synapse:{entity_id}" if entity_id else "unknown",
+        syn_id=entity_id,
+        with_progress_bar=False,  # Progress bars are handled separately
+        mime_type="",  # Will be set if available in response headers
+    ) as monitor:
+        # Set basic known attributes
+        monitor.span.set_attribute("synapse.url", url)
+        if file_handle_id:
+            monitor.span.set_attribute("synapse.file_handle.id", file_handle_id)
+        if entity_id:
+            monitor.span.set_attribute("synapse.entity.id", entity_id)
+        if file_handle_associate_type:
+            monitor.span.set_attribute("synapse.entity.type", file_handle_associate_type)
 
-                Arguments:
-                    _: The number of blocks transferred so far
-                    read_size: The size of each block
-                    total_size: The total size of the file
+        try:
+            # Override progress callback to update monitor
+            original_progress_callback = progress_callback
 
-                Returns:
-                    None
-                """
-                nonlocal updated_progress_bar_with_total
-                if progress_bar is not None:
-                    if not updated_progress_bar_with_total:
-                        updated_progress_bar_with_total = True
-                        increment_progress_bar_total(
-                            total=total_size, progress_bar=progress_bar
+            def telemetry_progress_callback(bytes_transferred, total_bytes):
+                # Calculate bytes delta (monitor.update expects the delta, not the total)
+                bytes_delta = bytes_transferred - getattr(telemetry_progress_callback, 'last_bytes', 0)
+                setattr(telemetry_progress_callback, 'last_bytes', bytes_transferred)
+
+                # Update the monitor with transferred bytes
+                if bytes_delta > 0:
+                    monitor.update(bytes_delta)
+
+                # Call the original callback if provided
+                if original_progress_callback:
+                    try:
+                        original_progress_callback(bytes_transferred, total_bytes)
+                    except Exception:
+                        pass
+
+            # Initialize the bytes counter
+            setattr(telemetry_progress_callback, 'last_bytes', 0)
+            progress_callback = telemetry_progress_callback
+
+            while redirect_count < REDIRECT_LIMIT:
+                redirect_count += 1
+                scheme = urllib_urlparse.urlparse(url).scheme
+                if scheme == "file":
+                    delete_on_md5_mismatch = False
+                    destination = utils.file_url_to_path(url, verify_exists=True)
+                    if destination is None:
+                        monitor.span.set_attribute("synapse.transfer.status", "failed")
+                        monitor.span.set_attribute("synapse.transfer.error_message",
+                                                   f"Local file ({url}) does not exist")
+                        monitor.span.set_attribute("synapse.transfer.error_type", "IOError")
+                        raise IOError(f"Local file ({url}) does not exist.")
+                    if progress_bar is not None:
+                        file_size = os.path.getsize(destination)
+                        monitor.file_size = file_size  # Update file size in monitor
+                        monitor.span.set_attribute("synapse.file.size_bytes", file_size)
+                        increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
+                        increment_progress_bar(n=progress_bar.total, progress_bar=progress_bar)
+                        # Mark file as fully transferred (since it's a local file)
+                        monitor.update(file_size)
+                    monitor.span.set_attribute("synapse.transfer.source", "local_file")
+                    monitor.span.set_attribute("synapse.transfer.status", "completed")
+                    break
+                elif scheme == "sftp":
+                    monitor.span.set_attribute("synapse.transfer.source", "sftp")
+                    username, password = client._getUserCredentials(url)
+                    try:
+                        destination = SFTPWrapper.download_file(
+                            url=url,
+                            localFilepath=destination,
+                            username=username,
+                            password=password,
+                            progress_bar=progress_bar,
                         )
-                    increment_progress_bar(n=read_size, progress_bar=progress_bar)
+                        # Update monitor with file info
+                        file_size = os.path.getsize(destination)
+                        monitor.file_size = file_size
+                        monitor.update(file_size)  # Mark fully transferred
+                        monitor.span.set_attribute("synapse.file.size_bytes", file_size)
+                        monitor.span.set_attribute("synapse.transfer.status", "completed")
+                    except Exception as e:
+                        monitor.span.set_attribute("synapse.transfer.status", "failed")
+                        monitor.span.set_attribute("synapse.transfer.error_message", str(e))
+                        monitor.span.set_attribute("synapse.transfer.error_type", type(e).__name__)
+                        raise
+                    break
+                elif scheme == "ftp":
+                    monitor.span.set_attribute("synapse.transfer.source", "ftp")
+                    updated_progress_bar_with_total = False
 
-            urllib_request.urlretrieve(
-                url=url, filename=destination, reporthook=_ftp_report_hook
-            )
-            break
-        elif scheme in ["http", "https"]:
-            # if a partial download exists with the temporary name,
-            temp_destination = utils.temp_download_filename(
-                destination=destination, file_handle_id=file_handle_id
-            )
-            range_header = (
-                {"Range": f"bytes={os.path.getsize(filename=temp_destination)}-"}
-                if os.path.exists(temp_destination)
-                else {}
-            )
+                    def _ftp_report_hook(
+                        _: int,
+                        read_size: int,
+                        total_size: int,
+                    ) -> None:
+                        """Report hook for urllib.request.urlretrieve to show download progress.
 
-            # pass along synapse auth credentials only if downloading directly from synapse
-            auth = (
-                client.credentials
-                if is_synapse_uri(uri=url, synapse_client=client)
-                else None
-            )
+                        Arguments:
+                            _: The number of blocks transferred so far
+                            read_size: The size of each block
+                            total_size: The total size of the file
 
-            try:
-                url_query = urllib_urlparse.urlparse(url).query
-                url_has_expiration = (
-                    "Expires" in url_query and "X-Amz-Expires" in url_query
-                )
-                url_is_expired = False
-                if url_has_expiration:
-                    url_is_expired = datetime.datetime.now(
-                        tz=datetime.timezone.utc
-                    ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
-                        url
-                    )
-                if url_is_expired:
-                    response = get_file_handle_for_download(
-                        file_handle_id=file_handle_id,
-                        synapse_id=entity_id,
-                        entity_type=file_handle_associate_type,
-                        synapse_client=client,
-                    )
-                    url = response["preSignedURL"]
-                response = with_retry(
-                    lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
-                        url=url,
-                        headers=client._generate_headers(range_header),
-                        stream=True,
-                        allow_redirects=False,
-                        auth=auth,
-                    ),
-                    verbose=client.debug,
-                    **STANDARD_RETRY_PARAMS,
-                )
-                exceptions._raise_for_status(response, verbose=client.debug)
-            except SynapseHTTPError as err:
-                if err.response.status_code == 403:
-                    url_query = urllib_urlparse.urlparse(url).query
-                    url_has_expiration = (
-                        "Expires" in url_query and "X-Amz-Expires" in url_query
-                    )
-                    url_is_expired = False
-                    if url_has_expiration:
-                        url_is_expired = datetime.datetime.now(
-                            tz=datetime.timezone.utc
-                        ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
-                            url
+                        Returns:
+                            None
+                        """
+                        nonlocal updated_progress_bar_with_total
+                        if progress_bar is not None:
+                            if not updated_progress_bar_with_total:
+                                updated_progress_bar_with_total = True
+                                increment_progress_bar_total(
+                                    total=total_size, progress_bar=progress_bar
+                                )
+                                # Update monitor with total size
+                                monitor.file_size = total_size
+                                monitor.span.set_attribute("synapse.file.size_bytes", total_size)
+                            increment_progress_bar(n=read_size, progress_bar=progress_bar)
+
+                        # Update monitor with progress
+                        monitor.update(read_size)
+
+                        # Call progress callback if provided
+                        if progress_callback:
+                            try:
+                                total_transferred = _ * read_size
+                                progress_callback(total_transferred, total_size)
+                            except Exception:
+                                pass
+
+                    try:
+                        urllib_request.urlretrieve(
+                            url=url, filename=destination, reporthook=_ftp_report_hook
                         )
-                    if url_is_expired:
-                        response = get_file_handle_for_download(
-                            file_handle_id=file_handle_id,
-                            synapse_id=entity_id,
-                            entity_type=file_handle_associate_type,
-                            synapse_client=client,
-                        )
-                        refreshed_url = response["preSignedURL"]
+                        monitor.span.set_attribute("synapse.transfer.status", "completed")
+                    except Exception as e:
+                        monitor.span.set_attribute("synapse.transfer.status", "failed")
+                        monitor.span.set_attribute("synapse.transfer.error_message", str(e))
+                        monitor.span.set_attribute("synapse.transfer.error_type", type(e).__name__)
+                        raise
+                    break
+                elif scheme in ["http", "https"]:
+                    monitor.span.set_attribute("synapse.transfer.source", "http")
+                    # if a partial download exists with the temporary name,
+                    temp_destination = utils.temp_download_filename(
+                        destination=destination, file_handle_id=file_handle_id
+                    )
+                    range_header = (
+                        {"Range": f"bytes={os.path.getsize(filename=temp_destination)}-"}
+                        if os.path.exists(temp_destination)
+                        else {}
+                    )
 
-                        def get_request(url=refreshed_url, range_header=range_header, auth=auth): return (
-                            client._requests_session.get(
+                    # pass along synapse auth credentials only if downloading directly from synapse
+                    auth = (
+                        client.credentials
+                        if is_synapse_uri(uri=url, synapse_client=client)
+                        else None
+                    )
+
+                    try:
+                        url_query = urllib_urlparse.urlparse(url).query
+                        url_has_expiration = (
+                            "Expires" in url_query or "X-Amz-Expires" in url_query
+                        )
+                        url_is_expired = False
+                        if url_has_expiration:
+                            url_is_expired = datetime.datetime.now(
+                                tz=datetime.timezone.utc
+                            ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
+                                url
+                            )
+                        if url_is_expired:
+                            monitor.span.set_attribute("synapse.url.expired", True)
+                            response = get_file_handle_for_download(
+                                file_handle_id=file_handle_id,
+                                synapse_id=entity_id,
+                                entity_type=file_handle_associate_type,
+                                synapse_client=client,
+                            )
+                            url = response["preSignedURL"]
+                            monitor.span.set_attribute("synapse.url", url)
+                        response = with_retry(
+                            lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
                                 url=url,
                                 headers=client._generate_headers(range_header),
                                 stream=True,
                                 allow_redirects=False,
                                 auth=auth,
-                            )
-                        )
-                        response = with_retry(
-                            get_request,
+                            ),
                             verbose=client.debug,
                             **STANDARD_RETRY_PARAMS,
                         )
-                    else:
-                        raise
-                elif err.response.status_code == 404:
-                    raise SynapseError(f"Could not download the file at {url}") from err
-                elif (
-                    err.response.status_code == 416
-                ):  # Requested Range Not Statisfiable
-                    # this is a weird error when the client already finished downloading but the loop continues
-                    # When this exception occurs, the range we request is guaranteed to be >= file size so we
-                    # assume that the file has been fully downloaded, rename it to destination file
-                    # and break out of the loop to perform the MD5 check.
-                    # If it fails the user can retry with another download.
-                    shutil.move(temp_destination, destination)
-                    break
-                else:
-                    raise
-            # handle redirects
-            if response.status_code in [301, 302, 303, 307, 308]:
-                url = response.headers["location"]
-                # don't break, loop again
-            else:
-                # get filename from content-disposition, if we don't have it already
-                if os.path.isdir(destination):
-                    filename = utils.extract_filename(
-                        content_disposition_header=response.headers.get(
-                            "content-disposition", None
-                        ),
-                        default_filename=utils.guess_file_name(url),
-                    )
-                    destination = os.path.join(destination, filename)
-                # Stream the file to disk
-                if "content-length" in response.headers:
-                    to_be_transferred = float(response.headers["content-length"])
-                else:
-                    to_be_transferred = -1
-                transferred = 0
-
-                # Servers that respect the Range header return 206 Partial Content
-                if response.status_code == 206:
-                    mode = "ab"
-                    previously_transferred = os.path.getsize(filename=temp_destination)
-                    to_be_transferred += previously_transferred
-                    transferred += previously_transferred
-                    increment_progress_bar_total(
-                        total=to_be_transferred, progress_bar=progress_bar
-                    )
-                    increment_progress_bar(n=transferred, progress_bar=progress_bar)
-                    client.logger.debug(
-                        f"[{entity_id}]: Resuming "
-                        f"partial download to {temp_destination}. "
-                        f"{previously_transferred}/{to_be_transferred} bytes already "
-                        "transferred."
-                    )
-                    sig = utils.md5_for_file(filename=temp_destination)
-                else:
-                    mode = "wb"
-                    previously_transferred = 0
-                    increment_progress_bar_total(
-                        total=to_be_transferred, progress_bar=progress_bar
-                    )
-                    sig = hashlib.new("md5", usedforsecurity=False)  # nosec
-
-                try:
-                    with open(temp_destination, mode) as fd:
-                        for _, chunk in enumerate(
-                            response.iter_content(FILE_BUFFER_SIZE)
-                        ):
-                            fd.write(chunk)
-                            sig.update(chunk)
-
-                            # the 'content-length' header gives the total number of bytes that will be transferred
-                            # to us len(chunk) cannot be used to track progress because iter_content automatically
-                            # decodes the chunks if the response body is encoded so the len(chunk) could be
-                            # different from the total number of bytes we've read read from the response body
-                            # response.raw.tell() is the total number of response body bytes transferred over the
-                            # wire so far
-                            transferred = response.raw.tell() + previously_transferred
-                            increment_progress_bar(
-                                n=len(chunk), progress_bar=progress_bar
+                        exceptions._raise_for_status(response, verbose=client.debug)
+                    except SynapseHTTPError as err:
+                        if err.response.status_code == 403:
+                            url_query = urllib_urlparse.urlparse(url).query
+                            url_has_expiration = (
+                                "Expires" in url_query or "X-Amz-Expires" in url_query
                             )
-                            # Call the progress_callback if provided
-                            if progress_callback is not None:
-                                try:
-                                    progress_callback(transferred, to_be_transferred)
-                                except Exception:
-                                    pass
-                except (
-                    Exception
-                ) as ex:  # We will add a progress parameter then push it back to retry.
-                    ex.progress = transferred - previously_transferred
-                    raise
+                            url_is_expired = False
+                            if url_has_expiration:
+                                url_is_expired = datetime.datetime.now(
+                                    tz=datetime.timezone.utc
+                                ) + PresignedUrlProvider._TIME_BUFFER >= _pre_signed_url_expiration_time(
+                                    url
+                                )
+                            if url_is_expired:
+                                monitor.span.set_attribute("synapse.url.expired", True)
+                                response = get_file_handle_for_download(
+                                    file_handle_id=file_handle_id,
+                                    synapse_id=entity_id,
+                                    entity_type=file_handle_associate_type,
+                                    synapse_client=client,
+                                )
+                                refreshed_url = response["preSignedURL"]
+                                monitor.span.set_attribute("synapse.url", refreshed_url)
 
-                # verify that the file was completely downloaded and retry if it is not complete
-                if to_be_transferred > 0 and transferred < to_be_transferred:
-                    client.logger.warning(
-                        f"\n[{entity_id}]: "
-                        "Retrying download because the connection ended early.\n"
+                                def get_request(url=refreshed_url, range_header=range_header, auth=auth): return (
+                                    client._requests_session.get(
+                                        url=url,
+                                        headers=client._generate_headers(range_header),
+                                        stream=True,
+                                        allow_redirects=False,
+                                        auth=auth,
+                                    )
+                                )
+                                response = with_retry(
+                                    get_request,
+                                    verbose=client.debug,
+                                    **STANDARD_RETRY_PARAMS,
+                                )
+                            else:
+                                monitor.span.set_attribute("synapse.transfer.status", "failed")
+                                monitor.span.set_attribute("synapse.transfer.error_message", str(err))
+                                monitor.span.set_attribute("synapse.transfer.error_type", type(err).__name__)
+                                raise
+                        elif err.response.status_code == 404:
+                            monitor.span.set_attribute("synapse.transfer.status", "failed")
+                            monitor.span.set_attribute("synapse.transfer.error_message",
+                                                       f"Could not download the file at {url}")
+                            monitor.span.set_attribute("synapse.transfer.error_type", "SynapseError")
+                            raise SynapseError(f"Could not download the file at {url}") from err
+                        elif (
+                            err.response.status_code == 416
+                        ):  # Requested Range Not Statisfiable
+                            # this is a weird error when the client already finished downloading but the loop continues
+                            # When this exception occurs, the range we request is guaranteed to be >= file size so we
+                            # assume that the file has been fully downloaded, rename it to destination file
+                            # and break out of the loop to perform the MD5 check.
+                            # If it fails the user can retry with another download.
+                            shutil.move(temp_destination, destination)
+                            # Consider this a successful transfer
+                            monitor.span.set_attribute("synapse.transfer.status", "completed")
+                            monitor.span.set_attribute("synapse.transfer.note",
+                                                       "Already complete (416 Range Not Satisfiable)")
+                            break
+                        else:
+                            monitor.span.set_attribute("synapse.transfer.status", "failed")
+                            monitor.span.set_attribute("synapse.transfer.error_message", str(err))
+                            monitor.span.set_attribute("synapse.transfer.error_type", type(err).__name__)
+                            raise
+                    # handle redirects
+                    if response.status_code in [301, 302, 303, 307, 308]:
+                        url = response.headers["location"]
+                        monitor.span.set_attribute("synapse.url", url)
+                        # don't break, loop again
+                    else:
+                        # get filename from content-disposition, if we don't have it already
+                        if os.path.isdir(destination):
+                            filename = utils.extract_filename(
+                                content_disposition_header=response.headers.get(
+                                    "content-disposition", None
+                                ),
+                                default_filename=utils.guess_file_name(url),
+                            )
+                            destination = os.path.join(destination, filename)
+                            monitor.file_path = destination
+
+                        # Set mime type in monitor if available
+                        if "content-type" in response.headers:
+                            monitor.span.set_attribute("synapse.file.mime_type", response.headers["content-type"])
+
+                        # Stream the file to disk
+                        if "content-length" in response.headers:
+                            to_be_transferred = float(response.headers["content-length"])
+                            # Update monitor with file size
+                            monitor.file_size = to_be_transferred
+                            monitor.span.set_attribute("synapse.file.size_bytes", to_be_transferred)
+                        else:
+                            to_be_transferred = -1
+                        transferred = 0
+
+                        # Servers that respect the Range header return 206 Partial Content
+                        if response.status_code == 206:
+                            monitor.span.set_attribute("synapse.download.is_partial", True)
+                            mode = "ab"
+                            previously_transferred = os.path.getsize(filename=temp_destination)
+                            to_be_transferred += previously_transferred
+                            transferred += previously_transferred
+                            increment_progress_bar_total(
+                                total=to_be_transferred, progress_bar=progress_bar
+                            )
+                            increment_progress_bar(n=transferred, progress_bar=progress_bar)
+                            client.logger.debug(
+                                f"[{entity_id}]: Resuming "
+                                f"partial download to {temp_destination}. "
+                                f"{previously_transferred}/{to_be_transferred} bytes already "
+                                "transferred."
+                            )
+                            monitor.span.set_attribute(
+                                "synapse.download.previously_transferred_bytes", previously_transferred)
+                            sig = utils.md5_for_file(filename=temp_destination)
+                        else:
+                            mode = "wb"
+                            previously_transferred = 0
+                            increment_progress_bar_total(
+                                total=to_be_transferred, progress_bar=progress_bar
+                            )
+                            sig = hashlib.new("md5", usedforsecurity=False)  # nosec
+
+                        try:
+                            with open(temp_destination, mode) as fd:
+                                for _, chunk in enumerate(
+                                    response.iter_content(FILE_BUFFER_SIZE)
+                                ):
+                                    fd.write(chunk)
+                                    sig.update(chunk)
+
+                                    # the 'content-length' header gives the total number of bytes that will be transferred
+                                    # to us len(chunk) cannot be used to track progress because iter_content automatically
+                                    # decodes the chunks if the response body is encoded so the len(chunk) could be
+                                    # different from the total number of bytes we've read read from the response body
+                                    # response.raw.tell() is the total number of response body bytes transferred over the
+                                    # wire so far
+                                    transferred = response.raw.tell() + previously_transferred
+                                    increment_progress_bar(
+                                        n=len(chunk), progress_bar=progress_bar
+                                    )
+                                    # Call the progress_callback if provided
+                                    if progress_callback is not None:
+                                        try:
+                                            progress_callback(transferred, to_be_transferred)
+                                        except Exception:
+                                            pass
+                        except (
+                            Exception
+                        ) as ex:  # We will add a progress parameter then push it back to retry.
+                            ex.progress = transferred - previously_transferred
+                            # Record error in the monitor
+                            monitor.span.set_attribute("synapse.transfer.status", "failed")
+                            monitor.span.set_attribute("synapse.transfer.error_message", str(ex))
+                            monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
+                            monitor.span.set_attribute("synapse.transfer.bytes_transferred", transferred)
+                            # Don't record final statistics yet as we might retry
+                            raise
+
+                        # verify that the file was completely downloaded and retry if it is not complete
+                        if to_be_transferred > 0 and transferred < to_be_transferred:
+                            client.logger.warning(
+                                f"\n[{entity_id}]: "
+                                "Retrying download because the connection ended early.\n"
+                            )
+                            monitor.span.set_attribute("synapse.download.connection_ended_early", True)
+                            continue
+
+                        actual_md5 = sig.hexdigest()
+                        # rename to final destination
+                        shutil.move(temp_destination, destination)
+                        monitor.span.set_attribute("synapse.transfer.status", "completed")
+                        break
+                else:
+                    client.logger.error(
+                        f"[{entity_id}]: Unable to download URLs of type {scheme}"
                     )
-                    continue
+                    monitor.span.set_attribute("synapse.transfer.status", "failed")
+                    monitor.span.set_attribute("synapse.transfer.error_message",
+                                               f"Unable to download URLs of type {scheme}")
+                    monitor.span.set_attribute("synapse.transfer.error_type", "UnsupportedSchemeError")
+                    return None
 
-                actual_md5 = sig.hexdigest()
-                # rename to final destination
-                shutil.move(temp_destination, destination)
-                break
-        else:
-            client.logger.error(
-                f"[{entity_id}]: Unable to download URLs of type {scheme}"
-            )
-            return None
+            else:  # didn't break out of loop
+                monitor.span.set_attribute("synapse.transfer.status", "failed")
+                monitor.span.set_attribute("synapse.transfer.error_message", "Too many redirects")
+                monitor.span.set_attribute("synapse.transfer.error_type", "SynapseHTTPError")
+                raise SynapseHTTPError("Too many redirects")
 
-    else:  # didn't break out of loop
-        raise SynapseHTTPError("Too many redirects")
+            if (
+                actual_md5 is None
+            ):  # if md5 not set (should be the case for all except http download)
+                actual_md5 = utils.md5_for_file_hex(filename=destination)
 
-    if (
-        actual_md5 is None
-    ):  # if md5 not set (should be the case for all except http download)
-        actual_md5 = utils.md5_for_file_hex(filename=destination)
+            # check md5 if given
+            if expected_md5 and actual_md5 != expected_md5:
+                monitor.span.set_attribute("synapse.transfer.status", "failed")
+                monitor.span.set_attribute("synapse.transfer.error_message",
+                                           f"MD5 mismatch: expected {expected_md5}, got {actual_md5}")
+                monitor.span.set_attribute("synapse.transfer.error_type", "SynapseMd5MismatchError")
+                if delete_on_md5_mismatch and os.path.exists(destination):
+                    os.remove(destination)
+                raise SynapseMd5MismatchError(
+                    f"Downloaded file {destination}'s md5 {actual_md5} does not match expected MD5 of {expected_md5}"
+                )
 
-    # check md5 if given
-    if expected_md5 and actual_md5 != expected_md5:
-        if delete_on_md5_mismatch and os.path.exists(destination):
-            os.remove(destination)
-        raise SynapseMd5MismatchError(
-            f"Downloaded file {destination}'s md5 {actual_md5} does not match expected MD5 of {expected_md5}"
-        )
-
-    return destination
+            return destination
+        except Exception as e:
+            # Ensure all errors are properly recorded
+            if not monitor.span.attributes.get("synapse.transfer.status"):
+                monitor.span.set_attribute("synapse.transfer.status", "failed")
+                monitor.span.set_attribute("synapse.transfer.error_message", str(e))
+                monitor.span.set_attribute("synapse.transfer.error_type", type(e).__name__)
+            raise
 
 
 def is_retryable_download_error(ex: Exception) -> bool:

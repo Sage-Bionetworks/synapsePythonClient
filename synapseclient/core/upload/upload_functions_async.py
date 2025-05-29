@@ -2,6 +2,8 @@
 
 import asyncio
 import os
+import time
+import threading
 import urllib.parse as urllib_parse
 import uuid
 from typing import TYPE_CHECKING, Dict, Optional, Union
@@ -22,6 +24,7 @@ from synapseclient.core.exceptions import SynapseMd5MismatchError
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
 from synapseclient.core.utils import as_url, file_url_to_path, id_of, is_url
+from synapseclient.core.telemetry_integration import TransferMonitor, monitored_transfer
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -63,117 +66,146 @@ async def upload_file_handle(
     if path is None:
         raise ValueError("path can not be None")
 
-    # if doing a external file handle with no actual upload
-    if not synapse_store:
-        return await create_external_file_handle(
-            syn, path, mimetype=mimetype, md5=md5, file_size=file_size
-        )
-
-    # expand the path because past this point an upload is required and some upload functions require an absolute path
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
+    if file_size is None and os.path.isfile(expanded_upload_path):
+        file_size = os.path.getsize(expanded_upload_path)
 
-    if md5 is None and os.path.isfile(expanded_upload_path):
-        md5 = utils.md5_for_file_hex(filename=expanded_upload_path)
+    # Top-level monitored_transfer context for upload_file_handle
+    with monitored_transfer(
+        operation="upload_file_handle",
+        file_path=path,
+        file_size=file_size or 0,
+        destination=f"parent:{parent_entity_id}",
+        mime_type=mimetype,
+        with_progress_bar=False,
+        parent_id=parent_entity_id,
+    ) as monitor:
+        file_handle = None
+        try:
+            monitor.span.set_attribute("synapse.transfer.direction", "upload")
+            monitor.span.set_attribute("synapse.file.size_bytes", file_size or 0)
+            monitor.span.set_attribute("synapse.transfer.method", "auto_dispatch")
+            monitor.span.set_attribute("synapse.file.path", path)
 
-    entity_parent_id = id_of(parent_entity_id)
+            # if doing a external file handle with no actual upload
+            if not synapse_store:
+                file_handle = await create_external_file_handle(
+                    syn, path, mimetype=mimetype, md5=md5, file_size=file_size
+                )
+                monitor.span.set_attribute("synapse.transfer.status", "completed")
+                monitor.span.set_attribute("synapse.file_handle_id", file_handle.get("id"))
+                return file_handle
 
-    # determine the upload function based on the UploadDestination
-    location = await get_upload_destination(
-        entity_id=entity_parent_id, synapse_client=syn
-    )
-    upload_destination_type = location.get("concreteType", None) if location else None
-    trace.get_current_span().set_attributes(
-        {
-            "synapse.parent_id": entity_parent_id,
-            "synapse.upload_destination_type": upload_destination_type,
-        }
-    )
+            # expand the path because past this point an upload is required and some upload functions require an absolute path
+            if md5 is None and os.path.isfile(expanded_upload_path):
+                md5 = utils.md5_for_file_hex(filename=expanded_upload_path)
 
-    if (
-        sts_transfer.is_boto_sts_transfer_enabled(syn)
-        and await sts_transfer.is_storage_location_sts_enabled_async(
-            syn, entity_parent_id, location
-        )
-        and upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION
-    ):
-        return await upload_synapse_sts_boto_s3(
-            syn=syn,
-            parent_id=entity_parent_id,
-            upload_destination=location,
-            local_path=expanded_upload_path,
-            mimetype=mimetype,
-            md5=md5,
-            storage_str="Uploading file to external S3 storage using boto3",
-        )
+            entity_parent_id = id_of(parent_entity_id)
 
-    elif upload_destination_type in (
-        concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION,
-        concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
-        concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION,
-    ):
-        if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION:
-            storage_str = "Uploading to Synapse storage"
-        elif upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
-            storage_str = "Uploading to your external S3 storage"
-        else:
-            storage_str = "Uploading to your external Google Bucket storage"
-
-        return await upload_synapse_s3(
-            syn=syn,
-            file_path=expanded_upload_path,
-            storage_location_id=location["storageLocationId"],
-            mimetype=mimetype,
-            md5=md5,
-            storage_str=storage_str,
-        )
-    # external file handle (sftp)
-    elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
-        if location["uploadType"] == "SFTP":
-            storage_str = (
-                f"Uploading to: {urllib_parse.urlparse(location['url']).netloc}"
+            # determine the upload function based on the UploadDestination
+            location = await get_upload_destination(
+                entity_id=entity_parent_id, synapse_client=syn
             )
-            banner = location.get("banner", None)
-            if banner:
-                syn.logger.info(banner)
-            return await upload_external_file_handle_sftp(
-                syn=syn,
-                file_path=expanded_upload_path,
-                sftp_url=location["url"],
-                mimetype=mimetype,
-                md5=md5,
-                storage_str=storage_str,
-            )
-        else:
-            raise NotImplementedError("Can only handle SFTP upload locations.")
-    # client authenticated S3
-    elif (
-        upload_destination_type
-        == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION
-    ):
-        storage_str = f"Uploading to endpoint: [{location.get('endpointUrl')}] bucket: [{location.get('bucket')}]"
-        banner = location.get("banner", None)
-        if banner:
-            syn.logger.info(banner)
-        return await upload_client_auth_s3(
-            syn=syn,
-            file_path=expanded_upload_path,
-            bucket=location["bucket"],
-            endpoint_url=location["endpointUrl"],
-            key_prefix=location["keyPrefixUUID"],
-            storage_location_id=location["storageLocationId"],
-            mimetype=mimetype,
-            md5=md5,
-            storage_str=storage_str,
-        )
-    else:  # unknown storage location
-        return await upload_synapse_s3(
-            syn=syn,
-            file_path=expanded_upload_path,
-            storage_location_id=None,
-            mimetype=mimetype,
-            md5=md5,
-            storage_str="Uploading to Synapse storage",
-        )
+            upload_destination_type = location.get("concreteType", None) if location else None
+            monitor.span.set_attribute("synapse.upload_destination_type", upload_destination_type)
+
+            # Dispatch to the correct async upload implementation
+            if (
+                sts_transfer.is_boto_sts_transfer_enabled(syn)
+                and await sts_transfer.is_storage_location_sts_enabled_async(
+                    syn, entity_parent_id, location
+                )
+                and upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION
+            ):
+                file_handle = await upload_synapse_sts_boto_s3(
+                    syn=syn,
+                    parent_id=entity_parent_id,
+                    upload_destination=location,
+                    local_path=expanded_upload_path,
+                    mimetype=mimetype,
+                    md5=md5,
+                    storage_str="Uploading file to external S3 storage using boto3",
+                )
+            elif upload_destination_type in (
+                concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION,
+                concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION,
+                concrete_types.EXTERNAL_GCP_UPLOAD_DESTINATION,
+            ):
+                if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION:
+                    storage_str = "Uploading to Synapse storage"
+                elif upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
+                    storage_str = "Uploading to your external S3 storage"
+                else:
+                    storage_str = "Uploading to your external Google Bucket storage"
+                file_handle = await upload_synapse_s3(
+                    syn=syn,
+                    file_path=expanded_upload_path,
+                    storage_location_id=location["storageLocationId"],
+                    mimetype=mimetype,
+                    md5=md5,
+                    storage_str=storage_str,
+                    transfer_monitor=monitor,
+                )
+            elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
+                if location["uploadType"] == "SFTP":
+                    storage_str = (
+                        f"Uploading to: {urllib_parse.urlparse(location['url']).netloc}"
+                    )
+                    banner = location.get("banner", None)
+                    if banner:
+                        syn.logger.info(banner)
+                    file_handle = await upload_external_file_handle_sftp(
+                        syn=syn,
+                        file_path=expanded_upload_path,
+                        sftp_url=location["url"],
+                        mimetype=mimetype,
+                        md5=md5,
+                        storage_str=storage_str,
+                    )
+                else:
+                    raise NotImplementedError("Can only handle SFTP upload locations.")
+            elif (
+                upload_destination_type
+                == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION
+            ):
+                storage_str = (
+                    f"Uploading to endpoint: [{location.get('endpointUrl')}] "
+                    f"bucket: [{location.get('bucket')}]"
+                )
+                banner = location.get("banner", None)
+                if banner:
+                    syn.logger.info(banner)
+                file_handle = await upload_client_auth_s3(
+                    syn=syn,
+                    file_path=expanded_upload_path,
+                    bucket=location["bucket"],
+                    endpoint_url=location["endpointUrl"],
+                    key_prefix=location["keyPrefixUUID"],
+                    storage_location_id=location["storageLocationId"],
+                    mimetype=mimetype,
+                    md5=md5,
+                    storage_str=storage_str,
+                )
+            else:  # unknown storage location
+                file_handle = await upload_synapse_s3(
+                    syn=syn,
+                    file_path=expanded_upload_path,
+                    storage_location_id=None,
+                    mimetype=mimetype,
+                    md5=md5,
+                    storage_str="Uploading to Synapse storage",
+                )
+
+            monitor.span.set_attribute("synapse.transfer.status", "completed")
+            monitor.span.set_attribute("synapse.file_handle_id", file_handle.get("id"))
+            return file_handle
+
+        except Exception as ex:
+            monitor.span.set_attribute("synapse.transfer.status", "failed")
+            monitor.span.set_attribute("synapse.transfer.error_message", str(ex))
+            monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
+            monitor.record_retry(error=ex)
+            raise
 
 
 async def create_external_file_handle(
@@ -185,36 +217,80 @@ async def create_external_file_handle(
 ) -> Dict[str, Union[str, int]]:
     """Create a file handle in Synapse without uploading any files. This is used in
     cases where one wishes to store a reference to a file that is not in Synapse."""
-    is_local_file = False  # defaults to false
-    url = as_url(os.path.expandvars(os.path.expanduser(path)))
-    if is_url(url):
-        parsed_url = urllib_parse.urlparse(url)
-        parsed_path = file_url_to_path(url)
-        if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
-            actual_md5 = utils.md5_for_file_hex(filename=parsed_path)
-            if md5 is not None and md5 != actual_md5:
-                raise SynapseMd5MismatchError(
-                    f"The specified md5 [{md5}] does not match the calculated md5 "
-                    f"[{actual_md5}] for local file [{parsed_path}]",
-                )
-            md5 = actual_md5
-            file_size = os.stat(parsed_path).st_size
-            is_local_file = True
-    else:
-        raise ValueError(f"externalUrl [{url}] is not a valid url")
+    # Expand path
+    expanded_path = os.path.expandvars(os.path.expanduser(path))
 
-    # just creates the file handle because there is nothing to upload
-    file_handle = await post_external_filehandle(
-        external_url=url, mimetype=mimetype, md5=md5, file_size=file_size
-    )
-    if is_local_file:
-        syn.cache.add(
-            file_handle_id=file_handle["id"], path=file_url_to_path(url), md5=md5
-        )
-    trace.get_current_span().set_attributes(
-        {"synapse.file_handle_id": file_handle["id"]}
-    )
-    return file_handle
+    # Determine file size if local file
+    is_local_file = False
+    if file_size is None and os.path.isfile(expanded_path):
+        file_size = os.path.getsize(expanded_path)
+        is_local_file = True
+
+    with monitored_transfer(
+        operation="create_external_handle",
+        file_path=path,
+        file_size=file_size or 0,
+        destination="external:file_handle",
+        mime_type=mimetype,
+        with_progress_bar=False,
+    ) as monitor:
+        try:
+            # Set external file attributes
+            url = as_url(expanded_path)
+            monitor.span.set_attribute("synapse.external.url", url)
+            monitor.span.set_attribute("synapse.transfer.type", "external_reference")
+
+            # Validate URL
+            if is_url(url):
+                parsed_url = urllib_parse.urlparse(url)
+                parsed_path = file_url_to_path(url)
+
+                if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
+                    # Local file reference
+                    monitor.span.set_attribute("synapse.external.is_local", True)
+
+                    # Calculate MD5 for local file
+                    actual_md5 = utils.md5_for_file_hex(filename=parsed_path)
+                    if md5 is not None and md5 != actual_md5:
+                        raise SynapseMd5MismatchError(
+                            f"The specified md5 [{md5}] does not match the calculated md5 "
+                            f"[{actual_md5}] for local file [{parsed_path}]"
+                        )
+                    md5 = actual_md5
+                    file_size = os.stat(parsed_path).st_size
+                    is_local_file = True
+
+                    monitor.file_size = file_size
+            else:
+                raise ValueError(f"externalUrl [{url}] is not a valid url")
+
+            # No actual transfer for external file handles
+            monitor.transferred_bytes = 0
+            monitor.span.set_attribute("synapse.transfer.status", "completed")
+            monitor.span.set_attribute("synapse.transfer.skip_reason", "external_reference")
+
+            # Create the file handle
+            file_handle = await post_external_filehandle(
+                external_url=url, mimetype=mimetype, md5=md5, file_size=file_size
+            )
+
+            # Update final metrics
+            monitor.span.set_attribute("synapse.file_handle_id", file_handle["id"])
+
+            # Cache local files
+            if is_local_file:
+                syn.cache.add(
+                    file_handle_id=file_handle["id"], path=file_url_to_path(url), md5=md5
+                )
+                monitor.record_cache_hit(True)
+
+            return file_handle
+
+        except Exception as ex:
+            monitor.span.set_attribute("synapse.transfer.status", "failed")
+            monitor.span.set_attribute("synapse.transfer.error_message", str(ex))
+            monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
+            raise
 
 
 async def upload_external_file_handle_sftp(
@@ -226,24 +302,107 @@ async def upload_external_file_handle_sftp(
     storage_str: str = None,
 ) -> Dict[str, Union[str, int]]:
     """Upload a file to an SFTP server and create a file handle in Synapse."""
-    username, password = syn._getUserCredentials(url=sftp_url)
-    uploaded_url = SFTPWrapper.upload_file(
-        file_path,
-        urllib_parse.unquote(sftp_url),
-        username,
-        password,
-        storage_str=storage_str,
-    )
+    # Get file metadata
+    file_size = os.path.getsize(file_path)
+    parsed_url = urllib_parse.urlparse(sftp_url)
+    destination = f"sftp:{parsed_url.netloc}:{parsed_url.path}"
 
-    file_md5 = md5 or utils.md5_for_file_hex(filename=file_path)
-    file_handle = await post_external_filehandle(
-        external_url=uploaded_url,
-        mimetype=mimetype,
-        md5=file_md5,
-        file_size=os.stat(file_path).st_size,
-    )
-    syn.cache.add(file_handle_id=file_handle["id"], path=file_path, md5=file_md5)
-    return file_handle
+    with monitored_transfer(
+        operation="upload_sftp",
+        file_path=file_path,
+        file_size=file_size,
+        destination=destination,
+        mime_type=mimetype,
+        storage_provider="sftp",
+        host=parsed_url.netloc,
+    ) as monitor:
+        try:
+            # Set SFTP-specific attributes
+            monitor.span.set_attribute("synapse.sftp.host", parsed_url.netloc)
+            monitor.span.set_attribute("synapse.sftp.url", sftp_url)
+            monitor.span.set_attribute("synapse.transfer.protocol", "sftp")
+            monitor.span.set_attribute("synapse.upload_destination_type", "EXTERNAL_UPLOAD_DESTINATION")
+
+            # Get credentials
+            username, password = syn._getUserCredentials(url=sftp_url)
+
+            # SFTP uploads are synchronous, so we need to simulate progress updates
+            # by checking file size periodically in a separate thread
+            upload_complete = threading.Event()
+
+            def progress_monitor():
+                """Monitor upload progress for SFTP transfers"""
+                start_time = time.time()
+                last_update = 0
+
+                while not upload_complete.is_set():
+                    try:
+                        # Estimate progress based on time and typical SFTP speeds
+                        elapsed = time.time() - start_time
+                        estimated_speed = 10 * 1024 * 1024  # 10 MB/s typical SFTP
+                        estimated_bytes = min(elapsed * estimated_speed, file_size)
+
+                        bytes_delta = estimated_bytes - last_update
+                        if bytes_delta > 0:
+                            monitor.update(bytes_delta)
+                            last_update = estimated_bytes
+
+                        time.sleep(0.5)
+                    except Exception:
+                        pass
+
+            # Start progress monitoring thread
+            progress_thread = threading.Thread(target=progress_monitor, daemon=True)
+            progress_thread.start()
+
+            try:
+                # Execute SFTP upload
+                uploaded_url = SFTPWrapper.upload_file(
+                    file_path,
+                    urllib_parse.unquote(sftp_url),
+                    username,
+                    password,
+                    storage_str=storage_str
+                )
+
+                # Signal upload complete
+                upload_complete.set()
+                progress_thread.join(timeout=1.0)
+
+                # Ensure full file size is recorded
+                monitor.transferred_bytes = file_size
+                monitor.span.set_attribute("synapse.sftp.uploaded_url", uploaded_url)
+
+            except Exception:
+                upload_complete.set()
+                raise
+
+            # Calculate MD5 if not provided
+            file_md5 = md5 or utils.md5_for_file_hex(filename=file_path)
+
+            # Create external file handle
+            file_handle = await post_external_filehandle(
+                external_url=uploaded_url,
+                mimetype=mimetype,
+                md5=file_md5,
+                file_size=file_size
+            )
+
+            # Update final metrics
+            monitor.span.set_attribute("synapse.file_handle_id", file_handle["id"])
+            monitor.span.set_attribute("synapse.transfer.status", "completed")
+
+            # Cache the uploaded file
+            syn.cache.add(file_handle_id=file_handle["id"], path=file_path, md5=file_md5)
+
+            return file_handle
+
+        except Exception as ex:
+            monitor.span.set_attribute("synapse.transfer.status", "failed")
+            monitor.span.set_attribute("synapse.transfer.error_message", str(ex))
+            monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
+            monitor.record_retry(error=ex)
+            raise
 
 
 async def upload_synapse_s3(
@@ -255,6 +414,7 @@ async def upload_synapse_s3(
     md5: str = None,
     storage_str: str = None,
     progress_callback: Optional[callable] = None,
+    transfer_monitor: Optional[TransferMonitor] = None,
 ) -> Dict[str, Union[str, int]]:
     """Upload a file to Synapse storage and create a file handle in Synapse.
 
@@ -270,8 +430,6 @@ async def upload_synapse_s3(
     Returns:
         A dictionary of the file handle.
     """
-    from synapseclient.core.telemetry_integration import monitored_transfer
-
     # Get file size for telemetry tracking
     file_size = os.path.getsize(file_path)
 
@@ -285,16 +443,17 @@ async def upload_synapse_s3(
         file_size=file_size,
         destination=destination,
         with_progress_bar=False,  # Progress is handled by multipart upload
-        mime_type=mimetype,
         md5=md5,
         multipart=True,
         storage_location_id=storage_location_id,
         force_restart=force_restart,
+        reuse_monitor=transfer_monitor,
+        storage_provider="s3",
     ) as monitor:
         try:
             # Track if an actual transfer occurs
             initial_transferred_bytes = monitor.transferred_bytes
-            
+
             file_handle_id = await multipart_upload_file_async(
                 syn=syn,
                 file_path=file_path,
@@ -305,18 +464,14 @@ async def upload_synapse_s3(
                 storage_str=storage_str,
                 progress_callback=progress_callback,
             )
-            
-            # Check if any bytes were actually transferred during the operation
-            # If no bytes were transferred (e.g., file exists and hasn't changed),
-            # set transferred_bytes, bandwidth_mbps, and transfer_size_bytes to 0 to indicate no actual transfer occurred
+
             if monitor.transferred_bytes == initial_transferred_bytes:
                 monitor.transferred_bytes = 0
-                monitor.span.set_attribute("synapse.transfer.bandwidth_mbps", 0)
                 monitor.span.set_attribute("synapse.file.transfer_size_bytes", 0)
             else:
                 # Only set to file_size if actual transfer happened
                 monitor.transferred_bytes = file_size
-                
+
             # Cache the file
             syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
             # Add file handle ID to span
@@ -362,48 +517,98 @@ async def upload_synapse_sts_boto_s3(
     Returns:
         _description_
     """
-    key_prefix = str(uuid.uuid4())
-
+    # Get file metadata for telemetry
+    file_size = os.path.getsize(local_path) if os.path.isfile(local_path) else 0
     bucket_name = upload_destination["bucket"]
     storage_location_id = upload_destination["storageLocationId"]
-    remote_file_key = "/".join(
-        [
-            upload_destination.get("baseKey", ""),
-            key_prefix,
-            os.path.basename(local_path),
-        ]
-    )
 
-    def upload_fn(credentials: Dict[str, str]) -> str:
-        """Wrapper for the upload function."""
-        return S3ClientWrapper.upload_file(
-            bucket=bucket_name,
-            endpoint_url=None,
-            remote_file_key=remote_file_key,
-            upload_file_path=local_path,
-            credentials=credentials,
-            transfer_config_kwargs={"max_concurrency": syn.max_threads},
-            storage_str=storage_str,
-        )
+    # Create descriptive destination string
+    destination = f"synapse:s3:sts:{bucket_name}:{parent_id}"
 
-    loop = asyncio.get_event_loop()
-
-    await loop.run_in_executor(
-        syn._get_thread_pool_executor(asyncio_event_loop=loop),
-        lambda: sts_transfer.with_boto_sts_credentials(
-            upload_fn, syn, parent_id, "read_write"
-        ),
-    )
-
-    return await post_external_s3_file_handle(
-        bucket_name=bucket_name,
-        s3_file_key=remote_file_key,
+    with monitored_transfer(
+        operation="upload_sts_s3",
         file_path=local_path,
+        file_size=file_size,
+        destination=destination,
+        mime_type=mimetype,
+        storage_provider="s3",
+        parent_id=parent_id,
+        bucket=bucket_name,
         storage_location_id=storage_location_id,
-        mimetype=mimetype,
-        md5=md5,
-        synapse_client=syn,
-    )
+    ) as monitor:
+        try:
+            # Set S3-specific attributes
+            monitor.span.set_attribute("synapse.s3.bucket", bucket_name)
+            monitor.span.set_attribute("synapse.s3.storage_location_id", storage_location_id)
+            monitor.span.set_attribute("synapse.transfer.auth_method", "sts")
+            monitor.span.set_attribute("synapse.upload_destination_type", "EXTERNAL_S3_UPLOAD_DESTINATION")
+
+            # Track STS credential fetch time
+            sts_start = time.time()
+
+            key_prefix = str(uuid.uuid4())
+            remote_file_key = "/".join([
+                upload_destination.get("baseKey", ""),
+                key_prefix,
+                os.path.basename(local_path),
+            ])
+            monitor.span.set_attribute("synapse.s3.key", remote_file_key)
+
+            # Create progress callback that updates monitor
+            progress_callback = create_thread_safe_progress_callback(monitor)
+
+            def upload_fn(credentials: Dict[str, str]) -> str:
+                # Record STS credential fetch duration
+                sts_duration = time.time() - sts_start
+                monitor.span.set_attribute("synapse.auth.sts_duration_seconds", sts_duration)
+
+                return S3ClientWrapper.upload_file(
+                    bucket=bucket_name,
+                    endpoint_url=None,
+                    remote_file_key=remote_file_key,
+                    upload_file_path=local_path,                    credentials=credentials,
+                    transfer_config_kwargs={"max_concurrency": syn.max_threads},
+                    storage_str=storage_str,
+                    progress_callback=progress_callback
+                )
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                lambda: sts_transfer.with_boto_sts_credentials(
+                    upload_fn, syn, parent_id, "read_write"
+                )
+            )
+
+            # Create file handle
+            result = await post_external_s3_file_handle(
+                bucket_name=bucket_name,
+                s3_file_key=remote_file_key,
+                file_path=local_path,
+                storage_location_id=storage_location_id,
+                mimetype=mimetype,
+                md5=md5,
+                synapse_client=syn
+            )
+
+            # Update final metrics
+            monitor.transferred_bytes = file_size
+            monitor.span.set_attribute("synapse.file_handle_id", result["id"])
+            monitor.span.set_attribute("synapse.transfer.status", "completed")
+
+            # Cache the uploaded file
+            if md5 is None:
+                md5 = utils.md5_for_file_hex(filename=local_path)
+            syn.cache.add(file_handle_id=result["id"], path=local_path, md5=md5)
+
+            return result
+
+        except Exception as ex:
+            monitor.span.set_attribute("synapse.transfer.status", "failed")
+            monitor.span.set_attribute("synapse.transfer.error_message", str(ex))
+            monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
+            monitor.record_retry(error=ex)
+            raise
 
 
 async def upload_client_auth_s3(
@@ -418,33 +623,121 @@ async def upload_client_auth_s3(
     storage_str: str = None,
 ) -> Dict[str, Union[str, int]]:
     """Use the S3 client to upload a file to an S3 bucket."""
-    profile = get_client_authenticated_s3_profile(
-        endpoint=endpoint_url, bucket=bucket, config_path=syn.configPath
-    )
-    file_key = key_prefix + "/" + os.path.basename(file_path)
-    loop = asyncio.get_event_loop()
+    # Get file metadata
+    file_size = os.path.getsize(file_path)
 
-    await loop.run_in_executor(
-        syn._get_thread_pool_executor(asyncio_event_loop=loop),
-        lambda: S3ClientWrapper.upload_file(
-            bucket=bucket,
-            endpoint_url=endpoint_url,
-            remote_file_key=file_key,
-            upload_file_path=file_path,
-            profile_name=profile,
-            credentials=_get_aws_credentials(),
-            storage_str=storage_str,
-        ),
-    )
+    # Create descriptive destination
+    destination = f"external:s3:{endpoint_url}:{bucket}"
 
-    file_handle = await post_external_object_store_filehandle(
-        s3_file_key=file_key,
+    with monitored_transfer(
+        operation="upload_external_s3",
         file_path=file_path,
+        file_size=file_size,
+        destination=destination,
+        mime_type=mimetype,
+        storage_provider="s3",
+        endpoint_url=endpoint_url,
+        bucket=bucket,
         storage_location_id=storage_location_id,
-        mimetype=mimetype,
-        md5=md5,
-        synapse_client=syn,
-    )
-    syn.cache.add(file_handle_id=file_handle["id"], path=file_path, md5=md5)
+    ) as monitor:
+        try:
+            # Set external S3 attributes
+            monitor.span.set_attribute("synapse.s3.bucket", bucket)
+            monitor.span.set_attribute("synapse.s3.endpoint", endpoint_url)
+            monitor.span.set_attribute("synapse.transfer.auth_method", "client_auth")
+            monitor.span.set_attribute("synapse.upload_destination_type", "EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION")
 
-    return file_handle
+            # Get S3 profile
+            profile = get_client_authenticated_s3_profile(
+                endpoint=endpoint_url, bucket=bucket, config_path=syn.configPath
+            )
+            monitor.span.set_attribute("synapse.s3.profile", profile)
+
+            # Create file key
+            file_key = key_prefix + "/" + os.path.basename(file_path)
+            monitor.span.set_attribute("synapse.s3.key", file_key)
+
+            # Create thread-safe progress callback
+            progress_callback = create_thread_safe_progress_callback(monitor)
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                syn._get_thread_pool_executor(asyncio_event_loop=loop),
+                lambda: S3ClientWrapper.upload_file(
+                    bucket=bucket,
+                    endpoint_url=endpoint_url,
+                    remote_file_key=file_key,
+                    upload_file_path=file_path,
+                    profile_name=profile,
+                    credentials=_get_aws_credentials(),
+                    storage_str=storage_str,
+                    progress_callback=progress_callback
+                )
+            )
+
+            # Create file handle
+            file_handle = await post_external_object_store_filehandle(
+                s3_file_key=file_key,
+                file_path=file_path,
+                storage_location_id=storage_location_id,
+                mimetype=mimetype,
+                md5=md5,
+                synapse_client=syn
+            )
+
+            # Update final metrics
+            monitor.transferred_bytes = file_size
+            monitor.span.set_attribute("synapse.file_handle_id", file_handle["id"])
+            monitor.span.set_attribute("synapse.transfer.status", "completed")
+
+            # Cache the uploaded file
+            if md5 is None:
+                md5 = utils.md5_for_file_hex(filename=file_path)
+            syn.cache.add(file_handle_id=file_handle["id"], path=file_path, md5=md5)
+
+            return file_handle
+
+        except Exception as ex:
+            monitor.span.set_attribute("synapse.transfer.status", "failed")
+            monitor.span.set_attribute("synapse.transfer.error_message", str(ex))
+            monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
+            monitor.record_retry(error=ex)
+            raise
+
+
+# Thread-safe progress callback helper
+def create_thread_safe_progress_callback(monitor):
+    """
+    Create a thread-safe progress callback that properly tracks per-thread progress.
+
+    This is essential for multi-threaded uploads where multiple threads may be
+    uploading different parts of the file simultaneously.
+
+    Args:
+        monitor: The TransferMonitor instance to update with progress
+
+    Returns:
+        A callback function that can be passed to S3 upload methods
+    """
+    def progress_callback(bytes_transferred, total_bytes):
+        # Get current thread ID
+        thread_id = threading.get_ident()
+
+        # Thread-safe update
+        with monitor._lock:
+            # Initialize thread tracking if needed
+            if not hasattr(monitor, '_thread_bytes'):
+                monitor._thread_bytes = {}
+
+            # Calculate bytes transferred since last update for this thread
+            last_bytes = monitor._thread_bytes.get(thread_id, 0)
+            bytes_delta = bytes_transferred - last_bytes
+
+            # Only update if we have actual progress
+            if bytes_delta > 0:
+                # Store the new value for next comparison
+                monitor._thread_bytes[thread_id] = bytes_transferred
+                # Update the monitor with the bytes transferred in this update
+                monitor.update(bytes_delta)
+
+    return progress_callback

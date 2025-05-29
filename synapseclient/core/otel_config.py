@@ -168,7 +168,7 @@ def configure_metrics(
     return provider
 
 
-def get_tracer(name: Optional[str] = None, version: Optional[str] = None):
+def get_tracer(name: Optional[str] = None, version: Optional[str] = None) -> trace.Tracer:
     """
     Get a tracer with the specified name or default to the service name.
 

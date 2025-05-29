@@ -297,7 +297,6 @@ def upload_synapse_s3(
         destination=destination,
         with_progress_bar=False,  # Progress is handled by multipart upload
         mime_type=mimetype,
-        md5=md5,
         multipart=True,
         storage_location_id=storageLocationId,
         max_threads=max_threads
