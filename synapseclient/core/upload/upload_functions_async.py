@@ -363,7 +363,6 @@ async def upload_synapse_s3(
     force_restart: bool = False,
     md5: str = None,
     storage_str: str = None,
-    progress_callback: Optional[callable] = None,
 ) -> Dict[str, Union[str, int]]:
     """Upload a file to Synapse storage and create a file handle in Synapse.
 
@@ -394,7 +393,6 @@ async def upload_synapse_s3(
             md5=md5,
             force_restart=force_restart,
             storage_str=storage_str,
-            progress_callback=progress_callback,
         )
 
         # Cache the file
@@ -464,10 +462,6 @@ async def upload_synapse_sts_boto_s3(
             key_prefix,
             os.path.basename(local_path),
         ])
-        monitor.span.set_attribute("synapse.s3.key", remote_file_key)
-
-        # Create progress callback that updates monitor
-        progress_callback = create_thread_safe_progress_callback(monitor)
 
         def upload_fn(credentials: Dict[str, str]) -> str:
             # Record STS credential fetch duration
@@ -481,7 +475,6 @@ async def upload_synapse_sts_boto_s3(
                 upload_file_path=local_path,                    credentials=credentials,
                 transfer_config_kwargs={"max_concurrency": syn.max_threads},
                 storage_str=storage_str,
-                progress_callback=progress_callback
             )
 
         loop = asyncio.get_event_loop()
@@ -595,41 +588,3 @@ async def upload_client_auth_s3(
         monitor.span.set_attribute("synapse.transfer.error_type", type(ex).__name__)
         monitor.record_retry(error=ex)
         raise
-
-
-# Thread-safe progress callback helper
-def create_thread_safe_progress_callback(monitor):
-    """
-    Create a thread-safe progress callback that properly tracks per-thread progress.
-
-    This is essential for multi-threaded uploads where multiple threads may be
-    uploading different parts of the file simultaneously.
-
-    Args:
-        monitor: The TransferMonitor instance to update with progress
-
-    Returns:
-        A callback function that can be passed to S3 upload methods
-    """
-    def progress_callback(bytes_transferred, total_bytes):
-        # Get current thread ID
-        thread_id = threading.get_ident()
-
-        # Thread-safe update
-        with monitor._lock:
-            # Initialize thread tracking if needed
-            if not hasattr(monitor, '_thread_bytes'):
-                monitor._thread_bytes = {}
-
-            # Calculate bytes transferred since last update for this thread
-            last_bytes = monitor._thread_bytes.get(thread_id, 0)
-            bytes_delta = bytes_transferred - last_bytes
-
-            # Only update if we have actual progress
-            if bytes_delta > 0:
-                # Store the new value for next comparison
-                monitor._thread_bytes[thread_id] = bytes_transferred
-                # Update the monitor with the bytes transferred in this update
-                monitor.update(bytes_delta)
-
-    return progress_callback

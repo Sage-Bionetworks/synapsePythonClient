@@ -286,9 +286,6 @@ def upload_synapse_s3(
     # Get file size for telemetry tracking
     file_size = os.path.getsize(file_path)
 
-    # Create a descriptive destination string
-    destination = f"synapse:s3:{storageLocationId if storageLocationId else 'default'}"
-
     # Use monitored_transfer for OpenTelemetry tracing
     with monitored_transfer(
         operation="upload",

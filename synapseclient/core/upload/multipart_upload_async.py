@@ -177,7 +177,6 @@ class UploadAttemptAsync:
         md5_fn: Callable[[bytes, httpx.Response], str],
         force_restart: bool,
         storage_str: str = None,
-        progress_callback: Optional[callable] = None,
     ) -> None:
         self._syn = syn
         self._dest_file_name = dest_file_name
@@ -189,7 +188,6 @@ class UploadAttemptAsync:
         self._md5_fn = md5_fn
 
         self._force_restart = force_restart
-        self._progress_callback = progress_callback
 
         self._lock = asyncio.Lock()
         self._thread_lock = threading.Lock()
@@ -399,16 +397,6 @@ class UploadAttemptAsync:
         if self._syn.silent or not self._progress_bar:
             return
         self._progress_bar.update(1 if self._is_copy() else part_size)
-
-        # Update total uploaded and notify via progress_callback
-        with self._thread_lock:
-            self._total_uploaded += part_size
-            if self._progress_callback is not None:
-                try:
-                    self._progress_callback(min(self._total_uploaded, self._total_size), self._total_size)
-                except Exception:
-                    # Ignore errors in the progress callback to avoid breaking the upload
-                    pass
 
     async def _orchestrate_upload_part_tasks(
         self, async_tasks: List[asyncio.Task]
@@ -827,7 +815,6 @@ async def multipart_upload_file_async(
     force_restart: bool = False,
     md5: str = None,
     storage_str: str = None,
-    progress_callback: Optional[callable] = None,
 ) -> str:
     """Upload a file to a Synapse upload destination in chunks.
 
@@ -844,8 +831,6 @@ async def multipart_upload_file_async(
                        from scratch, False to try to resume
         md5: The MD5 of the file. If not provided, it will be calculated.
         storage_str: Optional string to append to the upload message
-        progress_callback: Optional callback function to report upload progress,
-                          called with (bytes_transferred, total_bytes)
 
     Returns:
         a File Handle ID
@@ -908,7 +893,6 @@ async def multipart_upload_file_async(
             md5_fn_util,
             force_restart=force_restart,
             storage_str=storage_str,
-            progress_callback=progress_callback,
         )
 
 
@@ -920,7 +904,6 @@ async def _multipart_upload_async(
     md5_fn: Callable[[bytes, httpx.Response], str],
     force_restart: bool = False,
     storage_str: str = None,
-    progress_callback: Optional[callable] = None,
 ) -> str:
     """Calls upon an [UploadAttempt][synapseclient.core.upload.multipart_upload.UploadAttempt]
     object to initiate and/or retry a multipart file upload or copy. This function is wrapped by
@@ -937,8 +920,6 @@ async def _multipart_upload_async(
         part_fn: Function to calculate the partSize of each part
         md5_fn: Function to calculate the MD5 of the file-like object
         storage_str: Optional string to append to the upload message
-        progress_callback: Optional callback function to report upload progress,
-                          called with (bytes_transferred, total_bytes)
 
     Returns:
         A File Handle ID
@@ -958,7 +939,6 @@ async def _multipart_upload_async(
                 # from scratch.
                 force_restart and retry == 0,
                 storage_str=storage_str,
-                progress_callback=progress_callback,
             )()
 
             # success
@@ -980,7 +960,6 @@ async def multipart_upload_string_async(
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
-    progress_callback: Optional[callable] = None,
 ) -> str:
     """Upload a file to a Synapse upload destination in chunks.
 
@@ -995,8 +974,6 @@ async def multipart_upload_string_async(
         preview: True to generate a preview
         force_restart: True to restart a previously initiated upload
                        from scratch, False to try to resume
-        progress_callback: Optional callback function to report upload progress,
-                          called with (bytes_transferred, total_bytes)
 
     Returns:
         a File Handle ID
@@ -1045,7 +1022,6 @@ async def multipart_upload_string_async(
             part_fn,
             md5_fn_util,
             force_restart=force_restart,
-            progress_callback=progress_callback,
         )
 
 
@@ -1057,7 +1033,6 @@ async def multipart_copy_async(
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
-    progress_callback: Optional[callable] = None,
 ) -> str:
     """Makes a
     [Multipart Upload Copy Request](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadCopyRequest.html).
@@ -1072,8 +1047,6 @@ async def multipart_copy_async(
                              The user must be the owner of the storage location.
         preview: True to generate a preview of the data.
         force_restart: True to restart a previously initiated upload from scratch, False to try to resume.
-        progress_callback: Optional callback function to report copy progress,
-                          called with (bytes_transferred, total_bytes)
 
     Returns:
         a File Handle ID
@@ -1101,5 +1074,4 @@ async def multipart_copy_async(
             copy_part_request_body_provider_fn,
             copy_md5_fn,
             force_restart=force_restart,
-            progress_callback=progress_callback,
         )

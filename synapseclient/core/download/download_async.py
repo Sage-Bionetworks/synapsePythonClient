@@ -266,16 +266,12 @@ class _MultithreadedDownloader:
         Arguments:
             syn: A synapseclient
             download_request: A download request object specifying the file to download
-            progress_callback: Optional callback function to report download progress,
-                              called with (bytes_transferred, total_bytes)
         """
         self._syn = syn
         self._thread_lock = _threading.Lock()
         self._aborted = False
         self._download_request = download_request
         self._progress_bar = None
-        self._total_downloaded = 0
-        self._total_size = 0
         self._current_span = trace.get_current_span()
 
     def record_span_event(self, event_name: str, attributes: Optional[dict] = None) -> None:
@@ -309,7 +305,6 @@ class _MultithreadedDownloader:
             retry_max_wait_before_failure=30,
             read_response_content=False,
         )
-        self._total_size = file_size
         self._progress_bar = get_or_create_download_progress_bar(
             file_size=file_size,
             postfix=self._download_request.object_id,
@@ -490,7 +485,7 @@ class _MultithreadedDownloader:
         self, request: DownloadRequest, chunk: bytes, start: int, length: int
     ) -> None:
         """Open the file and write the chunk to the specified byte range. Also update
-        the progress bar and call the progress callback if provided.
+        the progress bar.
 
         Arguments:
             request: A DownloadRequest object specifying what Synapse file to download
