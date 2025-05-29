@@ -294,12 +294,6 @@ def upload_synapse_s3(
         operation="upload",
         file_path=file_path,
         file_size=file_size,
-        destination=destination,
-        with_progress_bar=False,  # Progress is handled by multipart upload
-        mime_type=mimetype,
-        multipart=True,
-        storage_location_id=storageLocationId,
-        max_threads=max_threads
     ) as monitor:
         try:
             file_handle_id = multipart_upload_file(
@@ -311,8 +305,6 @@ def upload_synapse_s3(
                 md5=md5,
                 progress_callback=progress_callback,
             )
-            # Update monitor with completion
-            monitor.transferred_bytes = file_size
             # Cache the file
             syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
             # Add file handle ID to span
