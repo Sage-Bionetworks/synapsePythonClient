@@ -66,116 +66,6 @@ class TransferMonitor:
         self._last_update_time = time.time()
         self._last_bytes = 0
 
-    def update(self, bytes_count: int):
-        """
-        Update the transfer progress.
-
-        Args:
-            bytes_count: Number of bytes transferred in this update
-        """
-        # Skip if no bytes were transferred
-        if bytes_count <= 0:
-            return
-
-        with self._lock:
-            # Update internal counter
-            self.transferred_bytes += bytes_count
-
-            # Update progress bar if available
-            if self.progress_bar:
-                self.progress_bar.update(bytes_count)
-
-            # Record trace data only (metrics recorded at end of transfer)
-            self._record_trace_progress(bytes_count)
-
-            # Update state for next calculation
-            self._last_update_time = time.time()
-            self._last_bytes = bytes_count
-
-    def _record_trace_progress(self, bytes_count: int):
-        """
-        Record progress in the trace span.
-
-        Args:
-            bytes_count: Number of bytes transferred in this update
-        """
-        # Add progress event to span
-        self._add_event("progress_update", {
-            "transferred_bytes": self.transferred_bytes,
-            "bytes_delta": bytes_count
-        })
-
-    def set_chunks_info(self, total_chunks: int):
-        """
-        Set information about the number of chunks in a multipart transfer.
-
-        Args:
-            total_chunks: Total number of chunks to transfer
-        """
-        with self._lock:
-            self.chunks_total = total_chunks
-
-    def start_chunk(self, chunk_number: int):
-        """
-        Start tracking a chunk transfer.
-
-        Args:
-            chunk_number: The chunk number being transferred
-        """
-        with self._lock:
-            self._chunk_start_times[chunk_number] = time.time()
-            self._add_event("chunk_started", {"chunk_number": chunk_number})
-
-    def chunk_completed(self, chunk_number: Optional[int] = None):
-        """
-        Mark a chunk as completed in a multipart transfer.
-
-        Args:
-            chunk_number: The number of the completed chunk. If not provided,
-                          uses the current chunks_completed + 1 value.
-        """
-        with self._lock:
-            if chunk_number is None:
-                # Default to incrementing the current completed count
-                chunk_number = self.chunks_completed + 1
-
-            self.chunks_completed += 1
-
-            # No need for attribute since timing is meaningful - use event instead
-            duration = None
-            if chunk_number in self._chunk_start_times:
-                duration = time.time() - self._chunk_start_times.pop(chunk_number)
-
-            # Use an event since the completion timestamp is meaningful
-            self._add_event("chunk_completed", {
-                "chunk_number": chunk_number,
-                "chunks_total": self.chunks_total,
-                "chunks_completed": self.chunks_completed,
-                "duration_seconds": duration
-            })
-
-    def chunk_retry(self, chunk_number: int, error: Optional[Exception] = None):
-        """
-        Record a chunk retry during multipart transfer.
-
-        Args:
-            chunk_number: The chunk number that failed
-            error: Optional exception that caused the retry
-        """
-        with self._lock:            # Update trace attributes
-            retry_count = self.span.get_attribute("synapse.transfer.chunk_retry_count") or 0
-            retry_count += 1
-            self.span.set_attribute("synapse.transfer.chunk_retry_count", retry_count)
-
-            # Create event attributes
-            event_attrs = {"chunk_number": chunk_number, "retry_count": retry_count}
-            if error:
-                event_attrs["error"] = str(error)
-                event_attrs["error_type"] = type(error).__name__
-
-            # Use an event since the retry timestamp is meaningful
-            self._add_event("chunk_retry", event_attrs)
-
     def record_retry(self, error: Optional[Exception] = None):
         """
         Record a retry attempt during transfer.
@@ -309,9 +199,7 @@ def monitored_transfer(
     elif operation.lower().startswith("download"):
         span_attributes["synapse.transfer.direction"] = "download"
         # Enhance transfer method with more specificity
-        if multipart:
-            span_attributes["synapse.transfer.method"] = "multipart_download"
-        elif "cache" in operation.lower():
+        if "cache" in operation.lower():
             span_attributes["synapse.transfer.method"] = "cached_copy"
         else:
             span_attributes["synapse.transfer.method"] = "download"

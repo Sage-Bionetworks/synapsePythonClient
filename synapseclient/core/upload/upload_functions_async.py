@@ -326,35 +326,6 @@ async def upload_external_file_handle_sftp(
             # Get credentials
             username, password = syn._getUserCredentials(url=sftp_url)
 
-            # SFTP uploads are synchronous, so we need to simulate progress updates
-            # by checking file size periodically in a separate thread
-            upload_complete = threading.Event()
-
-            def progress_monitor():
-                """Monitor upload progress for SFTP transfers"""
-                start_time = time.time()
-                last_update = 0
-
-                while not upload_complete.is_set():
-                    try:
-                        # Estimate progress based on time and typical SFTP speeds
-                        elapsed = time.time() - start_time
-                        estimated_speed = 10 * 1024 * 1024  # 10 MB/s typical SFTP
-                        estimated_bytes = min(elapsed * estimated_speed, file_size)
-
-                        bytes_delta = estimated_bytes - last_update
-                        if bytes_delta > 0:
-                            monitor.update(bytes_delta)
-                            last_update = estimated_bytes
-
-                        time.sleep(0.5)
-                    except Exception:
-                        pass
-
-            # Start progress monitoring thread
-            progress_thread = threading.Thread(target=progress_monitor, daemon=True)
-            progress_thread.start()
-
             try:
                 # Execute SFTP upload
                 uploaded_url = SFTPWrapper.upload_file(
@@ -365,16 +336,11 @@ async def upload_external_file_handle_sftp(
                     storage_str=storage_str
                 )
 
-                # Signal upload complete
-                upload_complete.set()
-                progress_thread.join(timeout=1.0)
-
                 # Ensure full file size is recorded
+                # TODO: Is this needed?
                 monitor.transferred_bytes = file_size
-                monitor.span.set_attribute("synapse.sftp.uploaded_url", uploaded_url)
 
             except Exception:
-                upload_complete.set()
                 raise
 
             # Calculate MD5 if not provided

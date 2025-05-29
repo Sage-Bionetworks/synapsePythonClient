@@ -7,7 +7,6 @@ import hashlib
 import os
 import shutil
 import sys
-import threading
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
@@ -53,8 +52,6 @@ from synapseclient.core.transfer_bar import (
     increment_progress_bar,
     increment_progress_bar_total,
 )
-from synapseclient.core.telemetry_integration import monitored_transfer
-from opentelemetry import trace
 from synapseclient.core.utils import MB
 
 if TYPE_CHECKING:
@@ -310,6 +307,7 @@ async def download_file_entity_model(
                 return
 
             if cached_file_path is not None:  # copy from cache
+                monitor.span.set_attribute("synapse.storage.provider", "cache")
                 if download_path != cached_file_path:
                     # create the folder if it does not exist already
                     if not os.path.exists(download_location):
@@ -320,7 +318,6 @@ async def download_file_entity_model(
                     try:
                         shutil.copy(cached_file_path, download_path)
                         # Record successful copy from cache
-                        monitor.update(file_size)  # Mark the entire file as transferred at once
                         monitor.span.set_attribute("synapse.transfer.source", "cache_copy")
                         monitor.span.set_attribute("synapse.transfer.status", "completed")
                     except Exception as e:
@@ -507,6 +504,7 @@ async def download_by_file_handle(
 
     # Create a top-level monitoring span for this download attempt that will track all retries
     # We'll set detailed properties on this later when we know more about the file
+    # TODO: Try to create this monitored transfer above this
     with monitored_transfer(
         operation="download_by_filehandle",
         file_path=destination,
@@ -554,6 +552,7 @@ async def download_by_file_handle(
                     top_monitor.span.set_attribute("synapse.storage_location.id", storage_location_id)
 
                 if concrete_type == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
+                    top_monitor.span.set_attribute("synapse.storage.provider", "s3")
                     # Set download type for telemetry
                     top_monitor.span.set_attribute("synapse.download.type", "external_object_store")
 
@@ -616,6 +615,7 @@ async def download_by_file_handle(
                     )
                     and concrete_type == concrete_types.S3_FILE_HANDLE
                 ):
+                    top_monitor.span.set_attribute("synapse.storage.provider", "s3")
                     # Set download type for telemetry
                     top_monitor.span.set_attribute("synapse.download.type", "s3_sts")
 
@@ -687,6 +687,7 @@ async def download_by_file_handle(
                     and file_handle.get("contentSize", 0)
                     > SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
                 ):
+                    top_monitor.span.set_attribute("synapse.storage.provider", "s3")
                     # Set download type for telemetry
                     top_monitor.span.set_attribute("synapse.download.type", "multi_threaded")
 
@@ -709,27 +710,6 @@ async def download_by_file_handle(
                         reuse_monitor=top_monitor
                     ) as monitor:
                         try:
-                            # Create a thread-safe progress callback that properly tracks delta
-                            def multi_thread_progress_callback(bytes_transferred, total_bytes):
-                                # Use a thread local storage to track last bytes per thread
-                                thread_id = threading.get_ident()
-                                with monitor._lock:  # Use monitor's lock for thread safety
-                                    if not hasattr(monitor, '_thread_bytes'):
-                                        # Initialize thread-local storage for byte tracking
-                                        monitor._thread_bytes = {}
-
-                                    # Calculate bytes transferred since last update for this thread
-                                    last_bytes = monitor._thread_bytes.get(thread_id, 0)
-                                    bytes_delta = bytes_transferred - last_bytes
-
-                                    # Only update if we have actual progress
-                                    if bytes_delta > 0:
-                                        # Store the new value for next comparison
-                                        monitor._thread_bytes[thread_id] = bytes_transferred
-                                        # Update the monitor with the bytes transferred in this update
-                                        # (update method has its own lock)
-                                        monitor.update(bytes_delta)
-
                             downloaded_path = await download_from_url_multi_threaded(
                                 file_handle_id=file_handle_id,
                                 object_id=synapse_id,
@@ -737,7 +717,6 @@ async def download_by_file_handle(
                                 destination=destination,
                                 expected_md5=actual_md5,
                                 synapse_client=syn,
-                                progress_callback=multi_thread_progress_callback
                             )
                             # Update the monitor with the result
                             monitor.transferred_bytes = actual_file_size
@@ -775,23 +754,6 @@ async def download_by_file_handle(
                         # Create a wrapper around the standard download function that updates both
                         # the progress bar and our telemetry monitor
                         def download_with_telemetry(**kwargs):
-                            # Get the original progress callback function
-                            original_progress_func = kwargs.get('progress_callback', None)
-
-                            def combined_progress_callback(bytes_transferred, total_bytes):
-                                # Calculate bytes since last update
-                                bytes_delta = bytes_transferred - getattr(combined_progress_callback, 'last_bytes', 0)
-                                setattr(combined_progress_callback, 'last_bytes', bytes_transferred)
-                                # Update telemetry monitor if bytes were transferred
-                                if bytes_delta > 0:
-                                    monitor.update(bytes_delta)
-                                # Call the original callback if it exists
-                                if original_progress_func:
-                                    original_progress_func(bytes_transferred, total_bytes)
-                            # Initialize the last bytes counter
-                            setattr(combined_progress_callback, 'last_bytes', 0)
-                            # Replace the progress callback
-                            kwargs['progress_callback'] = combined_progress_callback
                             # Perform the download with original function
                             try:
                                 result = download_from_url(**kwargs)
@@ -884,7 +846,6 @@ async def download_from_url_multi_threaded(
     *,
     expected_md5: str = None,
     synapse_client: Optional["Synapse"] = None,
-    progress_callback: Optional[callable] = None,
 ) -> str:
     """
     Download a file from the given URL using multiple threads.
@@ -924,19 +885,10 @@ async def download_from_url_multi_threaded(
         debug=client.debug,
     )
 
-    # Wrap the progress_callback to ensure consistent signature and error handling
-    def proxy_progress_callback(bytes_transferred, total_bytes):
-        if progress_callback is not None:
-            try:
-                progress_callback(bytes_transferred, total_bytes)
-            except Exception:
-                pass
-
     # Pass progress_callback to download_file if supported
     await download_file(
         client=client,
         download_request=request,
-        progress_callback=proxy_progress_callback if progress_callback else None
     )
 
     if expected_md5:  # if md5 not set (should be the case for all except http download)
@@ -1018,7 +970,6 @@ def download_from_url(
         mime_type="",  # Will be set if available in response headers
     ) as monitor:
         # Set basic known attributes
-        monitor.span.set_attribute("synapse.url", url)
         if file_handle_id:
             monitor.span.set_attribute("synapse.file_handle.id", file_handle_id)
         if entity_id:
@@ -1027,33 +978,11 @@ def download_from_url(
             monitor.span.set_attribute("synapse.entity.type", file_handle_associate_type)
 
         try:
-            # Override progress callback to update monitor
-            original_progress_callback = progress_callback
-
-            def telemetry_progress_callback(bytes_transferred, total_bytes):
-                # Calculate bytes delta (monitor.update expects the delta, not the total)
-                bytes_delta = bytes_transferred - getattr(telemetry_progress_callback, 'last_bytes', 0)
-                setattr(telemetry_progress_callback, 'last_bytes', bytes_transferred)
-
-                # Update the monitor with transferred bytes
-                if bytes_delta > 0:
-                    monitor.update(bytes_delta)
-
-                # Call the original callback if provided
-                if original_progress_callback:
-                    try:
-                        original_progress_callback(bytes_transferred, total_bytes)
-                    except Exception:
-                        pass
-
-            # Initialize the bytes counter
-            setattr(telemetry_progress_callback, 'last_bytes', 0)
-            progress_callback = telemetry_progress_callback
-
             while redirect_count < REDIRECT_LIMIT:
                 redirect_count += 1
                 scheme = urllib_urlparse.urlparse(url).scheme
                 if scheme == "file":
+                    monitor.span.set_attribute("synapse.storage.provider", "local_file")
                     delete_on_md5_mismatch = False
                     destination = utils.file_url_to_path(url, verify_exists=True)
                     if destination is None:
@@ -1068,12 +997,11 @@ def download_from_url(
                         monitor.span.set_attribute("synapse.file.size_bytes", file_size)
                         increment_progress_bar_total(total=file_size, progress_bar=progress_bar)
                         increment_progress_bar(n=progress_bar.total, progress_bar=progress_bar)
-                        # Mark file as fully transferred (since it's a local file)
-                        monitor.update(file_size)
                     monitor.span.set_attribute("synapse.transfer.source", "local_file")
                     monitor.span.set_attribute("synapse.transfer.status", "completed")
                     break
                 elif scheme == "sftp":
+                    monitor.span.set_attribute("synapse.storage.provider", value="sftp")
                     monitor.span.set_attribute("synapse.transfer.source", "sftp")
                     username, password = client._getUserCredentials(url)
                     try:
@@ -1087,7 +1015,6 @@ def download_from_url(
                         # Update monitor with file info
                         file_size = os.path.getsize(destination)
                         monitor.file_size = file_size
-                        monitor.update(file_size)  # Mark fully transferred
                         monitor.span.set_attribute("synapse.file.size_bytes", file_size)
                         monitor.span.set_attribute("synapse.transfer.status", "completed")
                     except Exception as e:
@@ -1097,6 +1024,7 @@ def download_from_url(
                         raise
                     break
                 elif scheme == "ftp":
+                    monitor.span.set_attribute("synapse.storage.provider", "ftp")
                     monitor.span.set_attribute("synapse.transfer.source", "ftp")
                     updated_progress_bar_with_total = False
 
@@ -1127,9 +1055,6 @@ def download_from_url(
                                 monitor.span.set_attribute("synapse.file.size_bytes", total_size)
                             increment_progress_bar(n=read_size, progress_bar=progress_bar)
 
-                        # Update monitor with progress
-                        monitor.update(read_size)
-
                         # Call progress callback if provided
                         if progress_callback:
                             try:
@@ -1150,6 +1075,7 @@ def download_from_url(
                         raise
                     break
                 elif scheme in ["http", "https"]:
+                    monitor.span.set_attribute("synapse.storage.provider", "http")
                     monitor.span.set_attribute("synapse.transfer.source", "http")
                     # if a partial download exists with the temporary name,
                     temp_destination = utils.temp_download_filename(
