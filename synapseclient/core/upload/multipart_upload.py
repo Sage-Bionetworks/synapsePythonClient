@@ -112,8 +112,6 @@ class UploadAttempt:
 
         self._lock = threading.Lock()
         self._aborted = False
-        self._total_uploaded = 0
-        self._total_size = upload_request_payload.get("fileSizeBytes", 0)
 
         # populated later
         self._upload_id: str = None
@@ -329,7 +327,6 @@ class UploadAttempt:
                 postfix=self._dest_file_name,
                 previouslyTransferred=previously_transferred,
             )
-
         self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
             self._upload_id,
             remaining_part_numbers,

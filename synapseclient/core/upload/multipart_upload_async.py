@@ -196,8 +196,6 @@ class UploadAttemptAsync:
         self._thread_lock = threading.Lock()
         self._aborted = False
         self._storage_str = storage_str
-        self._total_uploaded = 0
-        self._total_size = upload_request_payload.get("fileSizeBytes", 0)
 
         self._close_progress_bar = getattr(_thread_local, "progress_bar", None) is None
         # populated later

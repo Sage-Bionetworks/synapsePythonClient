@@ -5,7 +5,7 @@ import numbers
 import os
 import urllib.parse as urllib_parse
 import uuid
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from typing import TYPE_CHECKING, Dict, Union
 
 from opentelemetry import trace
 
@@ -284,11 +284,9 @@ def upload_synapse_s3(
         max_threads=max_threads,
         md5=md5,
     )
-    # Cache the file
+
     syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
-    # Get and return the file handle
-    file_handle = syn._get_file_handle_as_creator(fileHandle=file_handle_id)
-    return file_handle
+    return syn._get_file_handle_as_creator(fileHandle=file_handle_id)
 
 
 def upload_synapse_sts_boto_s3(

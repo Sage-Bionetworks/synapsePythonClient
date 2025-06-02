@@ -65,10 +65,7 @@ async def upload_file_handle(
     if path is None:
         raise ValueError("path can not be None")
 
-    expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
-
     span = trace.get_current_span()
-    span.set_attribute("synapse.file.path", path)
     span.set_attribute("synapse.transfer.direction", "upload")
     span.set_attribute("synapse.operation.category", "file_transfer")
 
@@ -81,6 +78,8 @@ async def upload_file_handle(
         return file_handle
 
     # expand the path because past this point an upload is required and some upload functions require an absolute path
+    expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
+
     if md5 is None and os.path.isfile(expanded_upload_path):
         md5 = utils.md5_for_file_hex(filename=expanded_upload_path)
 
@@ -92,7 +91,6 @@ async def upload_file_handle(
     )
     upload_destination_type = location.get("concreteType", None) if location else None
 
-    # Dispatch to the correct async upload implementation
     if (
         sts_transfer.is_boto_sts_transfer_enabled(syn)
         and await sts_transfer.is_storage_location_sts_enabled_async(
@@ -129,6 +127,7 @@ async def upload_file_handle(
             md5=md5,
             storage_str=storage_str,
         )
+    # external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
         if location["uploadType"] == "SFTP":
             storage_str = (
@@ -147,6 +146,7 @@ async def upload_file_handle(
             )
         else:
             raise NotImplementedError("Can only handle SFTP upload locations.")
+    # client authenticated S3
     elif (
         upload_destination_type
         == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION
@@ -222,7 +222,6 @@ async def create_external_file_handle(
         parsed_path = file_url_to_path(url)
 
         if parsed_url.scheme == "file" and os.path.isfile(parsed_path):
-            # Calculate MD5 for local file
             actual_md5 = utils.md5_for_file_hex(filename=parsed_path)
             if md5 is not None and md5 != actual_md5:
                 raise SynapseMd5MismatchError(
@@ -235,21 +234,17 @@ async def create_external_file_handle(
     else:
         raise ValueError(f"externalUrl [{url}] is not a valid url")
 
-    # Create the file handle
+    # Create the file handle because there is nothing to upload
     file_handle = await post_external_filehandle(
         external_url=url, mimetype=mimetype, md5=md5, file_size=file_size
     )
 
-    # Update final metrics
-    span.set_attribute("synapse.file_handle_id", file_handle["id"])
+    span.set_attribute("synapse.file_handle_id", file_handle.get("id"))
 
-    # Cache local files
     if is_local_file:
         syn.cache.add(
             file_handle_id=file_handle["id"], path=file_url_to_path(url), md5=md5
         )
-        span.add_event("cache_access", {"hit": True})
-
     return file_handle
 
 
@@ -262,16 +257,13 @@ async def upload_external_file_handle_sftp(
     storage_str: str = None,
 ) -> Dict[str, Union[str, int]]:
     """Upload a file to an SFTP server and create a file handle in Synapse."""
-    # Get file metadata
-    file_size = os.path.getsize(file_path)
+    file_size = os.stat(file_path).st_size
     span = trace.get_current_span()
 
     span.set_attribute("synapse.storage.provider", "sftp")
 
-    # Get credentials
     username, password = syn._getUserCredentials(url=sftp_url)
 
-    # Execute SFTP upload
     uploaded_url = SFTPWrapper.upload_file(
         file_path,
         urllib_parse.unquote(sftp_url),
@@ -280,10 +272,8 @@ async def upload_external_file_handle_sftp(
         storage_str=storage_str
     )
 
-    # Calculate MD5 if not provided
     file_md5 = md5 or utils.md5_for_file_hex(filename=file_path)
 
-    # Create external file handle
     file_handle = await post_external_filehandle(
         external_url=uploaded_url,
         mimetype=mimetype,
@@ -291,12 +281,9 @@ async def upload_external_file_handle_sftp(
         file_size=file_size
     )
 
-    # Update final metrics
     span.set_attribute("synapse.file_handle_id", file_handle["id"])
 
-    # Cache the uploaded file
     syn.cache.add(file_handle_id=file_handle["id"], path=file_path, md5=file_md5)
-
     return file_handle
 
 
@@ -337,12 +324,9 @@ async def upload_synapse_s3(
         storage_str=storage_str,
     )
 
-    # Cache the file
     syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
     span.set_attribute("synapse.file_handle_id", file_handle_id)
-    # Get and return the file handle
-    file_handle = await get_file_handle(file_handle_id=file_handle_id, synapse_client=syn)
-    return file_handle
+    return await get_file_handle(file_handle_id=file_handle_id, synapse_client=syn)
 
 
 def _get_aws_credentials() -> None:
@@ -379,11 +363,12 @@ async def upload_synapse_sts_boto_s3(
         _description_
     """
     span = trace.get_current_span()
-    bucket_name = upload_destination["bucket"]
-    storage_location_id = upload_destination["storageLocationId"]
     span.set_attribute("synapse.storage.provider", "s3")
 
     key_prefix = str(uuid.uuid4())
+    bucket_name = upload_destination["bucket"]
+    storage_location_id = upload_destination["storageLocationId"]
+
     remote_file_key = "/".join([
         upload_destination.get("baseKey", ""),
         key_prefix,
@@ -391,6 +376,7 @@ async def upload_synapse_sts_boto_s3(
     ])
 
     def upload_fn(credentials: Dict[str, str]) -> str:
+        """Wrapper for the upload function."""
         return S3ClientWrapper.upload_file(
             bucket=bucket_name,
             endpoint_url=None,
@@ -402,6 +388,7 @@ async def upload_synapse_sts_boto_s3(
         )
 
     loop = asyncio.get_event_loop()
+
     await loop.run_in_executor(
         syn._get_thread_pool_executor(asyncio_event_loop=loop),
         lambda: sts_transfer.with_boto_sts_credentials(
@@ -409,7 +396,6 @@ async def upload_synapse_sts_boto_s3(
         )
     )
 
-    # Create file handle
     result = await post_external_s3_file_handle(
         bucket_name=bucket_name,
         s3_file_key=remote_file_key,
@@ -421,11 +407,6 @@ async def upload_synapse_sts_boto_s3(
     )
 
     span.set_attribute("synapse.file_handle_id", result["id"])
-
-    # Cache the uploaded file
-    if md5 is None:
-        md5 = utils.md5_for_file_hex(filename=local_path)
-    syn.cache.add(file_handle_id=result["id"], path=local_path, md5=md5)
 
     return result
 
@@ -446,12 +427,10 @@ async def upload_client_auth_s3(
 
     span.set_attribute("synapse.storage.provider", "s3")
 
-    # Get S3 profile
     profile = get_client_authenticated_s3_profile(
         endpoint=endpoint_url, bucket=bucket, config_path=syn.configPath
     )
 
-    # Create file key
     file_key = key_prefix + "/" + os.path.basename(file_path)
 
     loop = asyncio.get_event_loop()
@@ -468,7 +447,6 @@ async def upload_client_auth_s3(
         )
     )
 
-    # Create file handle
     file_handle = await post_external_object_store_filehandle(
         s3_file_key=file_key,
         file_path=file_path,
@@ -480,9 +458,6 @@ async def upload_client_auth_s3(
 
     span.set_attribute("synapse.file_handle_id", file_handle["id"])
 
-    # Cache the uploaded file
-    if md5 is None:
-        md5 = utils.md5_for_file_hex(filename=file_path)
     syn.cache.add(file_handle_id=file_handle["id"], path=file_path, md5=md5)
 
     return file_handle

@@ -64,6 +64,7 @@ def md5_for_file(
     block_size: int = 2 * MB,
     callback: typing.Callable = None,
     progress_bar: Optional[tqdm] = None,
+    file_name: Optional[str] = None,
 ):
     """
     Calculates the MD5 of the given file.
@@ -75,6 +76,8 @@ def md5_for_file(
                     Defaults to 2 MB
         callback: The callback function that help us show loading spinner on terminal.
                     Defaults to None
+        progress_bar: An optional TQDM progress bar to update
+        file_name: An optional name for the file, used in tracing attributes
 
     Returns:
         The MD5 Checksum
@@ -105,7 +108,7 @@ def md5_for_file(
                 gc.collect()
 
     trace.get_current_span().set_attribute("synapse.md5.size", data_read)
-    trace.get_current_span().set_attribute("synapse.file.name", os.path.basename(filename))
+    trace.get_current_span().set_attribute("synapse.file.name", file_name or os.path.basename(filename) or "unknown_file")
 
     return md5
 
