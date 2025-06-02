@@ -108,7 +108,9 @@ def md5_for_file(
                 gc.collect()
 
     trace.get_current_span().set_attribute("synapse.md5.size", data_read)
-    trace.get_current_span().set_attribute("synapse.file.name", file_name or os.path.basename(filename) or "unknown_file")
+    trace.get_current_span().set_attribute(
+        "synapse.file.name", file_name or os.path.basename(filename) or "unknown_file"
+    )
 
     return md5
 

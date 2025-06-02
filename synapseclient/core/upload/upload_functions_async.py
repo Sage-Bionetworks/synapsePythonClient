@@ -6,6 +6,8 @@ import urllib.parse as urllib_parse
 import uuid
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
+from opentelemetry import trace
+
 from synapseclient.api import (
     get_client_authenticated_s3_profile,
     get_file_handle,
@@ -17,11 +19,10 @@ from synapseclient.api import (
 from synapseclient.core import sts_transfer, utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseMd5MismatchError
+from synapseclient.core.otel_config import get_tracer
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.multipart_upload_async import multipart_upload_file_async
 from synapseclient.core.utils import as_url, file_url_to_path, id_of, is_url
-from synapseclient.core.otel_config import get_tracer
-from opentelemetry import trace
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -201,7 +202,7 @@ async def create_external_file_handle(
     is_local_file = False
     if file_size is None and os.path.isfile(expanded_path):
         file_size = os.path.getsize(expanded_path)
-        is_local_file = True    # Use provided monitor or create one if none provided
+        is_local_file = True  # Use provided monitor or create one if none provided
     span.set_attribute("synapse.file.size_bytes", file_size or 0)
 
     # Set external file attributes
@@ -269,16 +270,13 @@ async def upload_external_file_handle_sftp(
         urllib_parse.unquote(sftp_url),
         username,
         password,
-        storage_str=storage_str
+        storage_str=storage_str,
     )
 
     file_md5 = md5 or utils.md5_for_file_hex(filename=file_path)
 
     file_handle = await post_external_filehandle(
-        external_url=uploaded_url,
-        mimetype=mimetype,
-        md5=file_md5,
-        file_size=file_size
+        external_url=uploaded_url, mimetype=mimetype, md5=file_md5, file_size=file_size
     )
 
     span.set_attribute("synapse.file_handle_id", file_handle["id"])
@@ -369,11 +367,13 @@ async def upload_synapse_sts_boto_s3(
     bucket_name = upload_destination["bucket"]
     storage_location_id = upload_destination["storageLocationId"]
 
-    remote_file_key = "/".join([
-        upload_destination.get("baseKey", ""),
-        key_prefix,
-        os.path.basename(local_path),
-    ])
+    remote_file_key = "/".join(
+        [
+            upload_destination.get("baseKey", ""),
+            key_prefix,
+            os.path.basename(local_path),
+        ]
+    )
 
     def upload_fn(credentials: Dict[str, str]) -> str:
         """Wrapper for the upload function."""
@@ -393,7 +393,7 @@ async def upload_synapse_sts_boto_s3(
         syn._get_thread_pool_executor(asyncio_event_loop=loop),
         lambda: sts_transfer.with_boto_sts_credentials(
             upload_fn, syn, parent_id, "read_write"
-        )
+        ),
     )
 
     result = await post_external_s3_file_handle(
@@ -403,7 +403,7 @@ async def upload_synapse_sts_boto_s3(
         storage_location_id=storage_location_id,
         mimetype=mimetype,
         md5=md5,
-        synapse_client=syn
+        synapse_client=syn,
     )
 
     span.set_attribute("synapse.file_handle_id", result["id"])
@@ -444,7 +444,7 @@ async def upload_client_auth_s3(
             profile_name=profile,
             credentials=_get_aws_credentials(),
             storage_str=storage_str,
-        )
+        ),
     )
 
     file_handle = await post_external_object_store_filehandle(
@@ -453,7 +453,7 @@ async def upload_client_auth_s3(
         storage_location_id=storage_location_id,
         mimetype=mimetype,
         md5=md5,
-        synapse_client=syn
+        synapse_client=syn,
     )
 
     span.set_attribute("synapse.file_handle_id", file_handle["id"])

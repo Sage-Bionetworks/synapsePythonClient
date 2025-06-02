@@ -7,22 +7,23 @@ except ImportError:
 
 import asyncio
 import datetime
-import time
-from opentelemetry import trace
 import gc
 import os
+import time
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Generator, NamedTuple, Optional, Set, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+from opentelemetry import trace
 
 from synapseclient.api.file_services import get_file_handle_for_download
 from synapseclient.core.exceptions import (
     SynapseDownloadAbortedException,
     _raise_for_status_httpx,
 )
+from synapseclient.core.otel_config import get_tracer
 from synapseclient.core.retry import (
     DEFAULT_MAX_BACK_OFF_ASYNC,
     RETRYABLE_CONNECTION_ERRORS,
@@ -31,7 +32,6 @@ from synapseclient.core.retry import (
     with_retry_time_based_async,
 )
 from synapseclient.core.transfer_bar import get_or_create_download_progress_bar
-from synapseclient.core.otel_config import get_tracer
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -274,7 +274,9 @@ class _MultithreadedDownloader:
         self._progress_bar = None
         self._current_span = trace.get_current_span()
 
-    def record_span_event(self, event_name: str, attributes: Optional[dict] = None) -> None:
+    def record_span_event(
+        self, event_name: str, attributes: Optional[dict] = None
+    ) -> None:
         """
         Record an event in the current span with the given name and attributes.
 

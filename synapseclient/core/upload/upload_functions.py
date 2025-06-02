@@ -251,7 +251,11 @@ def create_external_file_handle(
 
 
 def upload_external_file_handle_sftp(
-    syn: "Synapse", file_path: str, sftp_url: str, mimetype: str = None, md5: str = None,
+    syn: "Synapse",
+    file_path: str,
+    sftp_url: str,
+    mimetype: str = None,
+    md5: str = None,
 ) -> Dict[str, Union[str, int]]:
     username, password = syn._getUserCredentials(url=sftp_url)
     uploaded_url = SFTPWrapper.upload_file(

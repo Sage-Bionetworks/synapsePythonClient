@@ -10,8 +10,8 @@ import sys
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
-from opentelemetry import trace
 
+from opentelemetry import trace
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -39,6 +39,7 @@ from synapseclient.core.exceptions import (
     SynapseHTTPError,
     SynapseMd5MismatchError,
 )
+from synapseclient.core.otel_config import get_tracer
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.retry import (
     DEFAULT_RETRY_STATUS_CODES,
@@ -53,8 +54,6 @@ from synapseclient.core.transfer_bar import (
     increment_progress_bar_total,
 )
 from synapseclient.core.utils import MB
-from synapseclient.core.otel_config import get_tracer
-
 
 if TYPE_CHECKING:
     from synapseclient import Entity, Synapse
@@ -111,8 +110,12 @@ async def download_file_entity(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    file_size = entity._file_handle.contentSize if hasattr(
-        entity, '_file_handle') and hasattr(entity._file_handle, 'contentSize') else 0
+    file_size = (
+        entity._file_handle.contentSize
+        if hasattr(entity, "_file_handle")
+        and hasattr(entity._file_handle, "contentSize")
+        else 0
+    )
 
     span = trace.get_current_span()
     span.set_attribute("synapse.transfer.direction", "download")
@@ -191,7 +194,6 @@ async def download_file_entity(
             )
 
     else:  # download the file from URL (could be a local file)
-
         object_type = "FileEntity" if submission is None else "SubmissionAttachment"
         object_id = entity["id"] if submission is None else submission
 
@@ -248,8 +250,16 @@ async def download_file_entity_model(
     from synapseclient import Synapse
 
     # Get metadata for monitoring
-    file_size = file.file_handle.content_size if file.file_handle and hasattr(file.file_handle, 'content_size') else 0
-    file_name = file.file_handle.file_name if file.file_handle and hasattr(file.file_handle, 'file_name') else None
+    file_size = (
+        file.file_handle.content_size
+        if file.file_handle and hasattr(file.file_handle, "content_size")
+        else 0
+    )
+    file_name = (
+        file.file_handle.file_name
+        if file.file_handle and hasattr(file.file_handle, "file_name")
+        else None
+    )
 
     span = trace.get_current_span()
     span.set_attribute("synapse.transfer.direction", "download")
@@ -457,6 +467,7 @@ async def download_by_file_handle(
     ```
     """
     from synapseclient import Synapse
+
     span = trace.get_current_span()
     span.set_attribute("synapse.transfer.direction", "download")
     span.set_attribute("synapse.operation.category", "file_transfer")
@@ -713,7 +724,6 @@ def download_from_url(
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
     progress_bar: Optional[tqdm] = None,
-    progress_callback: Optional[callable] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
@@ -895,9 +905,14 @@ def download_from_url(
                             synapse_client=client,
                         )
                         refreshed_url = response["preSignedURL"]
-
                         response = with_retry(
                             lambda url=refreshed_url, range_header=range_header, auth=auth: client._requests_session.get(
+                                url=url,
+                                headers=client._generate_headers(range_header),
+                                stream=True,
+                                allow_redirects=False,
+                                auth=auth,
+                            ),
                             verbose=client.debug,
                             **STANDARD_RETRY_PARAMS,
                         )
@@ -919,32 +934,32 @@ def download_from_url(
                     raise
             # handle redirects
             if response.status_code in [301, 302, 303, 307, 308]:
-                url=response.headers["location"]
+                url = response.headers["location"]
                 # don't break, loop again
             else:
                 # get filename from content-disposition, if we don't have it already
                 if os.path.isdir(destination):
-                    filename=utils.extract_filename(
+                    filename = utils.extract_filename(
                         content_disposition_header=response.headers.get(
                             "content-disposition", None
                         ),
                         default_filename=utils.guess_file_name(url),
                     )
-                    destination=os.path.join(destination, filename)
+                    destination = os.path.join(destination, filename)
 
                 # Stream the file to disk
                 if "content-length" in response.headers:
-                    to_be_transferred=float(response.headers["content-length"])
-                    file_size=to_be_transferred
+                    to_be_transferred = float(response.headers["content-length"])
+                    file_size = to_be_transferred
                     span.set_attribute("synapse.file.size_bytes", to_be_transferred)
                 else:
-                    to_be_transferred=-1
-                transferred=0
+                    to_be_transferred = -1
+                transferred = 0
 
                 # Servers that respect the Range header return 206 Partial Content
                 if response.status_code == 206:
-                    mode="ab"
-                    previously_transferred=os.path.getsize(filename=temp_destination)
+                    mode = "ab"
+                    previously_transferred = os.path.getsize(filename=temp_destination)
                     to_be_transferred += previously_transferred
                     transferred += previously_transferred
                     increment_progress_bar_total(
@@ -957,14 +972,14 @@ def download_from_url(
                         f"{previously_transferred}/{to_be_transferred} bytes already "
                         "transferred."
                     )
-                    sig=utils.md5_for_file(filename=temp_destination)
+                    sig = utils.md5_for_file(filename=temp_destination)
                 else:
-                    mode="wb"
-                    previously_transferred=0
+                    mode = "wb"
+                    previously_transferred = 0
                     increment_progress_bar_total(
                         total=to_be_transferred, progress_bar=progress_bar
                     )
-                    sig=hashlib.new("md5", usedforsecurity=False)  # nosec
+                    sig = hashlib.new("md5", usedforsecurity=False)  # nosec
 
                 try:
                     with open(temp_destination, mode) as fd:
@@ -980,20 +995,14 @@ def download_from_url(
                             # different from the total number of bytes we've read read from the response body
                             # response.raw.tell() is the total number of response body bytes transferred over the
                             # wire so far
-                            transferred=response.raw.tell() + previously_transferred
+                            transferred = response.raw.tell() + previously_transferred
                             increment_progress_bar(
                                 n=len(chunk), progress_bar=progress_bar
                             )
-                            # Call the progress_callback if provided
-                            if progress_callback is not None:
-                                try:
-                                    progress_callback(transferred, to_be_transferred)
-                                except Exception:
-                                    pass
                 except (
                     Exception
                 ) as ex:  # We will add a progress parameter then push it back to retry.
-                    ex.progress=transferred - previously_transferred
+                    ex.progress = transferred - previously_transferred
                     raise
 
                 # verify that the file was completely downloaded and retry if it is not complete
@@ -1004,7 +1013,7 @@ def download_from_url(
                     )
                     continue
 
-                actual_md5=sig.hexdigest()
+                actual_md5 = sig.hexdigest()
                 # rename to final destination
                 shutil.move(temp_destination, destination)
                 break
@@ -1020,7 +1029,7 @@ def download_from_url(
     if (
         actual_md5 is None
     ):  # if md5 not set (should be the case for all except http download)
-        actual_md5=utils.md5_for_file_hex(filename=destination)
+        actual_md5 = utils.md5_for_file_hex(filename=destination)
 
     # check md5 if given
     if expected_md5 and actual_md5 != expected_md5:
@@ -1059,7 +1068,7 @@ def resolve_download_path_collisions(
     cached_file_path: str,
     entity_id: str,
     *,
-    synapse_client: Optional["Synapse"]=None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
     """
     Resolve file path collisions
@@ -1085,7 +1094,7 @@ def resolve_download_path_collisions(
     """
     from synapseclient import Synapse
 
-    client=Synapse.get_client(synapse_client=synapse_client)
+    client = Synapse.get_client(synapse_client=synapse_client)
 
     # always overwrite if we are downloading to .synapseCache
     if utils.normalize_path(download_location) == synapse_cache_location:
@@ -1099,11 +1108,11 @@ def resolve_download_path_collisions(
                 + "!" * 50
                 + "\n"
             )
-        if_collision=COLLISION_OVERWRITE_LOCAL
+        if_collision = COLLISION_OVERWRITE_LOCAL
     # if ifcollision not specified, keep.local
-    if_collision=if_collision or COLLISION_KEEP_BOTH
+    if_collision = if_collision or COLLISION_KEEP_BOTH
 
-    download_path=utils.normalize_path(os.path.join(download_location, file_name))
+    download_path = utils.normalize_path(os.path.join(download_location, file_name))
     # resolve collision
     if os.path.exists(download_path):
         if if_collision == COLLISION_OVERWRITE_LOCAL:
@@ -1115,10 +1124,10 @@ def resolve_download_path_collisions(
             )
 
             # Don't want to overwrite the local file.
-            download_path=None
+            download_path = None
         elif if_collision == COLLISION_KEEP_BOTH:
             if download_path != cached_file_path:
-                download_path=utils.unique_filename(download_path)
+                download_path = utils.unique_filename(download_path)
         else:
             raise ValueError(
                 f'Invalid parameter: "{if_collision}" is not a valid value for "ifcollision"'
@@ -1139,7 +1148,7 @@ def ensure_download_location_is_directory(download_location: str) -> str:
     Returns:
         The download location
     """
-    download_dir=os.path.expandvars(os.path.expanduser(download_location))
+    download_dir = os.path.expandvars(os.path.expanduser(download_location))
     if os.path.isfile(download_dir):
         raise ValueError(
             "Parameter 'download_location' should be a directory, not a file."
@@ -1150,7 +1159,7 @@ def ensure_download_location_is_directory(download_location: str) -> str:
 def is_synapse_uri(
     uri: str,
     *,
-    synapse_client: Optional["Synapse"]=None,
+    synapse_client: Optional["Synapse"] = None,
 ) -> bool:
     """
     Check whether the given uri is hosted at the configured Synapse repo endpoint
@@ -1163,8 +1172,8 @@ def is_synapse_uri(
     """
     from synapseclient import Synapse
 
-    client=Synapse.get_client(synapse_client=synapse_client)
+    client = Synapse.get_client(synapse_client=synapse_client)
 
-    uri_domain=urllib_urlparse.urlparse(uri).netloc
-    synapse_repo_domain=urllib_urlparse.urlparse(client.repoEndpoint).netloc
+    uri_domain = urllib_urlparse.urlparse(uri).netloc
+    synapse_repo_domain = urllib_urlparse.urlparse(client.repoEndpoint).netloc
     return uri_domain.lower() == synapse_repo_domain.lower()

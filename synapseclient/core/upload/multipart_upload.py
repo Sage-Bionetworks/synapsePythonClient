@@ -12,7 +12,7 @@ import os
 import threading
 import time
 from contextlib import contextmanager
-from typing import List, Mapping, Optional
+from typing import List, Mapping
 
 import requests
 from opentelemetry import trace

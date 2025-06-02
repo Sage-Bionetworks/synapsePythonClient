@@ -105,6 +105,7 @@ from synapseclient.core.exceptions import (
     SynapseUploadFailedException,
     _raise_for_status_httpx,
 )
+from synapseclient.core.otel_config import get_tracer
 from synapseclient.core.retry import with_retry_time_based
 from synapseclient.core.upload.upload_utils import (
     copy_md5_fn,
@@ -118,7 +119,6 @@ from synapseclient.core.upload.upload_utils import (
 from synapseclient.core.utils import MB
 from synapseclient.core.utils import md5_fn as md5_fn_util
 from synapseclient.core.utils import md5_for_file_hex
-from synapseclient.core.otel_config import get_tracer
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -236,7 +236,9 @@ class UploadAttemptAsync:
 
         return upload_status_response
 
-    def record_span_event(self, event_name: str, attributes: Optional[dict] = None) -> None:
+    def record_span_event(
+        self, event_name: str, attributes: Optional[dict] = None
+    ) -> None:
         """
         Record an event in the current span with the given name and attributes.
 

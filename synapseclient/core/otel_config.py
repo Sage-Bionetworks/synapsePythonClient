@@ -1,18 +1,20 @@
 """OpenTelemetry configuration for Synapse Python Client."""
 import os
 import sys
-from typing import Dict, Optional, Any, List
+from typing import Any, Dict, List, Optional
 
-from opentelemetry import trace, metrics
-from opentelemetry.trace import Span, SpanContext, get_current_span
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry import metrics, trace
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider, SpanProcessor
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader, ConsoleMetricExporter
-
+from opentelemetry.sdk.metrics.export import (
+    ConsoleMetricExporter,
+    PeriodicExportingMetricReader,
+)
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.trace import Span, SpanContext, get_current_span
 
 # Default service name for the client
 DEFAULT_SERVICE_NAME = "synapseclient"
@@ -28,7 +30,11 @@ class AttributePropagatingSpanProcessor(SpanProcessor):
         SpanProcessor (opentelemetry.sdk.trace.SpanProcessor): The base class that provides hooks for processing spans during their lifecycle
     """
 
-    def __init__(self, attributes_to_propagate_to_child: List[str] = None, attributes_to_propagate_to_parent: List[str] = None) -> None:
+    def __init__(
+        self,
+        attributes_to_propagate_to_child: List[str] = None,
+        attributes_to_propagate_to_parent: List[str] = None,
+    ) -> None:
         self.attributes_to_propagate_to_child = attributes_to_propagate_to_child or []
         self.attributes_to_propagate_to_parent = attributes_to_propagate_to_parent or []
 
@@ -92,7 +98,9 @@ def configure_traces(
         The configured TracerProvider
     """
     # Get configuration from environment variables if not provided
-    service_name = service_name or os.environ.get("OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME)
+    service_name = service_name or os.environ.get(
+        "OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME
+    )
     endpoint = endpoint or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
 
     # Create resource with service information
@@ -104,7 +112,9 @@ def configure_traces(
     # Include context information
     if include_context:
         # Add Python version information
-        resource_attrs["python.version"] = ".".join(str(v) for v in sys.version_info[:3])
+        resource_attrs["python.version"] = ".".join(
+            str(v) for v in sys.version_info[:3]
+        )
 
         # Add OS information
         resource_attrs["os.type"] = os.name
@@ -112,6 +122,7 @@ def configure_traces(
         # Add client identification
         try:
             from synapseclient import __version__ as client_version
+
             resource_attrs["service.version"] = client_version
         except ImportError:
             # Use default version
@@ -127,16 +138,25 @@ def configure_traces(
     provider = TracerProvider(resource=resource)
 
     attribute_propagator = AttributePropagatingSpanProcessor(
-        attributes_to_propagate_to_child=["synapse.transfer.direction", "synapse.operation.category"])
+        attributes_to_propagate_to_child=[
+            "synapse.transfer.direction",
+            "synapse.operation.category",
+        ]
+    )
     provider.add_span_processor(attribute_propagator)
 
     # Add exporters based on configuration
     if endpoint:
         # Configure OTLP HTTP exporter
-        otlp_exporter = OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces", headers=headers)
+        otlp_exporter = OTLPSpanExporter(
+            endpoint=f"{endpoint}/v1/traces", headers=headers
+        )
         provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
 
-    if export_console or os.environ.get("OTEL_DEBUG_CONSOLE", "").lower() in ("true", "1"):
+    if export_console or os.environ.get("OTEL_DEBUG_CONSOLE", "").lower() in (
+        "true",
+        "1",
+    ):
         # Add console exporter for debugging
         provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
 
@@ -169,7 +189,9 @@ def configure_metrics(
         The configured MeterProvider
     """
     # Get configuration from environment variables if not provided
-    service_name = service_name or os.environ.get("OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME)
+    service_name = service_name or os.environ.get(
+        "OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME
+    )
     endpoint = endpoint or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
 
     # Create resource with service information
@@ -181,7 +203,9 @@ def configure_metrics(
     # Include context information
     if include_context:
         # Add Python version information
-        resource_attrs["python.version"] = ".".join(str(v) for v in sys.version_info[:3])
+        resource_attrs["python.version"] = ".".join(
+            str(v) for v in sys.version_info[:3]
+        )
 
         # Add OS information
         resource_attrs["os.type"] = os.name
@@ -189,6 +213,7 @@ def configure_metrics(
         # Add client identification
         try:
             from synapseclient import __version__ as client_version
+
             resource_attrs["service.version"] = client_version
         except ImportError:
             # Use default version
@@ -205,11 +230,16 @@ def configure_metrics(
 
     # Configure OTLP HTTP exporter if endpoint is provided
     if endpoint:
-        otlp_metric_exporter = OTLPMetricExporter(endpoint=f"{endpoint}/v1/metrics", headers=headers)
+        otlp_metric_exporter = OTLPMetricExporter(
+            endpoint=f"{endpoint}/v1/metrics", headers=headers
+        )
         readers.append(PeriodicExportingMetricReader(otlp_metric_exporter))
 
     # Add console exporter for debugging if requested
-    if export_console or os.environ.get("OTEL_DEBUG_CONSOLE", "").lower() in ("true", "1"):
+    if export_console or os.environ.get("OTEL_DEBUG_CONSOLE", "").lower() in (
+        "true",
+        "1",
+    ):
         console_metric_exporter = ConsoleMetricExporter()
         readers.append(PeriodicExportingMetricReader(console_metric_exporter))
 
