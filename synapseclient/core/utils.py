@@ -58,6 +58,7 @@ LOGGER_NAME = DEFAULT_LOGGER_NAME
 LOGGER = logging.getLogger(LOGGER_NAME)
 
 
+@tracer.start_as_current_span("synapse.util.md5")
 def md5_for_file(
     filename: str,
     block_size: int = 2 * MB,
@@ -103,7 +104,8 @@ def md5_for_file(
             if loop_iteration % 100 == 0:
                 gc.collect()
 
-    trace.get_current_span().add_event("md5_complete", {"size": data_read})
+    trace.get_current_span().set_attribute("synapse.md5.size", data_read)
+    trace.get_current_span().set_attribute("synapse.file.name", os.path.basename(filename))
 
     return md5
 
@@ -129,7 +131,7 @@ def md5_for_file_hex(
     return md5_for_file(filename, block_size, callback).hexdigest()
 
 
-@tracer.start_as_current_span("Utils::md5_fn")
+@tracer.start_as_current_span("synapse.util.md5")
 def md5_fn(part, _) -> str:
     """Calculate the MD5 of a file-like object.
 
@@ -141,7 +143,8 @@ def md5_fn(part, _) -> str:
     """
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     md5.update(part)
-    trace.get_current_span().add_event("md5_complete", {"size": len(part)})
+    trace.get_current_span().set_attribute("synapse.md5.size", len(part))
+    trace.get_current_span().set_attribute("synapse.file.name", "partial_file_md5")
     return md5.hexdigest()
 
 

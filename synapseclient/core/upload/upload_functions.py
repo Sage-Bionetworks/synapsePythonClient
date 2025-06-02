@@ -43,7 +43,6 @@ def upload_file_handle(
     file_size: int = None,
     mimetype: str = None,
     max_threads: int = None,
-    progress_callback: Optional[callable] = None,
 ):
     """
     Uploads the file in the provided path (if necessary) to a storage location based on project settings.
@@ -147,7 +146,6 @@ def upload_file_handle(
             mimetype=mimetype,
             max_threads=max_threads,
             md5=md5,
-            progress_callback=progress_callback,
         )
     # external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
@@ -254,7 +252,6 @@ def create_external_file_handle(
 
 def upload_external_file_handle_sftp(
     syn: "Synapse", file_path: str, sftp_url: str, mimetype: str = None, md5: str = None,
-    progress_callback: Optional[callable] = None,
 ) -> Dict[str, Union[str, int]]:
     username, password = syn._getUserCredentials(url=sftp_url)
     uploaded_url = SFTPWrapper.upload_file(
@@ -278,40 +275,20 @@ def upload_synapse_s3(
     mimetype: str = None,
     max_threads: int = None,
     md5: str = None,
-    progress_callback: Optional[callable] = None,
 ):
-    from synapseclient.core.telemetry_integration import monitored_transfer
-    import os
-
-    # Get file size for telemetry tracking
-    file_size = os.path.getsize(file_path)
-
-    # Use monitored_transfer for OpenTelemetry tracing
-    with monitored_transfer(
-        operation="upload",
+    file_handle_id = multipart_upload_file(
+        syn=syn,
         file_path=file_path,
-        file_size=file_size,
-    ) as monitor:
-        try:
-            file_handle_id = multipart_upload_file(
-                syn=syn,
-                file_path=file_path,
-                content_type=mimetype,
-                storage_location_id=storageLocationId,
-                max_threads=max_threads,
-                md5=md5,
-                progress_callback=progress_callback,
-            )
-            # Cache the file
-            syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
-            # Add file handle ID to span
-            monitor.span.set_attribute("synapse.file_handle_id", file_handle_id)
-            # Get and return the file handle
-            file_handle = syn._get_file_handle_as_creator(fileHandle=file_handle_id)
-            return file_handle
-        except Exception as ex:
-            monitor.record_retry(error=ex)
-            raise
+        content_type=mimetype,
+        storage_location_id=storageLocationId,
+        max_threads=max_threads,
+        md5=md5,
+    )
+    # Cache the file
+    syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
+    # Get and return the file handle
+    file_handle = syn._get_file_handle_as_creator(fileHandle=file_handle_id)
+    return file_handle
 
 
 def upload_synapse_sts_boto_s3(

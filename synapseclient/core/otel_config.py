@@ -1,25 +1,75 @@
 """OpenTelemetry configuration for Synapse Python Client."""
 import os
-import platform
 import sys
-import socket
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 from opentelemetry import trace, metrics
+from opentelemetry.trace import Span, SpanContext, get_current_span
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace import TracerProvider, SpanProcessor
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader, ConsoleMetricExporter
+
 
 # Default service name for the client
 DEFAULT_SERVICE_NAME = "synapseclient"
 CLIENT_VERSION = "unspecified"
 
 
-def configure_telemetry(
+class AttributePropagatingSpanProcessor(SpanProcessor):
+    """A custom span processor that propagates specific attributes from the parent span
+    to the child span when the child span is started.
+    It also propagates the attributes to the parent span when the child span ends.
+
+    Args:
+        SpanProcessor (opentelemetry.sdk.trace.SpanProcessor): The base class that provides hooks for processing spans during their lifecycle
+    """
+
+    def __init__(self, attributes_to_propagate_to_child: List[str] = None, attributes_to_propagate_to_parent: List[str] = None) -> None:
+        self.attributes_to_propagate_to_child = attributes_to_propagate_to_child or []
+        self.attributes_to_propagate_to_parent = attributes_to_propagate_to_parent or []
+
+    def on_start(self, span: Span, parent_context: SpanContext) -> None:
+        """Propagates attributes from the parent span to the child span.
+        Arguments:
+            span: The child span to which the attributes should be propagated.
+            parent_context: The context of the parent span.
+        Returns:
+            None
+        """
+        parent_span = get_current_span()
+        if parent_span is not None and parent_span.is_recording():
+            for attribute in self.attributes_to_propagate_to_child:
+                # Check if the attribute exists in the parent span's attributes
+                attribute_val = parent_span.attributes.get(attribute)
+                if attribute_val:
+                    # Propagate the attribute to the current span
+                    span.set_attribute(attribute, attribute_val)
+
+    def on_end(self, span: Span) -> None:
+        """Propagates attributes from the child span back to the parent span"""
+        parent_span = get_current_span()
+        if parent_span is not None and parent_span.is_recording():
+            for attribute in self.attributes_to_propagate_to_parent:
+                child_val = span.attributes.get(attribute)
+                parent_val = parent_span.attributes.get(attribute)
+                if child_val and not parent_val:
+                    # Propagate the attribute back to parent span
+                    parent_span.set_attribute(attribute, child_val)
+
+    def shutdown(self) -> None:
+        """No-op method that does nothing when the span processor is shut down."""
+        pass
+
+    def force_flush(self, timeout_millis: int = 30000) -> None:
+        """No-op method that does nothing when the span processor is forced to flush."""
+        pass
+
+
+def configure_traces(
     service_name: Optional[str] = None,
     endpoint: Optional[str] = None,
     export_console: bool = False,
@@ -75,6 +125,10 @@ def configure_telemetry(
 
     # Configure tracer provider
     provider = TracerProvider(resource=resource)
+
+    attribute_propagator = AttributePropagatingSpanProcessor(
+        attributes_to_propagate_to_child=["synapse.transfer.direction", "synapse.operation.category"])
+    provider.add_span_processor(attribute_propagator)
 
     # Add exporters based on configuration
     if endpoint:
@@ -168,45 +222,27 @@ def configure_metrics(
     return provider
 
 
-def get_tracer(name: Optional[str] = None, version: Optional[str] = None) -> trace.Tracer:
+def get_tracer(name: Optional[str] = None) -> trace.Tracer:
     """
     Get a tracer with the specified name or default to the service name.
 
     Args:
         name: Optional tracer name
-        version: Optional version identifier
 
     Returns:
         An OpenTelemetry tracer
     """
-    # Determine the version to use (passed in, from client, or default)
-    if version is None:
-        try:
-            from synapseclient import __version__ as client_version
-            version = client_version
-        except ImportError:
-            version = CLIENT_VERSION
-
-    return trace.get_tracer(name or DEFAULT_SERVICE_NAME, version)
+    return trace.get_tracer(name or DEFAULT_SERVICE_NAME)
 
 
-def get_meter(name: Optional[str] = None, version: Optional[str] = None):
+def get_meter(name: Optional[str] = None):
     """
     Get a meter with the specified name or default to the service name.
 
     Args:
         name: Optional meter name
-        version: Optional version identifier
 
     Returns:
         An OpenTelemetry meter
     """
-    # Determine the version to use (passed in, from client, or default)
-    if version is None:
-        try:
-            from synapseclient import __version__ as client_version
-            version = client_version
-        except ImportError:
-            version = CLIENT_VERSION
-
-    return metrics.get_meter(name or DEFAULT_SERVICE_NAME, version)
+    return metrics.get_meter(name or DEFAULT_SERVICE_NAME)
