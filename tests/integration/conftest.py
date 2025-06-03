@@ -214,7 +214,7 @@ def setup_otel():
     # Setup
     tests_enabled = os.environ.get("SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED", False)
     if tests_enabled:
-        Synapse.enable_open_telemetry(True)
+        Synapse.enable_open_telemetry()
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
 

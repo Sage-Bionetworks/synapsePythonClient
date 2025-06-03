@@ -661,6 +661,7 @@ class Synapse(object):
 
     @staticmethod
     def enable_open_telemetry(
+        enable_open_telemetry: bool = True,
         resource_attributes: Optional[Dict[str, Any]] = None,
         include_context: bool = True,
     ) -> None:
@@ -693,13 +694,16 @@ class Synapse(object):
         - OTEL_EXPORTER_OTLP_HEADERS: Custom headers for the OTLP exporter (https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_headers)
 
         Args:
+            enable_open_telemetry: Whether to enable OpenTelemetry instrumentation and telemetry collection.
+                Defaults to True. Once enabled, it cannot be disabled.
             resource_attributes: Additional resource attributes to include with the telemetry data.
             include_context: Whether to include contextual information about the runtime environment.
 
         """
-        set_up_telemetry(
-            resource_attributes=resource_attributes, include_context=include_context
-        )
+        if enable_open_telemetry:
+            set_up_telemetry(
+                resource_attributes=resource_attributes, include_context=include_context
+            )
 
     @classmethod
     def set_client(cls, synapse_client) -> None:
