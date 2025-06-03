@@ -212,8 +212,8 @@ def setup_otel():
     Handles setting up the OpenTelemetry tracer provider for integration tests.
     """
     # Setup
-    exporter_type = os.environ.get("SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED", False)
-    if exporter_type:
+    tests_enabled = os.environ.get("SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED", False)
+    if tests_enabled:
         Synapse.enable_open_telemetry(True)
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
