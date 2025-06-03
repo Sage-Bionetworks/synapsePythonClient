@@ -647,7 +647,7 @@ class UploadAttemptAsync:
             attributes={
                 "chunk_number": part_number - 1,
                 "start_byte": start,
-                "end_byte": start + len(body) - 1,
+                "end_byte": start + (len(body) if body else 1) - 1,
                 "file_handle_id": self._upload_request_payload.get("fileHandleId", ""),
                 "synapse_id": self._upload_request_payload.get("entityId", ""),
                 "time_to_transfer_seconds": time.time() - chunk_transfer_start_time,
