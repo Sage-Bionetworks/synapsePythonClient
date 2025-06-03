@@ -172,7 +172,6 @@ async def download_file_entity(
         synapse_client=client,
     )
 
-    # If download_path is None, file was skipped due to collision policy (keep.local)
     if download_path is None:
         return
 
@@ -317,7 +316,6 @@ async def download_file_entity_model(
         synapse_client=client,
     )
 
-    # If download_path is None, file was skipped due to collision policy (keep.local)
     if download_path is None:
         return
 
@@ -473,15 +471,11 @@ async def download_by_file_handle(
     span.set_attribute("synapse.operation.category", "file_transfer")
     syn = Synapse.get_client(synapse_client=synapse_client)
     os.makedirs(os.path.dirname(destination), exist_ok=True)
-    attempts = 0
 
-    # Set basic properties we already know
     span.set_attribute("synapse.file_handle.id", file_handle_id)
     span.set_attribute("synapse.entity.id", synapse_id)
 
     while retries > 0:
-        attempts += 1
-
         try:
             file_handle_result: Dict[
                 str, str
