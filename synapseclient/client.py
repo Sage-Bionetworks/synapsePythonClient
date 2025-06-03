@@ -90,6 +90,11 @@ from synapseclient.core.logging_setup import (
 )
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.models.permission import Permissions
+from synapseclient.core.otel_config import (
+    configure_metrics,
+    configure_traces,
+    get_tracer,
+)
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS, get_executor
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.retry import (
@@ -153,7 +158,7 @@ from .table import (
 from .team import Team, TeamMember, UserGroupHeader, UserProfile
 from .wiki import Wiki, WikiAttachment
 
-tracer = trace.get_tracer("synapseclient")
+tracer = get_tracer()
 
 PRODUCTION_ENDPOINTS = {
     "repoEndpoint": "https://repo-prod.prod.sagebase.org/repo/v1",
@@ -323,7 +328,6 @@ class Synapse(object):
 
     _synapse_client = None
     _allow_client_caching = True
-    _enable_open_telemetry = False
 
     # TODO: add additional boolean for write to disk?
     def __init__(
@@ -656,25 +660,46 @@ class Synapse(object):
         Synapse._allow_client_caching = allow_client_caching
 
     @staticmethod
-    def enable_open_telemetry(enable_open_telemetry: bool) -> None:
+    def enable_open_telemetry(
+        resource_attributes: Optional[Dict[str, Any]] = None,
+        include_context: bool = True,
+    ) -> None:
         """Determines whether OpenTelemetry is enabled for the Synapse client. This is
-        used to know whether or not this library will automatically kick off the
-        instruementation of several dependent libraries including:
+        used to configure both tracing and metrics collection for the client. Calling
+        this is a one-way operation, meaning that once OpenTelemetry is enabled it
+        cannot be disabled. This is to ensure that the instrumentation is set up
+        correctly and that spans and metrics are collected consistently throughout the
+        lifetime of the Synapse client.
 
+        If you want to disable OpenTelemetry you should restart your Python
+        interpreter or application.
+
+        When enabled, this method will:
+        1. Set up instrumentation for several dependent libraries including:
             - threading
             - urllib
             - requests
             - httpx
+        2. Configure OpenTelemetry tracing for collecting spans and traces
+        3. Configure OpenTelemetry metrics for collecting performance metrics
 
-        When OpenTelemetry is enabled it will automatically start the instrumentation
-        of these libraries. When it is disabled it will automatically stop the
-        instrumentation of these libraries.
+        When disabled, instrumentation for these libraries will be stopped.
+
+        Configuration can be customized through environment variables:
+        - OTEL_SERVICE_NAME: Name of the service for telemetry identification. Defaults to 'synapse-python-client'.
+        - OTEL_EXPORTER_OTLP_ENDPOINT: OTLP endpoint URL for exporting telemetry data
+        - OTEL_DEBUG_CONSOLE: Set to 'true' to enable console exporting for debugging
+        - OTEL_SERVICE_INSTANCE_ID: Unique identifier for the Synapse client instance
+        - OTEL_EXPORTER_OTLP_HEADERS: Custom headers for the OTLP exporter (https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_headers)
+
+        Args:
+            resource_attributes: Additional resource attributes to include with the telemetry data.
+            include_context: Whether to include contextual information about the runtime environment.
+
         """
-        if enable_open_telemetry and not Synapse._enable_open_telemetry:
-            set_up_tracing(enabled=True)
-        elif not enable_open_telemetry and Synapse._enable_open_telemetry:
-            set_up_tracing(enabled=False)
-        Synapse._enable_open_telemetry = enable_open_telemetry
+        set_up_telemetry(
+            resource_attributes=resource_attributes, include_context=include_context
+        )
 
     @classmethod
     def set_client(cls, synapse_client) -> None:
@@ -1940,7 +1965,6 @@ class Synapse(object):
                 return type(obj)(**self.restPUT(obj.putURI(), obj.json()))
 
             try:  # If no ID is present, attempt to POST the object
-                trace.get_current_span().set_attributes({"synapse.id": ""})
                 return type(obj)(**self.restPOST(obj.postURI(), obj.json()))
 
             except SynapseHTTPError as err:
@@ -6772,21 +6796,34 @@ def response_hook_urllib(
 
 # These libraries are used to automatically trace requests made by the Synapse client.
 # As well as the ThreadingInstrumentor provides context propagation through threads.
-def set_up_tracing(enabled: bool) -> None:
-    if enabled:
-        ThreadingInstrumentor().instrument()
-        HTTPXClientInstrumentor().instrument(
-            async_request_hook=async_request_hook_httpx,
-            async_response_hook=async_response_hook_httpx,
-        )
-        RequestsInstrumentor().instrument(
-            request_hook=request_hook_requests, response_hook=response_hook_requests
-        )
-        URLLibInstrumentor().instrument(
-            request_hook=request_hook_urllib, response_hook=response_hook_urllib
-        )
-    else:
-        ThreadingInstrumentor().uninstrument()
-        HTTPXClientInstrumentor().uninstrument()
-        RequestsInstrumentor().uninstrument()
-        URLLibInstrumentor().uninstrument()
+def set_up_telemetry(
+    resource_attributes: Optional[Dict[str, Any]] = None, include_context: bool = True
+) -> None:
+    """
+    Sets up OpenTelemetry instrumentation for tracing and metrics. Setting up telemetry
+    is a one-way operation and should be called once at the start of your application.
+
+    Args:
+        resource_attributes: Additional resource attributes to include with the telemetry data.
+        include_context: Whether to include contextual information about the runtime environment.
+
+    """
+
+    ThreadingInstrumentor().instrument()
+    HTTPXClientInstrumentor().instrument(
+        async_request_hook=async_request_hook_httpx,
+        async_response_hook=async_response_hook_httpx,
+    )
+    RequestsInstrumentor().instrument(
+        request_hook=request_hook_requests, response_hook=response_hook_requests
+    )
+    URLLibInstrumentor().instrument(
+        request_hook=request_hook_urllib, response_hook=response_hook_urllib
+    )
+
+    configure_traces(
+        resource_attributes=resource_attributes, include_context=include_context
+    )
+    configure_metrics(
+        resource_attributes=resource_attributes, include_context=include_context
+    )

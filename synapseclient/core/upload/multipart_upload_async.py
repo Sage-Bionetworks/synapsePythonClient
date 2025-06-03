@@ -203,6 +203,7 @@ class UploadAttemptAsync:
         self._pre_signed_part_urls: Optional[Mapping[int, str]] = None
         self._progress_bar = None
         self._current_span = trace.get_current_span()
+        self._current_span.set_attribute("synapse.file.name", dest_file_name or "")
 
     async def __call__(self) -> Dict[str, str]:
         """Orchestrate the upload of a file to Synapse."""
