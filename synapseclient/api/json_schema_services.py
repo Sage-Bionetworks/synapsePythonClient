@@ -174,6 +174,8 @@ async def get_invalid_json_schema_validation(
                              instance from the Synapse class constructor
 
     Example usage:
+    ```python
+    # for python 3.10+
     async def main():
         gen = get_invalid_json_schema_validation(synapse_client=syn, synapse_id=dataset_folder)
         try:
@@ -183,6 +185,7 @@ async def get_invalid_json_schema_validation(
         except StopAsyncIteration:
             print("All items processed.")
     asyncio.run(main())
+    ```
     """
 
     request_body = {"containerId": synapse_id}
