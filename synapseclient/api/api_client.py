@@ -1,8 +1,10 @@
-from typing import Dict, Any, AsyncGenerator, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, Optional
+
 import httpx
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
+
 
 async def rest_post_paginated_async(
     uri: str,
