@@ -781,7 +781,7 @@ def download_from_url(
                 increment_progress_bar(n=progress_bar.total, progress_bar=progress_bar)
             break
         elif scheme == "sftp":
-            span.set_attribute("synapse.storage.provider", value="sftp")
+            span.set_attribute("synapse.storage.provider", "sftp")
             username, password = client._getUserCredentials(url)
             destination = SFTPWrapper.download_file(
                 url=url,
