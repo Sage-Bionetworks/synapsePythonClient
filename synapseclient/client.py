@@ -229,10 +229,14 @@ def login(*args, **kwargs):
             import synapseclient
             syn = synapseclient.login(authToken="authtoken")
 
-        Using environment variable or `.synapseConfig`
+        Using environment variable or `.synapseConfig` (default profile)
 
             import synapseclient
             syn = synapseclient.login()
+
+        Using a specific profile
+            import synapseclient
+            syn = synapseclient.login(profile="user1)
     """
 
     syn = Synapse()
@@ -769,7 +773,7 @@ class Synapse(object):
                         timeout=self._http_timeout_seconds,
                     ),
                     verbose=self.debug,
-                    **STANDARD_RETRY_PARAMS,
+                    **{**STANDARD_RETRY_PARAMS, "retries": 2},
                 )
                 if response.status_code == 301:
                     endpoints[point] = response.headers["location"]
@@ -784,39 +788,40 @@ class Synapse(object):
         email: str = None,
         silent: bool = False,
         authToken: str = None,
+        profile: str = "default",
     ) -> None:
         """
         Valid combinations of login() arguments:
 
         - authToken
+        - Profile-based authentication (from .synapseConfig)
 
         If no login arguments are provided or only username is provided, login() will attempt to log in using
          information from these sources (in order of preference):
 
-        1. .synapseConfig file (in user home folder unless configured otherwise)
+        1. .synapseConfig file (supports multiple profiles)(in user home folder unless configured otherwise)
         2. User defined arguments during a CLI session
         3. User's Personal Access Token (aka: Synapse Auth Token)
             from the environment variable: SYNAPSE_AUTH_TOKEN
         4. Retrieves user's authentication token from AWS SSM Parameter store (if configured)
 
         Arguments:
-            email:        Synapse user name (or an email address associated with a Synapse account)
-            authToken:    A bearer authorization token, e.g. a
+            email (str): Synapse user name (or an email address associated with a Synapse account)
+            authToken (str): A bearer authorization token, e.g. a
                 [personal access token](https://python-docs.synapse.org/tutorials/authentication/).
-            silent:       Defaults to False.  Suppresses the "Welcome ...!" message.
+            silent (bool): Defaults to False.  Suppresses the "Welcome ...!" message.
+            profile (str): Profile to use from .synapseConfig (default: "default").
 
         Example: Logging in
-            Using an auth token:
+        - Logging in using a specific profile:
+                import synapseclient
+                syn = synapseclient.login(profile="user1)
+                > Welcome, username! You are using the user1 profile
 
-                syn.login(authToken="authtoken")
-                > Welcome, Me!
-
-            Using an auth token and username. The username is optional but verified
-            against the username in the auth token:
-
-                syn.login(email="my-username", authToken="authtoken")
-                > Welcome, Me!
-
+        - Logging in with an authentication token:
+            import synapseclient
+            syn = synapseclient.login(authToken = "your_auth_token"))
+            > Welcome, username!
         """
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
@@ -827,23 +832,34 @@ class Synapse(object):
         # Make sure to invalidate the existing session
         self.logout()
 
+        user_login_args = UserLoginArgs(
+            profile=profile, username=email, auth_token=authToken
+        )
         credential_provider_chain = get_default_credential_chain()
-
         self.credentials = credential_provider_chain.get_credentials(
-            syn=self,
-            user_login_args=UserLoginArgs(
-                email,
-                authToken,
-            ),
+            syn=self, user_login_args=user_login_args
         )
 
         # Final check on login success
         if not self.credentials:
-            raise SynapseNoCredentialsError("No credentials provided.")
+            raise SynapseNoCredentialsError(
+                f"No valid authentication credentials provided.\n"
+                f"Tried profile: '{profile}', email: '{email or 'N/A'}'.\n"
+                "Check your `.synapseConfig` or ensure the provided auth token is valid."
+            )
 
         if not silent:
             display_name = self.credentials.displayname or self.credentials.username
-            self.logger.info(f"Welcome, {display_name}!\n")
+            if (
+                not self.credentials.profile_name
+                or self.credentials.profile_name.lower()
+                == config_file_constants.AUTHENTICATION_SECTION_NAME
+            ):
+                self.logger.info(f"Welcome, {display_name}!\n")
+            else:
+                self.logger.info(
+                    f"Welcome, {display_name}! You are using the '{self.credentials.profile_name}' profile."
+                )
 
     @deprecated(
         version="4.4.0",
@@ -2709,7 +2725,7 @@ class Synapse(object):
 
         Arguments:
             parent: An id or an object of a Synapse container or None to retrieve all projects
-            includeTypes: Must be a list of entity types (ie. ["folder","file"]) which can be found [here](http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
+            includeTypes: Must be a list of entity types (ie. ["folder","file"]) which can be found [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
             sortBy: How results should be sorted. Can be NAME, or CREATED_ON
             sortDirection: The direction of the result sort. Can be ASC, or DESC
 
@@ -2779,24 +2795,49 @@ class Synapse(object):
 
         return entity
 
-    def _getACL(self, entity: Union[Entity, str]) -> Dict[str, Union[str, list]]:
+    def _getACL(
+        self, entity: Union[Entity, str], check_benefactor: bool = True
+    ) -> Dict[str, Union[str, list]]:
         """
         Get the effective Access Control Lists (ACL) for a Synapse Entity.
 
         Arguments:
             entity: A Synapse Entity or Synapse ID
+            check_benefactor: If True (default), check the benefactor for the entity
+                to get the ACL. If False, only check the entity itself.
+                This is useful for checking the ACL of an entity that has local sharing
+                settings, but you want to check the ACL of the entity itself and not
+                the benefactor it may inherit from.
 
         Returns:
             A dictionary of the Entity's ACL
         """
         if hasattr(entity, "getACLURI"):
             uri = entity.getACLURI()
+            return self.restGET(uri)
         else:
-            # Get the ACL from the benefactor (which may be the entity itself)
-            benefactor = self._getBenefactor(entity)
-            trace.get_current_span().set_attributes({"synapse.id": benefactor["id"]})
-            uri = "/entity/%s/acl" % (benefactor["id"])
-        return self.restGET(uri)
+            if check_benefactor:
+                # Get the ACL from the benefactor (which may be the entity itself)
+                benefactor = self._getBenefactor(entity)
+                trace.get_current_span().set_attributes(
+                    {"synapse.id": benefactor["id"]}
+                )
+                uri = "/entity/%s/acl" % (benefactor["id"])
+                return self.restGET(uri)
+            else:
+                synid, _ = utils.get_synid_and_version(entity)
+                trace.get_current_span().set_attributes({"synapse.id": synid})
+                uri = "/entity/%s/acl" % (synid)
+                try:
+                    return self.restGET(uri)
+                except SynapseHTTPError as e:
+                    if (
+                        "The requested ACL does not exist. This entity inherits its permissions from:"
+                        in str(e)
+                    ):
+                        # If the entity does not have an ACL, return an empty ACL
+                        return {"resourceAccess": []}
+                    raise e
 
     def _storeACL(
         self, entity: Union[Entity, str], acl: Dict[str, Union[str, list]]
@@ -2873,6 +2914,7 @@ class Synapse(object):
         self,
         entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
         principal_id: str = None,
+        check_benefactor: bool = True,
     ) -> typing.List[str]:
         """
         Get the [ACL](https://rest-docs.synapse.org/rest/org/
@@ -2882,6 +2924,11 @@ class Synapse(object):
         Arguments:
             entity:      An Entity or Synapse ID to lookup
             principal_id: Identifier of a user or group (defaults to PUBLIC users)
+            check_benefactor: If True (default), check the benefactor for the entity
+                to get the ACL. If False, only check the entity itself.
+                This is useful for checking the ACL of an entity that has local sharing
+                settings, but you want to check the ACL of the entity itself and not
+                the benefactor it may inherit from.
 
         Returns:
             An array containing some combination of
@@ -2896,7 +2943,7 @@ class Synapse(object):
             {"synapse.id": id_of(entity), "synapse.principal_id": principal_id}
         )
 
-        acl = self._getACL(entity)
+        acl = self._getACL(entity=entity, check_benefactor=check_benefactor)
 
         team_list = self._find_teams_for_principal(principal_id)
         team_ids = [int(team.id) for team in team_list]

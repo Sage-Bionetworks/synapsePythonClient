@@ -29,3 +29,4 @@ at your own risk.
         - get_permissions
         - get_acl
         - set_permissions
+        - delete_permissions
