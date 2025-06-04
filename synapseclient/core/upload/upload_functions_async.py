@@ -262,6 +262,7 @@ async def upload_external_file_handle_sftp(
     span = trace.get_current_span()
 
     span.set_attribute("synapse.storage.provider", "sftp")
+    span.set_attribute("synapse.file.size_bytes", file_size or 0)
 
     username, password = syn._getUserCredentials(url=sftp_url)
 
