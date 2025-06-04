@@ -56,6 +56,18 @@ from .table_services import (
     post_columns,
 )
 
+from .json_schema_services import (
+    bind_json_schema_to_entity,
+    get_json_schema_from_entity,
+    delete_json_schema_from_entity,
+    validate_entity_with_json_schema,
+    get_json_schema_validation_statistics,
+    get_invalid_json_schema_validation,
+    get_json_schema_derived_keys,
+)
+
+from .api_client import rest_post_paginated_async
+
 __all__ = [
     # annotations
     "set_annotations",
@@ -110,4 +122,14 @@ __all__ = [
     "get_default_columns",
     "ViewTypeMask",
     "ViewEntityType",
+    # json schema services
+    "bind_json_schema_to_entity",
+    "get_json_schema_from_entity",
+    "delete_json_schema_from_entity",
+    "validate_entity_with_json_schema",
+    "get_json_schema_validation_statistics",
+    "get_invalid_json_schema_validation",
+    "get_json_schema_derived_keys",
+    # api client 
+    "rest_post_paginated_async",
 ]
