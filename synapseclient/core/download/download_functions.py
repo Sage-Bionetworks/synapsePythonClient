@@ -590,7 +590,7 @@ async def download_by_file_handle(
             else:
                 loop = asyncio.get_running_loop()
                 progress_bar = get_or_create_download_progress_bar(
-                    file_size=actual_file_size, postfix=synapse_id, synapse_client=syn
+                    file_size=1, postfix=synapse_id, synapse_client=syn
                 )
 
                 # Execute the download
