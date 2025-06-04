@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, AsyncGenerator, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, Dict, List, Optional, Union
 
 from synapseclient.api.json_schema_services import (
     bind_json_schema_to_entity,
@@ -25,7 +25,7 @@ class JSONSchema:
 
     async def bind_json_schema_to_entity(
         self, json_schema_uri: str, *, synapse_client: Optional["Synapse"] = None
-    ) -> dict[str, str | int | bool]:
+    ) -> Dict[str, Union[str, int, bool]]:
         """Bind a JSON schema to an entity"""
         return await bind_json_schema_to_entity(
             synapse_id=self.id,
@@ -35,7 +35,7 @@ class JSONSchema:
 
     async def get_json_schema_from_entity(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> dict[str, str | int | bool]:
+    ) -> Dict[str, Union[str, int, bool]]:
         """Get bound schema from entity
 
         Arguments:
@@ -86,7 +86,7 @@ class JSONSchema:
 
     async def validate_entity_with_json_schema(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> dict[str, str | bool]:
+    ) -> Dict[str, Union[str, bool]]:
         """Get validation results of an entity against bound JSON schema
 
         Arguments:
@@ -111,7 +111,7 @@ class JSONSchema:
 
     async def get_json_schema_validation_statistics(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> dict[str, int | str]:
+    ) -> Dict[str, Union[int, str]]:
         """Get the summary statistic of json schema validation results for
             a container entity
         Arguments:
@@ -136,7 +136,7 @@ class JSONSchema:
 
     async def get_invalid_json_schema_validation(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> AsyncGenerator[dict[str, str], None]:
+    ) -> AsyncGenerator[Dict[str, str], None]:
         """Get a single page of invalid JSON schema validation results for a container Entity
         (Project or Folder).
 
@@ -154,7 +154,7 @@ class JSONSchema:
 
     async def get_json_schema_derived_keys(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> dict[str, list[str]]:
+    ) -> Dict[str, List[str]]:
         """Retrieve derived JSON schema keys for a given Synapse entity.
 
         Args:
