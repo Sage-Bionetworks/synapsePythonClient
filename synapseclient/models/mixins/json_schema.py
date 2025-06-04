@@ -9,11 +9,13 @@ from synapseclient.api.json_schema_services import (
     get_json_schema_validation_statistics,
     validate_entity_with_json_schema,
 )
+from synapseclient.utils import async_to_sync
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
+@async_to_sync
 class JSONSchema:
     """
     Mixin class to provide JSON schema functionality.
@@ -23,7 +25,7 @@ class JSONSchema:
 
     id: Optional[str] = None
 
-    async def bind_json_schema_to_entity(
+    async def bind_json_schema_to_entity_async(
         self, json_schema_uri: str, *, synapse_client: Optional["Synapse"] = None
     ) -> Dict[str, Union[str, int, bool]]:
         """Bind a JSON schema to an entity"""
@@ -33,7 +35,7 @@ class JSONSchema:
             synapse_client=synapse_client,
         )
 
-    async def get_json_schema_from_entity(
+    async def get_json_schema_from_entity_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> Dict[str, Union[str, int, bool]]:
         """Get bound schema from entity
@@ -70,7 +72,7 @@ class JSONSchema:
             synapse_id=self.id, synapse_client=synapse_client
         )
 
-    async def delete_json_schema_from_entity(
+    async def delete_json_schema_from_entity_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> None:
         """Delete bound schema from entity
@@ -84,7 +86,7 @@ class JSONSchema:
             synapse_id=self.id, synapse_client=synapse_client
         )
 
-    async def validate_entity_with_json_schema(
+    async def validate_entity_with_json_schema_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> Dict[str, Union[str, bool]]:
         """Get validation results of an entity against bound JSON schema
@@ -109,7 +111,7 @@ class JSONSchema:
             synapse_id=self.id, synapse_client=synapse_client
         )
 
-    async def get_json_schema_validation_statistics(
+    async def get_json_schema_validation_statistics_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> Dict[str, Union[int, str]]:
         """Get the summary statistic of json schema validation results for
@@ -134,7 +136,7 @@ class JSONSchema:
             synapse_id=self.id, synapse_client=synapse_client
         )
 
-    async def get_invalid_json_schema_validation(
+    async def get_invalid_json_schema_validation_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> AsyncGenerator[Dict[str, str], None]:
         """Get a single page of invalid JSON schema validation results for a container Entity
@@ -152,7 +154,7 @@ class JSONSchema:
         async for item in gen:
             yield item
 
-    async def get_json_schema_derived_keys(
+    async def get_json_schema_derived_keys_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> Dict[str, List[str]]:
         """Retrieve derived JSON schema keys for a given Synapse entity.
