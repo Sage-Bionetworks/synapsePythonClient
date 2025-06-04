@@ -154,7 +154,19 @@ async def get_invalid_json_schema_validation(synapse_id: str, *, synapse_client:
             synapse_id:      Synapse Id
             synapse_client:  If not passed in and caching was not disabled by
                              `Synapse.allow_client_caching(False)` this will use the last created
-                             instance from the Synapse class constructor"""
+                             instance from the Synapse class constructor
+
+    Example usage:
+    async def main():
+        gen = get_invalid_json_schema_validation(synapse_client=syn, synapse_id=dataset_folder)
+        try:
+            while True:
+                item = await anext(gen)
+                print(item)
+        except StopAsyncIteration:
+            print("All items processed.")
+    asyncio.run(main())
+    """
 
     request_body = {"containerId": synapse_id}
     response = rest_post_paginated_async(f"/entity/{synapse_id}/schema/validation/invalid", body=json.dumps(request_body), synapse_client=synapse_client)
