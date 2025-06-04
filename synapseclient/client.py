@@ -90,11 +90,8 @@ from synapseclient.core.logging_setup import (
 )
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.models.permission import Permissions
-from synapseclient.core.otel_config import (
-    configure_metrics,
-    configure_traces,
-    get_tracer,
-)
+from synapseclient.core.otel_config import configure_metrics, configure_traces
+from synapseclient.core.otel_config import get_tracer as otel_config_get_tracer
 from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS, get_executor
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.retry import (
@@ -158,7 +155,7 @@ from .table import (
 from .team import Team, TeamMember, UserGroupHeader, UserProfile
 from .wiki import Wiki, WikiAttachment
 
-tracer = get_tracer()
+tracer = otel_config_get_tracer()
 
 PRODUCTION_ENDPOINTS = {
     "repoEndpoint": "https://repo-prod.prod.sagebase.org/repo/v1",
@@ -661,49 +658,179 @@ class Synapse(object):
 
     @staticmethod
     def enable_open_telemetry(
-        enable_open_telemetry: bool = True,
+        enable_open_telemetry_tracing: bool = True,
+        enable_open_telemetry_metrics: bool = False,
+        *,
         resource_attributes: Optional[Dict[str, Any]] = None,
         include_context: bool = True,
     ) -> None:
-        """Determines whether OpenTelemetry is enabled for the Synapse client. This is
-        used to configure both tracing and metrics collection for the client. Calling
-        this is a one-way operation, meaning that once OpenTelemetry is enabled it
-        cannot be disabled. This is to ensure that the instrumentation is set up
-        correctly and that spans and metrics are collected consistently throughout the
-        lifetime of the Synapse client.
+        """Enables OpenTelemetry instrumentation for the Synapse client to collect telemetry data
+        about your application's performance and behavior. This data can provide insights into
+        latency, errors, and other performance metrics.
 
-        If you want to disable OpenTelemetry you should restart your Python
-        interpreter or application.
+        Note: This is a one-way operation - once enabled, OpenTelemetry cannot be disabled within
+        the same process. To disable it, you must restart your Python interpreter or application.
 
-        When enabled, this method will:
-        1. Set up instrumentation for several dependent libraries including:
-            - threading
-            - urllib
-            - requests
-            - httpx
-        2. Configure OpenTelemetry tracing for collecting spans and traces
-        3. Configure OpenTelemetry metrics for collecting performance metrics
+        When enabled, this method automatically:
+        1. Sets up instrumentation for dependent libraries:
+            - **Threading** (via `ThreadingInstrumentor`): Ensures proper context propagation
+              across threads for maintaining trace continuity in multi-threaded applications
+            - **HTTP libraries**:
+                - `requests` (via `RequestsInstrumentor`): Captures all HTTP requests, including
+                  methods, URLs, status codes, and timing information
+                - `httpx` (via `HTTPXClientInstrumentor`): Tracks both synchronous and
+                  asynchronous HTTP requests
+                - `urllib` (via `URLLibInstrumentor`): Monitors lower-level HTTP operations
+            - Each instrumented HTTP library includes custom hooks that extract Synapse entity
+              IDs from URLs and add them as span attributes
+        2. Configures traces to collect spans across your application:
+            - Spans automatically capture operation duration, status, and errors
+            - Attributes like `synapse.transfer.direction` and `synapse.operation.category`
+              are properly propagated to child spans
+            - Trace data is exported via OTLP (OpenTelemetry Protocol)
+        3. Adds resource information to your traces, including:
+            - Python version
+            - OS type
+            - Synapse client version
+            - Service name and instance ID
 
-        When disabled, instrumentation for these libraries will be stopped.
-
-        Configuration can be customized through environment variables:
-        - OTEL_SERVICE_NAME: Name of the service for telemetry identification. Defaults to 'synapse-python-client'.
-        - OTEL_EXPORTER_OTLP_ENDPOINT: OTLP endpoint URL for exporting telemetry data
-        - OTEL_DEBUG_CONSOLE: Set to 'true' to enable console exporting for debugging
-        - OTEL_SERVICE_INSTANCE_ID: Unique identifier for the Synapse client instance
-        - OTEL_EXPORTER_OTLP_HEADERS: Custom headers for the OTLP exporter (https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_headers)
+        Environment Variable Configuration:
+            - `OTEL_SERVICE_NAME`: Defines a unique identifier for your application or service
+              (defaults to 'synapseclient'). Set this to a descriptive name that represents your
+              specific implementation for easier filtering and analysis.
+            - `OTEL_EXPORTER_OTLP_ENDPOINT`: Specifies the destination URL for sending telemetry
+              data (defaults to 'http://localhost:4318/v1/traces'). Configure this to direct
+              traces to your preferred collector or monitoring service.
+            - `OTEL_DEBUG_CONSOLE`: Controls local visibility of telemetry data. Set to 'true' to
+              output trace information to the console for development and troubleshooting.
+            - `OTEL_SERVICE_INSTANCE_ID`: Distinguishes between multiple instances of the same
+              service (e.g., 'prod', 'development', 'local') to identify which specific
+              deployment generated particular traces.
+            - `OTEL_EXPORTER_OTLP_HEADERS`: Configures authentication and metadata for telemetry
+              exports. Use this to add API keys, tokens, or custom metadata when sending traces
+              to secured collectors.
 
         Args:
-            enable_open_telemetry: Whether to enable OpenTelemetry instrumentation and telemetry collection.
-                Defaults to True. Once enabled, it cannot be disabled.
-            resource_attributes: Additional resource attributes to include with the telemetry data.
-            include_context: Whether to include contextual information about the runtime environment.
+            enable_open_telemetry_tracing: Whether to enable tracing (defaults to True).
+            enable_open_telemetry_metrics: Whether to enable metrics collection (defaults to False).
+            resource_attributes: Additional attributes to include with telemetry data, which can
+                override environment variables like service name and instance ID.
+            include_context: Whether to include runtime environment context (defaults to True).
 
-        """
-        if enable_open_telemetry:
-            set_up_telemetry(
-                resource_attributes=resource_attributes, include_context=include_context
+        Example: Basic usage
+            ```python
+            import synapseclient
+
+            # Enable OpenTelemetry with default settings
+            synapseclient.Synapse.enable_open_telemetry()
+
+            # Get a tracer and create custom spans for your code
+            tracer = synapseclient.Synapse.get_tracer()
+
+            # Use the tracer to create spans around your operations
+            with tracer.start_as_current_span("my_operation"):
+                syn = synapseclient.Synapse()
+                syn.login()
+
+                # Create nested spans for more detailed tracing
+                with tracer.start_as_current_span("data_processing"):
+                    # Your code here
+                    pass
+            ```
+
+        Example: Custom configuration with resource attributes
+            ```python
+            import synapseclient
+            import os
+
+            # Set environment variables for telemetry configuration
+            os.environ["OTEL_SERVICE_NAME"] = "my-synapse-app"
+            os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "https://collector.example.com:4318"
+
+            # Enable with custom resource attributes that override some environment variables
+            synapseclient.Synapse.enable_open_telemetry(
+                resource_attributes={
+                    "deployment.environment": "production",
+                    "service.version": "1.2.3",
+                    "service.instance.id": "instance-1", # Overrides OTEL_SERVICE_INSTANCE_ID
+                    "custom.attribute": "value"
+                }
             )
+
+            syn = synapseclient.Synapse()
+            syn.login()
+            ```
+        """
+        set_up_telemetry(
+            enable_open_telemetry_tracing=enable_open_telemetry_tracing,
+            enable_open_telemetry_metrics=enable_open_telemetry_metrics,
+            resource_attributes=resource_attributes,
+            include_context=include_context,
+        )
+
+    @classmethod
+    def get_tracer(cls, name: Optional[str] = None) -> trace.Tracer:
+        """Returns an OpenTelemetry tracer that can be used to create spans and collect telemetry data.
+
+        The tracer allows you to create custom spans to track specific operations in your code,
+        making it easier to analyze performance and troubleshoot issues. You can create spans,
+        add attributes, events, and links to provide rich context about your application's behavior.
+
+        Note: OpenTelemetry must be enabled via `Synapse.enable_open_telemetry()` before using this method.
+
+        Args:
+            name: Optional name for the tracer. If not provided, the default Synapse tracer is used.
+                 Use this to create separate tracers for different components of your application.
+
+        Returns:
+            An OpenTelemetry Tracer instance that can be used to create spans.
+
+        Example: Creating spans with the tracer
+            ```python
+            import synapseclient
+            from opentelemetry.trace.status import Status, StatusCode
+
+            # Enable OpenTelemetry first
+            synapseclient.Synapse.enable_open_telemetry()
+            syn = synapseclient.login()
+
+            # Get a tracer
+            tracer = synapseclient.Synapse.get_tracer()
+
+            # Create a parent span
+            with tracer.start_as_current_span("my_operation") as span:
+                # Add attributes to provide context
+                span.set_attribute("library.operation.type", "data_processing")
+                span.set_attribute("library.entity.id", "syn123456")
+
+                # Your code here
+
+                # Create a child span for a sub-operation
+                with tracer.start_as_current_span("data_validation") as child_span:
+                    child_span.set_attribute("library.validation.type", "schema")
+                    # More code here
+
+                    # Add an event to mark a significant occurrence
+                    child_span.add_event("validation_complete",
+                                        {"records_processed": 100})
+            ```
+
+        Example: Using multiple named tracers
+            ```python
+            import synapseclient
+
+            # Enable OpenTelemetry
+            synapseclient.Synapse.enable_open_telemetry()
+
+            data_tracer = synapseclient.Synapse.get_tracer("data_operations")
+            syn = synapseclient.login()
+
+            with data_tracer.start_as_current_span("data_download"):
+                # Data download code
+                pass
+            ```
+        """
+        return otel_config_get_tracer(name=name)
 
     @classmethod
     def set_client(cls, synapse_client) -> None:
@@ -6801,7 +6928,10 @@ def response_hook_urllib(
 # These libraries are used to automatically trace requests made by the Synapse client.
 # As well as the ThreadingInstrumentor provides context propagation through threads.
 def set_up_telemetry(
-    resource_attributes: Optional[Dict[str, Any]] = None, include_context: bool = True
+    enable_open_telemetry_tracing: bool = True,
+    enable_open_telemetry_metrics: bool = False,
+    resource_attributes: Optional[Dict[str, Any]] = None,
+    include_context: bool = True,
 ) -> None:
     """
     Sets up OpenTelemetry instrumentation for tracing and metrics. Setting up telemetry
@@ -6812,22 +6942,24 @@ def set_up_telemetry(
         include_context: Whether to include contextual information about the runtime environment.
 
     """
+    if enable_open_telemetry_tracing:
+        configure_traces(
+            resource_attributes=resource_attributes, include_context=include_context
+        )
 
-    ThreadingInstrumentor().instrument()
-    HTTPXClientInstrumentor().instrument(
-        async_request_hook=async_request_hook_httpx,
-        async_response_hook=async_response_hook_httpx,
-    )
-    RequestsInstrumentor().instrument(
-        request_hook=request_hook_requests, response_hook=response_hook_requests
-    )
-    URLLibInstrumentor().instrument(
-        request_hook=request_hook_urllib, response_hook=response_hook_urllib
-    )
+        ThreadingInstrumentor().instrument()
+        HTTPXClientInstrumentor().instrument(
+            async_request_hook=async_request_hook_httpx,
+            async_response_hook=async_response_hook_httpx,
+        )
+        RequestsInstrumentor().instrument(
+            request_hook=request_hook_requests, response_hook=response_hook_requests
+        )
+        URLLibInstrumentor().instrument(
+            request_hook=request_hook_urllib, response_hook=response_hook_urllib
+        )
 
-    configure_traces(
-        resource_attributes=resource_attributes, include_context=include_context
-    )
-    configure_metrics(
-        resource_attributes=resource_attributes, include_context=include_context
-    )
+    if enable_open_telemetry_metrics:
+        configure_metrics(
+            resource_attributes=resource_attributes, include_context=include_context
+        )

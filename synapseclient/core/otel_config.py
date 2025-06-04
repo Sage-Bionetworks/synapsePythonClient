@@ -24,6 +24,7 @@ from opentelemetry.trace import Span, SpanContext, get_current_span
 # Default service name for the client
 DEFAULT_SERVICE_NAME = "synapseclient"
 CLIENT_VERSION = "unspecified"
+SYNAPSE_SERVICE_VERSION = f"synapse.{SERVICE_VERSION}"
 
 
 class AttributePropagatingSpanProcessor(SpanProcessor):
@@ -99,7 +100,7 @@ def configure_traces(
     """
     resource_attrs = {
         SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME),
-        SERVICE_VERSION: CLIENT_VERSION,
+        SYNAPSE_SERVICE_VERSION: CLIENT_VERSION,
         SERVICE_INSTANCE_ID: os.environ.get(
             "OTEL_SERVICE_INSTANCE_ID", "default_instance"
         ),
@@ -115,7 +116,7 @@ def configure_traces(
         try:
             from synapseclient import __version__ as client_version
 
-            resource_attrs[SERVICE_VERSION] = client_version
+            resource_attrs[SYNAPSE_SERVICE_VERSION] = client_version
         except ImportError:
             pass
 
@@ -165,7 +166,7 @@ def configure_metrics(
     """
     resource_attrs = {
         SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", DEFAULT_SERVICE_NAME),
-        SERVICE_VERSION: CLIENT_VERSION,
+        SYNAPSE_SERVICE_VERSION: CLIENT_VERSION,
     }
 
     if include_context:
@@ -178,7 +179,7 @@ def configure_metrics(
         try:
             from synapseclient import __version__ as client_version
 
-            resource_attrs[SERVICE_VERSION] = client_version
+            resource_attrs[SYNAPSE_SERVICE_VERSION] = client_version
         except ImportError:
             pass
 
