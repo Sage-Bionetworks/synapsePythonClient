@@ -9,7 +9,7 @@ from synapseclient.api.json_schema_services import (
     get_json_schema_validation_statistics,
     validate_entity_with_json_schema,
 )
-from synapseclient.utils import async_to_sync
+from synapseclient.core.async_utils import async_to_sync
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
