@@ -534,7 +534,7 @@ async def download_by_file_handle(
                     {
                         "chunk_number": 0,
                         "start_byte": 0,
-                        "end_byte": file_size - 1 if file_size > 0 else 0,
+                        "end_byte": file_size,
                         "file_handle_id": file_handle_id,
                         "synapse_id": synapse_id,
                         "time_to_transfer_seconds": time.time() - download_start_time,
@@ -596,7 +596,7 @@ async def download_by_file_handle(
                     {
                         "chunk_number": 0,
                         "start_byte": 0,
-                        "end_byte": file_size - 1 if file_size > 0 else 0,
+                        "end_byte": file_size,
                         "file_handle_id": file_handle_id,
                         "synapse_id": synapse_id,
                         "time_to_transfer_seconds": time.time() - download_start_time,
@@ -657,7 +657,7 @@ async def download_by_file_handle(
                     {
                         "chunk_number": 0,
                         "start_byte": 0,
-                        "end_byte": file_size - 1 if file_size > 0 else 0,
+                        "end_byte": file_size,
                         "file_handle_id": file_handle_id,
                         "synapse_id": synapse_id,
                         "time_to_transfer_seconds": time.time() - download_start_time,
