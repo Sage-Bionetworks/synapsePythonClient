@@ -524,17 +524,12 @@ async def download_by_file_handle(
                     ),
                 )
 
-                file_size = (
-                    os.path.getsize(downloaded_path)
-                    if os.path.exists(downloaded_path)
-                    else 0
-                )
                 span.add_event(
                     "download_chunk_completed",
                     {
                         "chunk_number": 0,
                         "start_byte": 0,
-                        "end_byte": file_size,
+                        "end_byte": actual_file_size,
                         "file_handle_id": file_handle_id,
                         "synapse_id": synapse_id,
                         "time_to_transfer_seconds": time.time() - download_start_time,
@@ -586,17 +581,12 @@ async def download_by_file_handle(
                     ),
                 )
 
-                file_size = (
-                    os.path.getsize(downloaded_path)
-                    if os.path.exists(downloaded_path)
-                    else 0
-                )
                 span.add_event(
                     "download_chunk_completed",
                     {
                         "chunk_number": 0,
                         "start_byte": 0,
-                        "end_byte": file_size,
+                        "end_byte": actual_file_size,
                         "file_handle_id": file_handle_id,
                         "synapse_id": synapse_id,
                         "time_to_transfer_seconds": time.time() - download_start_time,
@@ -646,18 +636,12 @@ async def download_by_file_handle(
                     ),
                 )
 
-                # Record span event for non-multipart download completion
-                file_size = (
-                    os.path.getsize(downloaded_path)
-                    if os.path.exists(downloaded_path)
-                    else 0
-                )
                 span.add_event(
                     "download_chunk_completed",
                     {
                         "chunk_number": 0,
                         "start_byte": 0,
-                        "end_byte": file_size,
+                        "end_byte": actual_file_size,
                         "file_handle_id": file_handle_id,
                         "synapse_id": synapse_id,
                         "time_to_transfer_seconds": time.time() - download_start_time,
