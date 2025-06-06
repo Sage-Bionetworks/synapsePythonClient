@@ -7,6 +7,7 @@ import hashlib
 import os
 import shutil
 import sys
+import time
 import urllib.parse as urllib_urlparse
 import urllib.request as urllib_request
 from typing import TYPE_CHECKING, Dict, Optional, Union
@@ -509,6 +510,7 @@ async def download_by_file_handle(
                 )
                 loop = asyncio.get_running_loop()
 
+                download_start_time = time.time()
                 downloaded_path = await loop.run_in_executor(
                     syn._get_thread_pool_executor(asyncio_event_loop=loop),
                     lambda: S3ClientWrapper.download_file(
@@ -520,6 +522,23 @@ async def download_by_file_handle(
                         credentials=_get_aws_credentials(),
                         progress_bar=progress_bar,
                     ),
+                )
+
+                file_size = (
+                    os.path.getsize(downloaded_path)
+                    if os.path.exists(downloaded_path)
+                    else 0
+                )
+                span.add_event(
+                    "download_chunk_completed",
+                    {
+                        "chunk_number": 0,
+                        "start_byte": 0,
+                        "end_byte": file_size - 1 if file_size > 0 else 0,
+                        "file_handle_id": file_handle_id,
+                        "synapse_id": synapse_id,
+                        "time_to_transfer_seconds": time.time() - download_start_time,
+                    },
                 )
 
             elif (
@@ -559,11 +578,29 @@ async def download_by_file_handle(
                     )
 
                 loop = asyncio.get_running_loop()
+                download_start_time = time.time()
                 downloaded_path = await loop.run_in_executor(
                     syn._get_thread_pool_executor(asyncio_event_loop=loop),
                     lambda: sts_transfer.with_boto_sts_credentials(
                         download_fn, syn, synapse_id, "read_only"
                     ),
+                )
+
+                file_size = (
+                    os.path.getsize(downloaded_path)
+                    if os.path.exists(downloaded_path)
+                    else 0
+                )
+                span.add_event(
+                    "download_chunk_completed",
+                    {
+                        "chunk_number": 0,
+                        "start_byte": 0,
+                        "end_byte": file_size - 1 if file_size > 0 else 0,
+                        "file_handle_id": file_handle_id,
+                        "synapse_id": synapse_id,
+                        "time_to_transfer_seconds": time.time() - download_start_time,
+                    },
                 )
 
             elif (
@@ -594,6 +631,7 @@ async def download_by_file_handle(
                 )
 
                 # Execute the download
+                download_start_time = time.time()
                 downloaded_path = await loop.run_in_executor(
                     syn._get_thread_pool_executor(asyncio_event_loop=loop),
                     lambda: download_from_url(
@@ -606,6 +644,24 @@ async def download_by_file_handle(
                         progress_bar=progress_bar,
                         synapse_client=syn,
                     ),
+                )
+
+                # Record span event for non-multipart download completion
+                file_size = (
+                    os.path.getsize(downloaded_path)
+                    if os.path.exists(downloaded_path)
+                    else 0
+                )
+                span.add_event(
+                    "download_chunk_completed",
+                    {
+                        "chunk_number": 0,
+                        "start_byte": 0,
+                        "end_byte": file_size - 1 if file_size > 0 else 0,
+                        "file_handle_id": file_handle_id,
+                        "synapse_id": synapse_id,
+                        "time_to_transfer_seconds": time.time() - download_start_time,
+                    },
                 )
 
             syn.logger.info(f"[{synapse_id}]: Downloaded to {downloaded_path}")
@@ -844,7 +900,12 @@ def download_from_url(
                 if is_synapse_uri(uri=url, synapse_client=client)
                 else None
             )
-            span.set_attribute("synapse.storage.provider", "http" if not auth else "s3")
+            if auth:
+                span.set_attribute("synapse.storage.provider", "s3")
+            elif "storage.googleapis.com" in url:
+                span.set_attribute("synapse.storage.provider", "gcs")
+            else:
+                span.set_attribute("synapse.storage.provider", "http")
 
             try:
                 url_query = urllib_urlparse.urlparse(url).query

@@ -115,11 +115,13 @@ async def upload_file_handle(
     ):
         if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION:
             storage_str = "Uploading to Synapse storage"
+            span.set_attribute("synapse.storage.provider", "s3")
         elif upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
             storage_str = "Uploading to your external S3 storage"
+            span.set_attribute("synapse.storage.provider", "s3")
         else:
             storage_str = "Uploading to your external Google Bucket storage"
-            span.set_attribute("synapse.storage.provider", "gcp")
+            span.set_attribute("synapse.storage.provider", "gcs")
         file_handle = await upload_synapse_s3(
             syn=syn,
             file_path=expanded_upload_path,
@@ -171,6 +173,7 @@ async def upload_file_handle(
             storage_str=storage_str,
         )
     else:  # unknown storage location
+        span.set_attribute("synapse.storage.provider", "s3")
         file_handle = await upload_synapse_s3(
             syn=syn,
             file_path=expanded_upload_path,
@@ -310,8 +313,6 @@ async def upload_synapse_s3(
     Returns:
         A dictionary of the file handle.
     """
-    span = trace.get_current_span()
-    span.set_attribute("synapse.storage.provider", "s3")
 
     file_handle_id = await multipart_upload_file_async(
         syn=syn,
@@ -324,7 +325,6 @@ async def upload_synapse_s3(
     )
 
     syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
-    span.set_attribute("synapse.file_handle_id", file_handle_id)
     return await get_file_handle(file_handle_id=file_handle_id, synapse_client=syn)
 
 
