@@ -18,6 +18,7 @@ VERSION_COMMENT = "My version comment"
 class TestJSONSchema:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        """Initialize the test class with a Synapse client and cleanup schedule."""
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
         self.org_name = "dpetest"
@@ -28,11 +29,13 @@ class TestJSONSchema:
 
     @pytest.fixture(autouse=True, scope="function")
     def folder(self) -> Folder:
+        """Create a folder for testing JSON schema functionality."""
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
     @pytest.fixture(autouse=True, scope="function")
     def test_patient_schema_uri(self):
+        """Create a test patient schema URI for binding and validation."""
         js = self.syn.service("json_schema")
         org = js.JsonSchemaOrganization(self.org_name)
         test_patient_schema = js.JsonSchema(org, self.patient_schema_name)
@@ -48,6 +51,35 @@ class TestJSONSchema:
 
     @pytest.fixture(autouse=True, scope="function")
     def test_product_schema_uri(self):
+        """Create a test product schema URI for binding and validation.
+        The product json schema looks like this:
+        {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://example.com/schema/productschema.json",
+        "title": "Product Schema",
+        "type": "object",
+        "properties": {
+            "productId": {
+            "description": "The unique identifier for a product",
+            "type": "integer",
+            "const": 123
+            },
+            "productName": {
+            "description": "Name of the product",
+            "type": "string",
+            "const": "default product name"
+            },
+            "productDescription": {
+            "description": "description of the product",
+            "type": "string",
+            },
+            "productQuantity": {
+            "description": "quantity of the product",
+            "type": "integer",
+            },
+        }
+        }
+        """
         js = self.syn.service("json_schema")
         org = js.JsonSchemaOrganization(self.org_name)
         test_product_schema = js.JsonSchema(org, self.product_schema_name)
@@ -139,13 +171,17 @@ class TestJSONSchema:
 
         # Store annotations
         created_folder.annotations = {
-            "productPrice": 10,
+            "productDescription": "test description here",
+            "productQuantity": 100,
+            "productPrice": 100,
         }
         stored_folder = await folder.store_async(parent=project_model)
         response = await created_folder.get_json_schema_from_entity_async(
             synapse_client=self.syn
         )
         assert response["enableDerivedAnnotations"] == True
+        # Ensure annotations are stored
+        sleep(2)
 
         # Retrieve the derived keys from the folder
         response = await stored_folder.get_json_schema_derived_keys_async(
@@ -174,6 +210,7 @@ class TestJSONSchema:
             "Component": "Component",
         }
         await folder.store_async(parent=project_model)
+        # Ensure annotations are stored
         sleep(2)
 
         # Validate the folder against the JSON schema
@@ -206,6 +243,7 @@ class TestJSONSchema:
             "productQuantity": 100,
         }
         await folder.store_async(parent=project_model)
+        # Ensure annotations are stored
         sleep(2)
         response = await created_folder.validate_entity_with_json_schema_async(
             synapse_client=self.syn
@@ -263,6 +301,7 @@ class TestJSONSchema:
 
         await file_1.store_async(parent=folder)
         await file_2.store_async(parent=folder)
+        # Ensure annotations are stored
         sleep(2)
 
         # validate the folder againt the JSON SCHEMA
@@ -328,6 +367,7 @@ class TestJSONSchema:
 
         await file_1.store_async(parent=folder)
         await file_2.store_async(parent=folder)
+        # Ensure annotations are stored
         sleep(2)
 
         # Get invalid validation results of the folder
