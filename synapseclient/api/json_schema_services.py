@@ -8,13 +8,18 @@ if TYPE_CHECKING:
 
 
 async def bind_json_schema_to_entity(
-    synapse_id: str, json_schema_uri: str, *, synapse_client: Optional["Synapse"] = None
+    synapse_id: str,
+    json_schema_uri: str,
+    *,
+    enable_derived_annos: bool = False,
+    synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Union[str, int, bool]]:
     """Bind a JSON schema to an entity
 
     Arguments:
+        synapse_id:      Synapse Entity or Synapse Id
         json_schema_uri: JSON schema URI
-        entity:          Synapse Entity or Synapse Id
+        enable_derived_annos:  If True, derived annotations will be enabled for this entity
         synapse_client:  If not passed in and caching was not disabled by
                          `Synapse.allow_client_caching(False)` this will use the last created
                          instance from the Synapse class constructor
@@ -44,7 +49,11 @@ async def bind_json_schema_to_entity(
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
-    request_body = {"entityId": synapse_id, "schema$id": json_schema_uri}
+    request_body = {
+        "entityId": synapse_id,
+        "schema$id": json_schema_uri,
+        "enableDerivedAnnotations": enable_derived_annos,
+    }
     return await client.rest_put_async(
         uri=f"/entity/{synapse_id}/schema/binding", body=json.dumps(request_body)
     )

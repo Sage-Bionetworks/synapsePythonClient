@@ -26,12 +26,17 @@ class JSONSchema:
     id: Optional[str] = None
 
     async def bind_json_schema_to_entity_async(
-        self, json_schema_uri: str, *, synapse_client: Optional["Synapse"] = None
+        self,
+        json_schema_uri: str,
+        *,
+        enable_derived_annos: bool = False,
+        synapse_client: Optional["Synapse"] = None,
     ) -> Dict[str, Union[str, int, bool]]:
         """Bind a JSON schema to an entity"""
         return await bind_json_schema_to_entity(
             synapse_id=self.id,
             json_schema_uri=json_schema_uri,
+            enable_derived_annos=enable_derived_annos,
             synapse_client=synapse_client,
         )
 
