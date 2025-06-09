@@ -1,7 +1,7 @@
+import asyncio
 import random
 import uuid
-from time import sleep
-from typing import TYPE_CHECKING, Callable, Dict, Generator, List, Optional, Tuple, Type
+from typing import Callable, Generator, Tuple
 
 import pytest
 
@@ -202,7 +202,7 @@ class TestJSONSchema:
             )
             assert response.enable_derived_annotations == True
 
-            sleep(2)
+            await asyncio.sleep(2)
 
             # Retrieve the derived keys from the folder
             response = await stored_folder.get_json_schema_derived_keys_async(
@@ -242,7 +242,7 @@ class TestJSONSchema:
             }
             await folder.store_async(parent=project_model)
             # Ensure annotations are stored
-            sleep(2)
+            asyncio.sleep(2)
 
             # Validate the folder against the JSON schema
             response = await created_folder.validate_entity_with_json_schema_async(
@@ -293,7 +293,7 @@ class TestJSONSchema:
             }
             await folder.store_async(parent=project_model)
             # Ensure annotations are stored
-            sleep(2)
+            asyncio.sleep(2)
             response = await created_folder.validate_entity_with_json_schema_async(
                 synapse_client=self.syn
             )
@@ -362,7 +362,7 @@ class TestJSONSchema:
             await file_1.store_async(parent=folder)
             await file_2.store_async(parent=folder)
             # Ensure annotations are stored
-            sleep(2)
+            asyncio.sleep(2)
 
             # validate the folder againt the JSON SCHEMA
             await created_folder.validate_entity_with_json_schema_async(
@@ -438,7 +438,7 @@ class TestJSONSchema:
             await file_1.store_async(parent=folder)
             await file_2.store_async(parent=folder)
             # Ensure annotations are stored
-            sleep(2)
+            asyncio.sleep(2)
 
             # Get invalid validation results of the folder
             # The generator `gen` yields validation results for entities that failed JSON schema validation.
