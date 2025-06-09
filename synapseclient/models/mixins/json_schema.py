@@ -49,7 +49,7 @@ class JsonSchemaVersionInfo:
 
 
 @dataclass
-class JSONSchemaBindingResponse:
+class JSONSchemaBinding:
     """Represents the response for binding a JSON schema to an entity."""
 
     json_schema_version_info: JsonSchemaVersionInfo
@@ -72,7 +72,7 @@ class JSONSchemaBindingResponse:
 
 
 @dataclass
-class JSONSchemaValidationResponse:
+class JSONSchemaValidation:
     """Represents the response for validating an entity against a JSON schema."""
 
     object_id: str
@@ -95,7 +95,7 @@ class JSONSchemaValidationResponse:
 
 
 @dataclass
-class JSONSchemaValidationStatisticsResponse:
+class JSONSchemaValidationStatistics:
     """Represents the summary statistics of JSON schema validation results for a container."""
 
     container_id: str
@@ -152,10 +152,10 @@ class ValidationException:
 
 
 @dataclass
-class InvalidJSONSchemaValidationResponse:
+class InvalidJSONSchemaValidation:
     """Represents the response for invalid JSON schema validation results."""
 
-    validation_response: JSONSchemaValidationResponse
+    validation_response: JSONSchemaValidation
     """The validation response object."""
 
     all_validation_messages: List[str]
@@ -189,7 +189,7 @@ class JSONSchema:
         *,
         enable_derived_annos: bool = False,
         synapse_client: Optional["Synapse"] = None,
-    ) -> JSONSchemaBindingResponse:
+    ) -> JSONSchemaBinding:
         """Bind a JSON schema to the entity.
 
         Args:
@@ -210,7 +210,7 @@ class JSONSchema:
 
     async def get_json_schema_from_entity_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> JSONSchemaBindingResponse:
+    ) -> JSONSchemaBinding:
         """Get bound schema from entity
 
         Arguments:
@@ -239,7 +239,7 @@ class JSONSchema:
 
     async def validate_entity_with_json_schema_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> JSONSchemaValidationResponse:
+    ) -> JSONSchemaValidation:
         """Get validation results of an entity against bound JSON schema
 
         Arguments:
@@ -255,7 +255,7 @@ class JSONSchema:
 
     async def get_json_schema_validation_statistics_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> JSONSchemaValidationStatisticsResponse:
+    ) -> JSONSchemaValidationStatistics:
         """Get the summary statistic of json schema validation results for
             a container entity
         Arguments:
@@ -271,7 +271,7 @@ class JSONSchema:
 
     async def get_invalid_json_schema_validation_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> AsyncGenerator[InvalidJSONSchemaValidationResponse, None]:
+    ) -> AsyncGenerator[InvalidJSONSchemaValidation, None]:
         """Get a single page of invalid JSON schema validation results for a container Entity
         (Project or Folder).
 
