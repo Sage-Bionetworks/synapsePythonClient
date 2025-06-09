@@ -26,7 +26,7 @@ class TestJSONSchema:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest.fixture(scope="module")
+    @pytest.fixture(scope="function")
     def create_test_organization_with_schema(
         self, syn: Synapse
     ) -> Generator[Tuple[JsonSchemaOrganization, str], None, None]:
