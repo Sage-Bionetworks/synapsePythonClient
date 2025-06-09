@@ -18,74 +18,159 @@ if TYPE_CHECKING:
 
 @dataclass
 class JsonSchemaVersionInfo:
-    organizationId: str
-    organizationName: str
-    schemaId: str
-    schemaName: str
-    versionId: str
-    schema_id: str  # renamed from "$id" to a valid Python identifier
-    semanticVersion: str
-    jsonSHA256Hex: str
-    createdOn: str  # ISO datetime
-    createdBy: str  # synapse user ID
+    organization_id: str
+    """The unique identifier for the organization."""
+    organization_name: str
+    """The name of the organization."""
+
+    schema_id: str
+    """The unique identifier of the bound schema. renamed from "$id" to a valid Python identifier"""
+
+    schema_name: str
+    """The name of the schema."""
+
+    version_id: str
+    """The unique identifier for the schema version."""
+
+    schema_uri: str
+    """The URI of the schema (renamed from "$id" to a valid Python identifier)."""
+
+    semantic_version: str
+    """The semantic version of the schema."""
+
+    json_sha256_hex: str
+    """The SHA-256 hash of the schema in hexadecimal format."""
+
+    created_on: str
+    """The ISO 8601 datetime when the schema version was created."""
+
+    created_by: str
+    """The Synapse user ID of the creator of the schema version."""
 
 
 @dataclass
 class JSONSchemaBindingResponse:
-    jsonSchemaVersionInfo: JsonSchemaVersionInfo
-    objectId: int
-    objectType: str
-    createdOn: str  # ISO datetime
-    createdBy: str  # synapse user ID
-    enableDerivedAnnotations: bool
+    """Represents the response for binding a JSON schema to an entity."""
+
+    json_schema_version_info: JsonSchemaVersionInfo
+    """Information about the JSON schema version."""
+
+    object_id: int
+    """The ID of the object to which the schema is bound."""
+
+    object_type: str
+    """The type of the object (e.g., 'entity')."""
+
+    created_on: str
+    """The ISO 8601 datetime when the binding was created."""
+
+    created_by: str
+    """The Synapse user ID of the creator of the binding."""
+
+    enable_derived_annotations: bool
+    """Indicates whether derived annotations are enabled."""
 
 
 @dataclass
 class JSONSchemaValidationResponse:
-    objectId: str  # Synapse ID of the object (e.g., "syn12345678")
-    objectType: str  # Type of the object (e.g., "entity")
-    objectEtag: str  # ETag of the object at the time of validation
-    schema_id: str  # Renamed from "schema$id" to a valid Python identifier
-    isValid: bool  # True if the object content conforms to the schema
-    validatedOn: str  # ISO 8601 timestamp of when validation occurred
+    """Represents the response for validating an entity against a JSON schema."""
+
+    object_id: str
+    """The Synapse ID of the object (e.g., 'syn12345678')."""
+
+    object_type: str
+    """The type of the object (e.g., 'entity')."""
+
+    object_etag: str
+    """The ETag of the object at the time of validation."""
+
+    schema_id: str
+    """The unique identifier of the bound schema. renamed from "$id" to a valid Python identifier"""
+
+    is_valid: bool
+    """Indicates whether the object content conforms to the schema."""
+
+    validated_on: str
+    """The ISO 8601 timestamp of when validation occurred."""
 
 
 @dataclass
 class JSONSchemaValidationStatisticsResponse:
-    containerId: str  # Synapse ID of the parent container
-    totalNumberOfChildren: int  # Total number of child entities
-    numberOfValidChildren: int  # Number of children that passed validation
-    numberOfInvalidChildren: int  # Number of children that failed validation
-    numberOfUnknownChildren: int  # Number of children with unknown validation status
+    """Represents the summary statistics of JSON schema validation results for a container."""
+
+    container_id: str
+    """The Synapse ID of the parent container."""
+
+    total_number_of_children: int
+    """The total number of child entities."""
+
+    number_of_valid_children: int
+    """The number of children that passed validation."""
+
+    number_of_invalid_children: int
+    """The number of children that failed validation."""
+
+    number_of_unknown_children: int
+    """The number of children with unknown validation status."""
 
 
 @dataclass
 class CausingException:
+    """Represents an exception causing a validation failure."""
+
     keyword: str
-    pointerToViolation: str
+    """The JSON schema keyword that caused the exception."""
+
+    pointer_to_violation: str
+    """A JSON pointer to the location of the violation."""
+
     message: str
-    schemaLocation: str
-    causingExceptions: List["CausingException"] = field(default_factory=list)
+    """A message describing the exception."""
+
+    schema_location: str
+    """The location of the schema that caused the exception."""
+
+    causing_exceptions: List["CausingException"] = field(default_factory=list)
+    """A list of nested causing exceptions."""
 
 
 @dataclass
 class ValidationException:
-    pointerToViolation: str
+    """Represents a validation exception."""
+
+    pointer_to_violation: str
+    """A JSON pointer to the location of the violation."""
+
     message: str
-    schemaLocation: str
-    causingExceptions: List[CausingException]
+    """A message describing the exception."""
+
+    schema_location: str
+    """The location of the schema that caused the exception."""
+
+    causing_exceptions: List[CausingException]
+    """A list of causing exceptions."""
 
 
 @dataclass
 class InvalidJSONSchemaValidationResponse:
-    JSONSchemaValidationResponse,
-    allValidationMessages: List[str]
-    validationException: ValidationException
+    """Represents the response for invalid JSON schema validation results."""
+
+    validation_response: JSONSchemaValidationResponse
+    """The validation response object."""
+
+    all_validation_messages: List[str]
+    """A list of all validation messages."""
+
+    validation_exception: ValidationException
+    """The validation exception details."""
 
 
 @dataclass
 class JSONSchemaDerivedKeysResponse:
+    """Represents the response for derived JSON schema keys."""
+
     keys: List[str]
+    """A list of derived keys for the entity."""
 
 
 @async_to_sync
