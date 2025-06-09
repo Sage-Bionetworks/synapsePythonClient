@@ -194,16 +194,37 @@ class JSONSchema:
         enable_derived_annos: bool = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> JSONSchemaBinding:
-        """Bind a JSON schema to the entity.
+        """
+        Bind a JSON schema to the entity.
 
         Args:
             json_schema_uri (str): The URI of the JSON schema to bind to the entity.
             enable_derived_annos (bool, optional): If true, enable derived annotations. Defaults to False.
-            synapse_client:  If not passed in and caching was not disabled by
-                            `Synapse.allow_client_caching(False)` this will use the last created
-                            instance from the Synapse class constructor
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
 
-        Returns: a JSONSchemaBinding object
+        Returns:
+            JSONSchemaBinding: An object containing details about the JSON schema binding.
+
+        Example:
+            ```python
+            from synapseclient import Folder
+
+            # Create a folder entity
+            folder = Folder(name="My Test Folder", parent="syn12345")
+            folder = await folder.store_async()
+
+            # Bind a JSON schema to the folder
+            binding = await folder.bind_json_schema_to_entity_async(
+                json_schema_uri="schema://my-schema",
+                enable_derived_annos=True,
+                synapse_client=my_synapse_client
+            )
+
+            # Access details about the binding
+            print(binding.json_schema_version_info.schema_name)
+            print(binding.enable_derived_annotations)
+            ```
         """
         response = await bind_json_schema_to_entity(
             synapse_id=self.id,
@@ -235,14 +256,25 @@ class JSONSchema:
     async def get_json_schema_from_entity_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> JSONSchemaBinding:
-        """Get bound schema from entity
+        """
+        Get the JSON schema bound to the entity.
 
-        Arguments:
-            synapse_client:  If not passed in and caching was not disabled by
-                            `Synapse.allow_client_caching(False)` this will use the last created
-                            instance from the Synapse class constructor
+        Args:
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
+
         Returns:
-            A JSONSchemaBinding object
+            JSONSchemaBinding: An object containing details about the bound JSON schema.
+
+        Example:
+            ```python
+            # Retrieve the JSON schema bound to the folder
+            binding = await folder.get_json_schema_from_entity_async(synapse_client=my_synapse_client)
+
+            # Access details about the binding
+            print(binding.json_schema_version_info.schema_name)
+            print(binding.enable_derived_annotations)
+            ```
         """
         response = await get_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
@@ -271,11 +303,18 @@ class JSONSchema:
     async def delete_json_schema_from_entity_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> None:
-        """Delete bound schema from entity
-        Arguments:
-            synapse_client:  If not passed in and caching was not disabled by
-                            `Synapse.allow_client_caching(False)` this will use the last created
-                            instance from the Synapse class constructor
+        """
+        Delete the JSON schema bound to the entity.
+
+        Args:
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
+
+        Example:
+            ```python
+            # Delete the JSON schema bound to the folder
+            await folder.delete_json_schema_from_entity_async(synapse_client=my_synapse_client)
+            ```
         """
         return await delete_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
@@ -284,14 +323,26 @@ class JSONSchema:
     async def validate_entity_with_json_schema_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> Union[JSONSchemaValidation, InvalidJSONSchemaValidation]:
-        """Get validation results of an entity against bound JSON schema
+        """
+        Validate the entity against the bound JSON schema.
 
-        Arguments:
-            synapse_client:  If not passed in and caching was not disabled by
-                            `Synapse.allow_client_caching(False)` this will use the last created
-                            instance from the Synapse class constructor
+        Args:
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
 
-        Returns: a JSONSchemaValidation object
+        Returns:
+            Union[JSONSchemaValidation, InvalidJSONSchemaValidation]: The validation results.
+
+        Example:
+            ```python
+            # Validate the folder against the bound JSON schema
+            validation = await folder.validate_entity_with_json_schema_async(synapse_client=my_synapse_client)
+
+            if isinstance(validation, JSONSchemaValidation):
+                print("Validation successful:", validation.is_valid)
+            else:
+                print("Validation failed:", validation.validation_error_message)
+            ```
         """
         response = await validate_entity_with_json_schema(
             synapse_id=self.id, synapse_client=synapse_client
@@ -352,14 +403,23 @@ class JSONSchema:
     async def get_json_schema_validation_statistics_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> JSONSchemaValidationStatistics:
-        """Get the summary statistic of json schema validation results for
-            a container entity
-        Arguments:
-            synapse_client:  If not passed in and caching was not disabled by
-                            `Synapse.allow_client_caching(False)` this will use the last created
-                            instance from the Synapse class constructor
+        """
+        Get validation statistics for a container entity.
 
-        Returns: a JSONSchemaValidationStatisticsResponse object
+        Args:
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
+
+        Returns:
+            JSONSchemaValidationStatistics: The validation statistics.
+
+        Example:
+            ```python
+            # Get validation statistics for the folder
+            stats = await folder.get_json_schema_validation_statistics_async(synapse_client=my_synapse_client)
+            print("Total children:", stats.total_number_of_children)
+            print("Valid children:", stats.number_of_valid_children)
+            ```
         """
         response = await get_json_schema_validation_statistics(
             synapse_id=self.id, synapse_client=synapse_client
@@ -375,16 +435,24 @@ class JSONSchema:
     async def get_invalid_json_schema_validation_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> AsyncGenerator[InvalidJSONSchemaValidation, None]:
-        """Get a single page of invalid JSON schema validation results for a container Entity
-        (Project or Folder).
+        """
+        Get invalid JSON schema validation results for a container entity.
 
-        Arguments:
-            synapse_client:  If not passed in and caching was not disabled by
-                            `Synapse.allow_client_caching(False)` this will use the last created
-                            instance from the Synapse class constructor
+        Args:
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
+
         Yields:
             InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
                                          and the validation exception details.
+
+        Example:
+            ```python
+            # Get invalid validation results for the folder
+            async for invalid_result in folder.get_invalid_json_schema_validation_async(synapse_client=my_synapse_client):
+                print("Invalid object ID:", invalid_result.validation_response.object_id)
+                print("Error message:", invalid_result.validation_error_message)
+            ```
         """
         gen = get_invalid_json_schema_validation(
             synapse_client=synapse_client, synapse_id=self.id
@@ -437,15 +505,22 @@ class JSONSchema:
     async def get_json_schema_derived_keys_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> JSONSchemaDerivedKeys:
-        """Retrieve derived JSON schema keys for a given Synapse entity.
+        """
+        Retrieve derived JSON schema keys for the entity.
 
         Args:
-            synapse_client:  If not passed in and caching was not disabled by
-                            `Synapse.allow_client_caching(False)` this will use the last created
-                            instance from the Synapse class constructor
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
 
         Returns:
             JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
+
+        Example:
+            ```python
+            # Get derived keys for the folder
+            derived_keys = await folder.get_json_schema_derived_keys_async(synapse_client=my_synapse_client)
+            print("Derived keys:", derived_keys.keys)
+            ```
         """
         response = await get_json_schema_derived_keys(
             synapse_id=self.id, synapse_client=synapse_client
