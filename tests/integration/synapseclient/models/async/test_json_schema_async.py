@@ -93,10 +93,9 @@ class TestJSONSchema:
             response = await created_folder.bind_json_schema_to_entity_async(
                 json_schema_uri=test_product_schema_uri, synapse_client=self.syn
             )
-            assert (
-                response["jsonSchemaVersionInfo"]["organizationName"] == test_org.name
-            )
-            assert response["jsonSchemaVersionInfo"]["$id"] == test_product_schema_uri
+            json_schema_version_info = response.json_schema_version_info
+            assert json_schema_version_info.organization_name == test_org.name
+            assert json_schema_version_info.id == test_product_schema_uri
         finally:
             # Clean up the JSON schema binding
             await created_folder.delete_json_schema_from_entity_async(
@@ -125,10 +124,8 @@ class TestJSONSchema:
             response = await created_folder.get_json_schema_from_entity_async(
                 synapse_client=self.syn
             )
-            assert (
-                response["jsonSchemaVersionInfo"]["organizationName"] == test_org.name
-            )
-            assert response["jsonSchemaVersionInfo"]["$id"] == test_product_schema_uri
+            assert response.json_schema_version_info.organization_name == test_org.name
+            assert response.json_schema_version_info.id == test_product_schema_uri
         finally:
             # Clean up the JSON schema binding
             await created_folder.delete_json_schema_from_entity_async(
@@ -203,7 +200,7 @@ class TestJSONSchema:
             response = await created_folder.get_json_schema_from_entity_async(
                 synapse_client=self.syn
             )
-            assert response["enableDerivedAnnotations"] == True
+            assert response.enable_derived_annotations == True
 
             sleep(2)
 
@@ -251,14 +248,18 @@ class TestJSONSchema:
             response = await created_folder.validate_entity_with_json_schema_async(
                 synapse_client=self.syn
             )
-            assert response["isValid"] == False
+            assert response.validation_response.is_valid == False
+            assert response.validation_response.id is not None
+
+            all_messages = response.all_validation_messages
+
             assert (
                 "#/productQuantity: expected type: Integer, found: String"
-                in response["allValidationMessages"]
+                in all_messages
             )
             assert (
                 "#/productDescription: expected type: String, found: Long"
-                in response["allValidationMessages"]
+                in all_messages
             )
         finally:
             # Clean up the JSON schema binding
@@ -296,7 +297,7 @@ class TestJSONSchema:
             response = await created_folder.validate_entity_with_json_schema_async(
                 synapse_client=self.syn
             )
-            assert response["isValid"] == True
+            assert response.is_valid == True
         finally:
             # Clean up the JSON schema binding
             await created_folder.delete_json_schema_from_entity_async(
@@ -372,8 +373,8 @@ class TestJSONSchema:
             response = await created_folder.get_json_schema_validation_statistics_async(
                 synapse_client=self.syn
             )
-            assert response["numberOfValidChildren"] == 1
-            assert response["numberOfInvalidChildren"] == 1
+            assert response.number_of_valid_children == 1
+            assert response.number_of_invalid_children == 1
         finally:
             # Clean up the JSON schema binding
             await created_folder.delete_json_schema_from_entity_async(
@@ -446,32 +447,34 @@ class TestJSONSchema:
                 synapse_client=self.syn
             )
             async for item in gen:
-                assert item["objectType"] == "entity"
-                assert item["objectEtag"] is not None
+                validation_response = item.validation_response
+                validation_error_message = item.validation_error_message
+                validation_exception = item.validation_exception
+                causing_exceptions = validation_exception.causing_exceptions
+
+                assert validation_response.object_type == "entity"
+                assert validation_response.object_etag is not None
                 assert (
-                    item["schema$id"]
+                    validation_response.id
                     == f"https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/{test_org.name}-{TEST_SCHEMA_NAME}-{SCHEMA_VERSION}"
                 )
-                assert item["isValid"] == False
-                assert (
-                    item["validationException"]["message"]
-                    == "2 schema violations found"
-                )
-                causing_exceptions = item["validationException"]["causingExceptions"]
+                assert validation_response.is_valid == False
+                assert validation_exception.message == "2 schema violations found"
 
+                assert validation_error_message == "2 schema violations found"
                 # Assert the number of violations
                 assert len(causing_exceptions) == 2
 
                 # Assert both expected violations are present
                 assert any(
-                    exc["pointerToViolation"] == "#/productQuantity"
-                    and exc["message"] == "expected type: Integer, found: String"
+                    exc.pointer_to_violation == "#/productQuantity"
+                    and exc.message == "expected type: Integer, found: String"
                     for exc in causing_exceptions
                 )
 
                 assert any(
-                    exc["pointerToViolation"] == "#/productDescription"
-                    and exc["message"] == "expected type: String, found: Long"
+                    exc.pointer_to_violation == "#/productDescription"
+                    and exc.message == "expected type: String, found: Long"
                     for exc in causing_exceptions
                 )
         finally:

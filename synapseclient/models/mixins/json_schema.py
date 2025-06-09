@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, AsyncGenerator, List, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, List, Optional, Union
 
 from synapseclient.api.json_schema_services import (
     bind_json_schema_to_entity,
@@ -20,20 +20,21 @@ if TYPE_CHECKING:
 class JsonSchemaVersionInfo:
     organization_id: str
     """The unique identifier for the organization."""
+
     organization_name: str
     """The name of the organization."""
 
     schema_id: str
-    """The unique identifier of the bound schema. renamed from "$id" to a valid Python identifier"""
+    """The identifier of the bound schema, represented as a numeric string."""
+
+    id: str
+    """this is renamed from "$id" to a valid Python identifier."""
 
     schema_name: str
     """The name of the schema."""
 
     version_id: str
     """The unique identifier for the schema version."""
-
-    schema_uri: str
-    """The URI of the schema (renamed from "$id" to a valid Python identifier)."""
 
     semantic_version: str
     """The semantic version of the schema."""
@@ -84,8 +85,8 @@ class JSONSchemaValidation:
     object_etag: str
     """The ETag of the object at the time of validation."""
 
-    schema_id: str
-    """The unique identifier of the bound schema. renamed from "$id" to a valid Python identifier"""
+    id: str
+    """Note: this is renamed from "schema$id" to a valid Python identifier."""
 
     is_valid: bool
     """Indicates whether the object content conforms to the schema."""
@@ -158,6 +159,9 @@ class InvalidJSONSchemaValidation:
     validation_response: JSONSchemaValidation
     """The validation response object."""
 
+    validation_error_message: str
+    """A message describing the validation error."""
+
     all_validation_messages: List[str]
     """A list of all validation messages."""
 
@@ -166,7 +170,7 @@ class InvalidJSONSchemaValidation:
 
 
 @dataclass
-class JSONSchemaDerivedKeysResponse:
+class JSONSchemaDerivedKeys:
     """Represents the response for derived JSON schema keys."""
 
     keys: List[str]
@@ -199,13 +203,33 @@ class JSONSchema:
                             `Synapse.allow_client_caching(False)` this will use the last created
                             instance from the Synapse class constructor
 
-        Returns: a JSONSchemaBindingResponse object
+        Returns: a JSONSchemaBinding object
         """
-        return await bind_json_schema_to_entity(
+        response = await bind_json_schema_to_entity(
             synapse_id=self.id,
             json_schema_uri=json_schema_uri,
             enable_derived_annos=enable_derived_annos,
             synapse_client=synapse_client,
+        )
+        json_schema_version = response.get("jsonSchemaVersionInfo", {})
+        return JSONSchemaBinding(
+            json_schema_version_info=JsonSchemaVersionInfo(
+                organization_id=json_schema_version.get("organizationId", ""),
+                organization_name=json_schema_version.get("organizationName", ""),
+                schema_id=json_schema_version.get("schemaId", ""),
+                id=json_schema_version.get("$id", ""),
+                schema_name=json_schema_version.get("schemaName", ""),
+                version_id=json_schema_version.get("versionId", ""),
+                semantic_version=json_schema_version.get("semanticVersion", ""),
+                json_sha256_hex=json_schema_version.get("jsonSha256Hex", ""),
+                created_on=json_schema_version.get("createdOn", ""),
+                created_by=json_schema_version.get("createdBy", ""),
+            ),
+            object_id=response.get("objectId", ""),
+            object_type=response.get("objectType", ""),
+            created_on=response.get("createdOn", ""),
+            created_by=response.get("createdBy", ""),
+            enable_derived_annotations=response.get("enableDerivedAnnotations", False),
         )
 
     async def get_json_schema_from_entity_async(
@@ -218,10 +242,30 @@ class JSONSchema:
                             `Synapse.allow_client_caching(False)` this will use the last created
                             instance from the Synapse class constructor
         Returns:
-            A JSONSchemaBindingResponse object
+            A JSONSchemaBinding object
         """
-        return await get_json_schema_from_entity(
+        response = await get_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
+        )
+        json_schema_version_info = response.get("jsonSchemaVersionInfo", {})
+        return JSONSchemaBinding(
+            json_schema_version_info=JsonSchemaVersionInfo(
+                organization_id=json_schema_version_info.get("organizationId", ""),
+                organization_name=json_schema_version_info.get("organizationName", ""),
+                schema_id=json_schema_version_info.get("schemaId", ""),
+                id=json_schema_version_info.get("$id", ""),
+                schema_name=json_schema_version_info.get("schemaName", ""),
+                version_id=json_schema_version_info.get("versionId", ""),
+                semantic_version=json_schema_version_info.get("semanticVersion", ""),
+                json_sha256_hex=json_schema_version_info.get("jsonSha256Hex", ""),
+                created_on=json_schema_version_info.get("createdOn", ""),
+                created_by=json_schema_version_info.get("createdBy", ""),
+            ),
+            object_id=response.get("objectId", ""),
+            object_type=response.get("objectType", ""),
+            created_on=response.get("createdOn", ""),
+            created_by=response.get("createdBy", ""),
+            enable_derived_annotations=response.get("enableDerivedAnnotations", False),
         )
 
     async def delete_json_schema_from_entity_async(
@@ -239,7 +283,7 @@ class JSONSchema:
 
     async def validate_entity_with_json_schema_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> JSONSchemaValidation:
+    ) -> Union[JSONSchemaValidation, InvalidJSONSchemaValidation]:
         """Get validation results of an entity against bound JSON schema
 
         Arguments:
@@ -247,10 +291,62 @@ class JSONSchema:
                             `Synapse.allow_client_caching(False)` this will use the last created
                             instance from the Synapse class constructor
 
-        Returns: a JSONSchemaValidationResponse object
+        Returns: a JSONSchemaValidation object
         """
-        return await validate_entity_with_json_schema(
+        response = await validate_entity_with_json_schema(
             synapse_id=self.id, synapse_client=synapse_client
+        )
+        if "validationException" in response:
+            return InvalidJSONSchemaValidation(
+                validation_response=JSONSchemaValidation(
+                    object_id=response.get("objectId", ""),
+                    object_type=response.get("objectType", ""),
+                    object_etag=response.get("objectEtag", ""),
+                    id=response.get("schema$id", ""),
+                    is_valid=response.get("isValid", False),
+                    validated_on=response.get("validatedOn", ""),
+                ),
+                validation_error_message=response.get("validationErrorMessage", ""),
+                all_validation_messages=response.get("allValidationMessages", []),
+                validation_exception=ValidationException(
+                    pointer_to_violation=response.get("validationException", {}).get(
+                        "pointerToViolation", ""
+                    ),
+                    message=response.get("validationException", {}).get("message", ""),
+                    schema_location=response.get("validationException", {}).get(
+                        "schemaLocation", ""
+                    ),
+                    causing_exceptions=[
+                        CausingException(
+                            keyword=ce.get("keyword", ""),
+                            pointer_to_violation=ce.get("pointerToViolation", ""),
+                            message=ce.get("message", ""),
+                            schema_location=ce.get("schemaLocation", ""),
+                            causing_exceptions=[
+                                CausingException(
+                                    keyword=nce.get("keyword", ""),
+                                    pointer_to_violation=nce.get(
+                                        "pointerToViolation", ""
+                                    ),
+                                    message=nce.get("message", ""),
+                                    schema_location=nce.get("schemaLocation", ""),
+                                )
+                                for nce in ce.get("causingExceptions", [])
+                            ],
+                        )
+                        for ce in response.get("validationException", {}).get(
+                            "causingExceptions", []
+                        )
+                    ],
+                ),
+            )
+        return JSONSchemaValidation(
+            object_id=response.get("objectId", ""),
+            object_type=response.get("objectType", ""),
+            object_etag=response.get("objectEtag", ""),
+            id=response.get("schema$id", ""),
+            is_valid=response.get("isValid", ""),
+            validated_on=response.get("validatedOn", ""),
         )
 
     async def get_json_schema_validation_statistics_async(
@@ -265,8 +361,15 @@ class JSONSchema:
 
         Returns: a JSONSchemaValidationStatisticsResponse object
         """
-        return await get_json_schema_validation_statistics(
+        response = await get_json_schema_validation_statistics(
             synapse_id=self.id, synapse_client=synapse_client
+        )
+        return JSONSchemaValidationStatistics(
+            container_id=response.get("containerId", ""),
+            total_number_of_children=response.get("totalNumberOfChildren", ""),
+            number_of_valid_children=response.get("numberOfValidChildren", ""),
+            number_of_invalid_children=response.get("numberOfInvalidChildren", ""),
+            number_of_unknown_children=response.get("numberOfUnknownChildren", ""),
         )
 
     async def get_invalid_json_schema_validation_async(
@@ -279,16 +382,61 @@ class JSONSchema:
             synapse_client:  If not passed in and caching was not disabled by
                             `Synapse.allow_client_caching(False)` this will use the last created
                             instance from the Synapse class constructor
+        Yields:
+            InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
+                                         and the validation exception details.
         """
         gen = get_invalid_json_schema_validation(
             synapse_client=synapse_client, synapse_id=self.id
         )
         async for item in gen:
-            yield item
+            yield InvalidJSONSchemaValidation(
+                validation_response=JSONSchemaValidation(
+                    object_id=item.get("objectId", ""),
+                    object_type=item.get("objectType", ""),
+                    object_etag=item.get("objectEtag", ""),
+                    id=item.get("schema$id", ""),
+                    is_valid=item.get("isValid", ""),
+                    validated_on=item.get("validatedOn", ""),
+                ),
+                validation_error_message=item.get("validationErrorMessage", ""),
+                all_validation_messages=item.get("allValidationMessages", []),
+                validation_exception=ValidationException(
+                    pointer_to_violation=item.get("validationException", {}).get(
+                        "pointerToViolation", ""
+                    ),
+                    message=item.get("validationException", {}).get("message", ""),
+                    schema_location=item.get("validationException", {}).get(
+                        "schemaLocation", ""
+                    ),
+                    causing_exceptions=[
+                        CausingException(
+                            keyword=ce.get("keyword", ""),
+                            pointer_to_violation=ce.get("pointerToViolation", ""),
+                            message=ce.get("message", ""),
+                            schema_location=ce.get("schemaLocation", ""),
+                            causing_exceptions=[
+                                CausingException(
+                                    keyword=nce.get("keyword", ""),
+                                    pointer_to_violation=nce.get(
+                                        "pointerToViolation", ""
+                                    ),
+                                    message=nce.get("message", ""),
+                                    schema_location=nce.get("schemaLocation", ""),
+                                )
+                                for nce in ce.get("causingExceptions", [])
+                            ],
+                        )
+                        for ce in item.get("validationException", {}).get(
+                            "causingExceptions", []
+                        )
+                    ],
+                ),
+            )
 
     async def get_json_schema_derived_keys_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> JSONSchemaDerivedKeysResponse:
+    ) -> JSONSchemaDerivedKeys:
         """Retrieve derived JSON schema keys for a given Synapse entity.
 
         Args:
@@ -297,10 +445,9 @@ class JSONSchema:
                             instance from the Synapse class constructor
 
         Returns:
-            JSONSchemaDerivedKeysResponse: An object containing the derived keys for the entity.
+            JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
         """
-        return JSONSchemaDerivedKeysResponse(
-            **await get_json_schema_derived_keys(
-                synapse_id=self.id, synapse_client=synapse_client
-            )
+        response = await get_json_schema_derived_keys(
+            synapse_id=self.id, synapse_client=synapse_client
         )
+        return JSONSchemaDerivedKeys(keys=response["keys"])
