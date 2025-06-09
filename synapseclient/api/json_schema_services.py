@@ -1,10 +1,17 @@
 import json
-from typing import TYPE_CHECKING, AsyncGenerator, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, AsyncGenerator, Optional
 
 from synapseclient.api.api_client import rest_post_paginated_async
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
+    from synapseclient.models.mixins import (
+        InvalidJSONSchemaValidationResponse,
+        JSONSchemaBindingResponse,
+        JSONSchemaDerivedKeysResponse,
+        JSONSchemaValidationResponse,
+        JSONSchemaValidationStatisticsResponse,
+    )
 
 
 async def bind_json_schema_to_entity(
@@ -13,7 +20,7 @@ async def bind_json_schema_to_entity(
     *,
     enable_derived_annos: bool = False,
     synapse_client: Optional["Synapse"] = None,
-) -> Dict[str, Union[str, int, bool]]:
+) -> "JSONSchemaBindingResponse":
     """Bind a JSON schema to an entity
 
     Arguments:
@@ -24,27 +31,7 @@ async def bind_json_schema_to_entity(
                          `Synapse.allow_client_caching(False)` this will use the last created
                          instance from the Synapse class constructor
     Returns:
-        A dictionary with the following structure:
-
-        {
-            "jsonSchemaVersionInfo": {
-                "organizationId": str,
-                "organizationName": str,
-                "schemaId": str,
-                "schemaName": str,
-                "versionId": str,
-                "$id": str (unique identifier for the schema),
-                "semanticVersion": str,
-                "jsonSHA256Hex": str,
-                "createdOn": str (ISO datetime),
-                "createdBy": str (synapse user ID),
-            },
-            "objectId": int,
-            "objectType": str,
-            "createdOn": str (ISO datetime),
-            "createdBy": str (synapse user ID),
-            "enableDerivedAnnotations": bool
-        }
+        A JSONSchemaBindingResponse object containing the details of the binding.
     """
     from synapseclient import Synapse
 
@@ -61,7 +48,7 @@ async def bind_json_schema_to_entity(
 
 async def get_json_schema_from_entity(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> Dict[str, Union[str, int, bool]]:
+) -> "JSONSchemaBindingResponse":
     """Get bound schema from entity
 
     Arguments:
@@ -71,26 +58,7 @@ async def get_json_schema_from_entity(
                          instance from the Synapse class constructor
 
     Returns:
-        A dictionary with the following structure:
-        {
-            "jsonSchemaVersionInfo": {
-                "organizationId": str,
-                "organizationName": str,
-                "schemaId": str,
-                "schemaName": str,
-                "versionId": str,
-                "$id": str (unique identifier for the schema),
-                "semanticVersion": str,
-                "jsonSHA256Hex": str,
-                "createdOn": str (ISO datetime),
-                "createdBy": str (synapse user ID),
-            },
-            "objectId": int,
-            "objectType": str,
-            "createdOn": str (ISO datetime),
-            "createdBy": str (synapse user ID),
-            "enableDerivedAnnotations": bool
-        }
+        A JSONSchemaBindingResponse object containing the details of the binding.
     """
     from synapseclient import Synapse
 
@@ -116,7 +84,7 @@ async def delete_json_schema_from_entity(
 
 async def validate_entity_with_json_schema(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> Dict[str, Union[str, bool]]:
+) -> "JSONSchemaValidationResponse":
     """Get validation results of an entity against bound JSON schema
 
     Arguments:
@@ -124,16 +92,8 @@ async def validate_entity_with_json_schema(
         synapse_client:  If not passed in and caching was not disabled by
                          `Synapse.allow_client_caching(False)` this will use the last created
                          instance from the Synapse class constructor
-
     Returns:
-        {
-            "objectId": str,         # Synapse ID of the object (e.g., "syn12345678")
-            "objectType": str,       # Type of the object (e.g., "entity")
-            "objectEtag": str,       # ETag of the object at the time of validation
-            "schema$id": str,        # Full URL of the bound schema version
-            "isValid": bool,         # True if the object content conforms to the schema
-            "validatedOn": str       # ISO 8601 timestamp of when validation occurred
-        }
+        A JSONSchemaValidationResponse object containing the validation results.
     """
     from synapseclient import Synapse
 
@@ -143,7 +103,7 @@ async def validate_entity_with_json_schema(
 
 async def get_json_schema_validation_statistics(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> Dict[str, Union[int, str]]:
+) -> "JSONSchemaValidationStatisticsResponse":
     """Get the summary statistic of json schema validation results for
         a container entity
      Arguments:
@@ -152,15 +112,7 @@ async def get_json_schema_validation_statistics(
                          `Synapse.allow_client_caching(False)` this will use the last created
                          instance from the Synapse class constructor
 
-    Returns:
-        {
-            "containerId": str,              # Synapse ID of the parent container
-            "totalNumberOfChildren": int,    # Total number of child entities
-            "numberOfValidChildren": int,    # Number of children that passed validation
-            "numberOfInvalidChildren": int,  # Number of children that failed validation
-            "numberOfUnknownChildren": int,  # Number of children with unknown validation status
-            "generatedOn": str               # ISO 8601 timestamp when this summary was generated
-        }
+    Returns: a JSONSchemaValidationStatisticsResponse object
     """
     from synapseclient import Synapse
 
@@ -172,29 +124,17 @@ async def get_json_schema_validation_statistics(
 
 async def get_invalid_json_schema_validation(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> AsyncGenerator[Dict[str, str], None]:
+) -> AsyncGenerator["InvalidJSONSchemaValidationResponse", None]:
     """Get a single page of invalid JSON schema validation results for a container Entity
-        (Project or Folder).
+    (Project or Folder).
 
-        Arguments:
-            synapse_id:      Synapse Id
-            synapse_client:  If not passed in and caching was not disabled by
-                             `Synapse.allow_client_caching(False)` this will use the last created
-                             instance from the Synapse class constructor
-
-    Example usage:
-    ```python
-    # for python 3.10+
-    async def main():
-        gen = get_invalid_json_schema_validation(synapse_client=syn, synapse_id=dataset_folder)
-        try:
-            while True:
-                item = await anext(gen)
-                print(item)
-        except StopAsyncIteration:
-            print("All items processed.")
-    asyncio.run(main())
-    ```
+    Arguments:
+        synapse_id:      Synapse Id
+        synapse_client:  If not passed in and caching was not disabled by
+                         `Synapse.allow_client_caching(False)` this will use the last created
+                         instance from the Synapse class constructor
+    Returns:
+        An AsyncGenerator yielding InvalidJSONSchemaValidationResponse objects.
     """
 
     request_body = {"containerId": synapse_id}
@@ -209,14 +149,14 @@ async def get_invalid_json_schema_validation(
 
 async def get_json_schema_derived_keys(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> Dict[str, List[str]]:
+) -> "JSONSchemaDerivedKeysResponse":
     """Retrieve derived JSON schema keys for a given Synapse entity.
 
     Args:
         synapse_id (str): The Synapse ID of the entity for which to retrieve derived keys.
 
     Returns:
-        dict: A dictionary containing the derived keys associated with the entity.
+        dict: JSONSchemaDerivedKeysResponse object containing the derived keys for the entity.
     """
     from synapseclient import Synapse
 
