@@ -29,3 +29,10 @@ at your own risk.
         - get_acl
         - set_permissions
         - delete_permissions
+        - bind_json_schema_to_entity
+        - get_json_schema_from_entity
+        - delete_json_schema_from_entity
+        - validate_entity_with_json_schema
+        - get_json_schema_derived_keys
+        - get_json_schema_validation_statistics
+        - get_invalid_json_schema_validation
