@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import inspect
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Union
 
 import nest_asyncio
@@ -113,7 +114,17 @@ def async_to_sync(cls):
 
             async def wrapper(*args, **kwargs):
                 """Wrapper for the function to be called in an async context."""
-                return await getattr(self, async_method_name)(*args, **kwargs)
+                # return await getattr(self, async_method_name)(*args, **kwargs)
+                result = getattr(self, async_method_name)(*args, **kwargs)
+                if inspect.isasyncgen(result):
+                    # collect all values into a list
+                    return [item async for item in result]
+                elif inspect.iscoroutine(result):
+                    return await result
+                else:
+                    raise TypeError(
+                        f"Expected an async generator or coroutine, got {type(result)}"
+                    )
 
             loop = None
 
