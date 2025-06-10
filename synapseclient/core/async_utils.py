@@ -114,7 +114,6 @@ def async_to_sync(cls):
 
             async def wrapper(*args, **kwargs):
                 """Wrapper for the function to be called in an async context."""
-                # return await getattr(self, async_method_name)(*args, **kwargs)
                 result = getattr(self, async_method_name)(*args, **kwargs)
                 if inspect.isasyncgen(result):
                     # collect all values into a list
