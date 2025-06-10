@@ -13,11 +13,7 @@ from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import Annotations, File
-from synapseclient.models.mixins import (
-    AccessControllable,
-    JSONSchema,
-    StorableContainer,
-)
+from synapseclient.models.mixins import AccessControllable, ContainerEntityJsonSchema
 from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity_components import (
@@ -32,9 +28,7 @@ if TYPE_CHECKING:
 
 @dataclass()
 @async_to_sync
-class Folder(
-    FolderSynchronousProtocol, AccessControllable, StorableContainer, JSONSchema
-):
+class Folder(FolderSynchronousProtocol, AccessControllable, ContainerEntityJsonSchema):
     """Folder is a hierarchical container for organizing data in Synapse.
 
     Attributes:

@@ -178,7 +178,7 @@ class JSONSchemaDerivedKeys:
 
 
 @async_to_sync
-class JSONSchema:
+class BaseJsonSchema:
     """
     Mixin class to provide JSON schema functionality.
     This class is intended to be used with classes that represent Synapse entities.
@@ -400,6 +400,40 @@ class JSONSchema:
             validated_on=response.get("validatedOn", ""),
         )
 
+    async def get_json_schema_derived_keys_async(
+        self, *, synapse_client: Optional["Synapse"] = None
+    ) -> JSONSchemaDerivedKeys:
+        """
+        Retrieve derived JSON schema keys for the entity.
+
+        Args:
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
+
+        Returns:
+            JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
+
+        Example:
+            ```python
+            # Get derived keys for the folder
+            derived_keys = await folder.get_json_schema_derived_keys_async(synapse_client=my_synapse_client)
+            print("Derived keys:", derived_keys.keys)
+            ```
+        """
+        response = await get_json_schema_derived_keys(
+            synapse_id=self.id, synapse_client=synapse_client
+        )
+        return JSONSchemaDerivedKeys(keys=response["keys"])
+
+
+@async_to_sync
+class ContainerEntityJsonSchema(BaseJsonSchema):
+    """
+    Mixin class to provide JSON schema functionality.
+    This class is intended to be used with classes that represent Synapse entities.
+    It provides methods to bind, delete, and validate JSON schemas associated with the entity.
+    """
+
     async def get_json_schema_validation_statistics_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> JSONSchemaValidationStatistics:
@@ -501,28 +535,3 @@ class JSONSchema:
                     ],
                 ),
             )
-
-    async def get_json_schema_derived_keys_async(
-        self, *, synapse_client: Optional["Synapse"] = None
-    ) -> JSONSchemaDerivedKeys:
-        """
-        Retrieve derived JSON schema keys for the entity.
-
-        Args:
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
-                the last created instance from the Synapse class constructor will be used.
-
-        Returns:
-            JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
-
-        Example:
-            ```python
-            # Get derived keys for the folder
-            derived_keys = await folder.get_json_schema_derived_keys_async(synapse_client=my_synapse_client)
-            print("Derived keys:", derived_keys.keys)
-            ```
-        """
-        response = await get_json_schema_derived_keys(
-            synapse_id=self.id, synapse_client=synapse_client
-        )
-        return JSONSchemaDerivedKeys(keys=response["keys"])

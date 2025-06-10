@@ -46,7 +46,6 @@ class TestJSONSchema:
     ) -> Union[Project, Folder, File, Table, EntityView]:
         """Helper to create different entity types with consistent naming"""
         entity_name = str(uuid.uuid4()) + name_suffix
-        print(entity_type)
 
         if entity_type == Project:
             entity = await Project(name=entity_name).store_async()
@@ -110,12 +109,6 @@ class TestJSONSchema:
 
         js.delete_json_schema(created_schema.uri)
         js.delete_organization(created_org["id"])
-
-    @pytest.fixture(scope="function")
-    def folder(self) -> Folder:
-        """Create a folder for testing JSON schema functionality."""
-        folder = Folder(description=DESCRIPTION_FOLDER)
-        return folder
 
     @pytest.fixture(scope="function")
     def file(self) -> File:
