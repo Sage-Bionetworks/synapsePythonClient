@@ -242,7 +242,7 @@ class TestJSONSchema:
             }
             await folder.store_async(parent=project_model)
             # Ensure annotations are stored
-            asyncio.sleep(2)
+            await asyncio.sleep(2)
 
             # Validate the folder against the JSON schema
             response = await created_folder.validate_entity_with_json_schema_async(
@@ -293,7 +293,7 @@ class TestJSONSchema:
             }
             await folder.store_async(parent=project_model)
             # Ensure annotations are stored
-            asyncio.sleep(2)
+            await asyncio.sleep(2)
             response = await created_folder.validate_entity_with_json_schema_async(
                 synapse_client=self.syn
             )
@@ -362,7 +362,7 @@ class TestJSONSchema:
             await file_1.store_async(parent=folder)
             await file_2.store_async(parent=folder)
             # Ensure annotations are stored
-            asyncio.sleep(2)
+            await asyncio.sleep(2)
 
             # validate the folder againt the JSON SCHEMA
             await created_folder.validate_entity_with_json_schema_async(
@@ -438,7 +438,7 @@ class TestJSONSchema:
             await file_1.store_async(parent=folder)
             await file_2.store_async(parent=folder)
             # Ensure annotations are stored
-            asyncio.sleep(2)
+            await asyncio.sleep(2)
 
             # Get invalid validation results of the folder
             # The generator `gen` yields validation results for entities that failed JSON schema validation.
