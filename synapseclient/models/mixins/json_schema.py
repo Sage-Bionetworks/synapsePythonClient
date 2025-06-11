@@ -205,26 +205,6 @@ class BaseJsonSchema:
 
         Returns:
             JSONSchemaBinding: An object containing details about the JSON schema binding.
-
-        Example:
-            ```python
-            from synapseclient import Folder
-
-            # Create a folder entity
-            folder = Folder(name="My Test Folder", parent="syn12345")
-            folder = await folder.store_async()
-
-            # Bind a JSON schema to the folder
-            binding = await folder.bind_json_schema_to_entity_async(
-                json_schema_uri="schema://my-schema",
-                enable_derived_annos=True,
-                synapse_client=my_synapse_client
-            )
-
-            # Access details about the binding
-            print(binding.json_schema_version_info.schema_name)
-            print(binding.enable_derived_annotations)
-            ```
         """
         response = await bind_json_schema_to_entity(
             synapse_id=self.id,
@@ -265,16 +245,6 @@ class BaseJsonSchema:
 
         Returns:
             JSONSchemaBinding: An object containing details about the bound JSON schema.
-
-        Example:
-            ```python
-            # Retrieve the JSON schema bound to the folder
-            binding = await folder.get_json_schema_from_entity_async(synapse_client=my_synapse_client)
-
-            # Access details about the binding
-            print(binding.json_schema_version_info.schema_name)
-            print(binding.enable_derived_annotations)
-            ```
         """
         response = await get_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
@@ -309,12 +279,6 @@ class BaseJsonSchema:
         Args:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
-
-        Example:
-            ```python
-            # Delete the JSON schema bound to the folder
-            await folder.delete_json_schema_from_entity_async(synapse_client=my_synapse_client)
-            ```
         """
         return await delete_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
@@ -332,17 +296,6 @@ class BaseJsonSchema:
 
         Returns:
             Union[JSONSchemaValidation, InvalidJSONSchemaValidation]: The validation results.
-
-        Example:
-            ```python
-            # Validate the folder against the bound JSON schema
-            validation = await folder.validate_entity_with_json_schema_async(synapse_client=my_synapse_client)
-
-            if isinstance(validation, JSONSchemaValidation):
-                print("Validation successful:", validation.is_valid)
-            else:
-                print("Validation failed:", validation.validation_error_message)
-            ```
         """
         response = await validate_entity_with_json_schema(
             synapse_id=self.id, synapse_client=synapse_client
@@ -412,13 +365,6 @@ class BaseJsonSchema:
 
         Returns:
             JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
-
-        Example:
-            ```python
-            # Get derived keys for the folder
-            derived_keys = await folder.get_json_schema_derived_keys_async(synapse_client=my_synapse_client)
-            print("Derived keys:", derived_keys.keys)
-            ```
         """
         response = await get_json_schema_derived_keys(
             synapse_id=self.id, synapse_client=synapse_client
@@ -479,14 +425,6 @@ class ContainerEntityJsonSchema(BaseJsonSchema):
         Yields:
             InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
                                          and the validation exception details.
-
-        Example:
-            ```python
-            # Get invalid validation results for the folder
-            async for invalid_result in folder.get_invalid_json_schema_validation_async(synapse_client=my_synapse_client):
-                print("Invalid object ID:", invalid_result.validation_response.object_id)
-                print("Error message:", invalid_result.validation_error_message)
-            ```
         """
         gen = get_invalid_json_schema_validation(
             synapse_client=synapse_client, synapse_id=self.id
