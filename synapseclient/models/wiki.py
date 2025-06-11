@@ -87,7 +87,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> "WikiOrderHint":
         """
-        Get the order hint of a wiki page tree asynchronously.
+        Get the order hint of a wiki page tree.
 
         Arguments:
             synapse_client: Optionally provide a Synapse client.
@@ -113,7 +113,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> "WikiOrderHint":
         """
-        Update the order hint of a wiki page tree asynchronously.
+        Update the order hint of a wiki page tree.
 
         Arguments:
             synapse_client: Optionally provide a Synapse client.
@@ -187,7 +187,7 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> list:
         """
-        Get the history of a wiki page asynchronously as a list of WikiHistorySnapshot objects.
+        Get the history of a wiki page as a list of WikiHistorySnapshot objects.
 
         Arguments:
             owner_id: The ID of the owner entity.
@@ -266,7 +266,7 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> list:
         """
-        Get the header tree (hierarchy) of wiki pages for an entity asynchronously.
+        Get the header tree (hierarchy) of wiki pages for an entity.
 
         Arguments:
             owner_id: The ID of the owner entity.
@@ -650,7 +650,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
         """
-        Delete this wiki page asynchronously.
+        Delete this wiki page.
 
         Arguments:
             synapse_client: Optionally provide a Synapse client.
@@ -677,7 +677,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> list:
         """
-        Get the file handles of all attachments on this wiki page asynchronously.
+        Get the file handles of all attachments on this wiki page.
 
         Arguments:
             synapse_client: Optionally provide a Synapse client.
@@ -709,7 +709,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> dict:
         """
-        Get the URL of a wiki page attachment asynchronously.
+        Get the URL of a wiki page attachment.
 
         Arguments:
             file_name: The name of the file to get.
@@ -748,7 +748,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> dict:
         """
-        Get the preview URL of a wiki page attachment asynchronously.
+        Get the preview URL of a wiki page attachment.
 
         Arguments:
             file_name: The name of the file to get.
@@ -786,7 +786,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> dict:
         """
-        Get the markdown URL of this wiki page asynchronously.
+        Get the markdown URL of this wiki page.
 
         Arguments:
             redirect: When set to false, the URL will be returned as text/plain instead of redirecting. Default is False.
