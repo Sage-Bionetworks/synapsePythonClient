@@ -26,11 +26,17 @@ from synapseclient.api.wiki_service import (
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.upload.upload_functions_async import upload_file_handle
 from synapseclient.core.utils import delete_none_keys
+from synapseclient.models.protocols.wikipage_protocol import (
+    WikiHeaderSynchronousProtocol,
+    WikiHistorySnapshotSynchronousProtocol,
+    WikiOrderHintSynchronousProtocol,
+    WikiPageSynchronousProtocol,
+)
 
 
 @dataclass
 @async_to_sync
-class WikiOrderHint:
+class WikiOrderHint(WikiOrderHintSynchronousProtocol):
     """
     A WikiOrderHint contains the order hint for the root wiki that corresponds to the given owner ID and type.
 
@@ -130,14 +136,14 @@ class WikiOrderHint:
 
 @dataclass
 @async_to_sync
-class WikiHistorySnapshot:
+class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
     """
     A WikiHistorySnapshot contains basic information about an update to a WikiPage.
 
     Attributes:
         version: The version number of the wiki page.
         modified_on: The timestamp when this version was created.
-        modified_by: The ID of the user that created this version.
+            modified_by: The ID of the user that created this version.
     """
 
     version: Optional[str] = None
@@ -210,7 +216,7 @@ class WikiHistorySnapshot:
 
 @dataclass
 @async_to_sync
-class WikiHeader:
+class WikiHeader(WikiHeaderSynchronousProtocol):
     """
     A WikiHeader contains basic metadata about a WikiPage.
 
@@ -285,7 +291,7 @@ class WikiHeader:
 
 @dataclass
 @async_to_sync
-class WikiPage:
+class WikiPage(WikiPageSynchronousProtocol):
     """
     Represents a [Wiki Page](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/v2/wiki/V2WikiPage.html).
 
