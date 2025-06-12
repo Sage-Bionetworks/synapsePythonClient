@@ -12,16 +12,24 @@ The following actions are shown in this script:
 7. Copying a file
 8. Storing an activity to a file
 9. Retrieve an activity from a file
+10. Bind a JSON schema to files and validate its contents
 """
 
 import os
+import time
 from datetime import date, datetime, timedelta, timezone
+from pprint import pprint
 
 import synapseclient
 from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models import Activity, File, Folder, UsedEntity, UsedURL
 
-PROJECT_ID = "syn52948289"
+PROJECT_ID = "syn52948289"  # Replace with your own project ID
+ORG_NAME = "MyUniqueOrgFile"
+VERSION = "0.0.1"
+SCHEMA_NAME = "test"
+SCHEMA_URI = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()
@@ -36,6 +44,96 @@ def create_random_file(
     """
     with open(path, "wb") as f:
         f.write(os.urandom(1))
+
+
+def try_delete_folder(folder_name: str, parent_id: str) -> None:
+    """Simple try catch to delete a folder."""
+    try:
+        Folder(name=folder_name, parent_id=parent_id).get().delete()
+
+    except Exception:
+        pass
+
+
+def try_delete_json_schema_from_file(file_path: str, parent_id: str) -> None:
+    """Simple try catch to delete a json schema file."""
+    try:
+        js = syn.service("json_schema")
+        test_folder = Folder(
+            parent_id=PROJECT_ID, name="file_script_json_schema_folder"
+        ).get()
+        test_file = File(path=file_path, parent_id=test_folder.id).get()
+        js.delete_json_schema_from_entity(test_file.id)
+        time.sleep(2)
+        print(js.get_json_schema_from_entity(test_file.id))
+    except Exception as e:
+        pass
+
+
+def try_delete_registered_json_schema_from_org(schema_uri: str):
+    """Simple try catch to delete a registered json schema from an organization."""
+    js = syn.service("json_schema")
+    try:
+        js.delete_json_schema(schema_uri)
+    except Exception as e:
+        print(e)
+        pass
+
+
+def try_delete_organization(json_schema_org_name: str) -> None:
+    """Simple try catch to delete a json schema organization."""
+    try:
+        js = syn.service("json_schema")
+        all_org = js.list_organizations()
+        for org in all_org:
+            if org["name"] == json_schema_org_name:
+                js.delete_organization(org["id"])
+                break
+    except Exception:
+        pass
+
+
+def create_or_retrieve_random_file_in_temp_folder(file_name: str) -> str:
+    if not os.path.exists(os.path.expanduser("~/temp")):
+        os.makedirs(os.path.expanduser("~/temp/testJSONSchemaFiles"), exist_ok=True)
+
+    path_to_file = os.path.join(
+        os.path.expanduser("~/temp/testJSONSchemaFiles"), file_name
+    )
+    return path_to_file
+
+
+def cleanup_for_previous_runs_js_schema() -> File:
+    """Cleanup for previous runs of the JSON schema."""
+    path_to_file = create_or_retrieve_random_file_in_temp_folder(
+        file_name="test_file.txt"
+    )
+    # Create a sub folder
+    try:
+        test_sub_folder = Folder(
+            name="file_script_json_schema_folder", parent_id=PROJECT_ID
+        ).get()
+        try_delete_json_schema_from_file(
+            file_path=path_to_file, parent_id=test_sub_folder.id
+        )
+        try_delete_registered_json_schema_from_org(schema_uri=SCHEMA_URI)
+        try_delete_organization(json_schema_org_name=ORG_NAME)
+        try_delete_folder(
+            folder_name="file_script_json_schema_folder", parent_id=PROJECT_ID
+        )
+    except SynapseNotFoundError:
+        pass
+
+    test_sub_folder = Folder(
+        name="file_script_json_schema_folder", parent_id=PROJECT_ID
+    ).store()
+    annotations = {"test_string": "child_value", "test_int": "invalid child str"}
+    file = File(
+        path=path_to_file, parent_id=test_sub_folder.id, annotations=annotations
+    )
+    file.store()
+
+    return file
 
 
 def store_file():
@@ -207,5 +305,60 @@ def store_file():
     ).get(include_activity=True)
     print(new_file_with_activity_instance.activity)
 
+    # 11) Bind json schema to files and validate its contents =========================
+    file = cleanup_for_previous_runs_js_schema()
 
-store_file()
+    # Define a json schema organization and name
+    title = "OOP Test Schema"
+
+    # Set up an organization and create a JSON schema
+    js = syn.service("json_schema")
+    schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://example.com/schema/ooptest.json",
+        "title": title,
+        "type": "object",
+        "properties": {
+            "test_string": {"type": "string"},
+            "test_int": {"type": "integer"},
+            "test_derived_annos": {
+                "description": "Derived annotation property",
+                "type": "string",
+                "const": "default value",
+            },
+        },
+    }
+    # Create an organization
+    created_org = js.create_organization(ORG_NAME)
+    print(
+        f"Organization was created successfully. The name of the organization is: {ORG_NAME}, the id is: {created_org['id']}, created on: {created_org['createdOn']}, created by: {created_org['createdBy']}"
+    )
+
+    # Create a json schema
+    test_org = js.JsonSchemaOrganization(ORG_NAME)
+    created_schema = test_org.create_json_schema(schema, SCHEMA_NAME, VERSION)
+    print(created_schema)
+
+    # Bind JSON schema to the file
+    bound_schema = file.bind_json_schema_to_entity(
+        json_schema_uri=created_schema.uri, enable_derived_annos=True
+    )
+    json_schema_version_info = bound_schema.json_schema_version_info
+    print("JSON schema was bound successfully. Please see details below:")
+    pprint(vars(json_schema_version_info))
+
+    # get the bound schema
+    schema = file.get_json_schema_from_entity()
+    print("JSON Schema was retrieved successfully. Please see details below:")
+    pprint(vars(schema))
+
+    # Validate the folder's contents against the schema
+    time.sleep(2)
+    validation_results = file.validate_entity_with_json_schema()
+    print("Validation was completed. Please see details below:")
+    pprint(vars(validation_results))
+
+
+if __name__ == "__main__":
+    store_file()
+    print("Done with the OOP file POC script.")

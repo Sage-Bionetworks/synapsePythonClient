@@ -29,7 +29,6 @@ syn = synapseclient.Synapse(debug=True)
 syn.login()
 
 
-JSON_SCHEMA_PROJECT_ID = "syn68258424"  # Replace with your own project ID
 ORG_NAME = "MyUniqueOrgProjectName"  # Replace with your own organization name
 VERSION = "0.0.1"
 SCHEMA_NAME = "test"
