@@ -12,17 +12,28 @@ The following actions are shown in this script:
 7. Downloading an entire project structure to disk
 8. Copy a project and all content to a new project
 9. Deleting a project
+10.Binding a JSON schema to a project and validating its contents
 """
 
 import os
+import time
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from pprint import pprint
 
 import synapseclient
+from synapseclient.core.exceptions import SynapseNotFoundError
 from synapseclient.models import File, Folder, Project
 
 syn = synapseclient.Synapse(debug=True)
 syn.login()
+
+
+JSON_SCHEMA_PROJECT_ID = "syn68258424"  # Replace with your own project ID
+ORG_NAME = "MyUniqueOrgProjectName"  # Replace with your own organization name
+VERSION = "0.0.1"
+SCHEMA_NAME = "test"
+SCHEMA_URI = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
 
 
 def create_random_file(
@@ -31,6 +42,37 @@ def create_random_file(
     """Create a random file with random data."""
     with open(path, "wb") as f:
         f.write(os.urandom(1))
+
+
+def try_delete_json_schema_from_project(test_project: Project) -> None:
+    """Simple try catch to delete a json schema folder."""
+    try:
+        js = syn.service("json_schema")
+        js.delete_json_schema_from_entity(test_project.id)
+    except Exception:
+        pass
+
+
+def try_delete_registered_json_schema_from_org(schema_uri: str):
+    """Simple try catch to delete a registered json schema from an organization."""
+    js = syn.service("json_schema")
+    try:
+        js.delete_json_schema(schema_uri)
+    except Exception:
+        pass
+
+
+def try_delete_organization(json_schema_org_name: str) -> None:
+    """Simple try catch to delete a json schema organization."""
+    try:
+        js = syn.service("json_schema")
+        all_org = js.list_organizations()
+        for org in all_org:
+            if org["name"] == json_schema_org_name:
+                js.delete_organization(org["id"])
+                break
+    except Exception:
+        pass
 
 
 def store_project():
@@ -156,6 +198,106 @@ def store_project():
     # 9) Deleting a project ==============================================================
     project_to_delete.delete()
     print(f"Project with id: {project_to_delete.id} deleted")
+
+    # 11) Bind json schema to projects and validate its contents =========================
+    try:
+        js_project = Project(name="I_want_to_test_json_schema_project").get()
+    except SynapseNotFoundError:
+        js_project = Project(name="I_want_to_test_json_schema_project").store()
+
+    try_delete_json_schema_from_project(js_project)
+    try_delete_registered_json_schema_from_org(SCHEMA_URI)
+    try_delete_organization(ORG_NAME)
+
+    title = "OOP Test Schema"
+    # Set up an organization and create a JSON schema
+    js = syn.service("json_schema")
+    schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://example.com/schema/ooptest.json",
+        "title": title,
+        "type": "object",
+        "properties": {
+            "test_string": {"type": "string"},
+            "test_int": {"type": "integer"},
+            "test_derived_annos": {
+                "description": "Derived annotation property",
+                "type": "string",
+                "const": "default value",
+            },
+        },
+    }
+
+    created_org = js.create_organization(ORG_NAME)
+    print(
+        f"Organization was created successfully. The name of the organization is: {ORG_NAME}, the id is: {created_org['id']}, created on: {created_org['createdOn']}, created by: {created_org['createdBy']}"
+    )
+
+    test_org = js.JsonSchemaOrganization(ORG_NAME)
+    created_schema = test_org.create_json_schema(schema, SCHEMA_NAME, VERSION)
+    print(created_schema)
+
+    # Bind a JSON schema to the folder
+    bound_schema = js_project.bind_json_schema_to_entity(
+        json_schema_uri=created_schema.uri, enable_derived_annos=True
+    )
+    json_schema_version_info = bound_schema.json_schema_version_info
+    print("JSON schema was bound successfully. Please see details below:")
+    pprint(vars(json_schema_version_info))
+
+    # get the bound schema
+    schema = js_project.get_json_schema_from_entity()
+    print("JSON Schema was retrieved successfully. Please see details below:")
+    pprint(vars(schema))
+
+    # store annotations to the test project
+    js_project.annotations = {
+        "test_string": "example_value",
+        "test_int": "invalid str",
+    }
+    js_project.store()
+
+    time.sleep(2)
+    # Validate the project's contents against the schema
+    validation_results = js_project.validate_entity_with_json_schema()
+    print("Validation was completed. Please see details below:")
+    pprint(vars(validation_results))
+
+    # Now try adding a file to the project
+    if not os.path.exists(os.path.expanduser("~/temp")):
+        os.makedirs(os.path.expanduser("~/temp/testJSONSchemaFiles"), exist_ok=True)
+
+    name_of_file = "test_file.txt"
+    path_to_file = os.path.join(
+        os.path.expanduser("~/temp/testJSONSchemaFiles"), name_of_file
+    )
+    create_random_file(path_to_file)
+
+    annotations = {"test_string": "child_value", "test_int": "invalid child str"}
+
+    child_file = File(
+        path=path_to_file, parent_id=js_project.id, annotations=annotations
+    )
+    child_file = child_file.store()
+    time.sleep(2)
+
+    # Get the validation for all the children
+    validation_statistics = js_project.get_json_schema_validation_statistics()
+    print(
+        "Validation statistics were retrieved successfully. Please see details below:"
+    )
+    pprint(vars(validation_statistics))
+
+    # Get the invalid validation results
+    invalid_validation = js_project.get_invalid_json_schema_validation()
+    for child in invalid_validation:
+        print("See details of validation results: ")
+        pprint(vars(child))
+
+
+if __name__ == "__main__":
+    store_project()
+    print("Done with the OOP project POC script.")
 
 
 store_project()

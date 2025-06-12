@@ -25,7 +25,7 @@ import synapseclient
 from synapseclient.models import File, Folder
 
 PROJECT_ID = "syn52948289"  # Replace with your own project ID
-ORG_NAME = "MyUniqueOrg"
+ORG_NAME = "MyUniqueOrgFolderName"
 VERSION = "0.0.1"
 SCHEMA_NAME = "test"
 SCHEMA_URI = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
@@ -54,7 +54,7 @@ def try_delete_folder(folder_name: str, parent_id: str) -> None:
         pass
 
 
-def try_delete_json_schema_from_entity(folder_name: str, parent_id: str) -> None:
+def try_delete_json_schema_from_folder(folder_name: str, parent_id: str) -> None:
     """Simple try catch to delete a json schema folder."""
     try:
         js = syn.service("json_schema")
