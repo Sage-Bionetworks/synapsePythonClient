@@ -3,4 +3,4 @@
 
 ::: synapseclient.models.mixins.BaseJSONSchema
 
-::: synapseclient.models.mixins.ContainerEntityJsonSchema
+::: synapseclient.models.mixins.ContainerEntityJSONSchema

@@ -373,7 +373,7 @@ class BaseJSONSchema:
 
 
 @async_to_sync
-class ContainerEntityJsonSchema(BaseJSONSchema):
+class ContainerEntityJSONSchema(BaseJSONSchema):
     """
     Mixin class to provide JSON schema functionality.
     This class is intended to be used with classes that represent Synapse entities.

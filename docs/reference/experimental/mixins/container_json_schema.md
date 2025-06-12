@@ -1,3 +1,3 @@
 # ContainerEntityJsonSchema
 
-::: synapseclient.models.mixins.ContainerEntityJsonSchema
+::: synapseclient.models.mixins.ContainerEntityJSONSchema
