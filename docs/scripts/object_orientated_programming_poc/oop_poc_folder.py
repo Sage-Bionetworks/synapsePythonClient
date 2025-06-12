@@ -228,7 +228,7 @@ def store_folder():
         os.mkdir(path_to_download)
     root_folder_for_my_project.sync_from_synapse(path=path_to_download)
 
-    # 11) Using json schema services to bind schema to the folder, get schema, and validate
+    # 11) Bind json schema to folders and validate its contents =========================
     # Define a json schema organization and name
     title = "OOP Test Schema"
 
