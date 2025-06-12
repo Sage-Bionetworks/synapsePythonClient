@@ -222,7 +222,7 @@ class BaseJsonSchema:
                 schema_name=json_schema_version.get("schemaName", ""),
                 version_id=json_schema_version.get("versionId", ""),
                 semantic_version=json_schema_version.get("semanticVersion", ""),
-                json_sha256_hex=json_schema_version.get("jsonSha256Hex", ""),
+                json_sha256_hex=json_schema_version.get("jsonSHA256Hex", ""),
                 created_on=json_schema_version.get("createdOn", ""),
                 created_by=json_schema_version.get("createdBy", ""),
             ),
@@ -259,7 +259,7 @@ class BaseJsonSchema:
                 schema_name=json_schema_version_info.get("schemaName", ""),
                 version_id=json_schema_version_info.get("versionId", ""),
                 semantic_version=json_schema_version_info.get("semanticVersion", ""),
-                json_sha256_hex=json_schema_version_info.get("jsonSha256Hex", ""),
+                json_sha256_hex=json_schema_version_info.get("jsonSHA256Hex", ""),
                 created_on=json_schema_version_info.get("createdOn", ""),
                 created_by=json_schema_version_info.get("createdBy", ""),
             ),
@@ -392,14 +392,6 @@ class ContainerEntityJsonSchema(BaseJsonSchema):
 
         Returns:
             JSONSchemaValidationStatistics: The validation statistics.
-
-        Example:
-            ```python
-            # Get validation statistics for the folder
-            stats = await folder.get_json_schema_validation_statistics_async(synapse_client=my_synapse_client)
-            print("Total children:", stats.total_number_of_children)
-            print("Valid children:", stats.number_of_valid_children)
-            ```
         """
         response = await get_json_schema_validation_statistics(
             synapse_id=self.id, synapse_client=synapse_client
