@@ -327,7 +327,6 @@ class UploadAttempt:
                 postfix=self._dest_file_name,
                 previouslyTransferred=previously_transferred,
             )
-
         self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
             self._upload_id,
             remaining_part_numbers,
@@ -359,6 +358,7 @@ class UploadAttempt:
                         dt=time.time() - time_upload_started,
                         previouslyTransferred=previously_transferred,
                     )
+
             except (Exception, KeyboardInterrupt) as cause:
                 with self._lock:
                     self._aborted = True

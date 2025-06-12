@@ -210,41 +210,11 @@ active_span_processors = []
 def setup_otel():
     """
     Handles setting up the OpenTelemetry tracer provider for integration tests.
-    Depending on the environment variables set, the provider will be configured
-    to export to the console, a file, or to an OTLP endpoint.
     """
     # Setup
-    exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", None)
-    if exporter_type:
-        Synapse.enable_open_telemetry(True)
-        trace.set_tracer_provider(
-            TracerProvider(
-                resource=Resource(
-                    attributes={
-                        SERVICE_NAME: "syn_int_tests",
-                        OS_DESCRIPTION: platform.release(),
-                        OS_TYPE: platform.system(),
-                    }
-                ),
-            )
-        )
-        if exporter_type == "otlp":
-            processor = BatchSpanProcessor(OTLPSpanExporter())
-            active_span_processors.append(processor)
-            trace.get_tracer_provider().add_span_processor(processor)
-        elif exporter_type == "console":
-            processor = BatchSpanProcessor(ConsoleSpanExporter())
-            active_span_processors.append(processor)
-            trace.get_tracer_provider().add_span_processor(processor)
-        elif exporter_type == "file":
-            timestamp_millis = int(time.time() * 1000)
-            file_name = f"otel_spans_integration_testing_{timestamp_millis}.ndjson"
-            file_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), file_name
-            )
-            processor = SimpleSpanProcessor(FileSpanExporter(file_path))
-            active_span_processors.append(processor)
-            trace.get_tracer_provider().add_span_processor(processor)
+    tests_enabled = os.environ.get("SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED", False)
+    if tests_enabled:
+        Synapse.enable_open_telemetry()
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
 

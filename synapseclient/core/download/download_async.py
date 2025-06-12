@@ -9,18 +9,21 @@ import asyncio
 import datetime
 import gc
 import os
+import time
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Generator, NamedTuple, Optional, Set, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+from opentelemetry import trace
 
 from synapseclient.api.file_services import get_file_handle_for_download
 from synapseclient.core.exceptions import (
     SynapseDownloadAbortedException,
     _raise_for_status_httpx,
 )
+from synapseclient.core.otel_config import get_tracer
 from synapseclient.core.retry import (
     DEFAULT_MAX_BACK_OFF_ASYNC,
     RETRYABLE_CONNECTION_ERRORS,
@@ -37,6 +40,8 @@ if TYPE_CHECKING:
 MiB: int = 2**20
 SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
 ISO_AWS_STR_FORMAT: str = "%Y%m%dT%H%M%SZ"
+
+tracer = get_tracer()
 
 
 class DownloadRequest(NamedTuple):
@@ -75,7 +80,10 @@ async def download_file(
         download_request: A batch of DownloadRequest objects specifying what
                             Synapse files to download
     """
-    downloader = _MultithreadedDownloader(syn=client, download_request=download_request)
+    downloader = _MultithreadedDownloader(
+        syn=client,
+        download_request=download_request,
+    )
     await downloader.download_file()
 
 
@@ -257,14 +265,31 @@ class _MultithreadedDownloader:
 
         Arguments:
             syn: A synapseclient
-            executor: An ExecutorService that will be used to run part downloads
-                         in separate threads
+            download_request: A download request object specifying the file to download
         """
         self._syn = syn
         self._thread_lock = _threading.Lock()
         self._aborted = False
         self._download_request = download_request
         self._progress_bar = None
+        self._current_span = trace.get_current_span()
+
+    def record_span_event(
+        self, event_name: str, attributes: Optional[dict] = None
+    ) -> None:
+        """
+        Record an event in the current span with the given name and attributes.
+
+        Arguments:
+            event_name: The name of the event to record.
+            attributes: Optional dictionary of attributes to attach to the event.
+        """
+        if not event_name or not attributes:
+            return
+
+        with self._thread_lock:
+            if self._current_span and self._current_span.is_recording():
+                self._current_span.add_event(event_name, attributes)
 
     async def download_file(self) -> None:
         """
@@ -360,6 +385,7 @@ class _MultithreadedDownloader:
     ) -> Set[asyncio.Task]:
         download_tasks = set()
         session = self._syn._requests_session_storage
+        chunk_number = 0
         for chunk_range in chunk_range_generator:
             start, end = chunk_range
 
@@ -370,9 +396,11 @@ class _MultithreadedDownloader:
                         url_provider=url_provider,
                         start=start,
                         end=end,
+                        chunk_number=chunk_number,
                     )
                 )
             )
+            chunk_number += 1
 
         return download_tasks
 
@@ -382,6 +410,7 @@ class _MultithreadedDownloader:
         url_provider: PresignedUrlProvider,
         start: int,
         end: int,
+        chunk_number: int,
     ) -> Tuple[int, int]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
@@ -391,6 +420,7 @@ class _MultithreadedDownloader:
             url_provider,
             start,
             end,
+            chunk_number,
         )
 
     def _check_for_abort(self, start: int, end: int) -> None:
@@ -407,6 +437,7 @@ class _MultithreadedDownloader:
         presigned_url_provider: PresignedUrlProvider,
         start: int,
         end: int,
+        chunk_number: int,
     ) -> Tuple[int, int]:
         """
         Wrapper around the actual download logic to handle retries and range requests.
@@ -416,6 +447,7 @@ class _MultithreadedDownloader:
             presigned_url_provider: A URL provider for the presigned urls
             start: The start byte of the range to download
             end: The end byte of the range to download
+            chunk_number: The chunk number for logging purposes
 
         Returns:
             The start and end bytes of the range downloaded
@@ -433,6 +465,7 @@ class _MultithreadedDownloader:
                 presigned_url_provider=presigned_url_provider,
                 range_header=range_header,
                 start=start,
+                chunk_number=chunk_number,
             ),
             expected_status_codes=(HTTPStatus.PARTIAL_CONTENT,),
             retry_errors=RETRYABLE_CONNECTION_ERRORS,
@@ -478,6 +511,7 @@ def _execute_stream_and_write_chunk(
     presigned_url_provider: PresignedUrlProvider,
     range_header: httpx.Headers,
     start: int,
+    chunk_number: int,
 ) -> int:
     """
     Coordinates the streaming of a chunk of data from a presigned url and writing it to
@@ -489,10 +523,12 @@ def _execute_stream_and_write_chunk(
         presigned_url_provider: A URL provider for the presigned urls
         range_header: The range of bytes to download
         start: The start byte of the range to download
+        chunk_number: The chunk number for logging purposes
 
     Returns:
         The end byte of the range downloaded
     """
+    chunk_transfer_start_time = time.time()
     additional_offset = 0
     with session.stream(
         method="GET", url=presigned_url_provider.get_info().url, headers=range_header
@@ -509,5 +545,18 @@ def _execute_stream_and_write_chunk(
             length=data_length,
         )
         additional_offset = data_length
+
+    request.record_span_event(
+        event_name="download_chunk_completed",
+        attributes={
+            "chunk_number": chunk_number,
+            "start_byte": start,
+            "end_byte": start + additional_offset - 1,
+            "file_handle_id": request._download_request.file_handle_id,
+            "synapse_id": request._download_request.object_id,
+            "time_to_transfer_seconds": time.time() - chunk_transfer_start_time,
+        },
+    )
+
     del data
     return start + additional_offset

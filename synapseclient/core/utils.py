@@ -58,11 +58,13 @@ LOGGER_NAME = DEFAULT_LOGGER_NAME
 LOGGER = logging.getLogger(LOGGER_NAME)
 
 
+@tracer.start_as_current_span("synapse.util.md5")
 def md5_for_file(
     filename: str,
     block_size: int = 2 * MB,
     callback: typing.Callable = None,
     progress_bar: Optional[tqdm] = None,
+    file_name: Optional[str] = None,
 ):
     """
     Calculates the MD5 of the given file.
@@ -74,11 +76,14 @@ def md5_for_file(
                     Defaults to 2 MB
         callback: The callback function that help us show loading spinner on terminal.
                     Defaults to None
+        progress_bar: An optional TQDM progress bar to update
+        file_name: An optional name for the file, used in tracing attributes
 
     Returns:
         The MD5 Checksum
     """
     loop_iteration = 0
+    data_read = 0
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     with open(filename, "rb") as f:
         while True:
@@ -93,12 +98,20 @@ def md5_for_file(
                     progress_bar.close()
                 break
             md5.update(data)
+            data_length = len(data)
+            data_read += data_length
             if progress_bar:
-                progress_bar.update(len(data))
+                progress_bar.update(data_length)
             del data
             # Garbage collect every 100 iterations
             if loop_iteration % 100 == 0:
                 gc.collect()
+
+    trace.get_current_span().set_attribute("synapse.md5.size", data_read)
+    trace.get_current_span().set_attribute(
+        "synapse.file.name", file_name or os.path.basename(filename) or "unknown_file"
+    )
+
     return md5
 
 
@@ -123,7 +136,7 @@ def md5_for_file_hex(
     return md5_for_file(filename, block_size, callback).hexdigest()
 
 
-@tracer.start_as_current_span("Utils::md5_fn")
+@tracer.start_as_current_span("synapse.util.md5")
 def md5_fn(part, _) -> str:
     """Calculate the MD5 of a file-like object.
 
@@ -135,6 +148,8 @@ def md5_fn(part, _) -> str:
     """
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     md5.update(part)
+    trace.get_current_span().set_attribute("synapse.md5.size", len(part))
+    trace.get_current_span().set_attribute("synapse.file.name", "partial_file_md5")
     return md5.hexdigest()
 
 
