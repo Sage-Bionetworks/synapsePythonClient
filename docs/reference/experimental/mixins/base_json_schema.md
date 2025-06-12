@@ -1,3 +1,3 @@
-# BaseJsonSchema
+# BaseJSONSchema
 
-::: synapseclient.models.mixins.BaseJsonSchema
+::: synapseclient.models.mixins.BaseJSONSchema

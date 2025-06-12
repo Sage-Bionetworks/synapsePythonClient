@@ -26,7 +26,7 @@ from synapseclient.core.utils import (
 )
 from synapseclient.entity import File as Synapse_File
 from synapseclient.models import Activity, Annotations
-from synapseclient.models.mixins import AccessControllable, BaseJsonSchema
+from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
 from synapseclient.models.protocols.file_protocol import FileSynchronousProtocol
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity import store_entity
@@ -193,7 +193,7 @@ class FileHandle:
 
 @dataclass()
 @async_to_sync
-class File(FileSynchronousProtocol, AccessControllable, BaseJsonSchema):
+class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
     """A file within Synapse.
 
     Attributes:
