@@ -67,7 +67,7 @@ class BaseJSONSchemaProtocol(Protocol):
 
     def validate_schema(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> Union[JSONSchemaValidation, InvalidJSONSchemaValidation]:
+    ) -> Union["JSONSchemaValidation", "InvalidJSONSchemaValidation"]:
         """
         Validate the entity against the bound JSON schema.
 
@@ -82,7 +82,7 @@ class BaseJSONSchemaProtocol(Protocol):
 
     def get_schema_derived_keys(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> JSONSchemaDerivedKeys:
+    ) -> "JSONSchemaDerivedKeys":
         """
         Retrieve derived JSON schema keys for the entity.
 
@@ -105,7 +105,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
 
     async def get_schema_validation_statistics_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> JSONSchemaValidationStatistics:
+    ) -> "JSONSchemaValidationStatistics":
         """
         Get validation statistics for a container entity.
 
@@ -120,7 +120,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
 
     async def get_invalid_validation_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> AsyncGenerator[InvalidJSONSchemaValidation, None]:
+    ) -> AsyncGenerator["InvalidJSONSchemaValidation", None]:
         """
         Get invalid JSON schema validation results for a container entity.
 
