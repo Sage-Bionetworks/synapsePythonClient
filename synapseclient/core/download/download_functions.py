@@ -29,6 +29,7 @@ from synapseclient.core.constants.method_flags import (
 from synapseclient.core.download import (
     SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
     DownloadRequest,
+    PresignedUrlInfo,
     PresignedUrlProvider,
     _pre_signed_url_expiration_time,
     download_file,
@@ -569,13 +570,14 @@ async def download_by_file_handle(
 
 
 async def download_from_url_multi_threaded(
-    file_handle_id: str,
-    object_id: str,
+    file_handle_id: Optional[str],
+    object_id: Optional[str],
     object_type: str,
     destination: str,
     *,
     expected_md5: str = None,
     synapse_client: Optional["Synapse"] = None,
+    presigned_url: Optional[PresignedUrlInfo] = None,
 ) -> str:
     """
     Download a file from the given URL using multiple threads.
@@ -603,17 +605,25 @@ async def download_from_url_multi_threaded(
 
     client = Synapse.get_client(synapse_client=synapse_client)
     destination = os.path.abspath(destination)
-    temp_destination = utils.temp_download_filename(
-        destination=destination, file_handle_id=file_handle_id
-    )
 
-    request = DownloadRequest(
-        file_handle_id=int(file_handle_id),
-        object_id=object_id,
-        object_type=object_type,
-        path=temp_destination,
-        debug=client.debug,
-    )
+    if not presigned_url:
+        temp_destination = utils.temp_download_filename(
+            destination=destination, file_handle_id=file_handle_id
+        )
+        request = DownloadRequest(
+            file_handle_id=int(file_handle_id),
+            object_id=object_id,
+            object_type=object_type,
+            path=temp_destination,
+            debug=client.debug,
+        )
+    # generate a name tuple for presigned url
+    else:
+        request = DownloadRequest(
+            path=temp_destination,
+            debug=client.debug,
+            presigned_url=presigned_url,
+        )
 
     await download_file(client=client, download_request=request)
 
@@ -643,6 +653,7 @@ def download_from_url(
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
     progress_bar: Optional[tqdm] = None,
+    url_is_presigned: Optional[bool] = False,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
@@ -661,6 +672,8 @@ def download_from_url(
                                 handle id which allows resuming partial downloads of the same file from previous
                                 sessions
         expected_md5:  Optional. If given, check that the MD5 of the downloaded file matches the expected MD5
+        progress_bar: Optional progress bar to update during download
+        url_is_presigned: If True, the URL is already a pre-signed URL.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -768,13 +781,21 @@ def download_from_url(
                         url
                     )
                 if url_is_expired:
-                    response = get_file_handle_for_download(
-                        file_handle_id=file_handle_id,
-                        synapse_id=entity_id,
-                        entity_type=file_handle_associate_type,
-                        synapse_client=client,
-                    )
-                    url = response["preSignedURL"]
+                    if url_is_presigned:
+                        raise SynapseError(
+                            "The provided pre-signed URL has expired. Please provide a new pre-signed URL."
+                        )
+                    else:
+                        # Get a fresh URL if expired and not presigned
+                        response = get_file_handle_for_download(
+                            file_handle_id=file_handle_id,
+                            synapse_id=entity_id,
+                            entity_type=file_handle_associate_type,
+                            synapse_client=client,
+                        )
+                        url = response["preSignedURL"]
+
+                # Make the request with retry
                 response = with_retry(
                     lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
                         url=url,
@@ -801,24 +822,29 @@ def download_from_url(
                             url
                         )
                     if url_is_expired:
-                        response = get_file_handle_for_download(
-                            file_handle_id=file_handle_id,
-                            synapse_id=entity_id,
-                            entity_type=file_handle_associate_type,
-                            synapse_client=client,
-                        )
-                        refreshed_url = response["preSignedURL"]
-                        response = with_retry(
-                            lambda url=refreshed_url, range_header=range_header, auth=auth: client._requests_session.get(
-                                url=url,
-                                headers=client._generate_headers(range_header),
-                                stream=True,
-                                allow_redirects=False,
-                                auth=auth,
-                            ),
-                            verbose=client.debug,
-                            **STANDARD_RETRY_PARAMS,
-                        )
+                        if url_is_presigned:
+                            raise SynapseError(
+                                "The provided pre-signed URL has expired. Please provide a new pre-signed URL."
+                            )
+                        else:
+                            response = get_file_handle_for_download(
+                                file_handle_id=file_handle_id,
+                                synapse_id=entity_id,
+                                entity_type=file_handle_associate_type,
+                                synapse_client=client,
+                            )
+                            refreshed_url = response["preSignedURL"]
+                            response = with_retry(
+                                lambda url=refreshed_url, range_header=range_header, auth=auth: client._requests_session.get(
+                                    url=url,
+                                    headers=client._generate_headers(range_header),
+                                    stream=True,
+                                    allow_redirects=False,
+                                    auth=auth,
+                                ),
+                                verbose=client.debug,
+                                **STANDARD_RETRY_PARAMS,
+                            )
                     else:
                         raise
                 elif err.response.status_code == 404:

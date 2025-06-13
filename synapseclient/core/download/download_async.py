@@ -59,6 +59,7 @@ class DownloadRequest(NamedTuple):
     object_type: str
     path: str
     debug: bool = False
+    presigned_url: Optional["PresignedUrlInfo"] = None
 
 
 async def download_file(
@@ -270,7 +271,12 @@ class _MultithreadedDownloader:
         """
         Splits up and downloads a file in chunks from a URL.
         """
-        url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
+        if self._download_request.presigned_url:
+            url_provider = self._download_request.presigned_url
+        else:
+            url_provider = PresignedUrlProvider(
+                self._syn, request=self._download_request
+            )
 
         file_size = await with_retry_time_based_async(
             function=lambda: _get_file_size_wrapper(
@@ -282,9 +288,14 @@ class _MultithreadedDownloader:
             retry_max_wait_before_failure=30,
             read_response_content=False,
         )
+        # set postfix to object_id if not presigned url, otherwise set to file_name
+        if not self._download_request.presigned_url:
+            postfix = self._download_request.object_id
+        else:
+            postfix = self._download_request.presigned_url.file_name
         self._progress_bar = get_or_create_download_progress_bar(
             file_size=file_size,
-            postfix=self._download_request.object_id,
+            postfix=postfix,
             synapse_client=self._syn,
         )
         self._prep_file()
