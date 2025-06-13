@@ -5,7 +5,7 @@ from pprint import pprint
 import synapseclient
 from synapseclient.models import File, Folder
 
-# Step 1: Set up Synapse Python client
+# Step 1: Set up Synapse Python client and retrieve project
 syn = synapseclient.Synapse(debug=True)
 syn.login()
 
