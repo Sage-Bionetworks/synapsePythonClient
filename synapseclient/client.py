@@ -32,7 +32,7 @@ from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import is_dataclass
 from http.client import HTTPResponse
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 import asyncio_atexit
 import httpx
@@ -6705,6 +6705,37 @@ class Synapse(object):
             requests_session_async_synapse,
             **kwargs,
         )
+
+    async def rest_get_paginated_async(
+        self, uri: str, limit: int = 20, offset: int = 0
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Get paginated results asynchronously
+
+        Arguments:
+            uri:     A URI that returns paginated results
+            limit:   How many records should be returned per request
+            offset:  At what record offset from the first should iteration start
+
+        Returns:
+            A generator over paginated results
+
+        The limit parameter is set at 20 by default. Using a larger limit results in fewer calls to the service, but if
+        responses are large enough to be a burden on the service they may be truncated.
+        """
+        prev_num_results = sys.maxsize
+        while prev_num_results > 0:
+            params = {"offset": offset, "limit": limit}
+            page = await self.rest_get_async(
+                uri=uri,
+                params=params,
+            )
+            results = page["results"] if "results" in page else page["children"]
+            prev_num_results = len(results)
+
+            for result in results:
+                offset += 1
+                yield result
 
 
 async def async_request_hook_httpx(span: Span, request: httpx.Request) -> None:
