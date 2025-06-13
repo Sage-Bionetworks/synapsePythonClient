@@ -111,12 +111,12 @@ json_schema_version_info = bound_schema.json_schema_version_info
 print("JSON schema was bound successfully. Please see details below:")
 pprint(vars(json_schema_version_info))
 
-# get the bound schema
+# Get the bound schema
 schema = test_folder.get_schema()
 print("JSON Schema was retrieved successfully. Please see details below:")
 pprint(vars(schema))
 
-# store annotations to the test folder
+# Store annotations to the test folder
 test_folder.annotations = {
     "test_string": "example_value",
     "test_int": "invalid str",
