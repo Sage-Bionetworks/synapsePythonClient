@@ -398,10 +398,10 @@ class ContainerEntityJSONSchema(BaseJSONSchema):
         )
         return JSONSchemaValidationStatistics(
             container_id=response.get("containerId", ""),
-            total_number_of_children=response.get("totalNumberOfChildren", ""),
-            number_of_valid_children=response.get("numberOfValidChildren", ""),
-            number_of_invalid_children=response.get("numberOfInvalidChildren", ""),
-            number_of_unknown_children=response.get("numberOfUnknownChildren", ""),
+            total_number_of_children=response.get("totalNumberOfChildren", None),
+            number_of_valid_children=response.get("numberOfValidChildren", None),
+            number_of_invalid_children=response.get("numberOfInvalidChildren", None),
+            number_of_unknown_children=response.get("numberOfUnknownChildren", None),
         )
 
     async def get_invalid_validation_async(
