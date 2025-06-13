@@ -5,6 +5,11 @@ from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicato
 from synapseclient.models.mixins.json_schema import (
     BaseJSONSchema,
     ContainerEntityJSONSchema,
+    InvalidJSONSchemaValidation,
+    JSONSchemaBinding,
+    JSONSchemaDerivedKeys,
+    JSONSchemaValidation,
+    JSONSchemaValidationStatistics,
 )
 from synapseclient.models.mixins.storable_container import StorableContainer
 
@@ -14,4 +19,9 @@ __all__ = [
     "AsynchronousCommunicator",
     "BaseJSONSchema",
     "ContainerEntityJSONSchema",
+    "JSONSchemaBinding",
+    "JSONSchemaValidation",
+    "InvalidJSONSchemaValidation",
+    "JSONSchemaDerivedKeys",
+    "JSONSchemaValidationStatistics",
 ]

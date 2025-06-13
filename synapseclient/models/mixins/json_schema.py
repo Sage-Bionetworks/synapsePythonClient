@@ -11,13 +11,17 @@ from synapseclient.api.json_schema_services import (
     validate_entity_with_json_schema,
 )
 from synapseclient.core.async_utils import async_to_sync
+from synapseclient.models.protocols.json_schema_protocol import (
+    BaseJSONSchemaProtocol,
+    ContainerEntityJSONSchemaProtocol,
+)
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
 @dataclass
-class JsonSchemaVersionInfo:
+class JSONSchemaVersionInfo:
     organization_id: str
     """The unique identifier for the organization."""
 
@@ -53,7 +57,7 @@ class JsonSchemaVersionInfo:
 class JSONSchemaBinding:
     """Represents the response for binding a JSON schema to an entity."""
 
-    json_schema_version_info: JsonSchemaVersionInfo
+    json_schema_version_info: JSONSchemaVersionInfo
     """Information about the JSON schema version."""
 
     object_id: int
@@ -178,7 +182,7 @@ class JSONSchemaDerivedKeys:
 
 
 @async_to_sync
-class BaseJSONSchema:
+class BaseJSONSchema(BaseJSONSchemaProtocol):
     """
     Mixin class to provide JSON schema functionality.
     This class is intended to be used with classes that represent Synapse entities.
@@ -212,9 +216,9 @@ class BaseJSONSchema:
             enable_derived_annos=enable_derived_annos,
             synapse_client=synapse_client,
         )
-        json_schema_version = response.get("jsonSchemaVersionInfo", {})
+        json_schema_version = response.get("JSONSchemaVersionInfo", {})
         return JSONSchemaBinding(
-            json_schema_version_info=JsonSchemaVersionInfo(
+            json_schema_version_info=JSONSchemaVersionInfo(
                 organization_id=json_schema_version.get("organizationId", ""),
                 organization_name=json_schema_version.get("organizationName", ""),
                 schema_id=json_schema_version.get("schemaId", ""),
@@ -249,9 +253,9 @@ class BaseJSONSchema:
         response = await get_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
         )
-        json_schema_version_info = response.get("jsonSchemaVersionInfo", {})
+        json_schema_version_info = response.get("JSONSchemaVersionInfo", {})
         return JSONSchemaBinding(
-            json_schema_version_info=JsonSchemaVersionInfo(
+            json_schema_version_info=JSONSchemaVersionInfo(
                 organization_id=json_schema_version_info.get("organizationId", ""),
                 organization_name=json_schema_version_info.get("organizationName", ""),
                 schema_id=json_schema_version_info.get("schemaId", ""),
@@ -373,7 +377,7 @@ class BaseJSONSchema:
 
 
 @async_to_sync
-class ContainerEntityJSONSchema(BaseJSONSchema):
+class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtocol):
     """
     Mixin class to provide JSON schema functionality.
     This class is intended to be used with classes that represent Synapse entities.
