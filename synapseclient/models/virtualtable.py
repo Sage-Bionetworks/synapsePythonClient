@@ -11,7 +11,7 @@ from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
-from synapseclient.models import Activity, Column
+from synapseclient.models import Activity, Annotations, Column
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import (
     DeleteMixin,
@@ -427,7 +427,7 @@ class VirtualTable(
         )
 
     def fill_from_dict(
-        self, entity: Dict[str, Any], set_annotations: bool = True
+        self, entity: Dict[str, Any], annotations: Dict = None
     ) -> "VirtualTable":
         """
         Converts the data coming from the Synapse API into this datamodel.
@@ -454,8 +454,8 @@ class VirtualTable(
         self.is_search_enabled = entity.get("isSearchEnabled", False)
         self.defining_sql = entity.get("definingSQL", None)
 
-        if set_annotations:
-            self.annotations = entity.get("annotations", {})
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
 
         return self
 

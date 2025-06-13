@@ -739,9 +739,7 @@ class EntityView(
             deepcopy(self.scope_ids) if self.scope_ids else set()
         )
 
-    def fill_from_dict(
-        self, entity: Dict, set_annotations: bool = True
-    ) -> "EntityView":
+    def fill_from_dict(self, entity: Dict, annotations: Dict = None) -> "EntityView":
         """
         Converts the data coming from the Synapse API into this datamodel.
 
@@ -768,8 +766,8 @@ class EntityView(
         self.view_type_mask = entity.get("viewTypeMask", None)
         self.scope_ids = set(f"syn{id}" for id in entity.get("scopeIds", []))
 
-        if set_annotations:
-            self.annotations = Annotations.from_dict(entity.get("annotations", {}))
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
         return self
 
     def to_synapse_request(self):
