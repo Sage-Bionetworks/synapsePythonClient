@@ -160,4 +160,4 @@ for child in invalid_validation:
 - [File][file-reference-sync]
 - [Folder][folder-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
-- [JSONSChema][json-schema-reference-sync]
+- [JSONSChema Mixins][json-schema-mixin]
