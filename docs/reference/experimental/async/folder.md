@@ -19,10 +19,8 @@ at your own risk.
         - get_acl_async
         - set_permissions_async
         - delete_permissions_async
-        - bind_json_schema_to_entity_async
-        - get_json_schema_from_entity_async
-        - delete_json_schema_from_entity_async
-        - validate_entity_with_json_schema_async
-        - get_json_schema_derived_keys_async
-        - get_json_schema_validation_statistics_async
-        - get_invalid_json_schema_validation_async
+        - bind_schema_async
+        - get_schema_async
+        - delete_schema_async
+        - validate_schema_async
+        - get_schema_derived_keys_async

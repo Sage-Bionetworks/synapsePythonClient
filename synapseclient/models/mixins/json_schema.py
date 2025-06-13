@@ -187,7 +187,7 @@ class BaseJSONSchema:
 
     id: Optional[str] = None
 
-    async def bind_json_schema_to_entity_async(
+    async def bind_schema_async(
         self,
         json_schema_uri: str,
         *,
@@ -233,7 +233,7 @@ class BaseJSONSchema:
             enable_derived_annotations=response.get("enableDerivedAnnotations", False),
         )
 
-    async def get_json_schema_from_entity_async(
+    async def get_schema_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> JSONSchemaBinding:
         """
@@ -270,7 +270,7 @@ class BaseJSONSchema:
             enable_derived_annotations=response.get("enableDerivedAnnotations", False),
         )
 
-    async def delete_json_schema_from_entity_async(
+    async def delete_schema_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> None:
         """
@@ -284,7 +284,7 @@ class BaseJSONSchema:
             synapse_id=self.id, synapse_client=synapse_client
         )
 
-    async def validate_entity_with_json_schema_async(
+    async def validate_schema_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> Union[JSONSchemaValidation, InvalidJSONSchemaValidation]:
         """
@@ -353,7 +353,7 @@ class BaseJSONSchema:
             validated_on=response.get("validatedOn", ""),
         )
 
-    async def get_json_schema_derived_keys_async(
+    async def get_schema_derived_keys_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> JSONSchemaDerivedKeys:
         """
@@ -380,7 +380,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema):
     It provides methods to bind, delete, and validate JSON schemas associated with the entity.
     """
 
-    async def get_json_schema_validation_statistics_async(
+    async def get_schema_validation_statistics_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> JSONSchemaValidationStatistics:
         """
@@ -404,7 +404,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema):
             number_of_unknown_children=response.get("numberOfUnknownChildren", ""),
         )
 
-    async def get_invalid_json_schema_validation_async(
+    async def get_invalid_validation_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> AsyncGenerator[InvalidJSONSchemaValidation, None]:
         """

@@ -75,7 +75,7 @@ test_folder = Folder(name="test_folder", parent_id=PROJECT_ID).store()
 
 Then, bind the JSON schema to the folder:
 ```python
-bound_schema = test_folder.bind_json_schema_to_entity(
+bound_schema = test_folder.bind_schema(
     json_schema_uri=created_schema.uri, enable_derived_annos=True
 )
 print("JSON schema was bound successfully:")
@@ -85,7 +85,7 @@ pprint(vars(bound_schema.json_schema_version_info))
 Step 5: Retrieve the Bound Schema
 You can retrieve your bound schema:
 ```python
-schema = test_folder.get_json_schema_from_entity()
+schema = test_folder.get_schema()
 print("Retrieved bound schema:")
 pprint(vars(schema))
 ```
@@ -103,13 +103,23 @@ time.sleep(2)
 
 Step 8: Validate Folder Against the Schema
 ```python
-validation_results = test_folder.validate_entity_with_json_schema()
+validation_results = test_folder.validate_schema()
 print("Validation Results:")
 pprint(vars(validation_results))
 ```
 
 Step 9: Create a File with Invalid Annotations and Upload It
 ```python
+def create_random_file(
+    path: str,
+) -> None:
+    """Create a random file with random data.
+
+    :param path: The path to create the file at.
+    """
+    with open(path, "wb") as f:
+        f.write(os.urandom(1))
+
 os.makedirs(os.path.expanduser("~/temp/testJSONSchemaFiles"), exist_ok=True)
 path_to_file = os.path.join(os.path.expanduser("~/temp/testJSONSchemaFiles"), "test_file.txt")
 create_random_file(path_to_file)
@@ -122,14 +132,14 @@ time.sleep(2) # ensure the job can be finished
 
 Step 10: View Validation Statistics
 ```python
-validation_statistics = test_folder.get_json_schema_validation_statistics()
+validation_statistics = test_folder.get_schema_validation_statistics()
 print("Validation Statistics:")
 pprint(vars(validation_statistics))
 ```
 
 Step 11: View Invalid Validation Results
 ```python
-invalid_validation = test_folder.get_invalid_json_schema_validation()
+invalid_validation = test_folder.get_invalid_validation()
 for child in invalid_validation:
     print("Invalid child validation:")
     pprint(vars(child))

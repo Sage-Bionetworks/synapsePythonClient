@@ -37,12 +37,11 @@ at your own risk.
         - get_permissions
         - get_acl
         - set_permissions
-        - delete_permissions
-        - bind_json_schema_to_entity
-        - get_json_schema_from_entity
-        - delete_json_schema_from_entity
-        - validate_entity_with_json_schema
-        - get_json_schema_derived_keys
+        - bind_schema
+        - get_schema
+        - delete_schema
+        - validate_schema
+        - get_schema_derived_keys
 
 [](){ #column-reference-sync }
 ::: synapseclient.models.Column

@@ -26,6 +26,50 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
+def try_delete_json_schema_from_folder(folder_name: str, parent_id: str) -> None:
+    """Simple try catch to delete a json schema folder."""
+    try:
+        js = syn.service("json_schema")
+        test_folder = Folder(name=folder_name, parent_id=parent_id).get()
+        js.delete_json_schema_from_entity(test_folder.id)
+    except Exception:
+        pass
+
+
+def try_delete_registered_json_schema_from_org(schema_uri: str):
+    """Simple try catch to delete a registered json schema from an organization."""
+    js = syn.service("json_schema")
+    try:
+        js.delete_json_schema(schema_uri)
+    except Exception:
+        pass
+
+
+def try_delete_organization(json_schema_org_name: str) -> None:
+    """Simple try catch to delete a json schema organization."""
+    try:
+        js = syn.service("json_schema")
+        all_org = js.list_organizations()
+        for org in all_org:
+            if org["name"] == json_schema_org_name:
+                js.delete_organization(org["id"])
+                break
+    except Exception:
+        pass
+
+
+# Clean up any existing test data
+try_delete_json_schema_from_folder("test_folder", PROJECT_ID)
+try_delete_registered_json_schema_from_org(SCHEMA_URI)
+try_delete_organization(ORG_NAME)
+
+# Make sure the project exists
+if not PROJECT_ID:
+    raise ValueError(
+        "Please set the PROJECT_ID variable to a valid Synapse project ID."
+    )
+
+# Start the script
 title = "OOP Test Schema"
 
 # Set up an organization and create a JSON schema
@@ -60,7 +104,7 @@ print(created_schema)
 test_folder = Folder(name="test_folder", parent_id=PROJECT_ID).store()
 
 # Bind a JSON schema to the folder
-bound_schema = test_folder.bind_json_schema_to_entity(
+bound_schema = test_folder.bind_schema(
     json_schema_uri=created_schema.uri, enable_derived_annos=True
 )
 json_schema_version_info = bound_schema.json_schema_version_info
@@ -68,7 +112,7 @@ print("JSON schema was bound successfully. Please see details below:")
 pprint(vars(json_schema_version_info))
 
 # get the bound schema
-schema = test_folder.get_json_schema_from_entity()
+schema = test_folder.get_schema()
 print("JSON Schema was retrieved successfully. Please see details below:")
 pprint(vars(schema))
 
@@ -81,7 +125,7 @@ test_folder.store()
 
 time.sleep(2)
 # Validate the folder's contents against the schema
-validation_results = test_folder.validate_entity_with_json_schema()
+validation_results = test_folder.validate_schema()
 print("Validation was completed. Please see details below:")
 pprint(vars(validation_results))
 
@@ -102,12 +146,12 @@ child_file = child_file.store()
 time.sleep(2)
 
 # Get the validation for all the children
-validation_statistics = test_folder.get_json_schema_validation_statistics()
+validation_statistics = test_folder.get_schema_validation_statistics()
 print("Validation statistics were retrieved successfully. Please see details below:")
 pprint(vars(validation_statistics))
 
 # Get the invalid validation results
-invalid_validation = test_folder.get_invalid_json_schema_validation()
+invalid_validation = test_folder.get_invalid_validation()
 for child in invalid_validation:
     print("See details of validation results: ")
     pprint(vars(child))
