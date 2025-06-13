@@ -132,4 +132,4 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
             InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
                                          and the validation exception details.
         """
-        return InvalidJSONSchemaValidation(), None
+        yield InvalidJSONSchemaValidation()
