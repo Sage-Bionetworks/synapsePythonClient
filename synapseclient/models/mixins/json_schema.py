@@ -216,7 +216,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
             enable_derived_annos=enable_derived_annos,
             synapse_client=synapse_client,
         )
-        json_schema_version = response.get("JSONSchemaVersionInfo", {})
+        json_schema_version = response.get("jsonSchemaVersionInfo", {})
         return JSONSchemaBinding(
             json_schema_version_info=JSONSchemaVersionInfo(
                 organization_id=json_schema_version.get("organizationId", ""),
