@@ -29,6 +29,7 @@ from .entity_services import (
     delete_entity_generated_by,
     get_entities_by_md5,
     get_entity,
+    get_entity_acl,
     get_entity_path,
     get_upload_destination,
     get_upload_destination_location,
@@ -55,6 +56,8 @@ from .table_services import (
     get_default_columns,
     post_columns,
 )
+from .team_services import post_team_list
+from .user_services import get_user_group_headers_batch
 
 __all__ = [
     # annotations
@@ -83,6 +86,7 @@ __all__ = [
     "post_entity",
     "delete_entity",
     "delete_entity_acl",
+    "get_entity_acl",
     "get_upload_destination",
     "get_upload_destination_location",
     "create_access_requirements_if_none",
@@ -110,4 +114,8 @@ __all__ = [
     "get_default_columns",
     "ViewTypeMask",
     "ViewEntityType",
+    # team_services
+    "post_team_list",
+    # user_services
+    "get_user_group_headers_batch",
 ]
