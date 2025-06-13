@@ -5,12 +5,7 @@ from pprint import pprint
 import synapseclient
 from synapseclient.models import File, Folder
 
-PROJECT_ID = ""  # Replace with your own project ID
-ORG_NAME = "MyUniqueOrgForFolderTest"
-VERSION = "0.0.1"
-SCHEMA_NAME = "test"
-SCHEMA_URI = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
-
+# Step 1: Set up Synapse Python client
 syn = synapseclient.Synapse(debug=True)
 syn.login()
 
@@ -26,110 +21,77 @@ def create_random_file(
         f.write(os.urandom(1))
 
 
-def try_delete_json_schema_from_folder(folder_name: str, parent_id: str) -> None:
-    """Simple try catch to delete a json schema folder."""
-    try:
-        js = syn.service("json_schema")
-        test_folder = Folder(name=folder_name, parent_id=parent_id).get()
-        js.delete_json_schema_from_entity(test_folder.id)
-    except Exception:
-        pass
+# Retrieve test project
+PROJECT_ID = syn.findEntityId(
+    name="My uniquely named project about Alzheimer's Disease"
+)
 
+# Create a test folder for JSON schema experiments
+test_folder = Folder(name="clinical_data_folder", parent_id=PROJECT_ID).store()
 
-def try_delete_registered_json_schema_from_org(schema_uri: str):
-    """Simple try catch to delete a registered json schema from an organization."""
-    js = syn.service("json_schema")
-    try:
-        js.delete_json_schema(schema_uri)
-    except Exception:
-        pass
+# Step 2: Take a look at the constants and structure of the JSON schema
+# For this example, a test organization and schema are already created
+ORG_NAME = "myUniqueAlzheimersResearchOrgTurtorial"
+VERSION = "0.0.1"
+SCHEMA_NAME = "clinicalObservations"
 
-
-def try_delete_organization(json_schema_org_name: str) -> None:
-    """Simple try catch to delete a json schema organization."""
-    try:
-        js = syn.service("json_schema")
-        all_org = js.list_organizations()
-        for org in all_org:
-            if org["name"] == json_schema_org_name:
-                js.delete_organization(org["id"])
-                break
-    except Exception:
-        pass
-
-
-# Clean up any existing test data
-try_delete_json_schema_from_folder("test_folder", PROJECT_ID)
-try_delete_registered_json_schema_from_org(SCHEMA_URI)
-try_delete_organization(ORG_NAME)
-
-# Make sure the project exists
-if not PROJECT_ID:
-    raise ValueError(
-        "Please set the PROJECT_ID variable to a valid Synapse project ID."
-    )
-
-# Start the script
-title = "OOP Test Schema"
-
-# Set up an organization and create a JSON schema
-js = syn.service("json_schema")
+title = "Alzheimer's Clinical Observation Schema"
 schema = {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://example.com/schema/ooptest.json",
+    "$id": "https://example.com/schema/alzheimers_observation.json",
     "title": title,
     "type": "object",
     "properties": {
-        "test_string": {"type": "string"},
-        "test_int": {"type": "integer"},
-        "test_derived_annos": {
-            "description": "Derived annotation property",
+        "patient_id": {
             "type": "string",
-            "const": "default value",
+            "description": "A unique identifier for the patient",
+        },
+        "cognitive_score": {
+            "type": "integer",
+            "description": "Quantitative cognitive function score",
+        },
+        "diagnosis_stage": {
+            "type": "string",
+            "description": "Stage of Alzheimer's diagnosis (e.g., Mild, Moderate, Severe)",
+            "const": "Mild",  # Example constant for derived annotation
         },
     },
 }
-all_org = js.list_organizations()
-for org in all_org:
-    print(f"Found organization: {org['name']} with id: {org['id']}")
-created_org = js.create_organization(ORG_NAME)
-print(
-    f"Organization was created successfully. The name of the organization is: {ORG_NAME}, the id is: {created_org['id']}, created on: {created_org['createdOn']}, created by: {created_org['createdBy']}"
-)
 
-test_org = js.JsonSchemaOrganization(ORG_NAME)
-created_schema = test_org.create_json_schema(schema, SCHEMA_NAME, VERSION)
-print(created_schema)
+# Step 3: Retrieve test organization
+js = syn.service("json_schema")
+# Retrieve test organizations
+my_test_org = js.JsonSchemaOrganization(ORG_NAME)
 
-test_folder = Folder(name="test_folder", parent_id=PROJECT_ID).store()
-
-# Bind a JSON schema to the folder
+# Step 4: Bind the JSON schema to the folder
+schema_uri = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
 bound_schema = test_folder.bind_schema(
-    json_schema_uri=created_schema.uri, enable_derived_annos=True
+    json_schema_uri=schema_uri, enable_derived_annos=True
 )
 json_schema_version_info = bound_schema.json_schema_version_info
 print("JSON schema was bound successfully. Please see details below:")
 pprint(vars(json_schema_version_info))
 
-# Get the bound schema
+# Step 5: Retrieve the Bound Schema
 schema = test_folder.get_schema()
 print("JSON Schema was retrieved successfully. Please see details below:")
 pprint(vars(schema))
 
-# Store annotations to the test folder
+# Step 6: Add Invalid Annotations to the Folder and Store
 test_folder.annotations = {
-    "test_string": "example_value",
-    "test_int": "invalid str",
+    "patient_id": "1234",
+    "cognitive_score": "invalid str",
 }
 test_folder.store()
 
 time.sleep(2)
-# Validate the folder's contents against the schema
+
+# Step 7: Validate Folder Against the Schema
 validation_results = test_folder.validate_schema()
 print("Validation was completed. Please see details below:")
 pprint(vars(validation_results))
 
-# Now try adding a file to the folder
+# Step 8: Create a File with Invalid Annotations and Upload It
 if not os.path.exists(os.path.expanduser("~/temp")):
     os.makedirs(os.path.expanduser("~/temp/testJSONSchemaFiles"), exist_ok=True)
 
@@ -139,18 +101,18 @@ path_to_file = os.path.join(
 )
 create_random_file(path_to_file)
 
-annotations = {"test_string": "child_value", "test_int": "invalid child str"}
+annotations = {"patient_id": "123456", "cognitive_score": "invalid child str"}
 
 child_file = File(path=path_to_file, parent_id=test_folder.id, annotations=annotations)
 child_file = child_file.store()
 time.sleep(2)
 
-# Get the validation for all the children
+# Step 9: View Validation Statistics
 validation_statistics = test_folder.get_schema_validation_statistics()
 print("Validation statistics were retrieved successfully. Please see details below:")
 pprint(vars(validation_statistics))
 
-# Get the invalid validation results
+# Step 10: View Invalid Validation Results
 invalid_validation = test_folder.get_invalid_validation()
 for child in invalid_validation:
     print("See details of validation results: ")
