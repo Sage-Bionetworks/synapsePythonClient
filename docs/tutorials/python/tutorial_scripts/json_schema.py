@@ -10,17 +10,6 @@ syn = synapseclient.Synapse(debug=True)
 syn.login()
 
 
-def create_random_file(
-    path: str,
-) -> None:
-    """Create a random file with random data.
-
-    :param path: The path to create the file at.
-    """
-    with open(path, "wb") as f:
-        f.write(os.urandom(1))
-
-
 # Retrieve test project
 PROJECT_ID = syn.findEntityId(
     name="My uniquely named project about Alzheimer's Disease"
@@ -99,6 +88,19 @@ name_of_file = "test_file.txt"
 path_to_file = os.path.join(
     os.path.expanduser("~/temp/testJSONSchemaFiles"), name_of_file
 )
+
+
+def create_random_file(
+    path: str,
+) -> None:
+    """Create a random file with random data.
+
+    :param path: The path to create the file at.
+    """
+    with open(path, "wb") as f:
+        f.write(os.urandom(1))
+
+
 create_random_file(path_to_file)
 
 annotations = {"patient_id": "123456", "cognitive_score": "invalid child str"}
