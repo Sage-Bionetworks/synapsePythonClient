@@ -25,6 +25,7 @@ at your own risk.
             - get_permissions_async
             - set_permissions_async
             - delete_permissions_async
+            - list_acl_async
 ---
 
 [](){ #view-type-mask-reference }

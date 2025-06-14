@@ -28,6 +28,7 @@ at your own risk.
             - get_acl_async
             - set_permissions_async
             - delete_permissions_async
+            - list_acl_async
 ---
 [](){ #entity-ref-dataset-collection-reference-async }
 ::: synapseclient.models.EntityRef
