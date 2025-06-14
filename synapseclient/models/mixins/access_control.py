@@ -593,7 +593,6 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             None
         """
 
-        # TODO: Is this correct?
         if not dry_run:
             await benefactor_tracker.track_entity_benefactor([self.id], client)
 
