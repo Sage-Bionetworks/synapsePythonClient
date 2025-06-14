@@ -578,7 +578,7 @@ class TestBenefactorTrackerComprehensive:
             side_effect=benefactor_responses,
         ):
             # WHEN tracking multiple entities in parallel
-            tracker.track_entity_benefactor(entity_ids, mock_client)
+            await tracker.track_entity_benefactor(entity_ids, mock_client)
 
             # THEN all entities should be tracked
             assert len(tracker.entity_benefactors) == 3
@@ -603,7 +603,7 @@ class TestBenefactorTrackerComprehensive:
             return_value=MagicMock(id="syn999"),
         ) as mock_get_benefactor:
             # WHEN tracking entities
-            tracker.track_entity_benefactor(entity_ids, mock_client)
+            await tracker.track_entity_benefactor(entity_ids, mock_client)
 
             # THEN only unprocessed entity should be fetched
             mock_get_benefactor.assert_called_once()

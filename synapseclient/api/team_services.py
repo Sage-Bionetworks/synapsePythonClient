@@ -26,13 +26,6 @@ async def post_team_list(
 
     Returns:
         List of dictionaries representing <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>
-
-    Example: Get teams by their IDs
-        Retrieve specific teams by providing their IDs.
-
-        ```python
-
-        ```
     """
     from synapseclient import Synapse
 

@@ -26,13 +26,6 @@ async def get_user_group_headers_batch(
     Returns:
         List representing "children" in
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserGroupHeaderResponsePage.html>
-
-    Example: Get user group headers by their IDs
-        Retrieve specific user/group headers by providing their IDs.
-
-        ```python
-
-        ```
     """
     from synapseclient import Synapse
 

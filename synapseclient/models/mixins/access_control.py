@@ -710,7 +710,6 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Raises:
             Exception: For any errors that may occur during processing, which are caught and logged.
         """
-        # For non-recursive processing, track entities with benefactor_tracker
         if not recursive and benefactor_tracker and not dry_run:
             track_tasks = [
                 benefactor_tracker.track_entity_benefactor([folder.id], client)
@@ -1530,10 +1529,6 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             entity_type = entity_type.split(".")[-1]
             if entity_type == "FileEntity":
                 return "File"
-            elif entity_type == "Folder":
-                return "Folder"
-            elif entity_type == "Project":
-                return "Project"
 
         return entity_type
 
