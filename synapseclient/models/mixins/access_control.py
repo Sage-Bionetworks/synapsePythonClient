@@ -46,37 +46,11 @@ class BenefactorTracker:
     processed_entities: Set[str] = field(default_factory=set)
     """Set of entity_ids that have been processed"""
 
-    async def track_entity(self, entity_id: str, synapse_client: "Synapse") -> None:
-        """
-        Track an entity and its benefactor relationship.
-
-        Arguments:
-            entity_id: The ID of the entity to track
-            synapse_client: The Synapse client to use for API calls
-        """
-        if entity_id in self.processed_entities:
-            return
-
-        benefactor = await get_entity_benefactor(
-            entity_id=entity_id, synapse_client=synapse_client
-        )
-        benefactor_id = benefactor.id
-
-        self.entity_benefactors[entity_id] = benefactor_id
-
-        if benefactor_id not in self.benefactor_children:
-            self.benefactor_children[benefactor_id] = []
-
-        if entity_id != benefactor_id:
-            self.benefactor_children[benefactor_id].append(entity_id)
-
-        self.processed_entities.add(entity_id)
-
-    async def track_entities_parallel(
+    async def track_entity_benefactor(
         self, entity_ids: List[str], synapse_client: "Synapse"
     ) -> None:
         """
-        Track multiple entities and their benefactor relationships in parallel.
+        Track entities and their benefactor relationships.
 
         Arguments:
             entity_ids: List of entity IDs to track
@@ -148,18 +122,6 @@ class BenefactorTracker:
 
         return affected_entities
 
-    def get_current_benefactor(self, entity_id: str) -> str:
-        """
-        Get the current benefactor for an entity, accounting for deletions.
-
-        Arguments:
-            entity_id: The ID of the entity
-
-        Returns:
-            The current benefactor ID for the entity
-        """
-        return self.entity_benefactors.get(entity_id, entity_id)
-
     def will_acl_deletion_affect_others(self, entity_id: str) -> bool:
         """
         Check if deleting this entity's ACL will affect other entities.
@@ -208,6 +170,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
             ```python
             import asyncio
+            from synapseclient import Synapse
             from synapseclient.models import File
 
             syn = Synapse()
@@ -331,6 +294,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
             ```python
             import asyncio
+            from synapseclient import Synapse
             from synapseclient.models import File
 
             syn = Synapse()
@@ -346,6 +310,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
             ```python
             import asyncio
+            from synapseclient import Synapse
             from synapseclient.models import File
 
             syn = Synapse()
@@ -383,6 +348,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         show_acl_details: bool = True,
         show_files_in_containers: bool = True,
         *,
+        benefactor_tracker: Optional[BenefactorTracker] = None,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
@@ -413,7 +379,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 Only works on classes that support the `sync_from_synapse_async` method.
             target_entity_types: Specify which entity types to process when deleting ACLs.
                 Allowed values are "folder" and "file" (case-insensitive).
-                If None, defaults to ["folder", "file"].
+                If None, defaults to ["folder", "file"]. This does not affect the
+                entity type of the current entity, which is always processed if
+                `include_self=True`.
             dry_run: If True, log the changes that would be made instead of actually
                 performing the deletions. When enabled, all ACL deletion operations are
                 simulated and logged at info level. Defaults to False.
@@ -425,6 +393,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 are displayed in the preview. If True (default), shows all files. If False, hides
                 files when their only change is benefactor inheritance (but still shows files with
                 local ACLs being deleted). Has no effect when dry_run=False.
+            benefactor_tracker: Optional tracker for managing benefactor relationships.
+                Used for recursive functionality to track which entities will be affected
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -443,6 +413,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Example: Delete permissions for a single entity
             ```python
             import asyncio
+            from synapseclient import Synapse
             from synapseclient.models import File
 
             syn = Synapse()
@@ -457,30 +428,39 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Example: Delete permissions recursively for a folder and all its children
             ```python
             import asyncio
+            from synapseclient import Synapse
             from synapseclient.models import Folder
 
             syn = Synapse()
             syn.login()
 
             async def main():
+                # Delete permissions for this folder only (does not affect children)
                 await Folder(id="syn123").delete_permissions_async()
 
+                # Delete permissions for all files and folders directly within this folder,
+                # but not the folder itself
                 await Folder(id="syn123").delete_permissions_async(
                     include_self=False,
                     include_container_content=True
                 )
 
+                # Delete permissions for all items in the entire hierarchy (folders and their files)
+                # Both recursive and include_container_content must be True
                 await Folder(id="syn123").delete_permissions_async(
                     recursive=True,
                     include_container_content=True
                 )
 
+                # Delete permissions only for folder entities within this folder recursively
+                # and their contents
                 await Folder(id="syn123").delete_permissions_async(
                     recursive=True,
                     include_container_content=True,
                     target_entity_types=["folder"]
                 )
 
+                # Delete permissions only for files within this folder and all subfolders
                 await Folder(id="syn123").delete_permissions_async(
                     include_self=False,
                     recursive=True,
@@ -488,6 +468,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     target_entity_types=["file"]
                 )
 
+                # Dry run example: Log what would be deleted without making changes
                 await Folder(id="syn123").delete_permissions_async(
                     recursive=True,
                     include_container_content=True,
@@ -510,12 +491,20 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             include_self = False
 
         normalized_types = self._normalize_target_entity_types(target_entity_types)
-        entity_info = self._get_entity_type_info(normalized_types)
 
-        benefactor_tracker = BenefactorTracker()
+        benefactor_tracker = benefactor_tracker or BenefactorTracker()
 
-        should_process_children = recursive or include_container_content
-        if should_process_children and hasattr(self, "sync_from_synapse_async"):
+        should_process_children = (recursive or include_container_content) and hasattr(
+            self, "sync_from_synapse_async"
+        )
+        all_entities = [self] if include_self else []
+
+        if should_process_children:
+            if recursive and not include_container_content:
+                raise ValueError(
+                    "When recursive=True, include_container_content must also be True. "
+                    "Setting recursive=True with include_container_content=False has no effect."
+                )
             all_entities = await self._collect_entities(
                 client=client,
                 target_entity_types=normalized_types,
@@ -525,63 +514,27 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
             entity_ids = [entity.id for entity in all_entities if entity.id]
             if entity_ids:
-                await benefactor_tracker.track_entities_parallel(entity_ids, client)
-
-        elif dry_run:
-            await benefactor_tracker.track_entity(self.id, client)
-            if should_process_children and hasattr(self, "sync_from_synapse_async"):
-                all_entities = await self._collect_entities(
-                    client=client,
-                    target_entity_types=normalized_types,
-                    include_container_content=include_container_content,
-                    recursive=recursive,
-                )
-                entity_ids = [entity.id for entity in all_entities if entity.id]
-                if entity_ids:
-                    await benefactor_tracker.track_entities_parallel(entity_ids, client)
+                await benefactor_tracker.track_entity_benefactor(entity_ids, client)
 
         if dry_run:
-            collected_entities = []
-            if should_process_children and hasattr(self, "sync_from_synapse_async"):
-                collected_entities = await self._collect_entities(
-                    client=client,
-                    target_entity_types=normalized_types,
-                    include_container_content=include_container_content,
-                    recursive=recursive,
-                )
-            else:
-                collected_entities = [self]
-
             await self._build_and_log_dry_run_tree(
-                client,
-                benefactor_tracker,
-                collected_entities,
-                include_self,
-                show_acl_details,
-                show_files_in_containers,
+                client=client,
+                benefactor_tracker=benefactor_tracker,
+                collected_entities=all_entities,
+                include_self=include_self,
+                show_acl_details=show_acl_details,
+                show_files_in_containers=show_files_in_containers,
             )
             return
 
         if include_self:
-            await self._delete_current_entity_acl_with_tracking(
+            await self._delete_current_entity_acl(
                 client=client,
-                entity_info=entity_info,
                 dry_run=dry_run,
                 benefactor_tracker=benefactor_tracker,
             )
 
-        should_process_children = recursive or include_container_content
-        if should_process_children and hasattr(self, "sync_from_synapse_async"):
-            if recursive and not include_container_content:
-                raise ValueError(
-                    "When recursive=True, include_container_content must also be True. "
-                    "Setting recursive=True with include_container_content=False has no effect."
-                )
-
-            synced = await self._sync_container_structure(client)
-            if not synced:
-                return
-
+        if should_process_children:
             if include_container_content:
                 await self._process_container_contents(
                     client=client,
@@ -597,6 +550,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     target_entity_types=normalized_types,
                     include_container_content=include_container_content,
                     dry_run=dry_run,
+                    benefactor_tracker=benefactor_tracker,
                 )
 
     def _normalize_target_entity_types(
@@ -610,81 +564,38 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         Returns:
             List[str]: A normalized list (lowercase) of valid entity types.
-
-        Raises:
-            ValueError: If any provided entity type is not in the list of valid types.
         """
-        valid_types = ["folder", "file"]
+        default_types = ["folder", "file"]
 
         if target_entity_types is None:
-            return valid_types
+            return default_types
 
         normalized_types = [t.lower() for t in target_entity_types]
 
-        invalid_types = [t for t in normalized_types if t not in valid_types]
-        if invalid_types:
-            raise ValueError(
-                f"Invalid entity type(s): {', '.join(invalid_types)}. "
-                f"Allowed values are: {', '.join(valid_types)}"
-            )
-
         return normalized_types
 
-    def _get_entity_type_info(self, target_entity_types: List[str]) -> Dict[str, Any]:
-        """
-        Determine the entity type and if it's in the target types.
-
-        Arguments:
-            target_entity_types: A list of normalized entity types to check against.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing:
-                - 'entity_type': The detected entity type ('folder', 'file', or None)
-                - 'is_target_type': Whether the entity's type is in the target types
-        """
-        is_folder = hasattr(self, "folders")
-        is_file = self.__class__.__name__.lower() == "file"
-
-        entity_type = "folder" if is_folder else "file" if is_file else None
-        is_target_type = entity_type in target_entity_types if entity_type else False
-
-        return {"entity_type": entity_type, "is_target_type": is_target_type}
-
-    async def _delete_current_entity_acl_with_tracking(
+    async def _delete_current_entity_acl(
         self,
         client: Synapse,
-        entity_info: Dict[str, Any],
+        benefactor_tracker: BenefactorTracker,
         dry_run: bool = False,
-        benefactor_tracker: Optional[BenefactorTracker] = None,
     ) -> None:
         """
         Delete the ACL for the current entity with benefactor relationship tracking.
 
         Arguments:
             client: The Synapse client instance to use for API calls.
-            entity_info: Dictionary containing entity type information with keys:
-                - 'entity_type': The detected entity type ('folder', 'file', or None)
-                - 'is_target_type': Whether the entity's type is in the target types
+            benefactor_tracker: Tracker for managing benefactor relationships.
             dry_run: If True, log the changes that would be made instead of actually
                 performing the deletions.
-            benefactor_tracker: Optional tracker for managing benefactor relationships.
 
         Returns:
             None
-
-        Raises:
-            SynapseHTTPError: If there are permission issues or if the entity already inherits permissions.
-            Exception: For any other errors that may occur during deletion.
         """
-        if not entity_info["is_target_type"] and entity_info["entity_type"] is not None:
-            client.logger.debug(
-                f"Skipping ACL deletion for entity {self.id} as its type "
-                f"'{entity_info['entity_type']}' does not match the target types."
-            )
-            return
 
-        if benefactor_tracker and not dry_run:
-            await benefactor_tracker.track_entity(self.id, client)
+        # TODO: Is this correct?
+        if not dry_run:
+            await benefactor_tracker.track_entity_benefactor([self.id], client)
 
             if benefactor_tracker.will_acl_deletion_affect_others(self.id):
                 affected_entities = benefactor_tracker.benefactor_children.get(
@@ -721,33 +632,12 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             else:
                 raise
 
-    async def _sync_container_structure(self, client: Synapse) -> bool:
-        """
-        Sync the container structure from Synapse and return success status.
-
-        Arguments:
-            client: The Synapse client instance to use for API calls.
-
-        Returns:
-            bool: True if synchronization was successful, False otherwise.
-
-        Raises:
-            Exception: For any errors that may occur during synchronization.
-        """
-        await self.sync_from_synapse_async(
-            recursive=False,
-            download_file=False,
-            include_activity=False,
-            synapse_client=client,
-        )
-        return True
-
     async def _process_container_contents(
         self,
         client: Synapse,
         target_entity_types: List[str],
+        benefactor_tracker: BenefactorTracker,
         dry_run: bool = False,
-        benefactor_tracker: Optional[BenefactorTracker] = None,
     ) -> None:
         """
         Process the direct contents of a container entity.
@@ -755,9 +645,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Arguments:
             client: The Synapse client instance to use for API calls.
             target_entity_types: A list of normalized entity types to process.
+            benefactor_tracker: Tracker for managing benefactor relationships.
             dry_run: If True, log the changes that would be made instead of actually
                 performing the deletions.
-            benefactor_tracker: Optional tracker for managing benefactor relationships.
 
         Returns:
             None
@@ -765,7 +655,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         if "file" in target_entity_types and hasattr(self, "files"):
             if benefactor_tracker and not dry_run:
                 track_tasks = [
-                    benefactor_tracker.track_entity(file.id, client)
+                    benefactor_tracker.track_entity_benefactor([file.id], client)
                     for file in self.files
                 ]
                 await asyncio.gather(*track_tasks)
@@ -776,6 +666,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     include_self=True,
                     target_entity_types=["file"],
                     dry_run=dry_run,
+                    benefactor_tracker=benefactor_tracker,
                     synapse_client=client,
                 )
 
@@ -794,10 +685,10 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         self,
         client: Synapse,
         recursive: bool,
+        benefactor_tracker: BenefactorTracker,
         target_entity_types: Optional[List[str]] = None,
         include_container_content: bool = False,
         dry_run: bool = False,
-        benefactor_tracker: Optional[BenefactorTracker] = None,
     ) -> None:
         """
         Process folder permission deletion either directly or recursively.
@@ -805,14 +696,14 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Arguments:
             client: The Synapse client instance to use for API calls.
             recursive: If True, process folders recursively; if False, process only direct folders.
+            benefactor_tracker: Tracker for managing benefactor relationships.
+                Only used for non-recursive processing.
             target_entity_types: A list of normalized entity types to process.
                 For non-recursive processing, defaults to ["folder"].
             include_container_content: Whether to include the content of containers in processing.
                 Only used for recursive processing.
             dry_run: If True, log the changes that would be made instead of actually
                 performing the deletions.
-            benefactor_tracker: Optional tracker for managing benefactor relationships.
-                Only used for non-recursive processing.
 
         Returns:
             None
@@ -823,7 +714,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         # For non-recursive processing, track entities with benefactor_tracker
         if not recursive and benefactor_tracker and not dry_run:
             track_tasks = [
-                benefactor_tracker.track_entity(folder.id, client)
+                benefactor_tracker.track_entity_benefactor([folder.id], client)
                 for folder in self.folders
             ]
             await asyncio.gather(*track_tasks)
@@ -842,10 +733,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
                 await folder.delete_permissions_async(
                     include_self=should_delete_folder_acl,
-                    recursive=True,
+                    recursive=recursive,
                     include_container_content=include_container_content,
                     target_entity_types=target_entity_types_to_use,
                     dry_run=dry_run,
+                    benefactor_tracker=benefactor_tracker,
                     synapse_client=client,
                 )
             else:
@@ -856,6 +748,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     include_container_content=False,
                     target_entity_types=target_entity_types or ["folder"],
                     dry_run=dry_run,
+                    benefactor_tracker=benefactor_tracker,
                     synapse_client=client,
                 )
 
@@ -903,12 +796,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         Returns:
             An AclListResult object containing a structured representation of ACLs where:
-            - entity_acls: A dictionary mapping Synapse entity IDs to EntityAcl objects
-            - Each EntityAcl contains acl_entries mapping principal IDs to AclEntry objects
+            - entity_acls: A list of EntityAcl objects, each representing one entity's ACL
+            - Each EntityAcl contains acl_entries (a list of AclEntry objects)
             - Each AclEntry contains the principal_id and their list of permissions
-
-            For backward compatibility, the result can be converted to the old format
-            using the to_dict() method.
 
         Raises:
             ValueError: If the entity does not have an ID or if an invalid entity type is provided.
@@ -918,6 +808,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Example: List ACLs for a single entity
             ```python
             import asyncio
+            from synapseclient import Synapse
             from synapseclient.models import File
 
             syn = Synapse()
@@ -926,14 +817,16 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             async def main():
                 acl_result = await File(id="syn123").list_acl_async()
                 print(acl_result)
-                entity_acl = acl_result.get_entity_acl("syn123")
-                if entity_acl:
-                    principal_permissions = entity_acl.get_acl_entry("273948")
-                    if principal_permissions:
-                        print(f"Principal 273948 has permissions: {principal_permissions.permissions}")
 
-                old_format = acl_result.to_dict()
-                print(old_format)}
+                # Access entity ACLs (entity_acls is a list, not a dict)
+                for entity_acl in acl_result.entity_acls:
+                    if entity_acl.entity_id == "syn123":
+                        # Access individual ACL entries
+                        for acl_entry in entity_acl.acl_entries:
+                            if acl_entry.principal_id == "273948":
+                                print(f"Principal 273948 has permissions: {acl_entry.permissions}")
+
+                print(acl_result)
 
             asyncio.run(main())
             ```
@@ -941,6 +834,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Example: List ACLs recursively for a folder and all its children
             ```python
             import asyncio
+            from synapseclient import Synapse
             from synapseclient.models import Folder
 
             syn = Synapse()
@@ -952,9 +846,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     include_container_content=True
                 )
 
-                for entity_id, entity_acl in acl_result.entity_acls.items():
-                    print(f"Entity {entity_id} has ACL with {len(entity_acl.acl_entries)} principals")
+                # Access each entity's ACL (entity_acls is a list)
+                for entity_acl in acl_result.entity_acls:
+                    print(f"Entity {entity_acl.entity_id} has ACL with {len(entity_acl.acl_entries)} principals")
 
+                # List ACLs for only folder entities
                 folder_acl_result = await Folder(id="syn123").list_acl_async(
                     recursive=True,
                     include_container_content=True,
@@ -965,8 +861,13 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             ```
 
         Example: List ACLs with ASCII tree visualization
+            When log_tree=True, the ACLs will be logged in a tree format. Additionally,
+            the `ascii_tree` attribute of the AclListResult will contain the ASCII tree
+            representation of the ACLs.
+
             ```python
             import asyncio
+            from synapseclient import Synapse
             from synapseclient.models import Folder
 
             syn = Synapse()
@@ -976,8 +877,12 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 acl_result = await Folder(id="syn123").list_acl_async(
                     recursive=True,
                     include_container_content=True,
-                    log_tree=True
+                    log_tree=True, # Enable ASCII tree logging
                 )
+
+                # The ASCII tree representation of the ACLs will also be available
+                # in acl_result.ascii_tree
+                print(acl_result.ascii_tree)
 
             asyncio.run(main())
             ```
@@ -987,59 +892,65 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         normalized_types = self._normalize_target_entity_types(target_entity_types)
         client = Synapse.get_client(synapse_client=synapse_client)
-        entity_info = self._get_entity_type_info(normalized_types)
 
         all_acls: Dict[str, Dict[str, List[str]]] = {}
         all_entities = []
 
-        if entity_info["is_target_type"] or entity_info["entity_type"] is None:
-            acl = await self._get_current_entity_acl(client)
-            if acl:
-                all_acls[self.id] = acl
-            all_entities.append(self)
+        acl = await self._get_current_entity_acl(client)
+        if acl is not None:
+            all_acls[self.id] = acl
+        all_entities.append(self)
 
-        should_process_children = recursive or include_container_content
-        if should_process_children and hasattr(self, "sync_from_synapse_async"):
+        should_process_children = (recursive or include_container_content) and hasattr(
+            self, "sync_from_synapse_async"
+        )
+        if should_process_children:
             if recursive and not include_container_content:
                 raise ValueError(
                     "When recursive=True, include_container_content must also be True. "
                     "Setting recursive=True with include_container_content=False has no effect."
                 )
 
-            synced = await self._sync_container_structure(client)
-            if synced:
-                child_entities = await self._collect_entities(
-                    client=client,
-                    target_entity_types=normalized_types,
-                    include_container_content=include_container_content,
-                    recursive=recursive,
+            if not self.files and not self.folders:
+                await self.sync_from_synapse_async(
+                    recursive=False,
+                    download_file=False,
+                    include_activity=False,
+                    synapse_client=client,
                 )
+            child_entities = await self._collect_entities(
+                client=client,
+                target_entity_types=normalized_types,
+                include_container_content=include_container_content,
+                recursive=recursive,
+            )
 
-                for entity in child_entities:
-                    if entity != self:
-                        all_entities.append(entity)
+            for entity in child_entities:
+                if entity != self:
+                    all_entities.append(entity)
 
-                acl_tasks = []
-                entities_for_acl = []
-                for entity in child_entities:
-                    if entity != self and hasattr(entity, "_get_current_entity_acl"):
-                        acl_tasks.append(entity._get_current_entity_acl(client))
-                        entities_for_acl.append(entity)
+            acl_tasks = []
+            entities_for_acl = []
+            for entity in child_entities:
+                if entity != self:
+                    acl_tasks.append(entity._get_current_entity_acl(client))
+                    entities_for_acl.append(entity)
 
-                if acl_tasks:
-                    acl_results = await asyncio.gather(*acl_tasks)
-                    for entity, entity_acl in zip(entities_for_acl, acl_results):
-                        if not isinstance(entity_acl, Exception) and entity_acl:
-                            all_acls[entity.id] = entity_acl
-                        elif isinstance(entity_acl, Exception):
-                            client.logger.warning(
-                                f"Failed to get ACL for entity {entity.id}: {str(entity_acl)}"
-                            )
+            if acl_tasks:
+                acl_results = await asyncio.gather(*acl_tasks)
+                for entity, entity_acl in zip(entities_for_acl, acl_results):
+                    if not isinstance(entity_acl, Exception) and entity_acl:
+                        all_acls[entity.id] = entity_acl
+                    elif isinstance(entity_acl, Exception):
+                        client.logger.warning(
+                            f"Failed to get ACL for entity {entity.id}: {str(entity_acl)}"
+                        )
 
         acl_result = AclListResult.from_dict(all_acls)
 
         if log_tree:
-            await self._log_acl_tree(acl_result, all_entities, client)
+            logged_tree = await self._log_acl_tree(acl_result, all_entities, client)
+            acl_result.ascii_tree = logged_tree
 
         return acl_result
 
@@ -1097,6 +1008,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         include_container_content: bool = False,
         recursive: bool = False,
         collect_acls: bool = False,
+        collect_self: bool = False,
         all_acls: Optional[Dict[str, Dict[str, List[str]]]] = None,
     ) -> List[Union["File", "Folder"]]:
         """
@@ -1115,53 +1027,44 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             include_container_content: Whether to include the content of containers.
             recursive: Whether to process recursively.
             collect_acls: Whether to collect ACLs from entities.
+            collect_self: If True, include the current entity in the results.
             all_acls: Dictionary to accumulate ACL results if collecting ACLs.
 
         Returns:
             Returns a list of entity objects
         """
-        entity_info = self._get_entity_type_info(target_entity_types)
         entities = []
 
-        if entity_info["is_target_type"] or entity_info["entity_type"] is None:
+        if collect_self:
             entities.append(self)
 
-            if (
-                collect_acls
-                and all_acls is not None
-                and hasattr(self, "list_acl_async")
-            ):
+            if collect_acls and all_acls is not None:
                 entity_acls = await self.list_acl_async(
                     recursive=False,
                     include_container_content=False,
-                    target_entity_types=(
-                        [entity_info["entity_type"]]
-                        if entity_info["entity_type"]
-                        else target_entity_types
-                    ),
+                    target_entity_types=target_entity_types,
                     synapse_client=client,
                 )
                 all_acls.update(entity_acls.to_dict())
 
-        should_process_children = recursive or include_container_content
-        if should_process_children and hasattr(self, "sync_from_synapse_async"):
-            await self.sync_from_synapse_async(
-                recursive=False,
-                download_file=False,
-                include_activity=False,
-                synapse_client=client,
-            )
+        should_process_children = (recursive or include_container_content) and hasattr(
+            self, "sync_from_synapse_async"
+        )
+        if should_process_children:
+            if not self.files and not self.folders:
+                await self.sync_from_synapse_async(
+                    recursive=False,
+                    download_file=False,
+                    include_activity=False,
+                    synapse_client=client,
+                )
 
             if include_container_content:
                 if "file" in target_entity_types and hasattr(self, "files"):
                     for file in getattr(self, "files", []):
                         entities.append(file)
 
-                        if (
-                            collect_acls
-                            and all_acls is not None
-                            and hasattr(file, "list_acl_async")
-                        ):
+                        if collect_acls and all_acls is not None:
                             file_acls = await file.list_acl_async(
                                 recursive=False,
                                 include_container_content=False,
@@ -1174,11 +1077,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     for folder in getattr(self, "folders", []):
                         entities.append(folder)
 
-                        if (
-                            collect_acls
-                            and all_acls is not None
-                            and hasattr(folder, "list_acl_async")
-                        ):
+                        if collect_acls and all_acls is not None:
                             folder_acls = await folder.list_acl_async(
                                 recursive=False,
                                 include_container_content=False,
@@ -1211,76 +1110,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         return entities
 
-    async def _log_dry_run_acl_deletion_with_tracking(
-        self,
-        client: Synapse,
-        entity_info: Dict[str, Any],
-        benefactor_tracker: Optional[BenefactorTracker] = None,
-    ) -> None:
-        """
-        Log summary information about ACL deletion impact for a single entity.
-
-        Provides a concise log entry showing what ACL would be deleted and how many
-        child entities would be affected by the change. Falls back to simple logging
-        if ACL retrieval fails.
-
-        Arguments:
-            client: The Synapse client instance to use for API calls.
-            entity_info: Dictionary containing entity type information.
-            benefactor_tracker: Optional tracker for managing benefactor relationships.
-        """
-        entity_name = getattr(self, "name", "Unknown")
-        entity_type = entity_info.get("entity_type", "Unknown")
-
-        deletion_summary = await self._build_deletion_summary(
-            client, benefactor_tracker
-        )
-        log_message = self._format_deletion_log_message(
-            deletion_summary, entity_name, entity_type, benefactor_tracker
-        )
-
-        if log_message:
-            client.logger.info(log_message)
-
-    async def _log_dry_run_deletion_tree_with_tracking(
-        self,
-        client: Synapse,
-        entity_info: Dict[str, Any],
-        benefactor_tracker: Optional[BenefactorTracker] = None,
-    ) -> None:
-        """
-        Log comprehensive tree view of ACL deletion impacts.
-
-        Intelligently chooses between detailed tree visualization or simple summary
-        based on whether benefactor tracking data is available. The tree view shows
-        inheritance changes, affected children, and permission impacts across the
-        entity hierarchy.
-
-        Arguments:
-            client: The Synapse client instance to use for API calls.
-            entity_info: Dictionary containing entity type information.
-            benefactor_tracker: Optional tracker for managing benefactor relationships.
-        """
-        should_show_tree = (
-            benefactor_tracker
-            and benefactor_tracker.processed_entities
-            and len(benefactor_tracker.processed_entities) > 1
-        )
-
-        if should_show_tree:
-            await self._build_and_log_dry_run_tree(
-                client, benefactor_tracker, None, True, True, True
-            )
-        else:
-            await self._log_dry_run_acl_deletion_with_tracking(
-                client, entity_info, benefactor_tracker
-            )
-
     async def _build_and_log_dry_run_tree(
         self,
         client: Synapse,
         benefactor_tracker: BenefactorTracker,
-        collected_entities: List[Union["File", "Folder"]] = None,
+        collected_entities: List["AccessControllable"] = None,
         include_self: bool = True,
         show_acl_details: bool = True,
         show_files_in_containers: bool = True,
@@ -1301,7 +1135,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             show_files_in_containers: Whether to show files within containers.
         """
         tree_data = await self._build_tree_data(
-            client, collected_entities, benefactor_tracker
+            client=client, collected_entities=collected_entities
         )
         if not tree_data["entities_by_id"]:
             client.logger.info(
@@ -1326,8 +1160,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
     async def _build_tree_data(
         self,
         client: Synapse,
-        collected_entities: List[Union["File", "Folder"]] = None,
-        benefactor_tracker: Optional[BenefactorTracker] = None,
+        collected_entities: List["AccessControllable"] = None,
     ) -> Dict[str, Any]:
         """
         Build comprehensive tree data including entities and ACL structure.
@@ -1343,8 +1176,12 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Returns:
             Dictionary containing entities_by_id, acl_result, and tree_structure.
         """
-        entities_by_id = self._prepare_entities_for_tree(collected_entities)
-        acl_result = await self._build_acl_result_from_entities(entities_by_id, client)
+        entities_by_id = self._prepare_entities_for_tree(
+            collected_entities=collected_entities
+        )
+        acl_result = await self._build_acl_result_from_entities(
+            entities_by_id=entities_by_id, client=client
+        )
         tree_structure = await self._build_acl_tree_structure(
             acl_result, list(entities_by_id.values())
         )
@@ -1398,7 +1235,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         from synapseclient.core.models.acl import AclEntry, EntityAcl
 
         entity_acls = {}
-        for entity_id, entity in entities_by_id.items():
+        for entity_id, _ in entities_by_id.items():
             try:
                 acl_response = await get_entity_acl(
                     entity_id=entity_id, synapse_client=client
@@ -2059,117 +1896,12 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         return lines
 
-    async def _build_deletion_summary(
-        self, client: Synapse, benefactor_tracker: Optional[BenefactorTracker] = None
-    ) -> Dict[str, Any]:
-        """
-        Build a comprehensive summary of what would be deleted and affected.
-
-        Attempts to fetch ACL information and compile impact data including
-        current benefactor relationships and affected children.
-
-        Arguments:
-            client: The Synapse client instance to use for API calls.
-            benefactor_tracker: Optional tracker for managing benefactor relationships.
-
-        Returns:
-            Dictionary containing deletion summary information.
-        """
-        summary = {
-            "has_acl": False,
-            "acl_info": None,
-            "current_benefactor": self.id,
-            "affected_children": [],
-            "error": None,
-        }
-
-        try:
-            acl_response = await get_entity_acl(
-                entity_id=self.id, synapse_client=client
-            )
-            acl_info = self._parse_acl_response(acl_response)
-            summary["has_acl"] = bool(acl_info)
-            summary["acl_info"] = acl_info
-
-        except SynapseHTTPError as e:
-            if e.response.status_code == 404:
-                summary["error"] = "not_found"
-            else:
-                summary["error"] = "http_error"
-                raise
-
-        if benefactor_tracker:
-            summary["current_benefactor"] = benefactor_tracker.entity_benefactors.get(
-                self.id, self.id
-            )
-            summary["affected_children"] = benefactor_tracker.benefactor_children.get(
-                self.id, []
-            )
-
-        return summary
-
-    def _format_deletion_log_message(
-        self,
-        deletion_summary: Dict[str, Any],
-        entity_name: str,
-        entity_type: str,
-        benefactor_tracker: Optional[BenefactorTracker] = None,
-    ) -> Optional[str]:
-        """
-        Format a log message describing the deletion impact.
-
-        Creates a human-readable message describing what ACL would be deleted
-        and what entities would be affected, based on the deletion summary.
-
-        Arguments:
-            deletion_summary: Summary information from _build_deletion_summary.
-            entity_name: Display name of the entity.
-            entity_type: Type of the entity (File, Folder, etc.).
-            benefactor_tracker: Optional tracker for managing benefactor relationships.
-
-        Returns:
-            Formatted log message string, or None if no message should be logged.
-        """
-        has_acl = deletion_summary["has_acl"]
-        acl_info = deletion_summary["acl_info"]
-        current_benefactor = deletion_summary["current_benefactor"]
-        affected_children = deletion_summary["affected_children"]
-        error = deletion_summary["error"]
-
-        if has_acl and acl_info:
-            log_message = (
-                f"[DRY RUN] Would delete ACL for {entity_type} entity '{entity_name}' "
-                f"(ID: {self.id}) with current permissions: {acl_info}"
-            )
-
-            if current_benefactor != self.id:
-                log_message += f" (currently inheriting from: {current_benefactor})"
-
-            if affected_children:
-                log_message += f" - Would affect {len(affected_children)} child entities: {affected_children}"
-
-            return log_message
-
-        elif error == "not_found" and affected_children:
-            return (
-                f"[DRY RUN] Entity '{entity_name}' (ID: {self.id}) inherits from {current_benefactor} "
-                f"but deletion would affect {len(affected_children)} child entities: {affected_children}"
-            )
-
-        elif not has_acl and affected_children:
-            return (
-                f"[DRY RUN] Entity '{entity_name}' (ID: {self.id}) inherits permissions "
-                f"but deletion would affect {len(affected_children)} child entities: {affected_children}"
-            )
-
-        return None
-
     async def _log_acl_tree(
         self,
         acl_result: AclListResult,
         entities: List[Union["File", "Folder"]],
         client: Synapse,
-    ) -> None:
+    ) -> str:
         """
         Generate and log an ASCII tree representation of ACL results.
 
@@ -2194,6 +1926,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
         client.logger.info("ACL Tree Structure:")
         client.logger.info(tree_output)
+        return tree_output
 
     async def _build_acl_tree_structure(
         self, acl_result: AclListResult, entities: List[Union["File", "Folder"]]
