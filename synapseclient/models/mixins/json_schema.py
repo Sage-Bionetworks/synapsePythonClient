@@ -253,7 +253,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         response = await get_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
         )
-        json_schema_version_info = response.get("JSONSchemaVersionInfo", {})
+        json_schema_version_info = response.get("jsonSchemaVersionInfo", {})
         return JSONSchemaBinding(
             json_schema_version_info=JSONSchemaVersionInfo(
                 organization_id=json_schema_version_info.get("organizationId", ""),
