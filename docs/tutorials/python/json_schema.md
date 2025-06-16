@@ -118,6 +118,7 @@ This step is also only relevant for container entities, such as a folder or a pr
 - [Annotations][synapseclient.Annotations]
 - [JSONSChema Mixins][json-schema-mixin]
 - [Annotating Data With Metadata](https://help.synapse.org/docs/Annotating-Data-With-Metadata.2667708522.html)
+- [Derived annotations](https://help.synapse.org/docs/JSON-Schemas.3107291536.html#JSONSchemas-DerivedAnnotations)
 - [JSON Schema Object Definition](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html)
 - [JSON Schema Draft 7](https://json-schema.org/draft-07)
 - [JSON-Schema.org](https://json-schema.org./)

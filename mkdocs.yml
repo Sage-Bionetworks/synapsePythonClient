@@ -114,6 +114,7 @@ nav:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md
               - AsynchronousCommunicator: reference/experimental/mixins/asynchronous_communicator.md
+              - FailureStrategy: reference/experimental/mixins/failure_strategy.md
               - BaseJSONSchema: reference/experimental/mixins/base_json_schema.md
               - ContainerEntityJSONSchema: reference/experimental/mixins/container_json_schema.md
 
