@@ -617,7 +617,6 @@ async def download_from_url_multi_threaded(
             path=temp_destination,
             debug=client.debug,
         )
-    # generate a name tuple for presigned url
     else:
         request = DownloadRequest(
             path=temp_destination,
