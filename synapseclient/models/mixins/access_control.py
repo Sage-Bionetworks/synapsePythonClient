@@ -352,7 +352,15 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
-        Delete the Access Control List (ACL) for a given Entity.
+        Delete the entire Access Control List (ACL) for a given Entity. This is not
+        scoped to a specific user or group, but rather removes all permissions
+        associated with the Entity. After this operation, the Entity will inherit
+        permissions from its benefactor, which is typically its parent entity or
+        the Project it belongs to.
+
+        In order to remove permissions for a specific user or group, you
+        should use the `set_permissions_async` method with the `access_type` set to
+        an empty list.
 
         By default, Entities such as FileEntity and Folder inherit their permission from
         their containing Project. For such Entities the Project is the Entity's 'benefactor'.
@@ -817,12 +825,15 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 print(acl_result)
 
                 # Access entity ACLs (entity_acls is a list, not a dict)
-                for entity_acl in acl_result.entity_acls:
+                for entity_acl in acl_result.all_entity_acls:
                     if entity_acl.entity_id == "syn123":
                         # Access individual ACL entries
                         for acl_entry in entity_acl.acl_entries:
                             if acl_entry.principal_id == "273948":
                                 print(f"Principal 273948 has permissions: {acl_entry.permissions}")
+
+                # I can also access the ACL for the file itself
+                print(acl_result.entity_acl)
 
                 print(acl_result)
 
@@ -845,8 +856,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 )
 
                 # Access each entity's ACL (entity_acls is a list)
-                for entity_acl in acl_result.entity_acls:
+                for entity_acl in acl_result.all_entity_acls:
                     print(f"Entity {entity_acl.entity_id} has ACL with {len(entity_acl.acl_entries)} principals")
+
+                # I can also access the ACL for the folder itself
+                print(acl_result.entity_acl)
 
                 # List ACLs for only folder entities
                 folder_acl_result = await Folder(id="syn123").list_acl_async(
@@ -859,7 +873,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             ```
 
         Example: List ACLs with ASCII tree visualization
-            When log_tree=True, the ACLs will be logged in a tree format. Additionally,
+            When `log_tree=True`, the ACLs will be logged in a tree format. Additionally,
             the `ascii_tree` attribute of the AclListResult will contain the ASCII tree
             representation of the ACLs.
 
@@ -937,14 +951,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             if acl_tasks:
                 acl_results = await asyncio.gather(*acl_tasks)
                 for entity, entity_acl in zip(entities_for_acl, acl_results):
-                    if not isinstance(entity_acl, Exception) and entity_acl:
-                        all_acls[entity.id] = entity_acl
-                    elif isinstance(entity_acl, Exception):
-                        client.logger.warning(
-                            f"Failed to get ACL for entity {entity.id}: {str(entity_acl)}"
-                        )
-
-        acl_result = AclListResult.from_dict(all_acls)
+                    all_acls[entity.id] = entity_acl
+        current_acl = all_acls.get(self.id)
+        acl_result = AclListResult.from_dict(
+            all_acl_dict=all_acls, current_acl_dict=current_acl
+        )
 
         if log_tree:
             logged_tree = await self._log_acl_tree(acl_result, all_entities, client)
@@ -1255,7 +1266,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 if e.response.status_code != 404:
                     raise
 
-        return AclListResult(entity_acls=list(entity_acls.values()))
+        return AclListResult(all_entity_acls=list(entity_acls.values()))
 
     async def _fetch_user_group_info_from_tree(
         self, tree_structure: Dict[str, Any], synapse_client: "Synapse"
@@ -1909,7 +1920,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             entities: List of entity objects that have been processed.
             client: The Synapse client instance for API calls and logging.
         """
-        if not acl_result or not acl_result.entity_acls:
+        if not acl_result or not acl_result.all_entity_acls:
             client.logger.info("No ACL results to display in tree format.")
             return
 
@@ -1943,7 +1954,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         children_map = {}
         all_entity_ids = set()
 
-        for entity_acl in acl_result.entity_acls:
+        for entity_acl in acl_result.all_entity_acls:
             if entity_acl.entity_id:
                 all_entity_ids.add(entity_acl.entity_id)
 
@@ -1964,7 +1975,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     "acl": next(
                         (
                             acl
-                            for acl in acl_result.entity_acls
+                            for acl in acl_result.all_entity_acls
                             if acl.entity_id == entity_id
                         ),
                         None,
@@ -1978,7 +1989,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     "acl": next(
                         (
                             acl
-                            for acl in acl_result.entity_acls
+                            for acl in acl_result.all_entity_acls
                             if acl.entity_id == entity_id
                         ),
                         None,

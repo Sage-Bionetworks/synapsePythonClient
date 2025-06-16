@@ -522,7 +522,7 @@ class Synapse(object):
         self._requests_session_async_synapse.update(
             {
                 asyncio_event_loop: httpx.AsyncClient(
-                    limits=httpx.Limits(max_connections=25),
+                    limits=httpx.Limits(max_connections=5),
                     timeout=httpx_timeout,
                 )
             }

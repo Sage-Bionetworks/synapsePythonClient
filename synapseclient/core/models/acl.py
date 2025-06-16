@@ -67,10 +67,13 @@ class EntityAcl:
             entity_acl = EntityAcl.from_dict("syn123", acl_data)
             ```
         """
-        acl_entries = [
-            AclEntry(principal_id=principal_id, permissions=permissions)
-            for principal_id, permissions in acl_dict.items()
-        ]
+        if acl_dict:
+            acl_entries = [
+                AclEntry(principal_id=principal_id, permissions=permissions)
+                for principal_id, permissions in acl_dict.items()
+            ]
+        else:
+            acl_entries = []
         return cls(entity_id=entity_id, acl_entries=acl_entries)
 
     def to_dict(self) -> Dict[str, List[str]]:
@@ -100,18 +103,37 @@ class AclListResult:
     accessing and manipulating ACL data across the entire result set.
 
     Attributes:
-        entity_acls: List of EntityAcl objects, each representing the ACL for one entity.
+        all_entity_acls: List of EntityAcl objects, each representing the ACL for
+            one entity. This concept is used to encapsulate the ACLs for multiple entities
+            in a single result object such as when listing ACLs for a project
+            or folder.
+        entity_acl: List of AclEntry objects, each representing the ACL for the
+            entity that the data was read for. This is a convenience attribute
+            that provides a flat list of ACL entries for the primary entity
+            being queried, useful when only one entity's ACL is needed.
     """
 
-    entity_acls: List[EntityAcl] = field(default_factory=list)
-    """List of EntityAcl objects, each representing the ACL for one entity."""
+    all_entity_acls: List[EntityAcl] = field(default_factory=list)
+    """List of EntityAcl objects, each representing the ACL for one entity.
+    This is used to encapsulate the ACLs for multiple entities in a single result
+    object such as when listing ACLs for a project or folder."""
+
+    entity_acl: List[AclEntry] = field(default_factory=list)
+    """List of AclEntry objects, each representing the ACL for the
+    entity that the data was read for. This is a convenience attribute
+    that provides a flat list of ACL entries for the primary entity
+    being queried, useful when only one entity's ACL is needed."""
 
     ascii_tree: Optional[str] = None
     """Optional ASCII tree representation of the ACLs. This is only populated when
     `log_tree` is set to True when calling `list_acl_async`."""
 
     @classmethod
-    def from_dict(cls, acl_dict: Dict[str, Dict[str, List[str]]]) -> "AclListResult":
+    def from_dict(
+        cls,
+        current_acl_dict: Dict[str, List[str]],
+        all_acl_dict: Dict[str, Dict[str, List[str]]],
+    ) -> "AclListResult":
         """
         Create an AclListResult from the nested dictionary format returned by the API.
 
@@ -134,9 +156,17 @@ class AclListResult:
         """
         entity_acls = [
             EntityAcl.from_dict(entity_id, entity_acl_dict)
-            for entity_id, entity_acl_dict in acl_dict.items()
+            for entity_id, entity_acl_dict in all_acl_dict.items()
         ]
-        return cls(entity_acls=entity_acls)
+        if current_acl_dict:
+            entity_acl = [
+                AclEntry(principal_id=principal_id, permissions=permissions)
+                for principal_id, permissions in current_acl_dict.items()
+            ]
+        else:
+            entity_acl = []
+
+        return cls(all_entity_acls=entity_acls, entity_acl=entity_acl)
 
     def to_dict(self) -> Dict[str, Dict[str, List[str]]]:
         """
@@ -156,5 +186,5 @@ class AclListResult:
         """
         return {
             entity_acl.entity_id: entity_acl.to_dict()
-            for entity_acl in self.entity_acls
+            for entity_acl in self.all_entity_acls
         }

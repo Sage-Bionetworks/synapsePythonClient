@@ -182,7 +182,15 @@ class AccessControllableSynchronousProtocol(Protocol):
         synapse_client: Optional[Synapse] = None,
     ) -> None:
         """
-        Delete the Access Control List (ACL) for a given Entity.
+        Delete the entire Access Control List (ACL) for a given Entity. This is not
+        scoped to a specific user or group, but rather removes all permissions
+        associated with the Entity. After this operation, the Entity will inherit
+        permissions from its benefactor, which is typically its parent entity or
+        the Project it belongs to.
+
+        In order to remove permissions for a specific user or group, you
+        should use the `set_permissions` method with the `access_type` set to
+        an empty list.
 
         By default, Entities such as FileEntity and Folder inherit their permission from
         their containing Project. For such Entities the Project is the Entity's 'benefactor'.
@@ -206,7 +214,7 @@ class AccessControllableSynchronousProtocol(Protocol):
                 recursively process child containers. Note that this must be used with
                 include_container_content=True to have any effect. Setting recursive=True
                 with include_container_content=False will raise a ValueError.
-                Only works on classes that support the `sync_from_synapse` method.
+                Only works on classes that support the `sync_from_synapse_async` method.
             target_entity_types: Specify which entity types to process when deleting ACLs.
                 Allowed values are "folder" and "file" (case-insensitive).
                 If None, defaults to ["folder", "file"]. This does not affect the
@@ -328,7 +336,7 @@ class AccessControllableSynchronousProtocol(Protocol):
                 recursively process child containers. Note that this must be used with
                 include_container_content=True to have any effect. Setting recursive=True
                 with include_container_content=False will raise a ValueError.
-                Only works on classes that support the `sync_from_synapse` method.
+                Only works on classes that support the `sync_from_synapse_async` method.
             include_container_content: If True, include ACLs from contents directly within
                 containers (files and folders inside self). This must be set to
                 True for recursive to have any effect. Defaults to False.
@@ -365,12 +373,15 @@ class AccessControllableSynchronousProtocol(Protocol):
             print(acl_result)
 
             # Access entity ACLs (entity_acls is a list, not a dict)
-            for entity_acl in acl_result.entity_acls:
+            for entity_acl in acl_result.all_entity_acls:
                 if entity_acl.entity_id == "syn123":
                     # Access individual ACL entries
                     for acl_entry in entity_acl.acl_entries:
                         if acl_entry.principal_id == "273948":
                             print(f"Principal 273948 has permissions: {acl_entry.permissions}")
+
+            # I can also access the ACL for the file itself
+            print(acl_result.entity_acl)
 
             print(acl_result)
 
@@ -390,8 +401,11 @@ class AccessControllableSynchronousProtocol(Protocol):
             )
 
             # Access each entity's ACL (entity_acls is a list)
-            for entity_acl in acl_result.entity_acls:
+            for entity_acl in acl_result.all_entity_acls:
                 print(f"Entity {entity_acl.entity_id} has ACL with {len(entity_acl.acl_entries)} principals")
+
+            # I can also access the ACL for the folder itself
+            print(acl_result.entity_acl)
 
             # List ACLs for only folder entities
             folder_acl_result = Folder(id="syn123").list_acl(
@@ -402,7 +416,7 @@ class AccessControllableSynchronousProtocol(Protocol):
             ```
 
         Example: List ACLs with ASCII tree visualization
-            When log_tree=True, the ACLs will be logged in a tree format. Additionally,
+            When `log_tree=True`, the ACLs will be logged in a tree format. Additionally,
             the `ascii_tree` attribute of the AclListResult will contain the ASCII tree
             representation of the ACLs.
 

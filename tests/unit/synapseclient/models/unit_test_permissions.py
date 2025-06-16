@@ -761,9 +761,9 @@ class TestListAclAsyncComprehensive:
 
         # AND result should be AclListResult
         assert isinstance(result, AclListResult)
-        assert len(result.entity_acls) == 1
+        assert len(result.all_entity_acls) == 1
 
-        entity_acl = result.entity_acls[0]
+        entity_acl = result.all_entity_acls[0]
         assert entity_acl.entity_id == "syn123"
         assert len(entity_acl.acl_entries) == 2
 
@@ -796,7 +796,7 @@ class TestListAclAsyncComprehensive:
 
         # THEN result should be empty but valid
         assert isinstance(result, AclListResult)
-        assert len(result.entity_acls) == 0
+        assert len(result.all_entity_acls) == 0
 
         # AND debug log should be generated
         self.synapse_client.logger.debug.assert_called_once()
@@ -816,9 +816,9 @@ class TestListAclAsyncComprehensive:
 
         # THEN result should be valid but empty
         assert isinstance(result, AclListResult)
-        assert len(result.entity_acls) == 1
+        assert len(result.all_entity_acls) == 1
 
-        entity_acl = result.entity_acls[0]
+        entity_acl = result.all_entity_acls[0]
         assert entity_acl.entity_id == "syn123"
         assert len(entity_acl.acl_entries) == 0
 
@@ -1074,7 +1074,7 @@ class TestListAclAsyncComprehensive:
         assert isinstance(result, AclListResult)
 
         # AND result should contain ACLs for the expected entities
-        assert len(result.entity_acls) > 0
+        assert len(result.all_entity_acls) > 0
 
     async def test_list_acl_error_handling(self):
         """Test error handling during ACL listing."""
@@ -1119,9 +1119,9 @@ class TestListAclAsyncComprehensive:
 
         # THEN result should still be created without user info
         assert isinstance(result, AclListResult)
-        assert len(result.entity_acls) == 1
+        assert len(result.all_entity_acls) == 1
 
-        entity_acl = result.entity_acls[0]
+        entity_acl = result.all_entity_acls[0]
         assert len(entity_acl.acl_entries) == 1
         assert entity_acl.acl_entries[0].principal_id == "123"
 
@@ -1187,9 +1187,9 @@ class TestListAclAsyncComprehensive:
 
         # THEN result should contain all permission combinations
         assert isinstance(result, AclListResult)
-        assert len(result.entity_acls) == 1
+        assert len(result.all_entity_acls) == 1
 
-        entity_acl = result.entity_acls[0]
+        entity_acl = result.all_entity_acls[0]
         assert len(entity_acl.acl_entries) == 4
 
         # Verify permissions are correctly parsed

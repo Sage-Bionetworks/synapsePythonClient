@@ -418,7 +418,7 @@ async def get_entity_acl(
     entity_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-):
+) -> Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]]:
     """
     Get the Access Control List (ACL) for an entity.
 
