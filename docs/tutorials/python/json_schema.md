@@ -29,7 +29,7 @@ By the end of this tutorial, you will:
 
 ## Step 2: Take a look at the constants and structure of the JSON schema
 
-For the purpose of this tutorial, an organization named "myUniqueAlzheimersResearchOrgTutorial" has been created, and within it, a schema named clinicalObservations has been registered.
+For the purpose of this tutorial, an organization named `myUniqueAlzheimersResearchOrgTutorial` has been created, and within it, a schema named `clinicalObservations` has been registered.
 
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=23-49}
