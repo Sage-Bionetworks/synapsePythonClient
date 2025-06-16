@@ -21,13 +21,13 @@ By the end of this tutorial, you will:
 * You are familiar with [adding annotations](./annotation.md) to synapse entity.
 
 
-## Step 1: Set up Synapse Python client and retrieve project
+## 1. Set up Synapse Python client and retrieve project
 
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=1-20}
 ```
 
-## Step 2: Take a look at the constants and structure of the JSON schema
+## 2. Take a look at the constants and structure of the JSON schema
 
 For the purpose of this tutorial, an organization named `myUniqueAlzheimersResearchOrgTutorial` has been created, and within it, a schema named `clinicalObservations` has been registered.
 
@@ -38,13 +38,13 @@ For the purpose of this tutorial, an organization named `myUniqueAlzheimersResea
 Derived annotations allow you to define default values for annotations based on schema rules, ensuring consistency and reducing manual input errors. As you can see here, you could use derived annotations to prescribe default annotation values. Please read more about derived annotations [here](https://help.synapse.org/docs/JSON-Schemas.3107291536.html#JSONSchemas-DerivedAnnotations).
 
 
-## Step 3: Retrieve test organization
+## 3. Retrieve test organization
 Next, retrieve an organization:
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=51-54}
 ```
 
-## Step 4: Bind the JSON schema to the folder
+## 4. Bind the JSON schema to the folder
 After retrieving the organization, you can now bind your json schema to a test folder. When you bind a JSON Schema to a project or folder, then all items inside of the project or folder will inherit the schema binding, unless the item has a schema bound to itself.
 
 When you bind the schema, you may also include the boolean property `enable_derived_annos` to have Synapse automatically calculate derived annotations based on the schema:
@@ -53,13 +53,13 @@ When you bind the schema, you may also include the boolean property `enable_deri
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=56-63}
 ```
 
-## Step 5: Retrieve the Bound Schema
+## 5. Retrieve the Bound Schema
 Next, we can retrieve the bound schema:
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=65-67}
 ```
 
-## Step 6: Add Invalid Annotations to the Folder and Store
+## 6. Add Invalid Annotations to the Folder and Store
 Try adding invalid annotations to your folder: This step and the step below demonstrate how the system handles invalid annotations and how the schema validation process works.
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=70-76}
@@ -70,13 +70,13 @@ In the synapse web UI, you could also see your invalid annotations being marked 
 ![json_schema](./tutorial_screenshots/jsonschema_folder.png)
 
 
-## Step 7: Validate Folder Against the Schema
+## 7. Validate Folder Against the Schema
 Try validating the folder. You should be able to see messages related to invalid annotations.
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=79-81}
 ```
 
-## Step 8: Create a File with Invalid Annotations and Upload It
+## 8. Create a File with Invalid Annotations and Upload It
 Try creating a test file locally and store the file in the folder that we created earlier. Then, try adding invalid annotations to a file. This step demonstrates how the files inside a folder also inherit the schema from the parent entity.
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=84-111}
@@ -86,13 +86,13 @@ In the synapse web UI, you could also see your invalid annotations being marked 
 
 ![jsonschema](./tutorial_screenshots/jsonschema_file.png)
 
-## Step 9: View Validation Statistics
+## 9. View Validation Statistics
 This step is only relevant for container entities, such as a folder or a project. Using this function could provide you with information such as the number of children with invalid annotations inside a container.
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=113-115}
 ```
 
-## Step 10: View Invalid Validation Results
+## 10. View Invalid Validation Results
 This step is also only relevant for container entities, such as a folder or a project. Using this function allows you to see more detailed results of all the children inside a container, which includes all validation messages and validation exception details.
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=118-122}
