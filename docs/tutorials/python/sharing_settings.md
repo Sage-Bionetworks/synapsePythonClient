@@ -277,7 +277,7 @@ Sub-folder now inherits permissions: []
 Get a complete view of your permission structure:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=168-173}
+{!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=168-172}
 ```
 
 <details class="example">
