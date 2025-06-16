@@ -4273,112 +4273,116 @@ class TestUserAgent:
                 "User-Agent"
             ] == self.user_agent_httpx["User-Agent"] + " " + " ".join(user_agent)
 
+    class TestRestGetPaginatedAsync:
+        @pytest.fixture(autouse=True, scope="function")
+        def init_syn(self, syn: Synapse) -> None:
+            self.syn = syn
 
-class TestRestGetPaginatedAsync:
-    @pytest.fixture(autouse=True, scope="function")
-    def init_syn(self, syn: Synapse) -> None:
-        self.syn = syn
-
-    async def test_rest_get_paginated_async_with_results(self) -> None:
-        # Mock the rest_get_async method to return paginated results
-        mock_responses = [
-            {"results": [{"id": 1}, {"id": 2}, {"id": 3}]},
-            {"results": [{"id": 4}, {"id": 5}]},
-            {"results": []},
-        ]
-        with patch.object(
-            self.syn, "rest_get_async", return_value=mock_responses
-        ) as mock_rest_get:
-            # Test the paginated get
-            results = []
-            async for result in self.syn.rest_get_paginated_async("/test/uri", limit=3):
-                results.append(result)
-
-            # Verify results
-            assert len(results) == 5
-            assert [r["id"] for r in results] == [1, 2, 3, 4, 5]
-
-            # Verify rest_get_async was called with correct parameters
-            assert mock_rest_get.call_count == 3
-            call_list = [
-                call(uri="/test/uri", params={"offset": 0, "limit": 3}),
-                call(uri="/test/uri", params={"offset": 3, "limit": 3}),
-                call(uri="/test/uri", params={"offset": 6, "limit": 3}),
+        async def test_rest_get_paginated_async_with_results(self) -> None:
+            # Mock the rest_get_async method to return paginated results
+            mock_responses = [
+                {"results": [{"id": 1}, {"id": 2}, {"id": 3}]},
+                {"results": [{"id": 4}, {"id": 5}]},
+                {"results": []},
             ]
-            mock_rest_get.assert_has_calls(call_list)
 
-    async def test_rest_get_paginated_async_with_children(self) -> None:
-        # Mock the rest_get_async method to return paginated results with "children" key
-        mock_responses = [
-            {"children": [{"id": 1}, {"id": 2}]},
-            {"children": [{"id": 3}]},
-            {"children": []},
-        ]
+            with patch.object(
+                self.syn, "rest_get_async", side_effect=mock_responses
+            ) as mock_rest_get:
+                # Test the paginated get
+                results = []
+                async for result in self.syn.rest_get_paginated_async(
+                    "/test/uri", limit=3
+                ):
+                    results.append(result)
 
-        with patch.object(
-            self.syn, "rest_get_async", return_value=mock_responses
-        ) as mock_rest_get:
-            # Test the paginated get
-            results = []
-            async for result in self.syn.rest_get_paginated_async("/test/uri", limit=2):
-                results.append(result)
+                # Verify results
+                assert len(results) == 5
+                assert [r["id"] for r in results] == [1, 2, 3, 4, 5]
 
-            # Verify results
-            assert len(results) == 3
-            assert [r["id"] for r in results] == [1, 2, 3]
+                # Verify rest_get_async was called with correct parameters
+                assert mock_rest_get.call_count == 3
+                call_list = [
+                    call(uri="/test/uri", params={"offset": 0, "limit": 3}),
+                    call(uri="/test/uri", params={"offset": 3, "limit": 3}),
+                    call(uri="/test/uri", params={"offset": 5, "limit": 3}),
+                ]
+                mock_rest_get.assert_has_calls(call_list)
 
-            # Verify rest_get_async was called with correct parameters
-            assert mock_rest_get.call_count == 3
-            call_list = [
-                call(uri="/test/uri", params={"offset": 0, "limit": 2}),
-                call(uri="/test/uri", params={"offset": 2, "limit": 2}),
-                call(uri="/test/uri", params={"offset": 4, "limit": 2}),
+        async def test_rest_get_paginated_async_with_children(self) -> None:
+            # Mock the rest_get_async method to return paginated results with "children" key
+            mock_responses = [
+                {"children": [{"id": 1}, {"id": 2}]},
+                {"children": [{"id": 3}]},
+                {"children": []},
             ]
-            mock_rest_get.assert_has_calls(call_list)
 
-    async def test_rest_get_paginated_async_empty_response(self) -> None:
-        # Mock the rest_get_async method to return empty results immediately
-        with patch.object(
-            self.syn, "rest_get_async", return_value={"results": []}
-        ) as mock_rest_get:
-            # Test the paginated get
-            results = []
-            async for result in self.syn.rest_get_paginated_async("/test/uri"):
-                results.append(result)
+            with patch.object(
+                self.syn, "rest_get_async", side_effect=mock_responses
+            ) as mock_rest_get:
+                # Test the paginated get
+                results = []
+                async for result in self.syn.rest_get_paginated_async(
+                    "/test/uri", limit=2
+                ):
+                    results.append(result)
 
-            # Verify no results were returned
-            assert len(results) == 0
+                # Verify results
+                assert len(results) == 3
+                assert [r["id"] for r in results] == [1, 2, 3]
 
-            # Verify rest_get_async was called once with default parameters
-            mock_rest_get.assert_called_once_with(
-                uri="/test/uri", params={"offset": 0, "limit": 20}
-            )
+                # Verify rest_get_async was called with correct parameters
+                assert mock_rest_get.call_count == 3
+                call_list = [
+                    call(uri="/test/uri", params={"offset": 0, "limit": 2}),
+                    call(uri="/test/uri", params={"offset": 2, "limit": 2}),
+                    call(uri="/test/uri", params={"offset": 3, "limit": 2}),
+                ]
+                mock_rest_get.assert_has_calls(call_list)
 
-    async def test_rest_get_paginated_async_custom_limit(self) -> None:
-        # Mock the rest_get_async method to return paginated results
-        mock_responses = [
-            {"results": [{"id": 1}, {"id": 2}]},
-            {"results": []},
-        ]
+        async def test_rest_get_paginated_async_empty_response(self) -> None:
+            # Mock the rest_get_async method to return empty results immediately
+            with patch.object(
+                self.syn, "rest_get_async", return_value={"results": []}
+            ) as mock_rest_get:
+                # Test the paginated get
+                results = []
+                async for result in self.syn.rest_get_paginated_async("/test/uri"):
+                    results.append(result)
 
-        with patch.object(
-            self.syn, "rest_get_async", return_value=mock_responses
-        ) as mock_rest_get:
-            # Test the paginated get with custom limit
-            results = []
-            async for result in self.syn.rest_get_paginated_async(
-                "/test/uri", limit=2, offset=5
-            ):
-                results.append(result)
+                # Verify no results were returned
+                assert len(results) == 0
 
-            # Verify results
-            assert len(results) == 2
-            assert [r["id"] for r in results] == [1, 2]
+                # Verify rest_get_async was called once with default parameters
+                mock_rest_get.assert_called_once_with(
+                    uri="/test/uri", params={"offset": 0, "limit": 20}
+                )
 
-            # Verify rest_get_async was called with correct parameters
-            assert mock_rest_get.call_count == 2
-            call_list = [
-                call(uri="/test/uri", params={"offset": 5, "limit": 2}),
-                call(uri="/test/uri", params={"offset": 7, "limit": 2}),
+        async def test_rest_get_paginated_async_custom_limit(self) -> None:
+            # Mock the rest_get_async method to return paginated results
+            mock_responses = [
+                {"results": [{"id": 1}, {"id": 2}]},
+                {"results": []},
             ]
-            mock_rest_get.assert_has_calls(call_list)
+
+            with patch.object(
+                self.syn, "rest_get_async", side_effect=mock_responses
+            ) as mock_rest_get:
+                # Test the paginated get with custom limit
+                results = []
+                async for result in self.syn.rest_get_paginated_async(
+                    "/test/uri", limit=2, offset=5
+                ):
+                    results.append(result)
+
+                # Verify results
+                assert len(results) == 2
+                assert [r["id"] for r in results] == [1, 2]
+
+                # Verify rest_get_async was called with correct parameters
+                assert mock_rest_get.call_count == 2
+                call_list = [
+                    call(uri="/test/uri", params={"offset": 5, "limit": 2}),
+                    call(uri="/test/uri", params={"offset": 7, "limit": 2}),
+                ]
+                mock_rest_get.assert_has_calls(call_list)
