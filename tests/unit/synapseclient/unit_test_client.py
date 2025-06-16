@@ -4312,7 +4312,7 @@ class TestRestGetPaginatedAsync:
         mock_responses = [
             {"children": [{"id": 1}, {"id": 2}]},
             {"children": [{"id": 3}]},
-            {"children": []},  # Empty results to end pagination
+            {"children": []},
         ]
 
         with patch.object(
@@ -4358,7 +4358,7 @@ class TestRestGetPaginatedAsync:
         # Mock the rest_get_async method to return paginated results
         mock_responses = [
             {"results": [{"id": 1}, {"id": 2}]},
-            {"results": []},  # Empty results to end pagination
+            {"results": []},
         ]
 
         with patch.object(
