@@ -447,7 +447,7 @@ class TestAcl:
             access_type=["READ", "DOWNLOAD"],
         )
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # THEN listing permissions should show all set permissions
         # Check team permissions
@@ -480,7 +480,7 @@ class TestAcl:
         # WHEN deleting specific permissions for the team
         table.set_permissions(principal_id=team.id, access_type=[])
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # THEN team should no longer have permissions
         team_acl_after_delete = table.get_acl(principal_id=team.id)
@@ -532,7 +532,7 @@ class TestAcl:
             access_type=limited_user_permissions,
         )
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # THEN listing permissions should reflect all changes
         # Verify team permissions
@@ -558,7 +558,7 @@ class TestAcl:
         # WHEN deleting authenticated users permissions
         entity_view.set_permissions(principal_id=AUTHENTICATED_USERS, access_type=[])
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # THEN authenticated users should lose permissions
         auth_acl_after = entity_view.get_acl(principal_id=AUTHENTICATED_USERS)
@@ -616,7 +616,7 @@ class TestAcl:
             access_type=user_direct_permissions,
         )
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # THEN listing permissions should show proper aggregation
         # Check individual team permissions
@@ -929,7 +929,7 @@ class TestDeletePermissions:
         self, entity: Union[File, Folder, Project]
     ) -> None:
         """Helper to verify that permissions have been deleted (entity inherits from parent)."""
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         acl = entity.get_acl(principal_id=AUTHENTICATED_USERS, check_benefactor=False)
 
@@ -941,7 +941,7 @@ class TestDeletePermissions:
         self, entity: Union[File, Folder, Project]
     ) -> None:
         """Helper to verify that permissions are still set on an entity."""
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
         acl = entity.get_acl(principal_id=AUTHENTICATED_USERS, check_benefactor=False)
         assert "READ" in acl
         return True
@@ -956,7 +956,7 @@ class TestDeletePermissions:
         log_tree: bool = True,
     ) -> AclListResult:
         """Helper to verify list_acl functionality and return results."""
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
         acl_result = entity.list_acl(
             recursive=recursive,
             include_container_content=include_container_content,
@@ -1299,7 +1299,7 @@ class TestDeletePermissions:
 
         # AND custom permissions are set for authenticated users
         await self._set_custom_permissions(project)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN I delete permissions on the project
         project.delete_permissions()
@@ -1329,7 +1329,7 @@ class TestDeletePermissions:
         # Set permissions on all entities
         await self._set_custom_permissions(folder_a)
         await self._set_custom_permissions(file_1)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1366,7 +1366,7 @@ class TestDeletePermissions:
         # Set permissions on all entities
         for entity in structure.values():
             await self._set_custom_permissions(entity)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1407,7 +1407,7 @@ class TestDeletePermissions:
         entities_to_set = folders + all_files + [root_file]
         for entity in entities_to_set:
             await self._set_custom_permissions(entity)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1459,7 +1459,7 @@ class TestDeletePermissions:
 
         for entity in entities_to_set:
             await self._set_custom_permissions(entity)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1497,7 +1497,7 @@ class TestDeletePermissions:
         )
         self.schedule_for_cleanup(empty_folder.id)
         await self._set_custom_permissions(empty_folder)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion (empty folder)
         await self._verify_list_acl_functionality(
@@ -1541,7 +1541,7 @@ class TestDeletePermissions:
         # Set permissions on all entities
         await self._set_custom_permissions(folder)
         await self._set_custom_permissions(file)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1595,7 +1595,7 @@ class TestDeletePermissions:
         entities_to_set = [parent_folder] + sub_folders
         for entity in entities_to_set:
             await self._set_custom_permissions(entity)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1636,7 +1636,7 @@ class TestDeletePermissions:
         await self._set_custom_permissions(structure["sub_deep"])
         for file in structure["deep_files"]:
             await self._set_custom_permissions(file)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async with target_entity_types for files only
         await self._verify_list_acl_functionality(
@@ -1684,7 +1684,7 @@ class TestDeletePermissions:
         # Set permissions on all entities
         for entity in structure.values():
             await self._set_custom_permissions(entity)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async with include_container_content=True
         await self._verify_list_acl_functionality(
@@ -1733,7 +1733,7 @@ class TestDeletePermissions:
             await self._set_custom_permissions(folder)
         for file in structure["mixed_files"]:
             await self._set_custom_permissions(file)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion (should show all entities)
         await self._verify_list_acl_functionality(
@@ -1785,7 +1785,7 @@ class TestDeletePermissions:
         # Set permissions on all entities
         await self._set_custom_permissions(folder_a)
         await self._set_custom_permissions(file_1)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before dry run
         initial_acl_result = await self._verify_list_acl_functionality(
@@ -1849,7 +1849,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(structure["sub_deep"]),
             self._set_custom_permissions(structure["deep_files"][0]),
         )
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async with detailed logging before dry run
         await self._verify_list_acl_functionality(
@@ -1922,7 +1922,7 @@ class TestDeletePermissions:
         entities_to_set = [large_folder] + files
         for entity in entities_to_set:
             await self._set_custom_permissions(entity)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async performance with large structure
         await self._verify_list_acl_functionality(
@@ -2012,7 +2012,7 @@ class TestDeletePermissions:
         # Set permissions on all entities
         for entity in all_entities:
             await self._set_custom_permissions(entity)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before deletion (complex multiple branches)
         await self._verify_list_acl_functionality(
@@ -2079,7 +2079,7 @@ class TestDeletePermissions:
         await self._set_custom_permissions(branch_b)
         await self._set_custom_permissions(file_a)
         await self._set_custom_permissions(file_b)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before selective deletion
         await self._verify_list_acl_functionality(
@@ -2125,7 +2125,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(structure["deep_files"][1]),
             self._set_custom_permissions(structure["mixed_sub_folders"][0]),
         )
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async with mixed entity types
         await self._verify_list_acl_functionality(
@@ -2177,7 +2177,7 @@ class TestDeletePermissions:
         # Set permissions on both entities
         await self._set_custom_permissions(parent_folder)
         await self._set_custom_permissions(child_file)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async before testing container content exclusion
         await self._verify_list_acl_functionality(
@@ -2218,7 +2218,7 @@ class TestDeletePermissions:
         # Set permissions on all entities
         await self._set_custom_permissions(folder_a)
         await self._set_custom_permissions(file_1)
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # WHEN - Verify list_acl_async with case-insensitive entity types
         await self._verify_list_acl_functionality(
