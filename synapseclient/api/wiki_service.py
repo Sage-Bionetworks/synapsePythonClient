@@ -8,8 +8,6 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
-import sys
-
 
 async def post_wiki(
     owner_id: str,
@@ -195,19 +193,13 @@ async def get_wiki_header_tree(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    prev_num_results = sys.maxsize
-    while prev_num_results > 0:
-        params = {"offset": offset, "limit": limit}
-        page = await client.rest_get_async(
-            uri=f"/entity/{owner_id}/wikiheadertree2",
-            params=params,
-        )
-        results = page["results"] if "results" in page else page["children"]
-        prev_num_results = len(results)
+    response = client.rest_get_paginated_async(
+        uri=f"/entity/{owner_id}/wikiheadertree2",
+        limit=limit,
+        offset=offset,
+    )
 
-        for result in results:
-            offset += 1
-            yield result
+    return response
 
 
 async def get_wiki_history(
@@ -240,11 +232,12 @@ async def get_wiki_history(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    params = {"offset": offset, "limit": limit}
-    return await client.rest_get_async(
+    response = client.rest_get_paginated_async(
         uri=f"/entity/{owner_id}/wiki2/{wiki_id}/wikihistory",
-        params=params,
+        limit=limit,
+        offset=offset,
     )
+    return response
 
 
 async def get_attachment_handles(
