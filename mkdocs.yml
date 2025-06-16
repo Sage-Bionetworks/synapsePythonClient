@@ -47,8 +47,8 @@ nav:
         # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
       - Working with the Command Line Client: tutorials/command_line_client.md
       - Working with file versioning: tutorials/file_versioning.md
-      - Working with tables: tutorials/
-      - Working with JSON Schema: tutorials/json_schema.md
+      - Working with tables: tutorials/python/table.md
+      - Working with JSON Schema: tutorials/python/json_schema.md
       - Synapseclient with R through reticulate: tutorials/reticulate.md
   - How-To Guides:
       - Home: guides/home.md
