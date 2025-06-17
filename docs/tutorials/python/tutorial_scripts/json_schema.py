@@ -3,9 +3,10 @@ import time
 from pprint import pprint
 
 import synapseclient
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import File, Folder
 
-# Step 1: Set up Synapse Python client and retrieve project
+# 1. Set up Synapse Python client and retrieve project
 syn = synapseclient.Synapse(debug=True)
 syn.login()
 
@@ -18,8 +19,7 @@ PROJECT_ID = syn.findEntityId(
 # Create a test folder for JSON schema experiments
 test_folder = Folder(name="clinical_data_folder", parent_id=PROJECT_ID).store()
 
-# Step 2: Take a look at the constants and structure of the JSON schema
-# For this example, a test organization and schema are already created
+# 2. Take a look at the constants and structure of the JSON schema
 ORG_NAME = "myUniqueAlzheimersResearchOrgTurtorial"
 VERSION = "0.0.1"
 SCHEMA_NAME = "clinicalObservations"
@@ -47,12 +47,23 @@ schema = {
     },
 }
 
-# Step 3: Retrieve test organization
+# 3. Try create test organization and json schema if they do not exist
 js = syn.service("json_schema")
-# Retrieve test organizations
+try:
+    my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+except SynapseHTTPError as e:
+    if e.response.status_code == 404:
+        my_test_org = js.create_organization(ORG_NAME)
+
 my_test_org = js.JsonSchemaOrganization(ORG_NAME)
 
-# Step 4: Bind the JSON schema to the folder
+try:
+    my_test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+except SynapseHTTPError as e:
+    if e.response.status_code == 404:
+        my_test_schema = my_test_org.create_json_schema(schema, SCHEMA_NAME, VERSION)
+
+# 4. Bind the JSON schema to the folder
 schema_uri = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
 bound_schema = test_folder.bind_schema(
     json_schema_uri=schema_uri, enable_derived_annos=True
@@ -61,12 +72,12 @@ json_schema_version_info = bound_schema.json_schema_version_info
 print("JSON schema was bound successfully. Please see details below:")
 pprint(vars(json_schema_version_info))
 
-# Step 5: Retrieve the Bound Schema
+# 5. Retrieve the Bound Schema
 schema = test_folder.get_schema()
 print("JSON Schema was retrieved successfully. Please see details below:")
 pprint(vars(schema))
 
-# Step 6: Add Invalid Annotations to the Folder and Store
+# 6. Add Invalid Annotations to the Folder and Store
 test_folder.annotations = {
     "patient_id": "1234",
     "cognitive_score": "invalid str",
@@ -75,12 +86,12 @@ test_folder.store()
 
 time.sleep(2)
 
-# Step 7: Validate Folder Against the Schema
 validation_results = test_folder.validate_schema()
 print("Validation was completed. Please see details below:")
 pprint(vars(validation_results))
 
-# Step 8: Create a File with Invalid Annotations and Upload It
+# 7. Create a File with Invalid Annotations and Upload It
+# Then, view validation statistics and invalid validation results
 if not os.path.exists(os.path.expanduser("~/temp")):
     os.makedirs(os.path.expanduser("~/temp/testJSONSchemaFiles"), exist_ok=True)
 
@@ -109,12 +120,10 @@ child_file = File(path=path_to_file, parent_id=test_folder.id, annotations=annot
 child_file = child_file.store()
 time.sleep(2)
 
-# Step 9: View Validation Statistics
 validation_statistics = test_folder.get_schema_validation_statistics()
 print("Validation statistics were retrieved successfully. Please see details below:")
 pprint(vars(validation_statistics))
 
-# Step 10: View Invalid Validation Results
 invalid_validation = test_folder.get_invalid_validation()
 for child in invalid_validation:
     print("See details of validation results: ")

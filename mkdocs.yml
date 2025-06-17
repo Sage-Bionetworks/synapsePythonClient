@@ -43,12 +43,12 @@ nav:
           # - Team: tutorials/python/team.md
           - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
           - Download data in bulk: tutorials/python/download_data_in_bulk.md
+          - Working with JSON Schema: tutorials/python/json_schema.md
         # - Move Files and Folders: tutorials/python/move_files_and_folders.md
         # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
       - Working with the Command Line Client: tutorials/command_line_client.md
       - Working with file versioning: tutorials/file_versioning.md
-      - Working with tables: tutorials/python/table.md
-      - Working with JSON Schema: tutorials/python/json_schema.md
+      - Working with tables: tutorials/tables.md
       - Synapseclient with R through reticulate: tutorials/reticulate.md
   - How-To Guides:
       - Home: guides/home.md

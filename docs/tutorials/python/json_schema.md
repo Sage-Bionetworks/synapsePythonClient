@@ -29,8 +29,6 @@ By the end of this tutorial, you will:
 
 ## 2. Take a look at the constants and structure of the JSON schema
 
-For the purpose of this tutorial, an organization named `myUniqueAlzheimersResearchOrgTutorial` has been created, and within it, a schema named `clinicalObservations` has been registered.
-
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=23-49}
 ```
@@ -38,65 +36,163 @@ For the purpose of this tutorial, an organization named `myUniqueAlzheimersResea
 Derived annotations allow you to define default values for annotations based on schema rules, ensuring consistency and reducing manual input errors. As you can see here, you could use derived annotations to prescribe default annotation values. Please read more about derived annotations [here](https://help.synapse.org/docs/JSON-Schemas.3107291536.html#JSONSchemas-DerivedAnnotations).
 
 
-## 3. Retrieve test organization
-Next, retrieve an organization:
+## 3. Try create test organization and json schema if they do not exist
+Next, try creating a test organization and register a schema if they do not already exist:
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=51-54}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=51-64}
 ```
 
 ## 4. Bind the JSON schema to the folder
-After retrieving the organization, you can now bind your json schema to a test folder. When you bind a JSON Schema to a project or folder, then all items inside of the project or folder will inherit the schema binding, unless the item has a schema bound to itself.
+After creating the organization, you can now bind your json schema to a test folder. When you bind a JSON Schema to a project or folder, then all items inside of the project or folder will inherit the schema binding, unless the item has a schema bound to itself.
 
 When you bind the schema, you may also include the boolean property `enable_derived_annos` to have Synapse automatically calculate derived annotations based on the schema:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=56-63}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=67-73}
 ```
+
+<details class="example">
+<summary>You should be able to see: </summary>
+```
+JSON schema was bound successfully. Please see details below:
+{'created_by': '<your synapse user id>',
+ 'created_on': '2025-06-13T21:46:37.457Z',
+ 'id': 'myUniqueAlzheimersResearchOrgTurtorial-clinicalObservations-0.0.1',
+ 'json_sha256_hex': 'f01270d61cf9a317b9f33a8acc1d86d330effc3548ad350c60d2a072de33f3fd',
+ 'organization_id': '571',
+ 'organization_name': 'myUniqueAlzheimersResearchOrgTurtorial',
+ 'schema_id': '5650',
+ 'schema_name': 'clinicalObservations',
+ 'semantic_version': '0.0.1',
+ 'version_id': '41294'}
+```
+</details>
 
 ## 5. Retrieve the Bound Schema
 Next, we can retrieve the bound schema:
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=65-67}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=76-78}
 ```
 
-## 6. Add Invalid Annotations to the Folder and Store
+<details class="example">
+<summary>You should be able to see: </summary>
+```
+JSON Schema was retrieved successfully. Please see details below:
+{'created_by': '3443707',
+'created_on': '2025-06-17T15:26:13.718Z',
+'enable_derived_annotations': True,
+'json_schema_version_info': JSONSchemaVersionInfo(
+  organization_id='571',
+  organization_name='myUniqueAlzheimersResearchOrgTurtorial',
+  schema_id='5650',
+  id='myUniqueAlzheimersResearchOrgTurtorial-clinicalObservations-0.0.1',
+  schema_name='clinicalObservations',
+  version_id='41294',
+  semantic_version='0.0.1',
+  json_sha256_hex='f01270d61cf9a317b9f33a8acc1d86d330effc3548ad350c60d2a072de33f3fd',
+  created_on='2025-06-13T21:46:37.457Z',
+  created_by='3443707'),
+'object_id': 68294149,
+'object_type': 'entity'}
+```
+  </details>
+
+## 6. Add Invalid Annotations to the Folder and Store, and Validate the Folder against the Schema
 Try adding invalid annotations to your folder: This step and the step below demonstrate how the system handles invalid annotations and how the schema validation process works.
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=70-76}
 ```
+
+Try validating the folder. You should be able to see messages related to invalid annotations.
+```python
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=81-91}
+```
+
+
+<details class="example">
+<summary>You should be able to see: </summary>
+```
+Validation was completed. Please see details below:
+{'all_validation_messages': ['#/cognitive_score: expected type: Integer, '
+                             'found: String'],
+ 'validation_error_message': 'expected type: Integer, found: String',
+ 'validation_exception': ValidationException(pointer_to_violation='#/cognitive_score',
+ message='expected type: Integer, '
+          'found: String',
+ schema_location='#/properties/cognitive_score',
+ causing_exceptions=[]),
+ 'validation_response': JSONSchemaValidation(object_id='syn68294149',
+ object_type='entity',
+ object_etag='251af76f-56d5-49a2-aada-c268f24d699d',
+ id='https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/myUniqueAlzheimersResearchOrgTurtorial-clinicalObservations-0.0.1',
+ is_valid=False,
+ validated_on='2025-06-17T15:26:14.878Z')}
+```
+</details>
 
 In the synapse web UI, you could also see your invalid annotations being marked by a yellow label similar to this:
 
 ![json_schema](./tutorial_screenshots/jsonschema_folder.png)
 
 
-## 7. Validate Folder Against the Schema
-Try validating the folder. You should be able to see messages related to invalid annotations.
-```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=79-81}
-```
+## 7. Create a File with Invalid Annotations, Upload It, and View Validation Details
 
-## 8. Create a File with Invalid Annotations and Upload It
+This step is only relevant for container entities, such as a folder or a project.
+
 Try creating a test file locally and store the file in the folder that we created earlier. Then, try adding invalid annotations to a file. This step demonstrates how the files inside a folder also inherit the schema from the parent entity.
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=84-111}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=95-121}
 ```
+
+You could then use `get_schema_validation_statistics` to get information such as the number of children with invalid annotations inside a container.
+```python
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=123-125}
+```
+
+
+<details class="example">
+<summary>You should be able to see: </summary>
+```
+Validation statistics were retrieved successfully. Please see details below:
+{'container_id': 'syn68294149',
+'number_of_invalid_children': 1,
+'number_of_unknown_children': 0,
+'number_of_valid_children': 0,
+'total_number_of_children': 1}
+```
+</details>
+
+
+You could also use `get_invalid_validation` to see more detailed results of all the children inside a container, which includes all validation messages and validation exception details.
+```python
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=127-130}
+```
+
+<details class="example">
+<summary>You should be able to see: </summary>
+```
+See details of validation results:
+{'all_validation_messages': ['#/cognitive_score: expected type: Integer, '
+                             'found: String'],
+ 'validation_error_message': 'expected type: Integer, found: String',
+ 'validation_exception': ValidationException(pointer_to_violation='#/   cognitive_score',
+ message='expected type: Integer, '
+          'found: String',
+ schema_location='#/properties/cognitive_score',
+  causing_exceptions=[]),
+'validation_response': JSONSchemaValidation(object_id='syn68294165',
+  object_type='entity',
+  object_etag='4ab1d39d-d1bf-45ac-92be-96ceee576d72',
+  id='https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/myUniqueAlzheimersResearchOrgTurtorial-clinicalObservations-0.0.1',
+  is_valid=False,
+  validated_on='2025-06-17T15:26:18.650Z')}
+```
+</details>
 
 In the synapse web UI, you could also see your invalid annotations being marked by a yellow label similar to this:
 
 ![jsonschema](./tutorial_screenshots/jsonschema_file.png)
 
-## 9. View Validation Statistics
-This step is only relevant for container entities, such as a folder or a project. Using this function could provide you with information such as the number of children with invalid annotations inside a container.
-```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=113-115}
-```
-
-## 10. View Invalid Validation Results
-This step is also only relevant for container entities, such as a folder or a project. Using this function allows you to see more detailed results of all the children inside a container, which includes all validation messages and validation exception details.
-```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=118-122}
-```
 
 ## Source Code for this Tutorial
 
