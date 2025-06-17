@@ -3,6 +3,8 @@ generated at runtime."""
 
 from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
 
+from tqdm import tqdm
+
 from synapseclient import Synapse
 
 if TYPE_CHECKING:
@@ -319,6 +321,7 @@ class AccessControllableSynchronousProtocol(Protocol):
         log_tree: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
+        _progress_bar: Optional[tqdm] = None,  # Internal parameter for recursive calls
     ) -> "AclListResult":
         """
         List the Access Control Lists (ACLs) for this entity and optionally its children.
@@ -349,6 +352,8 @@ class AccessControllableSynchronousProtocol(Protocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+            _progress_bar: Internal parameter. Progress bar instance to use for updates
+                when called recursively. Should not be used by external callers.
 
         Returns:
             An AclListResult object containing a structured representation of ACLs where:
