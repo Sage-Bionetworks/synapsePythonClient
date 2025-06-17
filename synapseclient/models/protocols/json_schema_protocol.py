@@ -120,7 +120,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
 
     def get_invalid_validation(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> Generator["InvalidJSONSchemaValidation", None]:
+    ) -> Generator["InvalidJSONSchemaValidation", None, None]:
         """
         Get invalid JSON schema validation results for a container entity.
 
