@@ -219,22 +219,22 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         json_schema_version = response.get("jsonSchemaVersionInfo", {})
         return JSONSchemaBinding(
             json_schema_version_info=JSONSchemaVersionInfo(
-                organization_id=json_schema_version.get("organizationId", ""),
-                organization_name=json_schema_version.get("organizationName", ""),
-                schema_id=json_schema_version.get("schemaId", ""),
-                id=json_schema_version.get("$id", ""),
-                schema_name=json_schema_version.get("schemaName", ""),
-                version_id=json_schema_version.get("versionId", ""),
-                semantic_version=json_schema_version.get("semanticVersion", ""),
-                json_sha256_hex=json_schema_version.get("jsonSHA256Hex", ""),
-                created_on=json_schema_version.get("createdOn", ""),
-                created_by=json_schema_version.get("createdBy", ""),
+                organization_id=json_schema_version.get("organizationId", None),
+                organization_name=json_schema_version.get("organizationName", None),
+                schema_id=json_schema_version.get("schemaId", None),
+                id=json_schema_version.get("$id", None),
+                schema_name=json_schema_version.get("schemaName", None),
+                version_id=json_schema_version.get("versionId", None),
+                semantic_version=json_schema_version.get("semanticVersion", None),
+                json_sha256_hex=json_schema_version.get("jsonSHA256Hex", None),
+                created_on=json_schema_version.get("createdOn", None),
+                created_by=json_schema_version.get("createdBy", None),
             ),
-            object_id=response.get("objectId", ""),
-            object_type=response.get("objectType", ""),
-            created_on=response.get("createdOn", ""),
-            created_by=response.get("createdBy", ""),
-            enable_derived_annotations=response.get("enableDerivedAnnotations", False),
+            object_id=response.get("objectId", None),
+            object_type=response.get("objectType", None),
+            created_on=response.get("createdOn", None),
+            created_by=response.get("createdBy", None),
+            enable_derived_annotations=response.get("enableDerivedAnnotations", None),
         )
 
     async def get_schema_async(
@@ -256,22 +256,24 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         json_schema_version_info = response.get("jsonSchemaVersionInfo", {})
         return JSONSchemaBinding(
             json_schema_version_info=JSONSchemaVersionInfo(
-                organization_id=json_schema_version_info.get("organizationId", ""),
-                organization_name=json_schema_version_info.get("organizationName", ""),
-                schema_id=json_schema_version_info.get("schemaId", ""),
-                id=json_schema_version_info.get("$id", ""),
-                schema_name=json_schema_version_info.get("schemaName", ""),
-                version_id=json_schema_version_info.get("versionId", ""),
-                semantic_version=json_schema_version_info.get("semanticVersion", ""),
-                json_sha256_hex=json_schema_version_info.get("jsonSHA256Hex", ""),
-                created_on=json_schema_version_info.get("createdOn", ""),
-                created_by=json_schema_version_info.get("createdBy", ""),
+                organization_id=json_schema_version_info.get("organizationId", None),
+                organization_name=json_schema_version_info.get(
+                    "organizationName", None
+                ),
+                schema_id=json_schema_version_info.get("schemaId", None),
+                id=json_schema_version_info.get("$id", None),
+                schema_name=json_schema_version_info.get("schemaName", None),
+                version_id=json_schema_version_info.get("versionId", None),
+                semantic_version=json_schema_version_info.get("semanticVersion", None),
+                json_sha256_hex=json_schema_version_info.get("jsonSHA256Hex", None),
+                created_on=json_schema_version_info.get("createdOn", None),
+                created_by=json_schema_version_info.get("createdBy", None),
             ),
-            object_id=response.get("objectId", ""),
-            object_type=response.get("objectType", ""),
-            created_on=response.get("createdOn", ""),
-            created_by=response.get("createdBy", ""),
-            enable_derived_annotations=response.get("enableDerivedAnnotations", False),
+            object_id=response.get("objectId", None),
+            object_type=response.get("objectType", None),
+            created_on=response.get("createdOn", None),
+            created_by=response.get("createdBy", None),
+            enable_derived_annotations=response.get("enableDerivedAnnotations", None),
         )
 
     async def delete_schema_async(
@@ -307,37 +309,39 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         if "validationException" in response:
             return InvalidJSONSchemaValidation(
                 validation_response=JSONSchemaValidation(
-                    object_id=response.get("objectId", ""),
-                    object_type=response.get("objectType", ""),
-                    object_etag=response.get("objectEtag", ""),
-                    id=response.get("schema$id", ""),
-                    is_valid=response.get("isValid", False),
-                    validated_on=response.get("validatedOn", ""),
+                    object_id=response.get("objectId", None),
+                    object_type=response.get("objectType", None),
+                    object_etag=response.get("objectEtag", None),
+                    id=response.get("schema$id", None),
+                    is_valid=response.get("isValid", None),
+                    validated_on=response.get("validatedOn", None),
                 ),
-                validation_error_message=response.get("validationErrorMessage", ""),
+                validation_error_message=response.get("validationErrorMessage", None),
                 all_validation_messages=response.get("allValidationMessages", []),
                 validation_exception=ValidationException(
                     pointer_to_violation=response.get("validationException", {}).get(
-                        "pointerToViolation", ""
+                        "pointerToViolation", None
                     ),
-                    message=response.get("validationException", {}).get("message", ""),
+                    message=response.get("validationException", {}).get(
+                        "message", None
+                    ),
                     schema_location=response.get("validationException", {}).get(
-                        "schemaLocation", ""
+                        "schemaLocation", None
                     ),
                     causing_exceptions=[
                         CausingException(
-                            keyword=ce.get("keyword", ""),
-                            pointer_to_violation=ce.get("pointerToViolation", ""),
-                            message=ce.get("message", ""),
-                            schema_location=ce.get("schemaLocation", ""),
+                            keyword=ce.get("keyword", None),
+                            pointer_to_violation=ce.get("pointerToViolation", None),
+                            message=ce.get("message", None),
+                            schema_location=ce.get("schemaLocation", None),
                             causing_exceptions=[
                                 CausingException(
-                                    keyword=nce.get("keyword", ""),
+                                    keyword=nce.get("keyword", None),
                                     pointer_to_violation=nce.get(
-                                        "pointerToViolation", ""
+                                        "pointerToViolation", None
                                     ),
-                                    message=nce.get("message", ""),
-                                    schema_location=nce.get("schemaLocation", ""),
+                                    message=nce.get("message", None),
+                                    schema_location=nce.get("schemaLocation", None),
                                 )
                                 for nce in ce.get("causingExceptions", [])
                             ],
@@ -349,12 +353,12 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 ),
             )
         return JSONSchemaValidation(
-            object_id=response.get("objectId", ""),
-            object_type=response.get("objectType", ""),
-            object_etag=response.get("objectEtag", ""),
-            id=response.get("schema$id", ""),
-            is_valid=response.get("isValid", ""),
-            validated_on=response.get("validatedOn", ""),
+            object_id=response.get("objectId", None),
+            object_type=response.get("objectType", None),
+            object_etag=response.get("objectEtag", None),
+            id=response.get("schema$id", None),
+            is_valid=response.get("isValid", None),
+            validated_on=response.get("validatedOn", None),
         )
 
     async def get_schema_derived_keys_async(
@@ -428,37 +432,37 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
         async for item in gen:
             yield InvalidJSONSchemaValidation(
                 validation_response=JSONSchemaValidation(
-                    object_id=item.get("objectId", ""),
-                    object_type=item.get("objectType", ""),
-                    object_etag=item.get("objectEtag", ""),
-                    id=item.get("schema$id", ""),
-                    is_valid=item.get("isValid", ""),
-                    validated_on=item.get("validatedOn", ""),
+                    object_id=item.get("objectId", None),
+                    object_type=item.get("objectType", None),
+                    object_etag=item.get("objectEtag", None),
+                    id=item.get("schema$id", None),
+                    is_valid=item.get("isValid", None),
+                    validated_on=item.get("validatedOn", None),
                 ),
-                validation_error_message=item.get("validationErrorMessage", ""),
+                validation_error_message=item.get("validationErrorMessage", None),
                 all_validation_messages=item.get("allValidationMessages", []),
                 validation_exception=ValidationException(
                     pointer_to_violation=item.get("validationException", {}).get(
-                        "pointerToViolation", ""
+                        "pointerToViolation", None
                     ),
-                    message=item.get("validationException", {}).get("message", ""),
+                    message=item.get("validationException", {}).get("message", None),
                     schema_location=item.get("validationException", {}).get(
-                        "schemaLocation", ""
+                        "schemaLocation", None
                     ),
                     causing_exceptions=[
                         CausingException(
-                            keyword=ce.get("keyword", ""),
-                            pointer_to_violation=ce.get("pointerToViolation", ""),
-                            message=ce.get("message", ""),
-                            schema_location=ce.get("schemaLocation", ""),
+                            keyword=ce.get("keyword", None),
+                            pointer_to_violation=ce.get("pointerToViolation", None),
+                            message=ce.get("message", None),
+                            schema_location=ce.get("schemaLocation", None),
                             causing_exceptions=[
                                 CausingException(
-                                    keyword=nce.get("keyword", ""),
+                                    keyword=nce.get("keyword", None),
                                     pointer_to_violation=nce.get(
-                                        "pointerToViolation", ""
+                                        "pointerToViolation", None
                                     ),
-                                    message=nce.get("message", ""),
-                                    schema_location=nce.get("schemaLocation", ""),
+                                    message=nce.get("message", None),
+                                    schema_location=nce.get("schemaLocation", None),
                                 )
                                 for nce in ce.get("causingExceptions", [])
                             ],
