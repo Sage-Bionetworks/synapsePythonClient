@@ -7,7 +7,7 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import File, Folder
 
 # 1. Set up Synapse Python client and retrieve project
-syn = synapseclient.Synapse(debug=True)
+syn = synapseclient.Synapse()
 syn.login()
 
 

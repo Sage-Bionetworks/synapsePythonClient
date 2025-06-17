@@ -21,13 +21,13 @@ By the end of this tutorial, you will:
 * You are familiar with [adding annotations](./annotation.md) to synapse entity.
 
 
-## 1. Set up Synapse Python client and retrieve project
+## 1. Set Up Synapse Python Client and Retrieve Project
 
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=1-20}
 ```
 
-## 2. Take a look at the constants and structure of the JSON schema
+## 2. Take a Look at the Constants and Structure of the JSON Schema
 
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=23-49}
@@ -35,14 +35,18 @@ By the end of this tutorial, you will:
 
 Derived annotations allow you to define default values for annotations based on schema rules, ensuring consistency and reducing manual input errors. As you can see here, you could use derived annotations to prescribe default annotation values. Please read more about derived annotations [here](https://help.synapse.org/docs/JSON-Schemas.3107291536.html#JSONSchemas-DerivedAnnotations).
 
+Note: If you make an update to your schema, you can re-register your schema with the organization and give it a new version number:
+```python
+test_org.create_json_schema(new_schema_body, your_schema_name, "0.0.2")
+```
 
-## 3. Try create test organization and json schema if they do not exist
+## 3. Try Create Test Organization and JSON Schema if They Do Not Exist
 Next, try creating a test organization and register a schema if they do not already exist:
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=51-64}
 ```
 
-## 4. Bind the JSON schema to the folder
+## 4. Bind the JSON Schema to the Folder
 After creating the organization, you can now bind your json schema to a test folder. When you bind a JSON Schema to a project or folder, then all items inside of the project or folder will inherit the schema binding, unless the item has a schema bound to itself.
 
 When you bind the schema, you may also include the boolean property `enable_derived_annos` to have Synapse automatically calculate derived annotations based on the schema:
