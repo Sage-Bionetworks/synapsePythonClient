@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, AsyncGenerator, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Generator, Optional, Protocol, Union
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -103,7 +103,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
     It provides methods to bind, delete, and validate JSON schemas associated with the container entity.
     """
 
-    async def get_schema_validation_statistics_async(
+    def get_schema_validation_statistics(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> "JSONSchemaValidationStatistics":
         """
@@ -118,9 +118,9 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
         """
         return JSONSchemaValidationStatistics()
 
-    async def get_invalid_validation_async(
+    def get_invalid_validation(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> AsyncGenerator["InvalidJSONSchemaValidation", None]:
+    ) -> Generator["InvalidJSONSchemaValidation", None]:
         """
         Get invalid JSON schema validation results for a container entity.
 
