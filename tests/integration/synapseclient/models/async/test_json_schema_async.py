@@ -77,38 +77,41 @@ class TestJSONSchema:
         created_org = js.create_organization(org_name)
 
         # Add a JSON schema
-        schema = {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "$id": "https://example.com/schema/productschema.json",
-            "title": "Product Schema",
-            "type": "object",
-            "properties": {
-                "productId": {
-                    "description": "The unique identifier for a product",
-                    "type": "integer",
-                    "const": 123,
+        try:
+            schema = {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "$id": "https://example.com/schema/productschema.json",
+                "title": "Product Schema",
+                "type": "object",
+                "properties": {
+                    "productId": {
+                        "description": "The unique identifier for a product",
+                        "type": "integer",
+                        "const": 123,
+                    },
+                    "productName": {
+                        "description": "Name of the product",
+                        "type": "string",
+                        "const": "default product name",
+                    },
+                    "productDescription": {
+                        "description": "description of the product",
+                        "type": "string",
+                    },
+                    "productQuantity": {
+                        "description": "quantity of the product",
+                        "type": "integer",
+                    },
                 },
-                "productName": {
-                    "description": "Name of the product",
-                    "type": "string",
-                    "const": "default product name",
-                },
-                "productDescription": {
-                    "description": "description of the product",
-                    "type": "string",
-                },
-                "productQuantity": {
-                    "description": "quantity of the product",
-                    "type": "integer",
-                },
-            },
-        }
-        test_org = js.JsonSchemaOrganization(org_name)
-        created_schema = test_org.create_json_schema(schema, TEST_SCHEMA_NAME, "0.0.1")
-        yield test_org, created_schema.uri
-
-        js.delete_json_schema(created_schema.uri)
-        js.delete_organization(created_org["id"])
+            }
+            test_org = js.JsonSchemaOrganization(org_name)
+            created_schema = test_org.create_json_schema(
+                schema, TEST_SCHEMA_NAME, "0.0.1"
+            )
+            yield test_org, created_schema.uri
+        finally:
+            js.delete_json_schema(created_schema.uri)
+            js.delete_organization(created_org["id"])
 
     @pytest.fixture(scope="function")
     def file(self) -> File:
