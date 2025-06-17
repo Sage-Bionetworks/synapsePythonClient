@@ -106,7 +106,7 @@ async def get_json_schema_validation_statistics(
 ) -> "JSONSchemaValidationStatistics":
     """Get the summary statistic of json schema validation results for
         a container entity
-     Arguments:
+    Arguments:
         synapse_id:      Synapse Id
         synapse_client:  If not passed in and caching was not disabled by
                          `Synapse.allow_client_caching(False)` this will use the last created
@@ -152,7 +152,7 @@ async def get_json_schema_derived_keys(
 ) -> "JSONSchemaDerivedKeys":
     """Retrieve derived JSON schema keys for a given Synapse entity.
 
-    Args:
+    Arguments:
         synapse_id (str): The Synapse ID of the entity for which to retrieve derived keys.
 
     Returns:

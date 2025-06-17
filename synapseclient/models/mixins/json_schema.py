@@ -201,7 +201,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         """
         Bind a JSON schema to the entity.
 
-        Args:
+        Arguments:
             json_schema_uri (str): The URI of the JSON schema to bind to the entity.
             enable_derived_annos (bool, optional): If true, enable derived annotations. Defaults to False.
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
@@ -243,7 +243,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         """
         Get the JSON schema bound to the entity.
 
-        Args:
+        Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
@@ -282,7 +282,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         """
         Delete the JSON schema bound to the entity.
 
-        Args:
+        Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
         """
@@ -296,7 +296,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         """
         Validate the entity against the bound JSON schema.
 
-        Args:
+        Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
@@ -367,7 +367,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         """
         Retrieve derived JSON schema keys for the entity.
 
-        Args:
+        Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
@@ -394,7 +394,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
         """
         Get validation statistics for a container entity.
 
-        Args:
+        Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
@@ -418,7 +418,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
         """
         Get invalid JSON schema validation results for a container entity.
 
-        Args:
+        Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
