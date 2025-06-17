@@ -78,7 +78,7 @@ Next, we can retrieve the bound schema:
 <summary>You should be able to see: </summary>
 ```
 JSON Schema was retrieved successfully. Please see details below:
-{'created_by': '3443707',
+{'created_by': '<your synapse user id>',
 'created_on': '2025-06-17T15:26:13.718Z',
 'enable_derived_annotations': True,
 'json_schema_version_info': JSONSchemaVersionInfo(
@@ -91,7 +91,7 @@ JSON Schema was retrieved successfully. Please see details below:
   semantic_version='0.0.1',
   json_sha256_hex='f01270d61cf9a317b9f33a8acc1d86d330effc3548ad350c60d2a072de33f3fd',
   created_on='2025-06-13T21:46:37.457Z',
-  created_by='3443707'),
+  created_by='<your synapse user id>'),
 'object_id': 68294149,
 'object_type': 'entity'}
 ```
