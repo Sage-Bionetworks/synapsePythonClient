@@ -2,6 +2,8 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
+from tqdm import tqdm
+
 from synapseclient import Synapse
 from synapseclient.api import (
     delete_entity_acl,
@@ -12,6 +14,7 @@ from synapseclient.api.entity_services import get_entity_benefactor
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.models.acl import AclListResult
+from synapseclient.core.transfer_bar import shared_download_progress_bar
 from synapseclient.models.protocols.access_control_protocol import (
     AccessControllableSynchronousProtocol,
 )
@@ -47,7 +50,7 @@ class BenefactorTracker:
     """Set of entity_ids that have been processed"""
 
     async def track_entity_benefactor(
-        self, entity_ids: List[str], synapse_client: "Synapse"
+        self, entity_ids: List[str], synapse_client: "Synapse", progress_bar: tqdm
     ) -> None:
         """
         Track entities and their benefactor relationships.
@@ -55,6 +58,7 @@ class BenefactorTracker:
         Arguments:
             entity_ids: List of entity IDs to track
             synapse_client: The Synapse client to use for API calls
+            progress_bar: Progress bar to update after operation
         """
         entities_to_process = [
             entity_id
@@ -63,21 +67,27 @@ class BenefactorTracker:
         ]
 
         if not entities_to_process:
+            progress_bar.update(1)
             return
 
-        benefactor_tasks = []
-        for entity_id in entities_to_process:
-            benefactor_tasks.append(
-                get_entity_benefactor(
-                    entity_id=entity_id, synapse_client=synapse_client
-                )
+        async def task_with_entity_id(entity_id: str):
+            """Wrapper to pair entity_id with the task result."""
+            result = await get_entity_benefactor(
+                entity_id=entity_id, synapse_client=synapse_client
             )
+            return entity_id, result
 
-        benefactor_results = await asyncio.gather(*benefactor_tasks)
+        tasks = [
+            asyncio.create_task(task_with_entity_id(entity_id))
+            for entity_id in entities_to_process
+        ]
 
-        for entity_id, benefactor_result in zip(
-            entities_to_process, benefactor_results
-        ):
+        if tasks:
+            progress_bar.total += len(tasks)
+            progress_bar.refresh()
+
+        for completed_task in asyncio.as_completed(tasks):
+            entity_id, benefactor_result = await completed_task
             benefactor_id = benefactor_result.id
 
             self.entity_benefactors[entity_id] = benefactor_id
@@ -89,6 +99,7 @@ class BenefactorTracker:
                 self.benefactor_children[benefactor_id].append(entity_id)
 
             self.processed_entities.add(entity_id)
+            progress_bar.update(1)
 
     def mark_acl_deleted(self, entity_id: str) -> List[str]:
         """
@@ -507,59 +518,95 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         )
         all_entities = [self] if include_self else []
 
-        if should_process_children:
-            if recursive and not include_container_content:
-                raise ValueError(
-                    "When recursive=True, include_container_content must also be True. "
-                    "Setting recursive=True with include_container_content=False has no effect."
-                )
-            all_entities = await self._collect_entities(
-                client=client,
-                target_entity_types=normalized_types,
-                include_container_content=include_container_content,
-                recursive=recursive,
-            )
+        custom_message = "Deleting ACLs [Dry Run]..." if dry_run else "Deleting ACLs..."
+        with shared_download_progress_bar(
+            file_size=1, synapse_client=client, custom_message=custom_message
+        ) as progress_bar:
+            progress_bar.update(1)  # Initial setup complete
 
-            entity_ids = [entity.id for entity in all_entities if entity.id]
-            if entity_ids:
-                await benefactor_tracker.track_entity_benefactor(entity_ids, client)
+            if should_process_children:
+                if recursive and not include_container_content:
+                    raise ValueError(
+                        "When recursive=True, include_container_content must also be True. "
+                        "Setting recursive=True with include_container_content=False has no effect."
+                    )
 
-        if dry_run:
-            await self._build_and_log_dry_run_tree(
-                client=client,
-                benefactor_tracker=benefactor_tracker,
-                collected_entities=all_entities,
-                include_self=include_self,
-                show_acl_details=show_acl_details,
-                show_files_in_containers=show_files_in_containers,
-            )
-            return
+                progress_bar.total += 1
+                progress_bar.refresh()
 
-        if include_self:
-            await self._delete_current_entity_acl(
-                client=client,
-                dry_run=dry_run,
-                benefactor_tracker=benefactor_tracker,
-            )
-
-        if should_process_children:
-            if include_container_content:
-                await self._process_container_contents(
+                all_entities = await self._collect_entities(
                     client=client,
-                    target_entity_types=normalized_types,
-                    dry_run=dry_run,
-                    benefactor_tracker=benefactor_tracker,
-                )
-
-            if recursive and hasattr(self, "folders"):
-                await self._process_folder_permission_deletion(
-                    client=client,
-                    recursive=True,
                     target_entity_types=normalized_types,
                     include_container_content=include_container_content,
+                    recursive=recursive,
+                    progress_bar=progress_bar,
+                )
+                progress_bar.update(1)
+
+                entity_ids = [entity.id for entity in all_entities if entity.id]
+                if entity_ids:
+                    progress_bar.total += 1
+                    progress_bar.refresh()
+                    await benefactor_tracker.track_entity_benefactor(
+                        entity_ids=entity_ids,
+                        synapse_client=client,
+                        progress_bar=progress_bar,
+                    )
+                else:
+                    progress_bar.total += 1
+                    progress_bar.refresh()
+                    progress_bar.update(1)
+
+            if dry_run:
+                progress_bar.total += 1
+                progress_bar.refresh()
+                await self._build_and_log_dry_run_tree(
+                    client=client,
+                    benefactor_tracker=benefactor_tracker,
+                    collected_entities=all_entities,
+                    include_self=include_self,
+                    show_acl_details=show_acl_details,
+                    show_files_in_containers=show_files_in_containers,
+                    progress_bar=progress_bar,
+                )
+                return
+
+            if include_self:
+                progress_bar.total += 1
+                progress_bar.refresh()
+                await self._delete_current_entity_acl(
+                    client=client,
                     dry_run=dry_run,
                     benefactor_tracker=benefactor_tracker,
+                    progress_bar=progress_bar,
                 )
+
+            if should_process_children:
+                if include_container_content:
+                    progress_bar.total += 1
+                    progress_bar.refresh()
+                    await self._process_container_contents(
+                        client=client,
+                        target_entity_types=normalized_types,
+                        dry_run=dry_run,
+                        benefactor_tracker=benefactor_tracker,
+                        progress_bar=progress_bar,
+                    )
+                    progress_bar.update(1)  # Process container contents complete
+
+                if recursive and hasattr(self, "folders"):
+                    progress_bar.total += 1
+                    progress_bar.refresh()
+                    await self._process_folder_permission_deletion(
+                        client=client,
+                        recursive=True,
+                        target_entity_types=normalized_types,
+                        include_container_content=include_container_content,
+                        dry_run=dry_run,
+                        benefactor_tracker=benefactor_tracker,
+                        progress_bar=progress_bar,
+                    )
+                    progress_bar.update(1)
 
     def _normalize_target_entity_types(
         self, target_entity_types: Optional[List[str]]
@@ -586,6 +633,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         self,
         client: Synapse,
         benefactor_tracker: BenefactorTracker,
+        progress_bar: tqdm,
         dry_run: bool = False,
     ) -> None:
         """
@@ -594,6 +642,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Arguments:
             client: The Synapse client instance to use for API calls.
             benefactor_tracker: Tracker for managing benefactor relationships.
+            progress_bar: Progress bar to update after operation.
             dry_run: If True, log the changes that would be made instead of actually
                 performing the deletions.
 
@@ -601,7 +650,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             None
         """
 
-        await benefactor_tracker.track_entity_benefactor([self.id], client)
+        await benefactor_tracker.track_entity_benefactor(
+            entity_ids=[self.id], synapse_client=client, progress_bar=progress_bar
+        )
 
         if dry_run:
             affected_entities = []
@@ -614,6 +665,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     f"Deleting ACL for entity {self.id} will affect {len(affected_entities)} "
                     f"child entities that inherit from it: {affected_entities}"
                 )
+            progress_bar.update(1)
             return
 
         try:
@@ -628,6 +680,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                         f"entities to inherit from a new benefactor: {affected_entities}"
                     )
 
+            progress_bar.update(1)
+
         except SynapseHTTPError as e:
             if (
                 e.response.status_code == 403
@@ -636,6 +690,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 client.logger.debug(
                     f"Entity {self.id} already inherits permissions from its parent."
                 )
+                progress_bar.update(1)
             else:
                 raise
 
@@ -644,6 +699,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         client: Synapse,
         target_entity_types: List[str],
         benefactor_tracker: BenefactorTracker,
+        progress_bar: tqdm,
         dry_run: bool = False,
     ) -> None:
         """
@@ -653,6 +709,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             client: The Synapse client instance to use for API calls.
             target_entity_types: A list of normalized entity types to process.
             benefactor_tracker: Tracker for managing benefactor relationships.
+            progress_bar: Optional progress bar to update as tasks complete.
             dry_run: If True, log the changes that would be made instead of actually
                 performing the deletions.
 
@@ -662,10 +719,22 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         if "file" in target_entity_types and hasattr(self, "files"):
             if benefactor_tracker and not dry_run:
                 track_tasks = [
-                    benefactor_tracker.track_entity_benefactor([file.id], client)
+                    benefactor_tracker.track_entity_benefactor(
+                        entity_ids=[file.id],
+                        synapse_client=client,
+                        progress_bar=progress_bar,
+                    )
                     for file in self.files
                 ]
-                await asyncio.gather(*track_tasks)
+
+                if progress_bar and track_tasks:
+                    progress_bar.total += len(track_tasks)
+                    progress_bar.refresh()
+
+                for completed_task in asyncio.as_completed(track_tasks):
+                    await completed_task
+                    if progress_bar:
+                        progress_bar.update(1)
 
             async def process_single_file(file):
                 await file.delete_permissions_async(
@@ -678,7 +747,15 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 )
 
             file_tasks = [process_single_file(file) for file in self.files]
-            await asyncio.gather(*file_tasks)
+
+            if progress_bar and file_tasks:
+                progress_bar.total += len(file_tasks)
+                progress_bar.refresh()
+
+            for completed_task in asyncio.as_completed(file_tasks):
+                await completed_task
+                if progress_bar:
+                    progress_bar.update(1)
 
         if "folder" in target_entity_types and hasattr(self, "folders"):
             await self._process_folder_permission_deletion(
@@ -686,6 +763,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 recursive=False,
                 dry_run=dry_run,
                 benefactor_tracker=benefactor_tracker,
+                progress_bar=progress_bar,
             )
 
     async def _process_folder_permission_deletion(
@@ -693,6 +771,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         client: Synapse,
         recursive: bool,
         benefactor_tracker: BenefactorTracker,
+        progress_bar: tqdm,
         target_entity_types: Optional[List[str]] = None,
         include_container_content: bool = False,
         dry_run: bool = False,
@@ -705,6 +784,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             recursive: If True, process folders recursively; if False, process only direct folders.
             benefactor_tracker: Tracker for managing benefactor relationships.
                 Only used for non-recursive processing.
+            progress_bar: Optional progress bar to update as tasks complete.
             target_entity_types: A list of normalized entity types to process.
                 For non-recursive processing, defaults to ["folder"].
             include_container_content: Whether to include the content of containers in processing.
@@ -720,10 +800,22 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         """
         if not recursive and benefactor_tracker and not dry_run:
             track_tasks = [
-                benefactor_tracker.track_entity_benefactor([folder.id], client)
+                benefactor_tracker.track_entity_benefactor(
+                    entity_ids=[folder.id],
+                    synapse_client=client,
+                    progress_bar=progress_bar,
+                )
                 for folder in self.folders
             ]
-            await asyncio.gather(*track_tasks)
+
+            if progress_bar and track_tasks:
+                progress_bar.total += len(track_tasks)
+                progress_bar.refresh()
+
+            for completed_task in asyncio.as_completed(track_tasks):
+                await completed_task
+                if progress_bar:
+                    progress_bar.update(1)  # Each tracking task complete
 
         async def process_single_folder(folder):
             if recursive:
@@ -759,7 +851,15 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 )
 
         folder_tasks = [process_single_folder(folder) for folder in self.folders]
-        await asyncio.gather(*folder_tasks)
+
+        if progress_bar and folder_tasks:
+            progress_bar.total += len(folder_tasks)
+            progress_bar.refresh()
+
+        for completed_task in asyncio.as_completed(folder_tasks):
+            await completed_task
+            if progress_bar:
+                progress_bar.update(1)  # Each folder task complete
 
     async def list_acl_async(
         self,
@@ -769,6 +869,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         log_tree: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
+        _progress_bar: Optional[tqdm] = None,  # Internal parameter for recursive calls
     ) -> AclListResult:
         """
         List the Access Control Lists (ACLs) for this entity and optionally its children.
@@ -799,6 +900,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+            _progress_bar: Internal parameter. Progress bar instance to use for updates
+                when called recursively. Should not be used by external callers.
 
         Returns:
             An AclListResult object containing a structured representation of ACLs where:
@@ -908,7 +1011,14 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         all_acls: Dict[str, Dict[str, List[str]]] = {}
         all_entities = []
 
-        acl = await self._get_current_entity_acl(client)
+        # Only update progress bar for self ACL if we're the top-level call (not recursive)
+        # When _progress_bar is passed, it means this is a recursive call and the parent
+        # is managing progress updates
+        update_progress_for_self = _progress_bar is None
+        acl = await self._get_current_entity_acl(
+            client=client,
+            progress_bar=_progress_bar if update_progress_for_self else None,
+        )
         if acl is not None:
             all_acls[self.id] = acl
         all_entities.append(self)
@@ -916,42 +1026,50 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         should_process_children = (recursive or include_container_content) and hasattr(
             self, "sync_from_synapse_async"
         )
-        if should_process_children:
+
+        if should_process_children and _progress_bar is None:
             if recursive and not include_container_content:
                 raise ValueError(
                     "When recursive=True, include_container_content must also be True. "
                     "Setting recursive=True with include_container_content=False has no effect."
                 )
 
-            if not self.files and not self.folders:
-                await self.sync_from_synapse_async(
-                    recursive=False,
-                    download_file=False,
-                    include_activity=False,
-                    synapse_client=client,
+            with shared_download_progress_bar(
+                file_size=1, synapse_client=client, custom_message="Collecting ACLs..."
+            ) as progress_bar:
+                await self._process_children_with_progress(
+                    client=client,
+                    normalized_types=normalized_types,
+                    include_container_content=include_container_content,
+                    recursive=recursive,
+                    all_entities=all_entities,
+                    all_acls=all_acls,
+                    progress_bar=progress_bar,
                 )
-            child_entities = await self._collect_entities(
+                # Ensure progress bar reaches 100% completion
+                if progress_bar:
+                    remaining = (
+                        progress_bar.total - progress_bar.n
+                        if progress_bar.total > progress_bar.n
+                        else 0
+                    )
+                    if remaining > 0:
+                        progress_bar.update(remaining)
+        elif should_process_children:
+            if recursive and not include_container_content:
+                raise ValueError(
+                    "When recursive=True, include_container_content must also be True. "
+                    "Setting recursive=True with include_container_content=False has no effect."
+                )
+            await self._process_children_with_progress(
                 client=client,
-                target_entity_types=normalized_types,
+                normalized_types=normalized_types,
                 include_container_content=include_container_content,
                 recursive=recursive,
+                all_entities=all_entities,
+                all_acls=all_acls,
+                progress_bar=_progress_bar,
             )
-
-            for entity in child_entities:
-                if entity != self:
-                    all_entities.append(entity)
-
-            acl_tasks = []
-            entities_for_acl = []
-            for entity in child_entities:
-                if entity != self:
-                    acl_tasks.append(entity._get_current_entity_acl(client))
-                    entities_for_acl.append(entity)
-
-            if acl_tasks:
-                acl_results = await asyncio.gather(*acl_tasks)
-                for entity, entity_acl in zip(entities_for_acl, acl_results):
-                    all_acls[entity.id] = entity_acl
         current_acl = all_acls.get(self.id)
         acl_result = AclListResult.from_dict(
             all_acl_dict=all_acls, current_acl_dict=current_acl
@@ -964,13 +1082,14 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         return acl_result
 
     async def _get_current_entity_acl(
-        self, client: Synapse
+        self, client: Synapse, progress_bar: Optional[tqdm] = None
     ) -> Optional[Dict[str, List[str]]]:
         """
         Get the ACL for the current entity.
 
         Arguments:
             client: The Synapse client instance to use for API calls.
+            progress_bar: Progress bar to update after operation.
 
         Returns:
             A dictionary mapping principal IDs to permission lists, or None if no ACL exists.
@@ -979,12 +1098,17 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             acl_response = await get_entity_acl(
                 entity_id=self.id, synapse_client=client
             )
-            return self._parse_acl_response(acl_response)
+            result = self._parse_acl_response(acl_response)
+            if progress_bar:
+                progress_bar.update(1)
+            return result
         except SynapseHTTPError as e:
             if e.response.status_code == 404:
                 client.logger.debug(
                     f"Entity {self.id} inherits permissions from its parent (no local ACL)."
                 )
+                if progress_bar:
+                    progress_bar.update(1)
                 return None
             else:
                 raise
@@ -1014,6 +1138,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         self,
         client: Synapse,
         target_entity_types: List[str],
+        progress_bar: tqdm,
         include_container_content: bool = False,
         recursive: bool = False,
         collect_acls: bool = False,
@@ -1033,6 +1158,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Arguments:
             client: The Synapse client instance to use for API calls.
             target_entity_types: A list of normalized entity types to process.
+            progress_bar: Progress bar instance to update as tasks complete.
             include_container_content: Whether to include the content of containers.
             recursive: Whether to process recursively.
             collect_acls: Whether to collect ACLs from entities.
@@ -1048,13 +1174,21 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             entities.append(self)
 
             if collect_acls and all_acls is not None:
+                if progress_bar:
+                    progress_bar.total += 1
+                    progress_bar.refresh()
+
                 entity_acls = await self.list_acl_async(
                     recursive=False,
                     include_container_content=False,
                     target_entity_types=target_entity_types,
                     synapse_client=client,
+                    _progress_bar=progress_bar,
                 )
                 all_acls.update(entity_acls.to_dict())
+
+                if progress_bar:
+                    progress_bar.update(1)
 
         should_process_children = (recursive or include_container_content) and hasattr(
             self, "sync_from_synapse_async"
@@ -1070,30 +1204,59 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
             if include_container_content:
                 if "file" in target_entity_types and hasattr(self, "files"):
-                    for file in getattr(self, "files", []):
-                        entities.append(file)
+                    if collect_acls and all_acls is not None and progress_bar:
+                        progress_bar.total += len(self.files)
+                        progress_bar.refresh()
 
-                        if collect_acls and all_acls is not None:
-                            file_acls = await file.list_acl_async(
-                                recursive=False,
-                                include_container_content=False,
-                                target_entity_types=["file"],
-                                synapse_client=client,
+                    if collect_acls and all_acls is not None:
+                        file_acl_tasks = []
+                        for file in getattr(self, "files", []):
+                            entities.append(file)
+                            file_acl_tasks.append(
+                                file.list_acl_async(
+                                    recursive=False,
+                                    include_container_content=False,
+                                    target_entity_types=["file"],
+                                    synapse_client=client,
+                                    _progress_bar=progress_bar,
+                                )
                             )
+
+                        for completed_task in asyncio.as_completed(file_acl_tasks):
+                            file_acls = await completed_task
                             all_acls.update(file_acls.to_dict())
+                            progress_bar.update(1)
+                    else:
+                        for file in getattr(self, "files", []):
+                            entities.append(file)
 
                 if "folder" in target_entity_types and hasattr(self, "folders"):
-                    for folder in getattr(self, "folders", []):
-                        entities.append(folder)
+                    if collect_acls and all_acls is not None:
+                        progress_bar.total += len(self.folders)
+                        progress_bar.refresh()
 
-                        if collect_acls and all_acls is not None:
-                            folder_acls = await folder.list_acl_async(
-                                recursive=False,
-                                include_container_content=False,
-                                target_entity_types=["folder"],
-                                synapse_client=client,
+                    if collect_acls and all_acls is not None:
+                        folder_acl_tasks = []
+                        for folder in getattr(self, "folders", []):
+                            entities.append(folder)
+                            folder_acl_tasks.append(
+                                folder.list_acl_async(
+                                    recursive=False,
+                                    include_container_content=False,
+                                    target_entity_types=["folder"],
+                                    synapse_client=client,
+                                    _progress_bar=progress_bar,
+                                )
                             )
+
+                        for completed_task in asyncio.as_completed(folder_acl_tasks):
+                            folder_acls = await completed_task
                             all_acls.update(folder_acls.to_dict())
+                            if progress_bar:
+                                progress_bar.update(1)
+                    else:
+                        for folder in getattr(self, "folders", []):
+                            entities.append(folder)
 
             if recursive and hasattr(self, "folders"):
                 collect_tasks = []
@@ -1105,16 +1268,15 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                             include_container_content=include_container_content,
                             recursive=recursive,
                             collect_acls=collect_acls,
+                            collect_self=False,
                             all_acls=all_acls,
+                            progress_bar=progress_bar,
                         )
                     )
 
-                collect_results = await asyncio.gather(*collect_tasks)
-
-                for folder, result in zip(self.folders, collect_results):
-                    if isinstance(result, Exception):
-                        raise result
-                    elif result is not None:
+                for completed_task in asyncio.as_completed(collect_tasks):
+                    result = await completed_task
+                    if result is not None:
                         entities.extend(result)
 
         return entities
@@ -1123,6 +1285,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         self,
         client: Synapse,
         benefactor_tracker: BenefactorTracker,
+        progress_bar: tqdm,
         collected_entities: List["AccessControllable"] = None,
         include_self: bool = True,
         show_acl_details: bool = True,
@@ -1138,6 +1301,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Arguments:
             client: The Synapse client instance to use for API calls.
             benefactor_tracker: Tracker containing all entity relationships.
+            progress_bar: Optional progress bar to update during dry run analysis.
             collected_entities: List of entity objects that have been collected.
             include_self: Whether to include self in the deletion analysis.
             show_acl_details: Whether to display current ACL details for entities that will change.
@@ -1165,6 +1329,16 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         client.logger.info("=== DRY RUN: Permission Deletion Impact Analysis ===")
         client.logger.info(tree_output)
         client.logger.info("=== End of Dry Run Analysis ===")
+
+        remaining = (
+            progress_bar.total - progress_bar.n
+            if progress_bar.total > progress_bar.n
+            else 0
+        )
+        if remaining > 0:
+            progress_bar.update(remaining)
+        else:
+            progress_bar.update(1)
 
     async def _build_tree_data(
         self,
@@ -1243,8 +1417,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         """
         from synapseclient.core.models.acl import AclEntry, EntityAcl
 
-        entity_acls = {}
-        for entity_id, _ in entities_by_id.items():
+        async def fetch_entity_acl(entity_id: str) -> Optional[EntityAcl]:
+            """Helper function to fetch ACL for a single entity."""
             try:
                 acl_response = await get_entity_acl(
                     entity_id=entity_id, synapse_client=client
@@ -1259,14 +1433,30 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                         )
                     )
 
-                entity_acl = EntityAcl(entity_id=entity_id, acl_entries=acl_entries)
-                entity_acls[entity_id] = entity_acl
+                return EntityAcl(entity_id=entity_id, acl_entries=acl_entries)
 
             except SynapseHTTPError as e:
                 if e.response.status_code != 404:
                     raise
+                return None
 
-        return AclListResult(all_entity_acls=list(entity_acls.values()))
+        entity_ids = list(entities_by_id.keys())
+        acl_tasks = [fetch_entity_acl(entity_id) for entity_id in entity_ids]
+
+        entity_acls = []
+        for completed_task in asyncio.as_completed(acl_tasks):
+            try:
+                result = await completed_task
+                if result is not None:
+                    entity_acls.append(result)
+            except SynapseHTTPError as e:
+                if e.response.status_code != 404:
+                    raise
+                continue
+            except Exception as e:
+                raise e
+
+        return AclListResult(all_entity_acls=entity_acls)
 
     async def _fetch_user_group_info_from_tree(
         self, tree_structure: Dict[str, Any], synapse_client: "Synapse"
@@ -1473,6 +1663,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         """
         missing_entities = {}
         tasks = []
+        entity_id_to_task = {}
 
         for entity_id in entity_ids:
             if entity_id not in entity_metadata:
@@ -1485,41 +1676,32 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                         "acl": None,
                     }
                 else:
-                    tasks.append(
-                        get_entity_benefactor(
-                            entity_id=entity_id, synapse_client=synapse_client
-                        )
+                    task = get_entity_benefactor(
+                        entity_id=entity_id, synapse_client=synapse_client
                     )
+                    tasks.append(task)
+                    entity_id_to_task[entity_id] = task
 
         if not tasks:
             return missing_entities
 
-        results = await asyncio.gather(*tasks)
+        for completed_task in asyncio.as_completed(tasks):
+            header = await completed_task
 
-        task_index = 0
-        for entity_id in entity_ids:
-            if entity_id not in entity_metadata and (
-                not entities_by_id or entity_id not in entities_by_id
-            ):
-                if task_index < len(results) and not isinstance(
-                    results[task_index], Exception
-                ):
-                    header = results[task_index]
-                    entity_type = self._normalize_entity_type(header.type)
-                    missing_entities[entity_id] = {
-                        "name": header.name or f"Entity {entity_id}",
-                        "type": entity_type,
-                        "parent_id": None,
-                        "acl": None,
-                    }
-                else:
-                    missing_entities[entity_id] = {
-                        "name": f"Entity {entity_id}",
-                        "type": "Unknown",
-                        "parent_id": None,
-                        "acl": None,
-                    }
-                task_index += 1
+            entity_id = None
+            for eid, task in entity_id_to_task.items():
+                if task == completed_task:
+                    entity_id = eid
+                    break
+
+            if entity_id:
+                entity_type = self._normalize_entity_type(header.type)
+                missing_entities[entity_id] = {
+                    "name": header.name or f"Entity {entity_id}",
+                    "type": entity_type,
+                    "parent_id": None,
+                    "acl": None,
+                }
 
         return missing_entities
 
@@ -1711,8 +1893,6 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             if not show_files_in_containers and "file" in entity_type:
                 if will_be_deleted:
                     return True
-                elif will_benefactor_change:
-                    return False
                 else:
                     return False
 
@@ -2172,3 +2352,62 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 build_tree_recursive(root_id, "", is_last_root)
 
         return "\n".join(lines)
+
+    async def _process_children_with_progress(
+        self,
+        client: Synapse,
+        normalized_types: List[str],
+        include_container_content: bool,
+        recursive: bool,
+        all_entities: List,
+        all_acls: Dict[str, Dict[str, List[str]]],
+        progress_bar: tqdm,
+    ) -> None:
+        """
+        Process children entities with optional progress tracking.
+
+        Arguments:
+            client: The Synapse client instance
+            normalized_types: List of normalized entity types to process
+            include_container_content: Whether to include container content
+            recursive: Whether to process recursively
+            all_entities: List to append entities to
+            all_acls: Dictionary to store ACL results
+            progress_bar: Progress bar for tracking
+        """
+        operations_completed = 0
+
+        if not self.files and not self.folders:
+            progress_bar.total += 1
+            progress_bar.refresh()
+
+            await self.sync_from_synapse_async(
+                recursive=False,
+                download_file=False,
+                include_activity=False,
+                synapse_client=client,
+            )
+
+            operations_completed += 1
+            progress_bar.update(1)
+
+        progress_bar.total += 1
+        progress_bar.refresh()
+
+        child_entities = await self._collect_entities(
+            client=client,
+            target_entity_types=normalized_types,
+            include_container_content=include_container_content,
+            recursive=recursive,
+            collect_acls=True,
+            collect_self=False,
+            all_acls=all_acls,
+            progress_bar=progress_bar,
+        )
+
+        operations_completed += 1
+        progress_bar.update(1)
+
+        for entity in child_entities:
+            if entity != self:
+                all_entities.append(entity)

@@ -90,11 +90,11 @@ def shared_download_progress_bar(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
     with logging_redirect_tqdm(loggers=[syn.logger]):
-        get_or_create_download_progress_bar(
+        progress_bar = get_or_create_download_progress_bar(
             file_size=file_size, custom_message=custom_message, synapse_client=syn
         )
         try:
-            yield
+            yield progress_bar
         finally:
             _thread_local.progress_bar_download_context_managed = False
             close_download_progress_bar()
