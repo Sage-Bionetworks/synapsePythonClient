@@ -572,7 +572,7 @@ async def download_by_file_handle(
 async def download_from_url_multi_threaded(
     file_handle_id: Optional[str],
     object_id: Optional[str],
-    object_type: str,
+    object_type: Optional[str],
     destination: str,
     *,
     expected_md5: str = None,
@@ -619,7 +619,7 @@ async def download_from_url_multi_threaded(
         )
     else:
         request = DownloadRequest(
-            path=temp_destination,
+            path=destination,
             debug=client.debug,
             presigned_url=presigned_url,
         )
