@@ -601,19 +601,19 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             None
         """
 
-        if not dry_run:
-            await benefactor_tracker.track_entity_benefactor([self.id], client)
+        await benefactor_tracker.track_entity_benefactor([self.id], client)
 
+        if dry_run:
+            affected_entities = []
             if benefactor_tracker.will_acl_deletion_affect_others(self.id):
                 affected_entities = benefactor_tracker.benefactor_children.get(
                     self.id, []
                 )
+            if affected_entities:
                 client.logger.info(
                     f"Deleting ACL for entity {self.id} will affect {len(affected_entities)} "
                     f"child entities that inherit from it: {affected_entities}"
                 )
-
-        if dry_run:
             return
 
         try:

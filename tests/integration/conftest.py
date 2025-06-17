@@ -90,14 +90,6 @@ def syn_with_logger(request) -> Synapse:
     syn.logger = logging.getLogger(DEFAULT_LOGGER_NAME)
     syn.login(profile=os.getenv("SYNAPSE_PROFILE", "default"))
 
-    # set the working directory to a temp directory
-    _old_working_directory = os.getcwd()
-    os.chdir(working_directory)
-
-    def teardown() -> None:
-        os.chdir(_old_working_directory)
-
-    request.addfinalizer(teardown)
     return syn
 
 

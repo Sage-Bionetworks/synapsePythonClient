@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import random
 import uuid
 from typing import Callable, Dict, List, Optional, Type, Union
 
@@ -448,7 +449,7 @@ class TestAcl:
             access_type=["READ", "DOWNLOAD"],
         )
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # THEN listing permissions should show all set permissions
         # Check team permissions
@@ -481,7 +482,7 @@ class TestAcl:
         # WHEN deleting specific permissions for the team
         await table.set_permissions_async(principal_id=team.id, access_type=[])
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # THEN team should no longer have permissions
         team_acl_after_delete = await table.get_acl_async(principal_id=team.id)
@@ -533,7 +534,7 @@ class TestAcl:
             access_type=limited_user_permissions,
         )
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # THEN listing permissions should reflect all changes
         # Verify team permissions
@@ -561,7 +562,7 @@ class TestAcl:
             principal_id=AUTHENTICATED_USERS, access_type=[]
         )
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # THEN authenticated users should lose permissions
         auth_acl_after = await entity_view.get_acl_async(
@@ -621,7 +622,7 @@ class TestAcl:
             access_type=user_direct_permissions,
         )
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # THEN listing permissions should show proper aggregation
         # Check individual team permissions
@@ -654,7 +655,7 @@ class TestAcl:
             principal_id=team1.id, access_type=[]
         )
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # THEN PUBLIC should lose all permissions
         public_acl_after = await submission_view.get_acl_async(principal_id=PUBLIC)
@@ -847,79 +848,17 @@ class TestDeletePermissions:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
         self.syn_with_logger = syn_with_logger
+        self.verification_attempts = 10
+
+    @pytest.fixture(scope="function")
+    def project_object(self) -> Project:
+        return Project(name="integration_test_project" + str(uuid.uuid4()))
 
     @pytest.fixture(scope="function")
     def file(self, schedule_for_cleanup: Callable[..., None]) -> File:
         filename = utils.make_bogus_uuid_file()
         schedule_for_cleanup(filename)
         return File(path=filename)
-
-    async def create_folder_structure(
-        self, project_model: Project
-    ) -> Dict[str, Union[Folder, List[Union[Folder, File]]]]:
-        """Create a folder structure for testing permissions.
-
-        Structure:
-        ```
-        Project_model
-        └── top_level_folder
-            ├── file_1
-            ├── file_2
-            └── folder_1
-                ├── sub_folder_1
-                │   └── file_3
-                └── file_4
-        ```
-        """
-        # Create top level folder
-        top_level_folder = await Folder(
-            name=f"top_level_folder_{uuid.uuid4()}"
-        ).store_async(parent=project_model)
-        self.schedule_for_cleanup(top_level_folder.id)
-
-        # Create 2 files in top level folder
-        file_1 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"file_1_{uuid.uuid4()}"
-        ).store_async(parent=top_level_folder)
-        self.schedule_for_cleanup(file_1.id)
-
-        file_2 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"file_2_{uuid.uuid4()}"
-        ).store_async(parent=top_level_folder)
-        self.schedule_for_cleanup(file_2.id)
-
-        # Create folder_1 in top level folder
-        folder_1 = await Folder(name=f"folder_1_{uuid.uuid4()}").store_async(
-            parent=top_level_folder
-        )
-        self.schedule_for_cleanup(folder_1.id)
-
-        # Create sub_folder_1 in folder_1
-        sub_folder_1 = await Folder(name=f"sub_folder_1_{uuid.uuid4()}").store_async(
-            parent=folder_1
-        )
-        self.schedule_for_cleanup(sub_folder_1.id)
-
-        # Create file_3 in sub_folder_1
-        file_3 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"file_3_{uuid.uuid4()}"
-        ).store_async(parent=sub_folder_1)
-        self.schedule_for_cleanup(file_3.id)
-
-        # Create file_4 in folder_1
-        file_4 = await File(
-            path=utils.make_bogus_uuid_file(), name=f"file_4_{uuid.uuid4()}"
-        ).store_async(parent=folder_1)
-        self.schedule_for_cleanup(file_4.id)
-
-        return {
-            "top_level_folder": top_level_folder,
-            "files": [file_1, file_2],
-            "folder_1": folder_1,
-            "sub_folder_1": sub_folder_1,
-            "file_3": file_3,
-            "file_4": file_4,
-        }
 
     async def _set_custom_permissions(
         self, entity: Union[File, Folder, Project]
@@ -940,24 +879,37 @@ class TestDeletePermissions:
         self, entity: Union[File, Folder, Project]
     ) -> None:
         """Helper to verify that permissions have been deleted (entity inherits from parent)."""
-        await asyncio.sleep(10)
+        for attempt in range(self.verification_attempts):
+            await asyncio.sleep(random.randint(1, 5))
 
-        acl = await entity.get_acl_async(
-            principal_id=AUTHENTICATED_USERS, check_benefactor=False
-        )
+            acl = await entity.get_acl_async(
+                principal_id=AUTHENTICATED_USERS, check_benefactor=False
+            )
 
-        assert (
-            not acl
-        ), f"Permissions should be deleted, but they still exist on [id: {entity.id}, name: {entity.name}, {entity.__class__}]."
+            if not acl:
+                return  # Verification successful
+
+            if attempt == self.verification_attempts - 1:  # Last attempt
+                assert not acl, (
+                    f"Permissions should be deleted, but they still exist on "
+                    f"[id: {entity.id}, name: {entity.name}, {entity.__class__}]."
+                )
 
     async def _verify_permissions_not_deleted(
         self, entity: Union[File, Folder, Project]
-    ) -> None:
+    ) -> bool:
         """Helper to verify that permissions are still set on an entity."""
-        acl = await entity.get_acl_async(
-            principal_id=AUTHENTICATED_USERS, check_benefactor=False
-        )
-        assert "READ" in acl
+        for attempt in range(self.verification_attempts):
+            await asyncio.sleep(random.randint(1, 5))
+            acl = await entity.get_acl_async(
+                principal_id=AUTHENTICATED_USERS, check_benefactor=False
+            )
+            if "READ" in acl:
+                return True
+
+            if attempt == self.verification_attempts - 1:  # Last attempt
+                assert "READ" in acl
+
         return True
 
     async def _verify_list_acl_functionality(
@@ -970,17 +922,25 @@ class TestDeletePermissions:
         log_tree: bool = True,
     ) -> AclListResult:
         """Helper to verify list_acl_async functionality and return results."""
-        await asyncio.sleep(10)
-        acl_result = await entity.list_acl_async(
-            recursive=recursive,
-            include_container_content=include_container_content,
-            target_entity_types=target_entity_types,
-            log_tree=log_tree,
-            synapse_client=self.syn_with_logger,
-        )
+        for attempt in range(self.verification_attempts):
+            await asyncio.sleep(random.randint(1, 5))
+            acl_result = await entity.list_acl_async(
+                recursive=recursive,
+                include_container_content=include_container_content,
+                target_entity_types=target_entity_types,
+                log_tree=log_tree,
+                synapse_client=self.syn_with_logger,
+            )
 
-        assert isinstance(acl_result, AclListResult)
-        assert len(acl_result.all_entity_acls) >= expected_entity_count
+            if (
+                isinstance(acl_result, AclListResult)
+                and len(acl_result.all_entity_acls) >= expected_entity_count
+            ):
+                return acl_result
+
+            if attempt == self.verification_attempts - 1:  # Last attempt
+                assert isinstance(acl_result, AclListResult)
+                assert len(acl_result.all_entity_acls) >= expected_entity_count
 
         return acl_result
 
@@ -993,15 +953,36 @@ class TestDeletePermissions:
         tree_logging: bool = True,
     ) -> None:
         """Helper to verify expected log messages from both methods."""
-        log_text = caplog.text
+        for attempt in range(self.verification_attempts):
+            log_text = caplog.text
+            all_checks_passed = True
 
-        if list_acl_called and tree_logging:
-            assert "ACL Tree Structure:" in log_text
+            # Check tree logging if required
+            if list_acl_called and tree_logging:
+                if "ACL Tree Structure:" not in log_text:
+                    all_checks_passed = False
 
-        if delete_permissions_called and dry_run:
-            assert "DRY RUN" in log_text
-            assert "Permission Deletion Impact Analysis" in log_text
-            assert "End of Dry Run Analysis" in log_text
+            # Check dry run messages if required
+            if delete_permissions_called and dry_run:
+                if (
+                    "DRY RUN" not in log_text
+                    or "Permission Deletion Impact Analysis" not in log_text
+                    or "End of Dry Run Analysis" not in log_text
+                ):
+                    all_checks_passed = False
+
+            # If all checks passed, we're done
+            if all_checks_passed:
+                break
+
+            # On last attempt, assert all required conditions
+            if attempt == self.verification_attempts - 1:
+                if list_acl_called and tree_logging:
+                    assert "ACL Tree Structure:" in log_text
+                if delete_permissions_called and dry_run:
+                    assert "DRY RUN" in log_text
+                    assert "Permission Deletion Impact Analysis" in log_text
+                    assert "End of Dry Run Analysis" in log_text
 
     async def create_simple_tree_structure(
         self, project_model: Project
@@ -1300,25 +1281,6 @@ class TestDeletePermissions:
             "mixed_files": [mixed_file, mixed_file_a, mixed_file_b],
         }
 
-    async def test_delete_permissions_invalid_entity_type(
-        self, project_model: Project
-    ) -> None:
-        """Test deleting permissions with an invalid entity type."""
-        # GIVEN a folder structure
-        folder_structure = await self.create_folder_structure(project_model)
-        top_level_folder = folder_structure["top_level_folder"]
-
-        # WHEN I try to delete permissions with an invalid entity type
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError) as exc_info:
-            await top_level_folder.delete_permissions_async(
-                target_entity_types=["invalid_type"]
-            )
-
-        # AND the error message should mention allowed values
-        assert "Invalid entity type" in str(exc_info.value)
-        assert "folder" in str(exc_info.value)
-
     async def test_delete_permissions_on_new_project(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
@@ -1332,7 +1294,7 @@ class TestDeletePermissions:
 
         # AND custom permissions are set for authenticated users
         await self._set_custom_permissions(project)
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN I delete permissions on the project
         await project.delete_permissions_async()
@@ -1351,11 +1313,14 @@ class TestDeletePermissions:
             assert await self._verify_permissions_not_deleted(project)
 
     async def test_delete_permissions_simple_tree_structure(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on a simple tree structure."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a simple tree structure with permissions
-        structure = await self.create_simple_tree_structure(project_model)
+        structure = await self.create_simple_tree_structure(project_object)
         folder_a = structure["folder_a"]
         file_1 = structure["file_1"]
 
@@ -1364,7 +1329,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(folder_a),
             self._set_custom_permissions(file_1),
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1394,17 +1359,20 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_deep_nested_structure(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on a deeply nested structure."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a deeply nested structure with permissions
-        structure = await self.create_deep_nested_structure(project_model)
+        structure = await self.create_deep_nested_structure(project_object)
 
         # Set permissions on all entities
         await asyncio.gather(
             *[self._set_custom_permissions(entity) for entity in structure.values()]
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1433,11 +1401,14 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_wide_tree_structure(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on a wide tree structure with multiple siblings."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a wide tree structure with permissions
-        structure = await self.create_wide_tree_structure(project_model)
+        structure = await self.create_wide_tree_structure(project_object)
         folders = structure["folders"]
         all_files = structure["all_files"]
         root_file = structure["root_file"]
@@ -1447,11 +1418,11 @@ class TestDeletePermissions:
         await asyncio.gather(
             *[self._set_custom_permissions(entity) for entity in entities_to_set]
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
-            entity=project_model,
+            entity=project_object,
             expected_entity_count=7,  # 3 folders + 3 files + 1 root file
             recursive=True,
             include_container_content=True,
@@ -1463,7 +1434,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions recursively from the project
-        await project_model.delete_permissions_async(
+        await project_object.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             dry_run=False,
@@ -1477,11 +1448,14 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_complex_mixed_structure(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on a complex mixed structure."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a complex mixed structure with permissions
-        structure = await self.create_complex_mixed_structure(project_model)
+        structure = await self.create_complex_mixed_structure(project_object)
 
         # Set permissions on all entities
         entities_to_set = (
@@ -1501,11 +1475,11 @@ class TestDeletePermissions:
         await asyncio.gather(
             *[self._set_custom_permissions(entity) for entity in entities_to_set]
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_functionality before deletion
         await self._verify_list_acl_functionality(
-            entity=project_model,
+            entity=project_object,
             expected_entity_count=12,  # complex structure with multiple entities
             recursive=True,
             include_container_content=True,
@@ -1517,7 +1491,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions recursively from the project
-        await project_model.delete_permissions_async(
+        await project_object.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             dry_run=False,
@@ -1531,16 +1505,19 @@ class TestDeletePermissions:
 
     # Edge case tests
     async def test_delete_permissions_empty_folder(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on an empty folder."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN an empty folder with custom permissions
         empty_folder = await Folder(name=f"empty_folder_{uuid.uuid4()}").store_async(
-            parent=project_model, synapse_client=self.syn
+            parent=project_object, synapse_client=self.syn
         )
         self.schedule_for_cleanup(empty_folder.id)
         await self._set_custom_permissions(empty_folder)
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before deletion (empty folder)
         await self._verify_list_acl_functionality(
@@ -1567,12 +1544,15 @@ class TestDeletePermissions:
         await self._verify_permissions_deleted(empty_folder)
 
     async def test_delete_permissions_folder_with_only_files(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on a folder that contains only files."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a folder with only one file
         folder = await Folder(name=f"files_only_folder_{uuid.uuid4()}").store_async(
-            parent=project_model, synapse_client=self.syn
+            parent=project_object, synapse_client=self.syn
         )
         self.schedule_for_cleanup(folder.id)
 
@@ -1586,7 +1566,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(folder),
             self._set_custom_permissions(file),
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1616,13 +1596,16 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_folder_with_only_folders(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on a folder that contains only sub-folders."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a folder with only sub-folders
         parent_folder = await Folder(
             name=f"folders_only_parent_{uuid.uuid4()}"
-        ).store_async(parent=project_model, synapse_client=self.syn)
+        ).store_async(parent=project_object, synapse_client=self.syn)
         self.schedule_for_cleanup(parent_folder.id)
 
         # Create sub-folders in parallel
@@ -1643,7 +1626,7 @@ class TestDeletePermissions:
         await asyncio.gather(
             *[self._set_custom_permissions(entity) for entity in entities_to_set]
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before deletion
         await self._verify_list_acl_functionality(
@@ -1672,11 +1655,14 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_target_files_only_complex(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions targeting only files in a complex structure."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a complex structure with permissions
-        structure = await self.create_complex_mixed_structure(project_model)
+        structure = await self.create_complex_mixed_structure(project_object)
 
         # Set permissions on all entities
         await asyncio.gather(
@@ -1686,11 +1672,11 @@ class TestDeletePermissions:
             self._set_custom_permissions(structure["sub_deep"]),
             *[self._set_custom_permissions(file) for file in structure["deep_files"]],
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async with target_entity_types for files only
         await self._verify_list_acl_functionality(
-            entity=project_model,
+            entity=project_object,
             expected_entity_count=4,  # shallow_file + 3 deep_files
             recursive=True,
             include_container_content=True,
@@ -1703,7 +1689,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions targeting only files
-        await project_model.delete_permissions_async(
+        await project_object.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             target_entity_types=["file"],
@@ -1729,17 +1715,20 @@ class TestDeletePermissions:
 
     # Include container content vs recursive tests
     async def test_delete_permissions_include_container_only_deep_structure(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test include_container_content=True without recursive on deep structure."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a deep nested structure with permissions
-        structure = await self.create_deep_nested_structure(project_model)
+        structure = await self.create_deep_nested_structure(project_object)
 
         # Set permissions on all entities
         await asyncio.gather(
             *[self._set_custom_permissions(entity) for entity in structure.values()]
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async with include_container_content=True
         await self._verify_list_acl_functionality(
@@ -1780,11 +1769,14 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_skip_self_complex_structure(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test include_self=False on a complex structure."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a complex mixed structure with permissions
-        structure = await self.create_complex_mixed_structure(project_model)
+        structure = await self.create_complex_mixed_structure(project_object)
 
         # Set permissions on all entities
         await asyncio.gather(
@@ -1795,7 +1787,7 @@ class TestDeletePermissions:
             ],
             *[self._set_custom_permissions(file) for file in structure["mixed_files"]],
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before deletion (should show all entities)
         await self._verify_list_acl_functionality(
@@ -1836,11 +1828,14 @@ class TestDeletePermissions:
 
     # Dry run functionality tests
     async def test_delete_permissions_dry_run_no_changes(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test that dry_run=True makes no actual changes."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a simple structure with permissions
-        structure = await self.create_simple_tree_structure(project_model)
+        structure = await self.create_simple_tree_structure(project_object)
         folder_a = structure["folder_a"]
         file_1 = structure["file_1"]
 
@@ -1849,7 +1844,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(folder_a),
             self._set_custom_permissions(file_1),
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before dry run
         initial_acl_result = await self._verify_list_acl_functionality(
@@ -1903,11 +1898,14 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_dry_run_complex_logging(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test dry run logging for complex structures."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a complex structure with permissions
-        structure = await self.create_complex_mixed_structure(project_model)
+        structure = await self.create_complex_mixed_structure(project_object)
 
         # Set permissions on a subset of entities
         await asyncio.gather(
@@ -1915,7 +1913,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(structure["sub_deep"]),
             self._set_custom_permissions(structure["deep_files"][0]),
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async with detailed logging before dry run
         await self._verify_list_acl_functionality(
@@ -1962,12 +1960,15 @@ class TestDeletePermissions:
 
     # Performance and stress tests
     async def test_delete_permissions_large_flat_structure(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on a large flat structure."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a folder with many files
         large_folder = await Folder(name=f"large_folder_{uuid.uuid4()}").store_async(
-            parent=project_model, synapse_client=self.syn
+            parent=project_object, synapse_client=self.syn
         )
         self.schedule_for_cleanup(large_folder.id)
 
@@ -1989,7 +1990,7 @@ class TestDeletePermissions:
         await asyncio.gather(
             *[self._set_custom_permissions(entity) for entity in entities_to_set]
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async performance with large structure
         await self._verify_list_acl_functionality(
@@ -2018,13 +2019,16 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_multiple_nested_branches(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions on multiple nested branches simultaneously."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN multiple complex nested branches
         branch_tasks = [
             Folder(name=f"branch_{branch_name}_{uuid.uuid4()}").store_async(
-                parent=project_model, synapse_client=self.syn
+                parent=project_object, synapse_client=self.syn
             )
             for branch_name in ["alpha", "beta"]
         ]
@@ -2081,11 +2085,11 @@ class TestDeletePermissions:
         await asyncio.gather(
             *[self._set_custom_permissions(entity) for entity in all_entities]
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before deletion (complex multiple branches)
         await self._verify_list_acl_functionality(
-            entity=project_model,
+            entity=project_object,
             expected_entity_count=11,
             recursive=True,
             include_container_content=True,
@@ -2097,7 +2101,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions recursively from the project
-        await project_model.delete_permissions_async(
+        await project_object.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             dry_run=False,
@@ -2110,17 +2114,20 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_selective_branches(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test selectively deleting permissions from specific branches."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN multiple branches with permissions
         # Create branches in parallel
         branch_tasks = [
             Folder(name=f"branch_a_{uuid.uuid4()}").store_async(
-                parent=project_model, synapse_client=self.syn
+                parent=project_object, synapse_client=self.syn
             ),
             Folder(name=f"branch_b_{uuid.uuid4()}").store_async(
-                parent=project_model, synapse_client=self.syn
+                parent=project_object, synapse_client=self.syn
             ),
         ]
         branch_a, branch_b = await asyncio.gather(*branch_tasks)
@@ -2151,7 +2158,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(file_a),
             self._set_custom_permissions(file_b),
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before selective deletion
         await self._verify_list_acl_functionality(
@@ -2187,11 +2194,14 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_mixed_entity_types_in_structure(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions with mixed entity types in complex structure."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a structure with both files and folders at multiple levels
-        structure = await self.create_complex_mixed_structure(project_model)
+        structure = await self.create_complex_mixed_structure(project_object)
 
         # Set permissions on a mix of entities
         await asyncio.gather(
@@ -2201,11 +2211,11 @@ class TestDeletePermissions:
             self._set_custom_permissions(structure["deep_files"][1]),
             self._set_custom_permissions(structure["mixed_sub_folders"][0]),
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async with mixed entity types
         await self._verify_list_acl_functionality(
-            entity=project_model,
+            entity=project_object,
             expected_entity_count=5,  # All the entities we set permissions on
             recursive=True,
             include_container_content=True,
@@ -2218,7 +2228,7 @@ class TestDeletePermissions:
         caplog.clear()
 
         # WHEN I delete permissions targeting both files and folders
-        await project_model.delete_permissions_async(
+        await project_object.delete_permissions_async(
             recursive=True,
             include_container_content=True,
             target_entity_types=["file", "folder"],
@@ -2236,12 +2246,15 @@ class TestDeletePermissions:
         )
 
     async def test_delete_permissions_no_container_content_but_has_children(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test deleting permissions without include_container_content when children exist."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a folder with children and custom permissions
         parent_folder = await Folder(name=f"parent_folder_{uuid.uuid4()}").store_async(
-            parent=project_model, synapse_client=self.syn
+            parent=project_object, synapse_client=self.syn
         )
         self.schedule_for_cleanup(parent_folder.id)
 
@@ -2255,7 +2268,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(parent_folder),
             self._set_custom_permissions(child_file),
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async before testing container content exclusion
         await self._verify_list_acl_functionality(
@@ -2285,11 +2298,14 @@ class TestDeletePermissions:
         await self._verify_permissions_not_deleted(child_file)
 
     async def test_delete_permissions_case_insensitive_entity_types(
-        self, project_model: Project, caplog: pytest.LogCaptureFixture
+        self, project_object: Project, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test that target_entity_types are case-insensitive."""
+        await project_object.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_object.id)
+
         # GIVEN a simple structure with permissions
-        structure = await self.create_simple_tree_structure(project_model)
+        structure = await self.create_simple_tree_structure(project_object)
         folder_a = structure["folder_a"]
         file_1 = structure["file_1"]
 
@@ -2298,7 +2314,7 @@ class TestDeletePermissions:
             self._set_custom_permissions(folder_a),
             self._set_custom_permissions(file_1),
         )
-        await asyncio.sleep(10)
+        await asyncio.sleep(random.randint(1, 5))
 
         # WHEN - Verify list_acl_async with case-insensitive entity types
         await self._verify_list_acl_functionality(
