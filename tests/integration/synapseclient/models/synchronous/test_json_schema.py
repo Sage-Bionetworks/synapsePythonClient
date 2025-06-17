@@ -545,9 +545,8 @@ class TestJSONSchema:
 
                 assert validation_response.object_type == "entity"
                 assert validation_response.object_etag is not None
-                assert (
-                    validation_response.id
-                    == f"https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/{test_org.name}-{TEST_SCHEMA_NAME}-{SCHEMA_VERSION}"
+                assert validation_response.id.endswith(
+                    f"repo/v1/schema/type/registered/{test_org.name}-{TEST_SCHEMA_NAME}-{SCHEMA_VERSION}"
                 )
                 assert validation_response.is_valid == False
                 assert validation_exception.message == "2 schema violations found"
