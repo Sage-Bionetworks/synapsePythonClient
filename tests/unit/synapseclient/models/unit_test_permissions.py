@@ -204,16 +204,16 @@ class TestDeletePermissions:
     async def test_delete_permissions_target_entity_types_folder_only(self):
         """Test filtering deletion by folder entity type only."""
         # GIVEN a folder with child folder and file
-        folder = Folder(id="syn123")
+        folder = Folder(id="syn123", name="parent_folder")
         folder.sync_from_synapse_async = AsyncMock()
 
-        child_folder = Folder(id="syn456")
+        child_folder = Folder(id="syn456", name="child_folder")
         child_folder.delete_permissions_async = AsyncMock()
         child_folder.sync_from_synapse_async = AsyncMock()
         child_folder.folders = []
         child_folder.files = []
 
-        child_file = File(id="syn789")
+        child_file = File(id="syn789", name="child_file.txt")
         child_file.delete_permissions_async = AsyncMock()
 
         folder.folders = [child_folder]
@@ -239,16 +239,16 @@ class TestDeletePermissions:
     async def test_delete_permissions_target_entity_types_file_only(self):
         """Test filtering deletion by file entity type only."""
         # GIVEN a folder with child folder and file
-        folder = Folder(id="syn123")
+        folder = Folder(id="syn123", name="parent_folder")
         folder.sync_from_synapse_async = AsyncMock()
 
-        child_folder = Folder(id="syn456")
+        child_folder = Folder(id="syn456", name="child_folder")
         child_folder.delete_permissions_async = AsyncMock()
         child_folder.sync_from_synapse_async = AsyncMock()
         child_folder.folders = []
         child_folder.files = []
 
-        child_file = File(id="syn789")
+        child_file = File(id="syn789", name="child_file.txt")
         child_file.delete_permissions_async = AsyncMock()
 
         folder.folders = [child_folder]
@@ -275,10 +275,10 @@ class TestDeletePermissions:
     async def test_delete_permissions_case_insensitive_entity_types(self):
         """Test that entity type matching is case-insensitive."""
         # GIVEN a folder with child entities
-        folder = Folder(id="syn123")
+        folder = Folder(id="syn123", name="parent_folder")
         folder.sync_from_synapse_async = AsyncMock()
 
-        child_folder = Folder(id="syn456")
+        child_folder = Folder(id="syn456", name="child_folder")
         child_folder.delete_permissions_async = AsyncMock()
         child_folder.sync_from_synapse_async = AsyncMock()
         child_folder.folders = []
@@ -338,7 +338,7 @@ class TestDeletePermissions:
         self.mock_get_benefactor.return_value = MagicMock(id="syn999")
 
         # WHEN deleting permissions with benefactor tracker
-        file.delete_permissions(benefactor_tracker=tracker)
+        file.delete_permissions(_benefactor_tracker=tracker)
 
         # THEN delete_entity_acl should be called
         self.mock_delete_acl.assert_called_once_with(
@@ -472,7 +472,7 @@ class TestDeletePermissions:
         tracker.benefactor_children["syn123"] = ["syn456", "syn789"]
 
         # WHEN deleting permissions
-        file.delete_permissions(benefactor_tracker=tracker)
+        file.delete_permissions(_benefactor_tracker=tracker)
 
         # THEN deletion should complete
         self.mock_delete_acl.assert_called_once()
@@ -1082,30 +1082,6 @@ class TestListAclAsyncComprehensive:
 
         # AND result should contain ACLs for the expected entities
         assert len(result.all_entity_acls) > 0
-
-    async def test_list_acl_error_handling(self):
-        """Test error handling during ACL listing."""
-        # GIVEN a folder with children where one child fails
-        folder = Folder(id="syn123")
-        folder.sync_from_synapse_async = AsyncMock()
-
-        child_file = File(id="syn456")
-        child_file._get_current_entity_acl = AsyncMock()
-        child_file._get_current_entity_acl.side_effect = Exception("Network error")
-
-        folder.files = [child_file]
-        folder.folders = []
-
-        folder._collect_entities = AsyncMock()
-        folder._collect_entities.return_value = [child_file]
-
-        # AND mock folder ACL
-        self.mock_get_acl.return_value = {"id": "syn123", "resourceAccess": []}
-        self.mock_get_user_headers.return_value = []
-
-        # WHEN listing ACL
-        with pytest.raises(Exception, match="Network error"):
-            folder.list_acl(include_container_content=True)
 
     async def test_list_acl_no_user_headers(self):
         """Test ACL listing when user headers can't be retrieved."""

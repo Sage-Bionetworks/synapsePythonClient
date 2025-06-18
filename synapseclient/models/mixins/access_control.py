@@ -529,7 +529,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         with shared_download_progress_bar(
             file_size=1, synapse_client=client, custom_message=custom_message, unit=None
         ) as progress_bar:
-            progress_bar.update(1)  # Initial setup complete
+            if progress_bar:
+                progress_bar.update(1)  # Initial setup complete
 
             if should_process_children:
                 if recursive and not include_container_content:
@@ -538,8 +539,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                         "Setting recursive=True with include_container_content=False has no effect."
                     )
 
-                progress_bar.total += 1
-                progress_bar.refresh()
+                if progress_bar:
+                    progress_bar.total += 1
+                    progress_bar.refresh()
 
                 all_entities = await self._collect_entities(
                     client=client,
@@ -548,25 +550,29 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     recursive=recursive,
                     progress_bar=progress_bar,
                 )
-                progress_bar.update(1)
+                if progress_bar:
+                    progress_bar.update(1)
 
                 entity_ids = [entity.id for entity in all_entities if entity.id]
                 if entity_ids:
-                    progress_bar.total += 1
-                    progress_bar.refresh()
+                    if progress_bar:
+                        progress_bar.total += 1
+                        progress_bar.refresh()
                     await benefactor_tracker.track_entity_benefactor(
                         entity_ids=entity_ids,
                         synapse_client=client,
                         progress_bar=progress_bar,
                     )
                 else:
-                    progress_bar.total += 1
-                    progress_bar.refresh()
-                    progress_bar.update(1)
+                    if progress_bar:
+                        progress_bar.total += 1
+                        progress_bar.refresh()
+                        progress_bar.update(1)
 
             if is_top_level:
-                progress_bar.total += 1
-                progress_bar.refresh()
+                if progress_bar:
+                    progress_bar.total += 1
+                    progress_bar.refresh()
                 await self._build_and_log_run_tree(
                     client=client,
                     benefactor_tracker=benefactor_tracker,
@@ -582,8 +588,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 return
 
             if include_self:
-                progress_bar.total += 1
-                progress_bar.refresh()
+                if progress_bar:
+                    progress_bar.total += 1
+                    progress_bar.refresh()
                 await self._delete_current_entity_acl(
                     client=client,
                     benefactor_tracker=benefactor_tracker,
@@ -592,19 +599,22 @@ class AccessControllable(AccessControllableSynchronousProtocol):
 
             if should_process_children:
                 if include_container_content:
-                    progress_bar.total += 1
-                    progress_bar.refresh()
+                    if progress_bar:
+                        progress_bar.total += 1
+                        progress_bar.refresh()
                     await self._process_container_contents(
                         client=client,
                         target_entity_types=normalized_types,
                         benefactor_tracker=benefactor_tracker,
                         progress_bar=progress_bar,
                     )
-                    progress_bar.update(1)  # Process container contents complete
+                    if progress_bar:
+                        progress_bar.update(1)  # Process container contents complete
 
                 if recursive and hasattr(self, "folders"):
-                    progress_bar.total += 1
-                    progress_bar.refresh()
+                    if progress_bar:
+                        progress_bar.total += 1
+                        progress_bar.refresh()
                     await self._process_folder_permission_deletion(
                         client=client,
                         recursive=True,
@@ -613,7 +623,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                         benefactor_tracker=benefactor_tracker,
                         progress_bar=progress_bar,
                     )
-                    progress_bar.update(1)
+                    if progress_bar:
+                        progress_bar.update(1)
 
     def _normalize_target_entity_types(
         self, target_entity_types: Optional[List[str]]
@@ -2071,7 +2082,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             build_tree_recursive(relevant_roots[0], "", True, True)
         else:
             relevant_roots.sort(
-                key=lambda entity_id: entity_metadata[entity_id]["name"]
+                key=lambda entity_id: entity_metadata[entity_id]["name"] or ""
             )
             for i, root_id in enumerate(relevant_roots):
                 is_last_root = i == len(relevant_roots) - 1
