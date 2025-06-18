@@ -18,6 +18,7 @@ class TestDeletePermissionsAsync:
         """Set up test fixtures."""
         self.synapse_client = MagicMock(spec=Synapse)
         self.synapse_client.logger = MagicMock()
+        self.synapse_client.silent = True
 
         # Mock the Synapse.get_client to return our mock client
         self.get_client_patcher = patch(
@@ -320,7 +321,7 @@ class TestDeletePermissionsAsync:
         folder = Folder(id="syn123")
         folder.sync_from_synapse_async = AsyncMock()
         folder._collect_entities = AsyncMock(return_value=[folder])
-        folder._build_and_log_dry_run_tree = AsyncMock()
+        folder._build_and_log_run_tree = AsyncMock()
 
         # WHEN running in dry run mode
         await folder.delete_permissions_async(
@@ -328,7 +329,7 @@ class TestDeletePermissionsAsync:
         )
 
         # THEN dry run tree should be built and logged
-        folder._build_and_log_dry_run_tree.assert_called_once()
+        folder._build_and_log_run_tree.assert_called_once()
 
         # AND actual deletion should not occur
         self.mock_delete_acl.assert_not_called()
@@ -387,6 +388,7 @@ class TestDeletePermissionsAsync:
         file = File(id="syn123")
         custom_client = MagicMock(spec=Synapse)
         custom_client.logger = MagicMock()
+        custom_client.silent = True
 
         # WHEN deleting permissions with custom client
         await file.delete_permissions_async(synapse_client=custom_client)
@@ -415,7 +417,7 @@ class TestDeletePermissionsAsync:
         root_folder._collect_entities = AsyncMock(
             return_value=[root_folder, level1_folder, level1_file]
         )
-        root_folder._build_and_log_dry_run_tree = AsyncMock()
+        root_folder._build_and_log_run_tree = AsyncMock()
 
         # WHEN running dry run with detailed logging
         await root_folder.delete_permissions_async(
@@ -427,8 +429,8 @@ class TestDeletePermissionsAsync:
         )
 
         # THEN dry run tree should be built with appropriate parameters
-        root_folder._build_and_log_dry_run_tree.assert_called_once()
-        _, kwargs = root_folder._build_and_log_dry_run_tree.call_args
+        root_folder._build_and_log_run_tree.assert_called_once()
+        _, kwargs = root_folder._build_and_log_run_tree.call_args
         assert kwargs["show_acl_details"] is True
         assert kwargs["show_files_in_containers"] is True
 
@@ -586,7 +588,9 @@ class TestBenefactorTrackerComprehensive:
             side_effect=benefactor_responses,
         ):
             # WHEN tracking multiple entities in parallel
-            await tracker.track_entity_benefactor(entity_ids, mock_client)
+            await tracker.track_entity_benefactor(
+                entity_ids=entity_ids, synapse_client=mock_client, progress_bar=None
+            )
 
             # THEN all entities should be tracked
             assert len(tracker.entity_benefactors) == 3
@@ -611,7 +615,9 @@ class TestBenefactorTrackerComprehensive:
             return_value=MagicMock(id="syn999"),
         ) as mock_get_benefactor:
             # WHEN tracking entities
-            await tracker.track_entity_benefactor(entity_ids, mock_client)
+            await tracker.track_entity_benefactor(
+                entity_ids=entity_ids, synapse_client=mock_client, progress_bar=None
+            )
 
             # THEN only unprocessed entity should be fetched
             mock_get_benefactor.assert_called_once()
@@ -704,6 +710,7 @@ class TestListAclAsyncComprehensive:
         """Set up test fixtures."""
         self.synapse_client = MagicMock(spec=Synapse)
         self.synapse_client.logger = MagicMock()
+        self.synapse_client.silent = True
 
         # Mock the Synapse.get_client to return our mock client
         self.get_client_patcher = patch(

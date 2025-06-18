@@ -68,6 +68,7 @@ def increment_progress_bar(n: int, progress_bar: Union[tqdm, None]) -> None:
 def shared_download_progress_bar(
     file_size: int,
     custom_message: str = None,
+    unit: str = "B",
     *,
     synapse_client: Optional["Synapse"] = None,
 ):
@@ -91,7 +92,10 @@ def shared_download_progress_bar(
     syn = Synapse.get_client(synapse_client=synapse_client)
     with logging_redirect_tqdm(loggers=[syn.logger]):
         progress_bar = get_or_create_download_progress_bar(
-            file_size=file_size, custom_message=custom_message, synapse_client=syn
+            file_size=file_size,
+            custom_message=custom_message,
+            synapse_client=syn,
+            unit=unit,
         )
         try:
             yield progress_bar
@@ -126,6 +130,7 @@ def get_or_create_download_progress_bar(
     file_size: int,
     postfix: str = None,
     custom_message: str = None,
+    unit: str = "B",
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[tqdm, None]:
@@ -155,7 +160,7 @@ def get_or_create_download_progress_bar(
         progress_bar = tqdm(
             total=file_size,
             desc=custom_message or "Downloading files",
-            unit="B",
+            unit=unit or "it",
             unit_scale=True,
             smoothing=0,
             postfix=postfix,
