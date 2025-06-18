@@ -1,16 +1,17 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, AsyncGenerator, List, Optional, Union
+from typing import TYPE_CHECKING, AsyncGenerator, Generator, List, Optional, Union
 
 from synapseclient.api.json_schema_services import (
     bind_json_schema_to_entity,
     delete_json_schema_from_entity,
     get_invalid_json_schema_validation,
+    get_invalid_json_schema_validation_sync,
     get_json_schema_derived_keys,
     get_json_schema_from_entity,
     get_json_schema_validation_statistics,
     validate_entity_with_json_schema,
 )
-from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 from synapseclient.models.protocols.json_schema_protocol import (
     BaseJSONSchemaProtocol,
     ContainerEntityJSONSchemaProtocol,
@@ -412,9 +413,10 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
             number_of_unknown_children=response.get("numberOfUnknownChildren", None),
         )
 
+    @skip_async_to_sync
     async def get_invalid_validation_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> AsyncGenerator[InvalidJSONSchemaValidation, None]:
+    ) -> AsyncGenerator[InvalidJSONSchemaValidation, None, None]:
         """
         Get invalid JSON schema validation results for a container entity.
 
@@ -430,6 +432,69 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
             synapse_client=synapse_client, synapse_id=self.id
         )
         async for item in gen:
+            yield InvalidJSONSchemaValidation(
+                validation_response=JSONSchemaValidation(
+                    object_id=item.get("objectId", None),
+                    object_type=item.get("objectType", None),
+                    object_etag=item.get("objectEtag", None),
+                    id=item.get("schema$id", None),
+                    is_valid=item.get("isValid", None),
+                    validated_on=item.get("validatedOn", None),
+                ),
+                validation_error_message=item.get("validationErrorMessage", None),
+                all_validation_messages=item.get("allValidationMessages", []),
+                validation_exception=ValidationException(
+                    pointer_to_violation=item.get("validationException", {}).get(
+                        "pointerToViolation", None
+                    ),
+                    message=item.get("validationException", {}).get("message", None),
+                    schema_location=item.get("validationException", {}).get(
+                        "schemaLocation", None
+                    ),
+                    causing_exceptions=[
+                        CausingException(
+                            keyword=ce.get("keyword", None),
+                            pointer_to_violation=ce.get("pointerToViolation", None),
+                            message=ce.get("message", None),
+                            schema_location=ce.get("schemaLocation", None),
+                            causing_exceptions=[
+                                CausingException(
+                                    keyword=nce.get("keyword", None),
+                                    pointer_to_violation=nce.get(
+                                        "pointerToViolation", None
+                                    ),
+                                    message=nce.get("message", None),
+                                    schema_location=nce.get("schemaLocation", None),
+                                )
+                                for nce in ce.get("causingExceptions", [])
+                            ],
+                        )
+                        for ce in item.get("validationException", {}).get(
+                            "causingExceptions", []
+                        )
+                    ],
+                ),
+            )
+
+    def get_invalid_validation(
+        self, *, synapse_client: Optional["Synapse"] = None
+    ) -> Generator[InvalidJSONSchemaValidation, None, None]:
+        """
+        Get invalid JSON schema validation results for a container entity.
+
+        Arguments:
+            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+                the last created instance from the Synapse class constructor will be used.
+
+        Yields:
+            InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
+                                         and the validation exception details.
+        """
+        gen = get_invalid_json_schema_validation_sync(
+            synapse_client=synapse_client, synapse_id=self.id
+        )
+
+        for item in gen:
             yield InvalidJSONSchemaValidation(
                 validation_response=JSONSchemaValidation(
                     object_id=item.get("objectId", None),

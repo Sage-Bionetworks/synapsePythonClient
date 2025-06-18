@@ -147,6 +147,17 @@ async def get_invalid_json_schema_validation(
         yield item
 
 
+def get_invalid_json_schema_validation_sync(
+    synapse_id: str, *, synapse_client: Optional["Synapse"] = None
+):
+    request_body = {"containerId": synapse_id}
+    response = synapse_client._POST_paginated(
+        f"/entity/{synapse_id}/schema/validation/invalid", request_body
+    )
+    for item in response:
+        yield item
+
+
 async def get_json_schema_derived_keys(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
 ) -> "JSONSchemaDerivedKeys":

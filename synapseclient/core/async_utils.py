@@ -2,7 +2,6 @@
 
 import asyncio
 import functools
-import inspect
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Union
 
 import nest_asyncio
@@ -114,16 +113,7 @@ def async_to_sync(cls):
 
             async def wrapper(*args, **kwargs):
                 """Wrapper for the function to be called in an async context."""
-                result = getattr(self, async_method_name)(*args, **kwargs)
-                if inspect.isasyncgen(result):
-                    # collect all values into a list
-                    return [item async for item in result]
-                elif inspect.iscoroutine(result):
-                    return await result
-                else:
-                    raise TypeError(
-                        f"Expected an async generator or coroutine, got {type(result)}"
-                    )
+                return await getattr(self, async_method_name)(*args, **kwargs)
 
             loop = None
 
@@ -144,9 +134,11 @@ def async_to_sync(cls):
 
     methods_to_update = []
     for k in methods:
+        if getattr(cls.__dict__[k], "_skip_conversion", False):
+            continue
+
         if "async" in k and (new_method_name := k.replace("_async", "")):
             new_method = create_method(k)
-
             new_method.fn.__name__ = new_method_name
             new_method.__name__ = new_method_name
 
@@ -163,3 +155,8 @@ def async_to_sync(cls):
         )
 
     return cls
+
+
+def skip_async_to_sync(func):
+    func._skip_conversion = True
+    return func
