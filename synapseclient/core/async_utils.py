@@ -158,5 +158,6 @@ def async_to_sync(cls):
 
 
 def skip_async_to_sync(func):
+    """Decorator to skip the async to sync conversion for a specific function."""
     func._skip_conversion = True
     return func
