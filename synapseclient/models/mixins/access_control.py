@@ -1000,13 +1000,13 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             self, "sync_from_synapse_async"
         )
 
-        if should_process_children and _progress_bar is None:
-            if recursive and not include_container_content:
-                raise ValueError(
-                    "When recursive=True, include_container_content must also be True. "
-                    "Setting recursive=True with include_container_content=False has no effect."
-                )
+        if should_process_children and (recursive and not include_container_content):
+            raise ValueError(
+                "When recursive=True, include_container_content must also be True. "
+                "Setting recursive=True with include_container_content=False has no effect."
+            )
 
+        if should_process_children and _progress_bar is None:
             with shared_download_progress_bar(
                 file_size=1,
                 synapse_client=client,
@@ -1032,11 +1032,6 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     if remaining > 0:
                         progress_bar.update(remaining)
         elif should_process_children:
-            if recursive and not include_container_content:
-                raise ValueError(
-                    "When recursive=True, include_container_content must also be True. "
-                    "Setting recursive=True with include_container_content=False has no effect."
-                )
             await self._process_children_with_progress(
                 client=client,
                 normalized_types=normalized_types,
