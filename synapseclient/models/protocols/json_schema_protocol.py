@@ -56,9 +56,9 @@ class BaseJSONSchemaProtocol(Protocol):
         """
         return JSONSchemaBinding()
 
-    def delete_schema(self, *, synapse_client: Optional["Synapse"] = None) -> None:
+    def unbind_schema(self, *, synapse_client: Optional["Synapse"] = None) -> None:
         """
-        Delete the JSON schema bound to the entity.
+        Unbind the JSON schema from the entity.
 
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,

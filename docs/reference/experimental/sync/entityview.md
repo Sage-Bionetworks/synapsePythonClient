@@ -27,7 +27,7 @@ at your own risk.
             - delete_permissions
             - bind_schema
             - get_schema
-            - delete_schema
+            - unbind_schema
             - validate_schema
             - get_schema_derived_keys
 ---

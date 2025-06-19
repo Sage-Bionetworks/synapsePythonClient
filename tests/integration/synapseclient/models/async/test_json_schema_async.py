@@ -169,7 +169,7 @@ class TestJSONSchema:
             assert json_schema_version_info.id == test_product_schema_uri
         finally:
             # Clean up the JSON schema binding
-            await created_entity.delete_schema_async(synapse_client=self.syn)
+            await created_entity.unbind_schema_async(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
     async def test_get_schema_async(
@@ -204,10 +204,10 @@ class TestJSONSchema:
             assert response.json_schema_version_info.id == test_product_schema_uri
         finally:
             # Clean up the JSON schema binding
-            await created_entity.delete_schema_async(synapse_client=self.syn)
+            await created_entity.unbind_schema_async(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    async def test_delete_schema_async(
+    async def test_unbind_schema_async(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -233,8 +233,8 @@ class TestJSONSchema:
             json_schema_uri=test_product_schema_uri, synapse_client=self.syn
         )
 
-        # Delete the JSON schema from the folder
-        await created_entity.delete_schema_async(synapse_client=self.syn)
+        # Unbind the JSON schema from the folder
+        await created_entity.unbind_schema_async(synapse_client=self.syn)
 
         # Verify that the JSON schema is no longer bound
         with pytest.raises(
@@ -297,7 +297,7 @@ class TestJSONSchema:
             assert set(response.keys) == {"productId", "productName"}
         finally:
             # Clean up the JSON schema binding
-            await created_entity.delete_schema_async(synapse_client=self.syn)
+            await created_entity.unbind_schema_async(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
     async def test_validate_schema_async_invalid_annos(
@@ -356,7 +356,7 @@ class TestJSONSchema:
             )
         finally:
             # Clean up the JSON schema binding
-            await created_entity.delete_schema_async(synapse_client=self.syn)
+            await created_entity.unbind_schema_async(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
     async def test_validate_schema_async_valid_annos(
@@ -400,7 +400,7 @@ class TestJSONSchema:
             assert response.is_valid == True
         finally:
             # Clean up the JSON schema binding
-            await created_entity.delete_schema_async(synapse_client=self.syn)
+            await created_entity.unbind_schema_async(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project])
     async def test_get_validation_statistics_async(
@@ -477,7 +477,7 @@ class TestJSONSchema:
             assert response.number_of_invalid_children == 1
         finally:
             # Clean up the JSON schema binding
-            await created_entity.delete_schema_async(synapse_client=self.syn)
+            await created_entity.unbind_schema_async(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project])
     async def test_get_invalid_validation_async(
@@ -575,4 +575,4 @@ class TestJSONSchema:
                 )
         finally:
             # Clean up the JSON schema binding
-            await created_entity.delete_schema_async(synapse_client=self.syn)
+            await created_entity.unbind_schema_async(synapse_client=self.syn)

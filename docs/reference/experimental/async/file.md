@@ -24,7 +24,7 @@ at your own risk.
         - delete_permissions_async
         - bind_schema_async
         - get_schema_async
-        - delete_schema_async
+        - unbind_schema_async
         - validate_schema_async
         - get_schema_derived_keys_async
 ---

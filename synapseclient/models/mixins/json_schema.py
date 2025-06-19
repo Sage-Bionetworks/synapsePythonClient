@@ -277,11 +277,11 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
             enable_derived_annotations=response.get("enableDerivedAnnotations", None),
         )
 
-    async def delete_schema_async(
+    async def unbind_schema_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> None:
         """
-        Delete the JSON schema bound to the entity.
+        Unbind the JSON schema bound to the entity.
 
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
