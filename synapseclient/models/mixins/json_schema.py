@@ -416,7 +416,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
     @skip_async_to_sync
     async def get_invalid_validation_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> AsyncGenerator[InvalidJSONSchemaValidation, None, None]:
+    ) -> AsyncGenerator[InvalidJSONSchemaValidation, None]:
         """
         Get invalid JSON schema validation results for a container entity.
 
