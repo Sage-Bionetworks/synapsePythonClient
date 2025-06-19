@@ -607,24 +607,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                         target_entity_types=normalized_types,
                         benefactor_tracker=benefactor_tracker,
                         progress_bar=progress_bar,
+                        recursive=recursive,
+                        include_container_content=include_container_content,
                     )
                     if progress_bar:
                         progress_bar.update(1)  # Process container contents complete
-
-                if recursive and hasattr(self, "folders"):
-                    if progress_bar:
-                        progress_bar.total += 1
-                        progress_bar.refresh()
-                    await self._process_folder_permission_deletion(
-                        client=client,
-                        recursive=True,
-                        target_entity_types=normalized_types,
-                        include_container_content=include_container_content,
-                        benefactor_tracker=benefactor_tracker,
-                        progress_bar=progress_bar,
-                    )
-                    if progress_bar:
-                        progress_bar.update(1)
 
     def _normalize_target_entity_types(
         self, target_entity_types: Optional[List[str]]
@@ -703,15 +690,19 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         target_entity_types: List[str],
         benefactor_tracker: BenefactorTracker,
         progress_bar: Optional[tqdm] = None,
+        recursive: bool = False,
+        include_container_content: bool = True,
     ) -> None:
         """
-        Process the direct contents of a container entity.
+        Process the contents of a container entity, optionally recursively.
 
         Arguments:
             client: The Synapse client instance to use for API calls.
             target_entity_types: A list of normalized entity types to process.
             benefactor_tracker: Tracker for managing benefactor relationships.
             progress_bar: Optional progress bar to update as tasks complete.
+            recursive: If True, process folders recursively; if False, process only direct contents.
+            include_container_content: Whether to include the content of containers in processing.
 
         Returns:
             None
@@ -757,12 +748,14 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 if progress_bar:
                     progress_bar.update(1)
 
-        if "folder" in target_entity_types and hasattr(self, "folders"):
+        if hasattr(self, "folders"):
             await self._process_folder_permission_deletion(
                 client=client,
-                recursive=False,
+                recursive=recursive,
                 benefactor_tracker=benefactor_tracker,
                 progress_bar=progress_bar,
+                target_entity_types=target_entity_types,
+                include_container_content=include_container_content,
             )
 
     async def _process_folder_permission_deletion(
@@ -770,8 +763,8 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         client: Synapse,
         recursive: bool,
         benefactor_tracker: BenefactorTracker,
+        target_entity_types: List[str],
         progress_bar: Optional[tqdm] = None,
-        target_entity_types: Optional[List[str]] = None,
         include_container_content: bool = False,
     ) -> None:
         """
@@ -782,9 +775,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             recursive: If True, process folders recursively; if False, process only direct folders.
             benefactor_tracker: Tracker for managing benefactor relationships.
                 Only used for non-recursive processing.
-            progress_bar: Optional progress bar to update as tasks complete.
             target_entity_types: A list of normalized entity types to process.
                 For non-recursive processing, defaults to ["folder"].
+            progress_bar: Optional progress bar to update as tasks complete.
             include_container_content: Whether to include the content of containers in processing.
                 Only used for recursive processing.
 
@@ -814,37 +807,21 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     progress_bar.update(1)  # Each tracking task complete
 
         async def process_single_folder(folder):
-            if recursive:
-                # Recursive processing logic
-                if target_entity_types is None:
-                    target_entity_types_to_use = []
-                else:
-                    target_entity_types_to_use = target_entity_types
+            should_delete_folder_acl = (
+                "folder" in target_entity_types and include_container_content
+            )
 
-                should_delete_folder_acl = (
-                    "folder" in target_entity_types_to_use and include_container_content
-                )
-
-                await folder.delete_permissions_async(
-                    include_self=should_delete_folder_acl,
-                    recursive=recursive,
-                    include_container_content=include_container_content,
-                    target_entity_types=target_entity_types_to_use,
-                    dry_run=False,
-                    _benefactor_tracker=benefactor_tracker,
-                    synapse_client=client,
-                )
-            else:
-                # Non-recursive (direct) processing logic
-                await folder.delete_permissions_async(
-                    include_self=True,
-                    recursive=False,
-                    include_container_content=False,
-                    target_entity_types=target_entity_types or ["folder"],
-                    dry_run=False,
-                    _benefactor_tracker=benefactor_tracker,
-                    synapse_client=client,
-                )
+            await folder.delete_permissions_async(
+                include_self=should_delete_folder_acl,
+                recursive=recursive,
+                # This is needed to ensure we do not delete children ACLs when not
+                # recursive, but still allow us to delete the ACL on the folder
+                include_container_content=include_container_content and recursive,
+                target_entity_types=target_entity_types,
+                dry_run=False,
+                _benefactor_tracker=benefactor_tracker,
+                synapse_client=client,
+            )
 
         folder_tasks = [process_single_folder(folder) for folder in self.folders]
 

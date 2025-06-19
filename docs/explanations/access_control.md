@@ -34,8 +34,8 @@ Synapse provides special principals for common sharing scenarios:
 
 - **273948**: All authenticated Synapse users
 - **273949**: Public access (anyone on the internet)
-- **Specific User ID**: Individual Synapse users (e.g., 3417048)
-- **Team ID**: Synapse teams for group-based permissions
+- **Specific User ID**: Individual Synapse users (e.g., #######)
+- **Team ID**: Synapse teams for group-based permissions (e.g., #######)
 
 ## Common Use Cases
 
