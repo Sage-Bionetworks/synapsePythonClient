@@ -8,11 +8,11 @@ if TYPE_CHECKING:
 
 async def rest_post_paginated_async(
     uri: str,
-    body: Dict[str, Any] = None,
-    endpoint: str = None,
-    headers: httpx.Headers = None,
-    retry_policy: Dict[str, Any] = {},
-    requests_session_async_synapse: httpx.AsyncClient = None,
+    body: Optional[Dict[str, Any]] = None,
+    endpoint: Optional[str] = None,
+    headers: Optional[httpx.Headers] = None,
+    retry_policy: Optional[Dict[str, Any]] = {},
+    requests_session_async_synapse: Optional[httpx.AsyncClient] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
     **kwargs,
