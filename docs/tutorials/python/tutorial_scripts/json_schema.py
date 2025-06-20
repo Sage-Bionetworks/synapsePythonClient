@@ -55,8 +55,6 @@ except SynapseHTTPError as e:
     if e.response.status_code == 404:
         my_test_org = js.create_organization(ORG_NAME)
 
-my_test_org = js.JsonSchemaOrganization(ORG_NAME)
-
 try:
     my_test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
 except SynapseHTTPError as e:
