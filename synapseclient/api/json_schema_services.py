@@ -1,17 +1,19 @@
 import json
-from typing import TYPE_CHECKING, AsyncGenerator, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Union,
+)
 
 from synapseclient.api.api_client import rest_post_paginated_async
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
-    from synapseclient.models.mixins import (
-        InvalidJSONSchemaValidation,
-        JSONSchemaBinding,
-        JSONSchemaDerivedKeys,
-        JSONSchemaValidation,
-        JSONSchemaValidationStatistics,
-    )
 
 
 async def bind_json_schema_to_entity(
@@ -20,8 +22,11 @@ async def bind_json_schema_to_entity(
     *,
     enable_derived_annos: bool = False,
     synapse_client: Optional["Synapse"] = None,
-) -> "JSONSchemaBinding":
-    """Bind a JSON schema to an entity
+) -> Union[Dict[str, Any], str]:
+    """
+    <https://rest-docs.synapse.org/rest/PUT/entity/id/schema/binding.html>
+
+    Bind a JSON schema to an entity
 
     Arguments:
         synapse_id:      Synapse Entity or Synapse Id
@@ -31,7 +36,7 @@ async def bind_json_schema_to_entity(
                          `Synapse.allow_client_caching(False)` this will use the last created
                          instance from the Synapse class constructor
     Returns:
-        A JSONSchemaBindingResponse object containing the details of the binding.
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaObjectBinding.html>
     """
     from synapseclient import Synapse
 
@@ -48,8 +53,11 @@ async def bind_json_schema_to_entity(
 
 async def get_json_schema_from_entity(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> "JSONSchemaBinding":
-    """Get bound schema from entity
+) -> Union[Dict[str, Any], str]:
+    """
+    <https://rest-docs.synapse.org/rest/GET/entity/id/schema/binding.html>
+
+    Get bound schema from entity
 
     Arguments:
         synapse_id:      Synapse Id
@@ -58,7 +66,7 @@ async def get_json_schema_from_entity(
                          instance from the Synapse class constructor
 
     Returns:
-        A JSONSchemaBindingResponse object containing the details of the binding.
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaObjectBinding.html>
     """
     from synapseclient import Synapse
 
@@ -69,7 +77,11 @@ async def get_json_schema_from_entity(
 async def delete_json_schema_from_entity(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
 ) -> None:
-    """Delete bound schema from entity
+    """
+    <https://rest-docs.synapse.org/rest/DELETE/entity/id/schema/binding.html>
+
+    Delete bound schema from entity
+
     Arguments:
         synapse_id:      Synapse Id
         synapse_client:  If not passed in and caching was not disabled by
@@ -84,8 +96,11 @@ async def delete_json_schema_from_entity(
 
 async def validate_entity_with_json_schema(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> "JSONSchemaValidation":
-    """Get validation results of an entity against bound JSON schema
+) -> Union[Dict[str, Union[str, bool]], str]:
+    """
+    <https://rest-docs.synapse.org/rest/GET/entity/id/schema/validation.html>
+
+    Get validation results of an entity against bound JSON schema
 
     Arguments:
         synapse_id:      Synapse Id
@@ -93,7 +108,7 @@ async def validate_entity_with_json_schema(
                          `Synapse.allow_client_caching(False)` this will use the last created
                          instance from the Synapse class constructor
     Returns:
-        A JSONSchemaValidationResponse object containing the validation results.
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/ValidationResults.html>
     """
     from synapseclient import Synapse
 
@@ -103,8 +118,12 @@ async def validate_entity_with_json_schema(
 
 async def get_json_schema_validation_statistics(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> "JSONSchemaValidationStatistics":
-    """Get the summary statistic of json schema validation results for
+) -> Dict[str, Union[str, int]]:
+    """
+
+    <https://rest-docs.synapse.org/rest/GET/entity/id/schema/validation/statistics.html>
+
+    Get the summary statistic of json schema validation results for
         a container entity
     Arguments:
         synapse_id:      Synapse Id
@@ -112,7 +131,8 @@ async def get_json_schema_validation_statistics(
                          `Synapse.allow_client_caching(False)` this will use the last created
                          instance from the Synapse class constructor
 
-    Returns: a JSONSchemaValidationStatisticsResponse object
+    Returns:
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/ValidationSummaryStatistics.html>
     """
     from synapseclient import Synapse
 
@@ -124,8 +144,12 @@ async def get_json_schema_validation_statistics(
 
 async def get_invalid_json_schema_validation(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> AsyncGenerator["InvalidJSONSchemaValidation", None]:
-    """Get a single page of invalid JSON schema validation results for a container Entity
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """
+
+    <https://rest-docs.synapse.org/rest/POST/entity/id/schema/validation/invalid.html>
+
+    Get a single page of invalid JSON schema validation results for a container Entity
     (Project or Folder).
 
     Arguments:
@@ -134,7 +158,7 @@ async def get_invalid_json_schema_validation(
                          `Synapse.allow_client_caching(False)` this will use the last created
                          instance from the Synapse class constructor
     Returns:
-        An AsyncGenerator yielding InvalidJSONSchemaValidationResponse objects.
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/ValidationResults.html>
     """
 
     request_body = {"containerId": synapse_id}
@@ -149,7 +173,22 @@ async def get_invalid_json_schema_validation(
 
 def get_invalid_json_schema_validation_sync(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-):
+) -> Generator[Dict[str, Any], None]:
+    """
+
+    <https://rest-docs.synapse.org/rest/POST/entity/id/schema/validation/invalid.html>
+
+    Get a single page of invalid JSON schema validation results for a container Entity
+    (Project or Folder).
+
+    Arguments:
+        synapse_id:      Synapse Id
+        synapse_client:  If not passed in and caching was not disabled by
+                         `Synapse.allow_client_caching(False)` this will use the last created
+                         instance from the Synapse class constructor
+    Returns:
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/ValidationResults.html>
+    """
     request_body = {"containerId": synapse_id}
     response = synapse_client._POST_paginated(
         f"/entity/{synapse_id}/schema/validation/invalid", request_body
@@ -160,14 +199,17 @@ def get_invalid_json_schema_validation_sync(
 
 async def get_json_schema_derived_keys(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> "JSONSchemaDerivedKeys":
-    """Retrieve derived JSON schema keys for a given Synapse entity.
+) -> List[str]:
+    """
+    <https://rest-docs.synapse.org/rest/GET/entity/id/derivedKeys.html>
+
+    Retrieve derived JSON schema keys for a given Synapse entity.
 
     Arguments:
         synapse_id (str): The Synapse ID of the entity for which to retrieve derived keys.
 
     Returns:
-        dict: JSONSchemaDerivedKeysResponse object containing the derived keys for the entity.
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Keys.html>
     """
     from synapseclient import Synapse
 
