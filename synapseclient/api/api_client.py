@@ -28,7 +28,7 @@ async def rest_post_paginated_async(
         retry_policy: Optional retry settings.
         requests_session_async_synapse: Optional async HTTPX client session.
         kwargs: Additional keyword arguments for the request.
-
+        synapse_client: Optional Synapse client instance for authentication.
     Yields:
         Individual items from each page of the response.
     """
