@@ -3,7 +3,6 @@ import time
 from pprint import pprint
 
 import synapseclient
-from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import File, Folder
 
 # 1. Set up Synapse Python client and retrieve project
@@ -13,7 +12,7 @@ syn.login()
 
 # Retrieve test project
 PROJECT_ID = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease"
+    name="My uniquely named project about Alzheimer's Disease 2"
 )
 
 # Create a test folder for JSON schema experiments
