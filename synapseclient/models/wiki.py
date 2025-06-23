@@ -526,44 +526,47 @@ class WikiPage(WikiPageSynchronousProtocol):
             file_path = self._to_gzip_file(
                 wiki_content=self.markdown, synapse_client=client
             )
-            # Upload the gzipped file to get a file handle
-            file_handle = await upload_file_handle(
-                syn=client,
-                parent_entity_id=self.owner_id,
-                path=file_path,
-            )
-
-            client.logger.info(
-                f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
-            )
-            # delete the temp gzip file
-            os.remove(file_path)
-            client.logger.debug(f"Deleted temp gzip file {file_path}")
-
-            # Set the markdown file handle ID from the upload response
-            self.markdown_file_handle_id = file_handle.get("id")
-
-        # Convert attachments to gzipped file if needed
-        if self.attachments:
-            file_handles = []
-            for attachment in self.attachments:
-                file_path = self._to_gzip_file(
-                    wiki_content=attachment, synapse_client=client
-                )
+            try:
+                # Upload the gzipped file to get a file handle
                 file_handle = await upload_file_handle(
                     syn=client,
                     parent_entity_id=self.owner_id,
                     path=file_path,
                 )
-                file_handles.append(file_handle.get("id"))
+
                 client.logger.info(
-                    f"Uploaded file handle {file_handle.get('id')} for wiki page attachment."
+                    f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
                 )
+                # Set the markdown file handle ID from the upload response
+                self.markdown_file_handle_id = file_handle.get("id")
+            finally:
                 # delete the temp gzip file
                 os.remove(file_path)
                 client.logger.debug(f"Deleted temp gzip file {file_path}")
-            # Set the attachment file handle IDs from the upload response
-            self.attachment_file_handle_ids = file_handles
+
+        # Convert attachments to gzipped file if needed
+        if self.attachments:
+            try:
+                file_handles = []
+                for attachment in self.attachments:
+                    file_path = self._to_gzip_file(
+                        wiki_content=attachment, synapse_client=client
+                    )
+                    file_handle = await upload_file_handle(
+                        syn=client,
+                        parent_entity_id=self.owner_id,
+                        path=file_path,
+                    )
+                    file_handles.append(file_handle.get("id"))
+                    client.logger.info(
+                        f"Uploaded file handle {file_handle.get('id')} for wiki page attachment."
+                    )
+                # Set the attachment file handle IDs from the upload response
+                self.attachment_file_handle_ids = file_handles
+            finally:
+                # delete the temp gzip file
+                os.remove(file_path)
+                client.logger.debug(f"Deleted temp gzip file {file_path}")
 
         # Handle root wiki page creation if parent_id is not given
         if not self.parent_id:
