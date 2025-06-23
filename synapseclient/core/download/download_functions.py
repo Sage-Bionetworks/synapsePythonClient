@@ -571,9 +571,9 @@ async def download_by_file_handle(
 
 async def download_from_url_multi_threaded(
     file_handle_id: Optional[str],
-    object_id: Optional[str],
-    object_type: Optional[str],
     destination: str,
+    object_id: Optional[str] = None,
+    object_type: Optional[str] = None,
     *,
     expected_md5: str = None,
     synapse_client: Optional["Synapse"] = None,
@@ -584,12 +584,12 @@ async def download_from_url_multi_threaded(
 
     Arguments:
         file_handle_id: The id of the FileHandle to download
-        object_id:      The id of the Synapse object that uses the FileHandle
+        destination:    The destination on local file system
+        object_id:      Optional. The id of the Synapse object that uses the FileHandle
             e.g. "syn123"
-        object_type:    The type of the Synapse object that uses the
+        object_type:    Optional. The type of the Synapse object that uses the
             FileHandle e.g. "FileEntity". Any of
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
-        destination:    The destination on local file system
         expected_md5:   The expected MD5
         content_size:   The size of the content
         synapse_client: If not passed in and caching was not disabled by
@@ -647,8 +647,8 @@ async def download_from_url_multi_threaded(
 def download_from_url(
     url: str,
     destination: str,
-    entity_id: Optional[str],
-    file_handle_associate_type: Optional[str],
+    entity_id: Optional[str] = None,
+    file_handle_associate_type: Optional[str] = None,
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
     progress_bar: Optional[tqdm] = None,
@@ -662,9 +662,9 @@ def download_from_url(
     Arguments:
         url:           The source of download
         destination:   The destination on local file system
-        entity_id:      The id of the Synapse object that uses the FileHandle
+        entity_id:     Optional. The id of the Synapse object that uses the FileHandle
             e.g. "syn123"
-        file_handle_associate_type:    The type of the Synapse object that uses the
+        file_handle_associate_type:    Optional. The type of the Synapse object that uses the
             FileHandle e.g. "FileEntity". Any of
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         file_handle_id:  Optional. If given, the file will be given a temporary name that includes the file
@@ -694,7 +694,10 @@ def download_from_url(
     actual_md5 = None
     redirect_count = 0
     delete_on_md5_mismatch = True
-    client.logger.debug(f"[{entity_id}]: Downloading from {url} to {destination}")
+    if entity_id is not None:
+        client.logger.debug(f"[{entity_id}]: Downloading from {url} to {destination}")
+    else:
+        client.logger.debug(f"Downloading from {url} to {destination}")
     while redirect_count < REDIRECT_LIMIT:
         redirect_count += 1
         scheme = urllib_urlparse.urlparse(url).scheme
