@@ -193,13 +193,12 @@ async def get_wiki_header_tree(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    response = client.rest_get_paginated_async(
+    async for item in client.rest_get_paginated_async(
         uri=f"/entity/{owner_id}/wikiheadertree2",
         limit=limit,
         offset=offset,
-    )
-
-    return response
+    ):
+        yield item
 
 
 async def get_wiki_history(
@@ -232,12 +231,12 @@ async def get_wiki_history(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    response = client.rest_get_paginated_async(
+    async for item in client.rest_get_paginated_async(
         uri=f"/entity/{owner_id}/wiki2/{wiki_id}/wikihistory",
         limit=limit,
         offset=offset,
-    )
-    return response
+    ):
+        yield item
 
 
 async def get_attachment_handles(
@@ -246,7 +245,7 @@ async def get_attachment_handles(
     *,
     wiki_version: Optional[int] = None,
     synapse_client: Optional["Synapse"] = None,
-) -> List[str, Any]:
+) -> List[Dict[str, Any]]:
     """Get the file handles of all attachments on a wiki page.
     <https://rest-docs.synapse.org/rest/GET/entity/ownerId/wiki2/wikiId/attachmenthandles.html>
 
