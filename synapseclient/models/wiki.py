@@ -770,7 +770,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         self,
         *,
         synapse_client: Optional["Synapse"] = None,
-    ) -> list:
+    ) -> List[Dict[str, Any]]:
         """
         Get the file handles of all attachments on this wiki page.
 
