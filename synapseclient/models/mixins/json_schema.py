@@ -210,6 +210,8 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
         Example: Using this function
             Binding JSON schema to a folder or a file
+
+            ```python
                 import synapseclient
                 from synapseclient.models import File, Folder
                 import asyncio
@@ -277,7 +279,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     )
                     return bound_schema_file
                 asyncio.run(bind_schema_to_file())
-
+            ```
         Returns:
             JSONSchemaBinding: An object containing details about the JSON schema binding.
         """
@@ -319,6 +321,8 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
         Example: Using this function
             Retrieving the bound JSON schema from a folder or file
+
+            ```python
                 import synapseclient
                 from synapseclient.models import File, Folder
                 import asyncio
@@ -399,7 +403,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     return bound_schema_file
                 bound_schema_file = asyncio.run(get_bound_schema_from_file())
                 print("Bound schema from file retrieved:", bound_schema_file)
-
+            ```
         Returns:
             JSONSchemaBinding: An object containing details about the bound JSON schema.
         """
@@ -441,6 +445,8 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
         Example: Using this function
             Unbinding a JSON schema from a folder or file
+
+            ```python
                 import synapseclient
                 from synapseclient.models import File, Folder
                 import asyncio
@@ -520,6 +526,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     response = await example_file.unbind_schema_async()
                     return response
                 unbind_response_file = asyncio.run(unbind_schema_from_file())
+            ```
         """
         return await delete_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
@@ -537,6 +544,8 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
         Example: Using this function
             Validating a folder or file against the bound JSON schema
+
+            ```python
                 import synapseclient
                 from synapseclient.models import File, Folder
                 import asyncio
@@ -625,6 +634,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     return response
                 validation_response_file = asyncio.run(validate_file_with_json_schema())
                 print('validation response:', validation_response_file)
+            ```
         Returns:
             Union[JSONSchemaValidation, InvalidJSONSchemaValidation]: The validation results.
         """
@@ -698,6 +708,8 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
         Example: Using this function
             Retrieving derived keys from a folder or file
+
+            ```python
                 import synapseclient
                 from synapseclient.models import File, Folder
                 import asyncio
@@ -784,7 +796,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     derived_keys_file = await example_file.get_schema_derived_keys_async()
                     return derived_keys_file
                 print('Derived keys from file:', asyncio.run(get_schema_derived_keys_from_file()))
-
+            ```
         Returns:
             JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
         """
@@ -815,6 +827,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
         Example: Using this function
             Retrieving validation statistics for a folder
 
+            ```python
                 import synapseclient
                 from synapseclient.models import File, Folder
                 import asyncio
@@ -880,7 +893,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
 
                 stats = asyncio.run(get_validation_statistics())
                 print('Validation statistics:', stats)
-
+            ```
         Returns:
             JSONSchemaValidationStatistics: The validation statistics.
         """
@@ -908,6 +921,8 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
 
         Example: Using this function
             Retrieving invalid validation results for a folder
+
+            ```python
                 import synapseclient
                 from synapseclient.models import File, Folder
                 import asyncio
@@ -971,6 +986,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
                     gen  = test_folder.get_invalid_validation_async(synapse_client=syn)
                     async for child in gen:
                         print(child)
+            ```
 
         Yields:
             InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
@@ -1036,6 +1052,8 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
 
         Example: Using this function
             Retrieving invalid validation results for a folder
+
+            ```python
                 import synapseclient
                 from synapseclient.models import File, Folder
                 import asyncio
@@ -1098,6 +1116,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
                 invalid_results = test_folder.get_invalid_validation(synapse_client=syn)
                 for child in invalid_results:
                     print(child)
+            ```
 
         Yields:
             InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
