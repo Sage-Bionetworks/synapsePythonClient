@@ -22,6 +22,7 @@ test_folder = Folder(name="clinical_data_folder", parent_id=PROJECT_ID).store()
 # 2. Take a look at the constants and structure of the JSON schema
 ORG_NAME = "myUniqueAlzheimersResearchOrgTurtorial"
 VERSION = "0.0.1"
+NEW_VERSION = "0.0.2"
 SCHEMA_NAME = "clinicalObservations"
 
 title = "Alzheimer's Clinical Observation Schema"
@@ -49,17 +50,45 @@ schema = {
 
 # 3. Try create test organization and json schema if they do not exist
 js = syn.service("json_schema")
-try:
-    my_test_org = js.JsonSchemaOrganization(ORG_NAME)
-except SynapseHTTPError as e:
-    if e.response.status_code == 404:
-        my_test_org = js.create_organization(ORG_NAME)
+all_orgs = js.list_organizations()
+for org in all_orgs:
+    if org["name"] == ORG_NAME:
+        print(f"Organization {ORG_NAME} already exists.")
+        break
+else:
+    print(f"Creating organization {ORG_NAME}.")
+    js.create_organization(ORG_NAME)
 
-try:
-    my_test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
-except SynapseHTTPError as e:
-    if e.response.status_code == 404:
-        my_test_schema = my_test_org.create_json_schema(schema, SCHEMA_NAME, VERSION)
+my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+if not test_schema:
+    test_schema = my_test_org.create_json_schema(schema, SCHEMA_NAME, VERSION)
+
+# If you want to make an update, you can re-register your schema with the organization:
+updated_schema = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://example.com/schema/alzheimers_observation.json",
+    "title": "my new title",
+    "type": "object",
+    "properties": {
+        "patient_id": {
+            "type": "string",
+            "description": "A unique identifier for the patient",
+        },
+        "cognitive_score": {
+            "type": "integer",
+            "description": "Quantitative cognitive function score",
+        },
+        "updated_field": {
+            "type": "string",
+            "description": "Updated description for the field",
+        },
+    },
+}
+new_test_schema = my_test_org.create_json_schema(
+    updated_schema, SCHEMA_NAME, NEW_VERSION
+)
+
 
 # 4. Bind the JSON schema to the folder
 schema_uri = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
@@ -122,7 +151,9 @@ validation_statistics = test_folder.get_schema_validation_statistics()
 print("Validation statistics were retrieved successfully. Please see details below:")
 pprint(vars(validation_statistics))
 
-invalid_validation = test_folder.get_invalid_validation()
+invalid_validation = invalid_results = test_folder.get_invalid_validation(
+    synapse_client=syn
+)
 for child in invalid_validation:
     print("See details of validation results: ")
     pprint(vars(child))
