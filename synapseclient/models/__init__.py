@@ -42,7 +42,6 @@ from synapseclient.models.wiki import (
     WikiHistorySnapshot,
     WikiOrderHint,
     WikiPage,
-    WikiPageHistory,
 )
 
 __all__ = [
@@ -100,7 +99,6 @@ __all__ = [
     "WikiOrderHint",
     "WikiHistorySnapshot",
     "WikiHeader",
-    "WikiPageHistory",
 ]
 
 # Static methods to expose as functions
