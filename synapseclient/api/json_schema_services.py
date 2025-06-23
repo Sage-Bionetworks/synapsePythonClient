@@ -173,7 +173,7 @@ async def get_invalid_json_schema_validation(
 
 def get_invalid_json_schema_validation_sync(
     synapse_id: str, *, synapse_client: Optional["Synapse"] = None
-) -> Generator[Dict[str, Any], None]:
+) -> Generator[Dict[str, Any], None, None]:
     """
 
     <https://rest-docs.synapse.org/rest/POST/entity/id/schema/validation/invalid.html>
