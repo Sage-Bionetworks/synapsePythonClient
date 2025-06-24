@@ -3,7 +3,6 @@
 import gzip
 import os
 import shutil
-import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
@@ -472,7 +471,7 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         else:
             # If it's a plain text, write it to a gzipped file and save it in the synapse cache
-            file_path = os.path.join(cache_dir, f"wiki_markdown_{uuid.uuid4()}.md.gz")
+            file_path = os.path.join(cache_dir, f"wiki_markdown_{self.id}.md.gz")
             with gzip.open(file_path, "wt", encoding="utf-8") as f_out:
                 f_out.write(wiki_content)
 
