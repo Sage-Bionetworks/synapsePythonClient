@@ -23,130 +23,135 @@ This tutorial shows how to:
 
 ## Basic Setup
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=14-29}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=14-36}
 ```
 
 ## 1. Create, read, and update wiki pages
 ### Create a new wiki page for the project with plain text markdown
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=33-37}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=40-44}
 ```
 
-### OR you can create a wiki page with an existing markdown file
+### OR you can create a wiki page with an existing markdown file. More instructions can be found in section 2.
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=40-45}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=47-52}
 ```
 
 ### Create a new wiki page with updated content
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=48-53}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=55-60}
 ```
 
 ### Restore the wiki page to the original version
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=56-64}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=63-74}
 ```
 
 ### Create a sub-wiki page
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=67-72}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=77-82}
 ```
 
 ### Get an existing wiki page for the project, now you can see one root wiki page and one sub-wiki page
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=75-76}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=85-86}
 ```
 
 ### Retrieving a Wiki Page
 Note: You need to know the wiki page ID or wiki page title to retrieve it
 #### Retrieve a Wiki Page with wiki page ID
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=79-80}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=89-90}
 ```
 
 #### Retrieve a Wiki Page with wiki page title
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=83-84}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=93-94}
 ```
 
 #### Check if the retrieved wiki page is the same as the original wiki page
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=87-92}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=97-102}
 ```
 
 ## 2. WikiPage Markdown Operations
 ### Create wiki page from markdown text
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=96-119}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=106-129}
 ```
 
 ### Create wiki page from a markdown file
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=123-133}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=133-143}
 ```
 
 ### Download the markdown file
-Note: If the markdown is generated from plain text using the client, the downloaded file will be named wiki_markdown_<wiki_page_id>.md.gz. If it is generated from an existing markdown file, the downloaded file will retain the original filename with the .gz suffix appended.
+Note: If the markdown is generated from plain text using the client, the downloaded file will be named wiki_markdown_<wiki_page_title>.md.gz. If it is generated from an existing markdown file, the downloaded file will retain the original filename with the .gz suffix appended.
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=137-143}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=146-173}
 ```
 
 ## 3. WikiPage Attachments Operations
 ### Create a wiki page with attachments
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=147-161}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=176-191}
 ```
 ### Get the file handles of all attachments on this wiki page.
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=164-165}
-```
-### Download an attachment
-```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=167-175}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=194-197}
 ```
 
 ### Get attachment URL without downloading
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=178-182}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=200-206}
 ```
-
-### Download an attachment preview (WIP)
+### Download an attachment
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=185-191}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=209-219}
 ```
-#### Get attachment preview URL without downloading (WIP)
 
+### Download an attachment preview URL without downloading
+Download an attachment preview. Instead of using the file_name from the attachmenthandle response when isPreview=True, you should use the original file name in the get_attachment_preview request. The downloaded file will still be named according to the file_name provided in the response when isPreview=True.
+```python
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=223-229}
+```
+
+#### Download an attachment preview
+```python
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=232-240}
+```
 
 ## 4. WikiHeader - Working with Wiki Hierarchy
 ### Getting Wiki Header Tree
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=197-200}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=244-246}
 ```
 
 ## 5. WikiHistorySnapshot - Version History
-
 ### Accessing Wiki History
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=204-208}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=250-251}
 ```
 
 ## 6. WikiOrderHint - Managing Wiki Order
-### Get wiki order hint (No id_list returned, same result getting from direct endpoint calls)
+Note: You need to have order hint set before pulling.
+### Set the wiki order hint
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=212-213}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=255-266}
 ```
+
 ### Update wiki order hint
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=216-222}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=269-278}
 ```
 
 ### Deleting a Wiki Page
 Note: You need to know the owner ID and wiki page ID to delete a wiki page
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=225}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=281}
 ```
 
 ## clean up
 ```python
-{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=228}
+{!docs/tutorials/python/tutorial_scripts/wiki.py!lines=284}
 ```
