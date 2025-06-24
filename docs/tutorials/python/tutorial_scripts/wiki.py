@@ -77,7 +77,7 @@ print(f"All fields match: {all(comparisons)}")
 sub_wiki_1 = WikiPage(
     owner_id=my_test_project.id,
     title="Sub Wiki Page 1",
-    parent_id=root_wiki_page.id,  # Use the ID of the parent wiki page we created '633033'
+    parent_id=root_wiki_page.id,
     markdown="# Sub Page 1\n\nThis is a sub-page of another wiki.",
 ).store()
 
