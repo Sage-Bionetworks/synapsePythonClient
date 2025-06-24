@@ -8,10 +8,10 @@ In this tutorial, you will learn how to bind a JSON Schema to a folder, which al
 By the end of this tutorial, you will:
 
 1. Log in and create a project and folder
-2. Retrieve the JSON Schema and the organization that have already been created for the purpose of this tutorial
+2. Learn how to retrieve an organization and schema. If they do not exist, understand how to create them.
 3. Bind the JSON Schema to a folder
-4. Add annotations and validate against the schema
-5. Attach and validate a file
+4. Add annotations to the folder and validate them against the schema.
+5. Attach a file to the folder, add annotations, and validate the file against the schema.
 6. View schema validation statistics and results
 
 ## Prerequisites
