@@ -203,10 +203,13 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         Bind a JSON schema to the entity.
 
         Arguments:
-            json_schema_uri (str): The URI of the JSON schema to bind to the entity.
-            enable_derived_annos (bool, optional): If true, enable derived annotations. Defaults to False.
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            json_schema_uri: The URI of the JSON schema to bind to the entity.
+            enable_derived_annos: If true, enable derived annotations. Defaults to False.
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
+
+        Returns:
+            An object containing details about the JSON schema binding.
 
         Example: Using this function
             Binding JSON schema to a folder or a file
@@ -280,8 +283,6 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     return bound_schema_file
                 asyncio.run(bind_schema_to_file())
             ```
-        Returns:
-            JSONSchemaBinding: An object containing details about the JSON schema binding.
         """
         response = await bind_json_schema_to_entity(
             synapse_id=self.id,
@@ -315,9 +316,13 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
     ) -> JSONSchemaBinding:
         """
         Get the JSON schema bound to the entity.
+
         Arguments:
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
+
+        Returns:
+            An object containing details about the bound JSON schema.
 
         Example: Using this function
             Retrieving the bound JSON schema from a folder or file
@@ -332,7 +337,8 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
                 # Define Project and JSON schema info
                 PROJECT_ID = syn.findEntityId(name="test_json_schema_project") #replace with your project name
-                ORG_NAME = "UniqueOrg" # replace with your organization name                SCHEMA_NAME = "myTestSchema" # replace with your schema name
+                ORG_NAME = "UniqueOrg" # replace with your organization name
+                SCHEMA_NAME = "myTestSchema" # replace with your schema name
                 VERSION = "0.0.1"
                 SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
 
@@ -404,8 +410,6 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 bound_schema_file = asyncio.run(get_bound_schema_from_file())
                 print("Bound schema from file retrieved:", bound_schema_file)
             ```
-        Returns:
-            JSONSchemaBinding: An object containing details about the bound JSON schema.
         """
         response = await get_json_schema_from_entity(
             synapse_id=self.id, synapse_client=synapse_client
@@ -440,7 +444,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         Unbind the JSON schema bound to the entity.
 
         Arguments:
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
         Example: Using this function
@@ -542,6 +546,9 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
+        Returns:
+            The validation results.
+
         Example: Using this function
             Validating a folder or file against the bound JSON schema
 
@@ -635,8 +642,6 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 validation_response_file = asyncio.run(validate_file_with_json_schema())
                 print('validation response:', validation_response_file)
             ```
-        Returns:
-            Union[JSONSchemaValidation, InvalidJSONSchemaValidation]: The validation results.
         """
         response = await validate_entity_with_json_schema(
             synapse_id=self.id, synapse_client=synapse_client
@@ -705,6 +710,9 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
+
+        Returns:
+            An object containing the derived keys for the entity.
 
         Example: Using this function
             Retrieving derived keys from a folder or file
@@ -797,8 +805,6 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     return derived_keys_file
                 print('Derived keys from file:', asyncio.run(get_schema_derived_keys_from_file()))
             ```
-        Returns:
-            JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
         """
         response = await get_json_schema_derived_keys(
             synapse_id=self.id, synapse_client=synapse_client
@@ -823,6 +829,9 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
+
+        Returns:
+            The validation statistics.
 
         Example: Using this function
             Retrieving validation statistics for a folder
@@ -894,8 +903,6 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
                 stats = asyncio.run(get_validation_statistics())
                 print('Validation statistics:', stats)
             ```
-        Returns:
-            JSONSchemaValidationStatistics: The validation statistics.
         """
         response = await get_json_schema_validation_statistics(
             synapse_id=self.id, synapse_client=synapse_client
@@ -918,6 +925,10 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
+
+        Yields:
+            An object containing the validation response, all validation messages,
+                                         and the validation exception details.
 
         Example: Using this function
             Retrieving invalid validation results for a folder
@@ -987,10 +998,6 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
                     async for child in gen:
                         print(child)
             ```
-
-        Yields:
-            InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
-                                         and the validation exception details.
         """
         gen = get_invalid_json_schema_validation(
             synapse_client=synapse_client, synapse_id=self.id
@@ -1049,6 +1056,10 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
+
+        Yields:
+            An object containing the validation response, all validation messages,
+                                         and the validation exception details.
 
         Example: Using this function
             Retrieving invalid validation results for a folder
@@ -1117,10 +1128,6 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
                 for child in invalid_results:
                     print(child)
             ```
-
-        Yields:
-            InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
-                                         and the validation exception details.
         """
         gen = get_invalid_json_schema_validation_sync(
             synapse_client=synapse_client, synapse_id=self.id

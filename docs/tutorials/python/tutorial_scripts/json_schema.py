@@ -12,7 +12,7 @@ syn.login()
 
 # Retrieve test project
 PROJECT_ID = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease 2"
+    name="My uniquely named project about Alzheimer's Disease"
 )
 
 # Create a test folder for JSON schema experiments

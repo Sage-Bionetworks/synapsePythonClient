@@ -15,7 +15,7 @@ By the end of this tutorial, you will:
 6. View schema validation statistics and results
 
 ## Prerequisites
-* You have a working [installation](../installation.md)of the Synapse Python Client.
+* You have a working [installation](../installation.md) of the Synapse Python Client.
 * Make sure that you have completed the [Project](./project.md) tutorial, which covers creating and managing projects in Synapse. This is a prerequisite because you need a project to organize and store the folder used in this tutorial.
 * You are familiar with Synapse concepts: [Project](./project.md), [Folder](./folder.md), [File](./file.md).
 * You are familiar with [adding annotations](./annotation.md) to synapse entity.
@@ -42,13 +42,13 @@ Next, try creating a test organization and register a schema if they do not alre
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=51-65}
 ```
 
-Note: If you make an update to your schema, you can re-register your schema with the organization and give it a new version number:
+Note: If you update your schema, you can re-register it with the organization and assign a new version number to reflect the changes:
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=67-90}
 ```
 
 ## 4. Bind the JSON Schema to the Folder
-After creating the organization, you can now bind your json schema to a test folder. When you bind a JSON Schema to a project or folder, then all items inside of the project or folder will inherit the schema binding, unless the item has a schema bound to itself.
+After creating the organization, you can now bind your json schema to a test folder. When you bind a JSON Schema to a container entity such as a project or folder, then all items inside of the project or folder will inherit the schema binding, unless the item has a schema bound to itself.
 
 When you bind the schema, you may also include the boolean property `enable_derived_annos` to have Synapse automatically calculate derived annotations based on the schema:
 
@@ -144,7 +144,7 @@ In the synapse web UI, you could also see your invalid annotations being marked 
 
 This step is only relevant for container entities, such as a folder or a project.
 
-Try creating a test file locally and store the file in the folder that we created earlier. Then, try adding invalid annotations to a file. This step demonstrates how the files inside a folder also inherit the schema from the parent entity.
+Try creating a test file locally and store the file in the folder that we created earlier. Then, try adding invalid annotations to that file. This step demonstrates how the files inside a folder also inherit the schema from the parent entity.
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=121-146}
 ```
