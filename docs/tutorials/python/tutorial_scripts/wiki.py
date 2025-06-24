@@ -3,12 +3,13 @@
 Tutorial script demonstrating the Synapse Wiki models functionality.
 
 This script shows how to:
-1.
-2. Work with wiki headers and hierarchy
-3. Access wiki history
-4. Manage wiki order hints
-5. Handle attachments and markdown content
-6. Download wiki content and attachments
+1. Create, read, and update wiki pages
+2. Work with WikiPage Markdown
+3. Work with WikiPage Attachments
+4. Work with WikiHeader
+5. Work with WikiHistorySnapshot
+6. Work with WikiOrderHint
+7. Delete wiki pages
 """
 import gzip
 import os
@@ -119,7 +120,7 @@ def hello_world():
 """
 
 # Create wiki page from markdown text
-markdown_wiki = WikiPage(
+markdown_wiki_1 = WikiPage(
     owner_id=my_test_project.id,
     parent_id=wiki_page_1.id,
     title="Sub Page 2 created from markdown text",
@@ -133,7 +134,7 @@ with gzip.open(markdown_file_path, "wt", encoding="utf-8") as gz:
     gz.write("This is a markdown file")
 
 # Create wiki page from markdown file
-markdown_wiki = WikiPage(
+markdown_wiki_2 = WikiPage(
     owner_id=my_test_project.id,
     parent_id=wiki_page_1.id,
     title="Sub Page 3 created from markdown file",
@@ -141,13 +142,13 @@ markdown_wiki = WikiPage(
 ).store()
 
 # Download the markdown file
-# delete the markdown file after downloading --> check if the file is downloaded
+# delete the markdown file after downloading
 os.remove(markdown_file_path)
-markdown_file = WikiPage(owner_id=my_test_project.id, id=markdown_wiki.id).get_markdown(
-    download_file=True, download_location=".", download_file_name="markdown_file.md"
-)
+markdown_file_2 = WikiPage(
+    owner_id=my_test_project.id, id=markdown_wiki_2.id
+).get_markdown(download_file=True, download_location=".")
 
-print(f"Markdown file downloaded to: {markdown_file}")
+print(f"Markdown file downloaded to: {markdown_file_2}")
 
 # Section 3: WikiPage with Attachments
 # Create a temporary file for the attachment
