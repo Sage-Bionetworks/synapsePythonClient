@@ -98,33 +98,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
         return result
 
     @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Get_Wiki_Order_Hint: {self.owner_id}"
-    )
-    async def get_async(
-        self,
-        *,
-        synapse_client: Optional["Synapse"] = None,
-    ) -> "WikiOrderHint":
-        """
-        Get the order hint of a wiki page tree.
-
-        Arguments:
-            synapse_client: Optionally provide a Synapse client.
-        Returns:
-            A WikiOrderHint object for the entity.
-        Raises:
-            ValueError: If owner_id is not provided.
-        """
-        if not self.owner_id:
-            raise ValueError("Must provide owner_id to get wiki order hint.")
-        order_hint_dict = await get_wiki_order_hint(
-            owner_id=self.owner_id,
-            synapse_client=synapse_client,
-        )
-        return self.fill_from_dict(order_hint_dict)
-
-    @otel_trace_method(
-        method_to_trace_name=lambda self, **kwargs: f"Update_Wiki_Order_Hint: {self.owner_id}"
+        method_to_trace_name=lambda self, **kwargs: f"Store_Wiki_Order_Hint: {self.owner_id}"
     )
     async def store_async(
         self,
@@ -151,6 +125,32 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
         )
         self.fill_from_dict(order_hint_dict)
         return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Get_Wiki_Order_Hint: {self.owner_id}"
+    )
+    async def get_async(
+        self,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> "WikiOrderHint":
+        """
+        Get the order hint of a wiki page tree.
+
+        Arguments:
+            synapse_client: Optionally provide a Synapse client.
+        Returns:
+            A WikiOrderHint object for the entity.
+        Raises:
+            ValueError: If owner_id is not provided.
+        """
+        if not self.owner_id:
+            raise ValueError("Must provide owner_id to get wiki order hint.")
+        order_hint_dict = await get_wiki_order_hint(
+            owner_id=self.owner_id,
+            synapse_client=synapse_client,
+        )
+        return self.fill_from_dict(order_hint_dict)
 
 
 @dataclass
@@ -471,7 +471,7 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         else:
             # If it's a plain text, write it to a gzipped file and save it in the synapse cache
-            file_path = os.path.join(cache_dir, f"wiki_markdown_{self.id}.md.gz")
+            file_path = os.path.join(cache_dir, f"wiki_markdown_{self.title}.md.gz")
             with gzip.open(file_path, "wt", encoding="utf-8") as f_out:
                 f_out.write(wiki_content)
 
@@ -970,6 +970,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         Get the markdown URL of this wiki page.
 
         Arguments:
+            download_file_name: The name of the file to download. Required if download_file is True.
             download_file: Whether associated files should be downloaded. Default is True.
             download_location: The directory to download the file to. Required if download_file is True.
             redirect: When set to false, the URL will be returned as text/plain instead of redirecting. Default is False.
