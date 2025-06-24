@@ -204,7 +204,9 @@ Entity syn####### ACL:
 
 ## 8. Advanced Permission Management
 
-Using `overwrite=False` will allow you to add Permissions Non-destructively
+Using `overwrite=False` will allow you to add Permissions Non-destructively.
+
+**Note:** The default behavior is `overwrite=True` which will replace the permissions for the given Principal.
 
 ```python
 {!docs/tutorials/python/tutorial_scripts/sharing_settings.py!lines=118-132}
