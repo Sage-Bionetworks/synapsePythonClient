@@ -776,7 +776,6 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             benefactor_tracker: Tracker for managing benefactor relationships.
                 Only used for non-recursive processing.
             target_entity_types: A list of normalized entity types to process.
-                For non-recursive processing, defaults to ["folder"].
             progress_bar: Optional progress bar to update as tasks complete.
             include_container_content: Whether to include the content of containers in processing.
                 Only used for recursive processing.

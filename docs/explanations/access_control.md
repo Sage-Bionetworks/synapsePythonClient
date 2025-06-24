@@ -29,6 +29,8 @@ Synapse supports several permission types that can be combined:
 - **CHANGE_SETTINGS**: Modify entity settings
 - **MODERATE**: Moderate forum discussions (for projects)
 
+Other synapse items like `Submission` and `Evaluation` support different permission types not covered in this document.
+
 ### Special Principal IDs
 Synapse provides special principals for common sharing scenarios:
 

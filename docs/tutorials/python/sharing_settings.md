@@ -22,6 +22,7 @@ In this tutorial you will:
 ## Prerequisites
 * Make sure that you have completed the [Installation](../installation.md) and [Authentication](../authentication.md) setup.
 * **IMPORTANT**: You must set a valid `PRINCIPAL_ID` in the tutorial script before running it. This should be a Synapse user ID or team ID that you want to grant permissions to.
+* You must have a [Project](./project.md) created and replace the one used in this tutorial.
 
 ## Understanding Permission Types
 
@@ -56,12 +57,14 @@ Every entity in Synapse has a **benefactor** - the entity from which it inherits
 4. **Inherit permissions**: The entity inherits all permissions from its benefactor
 
 ### Default Inheritance Behavior
+
 - **New Projects**: Become their own benefactor with default permissions
 - **New Folders/Files**: Initially inherit from their containing Project or parent Folder
 - **Local ACLs**: When you set local sharing settings, the entity becomes its own benefactor
 
 ### Applying Permissions to Other Entities
 While this tutorial focuses on Folders, you can apply the same permission management methods (`get_permissions()`, `get_acl()`, `set_permissions()`, `list_acl()`, and `delete_permissions()`) to other Synapse entities including:
+
 - **Projects**: Top-level containers that are typically their own benefactors
 - **Files**: Individual data files that can have their own sharing settings
 - **Tables**: Structured data entities with their own permission requirements
