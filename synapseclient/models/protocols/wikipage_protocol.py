@@ -20,20 +20,6 @@ class WikiOrderHintSynchronousProtocol(Protocol):
     """Protocol for the methods of the WikiOrderHint class that have synchronous counterparts
     generated at runtime."""
 
-    def get(
-        self,
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> "WikiOrderHint":
-        """
-        Get the order hint of a wiki page tree.
-        Arguments:
-            synapse_client: Optionally provide a Synapse client.
-        Returns:
-            A WikiOrderHint object for the entity.
-        """
-        return self
-
     def store(
         self,
         *,
@@ -45,6 +31,20 @@ class WikiOrderHintSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             The updated WikiOrderHint object for the entity.
+        """
+        return self
+
+    def get(
+        self,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "WikiOrderHint":
+        """
+        Get the order hint of a wiki page tree.
+        Arguments:
+            synapse_client: Optionally provide a Synapse client.
+        Returns:
+            A WikiOrderHint object for the entity.
         """
         return self
 
