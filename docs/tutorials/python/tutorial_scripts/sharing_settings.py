@@ -19,7 +19,7 @@ from synapseclient.models import Folder, Project
 
 # REQUIRED: Set this to the Synapse user ID or team ID you want to grant permissions to
 # Do NOT leave this as None - the script will not work properly
-PRINCIPAL_ID = 3489192  # Replace with actual user/team ID
+PRINCIPAL_ID = None  # Replace with actual user/team ID
 
 if PRINCIPAL_ID is None:
     raise ValueError(
