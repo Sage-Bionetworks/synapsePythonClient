@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
-async def post_wiki(
+async def post_wiki_page(
     owner_id: str,
     request: Dict[str, Any],
     *,
