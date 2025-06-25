@@ -528,6 +528,8 @@ class TestAcl:
             "UPDATE",
             "CHANGE_SETTINGS",
             "CHANGE_PERMISSIONS",
+            "DELETE",
+            "MODERATE",
         ]
         await entity_view.set_permissions_async(
             principal_id=user.id,
@@ -548,7 +550,7 @@ class TestAcl:
         # Verify user permissions include both direct and inherited permissions
         user_acl = await entity_view.get_acl_async(principal_id=user.id)
         expected_user_permissions = set(
-            limited_user_permissions + ["DOWNLOAD", "MODERATE"]
+            limited_user_permissions + ["DOWNLOAD"]
         )  # Includes auth users perm
         assert expected_user_permissions == set(user_acl)
 
@@ -572,7 +574,7 @@ class TestAcl:
 
         # AND user permissions should no longer include DOWNLOAD
         user_acl_after = await entity_view.get_acl_async(principal_id=user.id)
-        assert set(limited_user_permissions + ["MODERATE"]) == set(user_acl_after)
+        assert set(limited_user_permissions) == set(user_acl_after)
 
         # BUT team permissions should remain
         team_acl_after = await entity_view.get_acl_async(principal_id=team.id)

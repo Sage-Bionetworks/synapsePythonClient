@@ -29,13 +29,15 @@ Synapse supports several permission types that can be combined:
 - **CHANGE_SETTINGS**: Modify entity settings
 - **MODERATE**: Moderate forum discussions (for projects)
 
+Other synapse items like `Submission` and `Evaluation` support different permission types not covered in this document.
+
 ### Special Principal IDs
 Synapse provides special principals for common sharing scenarios:
 
 - **273948**: All authenticated Synapse users
 - **273949**: Public access (anyone on the internet)
-- **Specific User ID**: Individual Synapse users (e.g., 3417048)
-- **Team ID**: Synapse teams for group-based permissions
+- **Specific User ID**: Individual Synapse users (e.g., #######)
+- **Team ID**: Synapse teams for group-based permissions (e.g., #######)
 
 ## Common Use Cases
 

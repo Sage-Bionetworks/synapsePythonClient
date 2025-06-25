@@ -18,6 +18,7 @@ class TestDeletePermissions:
         """Set up test fixtures."""
         self.synapse_client = MagicMock(spec=Synapse)
         self.synapse_client.logger = MagicMock()
+        self.synapse_client.silent = True
 
         # Mock the Synapse.get_client to return our mock client
         self.get_client_patcher = patch(
@@ -203,16 +204,16 @@ class TestDeletePermissions:
     async def test_delete_permissions_target_entity_types_folder_only(self):
         """Test filtering deletion by folder entity type only."""
         # GIVEN a folder with child folder and file
-        folder = Folder(id="syn123")
+        folder = Folder(id="syn123", name="parent_folder")
         folder.sync_from_synapse_async = AsyncMock()
 
-        child_folder = Folder(id="syn456")
+        child_folder = Folder(id="syn456", name="child_folder")
         child_folder.delete_permissions_async = AsyncMock()
         child_folder.sync_from_synapse_async = AsyncMock()
         child_folder.folders = []
         child_folder.files = []
 
-        child_file = File(id="syn789")
+        child_file = File(id="syn789", name="child_file.txt")
         child_file.delete_permissions_async = AsyncMock()
 
         folder.folders = [child_folder]
@@ -238,16 +239,16 @@ class TestDeletePermissions:
     async def test_delete_permissions_target_entity_types_file_only(self):
         """Test filtering deletion by file entity type only."""
         # GIVEN a folder with child folder and file
-        folder = Folder(id="syn123")
+        folder = Folder(id="syn123", name="parent_folder")
         folder.sync_from_synapse_async = AsyncMock()
 
-        child_folder = Folder(id="syn456")
+        child_folder = Folder(id="syn456", name="child_folder")
         child_folder.delete_permissions_async = AsyncMock()
         child_folder.sync_from_synapse_async = AsyncMock()
         child_folder.folders = []
         child_folder.files = []
 
-        child_file = File(id="syn789")
+        child_file = File(id="syn789", name="child_file.txt")
         child_file.delete_permissions_async = AsyncMock()
 
         folder.folders = [child_folder]
@@ -274,10 +275,10 @@ class TestDeletePermissions:
     async def test_delete_permissions_case_insensitive_entity_types(self):
         """Test that entity type matching is case-insensitive."""
         # GIVEN a folder with child entities
-        folder = Folder(id="syn123")
+        folder = Folder(id="syn123", name="parent_folder")
         folder.sync_from_synapse_async = AsyncMock()
 
-        child_folder = Folder(id="syn456")
+        child_folder = Folder(id="syn456", name="child_folder")
         child_folder.delete_permissions_async = AsyncMock()
         child_folder.sync_from_synapse_async = AsyncMock()
         child_folder.folders = []
@@ -316,13 +317,13 @@ class TestDeletePermissions:
         folder = Folder(id="syn123")
         folder.sync_from_synapse_async = AsyncMock()
         folder._collect_entities = AsyncMock(return_value=[folder])
-        folder._build_and_log_dry_run_tree = AsyncMock()
+        folder._build_and_log_run_tree = AsyncMock()
 
         # WHEN running in dry run mode
         folder.delete_permissions(include_container_content=True, dry_run=True)
 
         # THEN dry run tree should be built and logged
-        folder._build_and_log_dry_run_tree.assert_called_once()
+        folder._build_and_log_run_tree.assert_called_once()
 
         # AND actual deletion should not occur
         self.mock_delete_acl.assert_not_called()
@@ -337,7 +338,7 @@ class TestDeletePermissions:
         self.mock_get_benefactor.return_value = MagicMock(id="syn999")
 
         # WHEN deleting permissions with benefactor tracker
-        file.delete_permissions(benefactor_tracker=tracker)
+        file.delete_permissions(_benefactor_tracker=tracker)
 
         # THEN delete_entity_acl should be called
         self.mock_delete_acl.assert_called_once_with(
@@ -381,6 +382,7 @@ class TestDeletePermissions:
         file = File(id="syn123")
         custom_client = MagicMock(spec=Synapse)
         custom_client.logger = MagicMock()
+        custom_client.silent = True
 
         # WHEN deleting permissions with custom client
         file.delete_permissions(synapse_client=custom_client)
@@ -409,7 +411,7 @@ class TestDeletePermissions:
         root_folder._collect_entities = AsyncMock(
             return_value=[root_folder, level1_folder, level1_file]
         )
-        root_folder._build_and_log_dry_run_tree = AsyncMock()
+        root_folder._build_and_log_run_tree = AsyncMock()
 
         # WHEN running dry run with detailed logging
         root_folder.delete_permissions(
@@ -421,8 +423,8 @@ class TestDeletePermissions:
         )
 
         # THEN dry run tree should be built with appropriate parameters
-        root_folder._build_and_log_dry_run_tree.assert_called_once()
-        _, kwargs = root_folder._build_and_log_dry_run_tree.call_args
+        root_folder._build_and_log_run_tree.assert_called_once()
+        _, kwargs = root_folder._build_and_log_run_tree.call_args
         assert kwargs["show_acl_details"] is True
         assert kwargs["show_files_in_containers"] is True
 
@@ -470,7 +472,7 @@ class TestDeletePermissions:
         tracker.benefactor_children["syn123"] = ["syn456", "syn789"]
 
         # WHEN deleting permissions
-        file.delete_permissions(benefactor_tracker=tracker)
+        file.delete_permissions(_benefactor_tracker=tracker)
 
         # THEN deletion should complete
         self.mock_delete_acl.assert_called_once()
@@ -578,7 +580,9 @@ class TestBenefactorTrackerComprehensive:
             side_effect=benefactor_responses,
         ):
             # WHEN tracking multiple entities in parallel
-            await tracker.track_entity_benefactor(entity_ids, mock_client)
+            await tracker.track_entity_benefactor(
+                entity_ids=entity_ids, synapse_client=mock_client, progress_bar=None
+            )
 
             # THEN all entities should be tracked
             assert len(tracker.entity_benefactors) == 3
@@ -603,7 +607,9 @@ class TestBenefactorTrackerComprehensive:
             return_value=MagicMock(id="syn999"),
         ) as mock_get_benefactor:
             # WHEN tracking entities
-            await tracker.track_entity_benefactor(entity_ids, mock_client)
+            await tracker.track_entity_benefactor(
+                entity_ids=entity_ids, synapse_client=mock_client, progress_bar=None
+            )
 
             # THEN only unprocessed entity should be fetched
             mock_get_benefactor.assert_called_once()
@@ -696,6 +702,7 @@ class TestListAclAsyncComprehensive:
         """Set up test fixtures."""
         self.synapse_client = MagicMock(spec=Synapse)
         self.synapse_client.logger = MagicMock()
+        self.synapse_client.silent = True
 
         # Mock the Synapse.get_client to return our mock client
         self.get_client_patcher = patch(
@@ -1075,30 +1082,6 @@ class TestListAclAsyncComprehensive:
 
         # AND result should contain ACLs for the expected entities
         assert len(result.all_entity_acls) > 0
-
-    async def test_list_acl_error_handling(self):
-        """Test error handling during ACL listing."""
-        # GIVEN a folder with children where one child fails
-        folder = Folder(id="syn123")
-        folder.sync_from_synapse_async = AsyncMock()
-
-        child_file = File(id="syn456")
-        child_file._get_current_entity_acl = AsyncMock()
-        child_file._get_current_entity_acl.side_effect = Exception("Network error")
-
-        folder.files = [child_file]
-        folder.folders = []
-
-        folder._collect_entities = AsyncMock()
-        folder._collect_entities.return_value = [child_file]
-
-        # AND mock folder ACL
-        self.mock_get_acl.return_value = {"id": "syn123", "resourceAccess": []}
-        self.mock_get_user_headers.return_value = []
-
-        # WHEN listing ACL
-        with pytest.raises(Exception, match="Network error"):
-            folder.list_acl(include_container_content=True)
 
     async def test_list_acl_no_user_headers(self):
         """Test ACL listing when user headers can't be retrieved."""

@@ -527,6 +527,8 @@ class TestAcl:
             "UPDATE",
             "CHANGE_SETTINGS",
             "CHANGE_PERMISSIONS",
+            "DELETE",
+            "MODERATE",
         ]
         entity_view.set_permissions(
             principal_id=user.id,
@@ -547,7 +549,7 @@ class TestAcl:
         # Verify user permissions include both direct and inherited permissions
         user_acl = entity_view.get_acl(principal_id=user.id)
         expected_user_permissions = set(
-            limited_user_permissions + ["DOWNLOAD", "MODERATE"]
+            limited_user_permissions + ["DOWNLOAD"]
         )  # Includes auth users perm
         assert expected_user_permissions == set(user_acl)
 
