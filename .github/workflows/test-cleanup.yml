@@ -64,6 +64,13 @@ jobs:
           pip install numpy
         fi
 
+    - name: Set up Synapse credentials
+      shell: bash
+      run: |
+        # decrypt the encrypted test synapse configuration
+        openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+        mv test.synapseConfig ~/.synapseConfig
+
     - name: Run evaluation deletion script
       run: |
         python .github/scripts/delete_evaluations.py
