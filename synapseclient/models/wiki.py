@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 from synapseclient import Synapse
-from synapseclient.api.wiki_service import (
+from synapseclient.api import (
     delete_wiki_page,
     get_attachment_handles,
     get_attachment_preview_url,
@@ -17,7 +17,7 @@ from synapseclient.api.wiki_service import (
     get_wiki_history,
     get_wiki_order_hint,
     get_wiki_page,
-    post_wiki,
+    post_wiki_page,
     put_wiki_order_hint,
     put_wiki_page,
     put_wiki_version,
@@ -579,7 +579,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                         "No wiki page exists within the owner. Create a new wiki page."
                     )
                     # Create the wiki page
-                    wiki_data = await post_wiki(
+                    wiki_data = await post_wiki_page(
                         owner_id=self.owner_id,
                         request=self.to_synapse_request(),
                     )
@@ -633,7 +633,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                 f"Creating sub-wiki page under parent ID: {self.parent_id}"
             )
             # Create the sub-wiki page directly
-            wiki_data = await post_wiki(
+            wiki_data = await post_wiki_page(
                 owner_id=self.owner_id,
                 request=self.to_synapse_request(),
                 synapse_client=client,
