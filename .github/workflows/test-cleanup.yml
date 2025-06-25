@@ -1,6 +1,11 @@
 name: "Integration test cleanup"
 
 on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
   schedule:
     # Run every Friday at 10:00 PM Eastern Time (3:00 AM UTC Saturday)
     - cron: '0 3 * * 6'
