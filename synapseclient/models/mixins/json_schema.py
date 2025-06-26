@@ -609,7 +609,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
                 # Optionally, bind the same schema to a file
                 example_file = File(
-                    path="/Users/lpeng/Downloads/Sample_E.csv",  # Replace with your test file path
+                    path="Sample.txt",  # Replace with your test file path
                     parent_id=test_folder.id,
                 ).store()
 
@@ -813,7 +813,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
 
 @async_to_sync
-class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtocol):
+class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchema):
     """
     Mixin class to provide JSON schema functionality.
     This class is intended to be used with classes that represent Synapse entities.

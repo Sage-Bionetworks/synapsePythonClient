@@ -38,6 +38,72 @@ class BaseJSONSchemaProtocol(Protocol):
 
         Returns:
             JSONSchemaBinding: An object containing details about the JSON schema binding.
+
+        Example: Using this function
+            Binding JSON schema to a folder or a file
+
+            ```python
+                import synapseclient
+                from synapseclient.models import File, Folder
+
+                syn = synapseclient.Synapse()
+                syn.login()
+
+                # Define Project and JSON schema info
+                PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # replace with your project name
+                ORG_NAME = "UniqueOrg"  # replace with your organization name
+                SCHEMA_NAME = "myTestSchema"  # replace with your schema name
+                VERSION = "0.0.1"
+                SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
+
+                # Create organization (if not already created)
+                js = syn.service("json_schema")
+                all_orgs = js.list_organizations()
+                for org in all_orgs:
+                    if org["name"] == ORG_NAME:
+                        print(f"Organization {ORG_NAME} already exists.")
+                        break
+                else:
+                    print(f"Creating organization {ORG_NAME}.")
+                    js.create_organization(ORG_NAME)
+
+                # Create the schema (if not already created)
+                schema_definition = {
+                    "$id": "mySchema",
+                    "type": "object",
+                    "properties": {
+                        "foo": {"type": "string"},
+                        "bar": {"type": "integer"},
+                    },
+                    "required": ["foo"]
+                }
+
+                my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+                test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+                if not test_schema:
+                    test_schema = my_test_org.create_json_schema(schema_definition, SCHEMA_NAME, VERSION)
+
+                # Create a test folder
+                test_folder = Folder(name="test_script_folder", parent_id=PROJECT_ID)
+                test_folder.store()
+
+                # Bind JSON schema to the folder (synchronous version)
+                bound_schema = test_folder.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Optionally, bind the same schema to a file
+                example_file = File(
+                    path="Sample.txt",  # Replace with your test file path
+                    parent_id=test_folder.id,
+                ).store()
+
+                bound_schema_file = example_file.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+            ```
         """
         return JSONSchemaBinding()
 
@@ -53,6 +119,80 @@ class BaseJSONSchemaProtocol(Protocol):
 
         Returns:
             JSONSchemaBinding: An object containing details about the bound JSON schema.
+
+        Example: Using this function
+            Retrieving the bound JSON schema from a folder or file
+
+            ```python
+                import synapseclient
+                from synapseclient.models import File, Folder
+
+                syn = synapseclient.Synapse()
+                syn.login()
+
+                # Define Project and JSON schema info
+                PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # replace with your project name
+                ORG_NAME = "UniqueOrg"  # replace with your organization name
+                SCHEMA_NAME = "myTestSchema"  # replace with your schema name
+                VERSION = "0.0.1"
+                SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
+
+                # Create organization (if not already created)
+                js = syn.service("json_schema")
+                all_orgs = js.list_organizations()
+                for org in all_orgs:
+                    if org["name"] == ORG_NAME:
+                        print(f"Organization {ORG_NAME} already exists.")
+                        break
+                else:
+                    print(f"Creating organization {ORG_NAME}.")
+                    js.create_organization(ORG_NAME)
+
+                # Create the schema (if not already created)
+                schema_definition = {
+                    "$id": "mySchema",
+                    "type": "object",
+                    "properties": {
+                        "foo": {"type": "string"},
+                        "bar": {"type": "integer"},
+                    },
+                    "required": ["foo"]
+                }
+
+                my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+                test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+                if not test_schema:
+                    test_schema = my_test_org.create_json_schema(schema_definition, SCHEMA_NAME, VERSION)
+
+                # Create a test folder
+                test_folder = Folder(name="test_script_folder", parent_id=PROJECT_ID)
+                test_folder.store()
+
+                # Bind JSON schema to the folder (synchronously)
+                bound_schema = test_folder.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Optionally, bind the same schema to a file
+                example_file = File(
+                    path="Sample.txt",  # Replace with your test file path
+                    parent_id=test_folder.id,
+                ).store()
+
+                bound_schema_file = example_file.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Retrieve the bound schema from the folder
+                bound_schema = test_folder.get_schema()
+                print("Bound schema retrieved:", bound_schema)
+
+                # Retrieve the bound schema from the file
+                bound_schema_file = example_file.get_schema()
+                print("Bound schema for file retrieved:", bound_schema_file)
+            ```
         """
         return JSONSchemaBinding()
 
@@ -63,6 +203,78 @@ class BaseJSONSchemaProtocol(Protocol):
         Arguments:
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
+
+        Example: Using this function
+            Unbinding a JSON schema from a folder or file
+
+            ```python
+                import synapseclient
+                from synapseclient.models import File, Folder
+
+                syn = synapseclient.Synapse()
+                syn.login()
+
+                # Define Project and JSON schema info
+                PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # replace with your project name
+                ORG_NAME = "UniqueOrg"  # replace with your organization name
+                SCHEMA_NAME = "myTestSchema"  # replace with your schema name
+                VERSION = "0.0.1"
+                SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
+
+                # Create organization (if not already created)
+                js = syn.service("json_schema")
+                all_orgs = js.list_organizations()
+                for org in all_orgs:
+                    if org["name"] == ORG_NAME:
+                        print(f"Organization {ORG_NAME} already exists.")
+                        break
+                else:
+                    print(f"Creating organization {ORG_NAME}.")
+                    js.create_organization(ORG_NAME)
+
+                # Create the schema (if not already created)
+                schema_definition = {
+                    "$id": "mySchema",
+                    "type": "object",
+                    "properties": {
+                        "foo": {"type": "string"},
+                        "bar": {"type": "integer"},
+                    },
+                    "required": ["foo"]
+                }
+
+                my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+                test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+                if not test_schema:
+                    test_schema = my_test_org.create_json_schema(schema_definition, SCHEMA_NAME, VERSION)
+
+                # Create a test folder
+                test_folder = Folder(name="test_script_folder", parent_id=PROJECT_ID)
+                test_folder.store()
+
+                # Bind JSON schema to the folder
+                bound_schema = test_folder.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Optionally, bind the same schema to a file
+                example_file = File(
+                    path="Sample.txt",  # Replace with your test file path
+                    parent_id=test_folder.id,
+                ).store()
+
+                bound_schema_file = example_file.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Unbind the schema from the folder
+                unbind_response = test_folder.unbind_schema()
+
+                # Unbind the schema from the file
+                unbind_response_file = example_file.unbind_schema()
+            ```
         """
 
     def validate_schema(
@@ -77,6 +289,86 @@ class BaseJSONSchemaProtocol(Protocol):
 
         Returns:
             Union[JSONSchemaValidation, InvalidJSONSchemaValidation]: The validation results.
+
+        Example: Using this function
+            Validating a folder or file against the bound JSON schema
+
+            ```python
+                import synapseclient
+                from synapseclient.models import File, Folder
+
+                syn = synapseclient.Synapse()
+                syn.login()
+
+                # Define Project and JSON schema info
+                PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # replace with your project name
+                ORG_NAME = "UniqueOrg"  # replace with your organization name
+                SCHEMA_NAME = "myTestSchema"  # replace with your schema name
+                VERSION = "0.0.1"
+                SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
+
+                # Create organization (if not already created)
+                js = syn.service("json_schema")
+                all_orgs = js.list_organizations()
+                for org in all_orgs:
+                    if org["name"] == ORG_NAME:
+                        print(f"Organization {ORG_NAME} already exists.")
+                        break
+                else:
+                    print(f"Creating organization {ORG_NAME}.")
+                    js.create_organization(ORG_NAME)
+
+                # Create the schema (if not already created)
+                schema_definition = {
+                    "$id": "mySchema",
+                    "type": "object",
+                    "properties": {
+                        "foo": {"type": "string"},
+                        "bar": {"type": "integer"},
+                    },
+                    "required": ["foo"]
+                }
+
+                my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+                test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+                if not test_schema:
+                    test_schema = my_test_org.create_json_schema(schema_definition, SCHEMA_NAME, VERSION)
+
+                # Create a test folder
+                test_folder = Folder(name="test_script_folder", parent_id=PROJECT_ID)
+                test_folder.store()
+
+                # Bind JSON schema to the folder
+                bound_schema = test_folder.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Optionally, bind the same schema to a file
+                example_file = File(
+                    path="Sample.txt",  # Replace with your test file path
+                    parent_id=test_folder.id,
+                ).store()
+
+                bound_schema_file = example_file.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Validate the folder entity against the bound schema
+                test_folder.annotations = {"foo": "test_value", "bar": 42}  # Example annotations
+                test_folder.store()
+
+                validation_response = test_folder.validate_schema()
+                print('validation response:', validation_response)
+
+                # Validate the file entity against the bound schema
+                example_file.annotations = {"foo": "test_value", "bar": 43}  # Example annotations
+                example_file.store()
+
+                validation_response_file = example_file.validate_schema()
+                print('validation response:', validation_response_file)
+            ```
         """
         return InvalidJSONSchemaValidation() or JSONSchemaValidation()
 
@@ -92,6 +384,87 @@ class BaseJSONSchemaProtocol(Protocol):
 
         Returns:
             JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
+
+        Example: Using this function
+            Retrieving derived keys from a folder or file
+
+            ```python
+                import synapseclient
+                from synapseclient.models import File, Folder
+
+                syn = synapseclient.Synapse()
+                syn.login()
+
+                # Define Project and JSON schema info
+                PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # Replace with your project name
+                ORG_NAME = "UniqueOrg"  # Replace with your organization name
+                DERIVED_TEST_SCHEMA_NAME = "myTestDerivedSchema"  # Replace with your derived schema name
+                VERSION = "0.0.1"
+                SCHEMA_URI = f"{ORG_NAME}-{DERIVED_TEST_SCHEMA_NAME}-{VERSION}"
+
+                # Create organization (if not already created)
+                js = syn.service("json_schema")
+                all_orgs = js.list_organizations()
+                for org in all_orgs:
+                    if org["name"] == ORG_NAME:
+                        print(f"Organization {ORG_NAME} already exists.")
+                        break
+                else:
+                    print(f"Creating organization {ORG_NAME}.")
+                    js.create_organization(ORG_NAME)
+
+                # Create the schema (if not already created)
+                schema_definition = {
+                    "$id": "mySchema",
+                    "type": "object",
+                    "properties": {
+                        "foo": {"type": "string"},
+                        "baz": {"type": "string", "const": "example_value"},  # Example constant for derived annotation
+                        "bar": {"type": "integer"},
+                    },
+                    "required": ["foo"]
+                }
+
+                my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+                test_schema = my_test_org.get_json_schema(DERIVED_TEST_SCHEMA_NAME)
+                if not test_schema:
+                    test_schema = my_test_org.create_json_schema(schema_definition, DERIVED_TEST_SCHEMA_NAME, VERSION)
+
+                # Create a test folder
+                test_folder = Folder(name="test_script_folder", parent_id=PROJECT_ID)
+                test_folder.store()
+
+                # Bind JSON schema to the folder
+                bound_schema = test_folder.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Optionally, bind the same schema to a file
+                example_file = File(
+                    path="Sample.txt",  # Replace with your test file path
+                    parent_id=test_folder.id,
+                ).store()
+
+                bound_schema_file = example_file.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Get the derived keys from the bound schema of the folder
+                test_folder.annotations = {"foo": "test_value_new", "bar": 42}  # Example annotations
+                test_folder.store()
+
+                derived_keys = test_folder.get_schema_derived_keys()
+                print('Derived keys from folder:', derived_keys)
+
+                # Get the derived keys from the bound schema of the file
+                example_file.annotations = {"foo": "test_value_new", "bar": 43}  # Example annotations
+                example_file.store()
+
+                derived_keys_file = example_file.get_schema_derived_keys()
+                print('Derived keys from file:', derived_keys_file)
+            ```
         """
         return JSONSchemaDerivedKeys()
 
@@ -115,6 +488,70 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
 
         Returns:
             JSONSchemaValidationStatistics: The validation statistics.
+
+        Example: Using this function
+            Retrieving validation statistics for a folder
+
+            ```python
+                import synapseclient
+                from synapseclient.models import File, Folder
+
+                syn = synapseclient.Synapse()
+                syn.login()
+
+                # Define Project and JSON schema info
+                PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # Replace with your project name
+                ORG_NAME = "UniqueOrg"  # Replace with your organization name
+                SCHEMA_NAME = "myTestSchema"  # Replace with your schema name
+                VERSION = "0.0.1"
+                SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
+
+                # Create organization (if not already created)
+                js = syn.service("json_schema")
+                all_orgs = js.list_organizations()
+                for org in all_orgs:
+                    if org["name"] == ORG_NAME:
+                        print(f"Organization {ORG_NAME} already exists.")
+                        break
+                else:
+                    print(f"Creating organization {ORG_NAME}.")
+                    js.create_organization(ORG_NAME)
+
+                # Create the schema (if not already created)
+                schema_definition = {
+                    "$id": "mySchema",
+                    "type": "object",
+                    "properties": {
+                        "foo": {"type": "string"},
+                        "baz": {"type": "string", "const": "example_value"},  # Example constant for derived annotation
+                        "bar": {"type": "integer"},
+                    },
+                    "required": ["foo"]
+                }
+
+                my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+                test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+                if not test_schema:
+                    test_schema = my_test_org.create_json_schema(schema_definition, SCHEMA_NAME, VERSION)
+
+                # Create a test folder
+                test_folder = Folder(name="test_script_folder", parent_id=PROJECT_ID)
+                test_folder.store()
+
+                # Bind JSON schema to the folder
+                bound_schema = test_folder.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+
+                # Validate the folder entity against the bound schema
+                test_folder.annotations = {"foo": "test_value_new", "bar": 42}  # Example annotations
+                test_folder.store()
+
+                # Get schema validation statistics
+                stats = test_folder.get_schema_validation_statistics()
+                print('Validation statistics:', stats)
+            ```
         """
         return JSONSchemaValidationStatistics()
 
@@ -131,5 +568,70 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
         Yields:
             InvalidJSONSchemaValidation: An object containing the validation response, all validation messages,
                                          and the validation exception details.
+
+        Example: Using this function
+            Retrieving invalid validation results for a folder
+
+        ```python
+            import synapseclient
+            from synapseclient.models import File, Folder
+
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # Define Project and JSON schema info
+            PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # Replace with your project name
+            ORG_NAME = "UniqueOrg"  # Replace with your organization name
+            SCHEMA_NAME = "myTestSchema"  # Replace with your schema name
+            VERSION = "0.0.1"
+            SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
+
+            # Create organization (if not already created)
+            js = syn.service("json_schema")
+            all_orgs = js.list_organizations()
+            for org in all_orgs:
+                if org["name"] == ORG_NAME:
+                    print(f"Organization {ORG_NAME} already exists.")
+                    break
+            else:
+                print(f"Creating organization {ORG_NAME}.")
+                js.create_organization(ORG_NAME)
+
+            # Create the schema (if not already created)
+            schema_definition = {
+                "$id": "mySchema",
+                "type": "object",
+                "properties": {
+                    "foo": {"type": "string"},
+                    "baz": {"type": "string", "const": "example_value"},  # Example constant for derived annotation
+                    "bar": {"type": "integer"},
+                },
+                "required": ["foo"]
+            }
+
+            my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+            test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+            if not test_schema:
+                test_schema = my_test_org.create_json_schema(schema_definition, SCHEMA_NAME, VERSION)
+
+            # Create a test folder
+            test_folder = Folder(name="test_script_folder", parent_id=PROJECT_ID)
+            test_folder.store()
+
+            # Bind JSON schema to the folder
+            bound_schema = test_folder.bind_schema(
+                json_schema_uri=SCHEMA_URI,
+                enable_derived_annotations=True
+            )
+
+            # Validate the folder entity against the bound schema with invalid data
+            test_folder.annotations = {"foo": "test_value_new", "bar": "invalid_string"}  # 'bar' should be integer
+            test_folder.store()
+
+            # Get invalid validation results (synchronous version)
+            invalid_items = test_folder.get_invalid_validation(synapse_client=syn)
+            for item in invalid_items:
+                print(item)
+        ```
         """
         yield InvalidJSONSchemaValidation()
