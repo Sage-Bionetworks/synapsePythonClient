@@ -216,7 +216,7 @@ In the synapse web UI, you could also see your invalid annotations being marked 
 - [syn.login][synapseclient.Synapse.login]
 - [File][file-reference-sync]
 - [Folder][folder-reference-sync]
-- [Annotations][synapseclient.Annotations]
+- [Annotations](./annotation.md)
 - [JSONSChema Mixins][json-schema-mixin]
 - [Annotating Data With Metadata](https://help.synapse.org/docs/Annotating-Data-With-Metadata.2667708522.html)
 - [Derived annotations](https://help.synapse.org/docs/JSON-Schemas.3107291536.html#JSONSchemas-DerivedAnnotations)
