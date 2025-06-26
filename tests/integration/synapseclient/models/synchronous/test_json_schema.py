@@ -271,7 +271,7 @@ class TestJSONSchema:
         try:
             created_entity.bind_schema(
                 json_schema_uri=test_product_schema_uri,
-                enable_derived_annos=True,
+                enable_derived_annotations=True,
                 synapse_client=self.syn,
             )
 

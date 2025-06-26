@@ -24,7 +24,7 @@ class BaseJSONSchemaProtocol(Protocol):
         self,
         json_schema_uri: str,
         *,
-        enable_derived_annos: bool = False,
+        enable_derived_annotations: Optional[bool] = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> "JSONSchemaBinding":
         """
@@ -32,7 +32,7 @@ class BaseJSONSchemaProtocol(Protocol):
 
         Arguments:
             json_schema_uri (str): The URI of the JSON schema to bind to the entity.
-            enable_derived_annos (bool, optional): If true, enable derived annotations. Defaults to False.
+            enable_derived_annotations (bool, optional): If true, enable derived annotations. Defaults to False.
             synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 

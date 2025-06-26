@@ -92,7 +92,7 @@ new_test_schema = my_test_org.create_json_schema(
 # 4. Bind the JSON schema to the folder
 schema_uri = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
 bound_schema = test_folder.bind_schema(
-    json_schema_uri=schema_uri, enable_derived_annos=True
+    json_schema_uri=schema_uri, enable_derived_annotations=True
 )
 json_schema_version_info = bound_schema.json_schema_version_info
 print("JSON schema was bound successfully. Please see details below:")

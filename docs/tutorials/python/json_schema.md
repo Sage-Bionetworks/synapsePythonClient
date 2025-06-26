@@ -50,7 +50,7 @@ Note: If you update your schema, you can re-register it with the organization an
 ## 4. Bind the JSON Schema to the Folder
 After creating the organization, you can now bind your json schema to a test folder. When you bind a JSON Schema to a container entity such as a project or folder, then all items inside of the project or folder will inherit the schema binding, unless the item has a schema bound to itself.
 
-When you bind the schema, you may also include the boolean property `enable_derived_annos` to have Synapse automatically calculate derived annotations based on the schema:
+When you bind the schema, you may also include the boolean property `enable_derived_annotations` to have Synapse automatically calculate derived annotations based on the schema:
 
 ```python
 {!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=93-100}

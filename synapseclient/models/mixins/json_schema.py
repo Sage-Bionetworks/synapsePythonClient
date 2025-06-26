@@ -196,7 +196,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         self,
         json_schema_uri: str,
         *,
-        enable_derived_annos: bool = False,
+        enable_derived_annotations: bool = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> JSONSchemaBinding:
         """
@@ -204,7 +204,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
 
         Arguments:
             json_schema_uri: The URI of the JSON schema to bind to the entity.
-            enable_derived_annos: If true, enable derived annotations. Defaults to False.
+            enable_derived_annotations: If true, enable derived annotations. Defaults to False.
             synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
@@ -264,7 +264,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_json_schema():
                     bound_schema = await test_folder.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema
                 asyncio.run(bind_json_schema())
@@ -278,7 +278,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_schema_to_file():
                     bound_schema_file = await example_file.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema_file
                 asyncio.run(bind_schema_to_file())
@@ -287,7 +287,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
         response = await bind_json_schema_to_entity(
             synapse_id=self.id,
             json_schema_uri=json_schema_uri,
-            enable_derived_annos=enable_derived_annos,
+            enable_derived_annotations=enable_derived_annotations,
             synapse_client=synapse_client,
         )
         json_schema_version = response.get("jsonSchemaVersionInfo", {})
@@ -377,7 +377,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_json_schema():
                     bound_schema = await test_folder.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema
                 asyncio.run(bind_json_schema())
@@ -391,7 +391,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_schema_to_file():
                     bound_schema_file = await example_file.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema_file
                 asyncio.run(bind_schema_to_file())
@@ -500,7 +500,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_json_schema():
                     bound_schema = await test_folder.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema
                 asyncio.run(bind_json_schema())
@@ -514,7 +514,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_schema_to_file():
                     bound_schema_file = await example_file.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema_file
                 asyncio.run(bind_schema_to_file())
@@ -602,7 +602,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_json_schema():
                     bound_schema = await test_folder.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema
                 asyncio.run(bind_json_schema())
@@ -616,7 +616,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_schema_to_file():
                     bound_schema_file = await example_file.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema_file
                 asyncio.run(bind_schema_to_file())
@@ -768,7 +768,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_json_schema():
                     bound_schema = await test_folder.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema
                 asyncio.run(bind_json_schema())
@@ -782,7 +782,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 async def bind_schema_to_file():
                     bound_schema_file = await example_file.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema_file
                 asyncio.run(bind_schema_to_file())
@@ -887,7 +887,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
                 async def bind_json_schema():
                     bound_schema = await test_folder.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema
                 asyncio.run(bind_json_schema())
@@ -984,7 +984,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
                 async def bind_json_schema():
                     bound_schema = await test_folder.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema
                 asyncio.run(bind_json_schema())
@@ -1115,7 +1115,7 @@ class ContainerEntityJSONSchema(BaseJSONSchema, ContainerEntityJSONSchemaProtoco
                 async def bind_json_schema():
                     bound_schema = await test_folder.bind_schema_async(
                         json_schema_uri=SCHEMA_URI,
-                        enable_derived_annos=True
+                        enable_derived_annotations=True
                     )
                     return bound_schema
                 asyncio.run(bind_json_schema())
