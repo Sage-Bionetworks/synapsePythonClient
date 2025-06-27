@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 
 from opentelemetry import trace
 
-from synapseclient import Synapse
 from synapseclient.activity import Activity as Synapse_Activity
 from synapseclient.api import delete_entity_generated_by
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
@@ -13,6 +12,7 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models.protocols.activity_protocol import ActivitySynchronousProtocol
 
 if TYPE_CHECKING:
+    from synapseclient import Synapse
     from synapseclient.models import Dataset, EntityView, File, Table
 
 tracer = trace.get_tracer("synapseclient")
@@ -261,7 +261,7 @@ class Activity(ActivitySynchronousProtocol):
         self,
         parent: Optional[Union["Table", "File", "EntityView", "Dataset"]] = None,
         *,
-        synapse_client: Optional[Synapse] = None,
+        synapse_client: Optional["Synapse"] = None,
     ) -> "Activity":
         """
         Store the Activity in Synapse.
@@ -281,6 +281,8 @@ class Activity(ActivitySynchronousProtocol):
                 - If the parent does not have an ID.
                 - If the Activity does not have an ID and ETag.
         """
+        from synapseclient import Synapse
+
         # TODO: Input validation: SYNPY-1400
         used_and_executed_activities = (
             self._create_used_and_executed_synapse_activities()
@@ -331,7 +333,7 @@ class Activity(ActivitySynchronousProtocol):
         cls,
         parent: Union["Table", "File", "EntityView", "Dataset"],
         *,
-        synapse_client: Optional[Synapse] = None,
+        synapse_client: Optional["Synapse"] = None,
     ) -> Union["Activity", None]:
         """
         Get the Activity from Synapse based on the parent entity.
@@ -350,6 +352,8 @@ class Activity(ActivitySynchronousProtocol):
         Raises:
             ValueError: If the parent does not have an ID.
         """
+        from synapseclient import Synapse
+
         # TODO: Input validation: SYNPY-1400
         with tracer.start_as_current_span(name=f"Activity_get: Parent_ID: {parent.id}"):
             loop = asyncio.get_event_loop()
@@ -378,7 +382,7 @@ class Activity(ActivitySynchronousProtocol):
         cls,
         parent: Union["Table", "File"],
         *,
-        synapse_client: Optional[Synapse] = None,
+        synapse_client: Optional["Synapse"] = None,
     ) -> None:
         """
         Delete the Activity from Synapse. The Activity must be disassociated from
@@ -397,6 +401,8 @@ class Activity(ActivitySynchronousProtocol):
         Raises:
             ValueError: If the parent does not have an ID.
         """
+        from synapseclient import Synapse
+
         # TODO: Input validation: SYNPY-1400
         with tracer.start_as_current_span(
             name=f"Activity_delete: Parent_ID: {parent.id}"
@@ -417,7 +423,7 @@ class Activity(ActivitySynchronousProtocol):
         cls,
         parent: Union["Table", "File"],
         *,
-        synapse_client: Optional[Synapse] = None,
+        synapse_client: Optional["Synapse"] = None,
     ) -> None:
         """
         Disassociate the Activity from the parent entity. This is the first step in

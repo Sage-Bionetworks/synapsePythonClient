@@ -36,12 +36,14 @@ at your own risk.
         - reorder_column
         - get_permissions
         - get_acl
+        - list_acl
         - set_permissions
         - bind_schema
         - get_schema
         - unbind_schema
         - validate_schema
         - get_schema_derived_keys
+        - delete_permissions
 
 [](){ #column-reference-sync }
 ::: synapseclient.models.Column

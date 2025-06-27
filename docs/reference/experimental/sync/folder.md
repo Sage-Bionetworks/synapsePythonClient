@@ -28,6 +28,7 @@ at your own risk.
         - sync_from_synapse
         - get_permissions
         - get_acl
+        - list_acl
         - set_permissions
         - delete_permissions
         - bind_schema

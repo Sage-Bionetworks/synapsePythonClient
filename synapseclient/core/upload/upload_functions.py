@@ -251,7 +251,11 @@ def create_external_file_handle(
 
 
 def upload_external_file_handle_sftp(
-    syn: "Synapse", file_path: str, sftp_url: str, mimetype: str = None, md5: str = None
+    syn: "Synapse",
+    file_path: str,
+    sftp_url: str,
+    mimetype: str = None,
+    md5: str = None,
 ) -> Dict[str, Union[str, int]]:
     username, password = syn._getUserCredentials(url=sftp_url)
     uploaded_url = SFTPWrapper.upload_file(
@@ -284,8 +288,8 @@ def upload_synapse_s3(
         max_threads=max_threads,
         md5=md5,
     )
-    syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
 
+    syn.cache.add(file_handle_id=file_handle_id, path=file_path, md5=md5)
     return syn._get_file_handle_as_creator(fileHandle=file_handle_id)
 
 

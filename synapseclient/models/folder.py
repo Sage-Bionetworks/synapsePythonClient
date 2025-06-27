@@ -165,6 +165,12 @@ class Folder(
     """The last persistent instance of this object. This is used to determine if the
     object has been changed and needs to be updated in Synapse."""
 
+    _synced_from_synapse: Optional[bool] = field(
+        default=False, repr=False, compare=False
+    )
+    """Whether this object has been synced from Synapse. This is used to determine if
+    `.sync_from_synapse_async` has already been called on this instance."""
+
     @property
     def has_changed(self) -> bool:
         """Determines if the object has been changed and needs to be updated in Synapse."""

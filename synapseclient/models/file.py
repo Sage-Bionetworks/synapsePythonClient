@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
+from opentelemetry import trace
+
 from synapseclient import File as SynapseFile
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
@@ -835,6 +837,13 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
                 source=existing_file,
                 destination=self,
                 fields_to_ignore=self._determine_fields_to_ignore_in_merge(),
+            )
+
+        if self.id:
+            trace.get_current_span().set_attributes(
+                {
+                    "synapse.id": self.id,
+                }
             )
 
         if self.path:

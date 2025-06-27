@@ -22,6 +22,7 @@ at your own risk.
             - reorder_column
             - delete_column
             - get_acl
+            - list_acl
             - get_permissions
             - set_permissions
             - delete_permissions
@@ -30,7 +31,6 @@ at your own risk.
             - unbind_schema
             - validate_schema
             - get_schema_derived_keys
----
 
 [](){ #view-type-mask-reference-sync }
 ::: synapseclient.api.ViewTypeMask

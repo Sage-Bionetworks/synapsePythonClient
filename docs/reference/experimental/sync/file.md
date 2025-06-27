@@ -30,6 +30,7 @@ at your own risk.
         - change_metadata
         - get_permissions
         - get_acl
+        - list_acl
         - set_permissions
         - delete_permissions
         - bind_schema

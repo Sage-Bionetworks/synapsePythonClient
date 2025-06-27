@@ -273,7 +273,7 @@ The purpose of synapseutils is to create a space filled with convenience functio
 
 OpenTelemetry (OTEL)
 --------------------------------
-[OpenTelemetry](https://opentelemetry.io/) helps support the analysis of traces and spans which can provide insights into latency, errors, and other performance metrics. The synapseclient is ready to provide traces should you want them. The Synapse Python client supports OTLP Exports and can be configured via environment variables as defined [here](https://opentelemetry-python.readthedocs.io/en/stable/exporter/otlp/otlp.html).
+[OpenTelemetry](https://opentelemetry.io/) helps support the analysis of traces and spans which can provide insights into latency, errors, and other performance metrics. The synapseclient is ready to provide traces should you want them. The Synapse Python client supports OTLP Exports and can be configured via environment variables as defined [here](https://opentelemetry.io/docs/specs/otel/protocol/exporter/).
 
 Read more about OpenTelemetry in Python [here](https://opentelemetry.io/docs/instrumentation/python/)
 
@@ -290,47 +290,87 @@ docker run --name jaeger \
   jaegertracing/all-in-one:latest
 ```
 Explanation of ports:
-* `4318` HTTP
-* `16686` Jaeger UI
+* `4318` HTTP port for OTLP data collection
+* `16686` Jaeger UI for visualizing traces
 
 Once the docker container is running you can access the Jaeger UI via: `http://localhost:16686`
 
-#### Example
-By default the OTEL exporter sends trace data to `http://localhost:4318/v1/traces`, however you may override this by setting the `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` environment variable.
+#### Environment Variable Configuration
 
-```
+By default, the OTEL exporter sends trace data to `http://localhost:4318/v1/traces`. You can customize the behavior through environment variables:
+
+* `OTEL_SERVICE_NAME`: Defines a unique identifier for your application or service in telemetry data (defaults to 'synapseclient'). Set this to a descriptive name that represents your specific implementation, making it easier to filter and analyze traces in your monitoring system.
+* `OTEL_EXPORTER_OTLP_ENDPOINT`: Specifies the destination URL for sending telemetry data (defaults to 'http://localhost:4318'). Configure this to direct data to your preferred OpenTelemetry collector or monitoring service.
+* `OTEL_DEBUG_CONSOLE`: Controls local visibility of telemetry data. Set to 'true' to output trace information to the console, which is useful for development and troubleshooting without an external collector.
+* `OTEL_SERVICE_INSTANCE_ID`: Distinguishes between multiple instances of the same service (e.g., 'prod', 'development', 'local'). This helps identify which specific deployment or environment generated particular traces.
+* `OTEL_EXPORTER_OTLP_HEADERS`: Configures authentication and metadata for telemetry exports. Use this to add API keys, authentication tokens, or custom metadata when sending traces to secured collectors or third-party monitoring services.
+
+
+#### Enabling OpenTelemetry in your code
+To enable OpenTelemetry with the Synapse Python client, simply call the
+`enable_open_telemetry()` method on the Synapse class. Additionally you can access an
+instance of the OpenTelemetry tracer via the `get_tracer()` call. This will allow you
+to create new spans for your code.
+
+```python
 import synapseclient
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-trace.set_tracer_provider(
-    TracerProvider(
-        resource=Resource(attributes={SERVICE_NAME: "my_own_code_above_synapse_client"})
-    )
-)
-trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
-tracer = trace.get_tracer("my_tracer")
-synapseclient.Synapse.enable_open_telemetry(True)
+# Enable OpenTelemetry with default settings
+synapseclient.Synapse.enable_open_telemetry()
+tracer = synapseclient.Synapse.get_tracer()
 
-@tracer.start_as_current_span("my_span_name")
-def main():
+# Then create and use the Synapse client as usual
+with tracer.start_as_current_span("my_function_span"):
     syn = synapseclient.Synapse()
-    syn.login()
-    my_entity = syn.get("syn52569429")
-    print(my_entity)
-
-main()
+    syn.login(authToken='auth_token')
 ```
 
+#### Advanced Configuration
 
+You can pass additional resource attributes to `enable_open_telemetry()`:
+
+```python
+import synapseclient
+
+# Enable with custom resource attributes
+synapseclient.Synapse.enable_open_telemetry(
+    resource_attributes={
+        "deployment.environment": "development",
+        "service.version": "1.2.3", # Overrides the `OTEL_SERVICE_NAME` environment variable
+        "service.instance.id": "4.5.6",  # Overrides the `OTEL_SERVICE_INSTANCE_ID` environment variable
+        "custom.attribute": "value"
+    }
+)
+```
+
+When OpenTelemetry is enabled in the Synapse client, the following happens automatically:
+
+1. Instrumentation is set up for:
+   - **Threading** (via `ThreadingInstrumentor`): Ensures proper context propagation across threads, which is essential for maintaining trace continuity in multi-threaded applications
+   - **HTTP libraries**:
+     - `requests` (via `RequestsInstrumentor`): Captures all HTTP requests made using the requests library, including methods, URLs, status codes, and timing information
+     - `httpx` (via `HTTPXClientInstrumentor`): Tracks both synchronous and asynchronous HTTP requests made with the httpx library
+     - `urllib` (via `URLLibInstrumentor`): Monitors lower-level HTTP operations made directly with Python's standard library
+   - Each instrumented HTTP library includes custom hooks that extract Synapse entity IDs from URLs when possible and add them as span attributes
+
+2. Traces are configured to collect spans across your application:
+   - Spans automatically capture operation duration, status, and errors.
+   - An attribute propagation mechanism ensures that certain attributes (like `synapse.transfer.direction` and `synapse.operation.category`) are properly passed to child spans for uploads/downloads.
+   - Trace data is exported via OTLP (OpenTelemetry Protocol).
+
+3. Resource information is automatically added to your traces, including:
+   - Python version
+   - OS type
+   - Synapse client version
+   - Service name (defaults to "synapseclient" but can be customized via environment variables)
+   - Service instance ID
+
+Note that once enabled, OpenTelemetry cannot be disabled in the same process - you would need to restart your Python interpreter to disable it.
 
 
 License and Copyright
 ---------------------
 
-&copy; Copyright 2013-23 Sage Bionetworks
+&copy; Copyright 2013-25 Sage Bionetworks
 
 This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
