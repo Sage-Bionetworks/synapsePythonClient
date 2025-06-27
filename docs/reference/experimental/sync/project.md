@@ -34,3 +34,5 @@ at your own risk.
         - unbind_schema
         - validate_schema
         - get_schema_derived_keys
+        - get_schema_validation_statistics
+        - get_invalid_validation

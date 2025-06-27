@@ -24,3 +24,5 @@ at your own risk.
         - unbind_schema_async
         - validate_schema_async
         - get_schema_derived_keys_async
+        - get_schema_validation_statistics_async
+        - get_invalid_validation_async
