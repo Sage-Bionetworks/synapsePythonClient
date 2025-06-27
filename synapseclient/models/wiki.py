@@ -1,10 +1,10 @@
 """Script to work with Synapse wiki pages."""
 
+import asyncio
 import gzip
 import os
-import shutil
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from synapseclient import Synapse
 from synapseclient.api import (
@@ -31,7 +31,7 @@ from synapseclient.core.download import (
 )
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions_async import upload_file_handle
-from synapseclient.core.utils import delete_none_keys
+from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.models.protocols.wikipage_protocol import (
     WikiHeaderSynchronousProtocol,
     WikiHistorySnapshotSynchronousProtocol,
@@ -47,14 +47,14 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
     A WikiOrderHint contains the order hint for the root wiki that corresponds to the given owner ID and type.
 
     Attributes:
-        owner_id: The ID of the owner object (e.g., entity, evaluation, etc.).
+        owner_id: The Synapse ID of the owner object (e.g., entity, evaluation, etc.).
         owner_object_type: The type of the owner object.
         id_list: The list of sub wiki ids that in the order that they should be placed relative to their siblings.
         etag: The etag of this object.
     """
 
     owner_id: Optional[str] = None
-    """The ID of the owner object (e.g., entity, evaluation, etc.)."""
+    """The Synapse ID of the owner object (e.g., entity, evaluation, etc.)."""
 
     owner_object_type: Optional[str] = None
     """The type of the owner object."""
@@ -198,8 +198,8 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
     )
     async def get_async(
         cls,
-        owner_id: str,
-        id: str,
+        owner_id: str = None,
+        id: str = None,
         *,
         offset: int = 0,
         limit: int = 20,
@@ -209,7 +209,7 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
         Get the history of a wiki page as a list of WikiHistorySnapshot objects.
 
         Arguments:
-            owner_id: The ID of the owner entity.
+            owner_id: The Synapse ID of the owner entity.
             id: The ID of the wiki page.
             offset: The index of the pagination offset.
             limit: Limits the size of the page returned.
@@ -278,7 +278,7 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
     )
     async def get_async(
         cls,
-        owner_id: str,
+        owner_id: str = None,
         *,
         offset: int = 0,
         limit: int = 20,
@@ -288,7 +288,7 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
         Get the header tree (hierarchy) of wiki pages for an entity.
 
         Arguments:
-            owner_id: The ID of the owner entity.
+            owner_id: The Synapse ID of the owner entity.
             offset: The index of the pagination offset.
             limit: Limits the size of the page returned.
             synapse_client: Optionally provide a Synapse client.
@@ -323,12 +323,12 @@ class WikiPage(WikiPageSynchronousProtocol):
         parent_id: When set, the WikiPage is a sub-page of the indicated parent WikiPage.
         markdown: The markdown content of the wiki page.
         attachments: A list of file attachments associated with the wiki page.
-        owner_id: The ID of the owning object (e.g., entity, evaluation, etc.).
+        owner_id: The Synapse ID of the owning object (e.g., entity, evaluation, etc.).
         created_on: The timestamp when this page was created.
         created_by: The ID of the user that created this page.
         modified_on: The timestamp when this page was last modified.
         modified_by: The ID of the user that last modified this page.
-        version_number: The version number of this wiki page.
+        wiki_version: The version number of this wiki page.
         markdown_file_handle_id: The ID of the file handle containing the markdown content.
         attachment_file_handle_ids: The list of attachment file handle ids of this page.
     """
@@ -354,7 +354,7 @@ class WikiPage(WikiPageSynchronousProtocol):
     """A list of file attachments associated with this page."""
 
     owner_id: Optional[str] = None
-    """The ID of the owning object (e.g., entity, evaluation, etc.)."""
+    """The Synapse ID of the owning object (e.g., entity, evaluation, etc.)."""
 
     created_on: Optional[str] = field(default=None, compare=False)
     """The timestamp when this page was created."""
@@ -443,7 +443,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             synapse_client: The Synapse client to use for cache access.
 
         Returns:
-            The path to the gzipped file.
+            The path to the gzipped file and the cache directory.
         """
         # check if markdown is a string
         if not isinstance(wiki_content, str):
@@ -455,10 +455,9 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         # Check if markdown looks like a file path and exists
         if os.path.isfile(wiki_content):
-            # If it's already a gzipped file, save a copy to the cache
+            # If it's already a gzipped file, use the file path directly
             if wiki_content.endswith(".gz"):
-                file_path = os.path.join(cache_dir, os.path.basename(wiki_content))
-                shutil.copyfile(wiki_content, file_path)
+                file_path = wiki_content
             else:
                 # If it's a regular html or markdown file, compress it
                 with open(wiki_content, "rb") as f_in:
@@ -496,6 +495,112 @@ class WikiPage(WikiPageSynchronousProtocol):
         )
 
     @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Get the markdown file handle: {self.owner_id}"
+    )
+    async def _get_markdown_file_handle(self, synapse_client: Synapse) -> "WikiPage":
+        """Get the markdown file handle from the synapse client.
+        Arguments:
+            synapse_client: The Synapse client to use for cache access.
+        Returns:
+            A WikiPage with the updated markdown file handle id.
+        """
+        if not self.markdown:
+            return self
+        else:
+            file_path = self._to_gzip_file(
+                wiki_content=self.markdown, synapse_client=synapse_client
+            )
+            try:
+                # Upload the gzipped file to get a file handle
+                file_handle = await upload_file_handle(
+                    syn=synapse_client,
+                    parent_entity_id=self.owner_id,
+                    path=file_path,
+                )
+
+                synapse_client.logger.debug(
+                    f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
+                )
+                # Set the markdown file handle ID from the upload response
+                self.markdown_file_handle_id = file_handle.get("id")
+            finally:
+                # delete the temp directory saving the gzipped file
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    synapse_client.logger.debug(f"Deleted temp directory {file_path}")
+            return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Get the attachment file handles for wiki page: {self.owner_id}"
+    )
+    async def _get_attachment_file_handles(self, synapse_client: Synapse) -> "WikiPage":
+        """Get the attachment file handles from the synapse client.
+        Arguments:
+            synapse_client: The Synapse client to use for cache access.
+        Returns:
+            A WikiPage with the updated attachment file handle ids.
+        """
+        if not self.attachments:
+            return self
+        else:
+
+            async def task_of_uploading_attachment(attachment: str) -> tuple[str, str]:
+                """Process a single attachment and return its file handle ID and cache directory."""
+                file_path = self._to_gzip_file(
+                    wiki_content=attachment, synapse_client=synapse_client
+                )
+                try:
+                    file_handle = await upload_file_handle(
+                        syn=synapse_client,
+                        parent_entity_id=self.owner_id,
+                        path=file_path,
+                    )
+                    synapse_client.logger.info(
+                        f"Uploaded file handle {file_handle.get('id')} for wiki page attachment."
+                    )
+                    return file_handle.get("id")
+                finally:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        synapse_client.logger.debug(
+                            f"Deleted temp directory {file_path}"
+                        )
+
+            # Process all attachments in parallel
+            tasks = [
+                asyncio.create_task(task_of_uploading_attachment(attachment))
+                for attachment in self.attachments
+            ]
+            results = await asyncio.gather(*tasks)
+            # Set the attachment file handle IDs from the upload response
+            self.attachment_file_handle_ids = results
+            return self
+
+    async def _determine_wiki_action(
+        self,
+    ) -> Literal["create_root", "update_root", "create_sub"]:
+        """Determine the wiki action to perform.
+        Returns:
+            The wiki action to perform.
+        Raises:
+            ValueError: If required fields are missing.
+        """
+        if self.parent_id:
+            return "create_sub_wiki_page"
+
+        try:
+            await WikiHeader.get_async(owner_id=self.owner_id)
+        except SynapseHTTPError as e:
+            if e.response.status_code == 404:
+                return "create_root_wiki_page"
+            else:
+                raise
+        else:
+            if not self.id:
+                raise ValueError("Must provide id to update existing wiki page.")
+            return "update_existing_wiki_page"
+
+    @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Store the wiki page: {self.owner_id}"
     )
     async def store_async(
@@ -512,7 +617,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                     instance from the Synapse class constructor.
 
         Returns:
-            The created wiki page.
+            The created/updated wiki page.
 
         Raises:
             ValueError: If owner_id is not provided or if required fields are missing.
@@ -520,115 +625,66 @@ class WikiPage(WikiPageSynchronousProtocol):
         client = Synapse.get_client(synapse_client=synapse_client)
         if not self.owner_id:
             raise ValueError("Must provide owner_id to modify a wiki page.")
-        # Convert markdown to gzipped file if needed
-        if self.markdown:
-            file_path = self._to_gzip_file(
-                wiki_content=self.markdown, synapse_client=client
+
+        wiki_action = await self._determine_wiki_action()
+        # get the markdown file handle and attachment file handles if the wiki action is valid
+        if wiki_action:
+            self = await self._get_markdown_file_handle(synapse_client=synapse_client)
+            self = await self._get_attachment_file_handles(
+                synapse_client=synapse_client
             )
-            try:
-                # Upload the gzipped file to get a file handle
-                file_handle = await upload_file_handle(
-                    syn=client,
-                    parent_entity_id=self.owner_id,
-                    path=file_path,
-                )
-
-                client.logger.info(
-                    f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
-                )
-                # Set the markdown file handle ID from the upload response
-                self.markdown_file_handle_id = file_handle.get("id")
-            finally:
-                # delete the temp gzip file
-                os.remove(file_path)
-                client.logger.debug(f"Deleted temp gzip file {file_path}")
-
-        # Convert attachments to gzipped file if needed
-        if self.attachments:
-            try:
-                file_handles = []
-                for attachment in self.attachments:
-                    file_path = self._to_gzip_file(
-                        wiki_content=attachment, synapse_client=client
-                    )
-                    file_handle = await upload_file_handle(
-                        syn=client,
-                        parent_entity_id=self.owner_id,
-                        path=file_path,
-                    )
-                    file_handles.append(file_handle.get("id"))
-                    client.logger.info(
-                        f"Uploaded file handle {file_handle.get('id')} for wiki page attachment."
-                    )
-                # Set the attachment file handle IDs from the upload response
-                self.attachment_file_handle_ids = file_handles
-            finally:
-                # delete the temp gzip file
-                os.remove(file_path)
-                client.logger.debug(f"Deleted temp gzip file {file_path}")
-
         # Handle root wiki page creation if parent_id is not given
-        if not self.parent_id:
-            try:
-                WikiHeader.get(
-                    owner_id=self.owner_id,
-                )
-            except SynapseHTTPError as e:
-                if e.response.status_code == 404:
-                    client.logger.debug(
-                        "No wiki page exists within the owner. Create a new wiki page."
-                    )
-                    # Create the wiki page
-                    wiki_data = await post_wiki_page(
-                        owner_id=self.owner_id,
-                        request=self.to_synapse_request(),
-                    )
-                    client.logger.info(
-                        f"Created wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
-                    )
-                else:
-                    raise e
-            else:
-                client.logger.info(
-                    "A wiki page already exists within the owner. Update the existing wiki page."
-                )
-                # Update the existing wiki page
-                if not (self.id):
-                    raise ValueError("Must provide id to update a wiki page.")
-
-                # retrieve the wiki page
-                existing_wiki = await get_wiki_page(
-                    owner_id=self.owner_id,
-                    wiki_id=self.id,
-                    wiki_version=self.wiki_version,
-                )
-                # Update existing_wiki with current object's attributes if they are not None
-                updates = {
-                    k: v
-                    for k, v in {
-                        "id": self.id,
-                        "title": self.title,
-                        "markdown": self.markdown,
-                        "parentWikiId": self.parent_id,
-                        "attachments": self.attachments,
-                        "markdownFileHandleId": self.markdown_file_handle_id,
-                        "attachmentFileHandleIds": self.attachment_file_handle_ids,
-                    }.items()
-                    if v is not None
-                }
-                existing_wiki.update(updates)
-                # update the wiki page
-                wiki_data = await put_wiki_page(
-                    owner_id=self.owner_id,
-                    wiki_id=self.id,
-                    request=existing_wiki,
-                )
-                client.logger.info(
-                    f"Updated wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
-                )
+        if wiki_action == "create_root_wiki_page":
+            client.logger.info(
+                "No wiki page exists within the owner. Create a new wiki page."
+            )
+            # Create the wiki page
+            wiki_data = await post_wiki_page(
+                owner_id=self.owner_id,
+                request=self.to_synapse_request(),
+            )
+            client.logger.info(
+                f"Created wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
+            )
+        if wiki_action == "update_existing_wiki_page":
+            client.logger.info(
+                "A wiki page already exists within the owner. Update the existing wiki page."
+            )
+            # retrieve the wiki page
+            existing_wiki_dict = await get_wiki_page(
+                owner_id=self.owner_id,
+                wiki_id=self.id,
+                wiki_version=self.wiki_version,
+            )
+            # convert to dataclass
+            existing_wiki = WikiPage()
+            existing_wiki = existing_wiki.fill_from_dict(
+                synapse_wiki=existing_wiki_dict
+            )
+            # Update existing_wiki with current object's attributes if they are not None
+            updated_wiki = merge_dataclass_entities(
+                existing_wiki,
+                self,
+                fields_to_ignore=[
+                    "etag",
+                    "created_on",
+                    "created_by",
+                    "modified_on",
+                    "modified_by",
+                ],
+            )
+            # update the wiki page
+            wiki_data = await put_wiki_page(
+                owner_id=self.owner_id,
+                wiki_id=self.id,
+                request=updated_wiki.to_synapse_request(),
+            )
+            client.logger.info(
+                f"Updated wiki page: {wiki_data.get('title')} with ID: {wiki_data.get('id')}."
+            )
 
         # Handle sub-wiki page creation if parent_id is given
-        else:
+        if wiki_action == "create_sub_wiki_page":
             client.logger.info(
                 f"Creating sub-wiki page under parent ID: {self.parent_id}"
             )
@@ -1016,3 +1072,17 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
         else:
             return markdown_url
+
+    @classmethod
+    def from_dict(
+        cls, synapse_wiki: Dict[str, Union[str, List[str], List[Dict[str, Any]]]]
+    ) -> "WikiPage":
+        """Create a new WikiPage instance from a dictionary.
+
+        Arguments:
+            synapse_wiki: The dictionary containing wiki page data.
+
+        Returns:
+            A new WikiPage instance filled with the dictionary data.
+        """
+        return cls().fill_from_dict(synapse_wiki)
