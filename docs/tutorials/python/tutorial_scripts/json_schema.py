@@ -8,7 +8,7 @@ from synapseclient.models import File, Folder
 # 1. Set up Synapse Python client and retrieve project
 syn = synapseclient.Synapse()
 syn.login()
-
+client = synapseclient.Synapse().get_client(synapse_client=syn)
 
 # Retrieve test project
 PROJECT_ID = syn.findEntityId(
@@ -22,6 +22,7 @@ test_folder = Folder(name="clinical_data_folder", parent_id=PROJECT_ID).store()
 ORG_NAME = "myUniqueAlzheimersResearchOrgTurtorial"
 VERSION = "0.0.1"
 NEW_VERSION = "0.0.2"
+
 SCHEMA_NAME = "clinicalObservations"
 
 title = "Alzheimer's Clinical Observation Schema"
@@ -52,10 +53,10 @@ js = syn.service("json_schema")
 all_orgs = js.list_organizations()
 for org in all_orgs:
     if org["name"] == ORG_NAME:
-        print(f"Organization {ORG_NAME} already exists.")
+        client.logger.info(f"Organization {ORG_NAME} already exists.")
         break
 else:
-    print(f"Creating organization {ORG_NAME}.")
+    client.logger.info(f"Creating organization {ORG_NAME}.")
     js.create_organization(ORG_NAME)
 
 my_test_org = js.JsonSchemaOrganization(ORG_NAME)
@@ -84,23 +85,31 @@ updated_schema = {
         },
     },
 }
-new_test_schema = my_test_org.create_json_schema(
-    updated_schema, SCHEMA_NAME, NEW_VERSION
-)
 
+try:
+    new_test_schema = my_test_org.create_json_schema(
+        updated_schema, SCHEMA_NAME, VERSION
+    )
+except synapseclient.core.exceptions.SynapseHTTPError as e:
+    if e.response.status_code == 400 and "already exists" in e.response.text:
+        client.logger.warning(
+            f"Schema {SCHEMA_NAME} already exists. Please switch to use a new version number."
+        )
+    else:
+        raise e
 
 # 4. Bind the JSON schema to the folder
 schema_uri = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
 bound_schema = test_folder.bind_schema(
-    json_schema_uri=schema_uri, enable_derived_annotations=True
+    json_schema_uri=schema_uri, synapse_client=syn, enable_derived_annotations=True
 )
 json_schema_version_info = bound_schema.json_schema_version_info
-print("JSON schema was bound successfully. Please see details below:")
+client.logger.info("JSON schema was bound successfully. Please see details below:")
 pprint(vars(json_schema_version_info))
 
 # 5. Retrieve the Bound Schema
 schema = test_folder.get_schema()
-print("JSON Schema was retrieved successfully. Please see details below:")
+client.logger.info("JSON Schema was retrieved successfully. Please see details below:")
 pprint(vars(schema))
 
 # 6. Add Invalid Annotations to the Folder and Store
@@ -108,12 +117,12 @@ test_folder.annotations = {
     "patient_id": "1234",
     "cognitive_score": "invalid str",
 }
-test_folder.store()
+test_folder.store(synapse_client=syn)
 
 time.sleep(2)
 
 validation_results = test_folder.validate_schema()
-print("Validation was completed. Please see details below:")
+client.logger.info("Validation was completed. Please see details below:")
 pprint(vars(validation_results))
 
 # 7. Create a File with Invalid Annotations and Upload It
@@ -143,16 +152,18 @@ create_random_file(path_to_file)
 annotations = {"patient_id": "123456", "cognitive_score": "invalid child str"}
 
 child_file = File(path=path_to_file, parent_id=test_folder.id, annotations=annotations)
-child_file = child_file.store()
+child_file = child_file.store(synapse_client=syn)
 time.sleep(2)
 
-validation_statistics = test_folder.get_schema_validation_statistics()
-print("Validation statistics were retrieved successfully. Please see details below:")
+validation_statistics = test_folder.get_schema_validation_statistics(synapse_client=syn)
+client.logger.info(
+    "Validation statistics were retrieved successfully. Please see details below:"
+)
 pprint(vars(validation_statistics))
 
 invalid_validation = invalid_results = test_folder.get_invalid_validation(
     synapse_client=syn
 )
 for child in invalid_validation:
-    print("See details of validation results: ")
+    client.logger.info("See details of validation results: ")
     pprint(vars(child))
