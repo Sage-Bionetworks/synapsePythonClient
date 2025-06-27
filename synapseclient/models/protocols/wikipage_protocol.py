@@ -4,7 +4,6 @@ generated at runtime."""
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union
 
 from synapseclient import Synapse
-from synapseclient.core.async_utils import async_to_sync
 
 if TYPE_CHECKING:
     from synapseclient.models import (
@@ -15,7 +14,6 @@ if TYPE_CHECKING:
     )
 
 
-@async_to_sync
 class WikiOrderHintSynchronousProtocol(Protocol):
     """Protocol for the methods of the WikiOrderHint class that have synchronous counterparts
     generated at runtime."""
@@ -49,7 +47,6 @@ class WikiOrderHintSynchronousProtocol(Protocol):
         return self
 
 
-@async_to_sync
 class WikiHistorySnapshotSynchronousProtocol(Protocol):
     """Protocol for the methods of the WikiHistorySnapshot class that have synchronous counterparts
     generated at runtime."""
@@ -78,7 +75,6 @@ class WikiHistorySnapshotSynchronousProtocol(Protocol):
         return list({})
 
 
-@async_to_sync
 class WikiHeaderSynchronousProtocol(Protocol):
     """Protocol for the methods of the WikiHeader class that have synchronous counterparts
     generated at runtime."""
@@ -105,7 +101,6 @@ class WikiHeaderSynchronousProtocol(Protocol):
         return list({})
 
 
-@async_to_sync
 class WikiPageSynchronousProtocol(Protocol):
     """Protocol for the methods of the WikiPage class that have synchronous counterparts
     generated at runtime."""
