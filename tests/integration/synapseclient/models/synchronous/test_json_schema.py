@@ -139,7 +139,7 @@ class TestJSONSchema:
         return entity_view
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    def test_bind_schema(
+    async def test_bind_schema(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -172,7 +172,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    def test_get_schema(
+    async def test_get_schema(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -207,7 +207,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    def test_unbind_schema(
+    async def test_unbind_schema(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -244,7 +244,7 @@ class TestJSONSchema:
             created_entity.get_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    def test_get_schema_derived_keys(
+    async def test_get_schema_derived_keys(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -298,7 +298,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    def test_validate_schema_invalid_annos(
+    async def test_validate_schema_invalid_annos(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -355,7 +355,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    def test_validate_schema_valid_annos(
+    async def test_validate_schema_valid_annos(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -397,7 +397,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project])
-    def test_get_validation_statistics(
+    async def test_get_validation_statistics(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -474,7 +474,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project])
-    def test_get_invalid_validation(
+    async def test_get_invalid_validation(
         self,
         entity_type: Type[Union[Folder, Project]],
         project_model: Project,
