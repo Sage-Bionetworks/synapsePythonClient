@@ -423,6 +423,7 @@ class TestJSONSchema:
             version_label=str(uuid.uuid4()),
             parent_id=created_entity.id,
         ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(file_1.id)
 
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
@@ -435,6 +436,7 @@ class TestJSONSchema:
             version_label=str(uuid.uuid4()),
             parent_id=created_entity.id,
         ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(file_2.id)
 
         _, test_product_schema_uri = create_test_organization_with_schema
 
@@ -498,6 +500,7 @@ class TestJSONSchema:
             version_label=str(uuid.uuid4()),
             parent_id=created_entity.id,
         ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(file_1.id)
 
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
@@ -510,6 +513,7 @@ class TestJSONSchema:
             version_label=str(uuid.uuid4()),
             parent_id=created_entity.id,
         ).store(synapse_client=self.syn)
+        self.schedule_for_cleanup(file_2.id)
 
         # Bind the JSON SCHEMA to the folder
         try:
