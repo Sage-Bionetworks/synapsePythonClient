@@ -28,6 +28,11 @@ at your own risk.
         - set_permissions_async
         - delete_permissions_async
         - list_acl_async
+        - bind_schema_async
+        - get_schema_async
+        - unbind_schema_async
+        - validate_schema_async
+        - get_schema_derived_keys_async
 
 [](){ #column-reference-async }
 ::: synapseclient.models.Column

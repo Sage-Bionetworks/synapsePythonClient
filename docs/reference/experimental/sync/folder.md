@@ -28,6 +28,13 @@ at your own risk.
         - sync_from_synapse
         - get_permissions
         - get_acl
+        - list_acl
         - set_permissions
         - delete_permissions
-        - list_acl
+        - bind_schema
+        - get_schema
+        - unbind_schema
+        - validate_schema
+        - get_schema_derived_keys
+        - get_schema_validation_statistics
+        - get_invalid_validation

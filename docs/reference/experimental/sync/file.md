@@ -30,9 +30,14 @@ at your own risk.
         - change_metadata
         - get_permissions
         - get_acl
+        - list_acl
         - set_permissions
         - delete_permissions
-        - list_acl
+        - bind_schema
+        - get_schema
+        - unbind_schema
+        - validate_schema
+        - get_schema_derived_keys
 ---
 [](){ #filehandle-reference-sync }
 ::: synapseclient.models.file.FileHandle

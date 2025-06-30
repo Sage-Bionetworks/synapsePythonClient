@@ -13,7 +13,7 @@ from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import MB, delete_none_keys
 from synapseclient.models import Activity, Annotations
-from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
 from synapseclient.models.mixins.table_components import (
     ColumnMixin,
     DeleteMixin,
@@ -349,6 +349,7 @@ class EntityView(
     ViewUpdateMixin,
     ViewSnapshotMixin,
     EntityViewSynchronousProtocol,
+    BaseJSONSchema,
 ):
     """
     A view of Entities within a defined scope. The purpose of a `EntityView`, also known

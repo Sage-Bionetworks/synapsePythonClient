@@ -686,14 +686,21 @@ class JsonSchemaService:
         return response
 
     @authentication_required
-    def bind_json_schema_to_entity(self, synapse_id: str, json_schema_uri: str):
+    def bind_json_schema_to_entity(
+        self,
+        synapse_id: str,
+        json_schema_uri: str,
+    ):
         """Bind a JSON schema to an entity
 
         Arguments:
             synapse_id:      Synapse Id
             json_schema_uri: JSON schema URI
         """
-        request_body = {"entityId": synapse_id, "schema$id": json_schema_uri}
+        request_body = {
+            "entityId": synapse_id,
+            "schema$id": json_schema_uri,
+        }
         response = self.synapse.restPUT(
             f"/entity/{synapse_id}/schema/binding", body=json.dumps(request_body)
         )

@@ -134,9 +134,11 @@ def async_to_sync(cls):
 
     methods_to_update = []
     for k in methods:
+        if getattr(cls.__dict__[k], "_skip_conversion", False):
+            continue
+
         if "async" in k and (new_method_name := k.replace("_async", "")):
             new_method = create_method(k)
-
             new_method.fn.__name__ = new_method_name
             new_method.__name__ = new_method_name
 
@@ -153,3 +155,9 @@ def async_to_sync(cls):
         )
 
     return cls
+
+
+def skip_async_to_sync(func):
+    """Decorator to skip the async to sync conversion for a specific function."""
+    func._skip_conversion = True
+    return func

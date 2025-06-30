@@ -13,7 +13,11 @@ from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.entity import Project as Synapse_Project
 from synapseclient.models import Annotations, File, Folder
-from synapseclient.models.mixins import AccessControllable, StorableContainer
+from synapseclient.models.mixins import (
+    AccessControllable,
+    ContainerEntityJSONSchema,
+    StorableContainer,
+)
 from synapseclient.models.protocols.project_protocol import ProjectSynchronousProtocol
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity_components import (
@@ -25,7 +29,12 @@ from synapseutils.copy_functions import copy
 
 @dataclass()
 @async_to_sync
-class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer):
+class Project(
+    ProjectSynchronousProtocol,
+    AccessControllable,
+    StorableContainer,
+    ContainerEntityJSONSchema,
+):
     """A Project is a top-level container for organizing data in Synapse.
 
     Attributes:
