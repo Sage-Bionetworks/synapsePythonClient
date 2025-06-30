@@ -517,7 +517,6 @@ class WikiPage(WikiPageSynchronousProtocol):
                     parent_entity_id=self.owner_id,
                     path=file_path,
                 )
-
                 synapse_client.logger.debug(
                     f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
                 )
@@ -585,6 +584,9 @@ class WikiPage(WikiPageSynchronousProtocol):
         Raises:
             ValueError: If required fields are missing.
         """
+        if not self.owner_id:
+            raise ValueError("Must provide owner_id to modify a wiki page.")
+
         if self.parent_id:
             return "create_sub_wiki_page"
 
@@ -610,6 +612,8 @@ class WikiPage(WikiPageSynchronousProtocol):
     ) -> "WikiPage":
         """Store the wiki page. If there is no wiki page, a new wiki page will be created.
         If the wiki page already exists, it will be updated.
+        Subwiki pages are created by passing in a parent_id.
+        If a parent_id is provided, the wiki page will be created as a subwiki page.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -623,16 +627,14 @@ class WikiPage(WikiPageSynchronousProtocol):
             ValueError: If owner_id is not provided or if required fields are missing.
         """
         client = Synapse.get_client(synapse_client=synapse_client)
-        if not self.owner_id:
-            raise ValueError("Must provide owner_id to modify a wiki page.")
 
         wiki_action = await self._determine_wiki_action()
         # get the markdown file handle and attachment file handles if the wiki action is valid
         if wiki_action:
-            self = await self._get_markdown_file_handle(synapse_client=synapse_client)
-            self = await self._get_attachment_file_handles(
-                synapse_client=synapse_client
-            )
+            # Update self with the returned WikiPage objects that have file handle IDs set
+            self = await self._get_markdown_file_handle(synapse_client=client)
+            self = await self._get_attachment_file_handles(synapse_client=client)
+
         # Handle root wiki page creation if parent_id is not given
         if wiki_action == "create_root_wiki_page":
             client.logger.info(
@@ -663,8 +665,8 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
             # Update existing_wiki with current object's attributes if they are not None
             updated_wiki = merge_dataclass_entities(
-                existing_wiki,
-                self,
+                source=self,
+                destination=existing_wiki,
                 fields_to_ignore=[
                     "etag",
                     "created_on",
@@ -922,7 +924,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             else:
                 # download the file
                 download_from_url_multi_threaded(
-                    presigned_url=presigned_url_info.url, destination=download_location
+                    presigned_url=presigned_url_info, destination=download_location
                 )
             client.logger.debug(
                 f"Downloaded file {presigned_url_info.file_name} to {download_location}"
