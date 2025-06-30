@@ -665,10 +665,9 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
             # Update existing_wiki with current object's attributes if they are not None
             updated_wiki = merge_dataclass_entities(
-                source=self,
-                destination=existing_wiki,
+                source=existing_wiki,
+                destination=self,
                 fields_to_ignore=[
-                    "etag",
                     "created_on",
                     "created_by",
                     "modified_on",
@@ -762,17 +761,11 @@ class WikiPage(WikiPageSynchronousProtocol):
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get a wiki page.")
+        if not self.id and not self.title:
+            raise ValueError("Must provide id or title to get a wiki page.")
 
-        # If we have an ID, use it directly (TO SIMPLIFY)
-        elif self.id:
-            wiki_data = await get_wiki_page(
-                owner_id=self.owner_id,
-                wiki_id=self.id,
-                wiki_version=self.wiki_version,
-                synapse_client=synapse_client,
-            )
-        # If we only have a title, find the wiki page with matching title
-        else:
+        # If we only have a title, find the wiki page with matching title.
+        if self.id is None:
             async for result in get_wiki_header_tree(
                 owner_id=self.owner_id,
                 synapse_client=synapse_client,
@@ -785,14 +778,14 @@ class WikiPage(WikiPageSynchronousProtocol):
 
             if not matching_header:
                 raise ValueError(f"No wiki page found with title: {self.title}")
+            self.id = matching_header["id"]
 
-            wiki_data = await get_wiki_page(
-                owner_id=self.owner_id,
-                wiki_id=matching_header["id"],
-                wiki_version=self.wiki_version,
-                synapse_client=synapse_client,
-            )
-
+        wiki_data = await get_wiki_page(
+            owner_id=self.owner_id,
+            wiki_id=self.id,
+            wiki_version=self.wiki_version,
+            synapse_client=synapse_client,
+        )
         self.fill_from_dict(wiki_data)
         return self
 
