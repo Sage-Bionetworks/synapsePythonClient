@@ -275,6 +275,46 @@ class TestTableCreation:
             results["column_string"], csv_data["column_string"]
         )
 
+    async def test_create_table_with_string_column(
+        self, project_model: Project
+    ) -> None:
+        """Test creating tables with string column configurations."""
+        # GIVEN a table with columns
+        table_name = str(uuid.uuid4())
+        table_description = "Test table with columns"
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            description=table_description,
+            columns=[
+                Column(name="test_column", column_type="STRING"),
+                Column(name="test_column2", column_type="INTEGER"),
+            ],
+        )
+
+        # WHEN I store the table
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # THEN the table should be created
+        assert table.id is not None
+
+        # AND I can retrieve that table from Synapse
+        new_table_instance = await Table(id=table.id).get_async(synapse_client=self.syn)
+        assert new_table_instance is not None
+        assert new_table_instance.name == table_name
+        assert new_table_instance.id == table.id
+        assert new_table_instance.description == table_description
+        assert len(new_table_instance.columns) == 2
+        assert new_table_instance.columns["test_column"].name == "test_column"
+        assert (
+            new_table_instance.columns["test_column"].column_type == ColumnType.STRING
+        )
+        assert new_table_instance.columns["test_column2"].name == "test_column2"
+        assert (
+            new_table_instance.columns["test_column2"].column_type == ColumnType.INTEGER
+        )
+
 
 class TestRowStorage:
     @pytest.fixture(autouse=True, scope="function")
