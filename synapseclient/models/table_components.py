@@ -497,6 +497,12 @@ class JsonSubColumn:
     def to_synapse_request(self) -> Dict[str, Any]:
         """Converts the Column object into a dictionary that can be passed into the
         REST API."""
+        if self.column_type and isinstance(self.column_type, str):
+            self.column_type = ColumnType(self.column_type)
+
+        if self.facet_type and isinstance(self.facet_type, str):
+            self.facet_type = FacetType(self.facet_type)
+
         result = {
             "name": self.name,
             "columnType": self.column_type.value if self.column_type else None,
@@ -601,6 +607,11 @@ class Column(ColumnSynchronousProtocol):
     def to_synapse_request(self) -> Dict[str, Any]:
         """Converts the Column object into a dictionary that can be passed into the
         REST API."""
+        if self.column_type and isinstance(self.column_type, str):
+            self.column_type = ColumnType(self.column_type)
+
+        if self.facet_type and isinstance(self.facet_type, str):
+            self.facet_type = FacetType(self.facet_type)
         result = {
             "concreteType": concrete_types.COLUMN_MODEL,
             "name": self.name,
