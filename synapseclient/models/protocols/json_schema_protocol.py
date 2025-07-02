@@ -43,7 +43,6 @@ class BaseJSONSchemaProtocol(Protocol):
             Binding JSON schema to a folder or a file. This example expects that you
             have a Synapse project to use, and a file to upload. Set the `PROJECT_NAME`
             and `FILE_PATH` variables to your project name and file path respectively.
-
             ```python
                 from synapseclient import Synapse
                 from synapseclient.models import File, Folder
