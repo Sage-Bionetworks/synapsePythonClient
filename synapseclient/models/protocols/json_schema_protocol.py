@@ -501,11 +501,11 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
                 import time
 
                 syn = synapseclient.Synapse()
-                syn.login(authToken="")
+                syn.login()
 
                 # Define Project and JSON schema info
                 PROJECT_ID = syn.findEntityId(name="test_json_schema_project") # use your project name
-                ORG_NAME = "myUniqueOrg" # replace with your organization name
+                ORG_NAME = "UniqueOrg" # replace with your organization name
                 SCHEMA_NAME = "myTestSchema" # replace with your schema name
                 VERSION = "0.0.1"
                 SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
@@ -589,8 +589,8 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
             syn.login()
 
             # Define Project and JSON schema info
-            PROJECT_ID = syn.findEntityId(name="I_want_to_test_json_schema_project") # use your project name
-            ORG_NAME = "myUniqueOrg" # replace with your organization name
+            PROJECT_ID = syn.findEntityId(name="test_json_schema_project") # use your project name
+            ORG_NAME = "UniqueOrg" # replace with your organization name
             SCHEMA_NAME = "myTestSchema" # replace with your schema name
             VERSION = "0.0.1"
             SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
