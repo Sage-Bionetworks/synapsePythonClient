@@ -43,75 +43,76 @@ class BaseJSONSchemaProtocol(Protocol):
             Binding JSON schema to a folder or a file. This example expects that you
             have a Synapse project to use, and a file to upload. Set the `PROJECT_NAME`
             and `FILE_PATH` variables to your project name and file path respectively.
+
             ```python
-            from synapseclient import Synapse
-            from synapseclient.models import File, Folder
+                from synapseclient import Synapse
+                from synapseclient.models import File, Folder
 
-            syn = Synapse()
-            syn.login()
+                syn = Synapse()
+                syn.login()
 
-            # Define Project and JSON schema info
-            PROJECT_NAME = "test_json_schema_project"  # replace with your project name
-            FILE_PATH = "~/Sample.txt"  # replace with your test file path
+                # Define Project and JSON schema info
+                PROJECT_NAME = "test_json_schema_project"  # replace with your project name
+                FILE_PATH = "~/Sample.txt"  # replace with your test file path
 
-            PROJECT_ID = syn.findEntityId(name=PROJECT_NAME)
-            ORG_NAME = "UniqueOrg"  # replace with your organization name
-            SCHEMA_NAME = "myTestSchema"  # replace with your schema name
-            FOLDER_NAME = "test_script_folder"
-            VERSION = "0.0.1"
-            SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
+                PROJECT_ID = syn.findEntityId(name=PROJECT_NAME)
+                ORG_NAME = "UniqueOrg"  # replace with your organization name
+                SCHEMA_NAME = "myTestSchema"  # replace with your schema name
+                FOLDER_NAME = "test_script_folder"
+                VERSION = "0.0.1"
+                SCHEMA_URI = f"{ORG_NAME}-{SCHEMA_NAME}-{VERSION}"
 
-            # Create organization (if not already created)
-            js = syn.service("json_schema")
-            all_orgs = js.list_organizations()
-            for org in all_orgs:
-                if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
-                    break
-            else:
-                print(f"Creating organization {ORG_NAME}.")
-                created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                # Create organization (if not already created)
+                js = syn.service("json_schema")
+                all_orgs = js.list_organizations()
+                for org in all_orgs:
+                    if org["name"] == ORG_NAME:
+                        print(f"Organization {ORG_NAME} already exists: \n{org}")
+                        break
+                else:
+                    print(f"Creating organization {ORG_NAME}.")
+                    created_organization = js.create_organization(ORG_NAME)
+                    print(f"Created organization: \n{created_organization}")
 
 
-            my_test_org = js.JsonSchemaOrganization(ORG_NAME)
-            test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
+                my_test_org = js.JsonSchemaOrganization(ORG_NAME)
+                test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
 
-            if not test_schema:
-                # Create the schema (if not already created)
-                schema_definition = {
-                    "$id": "mySchema",
-                    "type": "object",
-                    "properties": {
-                        "foo": {"type": "string"},
-                        "bar": {"type": "integer"},
-                    },
-                    "required": ["foo"]
-                }
-                test_schema = my_test_org.create_json_schema(schema_definition, SCHEMA_NAME, VERSION)
+                if not test_schema:
+                    # Create the schema (if not already created)
+                    schema_definition = {
+                        "$id": "mySchema",
+                        "type": "object",
+                        "properties": {
+                            "foo": {"type": "string"},
+                            "bar": {"type": "integer"},
+                        },
+                        "required": ["foo"]
+                    }
+                    test_schema = my_test_org.create_json_schema(schema_definition, SCHEMA_NAME, VERSION)
 
-            # Create a test folder
-            test_folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
-            test_folder.store()
+                # Create a test folder
+                test_folder = Folder(name=FOLDER_NAME, parent_id=PROJECT_ID)
+                test_folder.store()
 
-            # Bind JSON schema to the folder
-            bound_schema = test_folder.bind_schema(
-                json_schema_uri=SCHEMA_URI,
-                enable_derived_annotations=True
-            )
-            print(f"Result from binding schema to folder: \n{bound_schema}")
+                # Bind JSON schema to the folder
+                bound_schema = test_folder.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+                print(f"Result from binding schema to folder: \n{bound_schema}")
 
-            # Bind the same schema to a file
-            example_file = File(
-                path=FILE_PATH,  # Replace with your test file path
-                parent_id=test_folder.id,
-            ).store()
+                # Bind the same schema to a file
+                example_file = File(
+                    path=FILE_PATH,  # Replace with your test file path
+                    parent_id=test_folder.id,
+                ).store()
 
-            bound_schema_file = example_file.bind_schema(
-                json_schema_uri=SCHEMA_URI,
-                enable_derived_annotations=True
-            )
-            print(f"Result from binding schema to file: \n{bound_schema_file}")
+                bound_schema_file = example_file.bind_schema(
+                    json_schema_uri=SCHEMA_URI,
+                    enable_derived_annotations=True
+                )
+                print(f"Result from binding schema to file: \n{bound_schema_file}")
             ```
         """
         return JSONSchemaBinding()
