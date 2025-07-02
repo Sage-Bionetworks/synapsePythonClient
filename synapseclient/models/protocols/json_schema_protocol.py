@@ -399,9 +399,9 @@ class BaseJSONSchemaProtocol(Protocol):
                 syn.login()
 
                 # Define Project and JSON schema info
-                PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # Replace with your project name
-                ORG_NAME = "UniqueOrg"  # Replace with your organization name
-                DERIVED_TEST_SCHEMA_NAME = "myTestDerivedSchema"  # Replace with your derived schema name
+                PROJECT_ID = syn.findEntityId(name="test_json_schema_project")  # replace with your project name
+                ORG_NAME = "UniqueOrg"  # replace with your organization name
+                DERIVED_TEST_SCHEMA_NAME = "myTestDerivedSchema"  # replace with your derived schema name
                 VERSION = "0.0.1"
                 SCHEMA_URI = f"{ORG_NAME}-{DERIVED_TEST_SCHEMA_NAME}-{VERSION}"
 
@@ -504,7 +504,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
                 syn.login()
 
                 # Define Project and JSON schema info
-                PROJECT_ID = syn.findEntityId(name="test_json_schema_project") # use your project name
+                PROJECT_ID = syn.findEntityId(name="test_json_schema_project") # replace with your project name
                 ORG_NAME = "UniqueOrg" # replace with your organization name
                 SCHEMA_NAME = "myTestSchema" # replace with your schema name
                 VERSION = "0.0.1"
@@ -589,7 +589,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
             syn.login()
 
             # Define Project and JSON schema info
-            PROJECT_ID = syn.findEntityId(name="test_json_schema_project") # use your project name
+            PROJECT_ID = syn.findEntityId(name="test_json_schema_project") # replace with your project name
             ORG_NAME = "UniqueOrg" # replace with your organization name
             SCHEMA_NAME = "myTestSchema" # replace with your schema name
             VERSION = "0.0.1"
