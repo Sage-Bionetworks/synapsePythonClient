@@ -45,7 +45,6 @@ class BaseJSONSchemaProtocol(Protocol):
             and `FILE_PATH` variables to your project name and file path respectively.
 
 
-            ```python
             from synapseclient import Synapse
             from synapseclient.models import File, Folder
 
@@ -114,7 +113,6 @@ class BaseJSONSchemaProtocol(Protocol):
                 enable_derived_annotations=True
             )
             print(f"Result from binding schema to file: \n{bound_schema_file}")
-            ```
 
         """
         return JSONSchemaBinding()
