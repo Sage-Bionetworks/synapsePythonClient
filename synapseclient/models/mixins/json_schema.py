@@ -240,12 +240,12 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -275,7 +275,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Result from binding schema to folder: \n{bound_schema}")
+                print(f"Result from binding schema to folder: {bound_schema}")
 
                 # Create and bind schema to a file
                 example_file = File(
@@ -288,7 +288,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Result from binding schema to file: \n{bound_schema_file}")
+                print(f"Result from binding schema to file: {bound_schema_file}")
 
             asyncio.run(main())
             ```
@@ -363,12 +363,12 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -398,7 +398,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to folder: \n{bound_schema}")
+                print(f"Bound schema to folder: {bound_schema}")
 
                 # Create and bind schema to a file
                 example_file = File(
@@ -411,15 +411,15 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to file: \n{bound_schema_file}")
+                print(f"Bound schema to file: {bound_schema_file}")
 
                 # Retrieve the bound schema from the folder
                 bound_schema = await test_folder.get_schema_async()
-                print(f"Retrieved schema from folder: \n{bound_schema}")
+                print(f"Retrieved schema from folder: {bound_schema}")
 
                 # Retrieve the bound schema from the file
                 bound_schema_file = await example_file.get_schema_async()
-                print(f"Retrieved schema from file: \n{bound_schema_file}")
+                print(f"Retrieved schema from file: {bound_schema_file}")
 
             asyncio.run(main())
             ```
@@ -491,12 +491,12 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -526,7 +526,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to folder: \n{bound_schema}")
+                print(f"Bound schema to folder: {bound_schema}")
 
                 # Create and bind schema to a file
                 example_file = File(
@@ -540,7 +540,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to file: \n{bound_schema_file}")
+                print(f"Bound schema to file: {bound_schema_file}")
 
                 # Unbind the schema from the folder
                 await test_folder.unbind_schema_async()
@@ -601,12 +601,12 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -636,7 +636,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to folder: \n{bound_schema}")
+                print(f"Bound schema to folder: {bound_schema}")
 
                 # Create and bind schema to a file
                 example_file = File(
@@ -649,7 +649,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to file: \n{bound_schema_file}")
+                print(f"Bound schema to file: {bound_schema_file}")
 
                 # Validate the folder entity against the bound schema
                 test_folder.annotations = {"foo": "test_value", "bar": 42}  # Example annotations
@@ -658,7 +658,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 time.sleep(2)  # Allow time for processing
 
                 validation_response = await test_folder.validate_schema_async()
-                print(f"Folder validation response: \n{validation_response}")
+                print(f"Folder validation response: {validation_response}")
 
                 # Validate the file entity against the bound schema
                 example_file.annotations = {"foo": "test_value", "bar": 43}  # Example annotations
@@ -667,7 +667,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 time.sleep(2)  # Allow time for processing
 
                 validation_response_file = await example_file.validate_schema_async()
-                print(f"File validation response: \n{validation_response_file}")
+                print(f"File validation response: {validation_response_file}")
 
             asyncio.run(main())
             ```
@@ -772,12 +772,12 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(DERIVED_TEST_SCHEMA_NAME)
@@ -808,7 +808,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to folder with derived annotations: \n{bound_schema}")
+                print(f"Bound schema to folder with derived annotations: {bound_schema}")
 
                 # Create and bind schema to a file
                 example_file = File(
@@ -821,7 +821,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to file with derived annotations: \n{bound_schema_file}")
+                print(f"Bound schema to file with derived annotations: {bound_schema_file}")
 
                 # Get the derived keys from the bound schema of the folder
                 test_folder.annotations = {"foo": "test_value_new", "bar": 42}  # Example annotations
@@ -829,7 +829,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 print("Added annotations to folder and stored")
 
                 derived_keys = await test_folder.get_schema_derived_keys_async()
-                print(f"Derived keys from folder: \n{derived_keys}")
+                print(f"Derived keys from folder: {derived_keys}")
 
                 # Get the derived keys from the bound schema of the file
                 example_file.annotations = {"foo": "test_value_new", "bar": 43}  # Example annotations
@@ -837,7 +837,7 @@ class BaseJSONSchema(BaseJSONSchemaProtocol):
                 print("Added annotations to file and stored")
 
                 derived_keys_file = await example_file.get_schema_derived_keys_async()
-                print(f"Derived keys from file: \n{derived_keys_file}")
+                print(f"Derived keys from file: {derived_keys_file}")
 
             asyncio.run(main())
             ```
@@ -899,12 +899,12 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -936,7 +936,7 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to folder: \n{bound_schema}")
+                print(f"Bound schema to folder: {bound_schema}")
 
                 # Create files within the folder with invalid annotations to generate statistics
                 invalid_file1 = File(
@@ -949,7 +949,7 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
                 time.sleep(2)  # Allow time for processing
 
                 stats = await test_folder.get_schema_validation_statistics_async()
-                print(f"Validation statistics: \n{stats}")
+                print(f"Validation statistics: {stats}")
 
             asyncio.run(main())
             ```
@@ -1010,12 +1010,12 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -1047,7 +1047,7 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
                     json_schema_uri=SCHEMA_URI,
                     enable_derived_annotations=True
                 )
-                print(f"Bound schema to folder: \n{bound_schema}")
+                print(f"Bound schema to folder: {bound_schema}")
 
                 # Create files within the folder with invalid annotations to generate invalid results
                 invalid_file1 = File(
@@ -1062,7 +1062,7 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
                 print("Getting invalid validation results...")
                 gen = test_folder.get_invalid_validation_async(synapse_client=syn)
                 async for child in gen:
-                    print(f"Invalid validation item: \n{child}")
+                    print(f"Invalid validation item: {child}")
 
             asyncio.run(main())
             ```
@@ -1158,12 +1158,12 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -1193,7 +1193,7 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to folder: \n{bound_schema}")
+            print(f"Bound schema to folder: {bound_schema}")
 
             # Create files within the folder with invalid annotations to generate invalid results
             invalid_file1 = File(
@@ -1209,7 +1209,7 @@ class ContainerEntityJSONSchema(ContainerEntityJSONSchemaProtocol, BaseJSONSchem
             invalid_results = test_folder.get_invalid_validation(synapse_client=syn)
             print(f"Invalid validation items found:")
             for child in invalid_results:
-                print(f"Invalid validation item: \n{child}")
+                print(f"Invalid validation item: {child}")
             ```
         """
         gen = get_invalid_json_schema_validation_sync(

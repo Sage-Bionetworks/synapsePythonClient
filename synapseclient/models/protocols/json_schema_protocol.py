@@ -31,20 +31,20 @@ class BaseJSONSchemaProtocol(Protocol):
         Bind a JSON schema to the entity.
 
         Arguments:
-            json_schema_uri (str): The URI of the JSON schema to bind to the entity.
-            enable_derived_annotations (bool, optional): If true, enable derived annotations. Defaults to False.
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            json_schema_uri: The URI of the JSON schema to bind to the entity.
+            enable_derived_annotations: If true, enable derived annotations. Defaults to False.
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
         Returns:
-            JSONSchemaBinding: An object containing details about the JSON schema binding.
+            An object containing details about the JSON schema binding.
 
         Example: Using this function
             Binding JSON schema to a folder or a file. This example expects that you
             have a Synapse project to use, and a file to upload. Set the `PROJECT_NAME`
             and `FILE_PATH` variables to your project name and file path respectively.
 
-
+            ```python
             from synapseclient import Synapse
             from synapseclient.models import File, Folder
 
@@ -67,12 +67,12 @@ class BaseJSONSchemaProtocol(Protocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
@@ -100,7 +100,7 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Result from binding schema to folder: \n{bound_schema}")
+            print(f"Result from binding schema to folder: {bound_schema}")
 
             # Bind the same schema to a file
             example_file = File(
@@ -112,8 +112,8 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Result from binding schema to file: \n{bound_schema_file}")
-
+            print(f"Result from binding schema to file: {bound_schema_file}")
+            ```
         """
         return JSONSchemaBinding()
 
@@ -124,11 +124,11 @@ class BaseJSONSchemaProtocol(Protocol):
         Get the JSON schema bound to the entity.
 
         Arguments:
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
         Returns:
-            JSONSchemaBinding: An object containing details about the bound JSON schema.
+            An object containing details about the bound JSON schema.
 
         Example: Using this function
             Retrieving the bound JSON schema from a folder or file. This example demonstrates
@@ -158,12 +158,12 @@ class BaseJSONSchemaProtocol(Protocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -192,7 +192,7 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to folder: \n{bound_schema}")
+            print(f"Bound schema to folder: {bound_schema}")
 
             # Create and bind schema to a file
             example_file = File(
@@ -204,15 +204,15 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to file: \n{bound_schema_file}")
+            print(f"Bound schema to file: {bound_schema_file}")
 
             # Retrieve the bound schema from the folder
             retrieved_folder_schema = test_folder.get_schema()
-            print(f"Retrieved schema from folder: \n{retrieved_folder_schema}")
+            print(f"Retrieved schema from folder: {retrieved_folder_schema}")
 
             # Retrieve the bound schema from the file
             retrieved_file_schema = example_file.get_schema()
-            print(f"Retrieved schema from file: \n{retrieved_file_schema}")
+            print(f"Retrieved schema from file: {retrieved_file_schema}")
             ```
         """
         return JSONSchemaBinding()
@@ -222,7 +222,7 @@ class BaseJSONSchemaProtocol(Protocol):
         Unbind the JSON schema from the entity.
 
         Arguments:
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
         Example: Using this function
@@ -253,12 +253,12 @@ class BaseJSONSchemaProtocol(Protocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -287,7 +287,7 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to folder: \n{bound_schema}")
+            print(f"Bound schema to folder: {bound_schema}")
 
             # Create and bind schema to a file
             example_file = File(
@@ -299,7 +299,7 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to file: \n{bound_schema_file}")
+            print(f"Bound schema to file: {bound_schema_file}")
 
             # Unbind the schema from the folder
             test_folder.unbind_schema()
@@ -318,11 +318,11 @@ class BaseJSONSchemaProtocol(Protocol):
         Validate the entity against the bound JSON schema.
 
         Arguments:
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
         Returns:
-            Union[JSONSchemaValidation, InvalidJSONSchemaValidation]: The validation results.
+            The validation results.
 
         Example: Using this function
             Validating a folder or file against the bound JSON schema. This example demonstrates
@@ -353,12 +353,12 @@ class BaseJSONSchemaProtocol(Protocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -387,7 +387,7 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to folder: \n{bound_schema}")
+            print(f"Bound schema to folder: {bound_schema}")
 
             # Create and bind schema to a file
             example_file = File(
@@ -399,7 +399,7 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to file: \n{bound_schema_file}")
+            print(f"Bound schema to file: {bound_schema_file}")
 
             # Validate the folder entity against the bound schema
             test_folder.annotations = {"foo": "test_value", "bar": 42}  # Example annotations
@@ -408,7 +408,7 @@ class BaseJSONSchemaProtocol(Protocol):
             time.sleep(2)  # Allow time for processing
 
             validation_response = test_folder.validate_schema()
-            print(f"Folder validation response: \n{validation_response}")
+            print(f"Folder validation response: {validation_response}")
 
             # Validate the file entity against the bound schema
             example_file.annotations = {"foo": "test_value", "bar": 43}  # Example annotations
@@ -417,7 +417,7 @@ class BaseJSONSchemaProtocol(Protocol):
             time.sleep(2)  # Allow time for processing
 
             validation_response_file = example_file.validate_schema()
-            print(f"File validation response: \n{validation_response_file}")
+            print(f"File validation response: {validation_response_file}")
             ```
         """
         return InvalidJSONSchemaValidation() or JSONSchemaValidation()
@@ -429,11 +429,11 @@ class BaseJSONSchemaProtocol(Protocol):
         Retrieve derived JSON schema keys for the entity.
 
         Arguments:
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
         Returns:
-            JSONSchemaDerivedKeys: An object containing the derived keys for the entity.
+            An object containing the derived keys for the entity.
 
         Example: Using this function
             Retrieving derived keys from a folder or file. This example demonstrates
@@ -463,12 +463,12 @@ class BaseJSONSchemaProtocol(Protocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(DERIVED_TEST_SCHEMA_NAME)
@@ -498,7 +498,7 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to folder with derived annotations: \n{bound_schema}")
+            print(f"Bound schema to folder with derived annotations: {bound_schema}")
 
             # Create and bind schema to a file
             example_file = File(
@@ -510,7 +510,7 @@ class BaseJSONSchemaProtocol(Protocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to file with derived annotations: \n{bound_schema_file}")
+            print(f"Bound schema to file with derived annotations: {bound_schema_file}")
 
             # Get the derived keys from the bound schema of the folder
             test_folder.annotations = {"foo": "test_value_new", "bar": 42}  # Example annotations
@@ -518,7 +518,7 @@ class BaseJSONSchemaProtocol(Protocol):
             print("Added annotations to folder and stored")
 
             derived_keys = test_folder.get_schema_derived_keys()
-            print(f"Derived keys from folder: \n{derived_keys}")
+            print(f"Derived keys from folder: {derived_keys}")
 
             # Get the derived keys from the bound schema of the file
             example_file.annotations = {"foo": "test_value_new", "bar": 43}  # Example annotations
@@ -526,7 +526,7 @@ class BaseJSONSchemaProtocol(Protocol):
             print("Added annotations to file and stored")
 
             derived_keys_file = example_file.get_schema_derived_keys()
-            print(f"Derived keys from file: \n{derived_keys_file}")
+            print(f"Derived keys from file: {derived_keys_file}")
             ```
         """
         return JSONSchemaDerivedKeys()
@@ -546,11 +546,11 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
         Get validation statistics for a container entity.
 
         Arguments:
-            synapse_client (Optional[Synapse], optional): The Synapse client instance. If not provided,
+            synapse_client: The Synapse client instance. If not provided,
                 the last created instance from the Synapse class constructor will be used.
 
         Returns:
-            JSONSchemaValidationStatistics: The validation statistics.
+            The validation statistics.
 
         Example: Using this function
             Retrieving validation statistics for a folder. This example demonstrates
@@ -581,12 +581,12 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
             all_orgs = js.list_organizations()
             for org in all_orgs:
                 if org["name"] == ORG_NAME:
-                    print(f"Organization {ORG_NAME} already exists: \n{org}")
+                    print(f"Organization {ORG_NAME} already exists: {org}")
                     break
             else:
                 print(f"Creating organization {ORG_NAME}.")
                 created_organization = js.create_organization(ORG_NAME)
-                print(f"Created organization: \n{created_organization}")
+                print(f"Created organization: {created_organization}")
 
             my_test_org = js.JsonSchemaOrganization(ORG_NAME)
             test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
@@ -616,7 +616,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
                 json_schema_uri=SCHEMA_URI,
                 enable_derived_annotations=True
             )
-            print(f"Bound schema to folder: \n{bound_schema}")
+            print(f"Bound schema to folder: {bound_schema}")
 
             # Create files within the folder with invalid annotations to generate statistics
             invalid_file1 = File(
@@ -630,7 +630,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
 
             # Get schema validation statistics
             stats = test_folder.get_schema_validation_statistics()
-            print(f"Validation statistics: \n{stats}")
+            print(f"Validation statistics: {stats}")
             ```
         """
         return JSONSchemaValidationStatistics()
