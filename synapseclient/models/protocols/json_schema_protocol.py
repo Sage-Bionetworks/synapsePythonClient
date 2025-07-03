@@ -567,7 +567,7 @@ class ContainerEntityJSONSchemaProtocol(BaseJSONSchemaProtocol):
 
             # Define Project and JSON schema info
             PROJECT_NAME = "test_json_schema_project"  # replace with your project name
-            FILE_PATH = "~/test.txt"  # replace with your test file path
+            FILE_PATH = "~/Sample.txt"  # replace with your test file path
 
             PROJECT_ID = syn.findEntityId(name=PROJECT_NAME)
             ORG_NAME = "UniqueOrg"  # replace with your organization name
