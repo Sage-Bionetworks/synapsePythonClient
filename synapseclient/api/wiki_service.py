@@ -39,9 +39,9 @@ async def post_wiki_page(
 
 async def get_wiki_page(
     owner_id: str,
-    *,
     wiki_id: Optional[str] = None,
     wiki_version: Optional[int] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """Get a wiki page.
@@ -242,8 +242,8 @@ async def get_wiki_history(
 async def get_attachment_handles(
     owner_id: str,
     wiki_id: str,
-    *,
     wiki_version: Optional[int] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> List[Dict[str, Any]]:
     """Get the file handles of all attachments on a wiki page.
@@ -279,9 +279,8 @@ async def get_attachment_url(
     owner_id: str,
     wiki_id: str,
     file_name: str,
-    *,
-    redirect: Optional[bool] = False,
     wiki_version: Optional[int] = None,
+    *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
     """Get the URL of a wiki page attachment.
@@ -292,7 +291,6 @@ async def get_attachment_url(
         wiki_id: The ID of the wiki.
         file_name: The name of the file to get.
                 The file names can be found in the FileHandles from the GET /entity/{ownerId}/wiki/{wikiId}/attachmenthandles method.
-        redirect: When set to false, the URL will be returned as text/plain instead of redirecting. Default is False.
         wiki_version: Optional version of the wiki page.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -305,13 +303,11 @@ async def get_attachment_url(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    # Add version and redirect as a query parameter if provided
+    # Add version as a query parameter if provided
     params = {}
     params["fileName"] = file_name
     if wiki_version is not None:
         params["wikiVersion"] = wiki_version
-    if redirect is not None:
-        params["redirect"] = redirect
 
     return await client.rest_get_async(
         uri=f"/entity/{owner_id}/wiki2/{wiki_id}/attachment",
@@ -323,7 +319,6 @@ async def get_attachment_preview_url(
     owner_id: str,
     wiki_id: str,
     file_name: str,
-    redirect: Optional[bool] = False,
     wiki_version: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -336,7 +331,6 @@ async def get_attachment_preview_url(
         wiki_id: The ID of the wiki.
         file_name: The name of the file to get.
                 The file names can be found in the FileHandles from the GET /entity/{ownerId}/wiki/{wikiId}/attachmenthandles method.
-        redirect: When set to false, the URL will be returned as text/plain instead of redirecting. Default is False.
         wiki_version: Optional version of the wiki page.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -349,11 +343,9 @@ async def get_attachment_preview_url(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    # Add version and redirect as a query parameter if provided
+    # Add version as a query parameter if provided
     params = {}
     params["fileName"] = file_name
-    if redirect is not None:
-        params["redirect"] = redirect
     if wiki_version is not None:
         params["wikiVersion"] = wiki_version
 
@@ -366,7 +358,6 @@ async def get_attachment_preview_url(
 async def get_markdown_url(
     owner_id: str,
     wiki_id: str,
-    redirect: Optional[bool] = False,
     wiki_version: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -377,7 +368,6 @@ async def get_markdown_url(
     Arguments:
         owner_id: The ID of the owner entity.
         wiki_id: The ID of the wiki.
-        redirect: When set to false, the URL will be returned as text/plain instead of redirecting. Default is False.
         wiki_version: Optional version of the wiki page.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -390,10 +380,8 @@ async def get_markdown_url(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    # Add version and redirect as a query parameter if provided
+    # Add version as a query parameter if provided
     params = {}
-    if redirect is not None:
-        params["redirect"] = redirect
     if wiki_version is not None:
         params["wikiVersion"] = wiki_version
 
