@@ -8,7 +8,7 @@ from .agent_services import (
     update_session,
 )
 from .annotations import set_annotations, set_annotations_async
-from .api_client import rest_post_paginated_async
+from .api_client import rest_get_paginated_async, rest_post_paginated_async
 from .configuration_services import (
     get_client_authenticated_s3_profile,
     get_config_authentication,
@@ -66,8 +66,25 @@ from .table_services import (
     get_default_columns,
     post_columns,
 )
-from .team_services import post_team_list
-from .user_services import get_user_group_headers_batch
+from .team_services import (
+    create_team,
+    delete_membership_invitation,
+    delete_team,
+    find_team,
+    get_membership_status,
+    get_team,
+    get_team_members,
+    get_team_open_invitations,
+    invite_to_team,
+    post_team_list,
+    send_membership_invitation,
+)
+from .user_services import (
+    get_user_group_headers_batch,
+    get_user_profile_by_id,
+    get_user_profile_by_username,
+    is_user_certified,
+)
 
 __all__ = [
     # annotations
@@ -134,8 +151,22 @@ __all__ = [
     "get_json_schema_derived_keys",
     # api client
     "rest_post_paginated_async",
+    "rest_get_paginated_async",
     # team_services
     "post_team_list",
+    "create_team",
+    "delete_team",
+    "get_team",
+    "find_team",
+    "get_team_members",
+    "send_membership_invitation",
+    "get_team_open_invitations",
+    "get_membership_status",
+    "delete_membership_invitation",
+    "invite_to_team",
     # user_services
     "get_user_group_headers_batch",
+    "get_user_profile_by_id",
+    "get_user_profile_by_username",
+    "is_user_certified",
 ]

@@ -1171,6 +1171,12 @@ class Synapse(object):
         if self._is_logged_in():
             self.restDELETE("/secretKey", endpoint=self.authEndpoint)
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `from_username` method on the `from synapseclient.models import UserProfile` class. "
+        "Check the docstring for the replacement function example.",
+    )
     @functools.lru_cache()
     def get_user_profile_by_username(
         self,
@@ -1178,6 +1184,9 @@ class Synapse(object):
         sessionToken: str = None,
     ) -> UserProfile:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the [from_username][synapseclient.models.UserProfile.from_username] method on the `from synapseclient.models import UserProfile` class.
+
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted or is empty string.
 
@@ -1188,14 +1197,34 @@ class Synapse(object):
         Returns:
             The user profile for the user of interest.
 
-        Example: Using this function
+        Example: Using this function (DEPRECATED)
             Getting your own profile
 
                 my_profile = syn.get_user_profile_by_username()
 
             Getting another user's profile
 
-                freds_profile = syn.get_user_profile_by_username('fredcommo')
+                users_profile = syn.get_user_profile_by_username('synapse-service-dpe-team')
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import UserProfile
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Get your own profile
+            my_profile = UserProfile().get()
+            print(f"My profile: {my_profile.username}")
+
+            # Get another user's profile by username
+            profile_by_username = UserProfile.from_username(username='synapse-service-dpe-team')
+            print(f"Profile by username: {profile_by_username.username}")
+            ```
         """
         is_none = username is None
         is_str = isinstance(username, str)
@@ -1218,6 +1247,12 @@ class Synapse(object):
             )
         )
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `from_id` method on the `from synapseclient.models import UserProfile` class. "
+        "Check the docstring for the replacement function example.",
+    )
     @functools.lru_cache()
     def get_user_profile_by_id(
         self,
@@ -1225,6 +1260,9 @@ class Synapse(object):
         sessionToken: str = None,
     ) -> UserProfile:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.protocols.user_protocol.from_id][] instead.
+
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.
 
@@ -1235,15 +1273,34 @@ class Synapse(object):
         Returns:
             The user profile for the user of interest.
 
-
-        Example: Using this function
+        Example: Using this function (DEPRECATED)
             Getting your own profile
 
                 my_profile = syn.get_user_profile_by_id()
 
             Getting another user's profile
 
-                freds_profile = syn.get_user_profile_by_id(1234567)
+                users_profile = syn.get_user_profile_by_id(3485485)
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import UserProfile
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Get your own profile
+            my_profile = UserProfile().get()
+            print(f"My profile: {my_profile.username}")
+
+            # Get another user's profile by ID
+            profile_by_id = UserProfile.from_id(user_id=3485485)
+            print(f"Profile by id: {profile_by_id.username}")
+            ```
         """
         if id:
             if not isinstance(id, int):
@@ -1257,6 +1314,12 @@ class Synapse(object):
             )
         )
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `from_id` and `from_username` methods on the `from synapseclient.models import UserProfile` class. "
+        "Check the docstring for the replacement function example.",
+    )
     @functools.lru_cache()
     def getUserProfile(
         self,
@@ -1264,6 +1327,9 @@ class Synapse(object):
         sessionToken: str = None,
     ) -> UserProfile:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.protocols.user_protocol.from_id][] instead.
+
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.
 
@@ -1274,14 +1340,38 @@ class Synapse(object):
         Returns:
             The user profile for the user of interest.
 
-        Example: Using this function
+        Example: Using this function (DEPRECATED)
             Getting your own profile
 
                 my_profile = syn.getUserProfile()
 
             Getting another user's profile
 
-                freds_profile = syn.getUserProfile('fredcommo')
+                users_profile = syn.getUserProfile('synapse-service-dpe-team')
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import UserProfile
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Get your own profile
+            my_profile = UserProfile().get()
+            print(f"My profile: {my_profile.username}")
+
+            # Get another user's profile by username
+            profile_by_username = UserProfile.from_username(username='synapse-service-dpe-team')
+            print(f"Profile by username: {profile_by_username.username}")
+
+            # Get another user's profile by ID
+            profile_by_id = UserProfile.from_id(user_id=3485485)
+            print(f"Profile by id: {profile_by_id.username}")
+            ```
         """
         try:
             # if id is unset or a userID, this will succeed
@@ -1309,6 +1399,10 @@ class Synapse(object):
             )
         )
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _findPrincipals(self, query_string: str) -> List[UserGroupHeader]:
         """
         Find users or groups by name or email.
@@ -1333,6 +1427,10 @@ class Synapse(object):
         uri = "/userGroupHeaders?prefix=%s" % urllib_urlparse.quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _get_certified_passing_record(
         self, userid: int
     ) -> Dict[str, Union[str, int, bool, list]]:
@@ -1367,14 +1465,46 @@ class Synapse(object):
                 return None
         return response
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `is_certified` method on the `from synapseclient.models import UserProfile` class. "
+        "Check the docstring for the replacement function example.",
+    )
     def is_certified(self, user: typing.Union[str, int]) -> bool:
-        """Determines whether a Synapse user is a certified user.
+        """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.UserProfile.is_certified][] instead.
+
+        Determines whether a Synapse user is a certified user.
 
         Arguments:
             user: Synapse username or Id
 
         Returns:
             True if the Synapse user is certified
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import UserProfile
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Check if user is certified by username
+            profile_by_username = UserProfile.from_username(username='synapse-service-dpe-team')
+            user_certified = profile_by_username.is_certified()
+            print(f"User {profile_by_username.username} is certified: {user_certified}")
+
+            # Check if user is certified by ID
+            profile_by_id = UserProfile.from_id(user_id=3485485)
+            user_certified = profile_by_id.is_certified()
+            print(f"User {profile_by_id.username} is certified: {user_certified}")
+            ```
         """
         # Check if userid or username exists
         syn_user = self.getUserProfile(user)
@@ -3029,6 +3159,10 @@ class Synapse(object):
             else:
                 return self.restPOST(uri, json.dumps(acl))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getUserbyPrincipalIdOrName(self, principalId: str = None) -> int:
         """
         Given either a string, int or None finds the corresponding user where None implies PUBLIC
@@ -4432,6 +4566,10 @@ class Synapse(object):
         for result in self._GET_paginated(url):
             yield Evaluation(**result)
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _findTeam(self, name: str) -> typing.Iterator[Team]:
         """
         Retrieve a Teams matching the supplied name fragment
@@ -4459,6 +4597,12 @@ class Synapse(object):
         for result in self._GET_paginated(f"/user/{principal_id}/team"):
             yield Team(**result)
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `create` method on the `from synapseclient.models import Team` class. "
+        "Check the docstring for the replacement function example.",
+    )
     def create_team(
         self,
         name: str,
@@ -4468,6 +4612,9 @@ class Synapse(object):
         can_request_membership: bool = True,
     ) -> Team:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.Team.create][] instead.
+
         Creates a new team.
 
         Arguments:
@@ -4479,6 +4626,28 @@ class Synapse(object):
 
         Returns:
             An object of type [synapseclient.team.Team][]
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Create a new team
+            new_team = Team(
+                name="My Team",
+                description="A sample team",
+                can_public_join=False,
+                can_request_membership=True
+            )
+            created_team = new_team.create()
+            print(f"Created team: {created_team.name}")
+            ```
         """
         request_body = {
             "name": name,
@@ -4494,18 +4663,52 @@ class Synapse(object):
             )
         )
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `delete` method on the `from synapseclient.models import Team` class. "
+        "Check the docstring for the replacement function example.",
+    )
     def delete_team(self, id: int) -> None:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.Team.delete][] instead.
+
         Deletes a team.
 
         Arguments:
             id: The ID of the team to delete.
 
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Delete a team
+            team = Team(id=12345)
+            team.delete()
+            ```
+
         """
         return self.restDELETE(f"/team/{id}")
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `get`, `from_id`, and `from_name` methods on the `from synapseclient.models import Team` class. "
+        "Check the docstring for the replacement function example.",
+    )
     def getTeam(self, id: Union[int, str]) -> Team:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.Team.from_id][] or [synapseclient.models.Team.from_name][] instead.
+
         Finds a team with a given ID or name.
 
         Arguments:
@@ -4513,6 +4716,26 @@ class Synapse(object):
 
         Returns:
             An object of type [synapseclient.team.Team][]
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Get a team by ID
+            team_by_id = Team.from_id(id=12345)
+            print(f"Team by ID: {team_by_id.name}")
+
+            # Get a team by name
+            team_by_name = Team.from_name(name="My Team")
+            print(f"Team by name: {team_by_name.name}")
+            ```
         """
         # Retrieves team id
         teamid = id_of(id)
@@ -4530,10 +4753,19 @@ class Synapse(object):
                 raise ValueError('Can\'t find team "{}"'.format(teamid))
         return Team(**self.restGET("/team/%s" % teamid))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `members` method on the `from synapseclient.models import Team` class. "
+        "Check the docstring for the replacement function example.",
+    )
     def getTeamMembers(
         self, team: Union[Team, int, str]
     ) -> typing.Generator[TeamMember, None, None]:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.Team.members][] instead.
+
         Lists the members of the given team.
 
         Arguments:
@@ -4541,6 +4773,24 @@ class Synapse(object):
 
         Yields:
             A generator over [synapseclient.team.TeamMember][] objects.
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Get team members
+            team = Team.from_id(id=12345)
+            members = team.members()
+            for member in members:
+                print(f"Member: {member.member.user_name}")
+            ```
 
         """
         for result in self._GET_paginated("/teamMembers/{id}".format(id=id_of(team))):
@@ -4575,10 +4825,20 @@ class Synapse(object):
             )
         return docker_digest
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `open_invitations` method on the `from synapseclient.models import Team` class. "
+        "Check the docstring for the replacement function example.",
+    )
     def get_team_open_invitations(
         self, team: Union[Team, int, str]
     ) -> typing.Generator[dict, None, None]:
-        """Retrieve the open requests submitted to a Team
+        """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.Team.open_invitations][] instead.
+
+        Retrieve the open requests submitted to a Team
         <https://rest-docs.synapse.org/rest/GET/team/id/openInvitation.html>
 
         Arguments:
@@ -4586,12 +4846,31 @@ class Synapse(object):
 
         Yields:
             Generator of MembershipRequest dictionaries
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Get open invitations for a team
+            team = Team.from_id(id=12345)
+            invitations = team.open_invitations()
+            for invitation in invitations:
+                print(f"Invitation: {invitation}")
+            ```
         """
         teamid = id_of(team)
         request = "/team/{team}/openInvitation".format(team=teamid)
         open_requests = self._GET_paginated(request)
         return open_requests
 
+    # TODO: Deprecate this method after adding it to the Team dataclass. This should call the `synapseclient/api/team_services.py::get_membership_status` function
     def get_membership_status(self, userid, team):
         """Retrieve a user's Team Membership Status bundle.
         <https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html>
@@ -4610,6 +4889,10 @@ class Synapse(object):
         membership_status = self.restGET(request)
         return membership_status
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _delete_membership_invitation(self, invitationid: str) -> None:
         """
         Delete an invitation Note: The client must be an administrator of the
@@ -4620,10 +4903,20 @@ class Synapse(object):
         """
         self.restDELETE("/membershipInvitation/{id}".format(id=invitationid))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient.api.team_services.send_membership_invitation. "
+        "Check the docstring for the replacement function example.",
+    )
     def send_membership_invitation(
         self, teamId, inviteeId=None, inviteeEmail=None, message=None
     ):
-        """Create a membership invitation and send an email notification
+        """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.api.team_services.send_membership_invitation][] instead.
+
+        Create a membership invitation and send an email notification
         to the invitee.
 
         Arguments:
@@ -4635,6 +4928,35 @@ class Synapse(object):
 
         Returns:
             MembershipInvitation
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.api.team_services import send_membership_invitation
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Send invitation by user ID
+            invitation = asyncio.run(send_membership_invitation(
+                team_id=12345,
+                invitee_id="username_or_user_id",
+                message="Welcome to our team!"
+            ))
+            print(f"Invitation sent: {invitation}")
+
+            # Send invitation by email
+            invitation = asyncio.run(send_membership_invitation(
+                team_id=12345,
+                invitee_email="user@example.com",
+                message="Join our team!"
+            ))
+            print(f"Invitation sent: {invitation}")
+            ```
         """
 
         invite_request = {"teamId": str(teamId), "message": message}
@@ -4648,6 +4970,12 @@ class Synapse(object):
         )
         return response
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `invite` method on the `from synapseclient.models import Team` class. "
+        "Check the docstring for the replacement function example.",
+    )
     def invite_to_team(
         self,
         team: Union[Team, int, str],
@@ -4656,7 +4984,11 @@ class Synapse(object):
         message: str = None,
         force: bool = False,
     ):
-        """Invite user to a Synapse team via Synapse username or email
+        """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use [synapseclient.models.Team.invite][] instead.
+
+        Invite user to a Synapse team via Synapse username or email
         (choose one or the other)
 
         Arguments:
@@ -4669,6 +5001,27 @@ class Synapse(object):
 
         Returns:
             MembershipInvitation or None if user is already a member
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Invite a user to a team
+            team = Team.from_id(id=12345)
+            invitation = team.invite(
+                user="username",
+                message="Welcome to the team!",
+                force=True
+            )
+            print(f"Invitation sent: {invitation}")
+            ```
         """
         # Throw error if both user and email is specified and if both not
         # specified

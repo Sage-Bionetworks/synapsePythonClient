@@ -1,10 +1,17 @@
-import asyncio
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 from opentelemetry import trace
 
 from synapseclient import Synapse
+from synapseclient.api import (
+    create_team,
+    delete_team,
+    get_team,
+    get_team_members,
+    get_team_open_invitations,
+    invite_to_team,
+)
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.models.protocols.team_protocol import TeamSynchronousProtocol
 from synapseclient.models.user import UserGroupHeader
@@ -151,22 +158,19 @@ class Team(TeamSynchronousProtocol):
         Returns:
             Team: The Team object.
         """
-        loop = asyncio.get_event_loop()
         trace.get_current_span().set_attributes(
             {
                 "synapse.name": self.name or "",
                 "synapse.id": self.id or "",
             }
         )
-        team = await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).create_team(
-                name=self.name,
-                description=self.description,
-                icon=self.icon,
-                can_public_join=self.can_public_join,
-                can_request_membership=self.can_request_membership,
-            ),
+        team = await create_team(
+            name=self.name,
+            description=self.description,
+            icon=self.icon,
+            can_public_join=self.can_public_join,
+            can_request_membership=self.can_request_membership,
+            synapse_client=synapse_client,
         )
         self.fill_from_dict(synapse_team=team)
         return self
@@ -185,13 +189,7 @@ class Team(TeamSynchronousProtocol):
         Returns:
             None
         """
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).delete_team(
-                id=self.id,
-            ),
-        )
+        await delete_team(id=self.id, synapse_client=synapse_client)
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Team_Get: {self.id if self.id else self.name}"
@@ -213,22 +211,10 @@ class Team(TeamSynchronousProtocol):
             Team: The Team object.
         """
         if self.id:
-            loop = asyncio.get_event_loop()
-            api_team = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                    id=self.id,
-                ),
-            )
+            api_team = await get_team(id=self.id, synapse_client=synapse_client)
             return self.fill_from_dict(api_team)
         elif self.name:
-            loop = asyncio.get_event_loop()
-            api_team = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).getTeam(
-                    id=self.name,
-                ),
-            )
+            api_team = await get_team(id=self.name, synapse_client=synapse_client)
             return self.fill_from_dict(api_team)
         raise ValueError("Team must have either an id or a name")
 
@@ -296,12 +282,8 @@ class Team(TeamSynchronousProtocol):
         Returns:
             List[TeamMember]: A List of TeamMember objects.
         """
-        loop = asyncio.get_event_loop()
-        team_members = await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).getTeamMembers(
-                team=self
-            ),
+        team_members = await get_team_members(
+            team=self.id, synapse_client=synapse_client
         )
         team_member_list = [
             TeamMember().fill_from_dict(synapse_team_member=member)
@@ -314,34 +296,44 @@ class Team(TeamSynchronousProtocol):
     )
     async def invite_async(
         self,
-        user: str,
+        user: Union[str, int],
         message: str,
         force: bool = True,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict[str, str]:
+    ) -> Union[Dict[str, str], None]:
         """Invites a user to a team given the ID field on the Team instance.
 
         Arguments:
-            user: The username of the user to invite.
+            user: The username or ID of the user to invite.
             message: The message to send.
+            force: If True, will send the invite even if the user is already a member
+                or has an open invitation. If False, will not send the invite if the user
+                is already a member or has an open invitation.
+                Defaults to True.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
-            dict: The invite response.
+            The invite response or None if an invite was not sent.
         """
-        loop = asyncio.get_event_loop()
-        invite = await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).invite_to_team(
-                team=self,
-                user=user,
-                message=message,
-                force=force,
-            ),
+        invite = await invite_to_team(
+            team=self.id,
+            user=user,
+            message=message,
+            force=force,
+            synapse_client=synapse_client,
         )
+
+        if invite:
+            from synapseclient import Synapse
+
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.info(
+                f"Invited user {invite['inviteeId']} to team {invite['teamId']}"
+            )
+
         return invite
 
     @otel_trace_method(
@@ -360,13 +352,7 @@ class Team(TeamSynchronousProtocol):
         Returns:
             List[dict]: A list of invitations.
         """
-        loop = asyncio.get_event_loop()
-        invitations = await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(
-                synapse_client=synapse_client
-            ).get_team_open_invitations(
-                team=self,
-            ),
+        invitations = await get_team_open_invitations(
+            team=self.id, synapse_client=synapse_client
         )
         return list(invitations)

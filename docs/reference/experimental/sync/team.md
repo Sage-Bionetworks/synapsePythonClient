@@ -28,3 +28,6 @@ at your own risk.
             - members
             - invite
             - open_invitations
+---
+
+::: synapseclient.models.TeamMember

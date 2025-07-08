@@ -130,14 +130,18 @@ class TeamSynchronousProtocol(Protocol):
         """Invites a user to a team given the ID field on the Team instance.
 
         Arguments:
-            user: The username of the user to invite.
+            user: The username or ID of the user to invite.
             message: The message to send.
+            force: If True, will send the invite even if the user is already a member
+                or has an open invitation. If False, will not send the invite if the user
+                is already a member or has an open invitation.
+                Defaults to True.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
-            dict: The invite response.
+            The invite response or None if an invite was not sent.
         """
         return {}
 
