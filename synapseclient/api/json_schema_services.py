@@ -189,8 +189,12 @@ def get_invalid_json_schema_validation_sync(
     Returns:
         Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/ValidationResults.html>
     """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
     request_body = {"containerId": synapse_id}
-    response = synapse_client._POST_paginated(
+    response = client._POST_paginated(
         f"/entity/{synapse_id}/schema/validation/invalid", request_body
     )
     for item in response:
