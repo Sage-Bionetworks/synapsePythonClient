@@ -9,6 +9,41 @@ detailing some of the changes.
 the 4.x.x versions hidden behind optional feature flags or different import paths. Any
 breaking changes will not be included until v5.0.
 
+## 4.9.0 (2025-07-09)
+
+## Highlights
+
+- Multi-Profile support is now available when using the `.synapseConfig` file. Check out the [updated Authentication instructions](https://python-docs.synapse.org/en/latest/tutorials/authentication/#use-synapseconfig) that covers how to take advantage of this feature.
+- Introduced streamlined functionality for [managing JSON schemas](https://python-docs.synapse.org/en/latest/tutorials/python/json_schema/) and [access control lists](https://python-docs.synapse.org/en/latest/tutorials/python/sharing_settings/) (ACLs)
+- Enhanced OpenTelemetry tracing for file transfers and MD5 calculations
+- Added support for [Virtual Tables](https://python-docs.synapse.org/en/latest/tutorials/python/virtualtable/)
+
+## Features
+
+- [SYNPY-893] Added support for multiple authentication profiles ([#1194](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1194))
+- [SYNPY-1580] Implemented `VirtualTable` OOP model ([#1195](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1195))
+- [SYNPY-1599] Added JSON schema mixin class for binding, validating, and unbinding schemas ([#1205](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1205))
+- [SYNPY-1607] Enabled string-based conversion for `ColumnType` and `FacetType` ([#1210](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1210))
+- [SYNPY-1604] Introduced `dry_run` flag and `list_acl` method for ACL management ([#1207](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1207))
+- [SYNPY-1244] Implemented recursive ACL deletion and permission inheritance detection ([#1200](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1200), [#1202](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1202))
+
+## Bug Fixes
+
+- [SYNPY-1581] Removed exception logging and raising in async methods ([#1203](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1203))
+
+## Tech Debt
+
+- [SYNPY-1295] Trimmed down integration tests and combined similar logic ([#1199](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1199))
+- [SYNPY-1606] Added OpenTelemetry metrics for file uploads, downloads, and MD5 calculations ([#1204](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1204))
+- [SYNPY-1618] Added scripts for cleaning up test resources in Synapse ([#1209](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1209))
+- [SYNPY-1599] Patched JSON schema code and improved examples ([#1211](https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1211))
+
+## New Contributors
+* @SageGJ made their first contribution in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1203
+* @carmmmm made their first contribution in https://github.com/Sage-Bionetworks/synapsePythonClient/pull/1183
+
+Full Changelog: https://github.com/Sage-Bionetworks/synapsePythonClient/compare/v4.8.0...v4.9.0-rc
+
 ## 4.8.0 (2025-04-28)
 
 ### Highlights
