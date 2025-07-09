@@ -1,7 +1,7 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Protocol
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
 
 from synapseclient import Synapse
 
@@ -126,7 +126,7 @@ class TeamSynchronousProtocol(Protocol):
         force: bool = True,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict[str, str]:
+    ) -> Union[Dict[str, str], None]:
         """Invites a user to a team given the ID field on the Team instance.
 
         Arguments:

@@ -1,3 +1,4 @@
+import sys
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, Optional
 
 import httpx
@@ -11,7 +12,7 @@ async def rest_post_paginated_async(
     body: Optional[Dict[str, Any]] = None,
     endpoint: Optional[str] = None,
     headers: Optional[httpx.Headers] = None,
-    retry_policy: Optional[Dict[str, Any]] = {},
+    retry_policy: Optional[Dict[str, Any]] = None,
     requests_session_async_synapse: Optional[httpx.AsyncClient] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -33,6 +34,9 @@ async def rest_post_paginated_async(
         Individual items from each page of the response.
     """
     from synapseclient import Synapse
+
+    if not retry_policy:
+        retry_policy = {}
 
     client = Synapse.get_client(synapse_client=synapse_client)
     next_page_token = None
@@ -62,7 +66,7 @@ async def rest_get_paginated_async(
     offset: int = 0,
     endpoint: Optional[str] = None,
     headers: Optional[httpx.Headers] = None,
-    retry_policy: Optional[Dict[str, Any]] = {},
+    retry_policy: Optional[Dict[str, Any]] = None,
     requests_session_async_synapse: Optional[httpx.AsyncClient] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -87,10 +91,11 @@ async def rest_get_paginated_async(
     The limit parameter is set at 20 by default. Using a larger limit results in fewer calls to the service, but if
     responses are large enough to be a burden on the service they may be truncated.
     """
-    import sys
-
     from synapseclient import Synapse
     from synapseclient.core import utils
+
+    if not retry_policy:
+        retry_policy = {}
 
     client = Synapse.get_client(synapse_client=synapse_client)
     prev_num_results = sys.maxsize
