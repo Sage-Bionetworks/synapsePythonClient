@@ -272,7 +272,11 @@ class _MultithreadedDownloader:
         Splits up and downloads a file in chunks from a URL.
         """
         if self._download_request.presigned_url:
-            url_provider = self._download_request.presigned_url
+            url_provider = PresignedUrlProvider(
+                self._syn,
+                request=self._download_request,
+                _cached_info=self._download_request.presigned_url,
+            )
         else:
             url_provider = PresignedUrlProvider(
                 self._syn, request=self._download_request
