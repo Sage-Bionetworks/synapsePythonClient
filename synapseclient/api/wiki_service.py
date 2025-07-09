@@ -202,8 +202,8 @@ async def get_wiki_header_tree(
 
 
 async def get_wiki_history(
-    owner_id: str,
-    wiki_id: str,
+    owner_id: str = None,
+    wiki_id: str = None,
     offset: Optional[int] = 0,
     limit: Optional[int] = 20,
     *,
