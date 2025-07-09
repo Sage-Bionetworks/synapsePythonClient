@@ -39,6 +39,9 @@ from synapseclient.models.protocols.wikipage_protocol import (
     WikiPageSynchronousProtocol,
 )
 
+# File size threshold for using single-threaded vs multi-threaded download (8 MiB)
+SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT = 8 * 1024 * 1024  # 8 MiB in bytes
+
 
 @dataclass
 @async_to_sync
@@ -146,6 +149,7 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get wiki order hint.")
+
         order_hint_dict = await get_wiki_order_hint(
             owner_id=self.owner_id,
             synapse_client=synapse_client,
@@ -554,7 +558,7 @@ class WikiPage(WikiPageSynchronousProtocol):
                         parent_entity_id=self.owner_id,
                         path=file_path,
                     )
-                    synapse_client.logger.info(
+                    synapse_client.logger.debug(
                         f"Uploaded file handle {file_handle.get('id')} for wiki page attachment."
                     )
                     return file_handle.get("id")
@@ -851,11 +855,10 @@ class WikiPage(WikiPageSynchronousProtocol):
     )
     async def get_attachment_async(
         self,
-        file_name: str,
         *,
+        file_name: str,
         download_file: bool = True,
         download_location: Optional[str] = None,
-        redirect: Optional[bool] = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> Union[str, None]:
         """
@@ -865,7 +868,6 @@ class WikiPage(WikiPageSynchronousProtocol):
             file_name: The name of the file to get.
             download_file: Whether associated files should be downloaded. Default is True.
             download_location: The directory to download the file to. Required if download_file is True.
-            redirect: When set to false, the URL will be returned as text/plain instead of redirecting. Default is False.
             synapse_client: Optionally provide a Synapse client.
         Returns:
             If download_file is True, the attachment file will be downloaded to the download_location. Otherwise, the URL will be returned.
@@ -885,7 +887,6 @@ class WikiPage(WikiPageSynchronousProtocol):
             wiki_id=self.id,
             file_name=file_name,
             wiki_version=self.wiki_version,
-            redirect=redirect,
             synapse_client=client,
         )
 
@@ -908,7 +909,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             # check the file_size
             file_size = int(WikiPage._get_file_size(filehandle_dict, file_name))
             # use single thread download if file size < 8 MiB
-            if file_size < 8388608:
+            if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
                 download_from_url(
                     url=presigned_url_info.url,
                     destination=download_location,
@@ -934,7 +935,6 @@ class WikiPage(WikiPageSynchronousProtocol):
         *,
         download_file: bool = True,
         download_location: Optional[str] = None,
-        redirect: Optional[bool] = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> Union[str, None]:
         """
@@ -944,7 +944,6 @@ class WikiPage(WikiPageSynchronousProtocol):
             file_name: The name of the file to get.
             download_file: Whether associated files should be downloaded. Default is True.
             download_location: The directory to download the file to. Required if download_file is True.
-            redirect: When set to false, the URL will be returned as text/plain instead of redirecting. Default is False.
             synapse_client: Optionally provide a Synapse client.
         Returns:
             If download_file is True, the attachment preview file will be downloaded to the download_location. Otherwise, the URL will be returned.
@@ -964,7 +963,6 @@ class WikiPage(WikiPageSynchronousProtocol):
             wiki_id=self.id,
             file_name=file_name,
             wiki_version=self.wiki_version,
-            redirect=redirect,
             synapse_client=client,
         )
         # download the file if download_file is True
@@ -988,7 +986,7 @@ class WikiPage(WikiPageSynchronousProtocol):
             # check the file_size
             file_size = int(WikiPage._get_file_size(filehandle_dict, file_name))
             # use single thread download if file size < 8 MiB
-            if file_size < 8388608:
+            if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
                 download_from_url(
                     url=presigned_url_info.url,
                     destination=download_location,
@@ -997,11 +995,11 @@ class WikiPage(WikiPageSynchronousProtocol):
             else:
                 # download the file
                 download_from_url_multi_threaded(
-                    presigned_url=presigned_url_info.url, destination=download_location
+                    presigned_url=presigned_url_info, destination=download_location
                 )
-                client.logger.debug(
-                    f"Downloaded the preview file {presigned_url_info.file_name} to {download_location}"
-                )
+            client.logger.debug(
+                f"Downloaded the preview file {presigned_url_info.file_name} to {download_location}"
+            )
         else:
             return attachment_preview_url
 
@@ -1014,7 +1012,6 @@ class WikiPage(WikiPageSynchronousProtocol):
         download_file_name: Optional[str] = None,
         download_file: bool = True,
         download_location: Optional[str] = None,
-        redirect: Optional[bool] = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> Union[str, None]:
         """
@@ -1024,7 +1021,6 @@ class WikiPage(WikiPageSynchronousProtocol):
             download_file_name: The name of the file to download. Required if download_file is True.
             download_file: Whether associated files should be downloaded. Default is True.
             download_location: The directory to download the file to. Required if download_file is True.
-            redirect: When set to false, the URL will be returned as text/plain instead of redirecting. Default is False.
             synapse_client: Optionally provide a Synapse client.
         Returns:
             If download_file is True, the markdown file will be downloaded to the download_location. Otherwise, the URL will be returned.
@@ -1041,7 +1037,6 @@ class WikiPage(WikiPageSynchronousProtocol):
             owner_id=self.owner_id,
             wiki_id=self.id,
             wiki_version=self.wiki_version,
-            redirect=redirect,
             synapse_client=client,
         )
         # download the file if download_file is True
@@ -1067,17 +1062,3 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
         else:
             return markdown_url
-
-    @classmethod
-    def from_dict(
-        cls, synapse_wiki: Dict[str, Union[str, List[str], List[Dict[str, Any]]]]
-    ) -> "WikiPage":
-        """Create a new WikiPage instance from a dictionary.
-
-        Arguments:
-            synapse_wiki: The dictionary containing wiki page data.
-
-        Returns:
-            A new WikiPage instance filled with the dictionary data.
-        """
-        return cls().fill_from_dict(synapse_wiki)
