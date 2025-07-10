@@ -30,7 +30,7 @@ By the end of this tutorial, you will:
 ## 2. Take a Look at the Constants and Structure of the JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=22-49}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=21-49}
 ```
 
 Derived annotations allow you to define default values for annotations based on schema rules, ensuring consistency and reducing manual input errors. As you can see here, you could use derived annotations to prescribe default annotation values. Please read more about derived annotations [here](https://help.synapse.org/docs/JSON-Schemas.3107291536.html#JSONSchemas-DerivedAnnotations).
@@ -39,12 +39,12 @@ Derived annotations allow you to define default values for annotations based on 
 ## 3. Try Create Test Organization and JSON Schema if They Do Not Exist
 Next, try creating a test organization and register a schema if they do not already exist:
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=52-65}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=51-65}
 ```
 
 Note: If you update your schema, you can re-register it with the organization by assigning a new version number to reflect the changes. Synapse does not allow re-creating a schema with the same version number, so please ensure that each schema version within an organization is unique:
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=68-99}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=67-99}
 ```
 
 ## 4. Bind the JSON Schema to the Folder
@@ -53,7 +53,7 @@ After creating the organization, you can now bind your json schema to a test fol
 When you bind the schema, you may also include the boolean property `enable_derived_annotations` to have Synapse automatically calculate derived annotations based on the schema:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=102-108}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=101-108}
 ```
 
 <details class="example">
@@ -76,7 +76,7 @@ JSON schema was bound successfully. Please see details below:
 ## 5. Retrieve the Bound Schema
 Next, we can retrieve the bound schema:
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=111-113}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=110-113}
 ```
 
 <details class="example">
@@ -105,12 +105,12 @@ JSON Schema was retrieved successfully. Please see details below:
 ## 6. Add Invalid Annotations to the Folder and Store, and Validate the Folder against the Schema
 Try adding invalid annotations to your folder: This step and the step below demonstrate how the system handles invalid annotations and how the schema validation process works.
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=116-120}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=115-119}
 ```
 
 Try validating the folder. You should be able to see messages related to invalid annotations.
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=124-126}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=123-125}
 ```
 
 
@@ -146,12 +146,12 @@ This step is only relevant for container entities, such as a folder or a project
 
 Try creating a test file locally and store the file in the folder that we created earlier. Then, try adding invalid annotations to that file. This step demonstrates how the files inside a folder also inherit the schema from the parent entity.
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=130-155}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=129-134}
 ```
 
 You could then use `get_schema_validation_statistics` to get information such as the number of children with invalid annotations inside a container.
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=158-160}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=137-141}
 ```
 
 
@@ -170,7 +170,7 @@ Validation statistics were retrieved successfully. Please see details below:
 
 You could also use `get_invalid_validation` to see more detailed results of all the children inside a container, which includes all validation messages and validation exception details.
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=162-169}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=143-146}
 ```
 
 <details class="example">
