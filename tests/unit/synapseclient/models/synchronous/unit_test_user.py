@@ -89,8 +89,8 @@ class TestUser:
         )
         assert user_profile.url == BOGUS_URL
         assert user_profile.team_name == TEAM_NAME
-        assert user_profile.send_email_notifications == True
-        assert user_profile.mark_emailed_messages_as_read == False
+        assert user_profile.send_email_notifications
+        assert not user_profile.mark_emailed_messages_as_read
         assert user_profile.preferences == [
             UserPreference(name=PREFERENCE_1, value=False),
             UserPreference(name=PREFFERENCE_2, value=True),
@@ -102,15 +102,14 @@ class TestUser:
         user_profile = UserProfile(id=123)
 
         # WHEN we get the ID
-        with patch.object(
-            self.syn,
-            "get_user_profile_by_id",
+        with patch(
+            "synapseclient.models.user.get_user_profile_by_id",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
             profile = user_profile.get(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(id=123)
+            mocked_client_call.assert_called_once_with(id=123, synapse_client=self.syn)
 
             # AND we should get the profile back
             assert profile.id == 123
@@ -131,8 +130,8 @@ class TestUser:
             )
             assert profile.url == BOGUS_URL
             assert profile.team_name == TEAM_NAME
-            assert profile.send_email_notifications == True
-            assert profile.mark_emailed_messages_as_read == False
+            assert profile.send_email_notifications
+            assert not profile.mark_emailed_messages_as_read
             assert profile.preferences == [
                 UserPreference(name=PREFERENCE_1, value=False),
                 UserPreference(name=PREFFERENCE_2, value=True),
@@ -144,15 +143,16 @@ class TestUser:
         user_profile = UserProfile(username=USER_NAME)
 
         # WHEN we get the ID
-        with patch.object(
-            self.syn,
-            "get_user_profile_by_username",
+        with patch(
+            "synapseclient.models.user.get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
             profile = user_profile.get(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(username=USER_NAME)
+            mocked_client_call.assert_called_once_with(
+                username=USER_NAME, synapse_client=self.syn
+            )
 
             # AND we should get the profile back
             assert profile.id == 123
@@ -173,8 +173,8 @@ class TestUser:
             )
             assert profile.url == BOGUS_URL
             assert profile.team_name == TEAM_NAME
-            assert profile.send_email_notifications == True
-            assert profile.mark_emailed_messages_as_read == False
+            assert profile.send_email_notifications
+            assert not profile.mark_emailed_messages_as_read
             assert profile.preferences == [
                 UserPreference(name=PREFERENCE_1, value=False),
                 UserPreference(name=PREFFERENCE_2, value=True),
@@ -186,15 +186,14 @@ class TestUser:
         user_profile = UserProfile()
 
         # WHEN we get the ID
-        with patch.object(
-            self.syn,
-            "get_user_profile_by_username",
+        with patch(
+            "synapseclient.models.user.get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
             profile = user_profile.get(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with()
+            mocked_client_call.assert_called_once_with(synapse_client=self.syn)
 
             # AND we should get the profile back
             assert profile.id == 123
@@ -215,8 +214,8 @@ class TestUser:
             )
             assert profile.url == BOGUS_URL
             assert profile.team_name == TEAM_NAME
-            assert profile.send_email_notifications == True
-            assert profile.mark_emailed_messages_as_read == False
+            assert profile.send_email_notifications
+            assert not profile.mark_emailed_messages_as_read
             assert profile.preferences == [
                 UserPreference(name=PREFERENCE_1, value=False),
                 UserPreference(name=PREFFERENCE_2, value=True),
@@ -227,15 +226,14 @@ class TestUser:
         # GIVEN no user profile
 
         # WHEN we get from ID
-        with patch.object(
-            self.syn,
-            "get_user_profile_by_id",
+        with patch(
+            "synapseclient.models.user.get_user_profile_by_id",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
             profile = UserProfile.from_id(user_id=123, synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(id=123)
+            mocked_client_call.assert_called_once_with(id=123, synapse_client=self.syn)
 
             # AND we should get the profile back
             assert profile.id == 123
@@ -256,8 +254,8 @@ class TestUser:
             )
             assert profile.url == BOGUS_URL
             assert profile.team_name == TEAM_NAME
-            assert profile.send_email_notifications == True
-            assert profile.mark_emailed_messages_as_read == False
+            assert profile.send_email_notifications
+            assert not profile.mark_emailed_messages_as_read
             assert profile.preferences == [
                 UserPreference(name=PREFERENCE_1, value=False),
                 UserPreference(name=PREFFERENCE_2, value=True),
@@ -268,9 +266,8 @@ class TestUser:
         # GIVEN no user profile
 
         # WHEN we get from ID
-        with patch.object(
-            self.syn,
-            "get_user_profile_by_username",
+        with patch(
+            "synapseclient.models.user.get_user_profile_by_username",
             return_value=(self.get_example_synapse_user_profile()),
         ) as mocked_client_call:
             profile = UserProfile.from_username(
@@ -278,7 +275,9 @@ class TestUser:
             )
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(username=USER_NAME)
+            mocked_client_call.assert_called_once_with(
+                username=USER_NAME, synapse_client=self.syn
+            )
 
             # AND we should get the profile back
             assert profile.id == 123
@@ -299,8 +298,8 @@ class TestUser:
             )
             assert profile.url == BOGUS_URL
             assert profile.team_name == TEAM_NAME
-            assert profile.send_email_notifications == True
-            assert profile.mark_emailed_messages_as_read == False
+            assert profile.send_email_notifications
+            assert not profile.mark_emailed_messages_as_read
             assert profile.preferences == [
                 UserPreference(name=PREFERENCE_1, value=False),
                 UserPreference(name=PREFFERENCE_2, value=True),
@@ -312,36 +311,38 @@ class TestUser:
         user_profile = UserProfile(id=123)
 
         # WHEN we check if the user is certified
-        with patch.object(
-            self.syn,
-            "is_certified",
+        with patch(
+            "synapseclient.models.user.is_user_certified",
             return_value=True,
         ) as mocked_client_call:
             is_certified = user_profile.is_certified(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(user=123)
+            mocked_client_call.assert_called_once_with(
+                user=123, synapse_client=self.syn
+            )
 
             # AND we should get the profile back
-            assert is_certified == True
+            assert is_certified
 
     def test_is_certified_username(self) -> None:
         # GIVEN a user profile
         user_profile = UserProfile(username=USER_NAME)
 
         # WHEN we check if the user is certified
-        with patch.object(
-            self.syn,
-            "is_certified",
+        with patch(
+            "synapseclient.models.user.is_user_certified",
             return_value=True,
         ) as mocked_client_call:
             is_certified = user_profile.is_certified(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(user=USER_NAME)
+            mocked_client_call.assert_called_once_with(
+                user=USER_NAME, synapse_client=self.syn
+            )
 
             # AND we should get the profile back
-            assert is_certified == True
+            assert is_certified
 
     def test_is_certified_neither(self) -> None:
         # GIVEN a user profile

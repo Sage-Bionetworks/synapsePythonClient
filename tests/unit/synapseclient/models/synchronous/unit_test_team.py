@@ -7,8 +7,6 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.models.team import Team, TeamMember
 from synapseclient.models.user import UserGroupHeader
-from synapseclient.team import Team as Synapse_Team
-from synapseclient.team import TeamMember as Synapse_TeamMember
 
 
 class TestTeamMember:
@@ -80,12 +78,9 @@ class TestTeam:
         assert team.modified_by == self.USER
 
     def test_create(self) -> None:
-        with patch.object(
-            self.syn,
-            "create_team",
-            return_value=Synapse_Team(
-                id=1, name=self.NAME, description=self.DESCRIPTION
-            ),
+        with patch(
+            "synapseclient.models.team.create_team",
+            return_value={"id": 1, "name": self.NAME, "description": self.DESCRIPTION},
         ) as patch_create_team:
             # GIVEN a team object
             team = Team(name=self.NAME, description=self.DESCRIPTION)
@@ -98,6 +93,7 @@ class TestTeam:
                 icon=None,
                 can_public_join=False,
                 can_request_membership=True,
+                synapse_client=self.syn,
             )
             # AND I expect the original team to be returned
             assert team.id == 1
@@ -108,51 +104,46 @@ class TestTeam:
             assert team.can_request_membership is True
 
     def test_delete(self) -> None:
-        with patch.object(
-            self.syn,
-            "delete_team",
-            return_value=Synapse_Team(id=1, name=self.NAME),
+        with patch(
+            "synapseclient.models.team.delete_team",
+            return_value=None,
         ) as patch_delete_team:
             # GIVEN a team object
             team = Team(id=1, name=self.NAME)
             # WHEN I delete the team
             team.delete(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_delete_team.assert_called_once_with(id=1)
+            patch_delete_team.assert_called_once_with(id=1, synapse_client=self.syn)
 
     def test_get_with_id(self) -> None:
-        with patch.object(
-            self.syn,
-            "getTeam",
-            return_value=Synapse_Team(
-                id=1, name=self.NAME, description=self.DESCRIPTION
-            ),
+        with patch(
+            "synapseclient.models.team.get_team",
+            return_value={"id": 1, "name": self.NAME, "description": self.DESCRIPTION},
         ) as patch_from_id:
             # GIVEN a team object with an id
             team = Team(id=1)
             # WHEN I retrieve a team using its id
             team = team.get(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_from_id.assert_called_once_with(id=1)
+            patch_from_id.assert_called_once_with(id=1, synapse_client=self.syn)
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
             assert team.description == self.DESCRIPTION
 
     def test_get_with_name(self) -> None:
-        with patch.object(
-            self.syn,
-            "getTeam",
-            return_value=Synapse_Team(
-                id=1, name=self.NAME, description=self.DESCRIPTION
-            ),
+        with patch(
+            "synapseclient.models.team.get_team",
+            return_value={"id": 1, "name": self.NAME, "description": self.DESCRIPTION},
         ) as patch_from_name:
             # GIVEN a team object with a name
             team = Team(name=self.NAME)
             # WHEN I retrieve a team using its name
             team = team.get(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_from_name.assert_called_once_with(id=self.NAME)
+            patch_from_name.assert_called_once_with(
+                id=self.NAME, synapse_client=self.syn
+            )
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
@@ -167,56 +158,56 @@ class TestTeam:
             team.get(synapse_client=self.syn)
 
     def test_from_id(self) -> None:
-        with patch.object(
-            Team,
-            "get_async",
-            return_value=Team(id=1, name=self.NAME, description=self.DESCRIPTION),
-        ) as patch_get:
+        with patch(
+            "synapseclient.models.team.get_team",
+            return_value={"id": 1, "name": self.NAME, "description": self.DESCRIPTION},
+        ) as patch_get_team:
             # WHEN I retrieve a team using its id
             team = Team.from_id(id=1, synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_get.assert_called_once_with(synapse_client=self.syn)
+            patch_get_team.assert_called_once_with(id=1, synapse_client=self.syn)
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
             assert team.description == self.DESCRIPTION
 
     def test_from_name(self) -> None:
-        with patch.object(
-            Team,
-            "get_async",
-            return_value=Team(id=1, name=self.NAME, description=self.DESCRIPTION),
-        ) as patch_get:
+        with patch(
+            "synapseclient.models.team.get_team",
+            return_value={"id": 1, "name": self.NAME, "description": self.DESCRIPTION},
+        ) as patch_get_team:
             # WHEN I retrieve a team using its name
             team = Team.from_name(name=self.NAME, synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_get.assert_called_once_with(synapse_client=self.syn)
+            patch_get_team.assert_called_once_with(
+                id=self.NAME, synapse_client=self.syn
+            )
             # AND I expect the intended team to be returned
             assert team.id == 1
             assert team.name == self.NAME
             assert team.description == self.DESCRIPTION
 
     def test_members(self) -> None:
-        with patch.object(
-            self.syn,
-            "getTeamMembers",
-            return_value=[Synapse_TeamMember(teamId=1, member={})],
+        with patch(
+            "synapseclient.models.team.get_team_members",
+            return_value=[{"teamId": 1, "member": {}}],
         ) as patch_get_team_members:
             # GIVEN a team object
             team = Team(id=1)
             # WHEN I get the team members
             team_members = team.members(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_get_team_members.assert_called_once_with(team=team)
+            patch_get_team_members.assert_called_once_with(
+                team=1, synapse_client=self.syn
+            )
             # AND I expect the expected team members to be returned
             assert len(team_members) == 1
             assert team_members[0].team_id == 1
             assert isinstance(team_members[0].member, UserGroupHeader)
 
     def test_invite(self) -> None:
-        with patch.object(
-            self.syn,
-            "invite_to_team",
+        with patch(
+            "synapseclient.models.team.invite_to_team",
             return_value=self.invite_response,
         ) as patch_invite_team_member:
             # GIVEN a team object
@@ -229,18 +220,18 @@ class TestTeam:
             )
             # THEN I expect the patched method to be called as expected
             patch_invite_team_member.assert_called_once_with(
-                team=team,
+                team=1,
                 user=self.USER,
                 message=self.MESSAGE,
                 force=True,
+                synapse_client=self.syn,
             )
             # AND I expect the expected invite to be returned
             assert invite == self.invite_response
 
     def test_open_invitations(self) -> None:
-        with patch.object(
-            self.syn,
-            "get_team_open_invitations",
+        with patch(
+            "synapseclient.models.team.get_team_open_invitations",
             return_value=[self.invite_response],
         ) as patch_get_open_team_invitations:
             # GIVEN a team object
@@ -248,7 +239,9 @@ class TestTeam:
             # WHEN I get the open team invitations
             open_team_invitations = team.open_invitations(synapse_client=self.syn)
             # THEN I expect the patched method to be called as expected
-            patch_get_open_team_invitations.assert_called_once_with(team=team)
+            patch_get_open_team_invitations.assert_called_once_with(
+                team=1, synapse_client=self.syn
+            )
             # AND I expect the expected invitations to be returned
             assert len(open_team_invitations) == 1
             assert open_team_invitations[0] == self.invite_response

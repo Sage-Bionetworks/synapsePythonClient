@@ -35,7 +35,7 @@ from synapseclient.models.table_components import (
     UploadToTableRequest,
 )
 from synapseclient.models.team import Team, TeamMember
-from synapseclient.models.user import UserPreference, UserProfile
+from synapseclient.models.user import UserGroupHeader, UserPreference, UserProfile
 from synapseclient.models.virtualtable import VirtualTable
 
 __all__ = [
@@ -52,6 +52,7 @@ __all__ = [
     "TeamMember",
     "UserProfile",
     "UserPreference",
+    "UserGroupHeader",
     "Agent",
     "AgentSession",
     "AgentSessionAccessLevel",

@@ -95,7 +95,7 @@ class TestTeam:
         # THEN the team should no longer exist
         with pytest.raises(
             SynapseHTTPError,
-            match=f"404 Client Error: \nTeam id: '{test_team.id}' does not exist",
+            match=f"404 Client Error: Team id: '{test_team.id}' does not exist",
         ):
             await Team.from_id_async(id=test_team.id)
 

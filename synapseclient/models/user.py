@@ -1,8 +1,12 @@
-import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Union
 
 from synapseclient import Synapse
+from synapseclient.api import (
+    get_user_profile_by_id,
+    get_user_profile_by_username,
+    is_user_certified,
+)
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.models.protocols.user_protocol import UserProfileSynchronousProtocol
 from synapseclient.team import UserGroupHeader as Synapse_UserGroupHeader
@@ -175,8 +179,7 @@ class UserProfile(UserProfileSynchronousProtocol):
 
         Arguments:
             synapse_user_profile: The dictionary to fill the UserProfile object from.
-                Typically filled from a
-                [Synapse UserProfile](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserProfile.html) object.
+                Typically filled from a [Synapse UserProfile](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserProfile.html) object.
         """
         self.id = (
             int(synapse_user_profile.get("ownerId", None))
@@ -242,28 +245,17 @@ class UserProfile(UserProfileSynchronousProtocol):
             The UserProfile object.
 
         """
-        loop = asyncio.get_event_loop()
-
         if self.id:
-            synapse_user_profile = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).get_user_profile_by_id(id=self.id),
+            synapse_user_profile = await get_user_profile_by_id(
+                id=self.id, synapse_client=synapse_client
             )
         elif self.username:
-            synapse_user_profile = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).get_user_profile_by_username(username=self.username),
+            synapse_user_profile = await get_user_profile_by_username(
+                username=self.username, synapse_client=synapse_client
             )
         else:
-            synapse_user_profile = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).get_user_profile_by_username(),
+            synapse_user_profile = await get_user_profile_by_username(
+                synapse_client=synapse_client
             )
 
         self.fill_from_dict(synapse_user_profile=synapse_user_profile)
@@ -335,14 +327,9 @@ class UserProfile(UserProfileSynchronousProtocol):
         Raises:
             ValueError: If id nor username is specified.
         """
-        loop = asyncio.get_event_loop()
-
         if self.id or self.username:
-            is_certified = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).is_certified(
-                    user=self.id or self.username
-                ),
+            is_certified = await is_user_certified(
+                user=self.id or self.username, synapse_client=synapse_client
             )
         else:
             raise ValueError("Must specify either id or username")

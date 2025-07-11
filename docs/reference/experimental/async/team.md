@@ -18,3 +18,5 @@ at your own risk.
             - invite_async
             - open_invitations_async
 ---
+
+::: synapseclient.models.TeamMember
