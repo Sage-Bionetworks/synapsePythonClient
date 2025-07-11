@@ -1447,10 +1447,6 @@ class Synapse(object):
         response = self.restGET(f"/user/{userid}/certifiedUserPassingRecord")
         return response
 
-    @deprecated(
-        version="4.9.0",
-        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
-    )
     def _get_user_bundle(self, userid: int, mask: int) -> Dict[str, Union[str, dict]]:
         """
         Retrieve the user bundle for the given user.
