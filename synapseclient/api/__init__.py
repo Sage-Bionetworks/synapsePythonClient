@@ -25,17 +25,23 @@ from .entity_bundle_services_v2 import (
 from .entity_factory import get_from_entity_factory
 from .entity_services import (
     create_access_requirements_if_none,
+    create_activity,
     delete_entity,
     delete_entity_acl,
     delete_entity_generated_by,
+    delete_entity_provenance,
+    get_activity,
     get_entities_by_md5,
     get_entity,
     get_entity_acl,
     get_entity_path,
+    get_entity_provenance,
     get_upload_destination,
     get_upload_destination_location,
     post_entity,
     put_entity,
+    set_entity_provenance,
+    update_activity,
 )
 from .file_services import (
     AddPartResponse,
@@ -120,6 +126,12 @@ __all__ = [
     "delete_entity_generated_by",
     "get_entity_path",
     "get_entities_by_md5",
+    "get_entity_provenance",
+    "set_entity_provenance",
+    "delete_entity_provenance",
+    "get_activity",
+    "create_activity",
+    "update_activity",
     # configuration_services
     "get_config_file",
     "get_config_section_dict",
