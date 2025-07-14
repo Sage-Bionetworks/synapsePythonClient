@@ -6671,7 +6671,13 @@ class Synapse(object):
 
         return download_from_table_result, path
 
-    # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `.columns` attribute on table-like classes or the `add_column` method to store columns during the storage of these table-like classes. "
+        "For individual column operations, use the synapseclient.api.table_services.post_columns function. "
+        "Check the docstring for the replacement function example.",
+    )
     def createColumn(
         self,
         name,
@@ -6680,6 +6686,79 @@ class Synapse(object):
         defaultValue=None,
         enumValues=None,
     ):
+        """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `.columns` attribute on table-like classes or `add_column` method to store columns during the storage of these table-like classes.
+
+        Creates a new [synapseclient.table.Column][] in Synapse.
+
+        Arguments:
+            name: The name of the column
+            columnType: The column type
+            maximumSize: The maximum size of the column
+            defaultValue: The default value of the column
+            enumValues: The enum values of the column
+
+        Returns:
+            A [synapseclient.table.Column][] object
+
+        Example: Using this function (DEPRECATED)
+            Creating a column
+
+                column = syn.createColumn(
+                    name="my_column",
+                    columnType="STRING",
+                    maximumSize=100
+                )
+
+        Example: Migration to new methods
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
+            from synapseclient.api.table_services import post_columns
+            import asyncio
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Method 1: Create column and add to table using ColumnMixin
+            column = Column(
+                name="my_column",
+                column_type=ColumnType.STRING,
+                maximum_size=100
+            )
+
+            # Get an existing table and add the column
+            table = Table(id="syn1234").get(include_columns=True)
+            table.add_column(column)
+            table.store()
+
+            # Method 2: Create a new table with columns
+            table = Table(
+                name="My Table",
+                parent_id="syn5678",
+                columns=[
+                    Column(name="column1", column_type=ColumnType.STRING),
+                    Column(name="column2", column_type=ColumnType.INTEGER),
+                ]
+            )
+            table.store()
+
+            # Method 3: Use the async post_columns function directly
+            async def create_columns():
+                columns = [
+                    Column(name="my_column", column_type=ColumnType.STRING, maximum_size=100)
+                ]
+                created_columns = await post_columns(columns)
+                return created_columns
+
+            # Run the async function
+            created_columns = asyncio.run(create_columns())
+            ```
+        """
         columnModel = Column(
             name=name,
             columnType=columnType,
@@ -6689,8 +6768,18 @@ class Synapse(object):
         )
         return Column(**self.restPOST("/column", json.dumps(columnModel)))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `.columns` attribute on table-like classes or the `add_column` method to store columns during the storage of these table-like classes. "
+        "For batch column operations, use the synapseclient.api.table_services.post_columns function. "
+        "Check the docstring for the replacement function example.",
+    )
     def createColumns(self, columns: typing.List[Column]) -> typing.List[Column]:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `.columns` attribute on table-like classes or the `add_column` method to store columns during the storage of these table-like classes.
+
         Creates a batch of [synapseclient.table.Column][]'s within a single request.
 
         Arguments:
@@ -6698,6 +6787,63 @@ class Synapse(object):
 
         Returns:
             A list of [synapseclient.table.Column][]'s that have been created in Synapse
+
+        Example: Using this function (DEPRECATED)
+            Creating multiple columns
+
+                columns = [
+                    Column(name="col1", columnType="STRING"),
+                    Column(name="col2", columnType="INTEGER")
+                ]
+                created_columns = syn.createColumns(columns)
+
+        Example: Migration to new methods
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
+            from synapseclient.api.table_services import post_columns
+            import asyncio
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Method 1: Create columns and add to table using ColumnMixin
+            columns = [
+                Column(name="col1", column_type=ColumnType.STRING),
+                Column(name="col2", column_type=ColumnType.INTEGER)
+            ]
+
+            # Get an existing table and add the columns
+            table = Table(id="syn1234").get(include_columns=True)
+            table.add_column(columns)
+            table.store()
+
+            # Method 2: Create a new table with columns
+            table = Table(
+                name="My Table",
+                parent_id="syn5678",
+                columns=[
+                    Column(name="col1", column_type=ColumnType.STRING),
+                    Column(name="col2", column_type=ColumnType.INTEGER),
+                ]
+            )
+            table.store()
+
+            # Method 3: Use the async post_columns function directly
+            async def create_columns():
+                columns = [
+                    Column(name="col1", column_type=ColumnType.STRING),
+                    Column(name="col2", column_type=ColumnType.INTEGER)
+                ]
+                created_columns = await post_columns(columns)
+                return created_columns
+
+            # Run the async function
+            created_columns = asyncio.run(create_columns())
+            ```
         """
         request_body = {
             "concreteType": "org.sagebionetworks.repo.model.ListWrapper",
@@ -6706,6 +6852,10 @@ class Synapse(object):
         response = self.restPOST("/column/batch", json.dumps(request_body))
         return [Column(**col) for col in response["list"]]
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getColumnByName(self, schema: Schema, column_name: str) -> Column:
         """
         Given a schema and a column name, get the corresponding [Column][synapseclient.table.Column] object.
