@@ -1,4 +1,3 @@
-import asyncio
 import dataclasses
 from collections import OrderedDict
 from copy import deepcopy
@@ -10,6 +9,7 @@ from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient import Table as Synapse_Table
+from synapseclient.api import create_table_snapshot
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import MB, delete_none_keys
@@ -1508,17 +1508,14 @@ class Table(
             f"[{self.id}:{self.name}]: Creating a snapshot of the table."
         )
 
-        loop = asyncio.get_event_loop()
-        snapshot_response = await loop.run_in_executor(
-            None,
-            lambda: client._create_table_snapshot(
-                table=self.id,
-                comment=comment,
-                label=label,
-                activity=(
-                    self.activity.id if self.activity and include_activity else None
-                ),
+        snapshot_response = await create_table_snapshot(
+            table_id=self.id,
+            comment=comment,
+            label=label,
+            activity_id=(
+                self.activity.id if self.activity and include_activity else None
             ),
+            synapse_client=synapse_client,
         )
 
         if associate_activity_to_new_version and self.activity:

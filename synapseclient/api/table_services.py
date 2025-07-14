@@ -5,7 +5,9 @@ columns in the Synapse REST API.
 
 import json
 from enum import Enum
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+from synapseclient.core.utils import delete_none_keys, id_of
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -41,6 +43,54 @@ class ViewTypeMask(int, Enum):
     DATASET = 0x80
     DATASET_COLLECTION = 0x100
     MATERIALIZED_VIEW = 0x200
+
+
+async def create_table_snapshot(
+    table_id: str,
+    comment: Optional[str] = None,
+    label: Optional[str] = None,
+    activity_id: Optional[str] = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Union[str, int]]:
+    """
+    Creates a table snapshot using the Synapse REST API.
+
+    Arguments:
+        table_id: Table ID to create a snapshot for.
+        comment: Optional snapshot comment.
+        label: Optional snapshot label.
+        activity_id: Optional activity ID or activity instance applied to snapshot version.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary containing the snapshot response.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    if activity_id and not isinstance(activity_id, str):
+        activity_id = str(activity_id)
+
+    snapshot_body = {
+        "snapshotComment": comment,
+        "snapshotLabel": label,
+        "snapshotActivityId": activity_id,
+    }
+
+    delete_none_keys(snapshot_body)
+
+    table_id = id_of(table_id)
+    uri = f"/entity/{table_id}/table/snapshot"
+
+    snapshot_response = await client.rest_post_async(
+        uri, body=json.dumps(snapshot_body)
+    )
+
+    return snapshot_response
 
 
 async def get_columns(
