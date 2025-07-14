@@ -1,16 +1,28 @@
 import os
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Dict,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 from typing_extensions import Self
 
 from synapseclient import Column as Synapse_Column
-from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
@@ -494,6 +506,24 @@ class JsonSubColumn:
     """Set to one of the enumerated values to indicate a column should be
     treated as a facet"""
 
+    @classmethod
+    def fill_from_dict(cls, synapse_sub_column: Dict[str, Any]) -> "JsonSubColumn":
+        """Converts a response from the synapseclient into this dataclass."""
+        return cls(
+            name=synapse_sub_column.get("name", ""),
+            column_type=(
+                ColumnType(synapse_sub_column.get("columnType", None))
+                if synapse_sub_column.get("columnType", None)
+                else ColumnType.STRING
+            ),
+            json_path=synapse_sub_column.get("jsonPath", ""),
+            facet_type=(
+                FacetType(synapse_sub_column.get("facetType", None))
+                if synapse_sub_column.get("facetType", None)
+                else None
+            ),
+        )
+
     def to_synapse_request(self) -> Dict[str, Any]:
         """Converts the Column object into a dictionary that can be passed into the
         REST API."""
@@ -563,6 +593,115 @@ class Column(ColumnSynchronousProtocol):
     """The last persistent instance of this object. This is used to determine if the
     object has been changed and needs to be updated in Synapse."""
 
+    async def get_async(
+        self, *, synapse_client: Optional["Synapse"] = None
+    ) -> "Column":
+        """
+        Get a column by its ID.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Column instance.
+
+        Example: Getting a column by ID
+            Getting a column by ID
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Column
+
+                syn = Synapse()
+                syn.login()
+
+                async def get_column():
+                    column = await Column(id="123").get_async()
+                    print(column.name)
+
+                asyncio.run(get_column())
+        """
+        from synapseclient.api import get_column
+
+        if not self.id:
+            raise ValueError("Column ID is required to get a column")
+
+        result = await get_column(
+            column_id=self.id,
+            synapse_client=synapse_client,
+        )
+
+        self.fill_from_dict(result)
+        return self
+
+    @skip_async_to_sync
+    @staticmethod
+    async def list_async(
+        prefix: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> AsyncGenerator["Column", None]:
+        """
+        List columns with optional prefix filtering.
+
+        Arguments:
+            prefix: Optional prefix to filter columns by name.
+            limit: Number of columns to retrieve per request to Synapse (pagination parameter).
+                The function will continue retrieving results until all matching columns are returned.
+            offset: The index of the first column to return (pagination parameter).
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            Column instances.
+
+        Example: Getting all columns
+            Getting all columns
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Column
+
+                syn = Synapse()
+                syn.login()
+
+                async def get_columns():
+                    async for column in Column.list_async():
+                        print(column.name)
+
+                asyncio.run(get_columns())
+
+        Example: Getting columns with a prefix
+            Getting columns with a prefix
+
+                import asyncio
+                from synapseclient import Synapse
+                from synapseclient.models import Column
+
+                syn = Synapse()
+                syn.login()
+
+                async def get_columns():
+                    async for column in Column.list_async(prefix="my_prefix"):
+                        print(column.name)
+
+                asyncio.run(get_columns())
+        """
+        from synapseclient.api import list_columns
+
+        async for column in list_columns(
+            prefix=prefix,
+            limit=limit,
+            offset=offset,
+            synapse_client=synapse_client,
+        ):
+            yield column
+
     def fill_from_dict(
         self, synapse_column: Union[Synapse_Column, Dict[str, Any]]
     ) -> "Column":
@@ -583,8 +722,16 @@ class Column(ColumnSynchronousProtocol):
         self.maximum_size = synapse_column.get("maximumSize", None)
         self.maximum_list_length = synapse_column.get("maximumListLength", None)
         self.enum_values = synapse_column.get("enumValues", None)
-        # TODO: This needs to be converted to its Dataclass. It also needs to be tested to verify conversion.
-        self.json_sub_columns = synapse_column.get("jsonSubColumns", None)
+
+        json_sub_columns_data = synapse_column.get("jsonSubColumns", None)
+        if json_sub_columns_data:
+            self.json_sub_columns = [
+                JsonSubColumn.fill_from_dict(sub_column_data)
+                for sub_column_data in json_sub_columns_data
+            ]
+        else:
+            self.json_sub_columns = None
+
         self._set_last_persistent_instance()
         return self
 
@@ -601,7 +748,9 @@ class Column(ColumnSynchronousProtocol):
         del self._last_persistent_instance
         self._last_persistent_instance = replace(self)
         self._last_persistent_instance.json_sub_columns = (
-            replace(self.json_sub_columns) if self.json_sub_columns else None
+            [replace(sub_col) for sub_col in self.json_sub_columns]
+            if self.json_sub_columns
+            else None
         )
 
     def to_synapse_request(self) -> Dict[str, Any]:

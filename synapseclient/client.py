@@ -5916,8 +5916,17 @@ class Synapse(object):
         progress_bar.close()
         return result
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `Column.get()` method instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def getColumn(self, id):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `Column.get()` method instead.
+
         Gets a Column object from Synapse by ID.
 
         See: [synapseclient.table.Column][]
@@ -5928,27 +5937,117 @@ class Synapse(object):
         Returns:
             An object of type [synapseclient.table.Column][]
 
-
-        Example: Using this function
+        Example: Using this function (DEPRECATED)
             Getting a column
 
                 column = syn.getColumn(123)
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Get a column by ID
+            column = Column(id="123").get()
+            print(f"Column name: {column.name}")
+            print(f"Column type: {column.column_type}")
+            print(f"Column ID: {column.id}")
+            ```
         """
         return Column(**self.restGET(Column.getURI(id)))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "For table columns, use the `.columns` attribute on Table, EntityView, SubmissionView, or Dataset classes after calling `.get(include_columns=True)`. "
+        "For column listing and prefix filtering, use the `Column.list()` method. "
+        "Check the docstring for the replacement function example.",
+    )
     def getColumns(self, x, limit=100, offset=0):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `.columns` attribute on table classes or `Column.list()` method instead.
+
         Get the columns defined in Synapse either (1) corresponding to a set of column headers, (2) those for a given
         schema, or (3) those whose names start with a given prefix.
 
         Arguments:
             x: A list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID, or a
                 string prefix
-            limit: maximum number of columns to return (pagination parameter)
+            limit: Number of columns to retrieve per request to Synapse (pagination parameter).
+                The function will continue retrieving results until all matching columns are returned.
             offset: the index of the first column to return (pagination parameter)
 
         Yields:
             A generator over [synapseclient.table.Column][] objects
+
+        Example: Using this function (DEPRECATED)
+            Getting columns for a table
+
+                for column in syn.getColumns("syn12345"):
+                    print(column.name)
+
+            Getting columns with a prefix
+
+                for column in syn.getColumns("my_prefix"):
+                    print(column.name)
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, Table, EntityView, SubmissionView, Dataset, DatasetCollection
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # For getting columns of a specific table/view/dataset
+            table = Table(id="syn12345")
+            table = table.get(include_columns=True)
+            for column_name, column in table.columns.items():
+                print(f"Table column: {column_name}, Type: {column.column_type}")
+
+            # For EntityView
+            view = EntityView(id="syn67890")
+            view = view.get(include_columns=True)
+            for column_name, column in view.columns.items():
+                print(f"EntityView column: {column_name}, Type: {column.column_type}")
+
+            # For SubmissionView
+            submission_view = SubmissionView(id="syn11111")
+            submission_view = submission_view.get(include_columns=True)
+            for column_name, column in submission_view.columns.items():
+                print(f"SubmissionView column: {column_name}, Type: {column.column_type}")
+
+            # For Dataset
+            dataset = Dataset(id="syn22222")
+            dataset = dataset.get(include_columns=True)
+            for column_name, column in dataset.columns.items():
+                print(f"Dataset column: {column_name}, Type: {column.column_type}")
+
+            # For DatasetCollection
+            dataset_collection = DatasetCollection(id="syn33333")
+            dataset_collection = dataset_collection.get(include_columns=True)
+            for column_name, column in dataset_collection.columns.items():
+                print(f"DatasetCollection column: {column_name}, Type: {column.column_type}")
+
+            # For listing all columns with a prefix
+            for column in Column.list(prefix="my_prefix"):
+                print(f"Prefixed column: {column.name}, Type: {column.column_type}")
+
+            # For listing all columns
+            for column in Column.list():
+                print(f"All columns: {column.name}, Type: {column.column_type}")
+
+            ```
         """
         if x is None:
             uri = "/column"
@@ -6197,8 +6296,18 @@ class Synapse(object):
 
         return result
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `columns` attribute on the `from synapseclient.models import Table` class. "
+        "Check the docstring for the replacement function example.",
+    )
+    @functools.lru_cache()
     def getTableColumns(self, table):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `columns` attribute on [synapseclient.models.Table][] instead.
+
         Retrieve the column models used in the given table schema.
 
         Arguments:
@@ -6206,6 +6315,58 @@ class Synapse(object):
 
         Yields:
             A Generator over the Table's [columns][synapseclient.table.Column]
+
+        Example: Using this function (DEPRECATED)
+            Getting columns from a table schema:
+
+                columns = list(syn.getTableColumns("syn123"))
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table, Dataset, DatasetCollection, EntityView, SubmissionView
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # For Tables
+            table = Table(id="syn123").get()
+            columns = list(table.columns.values())
+            print("Columns in table:", columns)
+            # Access individual columns by name
+            my_table_column = table.columns["my_column_name"]
+
+            # For Datasets
+            dataset = Dataset(id="syn456").get()
+            columns = list(dataset.columns.values())
+            print("Columns in dataset:", columns)
+            # Access individual columns by name
+            my_dataset_column = dataset.columns["my_column_name"]
+
+            # For Dataset Collections
+            dataset_collection = DatasetCollection(id="syn789").get()
+            columns = list(dataset_collection.columns.values())
+            print("Columns in dataset collection:", columns)
+            # Access individual columns by name
+            my_collection_column = dataset_collection.columns["my_column_name"]
+
+            # For Entity Views
+            entity_view = EntityView(id="syn012").get()
+            columns = list(entity_view.columns.values())
+            print("Columns in entity view:", columns)
+            # Access individual columns by name
+            my_view_column = entity_view.columns["my_column_name"]
+
+            # For Submission Views
+            submission_view = SubmissionView(id="syn345").get()
+            columns = list(submission_view.columns.values())
+            print("Columns in submission view:", columns)
+            # Access individual columns by name
+            my_submission_column = submission_view.columns["my_column_name"]
+            ```
         """
         uri = "/entity/{id}/column".format(id=id_of(table))
         # The returned object type for this service, PaginatedColumnModels, is a misnomer.

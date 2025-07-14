@@ -39,7 +39,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Uni
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import from_unix_epoch_time, id_of, itersubclasses
+from synapseclient.core.utils import (
+    deprecated,
+    from_unix_epoch_time,
+    id_of,
+    itersubclasses,
+)
 
 from .entity import Entity, Folder, Project, entity_type_to_class
 from .evaluation import Evaluation
@@ -1393,8 +1398,17 @@ class SelectColumn(DictObject):
         )
 
 
+@deprecated(
+    version="4.9.0",
+    reason="To be removed in 5.0.0. "
+    "Use the `Column` class from `synapseclient.models` instead. "
+    "Check the docstring for the replacement function example.",
+)
 class Column(DictObject):
     """
+    **Deprecated with replacement.** This class will be removed in 5.0.0.
+    Use the `Column` class from `synapseclient.models` instead.
+
     Defines a column to be used in a table [Schema][synapseclient.table.Schema]
     [EntityViewSchema][synapseclient.table.EntityViewSchema].
 
@@ -1425,6 +1439,51 @@ class Column(DictObject):
         enumValues:        Columns type of STRING can be constrained to an enumeration values set on this list.
         defaultValue:      The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not
                            allowed to have default values.
+
+    Example: Using this class (DEPRECATED)
+        Creating a column
+
+            from synapseclient.table import Column
+            column = Column(name='My Column', columnType='STRING', maximumSize=100)
+
+    Example: Migration to new class
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Column, ColumnType, Table
+
+        syn = Synapse()
+        syn.login()
+
+        # Create a new column
+        column = Column(
+            name='My Column',
+            column_type=ColumnType.STRING,
+            maximum_size=100
+        )
+
+        # Get an existing table and add the column
+        table = Table(id="syn1234").get(include_columns=True)
+        table.add_column(column)
+        table.store()
+
+        # Or create a new table with columns
+        table = Table(
+            name="My Table",
+            parent_id="syn5678",
+            columns=[
+                Column(name="column1", column_type=ColumnType.STRING),
+                Column(name="column2", column_type=ColumnType.INTEGER),
+            ]
+        )
+        table.store()
+
+        # Access columns from the table
+        for column_name, column in table.columns.items():
+            print(f"Column: {column_name}, Type: {column.column_type}")
+        ```
+
     """
 
     @classmethod
