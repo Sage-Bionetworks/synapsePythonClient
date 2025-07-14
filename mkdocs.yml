@@ -33,15 +33,17 @@ nav:
           - Entity View: tutorials/python/entityview.md
           # - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
+          - VirtualTable: tutorials/python/virtualtable.md
           - Dataset: tutorials/python/dataset.md
           - Dataset Collection: tutorials/python/dataset_collection.md
           - Materialized View: tutorials/python/materializedview.md
           - Submission View: tutorials/python/submissionview.md
-          # - Sharing Settings: tutorials/python/sharing_settings.md
+          - Sharing Settings: tutorials/python/sharing_settings.md
           # - Wiki: tutorials/python/wiki.md
           # - Team: tutorials/python/team.md
           - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
           - Download data in bulk: tutorials/python/download_data_in_bulk.md
+          - Working with JSON Schema: tutorials/python/json_schema.md
         # - Move Files and Folders: tutorials/python/move_files_and_folders.md
         # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
       - Working with the Command Line Client: tutorials/command_line_client.md
@@ -83,6 +85,7 @@ nav:
           - Folder: reference/experimental/sync/folder.md
           - File: reference/experimental/sync/file.md
           - Table: reference/experimental/sync/table.md
+          - VirtualTable: reference/experimental/sync/virtualtable.md
           - Dataset: reference/experimental/sync/dataset.md
           - Dataset Collection: reference/experimental/sync/dataset_collection.md
           - EntityView: reference/experimental/sync/entityview.md
@@ -98,6 +101,7 @@ nav:
               - Folder: reference/experimental/async/folder.md
               - File: reference/experimental/async/file.md
               - Table: reference/experimental/async/table.md
+              - VirtualTable: reference/experimental/async/virtualtable.md
               - Dataset: reference/experimental/async/dataset.md
               - Dataset Collection: reference/experimental/async/dataset_collection.md
               - EntityView: reference/experimental/async/entityview.md
@@ -111,6 +115,9 @@ nav:
               - StorableContainer: reference/experimental/mixins/storable_container.md
               - AsynchronousCommunicator: reference/experimental/mixins/asynchronous_communicator.md
               - FailureStrategy: reference/experimental/mixins/failure_strategy.md
+              - BaseJSONSchema: reference/experimental/mixins/base_json_schema.md
+              - ContainerEntityJSONSchema: reference/experimental/mixins/container_json_schema.md
+
   - Further Reading:
       - Home: explanations/home.md
       - Domain Models of Synapse: explanations/domain_models_of_synapse.md

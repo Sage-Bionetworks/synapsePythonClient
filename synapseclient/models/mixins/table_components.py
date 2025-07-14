@@ -67,7 +67,7 @@ CLASSES_THAT_CONTAIN_ROW_ETAG = [
     "DatasetCollection",
     "SubmissionView",
 ]
-CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView"]
+CLASSES_WITH_READ_ONLY_SCHEMA = ["MaterializedView", "VirtualTable"]
 
 PANDAS_TABLE_TYPE = {
     "floating": "DOUBLE",
@@ -2520,9 +2520,9 @@ class ViewSnapshotMixin:
             snapshot_options=SnapshotRequest(
                 comment=comment,
                 label=label,
-                activity=self.activity.id
-                if self.activity and include_activity
-                else None,
+                activity=(
+                    self.activity.id if self.activity and include_activity else None
+                ),
             ),
         ).send_job_and_wait_async(synapse_client=client)
 
@@ -3535,9 +3535,11 @@ class TableStoreRowMixin:
         )
         progress_bar = tqdm(
             total=total_df_bytes,
-            desc="Splitting DataFrame and uploading chunks"
-            if len(chunks_to_upload) > 1
-            else "Uploading DataFrame",
+            desc=(
+                "Splitting DataFrame and uploading chunks"
+                if len(chunks_to_upload) > 1
+                else "Uploading DataFrame"
+            ),
             unit_scale=True,
             smoothing=0,
             unit="B",

@@ -24,6 +24,13 @@ at your own risk.
             - get_acl_async
             - get_permissions_async
             - set_permissions_async
+            - delete_permissions_async
+            - list_acl_async
+            - bind_schema_async
+            - get_schema_async
+            - unbind_schema_async
+            - validate_schema_async
+            - get_schema_derived_keys_async
 ---
 
 [](){ #view-type-mask-reference }

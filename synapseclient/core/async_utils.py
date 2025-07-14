@@ -80,23 +80,17 @@ class ClassOrInstance:
 def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any], syn: "Synapse") -> Any:
     """Wrap an async function to be called in a sync context."""
     loop = None
+
     try:
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            pass
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        pass
 
-        if loop:
-            nest_asyncio.apply(loop=loop)
-            return loop.run_until_complete(coroutine)
-        else:
-            return asyncio.run(coroutine)
-
-    except Exception as ex:
-        syn.logger.exception(
-            f"Error occurred while running {coroutine} in a sync context."
-        )
-        raise ex
+    if loop:
+        nest_asyncio.apply(loop=loop)
+        return loop.run_until_complete(coroutine)
+    else:
+        return asyncio.run(coroutine)
 
 
 # Adapted from
@@ -122,28 +116,17 @@ def async_to_sync(cls):
                 return await getattr(self, async_method_name)(*args, **kwargs)
 
             loop = None
+
             try:
-                try:
-                    loop = asyncio.get_running_loop()
-                except RuntimeError:
-                    pass
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
 
-                if loop:
-                    nest_asyncio.apply(loop=loop)
-                    return loop.run_until_complete(wrapper(*args, **kwargs))
-                else:
-                    return asyncio.run(wrapper(*args, **kwargs))
-
-            except Exception as ex:
-                from synapseclient import Synapse
-
-                synapse_client = Synapse.get_client(
-                    getattr(kwargs, "synapse_client", None)
-                )
-                synapse_client.logger.exception(
-                    f"Error occurred while running {async_method_name} on {self.__class__}."
-                )
-                raise ex
+            if loop:
+                nest_asyncio.apply(loop=loop)
+                return loop.run_until_complete(wrapper(*args, **kwargs))
+            else:
+                return asyncio.run(wrapper(*args, **kwargs))
 
         return newmethod
 
@@ -151,9 +134,11 @@ def async_to_sync(cls):
 
     methods_to_update = []
     for k in methods:
+        if getattr(cls.__dict__[k], "_skip_conversion", False):
+            continue
+
         if "async" in k and (new_method_name := k.replace("_async", "")):
             new_method = create_method(k)
-
             new_method.fn.__name__ = new_method_name
             new_method.__name__ = new_method_name
 
@@ -170,3 +155,9 @@ def async_to_sync(cls):
         )
 
     return cls
+
+
+def skip_async_to_sync(func):
+    """Decorator to skip the async to sync conversion for a specific function."""
+    func._skip_conversion = True
+    return func

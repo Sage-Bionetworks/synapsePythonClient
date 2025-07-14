@@ -15,6 +15,8 @@ at your own risk.
             - delete_async
             - query_async
             - query_part_mask_async
-            - get_permissions
-            - get_acl
-            - set_permissions
+            - get_permissions_async
+            - get_acl_async
+            - set_permissions_async
+            - delete_permissions_async
+            - list_acl_async

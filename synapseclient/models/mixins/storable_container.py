@@ -40,6 +40,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     - `files`
     - `folders`
     - `_last_persistent_instance`
+    - `_synced_from_synapse`
 
     The class must have the following method:
 
@@ -51,6 +52,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     files: "File" = None
     folders: "Folder" = None
     _last_persistent_instance: None = None
+    _synced_from_synapse: bool = False
 
     async def get_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
         """Used to satisfy the usage in this mixin from the parent class."""
@@ -268,6 +270,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         with shared_download_progress_bar(
             file_size=1, synapse_client=syn, custom_message=custom_message
         ):
+            self._synced_from_synapse = True
             return await self._sync_from_synapse_async(
                 path=path,
                 recursive=recursive,

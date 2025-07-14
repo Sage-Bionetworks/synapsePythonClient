@@ -492,7 +492,7 @@ def storeTable(args, syn):
     syn.logger.info('{"tableId": "%s"}', table_ent.tableId)
 
 
-def _replace_existing_config(path, auth_section):
+def _replace_existing_config(path, auth_section, profile_name):
     # insert the auth section into the existing config file
 
     # always make a backup of the existing config file,
@@ -513,17 +513,25 @@ def _replace_existing_config(path, auth_section):
     with open(path, "r") as config_o:
         config_text = config_o.read()
 
+    if profile_name == "authentication":
+        section_header = "authentication"
+    elif profile_name == "default":
+        section_header = "default"
+    else:
+        section_header = f"profile {profile_name}"
+
+    escaped_section = re.escape(section_header)
+
     matcher = re.search(
-        r"^[ \t]*(\[authentication\].*?)(^[ \t]*\[|\Z)",
+        rf"^[ \t]*\[{escaped_section}\][^\[]*?(?=^[ \t]*\[|\Z)",
         config_text,
         flags=re.MULTILINE | re.DOTALL,
     )
+
     if matcher:
         # we matched an existing authentication section
         new_config_text = (
-            config_text[: matcher.start(1)]
-            + auth_section
-            + config_text[matcher.end(1) :]
+            config_text[: matcher.start()] + auth_section + config_text[matcher.end() :]
         )
 
     else:
@@ -534,7 +542,7 @@ def _replace_existing_config(path, auth_section):
     return new_config_text
 
 
-def _generate_new_config(auth_section):
+def _generate_new_config(auth_section, profile_name):
     # insert the auth section into the default config template file
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -542,37 +550,49 @@ def _generate_new_config(auth_section):
     with open(os.path.join(script_dir, ".synapseConfig"), "r") as config_o:
         config_text = config_o.read()
 
-    # Replace text in configuration
-    new_config_text = re.sub(
-        r"#\[authentication\].*<authtoken>",
-        auth_section,
-        config_text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
+    if not profile_name:
+        # Replace text in configuration
+        new_config_text = re.sub(
+            r"#\[default\].*<authtoken>",
+            auth_section,
+            config_text,
+            flags=re.MULTILINE | re.DOTALL,
+        )
+    else:
+        profile_section = f"[profile {profile_name}]\n{auth_section.strip()}\n"
+        new_config_text = config_text.strip() + "\n\n" + profile_section
+
     return new_config_text
 
 
 @tracer.start_as_current_span("main::config")
 def config(args, syn):
     """Create/modify a synapse configuration file"""
-    user, secret = _prompt_for_credentials()
+    user, secret, profile = _prompt_for_credentials(user=None, profile=args.profile)
 
     # validate the credentials provided and determine what login
     # mechanism was used (authToken)
     # this means that writing a config requires connectivity
     # (and that the endpoints in the current config point to
     # the endpoints of the credentials)
-    login_key = _authenticate_login(syn, user, secret, silent=True)
+    login_key = _authenticate_login(syn, user, secret, profile=profile, silent=False)
 
-    auth_section = "[authentication]\n"
+    profile_name = args.profile or profile or "default"
+    auth_section = (
+        f"[{profile_name}]\n"
+        if profile_name == "default"
+        else f"[profile {profile_name}]\n"
+    )
     if user:
         auth_section += f"username={user}\n"
     auth_section += f"{login_key.lower()}={secret}\n\n"
 
     if os.path.exists(args.configPath):
-        config_text = _replace_existing_config(args.configPath, auth_section)
+        config_text = _replace_existing_config(
+            args.configPath, auth_section, profile_name
+        )
     else:
-        config_text = _generate_new_config(auth_section)
+        config_text = _generate_new_config(auth_section, profile_name)
 
     with open(args.configPath, "w") as config_o:
         config_o.write(config_text)
@@ -662,6 +682,7 @@ def login(args, syn: synapseclient.Synapse) -> None:
         syn,
         args.synapseUser,
         args.synapse_auth_token,
+        profile=args.profile,
     )
     profile = syn.getUserProfile()
     syn.logger.info(
@@ -813,6 +834,12 @@ def build_parser():
         help="Personal Access Token (aka: Synapse Auth Token) used to connect to Synapse.",
     )
     parser.add_argument(
+        "-r",
+        "--profile",
+        dest="profile",
+        help="Name of the Synapse profile to use (from ~/.synapseConfig). Defaults to 'default'.",
+    )
+    parser.add_argument(
         "-c",
         "--configPath",
         dest="configPath",
@@ -820,7 +847,6 @@ def build_parser():
         help="Path to configuration file used to connect to Synapse "
         "[default: %(default)s]",
     )
-
     parser.add_argument(
         "--debug",
         dest="debug",
@@ -828,7 +854,6 @@ def build_parser():
         help="Set to debug mode, additional output and error messages are printed to "
         "the console",
     )
-
     parser.add_argument(
         "--silent",
         dest="silent",
@@ -1781,7 +1806,8 @@ def perform_main(args, syn):
                 syn=syn,
                 user=args.synapseUser,
                 password=args.synapse_auth_token,
-                silent=True,
+                silent=False,
+                profile=getattr(args, "profile", None),
             )
         try:
             args.func(args, syn)
@@ -1800,25 +1826,37 @@ def perform_main(args, syn):
 
 @tracer.start_as_current_span("main::login_with_prompt")
 def login_with_prompt(
-    syn: synapseclient.Synapse, user: str, password: str, silent: bool = False
+    syn: synapseclient.Synapse,
+    user: str,
+    password: str,
+    silent: bool = False,
+    profile: str = None,
 ) -> None:
     try:
-        _authenticate_login(syn=syn, user=user, secret=password, silent=silent)
+        _authenticate_login(
+            syn=syn, user=user, secret=password, profile=profile, silent=silent
+        )
     except SynapseNoCredentialsError:
         # there were no complete credentials in the cache nor provided
-        user, passwd = _prompt_for_credentials(user=user)
+        user, passwd, prompt_profile = _prompt_for_credentials(
+            user=user, password=password, profile=profile
+        )
 
-        _authenticate_login(syn=syn, user=user, secret=passwd)
+        _authenticate_login(
+            syn=syn, user=user, secret=passwd, profile=prompt_profile, silent=silent
+        )
 
 
-def _prompt_for_credentials(user=None):
+def _prompt_for_credentials(
+    user: str = None, profile: str = None, password: str = None
+):
     if not user:
         # if username was passed then we use that username
         user = input("Synapse username (Optional): ")
 
     secret_prompt = f"Auth token for user {user}:" if user else "Auth token:"
 
-    passwd = None
+    passwd = password
     while not passwd:
         # if the terminal is not a tty, we are unable to read from standard input
         # For git bash using python getpass
@@ -1830,7 +1868,16 @@ def _prompt_for_credentials(user=None):
         else:
             passwd = getpass.getpass(secret_prompt)
 
-    return user, passwd
+    if not profile:
+        input_profile = input(
+            "Configuration profile name (Optional, 'default' used if not specified): "
+        )
+        if not input_profile:
+            input_profile = "default"
+    else:
+        input_profile = profile
+
+    return user, passwd, input_profile
 
 
 @tracer.start_as_current_span("main::_authenticate_login")

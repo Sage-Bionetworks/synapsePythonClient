@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
+from opentelemetry import trace
+
 from synapseclient import File as SynapseFile
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
@@ -26,7 +28,7 @@ from synapseclient.core.utils import (
 )
 from synapseclient.entity import File as Synapse_File
 from synapseclient.models import Activity, Annotations
-from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
 from synapseclient.models.protocols.file_protocol import FileSynchronousProtocol
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity import store_entity
@@ -193,7 +195,7 @@ class FileHandle:
 
 @dataclass()
 @async_to_sync
-class File(FileSynchronousProtocol, AccessControllable):
+class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
     """A file within Synapse.
 
     Attributes:
@@ -835,6 +837,13 @@ class File(FileSynchronousProtocol, AccessControllable):
                 source=existing_file,
                 destination=self,
                 fields_to_ignore=self._determine_fields_to_ignore_in_merge(),
+            )
+
+        if self.id:
+            trace.get_current_span().set_attributes(
+                {
+                    "synapse.id": self.id,
+                }
             )
 
         if self.path:
