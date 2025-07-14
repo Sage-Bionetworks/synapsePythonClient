@@ -6302,7 +6302,6 @@ class Synapse(object):
         "Moved to the `columns` attribute on the `from synapseclient.models import Table` class. "
         "Check the docstring for the replacement function example.",
     )
-    @functools.lru_cache()
     def getTableColumns(self, table):
         """
         **Deprecated with replacement.** This method will be removed in 5.0.0.
