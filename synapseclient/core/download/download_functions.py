@@ -824,29 +824,24 @@ def download_from_url(
                             url
                         )
                     if url_is_expired:
-                        if url_is_presigned:
-                            raise SynapseError(
-                                "The provided pre-signed URL has expired. Please provide a new pre-signed URL."
-                            )
-                        else:
-                            response = get_file_handle_for_download(
-                                file_handle_id=file_handle_id,
-                                synapse_id=entity_id,
-                                entity_type=file_handle_associate_type,
-                                synapse_client=client,
-                            )
-                            refreshed_url = response["preSignedURL"]
-                            response = with_retry(
-                                lambda url=refreshed_url, range_header=range_header, auth=auth: client._requests_session.get(
-                                    url=url,
-                                    headers=client._generate_headers(range_header),
-                                    stream=True,
-                                    allow_redirects=False,
-                                    auth=auth,
-                                ),
-                                verbose=client.debug,
-                                **STANDARD_RETRY_PARAMS,
-                            )
+                        response = get_file_handle_for_download(
+                            file_handle_id=file_handle_id,
+                            synapse_id=entity_id,
+                            entity_type=file_handle_associate_type,
+                            synapse_client=client,
+                        )
+                        refreshed_url = response["preSignedURL"]
+                        response = with_retry(
+                            lambda url=refreshed_url, range_header=range_header, auth=auth: client._requests_session.get(
+                                url=url,
+                                headers=client._generate_headers(range_header),
+                                stream=True,
+                                allow_redirects=False,
+                                auth=auth,
+                            ),
+                            verbose=client.debug,
+                            **STANDARD_RETRY_PARAMS,
+                        )
                     else:
                         raise
                 elif err.response.status_code == 404:
