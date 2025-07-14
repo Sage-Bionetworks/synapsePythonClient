@@ -5973,6 +5973,12 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `.snapshot()` method on the `Table`, `EntityView`, `SubmissionView`, or `Dataset` classes instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def create_snapshot_version(
         self,
         table: typing.Union[
@@ -5983,7 +5989,11 @@ class Synapse(object):
         activity: typing.Union[Activity, str] = None,
         wait: bool = True,
     ) -> int:
-        """Create a new Table Version, new View version, or new Dataset version.
+        """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `.snapshot()` method on the `Table`, `EntityView`, `SubmissionView`, or `Dataset` classes instead.
+
+        Create a new Table Version, new View version, or new Dataset version.
 
         Arguments:
             table: The schema of the Table/View, or its ID.
@@ -5996,6 +6006,69 @@ class Synapse(object):
 
         Returns:
             The snapshot version number if wait=True, None if wait=False
+
+        Example: Using this function (DEPRECATED)
+            Creating a snapshot of a table
+
+                table_id = "syn1234"
+                snapshot_version = syn.create_snapshot_version(
+                    table_id,
+                    comment="This is a snapshot",
+                    label="v1.0",
+                    activity=my_activity
+                )
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table, EntityView, SubmissionView, Dataset
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # For Tables
+            table = Table(id="syn1234")
+            snapshot_response = table.snapshot(
+                comment="This is a snapshot",
+                label="v1.0",
+                include_activity=True,
+                associate_activity_to_new_version=True
+            )
+            print(f"Snapshot version: {snapshot_response['snapshotVersionNumber']}")
+
+            # For Entity Views
+            view = EntityView(id="syn5678")
+            snapshot_transaction = view.snapshot(
+                comment="This is a snapshot",
+                label="v1.0",
+                include_activity=True,
+                associate_activity_to_new_version=True
+            )
+            print(f"Snapshot version: {snapshot_transaction.snapshot_version_number}")
+
+            # For Submission Views
+            submission_view = SubmissionView(id="syn9012")
+            snapshot_transaction = submission_view.snapshot(
+                comment="This is a snapshot",
+                label="v1.0",
+                include_activity=True,
+                associate_activity_to_new_version=True
+            )
+            print(f"Snapshot version: {snapshot_transaction.snapshot_version_number}")
+
+            # For Datasets
+            dataset = Dataset(id="syn3456")
+            snapshot_transaction = dataset.snapshot(
+                comment="This is a snapshot",
+                label="v1.0",
+                include_activity=True,
+                associate_activity_to_new_version=True
+            )
+            print(f"Snapshot version: {snapshot_transaction.snapshot_version_number}")
+            ```
         """
         ent = self.get(id_of(table), downloadFile=False)
         if isinstance(ent, (EntityViewSchema, SubmissionViewSchema, Dataset)):
@@ -6023,6 +6096,10 @@ class Synapse(object):
         # supply the snapshot version on an async table update without waiting
         return result["snapshotVersionNumber"] if wait else None
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _create_table_snapshot(
         self,
         table: typing.Union[Schema, str],
@@ -6065,6 +6142,10 @@ class Synapse(object):
         )
         return snapshot
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _async_table_update(
         self,
         table: typing.Union[EntityViewSchema, Schema, str, SubmissionViewSchema],

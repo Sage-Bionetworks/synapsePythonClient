@@ -18,6 +18,7 @@ from synapseclient.core import utils
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import (
+    Activity,
     Column,
     ColumnExpansionStrategy,
     ColumnType,
@@ -2038,3 +2039,219 @@ class TestQuerying:
         assert results.count is None
         assert results.sum_file_sizes is None
         assert results.last_updated_on is None
+
+
+class TestTableSnapshot:
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    async def test_snapshot_basic(self, project_model: Project) -> None:
+        """Test creating a basic snapshot of a table."""
+        # GIVEN a table with some data
+        table = Table(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            columns=[
+                Column(name="col1", column_type=ColumnType.STRING),
+                Column(name="col2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Store some data
+        data = {"col1": ["A", "B"], "col2": [1, 2]}
+        await table.store_rows_async(values=data, synapse_client=self.syn)
+
+        # WHEN I create a snapshot
+        snapshot_response = await table.snapshot_async(
+            comment="Test snapshot", label="v1.0", synapse_client=self.syn
+        )
+
+        # THEN the snapshot should be created successfully
+        assert snapshot_response is not None
+        assert "snapshotVersionNumber" in snapshot_response
+        assert snapshot_response["snapshotVersionNumber"] is not None
+
+        # AND the snapshot version should be 1
+        snapshot_version = snapshot_response["snapshotVersionNumber"]
+        assert snapshot_version == 1
+
+        # AND when I retrieve the snapshot version, it should have the correct comment and label
+        snapshot_table = await Table(
+            id=table.id, version_number=snapshot_version
+        ).get_async(synapse_client=self.syn)
+        assert snapshot_table.version_comment == "Test snapshot"
+        assert snapshot_table.version_label == "v1.0"
+        assert snapshot_table.version_number == 1
+
+        # AND when I retrieve the latest version (without specifying version), it should be "in progress"
+        latest_table = await Table(id=table.id).get_async(synapse_client=self.syn)
+        assert latest_table.version_label == "in progress"
+        assert latest_table.version_comment == "in progress"
+        assert latest_table.version_number > 1
+
+    async def test_snapshot_with_activity(self, project_model: Project) -> None:
+        """Test creating a snapshot with activity (provenance)."""
+        # GIVEN a table with some data and an activity
+        table = Table(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            columns=[
+                Column(name="col1", column_type=ColumnType.STRING),
+                Column(name="col2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Create and store an activity
+        activity = Activity(
+            name="Test Activity",
+            description="Test activity for snapshot",
+        )
+        table.activity = activity
+        await table.store_async(synapse_client=self.syn)
+
+        # Store some data
+        data = {"col1": ["A", "B"], "col2": [1, 2]}
+        await table.store_rows_async(values=data, synapse_client=self.syn)
+
+        # WHEN I create a snapshot with activity included
+        snapshot_response = await table.snapshot_async(
+            comment="Test snapshot with activity",
+            label="v1.0",
+            include_activity=True,
+            associate_activity_to_new_version=False,
+            synapse_client=self.syn,
+        )
+
+        # THEN the snapshot should be created successfully
+        assert snapshot_response is not None
+        assert "snapshotVersionNumber" in snapshot_response
+        assert snapshot_response["snapshotVersionNumber"] is not None
+
+        # AND the snapshot version should be 1
+        snapshot_version = snapshot_response["snapshotVersionNumber"]
+        assert snapshot_version == 1
+
+        # AND when I retrieve the snapshot version, it should have the correct comment and label
+        snapshot_table = await Table(
+            id=table.id, version_number=snapshot_version
+        ).get_async(synapse_client=self.syn)
+        assert snapshot_table.version_comment == "Test snapshot with activity"
+        assert snapshot_table.version_label == "v1.0"
+        assert snapshot_table.version_number == 1
+
+        # AND when I retrieve the latest version (without specifying version), it should be "in progress"
+        latest_table = await Table(id=table.id).get_async(synapse_client=self.syn)
+        assert latest_table.version_label == "in progress"
+        assert latest_table.version_comment == "in progress"
+        assert latest_table.version_number > 1
+
+    async def test_snapshot_without_activity(self, project_model: Project) -> None:
+        """Test creating a snapshot without including activity."""
+        # GIVEN a table with some data and an activity
+        table = Table(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            columns=[
+                Column(name="col1", column_type=ColumnType.STRING),
+                Column(name="col2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Create and store an activity
+        activity = Activity(
+            name="Test Activity",
+            description="Test activity for snapshot",
+        )
+        table.activity = activity
+        await table.store_async(synapse_client=self.syn)
+
+        # Store some data
+        data = {"col1": ["A", "B"], "col2": [1, 2]}
+        await table.store_rows_async(values=data, synapse_client=self.syn)
+
+        # WHEN I create a snapshot without including activity
+        snapshot_response = await table.snapshot_async(
+            comment="Test snapshot without activity",
+            label="v2.0",
+            include_activity=False,
+            synapse_client=self.syn,
+        )
+
+        # THEN the snapshot should be created successfully
+        assert snapshot_response is not None
+        assert "snapshotVersionNumber" in snapshot_response
+        assert snapshot_response["snapshotVersionNumber"] is not None
+
+        # AND the snapshot version should be 1
+        snapshot_version = snapshot_response["snapshotVersionNumber"]
+        assert snapshot_version == 1
+
+        # AND when I retrieve the snapshot version, it should have the correct comment and label
+        snapshot_table = await Table(
+            id=table.id, version_number=snapshot_version
+        ).get_async(synapse_client=self.syn)
+        assert snapshot_table.version_comment == "Test snapshot without activity"
+        assert snapshot_table.version_label == "v2.0"
+        assert snapshot_table.version_number == 1
+
+        # AND when I retrieve the latest version (without specifying version), it should be "in progress"
+        latest_table = await Table(id=table.id).get_async(synapse_client=self.syn)
+        assert latest_table.version_label == "in progress"
+        assert latest_table.version_comment == "in progress"
+        assert latest_table.version_number > 1
+
+    async def test_snapshot_minimal_args(self, project_model: Project) -> None:
+        """Test creating a snapshot with minimal arguments."""
+        # GIVEN a table with some data
+        table = Table(
+            name=str(uuid.uuid4()),
+            parent_id=project_model.id,
+            columns=[
+                Column(name="col1", column_type=ColumnType.STRING),
+                Column(name="col2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Store some data
+        data = {"col1": ["A", "B"], "col2": [1, 2]}
+        await table.store_rows_async(values=data, synapse_client=self.syn)
+
+        # WHEN I create a snapshot with minimal arguments
+        snapshot_response = await table.snapshot_async(synapse_client=self.syn)
+
+        # THEN the snapshot should be created successfully
+        assert snapshot_response is not None
+        assert "snapshotVersionNumber" in snapshot_response
+        assert snapshot_response["snapshotVersionNumber"] is not None
+
+        # AND the snapshot version should be 1
+        snapshot_version = snapshot_response["snapshotVersionNumber"]
+        assert snapshot_version == 1
+
+        # AND when I retrieve the snapshot version, it should have the correct version number
+        snapshot_table = await Table(
+            id=table.id, version_number=snapshot_version
+        ).get_async(synapse_client=self.syn)
+        assert snapshot_table.version_number == 1
+        # Comment and label should be None or empty when not specified
+        assert (
+            snapshot_table.version_comment is None
+            or snapshot_table.version_comment == ""
+        )
+        assert snapshot_table.version_label == "1"
+
+        # AND when I retrieve the latest version (without specifying version), it should be "in progress"
+        latest_table = await Table(id=table.id).get_async(synapse_client=self.syn)
+        assert latest_table.version_label == "in progress"
+        assert latest_table.version_comment == "in progress"
+        assert latest_table.version_number > 1
