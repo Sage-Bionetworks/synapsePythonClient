@@ -52,7 +52,8 @@ class ColumnSynchronousProtocol(Protocol):
 
         Arguments:
             prefix: Optional prefix to filter columns by name.
-            limit: Maximum number of columns to return (pagination parameter).
+            limit: Number of columns to retrieve per request to Synapse (pagination parameter).
+                The function will continue retrieving results until all matching columns are returned.
             offset: The index of the first column to return (pagination parameter).
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
