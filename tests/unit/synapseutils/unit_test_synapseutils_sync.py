@@ -6,7 +6,7 @@ import os
 import random
 import tempfile
 from io import StringIO
-from typing import Any, Callable, Coroutine, Dict
+from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
 import pandas as pd
@@ -15,13 +15,11 @@ import pytest
 
 import synapseclient
 import synapseutils
-from synapseclient import Activity
 from synapseclient import File as SynapseFile
 from synapseclient import Folder, Project, Schema, Synapse
 from synapseclient.core.constants import concrete_types, method_flags
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.core.utils import id_of
-from synapseclient.models import File
+from synapseclient.models import Activity, File
 from synapseutils import sync
 from synapseutils.sync import _SyncUploader, _SyncUploadItem
 from tests.test_utils import spy_for_async_function, spy_for_function
@@ -471,27 +469,22 @@ def test_sync_from_synapse_manifest_is_all(
     )
 
     file_1_provenance = Activity(
-        data={
-            "used": "",
-            "executed": "",
-        }
+        name="",
+        description="",
+        used=[],
+        executed=[],
     )
     file_2_provenance = Activity(
-        data={
-            "used": "",
-            "executed": "",
-            "name": "foo",
-            "description": "bar",
-        }
+        name="foo",
+        description="bar",
+        used=[],
+        executed=[],
     )
 
     provenance = {
         file.id: file_1_provenance,
         file_2.id: file_2_provenance,
     }
-
-    def get_provenance_side_effect(entity, *args, **kwargs) -> Activity:
-        return provenance[id_of(entity)]
 
     with patch.object(
         syn,
@@ -521,9 +514,11 @@ def test_sync_from_synapse_manifest_is_all(
     ), patch(
         "synapseclient.models.file.get_from_entity_factory",
         wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
-    ) as patch_get_file_entity, patch.object(
-        syn, "getProvenance", side_effect=get_provenance_side_effect
-    ) as patch_syn_get_provenance, patch(
+    ) as patch_get_file_entity, patch(
+        "synapseclient.models.activity.Activity.from_parent_async",
+        new_callable=AsyncMock,
+        side_effect=lambda parent, **kwargs: provenance.get(parent.id),
+    ) as patch_activity_from_parent, patch(
         "synapseutils.sync.generate_manifest",
         wraps=spy_for_function(synapseutils.sync.generate_manifest),
     ) as generate_manifest_spy:
@@ -563,7 +558,7 @@ def test_sync_from_synapse_manifest_is_all(
         ]
 
         assert generate_manifest_spy.call_count == 2
-        assert patch_syn_get_provenance.call_count == 2
+        assert patch_activity_from_parent.call_count == 2
 
         # Top level parent project
         generate_manifest_spy.call_args_list[0] == call(
@@ -628,27 +623,22 @@ def test_sync_from_synapse_manifest_is_root(
     )
 
     file_1_provenance = Activity(
-        data={
-            "used": "",
-            "executed": "",
-        }
+        name="",
+        description="",
+        used=[],
+        executed=[],
     )
     file_2_provenance = Activity(
-        data={
-            "used": "",
-            "executed": "",
-            "name": "foo",
-            "description": "bar",
-        }
+        name="foo",
+        description="bar",
+        used=[],
+        executed=[],
     )
 
     provenance = {
         file.id: file_1_provenance,
         file_2.id: file_2_provenance,
     }
-
-    def get_provenance_side_effect(entity, *args, **kwargs) -> Activity:
-        return provenance[id_of(entity)]
 
     with patch.object(
         syn,
@@ -678,9 +668,11 @@ def test_sync_from_synapse_manifest_is_root(
     ), patch(
         "synapseclient.models.file.get_from_entity_factory",
         wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
-    ) as patch_get_file_entity, patch.object(
-        syn, "getProvenance", side_effect=get_provenance_side_effect
-    ) as patch_syn_get_provenance, patch(
+    ) as patch_get_file_entity, patch(
+        "synapseclient.models.activity.Activity.from_parent_async",
+        new_callable=AsyncMock,
+        side_effect=lambda parent, **kwargs: provenance.get(parent.id),
+    ) as patch_activity_from_parent, patch(
         "synapseutils.sync.generate_manifest",
         wraps=spy_for_function(synapseutils.sync.generate_manifest),
     ) as generate_manifest_spy:
@@ -720,7 +712,7 @@ def test_sync_from_synapse_manifest_is_root(
         ]
 
         assert generate_manifest_spy.call_count == 1
-        assert patch_syn_get_provenance.call_count == 2
+        assert patch_activity_from_parent.call_count == 2
 
         # Top level parent project
         generate_manifest_spy.call_args_list[0] == call(
@@ -800,9 +792,11 @@ def test_sync_from_synapse_manifest_is_suppress(
     ), patch(
         "synapseclient.models.file.get_from_entity_factory",
         wraps=spy_for_async_function(synapseclient.models.file.get_from_entity_factory),
-    ) as patch_get_file_entity, patch.object(
-        syn, "getProvenance", return_value=None
-    ) as patch_syn_get_provenance:
+    ) as patch_get_file_entity, patch(
+        "synapseclient.models.activity.Activity.from_parent_async",
+        new_callable=AsyncMock,
+        return_value=None,
+    ) as patch_activity_from_parent:
         result = synapseutils.syncFromSynapse(
             syn=syn, entity=project, path="./", manifest="suppress"
         )
@@ -839,7 +833,7 @@ def test_sync_from_synapse_manifest_is_suppress(
         ]
 
         assert mock_generate_manifest.call_count == 0
-        assert patch_syn_get_provenance.call_count == 2
+        assert patch_activity_from_parent.call_count == 2
 
 
 def test_sync_from_synapse_manifest_value_is_invalid(syn) -> None:
