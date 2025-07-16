@@ -135,7 +135,9 @@ class TestColumn:
         assert "test_prefix_column_filter_col2" in column_names
         assert "other_col" not in column_names
 
-    async def test_list_columns_with_limit_and_offset(self, project_model: Project) -> None:
+    async def test_list_columns_with_limit_and_offset(
+        self, project_model: Project
+    ) -> None:
         """Test listing columns with limit and offset parameters to verify pagination behavior."""
         # GIVEN a single table with multiple columns
         table_name = str(uuid.uuid4())
