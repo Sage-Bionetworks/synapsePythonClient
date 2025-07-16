@@ -1830,8 +1830,18 @@ class Synapse(object):
 
         return bundle
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "This method uses legacy Entity objects. "
+        "Use the new dataclass models (File, Folder, Table, etc.) with their `parent_id` attribute and `.store()` method instead. ",
+    )
     def move(self, entity, new_parent):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the new dataclass models (File, Folder, Table, etc.) with their `parent_id`
+        attribute and `.store()` method instead.
+
         Move a Synapse entity to a new container.
 
         Arguments:
@@ -1841,10 +1851,79 @@ class Synapse(object):
         Returns:
             The Synapse Entity object that has been moved.
 
-        Example: Using this function
+        Example: Using this function (DEPRECATED)
             Move a Synapse Entity object to a new parent container
 
                 entity = syn.move('syn456', 'syn123')
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                File, Folder, Table, Dataset, DatasetCollection,
+                EntityView, SubmissionView, MaterializedView, VirtualTable
+            )
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Moving a File
+            file = File(id="syn456", download_file=False).get()
+            file.parent_id = "syn123"
+            file = file.store()
+            print(f"Moved file to: {file.parent_id}")
+
+            # Moving a Folder
+            folder = Folder(id="syn789").get()
+            folder.parent_id = "syn123"
+            folder = folder.store()
+            print(f"Moved folder to: {folder.parent_id}")
+
+            # Moving a Table
+            table = Table(id="syn101112").get()
+            table.parent_id = "syn123"
+            table = table.store()
+            print(f"Moved table to: {table.parent_id}")
+
+            # Moving a Dataset
+            dataset = Dataset(id="syn131415").get()
+            dataset.parent_id = "syn123"
+            dataset = dataset.store()
+            print(f"Moved dataset to: {dataset.parent_id}")
+
+            # Moving a DatasetCollection
+            dataset_collection = DatasetCollection(id="syn161718").get()
+            dataset_collection.parent_id = "syn123"
+            dataset_collection = dataset_collection.store()
+            print(f"Moved dataset collection to: {dataset_collection.parent_id}")
+
+            # Moving an EntityView
+            entity_view = EntityView(id="syn192021").get()
+            entity_view.parent_id = "syn123"
+            entity_view = entity_view.store()
+            print(f"Moved entity view to: {entity_view.parent_id}")
+
+            # Moving a SubmissionView
+            submission_view = SubmissionView(id="syn222324").get()
+            submission_view.parent_id = "syn123"
+            submission_view = submission_view.store()
+            print(f"Moved submission view to: {submission_view.parent_id}")
+
+            # Moving a MaterializedView
+            materialized_view = MaterializedView(id="syn252627").get()
+            materialized_view.parent_id = "syn123"
+            materialized_view = materialized_view.store()
+            print(f"Moved materialized view to: {materialized_view.parent_id}")
+
+            # Moving a VirtualTable
+            virtual_table = VirtualTable(id="syn282930").get()
+            virtual_table.parent_id = "syn123"
+            virtual_table = virtual_table.store()
+            print(f"Moved virtual table to: {virtual_table.parent_id}")
+            ```
         """
 
         entity = self.get(entity, downloadFile=False)

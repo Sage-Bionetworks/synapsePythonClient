@@ -518,6 +518,9 @@ class VirtualTable(
             ValueError: If the defining_sql contains JOIN or UNION operations,
                 which are not supported in VirtualTables.
 
+        Raises:
+            ValueError: If the defining_sql attribute is not set.
+
         Example: Create a new virtual table with a defining SQL query.
             &nbsp;
 
@@ -553,6 +556,10 @@ class VirtualTable(
                     "VirtualTables do not support JOIN or UNION operations in the defining_sql. "
                     "If you need to combine data from multiple tables, consider using a MaterializedView instead."
                 )
+        else:
+            raise ValueError(
+                "The defining_sql attribute must be set for a VirtualTable."
+            )
 
         return await super().store_async(
             dry_run=dry_run, job_timeout=job_timeout, synapse_client=synapse_client

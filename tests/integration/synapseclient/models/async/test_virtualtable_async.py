@@ -31,8 +31,8 @@ class TestVirtualTableBasicOperations:
 
         # WHEN/THEN: Empty SQL should be rejected
         with pytest.raises(
-            SynapseHTTPError,
-            match="400 Client Error: The definingSQL of the virtual table is required and must not be the empty string.",
+            ValueError,
+            match="The defining_sql attribute must be set for a",
         ):
             await empty_sql_virtual_table.store_async(synapse_client=self.syn)
 
