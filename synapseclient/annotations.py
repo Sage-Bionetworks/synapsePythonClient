@@ -74,6 +74,8 @@ import collections
 import datetime
 import typing
 
+from deprecated import deprecated
+
 from synapseclient.core.utils import (
     from_unix_epoch_time,
     id_of,
@@ -284,6 +286,13 @@ def set_privacy(
     raise KeyError('The key "%s" couldn\'t be found in the annotations.' % key)
 
 
+@deprecated(
+    version="4.9.0",
+    reason="Use the dataclass model attributes instead. "
+    "All dataclass models support annotations: File, Folder, Project, Table, EntityView, Dataset, "
+    "DatasetCollection, MaterializedView, SubmissionView, VirtualTable. "
+    "Access annotations directly via `instance.annotations` attribute.",
+)
 class Annotations(dict):
     """
     Represent Synapse Entity annotations as a flat dictionary with the system assigned properties id, etag
@@ -295,15 +304,42 @@ class Annotations(dict):
         values: (Optional) dictionary of values to be copied into annotations
         **kwargs: additional key-value pairs to be added as annotations
 
-    Example: Creating a few instances
-        Creating and setting annotations
+    Example: Migrating from this class to dataclass models
+        **Legacy approach (deprecated):**
+        ```python
+        from synapseclient import Annotations
 
-            from synapseclient import Annotations
+        example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
+        example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
+        example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
+        example3['foo'] = 'bar'
+        ```
 
-            example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
-            example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
-            example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
-            example3['foo'] = 'bar'
+        **New approach using dataclass models:**
+        ```python
+        import synapseclient
+        from synapseclient.models import (
+            File, Folder, Project, Table, EntityView, Dataset,
+            DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+        )
+
+        # Create client and login
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        # File - don't download the file content, just get metadata
+        file_instance = File(id="syn12345", download_file=False)
+        file_instance = file_instance.get()
+        file_instance.annotations = {
+            "foo": ["bar"],
+            "species": ["Homo sapiens"]
+        }
+        file_instance = file_instance.store()
+        print(f"File annotations: {file_instance.annotations}")
+
+        # All other dataclass models work the same way
+        # annotations is always a dict by default (empty {} if no annotations exist)
+        ```
     """
 
     id: str
