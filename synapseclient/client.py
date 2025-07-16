@@ -2968,6 +2968,10 @@ class Synapse(object):
     #                  Get / Set Annotations                   #
     ############################################################
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getRawAnnotations(
         self, entity: Union[Entity, str], version: int = None
     ) -> Dict[str, Union[str, dict]]:
@@ -2990,6 +2994,13 @@ class Synapse(object):
             uri = f"/entity/{id_of(entity)}/annotations2"
         return self.restGET(uri)
 
+    @deprecated(
+        version="4.9.0",
+        reason="Use the dataclass model attributes instead. "
+        "All dataclass models support annotations: File, Folder, Project, Table, EntityView, Dataset, "
+        "DatasetCollection, MaterializedView, SubmissionView, VirtualTable. "
+        "Access annotations directly via `instance.annotations` attribute.",
+    )
     def get_annotations(
         self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None
     ) -> Annotations:
@@ -3005,9 +3016,106 @@ class Synapse(object):
 
         Returns:
             A [synapseclient.annotations.Annotations][] object, a dict that also has id and etag attributes
+
+        Example: Migrating from this method to dataclass models
+            **Legacy approach (deprecated):**
+            ```python
+            # Get the File entity first
+            file_entity = syn.get("syn123")
+
+            # Get annotations separately
+            annotations = syn.get_annotations(file_entity)
+            print(annotations)
+            ```
+
+            **New approach using dataclass models:**
+            ```python
+            import synapseclient
+            from synapseclient.models import (
+                File, Folder, Project, Table, EntityView, Dataset,
+                DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+            )
+
+            # Create client and login
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # File - don't download the file content, just get metadata
+            file_instance = File(id="syn12345", download_file=False)
+            file_instance = file_instance.get()
+            print(f"File annotations: {file_instance.annotations}")
+
+            # Folder
+            folder_instance = Folder(id="syn11111")
+            folder_instance = folder_instance.get()
+            print(f"Folder annotations: {folder_instance.annotations}")
+
+            # Project
+            project_instance = Project(id="syn22222")
+            project_instance = project_instance.get()
+            print(f"Project annotations: {project_instance.annotations}")
+
+            # Table
+            table_instance = Table(id="syn33333")
+            table_instance = table_instance.get()
+            print(f"Table annotations: {table_instance.annotations}")
+
+            # EntityView
+            view_instance = EntityView(id="syn44444")
+            view_instance = view_instance.get()
+            print(f"EntityView annotations: {view_instance.annotations}")
+
+            # Dataset
+            dataset_instance = Dataset(id="syn55555")
+            dataset_instance = dataset_instance.get()
+            print(f"Dataset annotations: {dataset_instance.annotations}")
+
+            # DatasetCollection
+            collection_instance = DatasetCollection(id="syn66666")
+            collection_instance = collection_instance.get()
+            print(f"DatasetCollection annotations: {collection_instance.annotations}")
+
+            # MaterializedView
+            mat_view_instance = MaterializedView(id="syn77777")
+            mat_view_instance = mat_view_instance.get()
+            print(f"MaterializedView annotations: {mat_view_instance.annotations}")
+
+            # SubmissionView
+            sub_view_instance = SubmissionView(id="syn88888")
+            sub_view_instance = sub_view_instance.get()
+            print(f"SubmissionView annotations: {sub_view_instance.annotations}")
+
+            # VirtualTable
+            virtual_table_instance = VirtualTable(id="syn99999")
+            virtual_table_instance = virtual_table_instance.get()
+            print(f"VirtualTable annotations: {virtual_table_instance.annotations}")
+
+            # Access specific annotation values
+            # annotations is always a dict by default (empty {} if no annotations exist)
+            species = file_instance.annotations.get("species", [])
+            data_type = file_instance.annotations.get("dataType", [])
+            print(f"Species: {species}, Data type: {data_type}")
+
+            # Check if a specific annotation exists
+            if species:
+                print(f"Species annotation exists: {species}")
+            else:
+                print("Species annotation not found")
+
+            # Get all annotation keys
+            annotation_keys = list(file_instance.annotations.keys())
+            print(f"Available annotation keys: {annotation_keys}")
+            ```
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
+    @deprecated(
+        version="4.9.0",
+        reason="Use the dataclass model attributes instead. "
+        "All dataclass models support annotations: File, Folder, Project, Table, EntityView, Dataset, "
+        "DatasetCollection, MaterializedView, SubmissionView, VirtualTable. "
+        "Set annotations via `instance.annotations = {...}` then call `instance.store()`.",
+    )
     def set_annotations(self, annotations: Annotations):
         """
         Store annotations for an Entity in the Synapse Repository.
@@ -3019,7 +3127,227 @@ class Synapse(object):
         Returns:
             The updated [synapseclient.annotations.Annotations][] for the entity
 
-        Example: Using this function
+        Example: Migrating from this method to dataclass models
+            **Legacy approach (deprecated):**
+            ```python
+            # Get annotations, modify, and set back
+            annos = syn.get_annotations('syn12345')
+            annos['foo'] = ['bar', 'baz']
+            annos['qwerty'] = 'asdf'
+            annos = syn.set_annotations(annos)
+            print(annos)
+            ```
+
+            **New approach using dataclass models:**
+
+            In this example all of these updates are destructive, meaning they will
+            overwrite any existing annotations. If you want to merge annotations
+            instead, see the merging example below.
+            ```python
+            import synapseclient
+            from synapseclient.models import (
+                File, Folder, Project, Table, EntityView, Dataset,
+                DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+            )
+
+            # Create client and login
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # File - don't download the file content, just get metadata
+            file_instance = File(id="syn12345", download_file=False)
+            file_instance = file_instance.get()
+            file_instance.annotations = {
+                "foo": ["bar", "baz"],
+                "qwerty": ["asdf"],
+                "species": ["Homo sapiens"]
+            }
+            file_instance = file_instance.store()
+            print(f"File annotations: {file_instance.annotations}")
+
+            # Folder
+            folder_instance = Folder(id="syn11111")
+            folder_instance = folder_instance.get()
+            folder_instance.annotations = {
+                "category": ["research"],
+                "department": ["biology"]
+            }
+            folder_instance = folder_instance.store()
+            print(f"Folder annotations: {folder_instance.annotations}")
+
+            # Project
+            project_instance = Project(id="syn22222")
+            project_instance = project_instance.get()
+            project_instance.annotations = {
+                "funding": ["NIH"],
+                "grant_number": ["R01-12345"]
+            }
+            project_instance = project_instance.store()
+            print(f"Project annotations: {project_instance.annotations}")
+
+            # Table
+            table_instance = Table(id="syn33333")
+            table_instance = table_instance.get()
+            table_instance.annotations = {
+                "version": ["1.0"],
+                "data_type": ["clinical"]
+            }
+            table_instance = table_instance.store()
+            print(f"Table annotations: {table_instance.annotations}")
+
+            # EntityView
+            view_instance = EntityView(id="syn44444")
+            view_instance = view_instance.get()
+            view_instance.annotations = {
+                "scope": ["project_wide"],
+                "view_type": ["file_view"]
+            }
+            view_instance = view_instance.store()
+            print(f"EntityView annotations: {view_instance.annotations}")
+
+            # Dataset
+            dataset_instance = Dataset(id="syn55555")
+            dataset_instance = dataset_instance.get()
+            dataset_instance.annotations = {
+                "dataset_type": ["genomic"],
+                "size": ["large"]
+            }
+            dataset_instance = dataset_instance.store()
+            print(f"Dataset annotations: {dataset_instance.annotations}")
+
+            # DatasetCollection
+            collection_instance = DatasetCollection(id="syn66666")
+            collection_instance = collection_instance.get()
+            collection_instance.annotations = {
+                "collection_type": ["multi_omics"],
+                "studies": ["3"]
+            }
+            collection_instance = collection_instance.store()
+            print(f"DatasetCollection annotations: {collection_instance.annotations}")
+
+            # MaterializedView
+            mat_view_instance = MaterializedView(id="syn77777")
+            mat_view_instance = mat_view_instance.get()
+            mat_view_instance.annotations = {
+                "refresh_frequency": ["daily"],
+                "data_source": ["clinical_db"]
+            }
+            mat_view_instance = mat_view_instance.store()
+            print(f"MaterializedView annotations: {mat_view_instance.annotations}")
+
+            # SubmissionView
+            sub_view_instance = SubmissionView(id="syn88888")
+            sub_view_instance = sub_view_instance.get()
+            sub_view_instance.annotations = {
+                "evaluation_queue": ["challenge_2024"],
+                "status": ["active"]
+            }
+            sub_view_instance = sub_view_instance.store()
+            print(f"SubmissionView annotations: {sub_view_instance.annotations}")
+
+            # VirtualTable
+            virtual_table_instance = VirtualTable(id="syn99999")
+            virtual_table_instance = virtual_table_instance.get()
+            virtual_table_instance.annotations = {
+                "virtual_type": ["federated"],
+                "source_count": ["5"]
+            }
+            virtual_table_instance = virtual_table_instance.store()
+            print(f"VirtualTable annotations: {virtual_table_instance.annotations}")
+            ```
+
+            **For merging with existing annotations:**
+            ```python
+            import synapseclient
+            from synapseclient.models import File, Folder
+
+            # Create client and login
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # Get existing annotations and merge for File
+            file_instance = File(id="syn12345", download_file=False)
+            file_instance = file_instance.get()
+
+            # Merge with existing annotations (annotations is always a dict by default)
+            file_instance.annotations.update({
+                "foo": ["bar", "baz"],
+                "qwerty": ["asdf"]
+            })
+
+            # Store the updated File
+            file_instance = file_instance.store()
+            print(f"Updated file annotations: {file_instance.annotations}")
+
+            # Same pattern works for all other dataclass models
+            folder_instance = Folder(id="syn11111")
+            folder_instance = folder_instance.get()
+            folder_instance.annotations.update({"new_key": ["new_value"]})
+            folder_instance = folder_instance.store()
+            print(f"Updated folder annotations: {folder_instance.annotations}")
+            ```
+
+            **For updating single annotation values:**
+            ```python
+            import synapseclient
+            from synapseclient.models import File
+
+            # Create client and login
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # Update a single annotation value while preserving existing annotations
+            file_instance = File(id="syn12345", download_file=False)
+            file_instance = file_instance.get()
+
+            # annotations is always a dict by default (empty {} if no annotations exist)
+            # You can directly access and modify annotation values
+            file_instance.annotations["species"] = ["Mus musculus"]
+            file_instance.annotations["data_type"] = ["RNA-seq"]
+
+            # Store the updated File
+            file_instance = file_instance.store()
+            print(f"Updated file annotations: {file_instance.annotations}")
+            ```
+
+            **IMPORTANT - Destructive vs Non-destructive updates:**
+            ```python
+            import synapseclient
+            from synapseclient.models import File
+
+            # Create client and login
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # When you call .get(), existing annotations are loaded into the instance
+            file_instance = File(id="syn12345", download_file=False)
+            file_instance = file_instance.get()
+            # Now file_instance.annotations contains existing annotations from Synapse
+
+            # DESTRUCTIVE UPDATE - This replaces ALL existing annotations
+            file_instance.annotations = {
+                "new_key": ["new_value"]
+            }
+            # All previous annotations are lost!
+
+            # NON-DESTRUCTIVE UPDATE - This preserves existing annotations
+            # annotations is always a dict by default (empty {} if no annotations exist)
+            file_instance.annotations.update({
+                "new_key": ["new_value"]
+            })
+            # OR modify individual keys:
+            file_instance.annotations["another_key"] = ["another_value"]
+            # Previous annotations are preserved
+
+            # To remove ALL annotations, set to None or empty dict
+            file_instance.annotations = None  # Clears all annotations
+            # OR
+            file_instance.annotations = {}    # Also clears all annotations
+
+            file_instance = file_instance.store()
+            ```
+
+        Example: Using this function (DEPRECATED)
             Getting annotations, adding a new annotation, and updating the annotations:
 
                 annos = syn.get_annotations('syn123')
