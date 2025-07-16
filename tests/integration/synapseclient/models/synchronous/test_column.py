@@ -14,7 +14,7 @@ class TestColumn:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    def test_get_column_by_id(self, project_model: Project) -> None:
+    async def test_get_column_by_id(self, project_model: Project) -> None:
         """Test getting a column by its ID."""
         # GIVEN a table with a column
         table_name = str(uuid.uuid4())
@@ -49,7 +49,7 @@ class TestColumn:
         assert column.column_type == ColumnType.STRING
         assert column.maximum_size == 50
 
-    def test_get_column_by_invalid_id(self) -> None:
+    async def test_get_column_by_invalid_id(self) -> None:
         """Test getting a column by an invalid ID."""
         # GIVEN an invalid column ID
         invalid_id = "999999999"
@@ -62,7 +62,7 @@ class TestColumn:
         # Verify the error is a 404 Not Found
         assert "404" in str(exc_info.value)
 
-    def test_list_all_columns(self, project_model: Project) -> None:
+    async def test_list_all_columns(self, project_model: Project) -> None:
         """Test listing all columns without a prefix."""
         # GIVEN a single table with multiple columns
         table_name = str(uuid.uuid4())
@@ -94,7 +94,7 @@ class TestColumn:
         assert all(col.id is not None for col in columns)
         assert all(col.name is not None for col in columns)
 
-    def test_list_columns_with_prefix(self, project_model: Project) -> None:
+    async def test_list_columns_with_prefix(self, project_model: Project) -> None:
         """Test listing columns with a prefix filter."""
         # GIVEN a table with columns that have a specific prefix
         prefix = "test_prefix_column_filter"
@@ -135,7 +135,7 @@ class TestColumn:
         assert "test_prefix_column_filter_col2" in column_names
         assert "other_col" not in column_names
 
-    def test_list_columns_with_limit_and_offset(self, project_model: Project) -> None:
+    async def test_list_columns_with_limit_and_offset(self, project_model: Project) -> None:
         """Test listing columns with limit and offset parameters to verify pagination behavior."""
         # GIVEN a single table with multiple columns
         table_name = str(uuid.uuid4())
@@ -178,7 +178,7 @@ class TestColumn:
         assert len(columns_page2) <= 3
         assert all(isinstance(col, Column) for col in columns_page2)
 
-    def test_list_columns_with_no_prefix_match(self) -> None:
+    async def test_list_columns_with_no_prefix_match(self) -> None:
         """Test listing columns with a prefix that doesn't match any columns."""
         # GIVEN a unique prefix that won't match any existing columns
         unique_prefix = "nonexistent_prefix_static"
