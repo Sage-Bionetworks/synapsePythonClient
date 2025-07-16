@@ -37,7 +37,10 @@ at your own risk.
 [](){ #column-reference-async }
 ::: synapseclient.models.Column
     options:
+        inherited_members: true
         members:
+        - get_async
+        - list_async
 
 [](){ #schema-storage-strategy-reference-async }
 ::: synapseclient.models.SchemaStorageStrategy

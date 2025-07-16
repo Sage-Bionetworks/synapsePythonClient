@@ -5916,8 +5916,17 @@ class Synapse(object):
         progress_bar.close()
         return result
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `Column.get()` method instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def getColumn(self, id):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `Column.get()` method instead.
+
         Gets a Column object from Synapse by ID.
 
         See: [synapseclient.table.Column][]
@@ -5928,27 +5937,117 @@ class Synapse(object):
         Returns:
             An object of type [synapseclient.table.Column][]
 
-
-        Example: Using this function
+        Example: Using this function (DEPRECATED)
             Getting a column
 
                 column = syn.getColumn(123)
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Get a column by ID
+            column = Column(id="123").get()
+            print(f"Column name: {column.name}")
+            print(f"Column type: {column.column_type}")
+            print(f"Column ID: {column.id}")
+            ```
         """
         return Column(**self.restGET(Column.getURI(id)))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "For table columns, use the `.columns` attribute on Table, EntityView, SubmissionView, or Dataset classes after calling `.get(include_columns=True)`. "
+        "For column listing and prefix filtering, use the `Column.list()` method. "
+        "Check the docstring for the replacement function example.",
+    )
     def getColumns(self, x, limit=100, offset=0):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `.columns` attribute on table classes or `Column.list()` method instead.
+
         Get the columns defined in Synapse either (1) corresponding to a set of column headers, (2) those for a given
         schema, or (3) those whose names start with a given prefix.
 
         Arguments:
             x: A list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID, or a
                 string prefix
-            limit: maximum number of columns to return (pagination parameter)
+            limit: Number of columns to retrieve per request to Synapse (pagination parameter).
+                The function will continue retrieving results until all matching columns are returned.
             offset: the index of the first column to return (pagination parameter)
 
         Yields:
             A generator over [synapseclient.table.Column][] objects
+
+        Example: Using this function (DEPRECATED)
+            Getting columns for a table
+
+                for column in syn.getColumns("syn12345"):
+                    print(column.name)
+
+            Getting columns with a prefix
+
+                for column in syn.getColumns("my_prefix"):
+                    print(column.name)
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, Table, EntityView, SubmissionView, Dataset, DatasetCollection
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # For getting columns of a specific table/view/dataset
+            table = Table(id="syn12345")
+            table = table.get(include_columns=True)
+            for column_name, column in table.columns.items():
+                print(f"Table column: {column_name}, Type: {column.column_type}")
+
+            # For EntityView
+            view = EntityView(id="syn67890")
+            view = view.get(include_columns=True)
+            for column_name, column in view.columns.items():
+                print(f"EntityView column: {column_name}, Type: {column.column_type}")
+
+            # For SubmissionView
+            submission_view = SubmissionView(id="syn11111")
+            submission_view = submission_view.get(include_columns=True)
+            for column_name, column in submission_view.columns.items():
+                print(f"SubmissionView column: {column_name}, Type: {column.column_type}")
+
+            # For Dataset
+            dataset = Dataset(id="syn22222")
+            dataset = dataset.get(include_columns=True)
+            for column_name, column in dataset.columns.items():
+                print(f"Dataset column: {column_name}, Type: {column.column_type}")
+
+            # For DatasetCollection
+            dataset_collection = DatasetCollection(id="syn33333")
+            dataset_collection = dataset_collection.get(include_columns=True)
+            for column_name, column in dataset_collection.columns.items():
+                print(f"DatasetCollection column: {column_name}, Type: {column.column_type}")
+
+            # For listing all columns with a prefix
+            for column in Column.list(prefix="my_prefix"):
+                print(f"Prefixed column: {column.name}, Type: {column.column_type}")
+
+            # For listing all columns
+            for column in Column.list():
+                print(f"All columns: {column.name}, Type: {column.column_type}")
+
+            ```
         """
         if x is None:
             uri = "/column"
@@ -6197,8 +6296,17 @@ class Synapse(object):
 
         return result
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `columns` attribute on the `from synapseclient.models import Table` class. "
+        "Check the docstring for the replacement function example.",
+    )
     def getTableColumns(self, table):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `columns` attribute on [synapseclient.models.Table][] instead.
+
         Retrieve the column models used in the given table schema.
 
         Arguments:
@@ -6206,6 +6314,58 @@ class Synapse(object):
 
         Yields:
             A Generator over the Table's [columns][synapseclient.table.Column]
+
+        Example: Using this function (DEPRECATED)
+            Getting columns from a table schema:
+
+                columns = list(syn.getTableColumns("syn123"))
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Table, Dataset, DatasetCollection, EntityView, SubmissionView
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # For Tables
+            table = Table(id="syn123").get()
+            columns = list(table.columns.values())
+            print("Columns in table:", columns)
+            # Access individual columns by name
+            my_table_column = table.columns["my_column_name"]
+
+            # For Datasets
+            dataset = Dataset(id="syn456").get()
+            columns = list(dataset.columns.values())
+            print("Columns in dataset:", columns)
+            # Access individual columns by name
+            my_dataset_column = dataset.columns["my_column_name"]
+
+            # For Dataset Collections
+            dataset_collection = DatasetCollection(id="syn789").get()
+            columns = list(dataset_collection.columns.values())
+            print("Columns in dataset collection:", columns)
+            # Access individual columns by name
+            my_collection_column = dataset_collection.columns["my_column_name"]
+
+            # For Entity Views
+            entity_view = EntityView(id="syn012").get()
+            columns = list(entity_view.columns.values())
+            print("Columns in entity view:", columns)
+            # Access individual columns by name
+            my_view_column = entity_view.columns["my_column_name"]
+
+            # For Submission Views
+            submission_view = SubmissionView(id="syn345").get()
+            columns = list(submission_view.columns.values())
+            print("Columns in submission view:", columns)
+            # Access individual columns by name
+            my_submission_column = submission_view.columns["my_column_name"]
+            ```
         """
         uri = "/entity/{id}/column".format(id=id_of(table))
         # The returned object type for this service, PaginatedColumnModels, is a misnomer.
@@ -6511,7 +6671,13 @@ class Synapse(object):
 
         return download_from_table_result, path
 
-    # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `.columns` attribute on table-like classes or the `add_column` method to store columns during the storage of these table-like classes. "
+        "For individual column operations, use the synapseclient.api.table_services.post_columns function. "
+        "Check the docstring for the replacement function example.",
+    )
     def createColumn(
         self,
         name,
@@ -6520,6 +6686,79 @@ class Synapse(object):
         defaultValue=None,
         enumValues=None,
     ):
+        """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `.columns` attribute on table-like classes or `add_column` method to store columns during the storage of these table-like classes.
+
+        Creates a new [synapseclient.table.Column][] in Synapse.
+
+        Arguments:
+            name: The name of the column
+            columnType: The column type
+            maximumSize: The maximum size of the column
+            defaultValue: The default value of the column
+            enumValues: The enum values of the column
+
+        Returns:
+            A [synapseclient.table.Column][] object
+
+        Example: Using this function (DEPRECATED)
+            Creating a column
+
+                column = syn.createColumn(
+                    name="my_column",
+                    columnType="STRING",
+                    maximumSize=100
+                )
+
+        Example: Migration to new methods
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
+            from synapseclient.api.table_services import post_columns
+            import asyncio
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Method 1: Create column and add to table using ColumnMixin
+            column = Column(
+                name="my_column",
+                column_type=ColumnType.STRING,
+                maximum_size=100
+            )
+
+            # Get an existing table and add the column
+            table = Table(id="syn1234").get(include_columns=True)
+            table.add_column(column)
+            table.store()
+
+            # Method 2: Create a new table with columns
+            table = Table(
+                name="My Table",
+                parent_id="syn5678",
+                columns=[
+                    Column(name="column1", column_type=ColumnType.STRING),
+                    Column(name="column2", column_type=ColumnType.INTEGER),
+                ]
+            )
+            table.store()
+
+            # Method 3: Use the async post_columns function directly
+            async def create_columns():
+                columns = [
+                    Column(name="my_column", column_type=ColumnType.STRING, maximum_size=100)
+                ]
+                created_columns = await post_columns(columns)
+                return created_columns
+
+            # Run the async function
+            created_columns = asyncio.run(create_columns())
+            ```
+        """
         columnModel = Column(
             name=name,
             columnType=columnType,
@@ -6529,8 +6768,18 @@ class Synapse(object):
         )
         return Column(**self.restPOST("/column", json.dumps(columnModel)))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `.columns` attribute on table-like classes or the `add_column` method to store columns during the storage of these table-like classes. "
+        "For batch column operations, use the synapseclient.api.table_services.post_columns function. "
+        "Check the docstring for the replacement function example.",
+    )
     def createColumns(self, columns: typing.List[Column]) -> typing.List[Column]:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `.columns` attribute on table-like classes or the `add_column` method to store columns during the storage of these table-like classes.
+
         Creates a batch of [synapseclient.table.Column][]'s within a single request.
 
         Arguments:
@@ -6538,6 +6787,63 @@ class Synapse(object):
 
         Returns:
             A list of [synapseclient.table.Column][]'s that have been created in Synapse
+
+        Example: Using this function (DEPRECATED)
+            Creating multiple columns
+
+                columns = [
+                    Column(name="col1", columnType="STRING"),
+                    Column(name="col2", columnType="INTEGER")
+                ]
+                created_columns = syn.createColumns(columns)
+
+        Example: Migration to new methods
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Column, ColumnType, Table
+            from synapseclient.api.table_services import post_columns
+            import asyncio
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Method 1: Create columns and add to table using ColumnMixin
+            columns = [
+                Column(name="col1", column_type=ColumnType.STRING),
+                Column(name="col2", column_type=ColumnType.INTEGER)
+            ]
+
+            # Get an existing table and add the columns
+            table = Table(id="syn1234").get(include_columns=True)
+            table.add_column(columns)
+            table.store()
+
+            # Method 2: Create a new table with columns
+            table = Table(
+                name="My Table",
+                parent_id="syn5678",
+                columns=[
+                    Column(name="col1", column_type=ColumnType.STRING),
+                    Column(name="col2", column_type=ColumnType.INTEGER),
+                ]
+            )
+            table.store()
+
+            # Method 3: Use the async post_columns function directly
+            async def create_columns():
+                columns = [
+                    Column(name="col1", column_type=ColumnType.STRING),
+                    Column(name="col2", column_type=ColumnType.INTEGER)
+                ]
+                created_columns = await post_columns(columns)
+                return created_columns
+
+            # Run the async function
+            created_columns = asyncio.run(create_columns())
+            ```
         """
         request_body = {
             "concreteType": "org.sagebionetworks.repo.model.ListWrapper",
@@ -6546,6 +6852,10 @@ class Synapse(object):
         response = self.restPOST("/column/batch", json.dumps(request_body))
         return [Column(**col) for col in response["list"]]
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getColumnByName(self, schema: Schema, column_name: str) -> Column:
         """
         Given a schema and a column name, get the corresponding [Column][synapseclient.table.Column] object.

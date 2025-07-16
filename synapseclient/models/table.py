@@ -75,7 +75,7 @@ class TableSynchronousProtocol(Protocol):
 
     def get(
         self,
-        include_columns: bool = False,
+        include_columns: bool = True,
         include_activity: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
