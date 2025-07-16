@@ -1,7 +1,8 @@
 """Protocol for the specific methods of this class that have synchronous counterparts
 generated at runtime."""
 
-from typing import Optional, Protocol
+import asyncio
+from typing import List, Optional, Protocol
 
 from typing_extensions import Self
 
@@ -23,6 +24,11 @@ class StorableContainerSynchronousProtocol(Protocol):
         download_file: bool = True,
         if_collision: str = COLLISION_OVERWRITE_LOCAL,
         failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
+        include_activity: bool = True,
+        follow_link: bool = False,
+        link_hops: int = 1,
+        queue: asyncio.Queue = None,
+        include_types: Optional[List[str]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -52,6 +58,16 @@ class StorableContainerSynchronousProtocol(Protocol):
                 - `keep.both`
             failure_strategy: Determines how to handle failures when retrieving children
                 under this Folder and an exception occurs.
+            include_activity: Whether to include the activity of the files.
+            follow_link: Whether to follow a link entity or not. Links can be used to
+                point at other Synapse entities.
+            link_hops: The number of hops to follow the link. A number of 1 is used to
+                prevent circular references. There is nothing in place to prevent
+                infinite loops. Be careful if setting this above 1.
+            queue: An optional queue to use to download files in parallel.
+            include_types: Must be a list of entity types (ie. ["folder","file"]) which
+                can be found
+                [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.

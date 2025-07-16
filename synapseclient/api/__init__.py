@@ -31,6 +31,7 @@ from .entity_services import (
     delete_entity_generated_by,
     delete_entity_provenance,
     get_activity,
+    get_children,
     get_entities_by_md5,
     get_entity,
     get_entity_acl,
@@ -136,6 +137,7 @@ __all__ = [
     "get_activity",
     "create_activity",
     "update_activity",
+    "get_children",
     # configuration_services
     "get_config_file",
     "get_config_section_dict",
