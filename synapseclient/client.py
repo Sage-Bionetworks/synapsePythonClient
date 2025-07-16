@@ -3000,7 +3000,6 @@ class Synapse(object):
         "All dataclass models support annotations: File, Folder, Project, Table, EntityView, Dataset, "
         "DatasetCollection, MaterializedView, SubmissionView, VirtualTable. "
         "Access annotations directly via `instance.annotations` attribute.",
-        action="once",
     )
     def get_annotations(
         self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None
@@ -3116,7 +3115,6 @@ class Synapse(object):
         "All dataclass models support annotations: File, Folder, Project, Table, EntityView, Dataset, "
         "DatasetCollection, MaterializedView, SubmissionView, VirtualTable. "
         "Set annotations via `instance.annotations = {...}` then call `instance.store()`.",
-        action="once",
     )
     def set_annotations(self, annotations: Annotations):
         """
