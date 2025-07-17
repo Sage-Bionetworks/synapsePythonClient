@@ -4,10 +4,11 @@
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Union
 
 from async_lru import alru_cache
 
+from synapseclient.api.api_client import rest_post_paginated_async
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import get_synid_and_version
 
@@ -867,3 +868,99 @@ async def get_activity(
 
     client = Synapse.get_client(synapse_client=synapse_client)
     return await client.rest_get_async(uri=f"/activity/{activity_id}")
+
+
+async def get_children(
+    parent: Optional[str] = None,
+    include_types: List[str] = None,
+    sort_by: str = "NAME",
+    sort_direction: str = "ASC",
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """
+    Retrieve all entities stored within a parent such as folder or project.
+
+    Arguments:
+        parent: The ID of a Synapse container (folder or project) or None to retrieve all projects
+        include_types: List of entity types to include (e.g., ["folder", "file"]).
+                      Available types can be found at:
+                      https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+        sort_by: How results should be sorted. Can be "NAME" or "CREATED_ON"
+        sort_direction: The direction of the result sort. Can be "ASC" or "DESC"
+        synapse_client: If not passed in and caching was not disabled by
+                       `Synapse.allow_client_caching(False)` this will use the last created
+                       instance from the Synapse class constructor.
+
+    Yields:
+        An async generator that yields entity children dictionaries.
+
+    Example: Getting children of a folder
+        Retrieve all children of a folder:
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_children
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            async for child in get_children(parent="syn123456"):
+                print(f"Child: {child['name']} (ID: {child['id']})")
+
+        asyncio.run(main())
+        ```
+
+    Example: Getting children with specific types
+        Retrieve only files and folders:
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_children
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            async for child in get_children(
+                parent="syn123456",
+                include_types=["file", "folder"],
+                sort_by="NAME",
+                sort_direction="ASC"
+            ):
+                print(f"Child: {child['name']} (Type: {child['type']})")
+
+        asyncio.run(main())
+        ```
+    """
+    if include_types is None:
+        include_types = [
+            "folder",
+            "file",
+            "table",
+            "link",
+            "entityview",
+            "dockerrepo",
+            "submissionview",
+            "dataset",
+            "materializedview",
+        ]
+
+    request_body = {
+        "parentId": parent,
+        "includeTypes": include_types,
+        "sortBy": sort_by,
+        "sortDirection": sort_direction,
+    }
+
+    response = rest_post_paginated_async(
+        uri="/entity/children",
+        body=request_body,
+        synapse_client=synapse_client,
+    )
+
+    async for child in response:
+        yield child

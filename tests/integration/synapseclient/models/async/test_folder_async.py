@@ -9,7 +9,22 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import File, Folder, Project
+from synapseclient.models import (
+    Column,
+    ColumnType,
+    Dataset,
+    DatasetCollection,
+    EntityRef,
+    EntityView,
+    File,
+    Folder,
+    MaterializedView,
+    Project,
+    SubmissionView,
+    Table,
+    ViewTypeMask,
+    VirtualTable,
+)
 
 DESCRIPTION_FOLDER = "This is an example folder."
 DESCRIPTION_FILE = "This is an example file."
@@ -504,3 +519,144 @@ class TestFolderSyncFromSynapse:
                     utils.md5_for_file(sub_file.path).hexdigest()
                     == sub_file.file_handle.content_md5
                 )
+
+    async def test_sync_all_entity_types(self, project_model: Project) -> None:
+        """Test syncing a folder with all supported entity types."""
+        # GIVEN a folder with one of each entity type
+
+        # Create the folder first
+        folder = Folder(
+            name=f"test_folder_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+        )
+        folder = await folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(folder.id)
+
+        # Create and store a File
+        file = File(
+            name=f"test_file_{str(uuid.uuid4())}.txt",
+            parent_id=folder.id,
+            path=utils.make_bogus_uuid_file(),
+        )
+        file = await file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(file.id)
+
+        # Create and store a nested Folder
+        nested_folder = Folder(
+            name=f"test_nested_folder_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+        )
+        nested_folder = await nested_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(nested_folder.id)
+
+        # Create and store a Table
+        table = Table(
+            name=f"test_table_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            columns=[
+                Column(name="test_column", column_type=ColumnType.STRING),
+                Column(name="test_column2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Create and store an EntityView
+        entity_view = EntityView(
+            name=f"test_entityview_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            scope_ids=[folder.id],
+            view_type_mask=ViewTypeMask.FILE,
+            include_default_columns=True,
+        )
+        entity_view = await entity_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(entity_view.id)
+
+        # Create and store a MaterializedView
+        materialized_view = MaterializedView(
+            name=f"test_materializedview_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        materialized_view = await materialized_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(materialized_view.id)
+
+        # Create and store a VirtualTable
+        virtual_table = VirtualTable(
+            name=f"test_virtualtable_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table.id)
+
+        # Create and store a Dataset (reusing the existing file)
+        dataset = Dataset(
+            name=f"test_dataset_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            items=[EntityRef(id=file.id, version=1)],
+        )
+        dataset = await dataset.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset.id)
+
+        # Create and store a DatasetCollection
+        dataset_collection = DatasetCollection(
+            name=f"test_datasetcollection_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            items=[EntityRef(id=dataset.id, version=1)],
+        )
+        dataset_collection = await dataset_collection.store_async(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # Create and store a SubmissionView
+        submission_view = SubmissionView(
+            name=f"test_submissionview_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            scope_ids=[folder.id],
+        )
+        submission_view = await submission_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submission_view.id)
+
+        # WHEN I sync the folder from Synapse
+        synced_folder = await folder.sync_from_synapse_async(
+            recursive=False, download_file=False
+        )
+
+        # THEN all entity types should be present
+        assert len(synced_folder.files) == 1
+        assert synced_folder.files[0].id == file.id
+        assert synced_folder.files[0].name == file.name
+
+        assert len(synced_folder.folders) == 1
+        assert synced_folder.folders[0].id == nested_folder.id
+        assert synced_folder.folders[0].name == nested_folder.name
+
+        assert len(synced_folder.tables) == 1
+        assert synced_folder.tables[0].id == table.id
+        assert synced_folder.tables[0].name == table.name
+
+        assert len(synced_folder.entityviews) == 1
+        assert synced_folder.entityviews[0].id == entity_view.id
+        assert synced_folder.entityviews[0].name == entity_view.name
+
+        assert len(synced_folder.materializedviews) == 1
+        assert synced_folder.materializedviews[0].id == materialized_view.id
+        assert synced_folder.materializedviews[0].name == materialized_view.name
+
+        assert len(synced_folder.virtualtables) == 1
+        assert synced_folder.virtualtables[0].id == virtual_table.id
+        assert synced_folder.virtualtables[0].name == virtual_table.name
+
+        assert len(synced_folder.datasets) == 1
+        assert synced_folder.datasets[0].id == dataset.id
+        assert synced_folder.datasets[0].name == dataset.name
+
+        assert len(synced_folder.datasetcollections) == 1
+        assert synced_folder.datasetcollections[0].id == dataset_collection.id
+        assert synced_folder.datasetcollections[0].name == dataset_collection.name
+
+        assert len(synced_folder.submissionviews) == 1
+        assert synced_folder.submissionviews[0].id == submission_view.id
+        assert synced_folder.submissionviews[0].name == submission_view.name

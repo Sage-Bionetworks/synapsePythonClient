@@ -1,3 +1,4 @@
+import json
 import sys
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, Optional
 
@@ -46,7 +47,7 @@ async def rest_post_paginated_async(
             body["nextPageToken"] = next_page_token
         response = await client.rest_post_async(
             uri=uri,
-            body=body,
+            body=json.dumps(body),
             endpoint=endpoint,
             headers=headers,
             retry_policy=retry_policy,
