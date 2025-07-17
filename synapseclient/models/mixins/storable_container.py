@@ -536,7 +536,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 "folder",
                 "file",
                 "table",
-                "link",
                 "entityview",
                 "dockerrepo",
                 "submissionview",
@@ -545,8 +544,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 "materializedview",
                 "virtualtable",
             ]
-        if follow_link and "link" not in include_types:
-            include_types.append("link")
+            if follow_link:
+                include_types.append("link")
+        else:
+            if follow_link and "link" not in include_types:
+                include_types.append("link")
 
         children = []
         async for child in get_children(
