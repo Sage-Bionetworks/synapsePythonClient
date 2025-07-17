@@ -35,9 +35,10 @@ class StorableContainerSynchronousProtocol(Protocol):
         """
         Sync this container and all possible sub-folders from Synapse. By default this
         will download the files that are found and it will populate the
-        `files` and `folders` attributes with the found files and folders. If you only
-        want to retrieve the full tree of metadata about your container specify
-        `download_file` as False.
+        `files` and `folders` attributes with the found files and folders, along with
+        all other entity types (tables, entityviews, etc.) present in the container.
+        If you only want to retrieve the full tree of metadata about your
+        container specify `download_file` as False.
 
         This works similar to [synapseutils.syncFromSynapse][], however, this does not
         currently support the writing of data to a manifest TSV file. This will be a
