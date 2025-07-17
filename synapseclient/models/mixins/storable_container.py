@@ -280,7 +280,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             asyncio.run(my_function())
             ```
 
-            Suppose I want to download the all children of a Project and all sub-folders and files:
+            Suppose I want to download all the children of a Project and all sub-folders and files:
 
             ```python
             import asyncio

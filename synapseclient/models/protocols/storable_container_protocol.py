@@ -150,7 +150,7 @@ class StorableContainerSynchronousProtocol(Protocol):
                 print(f"Dataset: {dataset.name}")
             ```
 
-            Suppose I want to download the all children of a Project and all sub-folders and files:
+            Suppose I want to download all the children of a Project and all sub-folders and files:
 
             ```python
             from synapseclient import Synapse
