@@ -9,7 +9,7 @@ from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api.table_services import ViewEntityType, ViewTypeMask
-from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.async_utils import async_to_sync, wrap_async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import MB, delete_none_keys
 from synapseclient.models import Activity, Annotations
@@ -1022,7 +1022,9 @@ class Dataset(
                 entity_ref=EntityRef(id=item.id, version=item.version_number)
             )
         elif isinstance(item, Folder):
-            children = item._retrieve_children(follow_link=True)
+            children = wrap_async_to_sync(
+                item._retrieve_children(follow_link=True), client
+            )
             for child in children:
                 if child["type"] == concrete_types.FILE_ENTITY:
                     self._append_entity_ref(
@@ -1127,7 +1129,9 @@ class Dataset(
                 ).get()
             self._remove_entity_ref(EntityRef(id=item.id, version=item.version_number))
         elif isinstance(item, Folder):
-            children = item._retrieve_children(follow_link=True)
+            children = wrap_async_to_sync(
+                item._retrieve_children(follow_link=True), client
+            )
             for child in children:
                 if child["type"] == concrete_types.FILE_ENTITY:
                     self._remove_entity_ref(

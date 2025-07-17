@@ -737,10 +737,13 @@ class TestFolder:
         ]
 
         # WHEN I call `sync_from_synapse` with the Folder object
-        with patch.object(
-            self.syn,
-            "getChildren",
-            return_value=(children),
+        async def mock_get_children(*args, **kwargs):
+            for child in children:
+                yield child
+
+        with patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
         ) as mocked_children_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
             new_callable=AsyncMock,

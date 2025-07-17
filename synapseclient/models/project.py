@@ -12,6 +12,7 @@ from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.entity import Project as Synapse_Project
+from synapseclient.models import Annotations, File, Folder
 from synapseclient.models.mixins import (
     AccessControllable,
     ContainerEntityJSONSchema,
@@ -27,12 +28,9 @@ from synapseutils.copy_functions import copy
 
 if TYPE_CHECKING:
     from synapseclient.models import (
-        Annotations,
         Dataset,
         DatasetCollection,
         EntityView,
-        File,
-        Folder,
         MaterializedView,
         SubmissionView,
         Table,
