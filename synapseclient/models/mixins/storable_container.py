@@ -158,7 +158,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         future enhancement.
 
         Supports syncing Files, Folders, Tables, EntityViews, SubmissionViews, Datasets,
-        DatasetCollections, MaterializedViews, and VirtualTables from Synapse.
+        DatasetCollections, MaterializedViews, and VirtualTables from Synapse. The
+        metadata for these entity types will be populated in their respective
+        attributes (`files`, `folders`, `tables`, `entityviews`, `submissionviews`,
+        `datasets`, `datasetcollections`, `materializedviews`, `virtualtables`) if
+        they are found within the container.
 
         Arguments:
             path: An optional path where the file hierarchy will be reproduced. If not
@@ -184,7 +188,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 can be found
                 [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html).
                 Defaults to
-                `["folder", "file", "table", "link", "entityview", "dockerrepo",
+                `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
                 "virtualtable"]`.
             synapse_client: If not passed in and caching was not disabled by
@@ -198,9 +202,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         Example: Using this function
             Suppose I want to walk the immediate children of a folder without downloading the files:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
 
+            async def my_function():
                 syn = Synapse()
                 syn.login()
 
@@ -213,11 +220,23 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 for file in my_folder.files:
                     print(file.name)
 
+                for table in my_folder.tables:
+                    print(table.name)
+
+                for dataset in my_folder.datasets:
+                    print(dataset.name)
+
+            asyncio.run(my_function())
+            ```
+
             Suppose I want to download the immediate children of a folder:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
 
+            async def my_function():
                 syn = Synapse()
                 syn.login()
 
@@ -230,17 +249,52 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 for file in my_folder.files:
                     print(file.name)
 
+            asyncio.run(my_function())
+            ```
 
-            Suppose I want to download the immediate all children of a Project and all sub-folders and files:
+            Suppose I want to sync only specific entity types from a Project:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Project
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
 
+            async def my_function():
+                syn = Synapse()
+                syn.login()
+
+                my_project = Project(id="syn12345")
+                await my_project.sync_from_synapse_async(
+                    path="/path/to/folder",
+                    include_types=["folder", "file", "table", "dataset"]
+                )
+
+                # Access different entity types
+                for table in my_project.tables:
+                    print(f"Table: {table.name}")
+
+                for dataset in my_project.datasets:
+                    print(f"Dataset: {dataset.name}")
+
+            asyncio.run(my_function())
+            ```
+
+            Suppose I want to download the all children of a Project and all sub-folders and files:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            async def my_function():
                 syn = Synapse()
                 syn.login()
 
                 my_project = Project(id="syn12345")
                 await my_project.sync_from_synapse_async(path="/path/to/folder")
+
+            asyncio.run(my_function())
+            ```
 
 
         Raises:
@@ -521,7 +575,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 can be found
                 [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html).
                 Defaults to
-                `["folder", "file", "table", "link", "entityview", "dockerrepo",
+                `["folder", "file", "table", "entityview", "dockerrepo",
                 "submissionview", "dataset", "datasetcollection", "materializedview",
                 "virtualtable"]`.
             synapse_client: If not passed in and caching was not disabled by

@@ -43,7 +43,12 @@ class StorableContainerSynchronousProtocol(Protocol):
         currently support the writing of data to a manifest TSV file. This will be a
         future enhancement.
 
-        Only Files and Folders are supported at this time to be synced from synapse.
+        Supports syncing Files, Folders, Tables, EntityViews, SubmissionViews, Datasets,
+        DatasetCollections, MaterializedViews, and VirtualTables from Synapse. The
+        metadata for these entity types will be populated in their respective
+        attributes (`files`, `folders`, `tables`, `entityviews`, `submissionviews`,
+        `datasets`, `datasetcollections`, `materializedviews`, `virtualtables`) if
+        they are found within the container.
 
         Arguments:
             path: An optional path where the file hierarchy will be reproduced. If not
@@ -79,49 +84,83 @@ class StorableContainerSynchronousProtocol(Protocol):
         Example: Using this function
             Suppose I want to walk the immediate children of a folder without downloading the files:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                my_folder = Folder(id="syn12345")
-                my_folder.sync_from_synapse(download_file=False, recursive=False)
+            my_folder = Folder(id="syn12345")
+            my_folder.sync_from_synapse(download_file=False, recursive=False)
 
-                for folder in my_folder.folders:
-                    print(folder.name)
+            for folder in my_folder.folders:
+                print(folder.name)
 
-                for file in my_folder.files:
-                    print(file.name)
+            for file in my_folder.files:
+                print(file.name)
+
+            for table in my_folder.tables:
+                print(table.name)
+
+            for dataset in my_folder.datasets:
+                print(dataset.name)
+            ```
 
             Suppose I want to download the immediate children of a folder:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
 
-                syn = Synapse()
-                syn.login()
+            syn = Synapse()
+            syn.login()
 
-                my_folder = Folder(id="syn12345")
-                my_folder.sync_from_synapse(path="/path/to/folder", recursive=False)
+            my_folder = Folder(id="syn12345")
+            my_folder.sync_from_synapse(path="/path/to/folder", recursive=False)
 
-                for folder in my_folder.folders:
-                    print(folder.name)
+            for folder in my_folder.folders:
+                print(folder.name)
 
-                for file in my_folder.files:
-                    print(file.name)
+            for file in my_folder.files:
+                print(file.name)
+            ```
 
+            Suppose I want to sync only specific entity types from a Project:
 
-            Suppose I want to download the immediate all children of a Project and all sub-folders and files:
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Project
 
-                from synapseclient import Synapse
-                from synapseclient.models import Project
+            syn = Synapse()
+            syn.login()
 
-                syn = Synapse()
-                syn.login()
+            my_project = Project(id="syn12345")
+            my_project.sync_from_synapse(
+                path="/path/to/folder",
+                include_types=["folder", "file", "table", "dataset"]
+            )
 
-                my_project = Project(id="syn12345")
-                my_project.sync_from_synapse(path="/path/to/folder")
+            # Access different entity types
+            for table in my_project.tables:
+                print(f"Table: {table.name}")
+
+            for dataset in my_project.datasets:
+                print(f"Dataset: {dataset.name}")
+            ```
+
+            Suppose I want to download the all children of a Project and all sub-folders and files:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            syn = Synapse()
+            syn.login()
+
+            my_project = Project(id="syn12345")
+            my_project.sync_from_synapse(path="/path/to/folder")
+            ```
 
 
         Raises:
