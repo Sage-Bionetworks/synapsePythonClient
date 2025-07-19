@@ -3555,6 +3555,10 @@ class Synapse(object):
     #                     ACL manipulation                     #
     ############################################################
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getBenefactor(
         self, entity: Union[Entity, str]
     ) -> Dict[str, Union[str, int, bool]]:
@@ -3575,6 +3579,10 @@ class Synapse(object):
 
         return entity
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getACL(
         self, entity: Union[Entity, str], check_benefactor: bool = True
     ) -> Dict[str, Union[str, list]]:
@@ -3619,6 +3627,10 @@ class Synapse(object):
                         return {"resourceAccess": []}
                     raise e
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _storeACL(
         self, entity: Union[Entity, str], acl: Dict[str, Union[str, list]]
     ) -> Dict[str, Union[str, list]]:
@@ -3694,6 +3706,12 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `get_acl` method on the dataclass models that inherit from `AccessControllable` mixin. "
+        "Example: `from synapseclient.models import File; File(id='syn123').get_acl()`",
+    )
     def get_acl(
         self,
         entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
@@ -3701,6 +3719,9 @@ class Synapse(object):
         check_benefactor: bool = True,
     ) -> typing.List[str]:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `get_acl` method on the dataclass models that inherit from `AccessControllable` mixin instead.
+
         Get the [ACL](https://rest-docs.synapse.org/rest/org/
         sagebionetworks/repo/model/ACCESS_TYPE.html)
         that a user or group has on an Entity.
@@ -3719,6 +3740,117 @@ class Synapse(object):
                 ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE',
                 'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
                 or an empty array
+
+        Example: Using this function (DEPRECATED)
+            Getting ACL permissions for a user on an entity
+
+                permissions = syn.get_acl("syn123", principal_id="12345")
+
+            Getting ACL permissions for the public on an entity
+
+                permissions = syn.get_acl("syn123")
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                File, Folder, Project, Table, EntityView, Dataset,
+                DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+            )
+
+            # Create client and login
+            syn = Synapse()
+            syn.login()
+
+            # Get ACL permissions for a specific user on a File
+            file_instance = File(id="syn123")
+            permissions = file_instance.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on File syn123: {permissions}")
+
+            # Get ACL permissions for the public on a File
+            file_instance = File(id="syn123")
+            permissions = file_instance.get_acl()  # defaults to PUBLIC users
+            print(f"Public permissions on File syn123: {permissions}")
+
+            # Get ACL permissions with benefactor check disabled
+            file_instance = File(id="syn123")
+            permissions = file_instance.get_acl(
+                principal_id=12345,
+                check_benefactor=False
+            )
+            print(f"Entity-specific permissions for user 12345 on File syn123: {permissions}")
+
+            # Works with all AccessControllable models:
+
+            # Project
+            project = Project(id="syn123")
+            permissions = project.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on Project syn123: {permissions}")
+
+            # Folder
+            folder = Folder(id="syn123")
+            permissions = folder.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on Folder syn123: {permissions}")
+
+            # Table
+            table = Table(id="syn123")
+            permissions = table.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on Table syn123: {permissions}")
+
+            # EntityView
+            entity_view = EntityView(id="syn123")
+            permissions = entity_view.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on EntityView syn123: {permissions}")
+
+            # Dataset
+            dataset = Dataset(id="syn123")
+            permissions = dataset.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on Dataset syn123: {permissions}")
+
+            # DatasetCollection
+            dataset_collection = DatasetCollection(id="syn123")
+            permissions = dataset_collection.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on DatasetCollection syn123: {permissions}")
+
+            # MaterializedView
+            materialized_view = MaterializedView(id="syn123")
+            permissions = materialized_view.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on MaterializedView syn123: {permissions}")
+
+            # SubmissionView
+            submission_view = SubmissionView(id="syn123")
+            permissions = submission_view.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on SubmissionView syn123: {permissions}")
+
+            # VirtualTable
+            virtual_table = VirtualTable(id="syn123")
+            permissions = virtual_table.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on VirtualTable syn123: {permissions}")
+
+            # Additional functionality available on AccessControllable models:
+
+            # List all ACL entries for an entity
+            file_instance = File(id="syn123")
+            acl_list = file_instance.list_acl()
+            print(f"All ACL entries for File syn123: {acl_list}")
+
+            # Delete the entire ACL for an entity (makes it inherit from benefactor)
+            file_instance = File(id="syn123")
+            file_instance.delete_permissions()
+            print("Successfully deleted entire ACL for File syn123 - now inherits permissions")
+
+            # To remove permissions for a specific user/group, use set_permissions with empty access_type
+            file_instance = File(id="syn123")
+            file_instance.set_permissions(principal_id=12345, access_type=[])
+            print("Successfully removed all permissions for user 12345 on File syn123")
+
+            # Use dry_run to preview what would be deleted without actually deleting
+            file_instance = File(id="syn123")
+            file_instance.delete_permissions(dry_run=True)
+            print("Dry run completed - showed what would be deleted")
+            ```
         """
 
         principal_id = self._getUserbyPrincipalIdOrName(principal_id)
@@ -3786,10 +3918,21 @@ class Synapse(object):
 
         return self.get_acl(entity=entity, principal_id=principal_id)
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `get_permissions` method on the dataclass models that inherit from `AccessControllable` mixin. "
+        "Note: The new `get_permissions` method only returns permissions for the current user. "
+        "To get permissions for a specific principal, use the `get_acl` method instead. "
+        "Example: `from synapseclient.models import File; File(id='syn123').get_permissions(); File(id='syn123').get_acl(principal_id=12345)`",
+    )
     def get_permissions(
         self, entity: Union[Entity, Evaluation, str, collections.abc.Mapping]
     ) -> Permissions:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `get_permissions` method on the dataclass models that inherit from `AccessControllable` mixin instead.
+
         Get the [permissions](https://rest-docs.synapse.org/rest/org/
         sagebionetworks/repo/model/auth/UserEntityPermissions.html)
         that the caller has on an Entity.
@@ -3800,8 +3943,7 @@ class Synapse(object):
         Returns:
             An Permissions object
 
-
-        Example: Using this function:
+        Example: Using this function (DEPRECATED)
             Getting permissions for a Synapse Entity
 
                 permissions = syn.get_permissions(Entity)
@@ -3813,6 +3955,98 @@ class Synapse(object):
             Getting access types list from the Permissions object
 
                 permissions.access_types
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                File, Folder, Project, Table, EntityView, Dataset,
+                DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+            )
+
+            # Create client and login
+            syn = Synapse()
+            syn.login()
+
+            # Get permissions for the current user on a File
+            file_instance = File(id="syn12345")
+            permissions = file_instance.get_permissions()
+            print(f"Current user permissions on File syn12345: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # Get permissions for the current user on other entity types:
+
+            # Project
+            project = Project(id="syn12345")
+            permissions = project.get_permissions()
+            print(f"Current user permissions on Project {project.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # Folder
+            folder = Folder(id="syn12345")
+            permissions = folder.get_permissions()
+            print(f"Current user permissions on Folder {folder.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # Table
+            table = Table(id="syn12345")
+            permissions = table.get_permissions()
+            print(f"Current user permissions on Table {table.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # EntityView
+            entity_view = EntityView(id="syn12345")
+            permissions = entity_view.get_permissions()
+            print(f"Current user permissions on EntityView {entity_view.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # Dataset
+            dataset = Dataset(id="syn12345")
+            permissions = dataset.get_permissions()
+            print(f"Current user permissions on Dataset {dataset.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # DatasetCollection
+            dataset_collection = DatasetCollection(id="syn12345")
+            permissions = dataset_collection.get_permissions()
+            print(f"Current user permissions on DatasetCollection {dataset_collection.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # MaterializedView
+            materialized_view = MaterializedView(id="syn12345")
+            permissions = materialized_view.get_permissions()
+            print(f"Current user permissions on MaterializedView {materialized_view.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # SubmissionView
+            submission_view = SubmissionView(id="syn12345")
+            permissions = submission_view.get_permissions()
+            print(f"Current user permissions on SubmissionView {submission_view.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # VirtualTable
+            virtual_table = VirtualTable(id="syn12345")
+            permissions = virtual_table.get_permissions()
+            print(f"Current user permissions on VirtualTable {virtual_table.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # To get permissions for a specific user/group, use get_acl instead:
+            file_instance = File(id="syn12345")
+
+            # Get ACL permissions for a specific user
+            user_permissions = file_instance.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on File {file_instance.id}: {user_permissions}")
+
+            # Get ACL permissions for the public
+            public_permissions = file_instance.get_acl()  # defaults to PUBLIC users
+            print(f"Public permissions on File {file_instance.id}: {public_permissions}")
+
+            # List all ACL entries for an entity
+            acl_list = file_instance.list_acl()
+            print(f"All ACL entries for File {file_instance.id}: {acl_list}")
+            ```
         """
 
         entity_id = id_of(entity)
@@ -3823,6 +4057,13 @@ class Synapse(object):
         data = self.restGET(url)
         return Permissions.from_dict(data)
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `set_permissions` method on the dataclass models that inherit from `AccessControllable` mixin. "
+        "Example: `from synapseclient.models import File; File(id='syn123').set_permissions(principal_id=12345, access_type=['READ'])`. "
+        "To remove permissions for a specific user, use `access_type=[]` or `access_type=None`.",
+    )
     def setPermissions(
         self,
         entity,
@@ -3833,6 +4074,9 @@ class Synapse(object):
         overwrite=True,
     ):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `set_permissions` method on the dataclass models that inherit from `AccessControllable` mixin instead.
+
         Sets permission that a user or group has on an Entity.
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
@@ -3860,7 +4104,7 @@ class Synapse(object):
         Returns:
             An Access Control List object
 
-        Example: Setting permissions
+        Example: Using this function (DEPRECATED)
             Grant all registered users download access
 
                 syn.setPermissions('syn1234','273948',['READ','DOWNLOAD'])
@@ -3868,6 +4112,158 @@ class Synapse(object):
             Grant the public view access
 
                 syn.setPermissions('syn1234','273949',['READ'])
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse, AUTHENTICATED_USERS, PUBLIC
+            from synapseclient.models import (
+                File, Folder, Project, Table, EntityView, Dataset,
+                DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+            )
+
+            # Create client and login
+            syn = Synapse()
+            syn.login()
+
+            # Set permissions for a File
+            file_instance = File(id="syn1234")
+
+            # Grant all registered users download access
+            file_instance.set_permissions(
+                principal_id=AUTHENTICATED_USERS,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully granted READ and DOWNLOAD access to all registered users on File {file_instance.id}")
+
+            # Grant the public view access
+            file_instance.set_permissions(
+                principal_id=PUBLIC,
+                access_type=["READ"]
+            )
+            print(f"Successfully granted READ access to public users on File {file_instance.id}")
+
+            # Set permissions with additional options
+            file_instance.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD", "UPDATE"],
+                modify_benefactor=True,
+                warn_if_inherits=False,
+                overwrite=False  # Add to existing permissions instead of overwriting
+            )
+            print(f"Successfully added READ, DOWNLOAD, and UPDATE access for user 12345 on File {file_instance.id}")
+
+            # Remove permissions for a specific user/group by setting access_type to empty list
+            file_instance.set_permissions(
+                principal_id=12345,
+                access_type=[]  # Empty list removes all permissions for this principal
+            )
+            print(f"Successfully removed all permissions for user 12345 on File {file_instance.id}")
+
+            # Alternative: Remove permissions by setting access_type to None
+            file_instance.set_permissions(
+                principal_id=12345,
+                access_type=None  # None also removes all permissions for this principal
+            )
+            print(f"Successfully removed all permissions for user 12345 on File {file_instance.id}")
+
+            # Set permissions for other entity types:
+
+            # Project
+            project = Project(id="syn1234")
+            project.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on Project {project.id}")
+
+            # Folder
+            folder = Folder(id="syn1234")
+            folder.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on Folder {folder.id}")
+
+            # Table
+            table = Table(id="syn1234")
+            table.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on Table {table.id}")
+
+            # EntityView
+            entity_view = EntityView(id="syn1234")
+            entity_view.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on EntityView {entity_view.id}")
+
+            # Dataset
+            dataset = Dataset(id="syn1234")
+            dataset.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on Dataset {dataset.id}")
+
+            # DatasetCollection
+            dataset_collection = DatasetCollection(id="syn1234")
+            dataset_collection.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on DatasetCollection {dataset_collection.id}")
+
+            # MaterializedView
+            materialized_view = MaterializedView(id="syn1234")
+            materialized_view.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on MaterializedView {materialized_view.id}")
+
+            # SubmissionView
+            submission_view = SubmissionView(id="syn1234")
+            submission_view.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on SubmissionView {submission_view.id}")
+
+            # VirtualTable
+            virtual_table = VirtualTable(id="syn1234")
+            virtual_table.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on VirtualTable {virtual_table.id}")
+
+            # Additional functionality available on AccessControllable models:
+
+            # List all ACL entries for an entity
+            file_instance = File(id="syn1234")
+            acl_list = file_instance.list_acl()
+            print(f"All ACL entries for File syn1234: {acl_list}")
+
+            # Delete the entire ACL for an entity (makes it inherit from benefactor)
+            file_instance = File(id="syn1234")
+            file_instance.delete_permissions()
+            print(f"Successfully deleted entire ACL for File {file_instance.id} - now inherits permissions")
+
+            # To remove permissions for a specific user/group, use set_permissions with empty access_type
+            file_instance = File(id="syn1234")
+            file_instance.set_permissions(principal_id=12345, access_type=[])
+            print(f"Successfully removed all permissions for user 12345 on File {file_instance.id}")
+
+            # Use dry_run to preview what would be deleted without actually deleting
+            file_instance = File(id="syn1234")
+            file_instance.delete_permissions(dry_run=True)
+            print("Dry run completed - showed what would be deleted")
+            ```
         """
         entity_id = id_of(entity)
         trace.get_current_span().set_attributes({"synapse.id": entity_id})

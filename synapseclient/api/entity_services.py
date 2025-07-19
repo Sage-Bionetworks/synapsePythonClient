@@ -442,6 +442,237 @@ async def get_entity_acl(
     )
 
 
+async def get_entity_acl_with_benefactor(
+    entity_id: str,
+    check_benefactor: bool = True,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]]:
+    """
+    Get the effective Access Control List (ACL) for a Synapse Entity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        check_benefactor: If True (default), check the benefactor for the entity
+                         to get the ACL. If False, only check the entity itself.
+                         This is useful for checking the ACL of an entity that has local sharing
+                         settings, but you want to check the ACL of the entity itself and not
+                         the benefactor it may inherit from.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary of the Entity's ACL.
+
+    Example: Get ACL with benefactor checking
+        Get the effective ACL for entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_entity_acl_with_benefactor
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            # Get ACL from benefactor (default behavior)
+            acl = await get_entity_acl_with_benefactor(entity_id="syn123")
+            print(f"ACL from benefactor: {acl}")
+
+            # Get ACL from entity only
+            acl = await get_entity_acl_with_benefactor(
+                entity_id="syn123",
+                check_benefactor=False
+            )
+            print(f"ACL from entity only: {acl}")
+
+        asyncio.run(main())
+        ```
+    """
+    if check_benefactor:
+        # Get the ACL from the benefactor (which may be the entity itself)
+        benefactor = await get_entity_benefactor(
+            entity_id=entity_id, synapse_client=synapse_client
+        )
+        return await get_entity_acl(
+            entity_id=benefactor.id, synapse_client=synapse_client
+        )
+    else:
+        try:
+            return await get_entity_acl(
+                entity_id=entity_id, synapse_client=synapse_client
+            )
+        except SynapseHTTPError as e:
+            # If entity doesn't have its own ACL and check_benefactor is False,
+            # return empty ACL structure indicating no local permissions
+            if (
+                "The requested ACL does not exist. This entity inherits its permissions from:"
+                in str(e)
+            ):
+                return {"resourceAccess": []}
+            raise e
+
+
+async def put_entity_acl(
+    entity_id: str,
+    acl: Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]]:
+    """
+    Update the Access Control List (ACL) for an entity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        acl: The ACL to set for the entity.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        The updated ACL.
+
+    Example: Update ACL for an entity
+        Update the ACL for entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import put_entity_acl
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            acl = {
+                "id": "syn123",
+                "etag": "12345",
+                "resourceAccess": [
+                    {
+                        "principalId": 12345,
+                        "accessType": ["READ", "DOWNLOAD"]
+                    }
+                ]
+            }
+            updated_acl = await put_entity_acl(entity_id="syn123", acl=acl)
+            print(f"Updated ACL: {updated_acl}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_put_async(
+        uri=f"/entity/{entity_id}/acl",
+        body=json.dumps(acl),
+    )
+
+
+async def post_entity_acl(
+    entity_id: str,
+    acl: Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]]:
+    """
+    Create a new Access Control List (ACL) for an entity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        acl: The ACL to create for the entity.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        The created ACL.
+
+    Example: Create ACL for an entity
+        Create a new ACL for entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import post_entity_acl
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            acl = {
+                "id": "syn123",
+                "creationDate": "2021-01-01T00:00:00.000Z",
+                "uri": "/entity/syn123/acl",
+                "etag": "12345",
+                "resourceAccess": [
+                    {
+                        "principalId": 12345,
+                        "accessType": ["READ", "DOWNLOAD"]
+                    }
+                ]
+            }
+            created_acl = await post_entity_acl(entity_id="syn123", acl=acl)
+            print(f"Created ACL: {created_acl}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_post_async(
+        uri=f"/entity/{entity_id}/acl",
+        body=json.dumps(acl),
+    )
+
+
+async def get_entity_permissions(
+    entity_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Union[str, List[str], bool]]:
+    """
+    Get the permissions that the caller has on an Entity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary containing the permissions that the caller has on the entity.
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/auth/UserEntityPermissions.html>
+
+    Example: Get permissions for an entity
+        Get the permissions that the caller has on entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_entity_permissions
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            permissions = await get_entity_permissions(entity_id="syn123")
+            print(f"Permissions: {permissions}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_get_async(
+        uri=f"/entity/{entity_id}/permissions",
+    )
+
+
 async def get_entity_benefactor(
     entity_id: str,
     *,
@@ -516,6 +747,58 @@ async def get_entity_path(
     return await client.rest_get_async(
         uri=f"/entity/{entity_id}/path",
     )
+
+
+async def get_entity_type(
+    entity_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> EntityHeader:
+    """
+    Get the EntityHeader of an Entity given its ID. The EntityHeader is a light weight
+    object with basic information about an Entity includes its type.
+
+    Implements:
+    <https://rest-docs.synapse.org/rest/GET/entity/id/type.html>
+
+    Arguments:
+        entity_id: The ID of the entity.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        EntityHeader object containing basic information about the entity.
+
+    Example: Get entity type information
+        Get the EntityHeader for entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_entity_type
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            entity_header = await get_entity_type(entity_id="syn123")
+            print(f"Entity type: {entity_header.type}")
+            print(f"Entity name: {entity_header.name}")
+            print(f"Entity ID: {entity_header.id}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    response = await client.rest_get_async(
+        uri=f"/entity/{entity_id}/type",
+    )
+
+    entity_header = EntityHeader()
+    return entity_header.fill_from_dict(response)
 
 
 async def get_entities_by_md5(
@@ -964,3 +1247,305 @@ async def get_children(
 
     async for child in response:
         yield child
+
+
+async def set_entity_permissions(
+    entity_id: str,
+    principal_id: Optional[str] = None,
+    access_type: Optional[List[str]] = None,
+    modify_benefactor: bool = False,
+    warn_if_inherits: bool = True,
+    overwrite: bool = True,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]]:
+    """
+    Set permissions for a user or group on an entity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        principal_id: Identifier of a user or group. '273948' is for all registered Synapse users
+                     and '273949' is for public access. None implies public access.
+        access_type: Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
+                    DELETE, CHANGE_PERMISSIONS. If None or empty list, removes permissions.
+        modify_benefactor: Set as True when modifying a benefactor's ACL.
+        warn_if_inherits: When modify_benefactor is False, and warn_if_inherits is True,
+                         a warning log message is produced if the benefactor for the entity
+                         you passed into the function is not itself.
+        overwrite: By default this function overwrites existing permissions for the specified user.
+                  Set this flag to False to add new permissions non-destructively.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        The updated ACL.
+
+    Example: Set permissions for an entity
+        Grant all registered users download access.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import set_entity_permissions
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            # Grant all registered users download access
+            acl = await set_entity_permissions(
+                entity_id="syn123",
+                principal_id="273948",
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Updated ACL: {acl}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    # Get the benefactor for the entity
+    benefactor = await get_entity_benefactor(entity_id, synapse_client=synapse_client)
+
+    if benefactor.id != entity_id:
+        if modify_benefactor:
+            entity_id = benefactor.id
+        elif warn_if_inherits:
+            client.logger.warning(
+                f"Creating an ACL for entity {entity_id}, which formerly inherited access control from a"
+                f' benefactor entity, "{benefactor.name}" ({benefactor.id}).'
+            )
+
+    try:
+        acl = await get_entity_acl_with_benefactor(
+            entity_id=entity_id, synapse_client=synapse_client
+        )
+    except SynapseHTTPError as e:
+        if (
+            "The requested ACL does not exist. This entity inherits its permissions from:"
+            in str(e)
+        ):
+            acl = {"resourceAccess": []}
+        else:
+            raise e
+
+    # Get the principal ID as an integer
+    from synapseclient.api.user_services import get_user_by_principal_id_or_name
+
+    principal_id_int = await get_user_by_principal_id_or_name(
+        principal_id=principal_id, synapse_client=synapse_client
+    )
+
+    # Find existing permissions for this principal
+    permissions_to_update = None
+    for permissions in acl["resourceAccess"]:
+        if (
+            "principalId" in permissions
+            and permissions["principalId"] == principal_id_int
+        ):
+            permissions_to_update = permissions
+            break
+
+    if access_type is None or access_type == []:
+        # Remove permissions
+        if permissions_to_update and overwrite:
+            acl["resourceAccess"].remove(permissions_to_update)
+    else:
+        # Add or update permissions
+        if not permissions_to_update:
+            permissions_to_update = {"accessType": [], "principalId": principal_id_int}
+            acl["resourceAccess"].append(permissions_to_update)
+
+        if overwrite:
+            permissions_to_update["accessType"] = access_type
+        else:
+            permissions_to_update["accessType"] = list(
+                set(permissions_to_update["accessType"]) | set(access_type)
+            )
+
+    benefactor_for_store = await get_entity_benefactor(
+        entity_id, synapse_client=synapse_client
+    )
+
+    if benefactor_for_store.id == entity_id:
+        # Entity is its own benefactor, use PUT
+        return await put_entity_acl(
+            entity_id=entity_id, acl=acl, synapse_client=synapse_client
+        )
+    else:
+        # Entity inherits ACL, use POST to create new ACL
+        return await post_entity_acl(
+            entity_id=entity_id, acl=acl, synapse_client=synapse_client
+        )
+
+
+async def get_entity_acl_list(
+    entity_id: str,
+    principal_id: Optional[str] = None,
+    check_benefactor: bool = True,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> List[str]:
+    """
+    Get a list of permissions for a user or group on an entity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        principal_id: Identifier of a user or group to check permissions for.
+                     If None, returns permissions for the current user.
+        check_benefactor: If True (default), check the benefactor for the entity
+                         to get the ACL. If False, only check the entity itself.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        A list of access types that the specified principal has on the entity.
+
+    Example: Get ACL list for a user
+        Get the permissions that a user has on an entity.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_entity_acl_list
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            # Get permissions for current user
+            permissions = await get_entity_acl_list(entity_id="syn123")
+            print(f"Current user permissions: {permissions}")
+
+            # Get permissions for specific user
+            permissions = await get_entity_acl_list(
+                entity_id="syn123",
+                principal_id="12345"
+            )
+            print(f"User 12345 permissions: {permissions}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import AUTHENTICATED_USERS, PUBLIC
+    from synapseclient.api.team_services import get_teams_for_user
+    from synapseclient.api.user_services import (
+        get_user_bundle,
+        get_user_by_principal_id_or_name,
+    )
+
+    # Get the ACL for the entity
+    acl = await get_entity_acl_with_benefactor(
+        entity_id=entity_id,
+        check_benefactor=check_benefactor,
+        synapse_client=synapse_client,
+    )
+
+    # Get the principal ID as an integer (None defaults to PUBLIC)
+    principal_id_int = await get_user_by_principal_id_or_name(
+        principal_id=principal_id, synapse_client=synapse_client
+    )
+
+    # Get teams that the user belongs to
+    team_ids = []
+    async for team in get_teams_for_user(
+        user_id=str(principal_id_int), synapse_client=synapse_client
+    ):
+        team_ids.append(int(team["id"]))
+
+    user_profile_bundle = await get_user_bundle(
+        user_id=principal_id_int, mask=1, synapse_client=synapse_client
+    )
+
+    effective_permission_set = set()
+
+    # Loop over all permissions in the returned ACL and add it to the effective_permission_set
+    # if the principalId in the ACL matches
+    # 1) the one we are looking for,
+    # 2) a team the user is a member of,
+    # 3) PUBLIC
+    # 4) AUTHENTICATED_USERS (if user_profile_bundle exists for the principal_id)
+    for permissions in acl["resourceAccess"]:
+        if "principalId" in permissions and (
+            permissions["principalId"] == principal_id_int
+            or permissions["principalId"] in team_ids
+            or permissions["principalId"] == PUBLIC
+            or (
+                permissions["principalId"] == AUTHENTICATED_USERS
+                and user_profile_bundle is not None
+            )
+        ):
+            effective_permission_set = effective_permission_set.union(
+                permissions["accessType"]
+            )
+    return list(effective_permission_set)
+
+
+async def update_entity_acl(
+    entity_id: str,
+    acl: Dict[str, Any],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """
+    Create or update the Access Control List(ACL) for an entity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        acl: The ACL to be applied to the entity. Should match the format:
+            {'resourceAccess': [
+                {'accessType': ['READ', 'DOWNLOAD'],
+                 'principalId': 222222}
+            ]}
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        The created or updated ACL.
+
+    Example: Update entity ACL
+        Update the ACL for entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import update_entity_acl
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            acl = {
+                'resourceAccess': [
+                    {'accessType': ['READ', 'DOWNLOAD'],
+                     'principalId': 273948}
+                ]
+            }
+            updated_acl = await update_entity_acl(entity_id="syn123", acl=acl)
+            print(f"Updated ACL: {updated_acl}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    # Get the benefactor to determine whether to use PUT or POST
+    benefactor = await get_entity_benefactor(
+        entity_id=entity_id, synapse_client=synapse_client
+    )
+
+    uri = f"/entity/{entity_id}/acl"
+    if benefactor.id == entity_id:
+        # Entity is its own benefactor, use PUT to update existing ACL
+        return await client.rest_put_async(uri=uri, body=json.dumps(acl))
+    else:
+        # Entity inherits from a benefactor, use POST to create new ACL
+        return await client.rest_post_async(uri=uri, body=json.dumps(acl))
