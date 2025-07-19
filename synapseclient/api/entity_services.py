@@ -604,8 +604,6 @@ async def post_entity_acl(
         async def main():
             acl = {
                 "id": "syn123",
-                "creationDate": "2021-01-01T00:00:00.000Z",
-                "uri": "/entity/syn123/acl",
                 "etag": "12345",
                 "resourceAccess": [
                     {
