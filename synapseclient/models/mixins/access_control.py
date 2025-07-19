@@ -8,7 +8,10 @@ from synapseclient import Synapse
 from synapseclient.api import (
     delete_entity_acl,
     get_entity_acl,
+    get_entity_acl_list,
+    get_entity_permissions,
     get_user_group_headers_batch,
+    set_entity_permissions,
 )
 from synapseclient.api.entity_services import get_entity_benefactor
 from synapseclient.core.async_utils import async_to_sync
@@ -21,7 +24,32 @@ from synapseclient.models.protocols.access_control_protocol import (
 
 if TYPE_CHECKING:
     from synapseclient.core.models.permission import Permissions
-    from synapseclient.models import File, Folder
+
+    # TODO: Support DockerRepo and Link in https://sagebionetworks.jira.com/browse/SYNPY-1343 epic or later
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        File,
+        Folder,
+        MaterializedView,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
+
+# Used to map entity types to their plural forms which are available as attributes on Projects/Folders
+ENTITY_TYPE_MAPPING = {
+    "file": "files",
+    "folder": "folders",
+    "table": "tables",
+    "entityview": "entityviews",
+    "submissionview": "submissionviews",
+    "dataset": "datasets",
+    "datasetcollection": "datasetcollections",
+    "materializedview": "materializedviews",
+    "virtualtable": "virtualtables",
+}
 
 
 @dataclass
@@ -164,6 +192,18 @@ class AccessControllable(AccessControllableSynchronousProtocol):
     """The unique immutable ID for this entity. A new ID will be generated for new Files.
     Once issued, this ID is guaranteed to never change or be re-issued."""
 
+    files: List["File"] = None
+    folders: List["Folder"] = None
+    tables: List["Table"] = None
+    # links: List["Link"] = None
+    entityviews: List["EntityView"] = None
+    # dockerrepos: List["DockerRepo"] = None
+    submissionviews: List["SubmissionView"] = None
+    datasets: List["Dataset"] = None
+    datasetcollections: List["DatasetCollection"] = None
+    materializedviews: List["MaterializedView"] = None
+    virtualtables: List["VirtualTable"] = None
+
     async def get_permissions_async(
         self,
         *,
@@ -205,14 +245,13 @@ class AccessControllable(AccessControllableSynchronousProtocol):
             permissions.access_types
             ```
         """
-        loop = asyncio.get_event_loop()
+        from synapseclient.core.models.permission import Permissions
 
-        return await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).get_permissions(
-                entity=self.id
-            ),
+        permissions_dict = await get_entity_permissions(
+            entity_id=self.id,
+            synapse_client=synapse_client,
         )
+        return Permissions.from_dict(data=permissions_dict)
 
     async def get_acl_async(
         self,
@@ -251,15 +290,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
                 or an empty array
         """
-        loop = asyncio.get_event_loop()
-
-        return await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).get_acl(
-                entity=self.id,
-                principal_id=principal_id,
-                check_benefactor=check_benefactor,
-            ),
+        return await get_entity_acl_list(
+            entity_id=self.id,
+            principal_id=str(principal_id) if principal_id is not None else None,
+            check_benefactor=check_benefactor,
+            synapse_client=synapse_client,
         )
 
     async def set_permissions_async(
@@ -341,18 +376,15 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         """
         if access_type is None:
             access_type = ["READ", "DOWNLOAD"]
-        loop = asyncio.get_event_loop()
 
-        return await loop.run_in_executor(
-            None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).setPermissions(
-                entity=self.id,
-                principalId=principal_id,
-                accessType=access_type,
-                modify_benefactor=modify_benefactor,
-                warn_if_inherits=warn_if_inherits,
-                overwrite=overwrite,
-            ),
+        return await set_entity_permissions(
+            entity_id=self.id,
+            principal_id=str(principal_id) if principal_id is not None else None,
+            access_type=access_type,
+            modify_benefactor=modify_benefactor,
+            warn_if_inherits=warn_if_inherits,
+            overwrite=overwrite,
+            synapse_client=synapse_client,
         )
 
     async def delete_permissions_async(
@@ -403,10 +435,11 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 with include_container_content=False will raise a ValueError.
                 Only works on classes that support the `sync_from_synapse_async` method.
             target_entity_types: Specify which entity types to process when deleting ACLs.
-                Allowed values are "folder" and "file" (case-insensitive).
-                If None, defaults to ["folder", "file"]. This does not affect the
-                entity type of the current entity, which is always processed if
-                `include_self=True`.
+                Allowed values are "folder", "file", "project", "table", "entityview",
+                "materializedview", "virtualtable", "dataset", "datasetcollection",
+                "submissionview" (case-insensitive). If None, defaults to ["folder", "file"].
+                This does not affect the entity type of the current entity, which is always
+                processed if `include_self=True`.
             dry_run: If True, log the changes that would be made instead of actually
                 performing the deletions. When enabled, all ACL deletion operations are
                 simulated and logged at info level. Defaults to False.
@@ -491,6 +524,13 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     recursive=True,
                     include_container_content=True,
                     target_entity_types=["file"]
+                )
+
+                # Delete permissions for specific entity types (e.g., tables and views)
+                await Folder(id="syn123").delete_permissions_async(
+                    recursive=True,
+                    include_container_content=True,
+                    target_entity_types=["table", "entityview", "materializedview"]
                 )
 
                 # Dry run example: Log what would be deleted without making changes
@@ -707,46 +747,51 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         Returns:
             None
         """
-        if "file" in target_entity_types and hasattr(self, "files"):
-            if benefactor_tracker:
-                track_tasks = [
-                    benefactor_tracker.track_entity_benefactor(
-                        entity_ids=[file.id],
+        for entity_type, plural_attr in ENTITY_TYPE_MAPPING.items():
+            if entity_type in target_entity_types and hasattr(self, plural_attr):
+                entities = getattr(self, plural_attr, [])
+
+                if benefactor_tracker and entities:
+                    track_tasks = [
+                        benefactor_tracker.track_entity_benefactor(
+                            entity_ids=[entity.id],
+                            synapse_client=client,
+                            progress_bar=progress_bar,
+                        )
+                        for entity in entities
+                    ]
+
+                    if progress_bar and track_tasks:
+                        progress_bar.total += len(track_tasks)
+                        progress_bar.refresh()
+
+                    for completed_task in asyncio.as_completed(track_tasks):
+                        await completed_task
+                        if progress_bar:
+                            progress_bar.update(1)
+
+                async def process_single_entity(entity, target_type):
+                    await entity.delete_permissions_async(
+                        recursive=False,
+                        include_self=True,
+                        target_entity_types=[target_type],
+                        dry_run=False,
+                        _benefactor_tracker=benefactor_tracker,
                         synapse_client=client,
-                        progress_bar=progress_bar,
                     )
-                    for file in self.files
+
+                entity_tasks = [
+                    process_single_entity(entity, entity_type) for entity in entities
                 ]
 
-                if progress_bar and track_tasks:
-                    progress_bar.total += len(track_tasks)
+                if progress_bar and entity_tasks:
+                    progress_bar.total += len(entity_tasks)
                     progress_bar.refresh()
 
-                for completed_task in asyncio.as_completed(track_tasks):
+                for completed_task in asyncio.as_completed(entity_tasks):
                     await completed_task
                     if progress_bar:
                         progress_bar.update(1)
-
-            async def process_single_file(file):
-                await file.delete_permissions_async(
-                    recursive=False,
-                    include_self=True,
-                    target_entity_types=["file"],
-                    dry_run=False,
-                    _benefactor_tracker=benefactor_tracker,
-                    synapse_client=client,
-                )
-
-            file_tasks = [process_single_file(file) for file in self.files]
-
-            if progress_bar and file_tasks:
-                progress_bar.total += len(file_tasks)
-                progress_bar.refresh()
-
-            for completed_task in asyncio.as_completed(file_tasks):
-                await completed_task
-                if progress_bar:
-                    progress_bar.update(1)
 
         if hasattr(self, "folders"):
             await self._process_folder_permission_deletion(
@@ -864,8 +909,9 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 containers (files and folders inside self). This must be set to
                 True for recursive to have any effect. Defaults to False.
             target_entity_types: Specify which entity types to process when listing ACLs.
-                Allowed values are "folder" and "file" (case-insensitive).
-                If None, defaults to ["folder", "file"].
+                Allowed values are "folder", "file", "project", "table", "entityview",
+                "materializedview", "virtualtable", "dataset", "datasetcollection",
+                "submissionview" (case-insensitive). If None, defaults to ["folder", "file"].
             log_tree: If True, logs the ACL results to console in ASCII tree format showing
                 entity hierarchies and their ACL permissions in a tree-like structure.
                 Defaults to False.
@@ -942,6 +988,13 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                     recursive=True,
                     include_container_content=True,
                     target_entity_types=["folder"]
+                )
+
+                # List ACLs for specific entity types (e.g., tables and views)
+                table_view_acl_result = await Folder(id="syn123").list_acl_async(
+                    recursive=True,
+                    include_container_content=True,
+                    target_entity_types=["table", "entityview", "materializedview"]
                 )
 
             asyncio.run(main())
@@ -1114,7 +1167,19 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         collect_acls: bool = False,
         collect_self: bool = False,
         all_acls: Optional[Dict[str, Dict[str, List[str]]]] = None,
-    ) -> List[Union["File", "Folder"]]:
+    ) -> List[
+        Union[
+            "File",
+            "Folder",
+            "EntityView",
+            "Table",
+            "MaterializedView",
+            "VirtualTable",
+            "Dataset",
+            "DatasetCollection",
+            "SubmissionView",
+        ]
+    ]:
         """
         Unified method to collect entities, their ACLs, or both based on parameters.
 
@@ -1173,61 +1238,40 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 )
 
             if include_container_content:
-                if "file" in target_entity_types and hasattr(self, "files"):
-                    if collect_acls and all_acls is not None and progress_bar:
-                        progress_bar.total += len(self.files)
-                        progress_bar.refresh()
+                for entity_type, plural_attr in ENTITY_TYPE_MAPPING.items():
+                    if entity_type in target_entity_types and hasattr(
+                        self, plural_attr
+                    ):
+                        entities_list = getattr(self, plural_attr, [])
 
-                    if collect_acls and all_acls is not None:
-                        file_acl_tasks = []
-                        for file in getattr(self, "files", []):
-                            entities.append(file)
-                            file_acl_tasks.append(
-                                file.list_acl_async(
-                                    recursive=False,
-                                    include_container_content=False,
-                                    target_entity_types=["file"],
-                                    synapse_client=client,
-                                    _progress_bar=progress_bar,
+                        if collect_acls and all_acls is not None and progress_bar:
+                            progress_bar.total += len(entities_list)
+                            progress_bar.refresh()
+
+                        if collect_acls and all_acls is not None:
+                            entity_acl_tasks = []
+                            for entity in entities_list:
+                                entities.append(entity)
+                                entity_acl_tasks.append(
+                                    entity.list_acl_async(
+                                        recursive=False,
+                                        include_container_content=False,
+                                        target_entity_types=[entity_type],
+                                        synapse_client=client,
+                                        _progress_bar=progress_bar,
+                                    )
                                 )
-                            )
 
-                        for completed_task in asyncio.as_completed(file_acl_tasks):
-                            file_acls = await completed_task
-                            all_acls.update(file_acls.to_dict())
-                            if progress_bar:
-                                progress_bar.update(1)
-                    else:
-                        for file in getattr(self, "files", []):
-                            entities.append(file)
-
-                if "folder" in target_entity_types and hasattr(self, "folders"):
-                    if collect_acls and all_acls is not None and progress_bar:
-                        progress_bar.total += len(self.folders)
-                        progress_bar.refresh()
-
-                    if collect_acls and all_acls is not None:
-                        folder_acl_tasks = []
-                        for folder in getattr(self, "folders", []):
-                            entities.append(folder)
-                            folder_acl_tasks.append(
-                                folder.list_acl_async(
-                                    recursive=False,
-                                    include_container_content=False,
-                                    target_entity_types=["folder"],
-                                    synapse_client=client,
-                                    _progress_bar=progress_bar,
-                                )
-                            )
-
-                        for completed_task in asyncio.as_completed(folder_acl_tasks):
-                            folder_acls = await completed_task
-                            all_acls.update(folder_acls.to_dict())
-                            if progress_bar:
-                                progress_bar.update(1)
-                    else:
-                        for folder in getattr(self, "folders", []):
-                            entities.append(folder)
+                            for completed_task in asyncio.as_completed(
+                                entity_acl_tasks
+                            ):
+                                entity_acls = await completed_task
+                                all_acls.update(entity_acls.to_dict())
+                                if progress_bar:
+                                    progress_bar.update(1)
+                        else:
+                            for entity in entities_list:
+                                entities.append(entity)
 
             if recursive and hasattr(self, "folders"):
                 collect_tasks = []
@@ -1356,8 +1400,34 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         }
 
     def _prepare_entities_for_tree(
-        self, collected_entities: List[Union["File", "Folder"]] = None
-    ) -> Dict[str, Union["File", "Folder"]]:
+        self,
+        collected_entities: List[
+            Union[
+                "File",
+                "Folder",
+                "EntityView",
+                "Table",
+                "MaterializedView",
+                "VirtualTable",
+                "Dataset",
+                "DatasetCollection",
+                "SubmissionView",
+            ]
+        ] = None,
+    ) -> Dict[
+        str,
+        Union[
+            "File",
+            "Folder",
+            "EntityView",
+            "Table",
+            "MaterializedView",
+            "VirtualTable",
+            "Dataset",
+            "DatasetCollection",
+            "SubmissionView",
+        ],
+    ]:
         """
         Prepare entity dictionary for tree building operations.
 
@@ -1383,7 +1453,22 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         return entities_by_id
 
     async def _build_acl_result_from_entities(
-        self, entities_by_id: Dict[str, Union["File", "Folder"]], client: Synapse
+        self,
+        entities_by_id: Dict[
+            str,
+            Union[
+                "File",
+                "Folder",
+                "EntityView",
+                "Table",
+                "MaterializedView",
+                "VirtualTable",
+                "Dataset",
+                "DatasetCollection",
+                "SubmissionView",
+            ],
+        ],
+        client: Synapse,
     ) -> AclListResult:
         """
         Build AclListResult from a dictionary of entities by fetching their ACL information.
@@ -1516,7 +1601,22 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         tree_structure: Dict[str, Any],
         benefactor_tracker: BenefactorTracker,
         include_self: bool = True,
-        entities_by_id: Optional[Dict[str, Union["File", "Folder"]]] = None,
+        entities_by_id: Optional[
+            Dict[
+                str,
+                Union[
+                    "File",
+                    "Folder",
+                    "EntityView",
+                    "Table",
+                    "MaterializedView",
+                    "VirtualTable",
+                    "Dataset",
+                    "DatasetCollection",
+                    "SubmissionView",
+                ],
+            ]
+        ] = None,
         show_acl_details: bool = True,
         show_files_in_containers: bool = True,
         *,
@@ -1577,7 +1677,22 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         children_map: Dict[str, List[str]],
         benefactor_tracker: BenefactorTracker,
         include_self: bool,
-        entities_by_id: Optional[Dict[str, Union["File", "Folder"]]],
+        entities_by_id: Optional[
+            Dict[
+                str,
+                Union[
+                    "File",
+                    "Folder",
+                    "EntityView",
+                    "Table",
+                    "MaterializedView",
+                    "VirtualTable",
+                    "Dataset",
+                    "DatasetCollection",
+                    "SubmissionView",
+                ],
+            ]
+        ],
         synapse_client: Optional["Synapse"],
     ) -> None:
         """
@@ -1626,7 +1741,22 @@ class AccessControllable(AccessControllableSynchronousProtocol):
         self,
         entity_ids: List[str],
         entity_metadata: Dict[str, Any],
-        entities_by_id: Optional[Dict[str, Union["File", "Folder"]]],
+        entities_by_id: Optional[
+            Dict[
+                str,
+                Union[
+                    "File",
+                    "Folder",
+                    "EntityView",
+                    "Table",
+                    "MaterializedView",
+                    "VirtualTable",
+                    "Dataset",
+                    "DatasetCollection",
+                    "SubmissionView",
+                ],
+            ]
+        ],
         synapse_client: Optional["Synapse"],
     ) -> Dict[str, Dict[str, str]]:
         """

@@ -6,7 +6,11 @@ import urllib.parse as urllib_urlparse
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from synapseclient.api import rest_get_paginated_async
-from synapseclient.core.exceptions import SynapseHTTPError, SynapseNotFoundError
+from synapseclient.core.exceptions import (
+    SynapseError,
+    SynapseHTTPError,
+    SynapseNotFoundError,
+)
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -226,3 +230,107 @@ async def _get_certified_passing_record(
         uri=f"/user/{userid}/certifiedUserPassingRecord"
     )
     return response
+
+
+async def get_user_by_principal_id_or_name(
+    principal_id: Optional[Union[str, int]] = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> int:
+    """
+    Given either a string, int or None finds the corresponding user where None implies PUBLIC.
+
+    Arguments:
+        principal_id: Identifier of a user or group. '273948' is for all registered Synapse users
+                     and '273949' is for public access. None implies public access.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        The integer ID of the user.
+
+    Raises:
+        SynapseError: If the user cannot be found or is ambiguous.
+
+    Example: Get user ID by principal ID
+        Get the user ID for a given principal ID.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_user_by_principal_id_or_name
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            # Get public user ID
+            public_id = await get_user_by_principal_id_or_name(principal_id=None)
+            print(f"Public user ID: {public_id}")
+
+            # Get user ID by username
+            user_id = await get_user_by_principal_id_or_name(principal_id="username")
+            print(f"User ID for 'username': {user_id}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import PUBLIC, Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    if principal_id is None or principal_id == "PUBLIC":
+        return PUBLIC
+    try:
+        return int(principal_id)
+    # If principal_id is not a number assume it is a name or email
+    except ValueError as ex:
+        user_profiles = await client.rest_get_async(
+            uri=f"/userGroupHeaders?prefix={principal_id}"
+        )
+        total_results = len(user_profiles["children"])
+        if total_results == 1:
+            return int(user_profiles["children"][0]["ownerId"])
+        elif total_results > 1:
+            for profile in user_profiles["children"]:
+                if profile["userName"] == principal_id:
+                    return int(profile["ownerId"])
+
+        supplemental_message = (
+            "Please be more specific" if total_results > 1 else "No matches"
+        )
+        raise SynapseError(
+            f"Unknown Synapse user ({principal_id}). {supplemental_message}."
+        ) from ex
+
+
+async def get_user_bundle(
+    user_id: int,
+    mask: int,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Optional[Dict[str, Union[str, dict]]]:
+    """
+    Retrieve the user bundle for the given user.
+
+    Arguments:
+        user_id: Synapse user Id
+        mask: Bit field indicating which components to include in the bundle.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        Synapse User Bundle or None if user not found
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/UserBundle.html>
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    try:
+        return await client.rest_get_async(uri=f"/user/{user_id}/bundle?mask={mask}")
+    except SynapseHTTPError as ex:
+        if ex.response.status_code == 404:
+            return None
+        raise

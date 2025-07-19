@@ -9,20 +9,25 @@ from typing import Callable, Dict, List, Optional, Type, Union
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.client import AUTHENTICATED_USERS
 from synapseclient.core import utils
 from synapseclient.core.models.acl import AclListResult
 from synapseclient.models import (
     Column,
     ColumnType,
+    Dataset,
+    DatasetCollection,
+    EntityRef,
     EntityView,
     File,
     Folder,
+    MaterializedView,
     Project,
     SubmissionView,
     Table,
     Team,
     UserProfile,
+    ViewTypeMask,
+    VirtualTable,
 )
 
 PUBLIC = 273949  # PrincipalId of public "user"
@@ -2289,3 +2294,490 @@ class TestDeletePermissions:
         # THEN all permissions should be deleted
         await self._verify_permissions_deleted(folder_a)
         await self._verify_permissions_deleted(file_1)
+
+
+class TestAllEntityTypesPermissions:
+    """Test permissions functionality across all supported entity types."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(
+        self,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    async def create_all_entity_types(self, project_model: Project) -> Dict[str, any]:
+        """Create all supported entity types for testing."""
+        project_model = project_model.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_model.id)
+
+        entities = {"project": project_model}
+
+        file_path = utils.make_bogus_uuid_file()
+        self.schedule_for_cleanup(file_path)
+        file_entity = File(
+            name=f"test_file_{str(uuid.uuid4())}.txt",
+            parent_id=project_model.id,
+            path=file_path,
+        )
+        file_entity = file_entity.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(file_entity.id)
+        entities["file"] = file_entity
+
+        folder_entity = Folder(
+            name=f"test_folder_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+        )
+        folder_entity = folder_entity.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(folder_entity.id)
+        entities["folder"] = folder_entity
+
+        table_entity = Table(
+            name=f"test_table_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            columns=[
+                Column(name="test_column", column_type=ColumnType.STRING),
+                Column(name="test_column2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table_entity = table_entity.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table_entity.id)
+        entities["table"] = table_entity
+
+        entityview_entity = EntityView(
+            name=f"test_entityview_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            scope_ids=[project_model.id],
+            view_type_mask=ViewTypeMask.FILE,
+        )
+        entityview_entity = entityview_entity.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entityview_entity.id)
+        entities["entityview"] = entityview_entity
+
+        materializedview_entity = MaterializedView(
+            name=f"test_materializedview_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table_entity.id}",
+        )
+        materializedview_entity = materializedview_entity.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(materializedview_entity.id)
+        entities["materializedview"] = materializedview_entity
+
+        virtualtable_entity = VirtualTable(
+            name=f"test_virtualtable_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table_entity.id}",
+        )
+        virtualtable_entity = virtualtable_entity.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtualtable_entity.id)
+        entities["virtualtable"] = virtualtable_entity
+
+        dataset_entity = Dataset(
+            name=f"test_dataset_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            items=[EntityRef(id=file_entity.id, version=1)],
+        )
+        dataset_entity = dataset_entity.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_entity.id)
+        entities["dataset"] = dataset_entity
+
+        datasetcollection_entity = DatasetCollection(
+            name=f"test_datasetcollection_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            items=[EntityRef(id=dataset_entity.id, version=1)],
+        )
+        datasetcollection_entity = datasetcollection_entity.store(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(datasetcollection_entity.id)
+        entities["datasetcollection"] = datasetcollection_entity
+
+        return entities
+
+    async def create_all_entity_types_with_acl(
+        self, project_model: Project
+    ) -> Dict[str, any]:
+        """Create all entity types with local ACL permissions for testing."""
+        entities = await self.create_all_entity_types(project_model)
+
+        for entity_type, entity in entities.items():
+            if entity_type != "project":
+                entity.set_permissions(
+                    principal_id=AUTHENTICATED_USERS,
+                    access_type=["READ"],
+                    synapse_client=self.syn,
+                )
+
+        await asyncio.sleep(10)
+        return entities
+
+    async def test_list_acl_all_entity_types(self) -> None:
+        """Test list_acl functionality with all supported entity types."""
+        # GIVEN a project with all supported entity types and local ACL permissions
+        project = Project(name=f"test_project_{uuid.uuid4()}")
+        entities = await self.create_all_entity_types_with_acl(project)
+
+        # WHEN I call list_acl on the project with all entity types
+        result = entities["project"].list_acl(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=[
+                "file",
+                "folder",
+                "table",
+                "entityview",
+                "materializedview",
+                "virtualtable",
+                "dataset",
+                "datasetcollection",
+            ],
+            synapse_client=self.syn,
+        )
+
+        # THEN the result should contain ACLs for all entity types
+        assert isinstance(result, AclListResult)
+        assert len(result.all_entity_acls) >= 1
+
+        entity_ids = [acl.entity_id for acl in result.all_entity_acls]
+        assert entities["project"].id in entity_ids
+
+        # AND verify AclListResult structure and content
+        entities_with_read_permissions = []
+        for entity_acl in result.all_entity_acls:
+            assert isinstance(entity_acl.entity_id, str)
+            assert entity_acl.entity_id.startswith("syn")
+            assert len(entity_acl.acl_entries) >= 0
+
+            # Check if this entity has AUTHENTICATED_USERS with READ permissions
+            for acl_entry in entity_acl.acl_entries:
+                assert isinstance(acl_entry.principal_id, str)
+                assert isinstance(acl_entry.permissions, list)
+                if (
+                    acl_entry.principal_id == str(AUTHENTICATED_USERS)
+                    and "READ" in acl_entry.permissions
+                ):
+                    entities_with_read_permissions.append(entity_acl.entity_id)
+
+        # AND each entity should have the correct AUTHENTICATED_USERS permissions
+        for entity_type, entity in entities.items():
+            if entity_type != "project":
+                individual_acl = entity.get_acl(
+                    principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
+                )
+                assert individual_acl is not None
+                assert (
+                    "READ" in individual_acl
+                ), f"AUTHENTICATED_USERS should have READ access on {entity_type} {entity.id}"
+
+                # Verify this entity appears in the AclListResult with READ permissions
+                assert (
+                    entity.id in entities_with_read_permissions
+                ), f"Entity {entity.id} ({entity_type}) should appear in AclListResult with READ permissions"
+
+    async def test_list_acl_specific_entity_types(self) -> None:
+        """Test list_acl functionality with specific entity types."""
+        # GIVEN a project with all supported entity types
+        project = Project(name=f"test_project_{uuid.uuid4()}")
+        entities = await self.create_all_entity_types_with_acl(project)
+
+        # WHEN I call list_acl with only table-related entity types
+        result = entities["project"].list_acl(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=[
+                "table",
+                "entityview",
+                "materializedview",
+                "virtualtable",
+            ],
+            synapse_client=self.syn,
+        )
+
+        # THEN the result should be valid
+        assert isinstance(result, AclListResult)
+        assert len(result.all_entity_acls) >= 1
+
+        # AND verify only table-related entities are included
+        returned_entity_ids = [acl.entity_id for acl in result.all_entity_acls]
+        expected_table_entity_ids = [
+            entities["table"].id,
+            entities["entityview"].id,
+            entities["materializedview"].id,
+            entities["virtualtable"].id,
+        ]
+
+        # Check that all expected table entities are present in the result
+        for entity_id in expected_table_entity_ids:
+            if entity_id in returned_entity_ids:
+                # Find the corresponding EntityAcl
+                entity_acl = next(
+                    acl for acl in result.all_entity_acls if acl.entity_id == entity_id
+                )
+                assert isinstance(entity_acl.entity_id, str)
+                assert entity_acl.entity_id.startswith("syn")
+                assert len(entity_acl.acl_entries) >= 0
+
+                # Verify AUTHENTICATED_USERS has READ permissions
+                has_read_permission = False
+                for acl_entry in entity_acl.acl_entries:
+                    if (
+                        acl_entry.principal_id == str(AUTHENTICATED_USERS)
+                        and "READ" in acl_entry.permissions
+                    ):
+                        has_read_permission = True
+                        break
+                assert (
+                    has_read_permission
+                ), f"Entity {entity_id} should have READ permissions for AUTHENTICATED_USERS"
+
+        # WHEN I call list_acl with only dataset-related entity types
+        result_datasets = entities["project"].list_acl(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=["dataset", "datasetcollection"],
+            synapse_client=self.syn,
+        )
+
+        # THEN the result should be valid
+        assert isinstance(result_datasets, AclListResult)
+        assert len(result_datasets.all_entity_acls) >= 1
+
+        # AND verify only dataset-related entities are included
+        returned_dataset_ids = [
+            acl.entity_id for acl in result_datasets.all_entity_acls
+        ]
+        expected_dataset_entity_ids = [
+            entities["dataset"].id,
+            entities["datasetcollection"].id,
+        ]
+
+        # AND Check that all expected dataset entities are present in the result
+        for entity_id in expected_dataset_entity_ids:
+            if entity_id in returned_dataset_ids:
+                # Find the corresponding EntityAcl
+                entity_acl = next(
+                    acl
+                    for acl in result_datasets.all_entity_acls
+                    if acl.entity_id == entity_id
+                )
+                assert isinstance(entity_acl.entity_id, str)
+                assert entity_acl.entity_id.startswith("syn")
+                assert len(entity_acl.acl_entries) >= 0
+
+                # Verify AUTHENTICATED_USERS has READ permissions
+                has_read_permission = False
+                for acl_entry in entity_acl.acl_entries:
+                    if (
+                        acl_entry.principal_id == str(AUTHENTICATED_USERS)
+                        and "READ" in acl_entry.permissions
+                    ):
+                        has_read_permission = True
+                        break
+                assert (
+                    has_read_permission
+                ), f"Entity {entity_id} should have READ permissions for AUTHENTICATED_USERS"
+
+    async def test_delete_permissions_all_entity_types(self) -> None:
+        """Test delete_permissions functionality with all supported entity types."""
+        # GIVEN a project with all supported entity types and local ACL permissions
+        project = Project(name=f"test_project_{uuid.uuid4()}")
+        entities = await self.create_all_entity_types_with_acl(project)
+
+        # AND I verify AUTHENTICATED_USERS has READ permissions before deletion
+        for entity_type, entity in entities.items():
+            if entity_type != "project":
+                acl_before = entity.get_acl(
+                    principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
+                )
+                assert (
+                    "READ" in acl_before
+                ), f"AUTHENTICATED_USERS should have READ access on {entity_type} before deletion"
+
+        # WHEN I call delete_permissions with dry_run=True to test functionality
+        entities["project"].delete_permissions(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=[
+                "file",
+                "folder",
+                "table",
+                "entityview",
+                "materializedview",
+                "virtualtable",
+                "dataset",
+                "datasetcollection",
+            ],
+            dry_run=True,
+            synapse_client=self.syn,
+        )
+
+        # THEN no exception should be raised
+        # AND permissions should still exist after dry run
+        for entity_type, entity in entities.items():
+            if entity_type != "project":
+                acl_after = entity.get_acl(
+                    principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
+                )
+                assert (
+                    "READ" in acl_after
+                ), f"AUTHENTICATED_USERS should still have READ access on {entity_type} after dry run"
+
+    async def test_delete_permissions_all_entity_types_actual_deletion(self) -> None:
+        """Test delete_permissions functionality with actual deletion (dry_run=False)."""
+        # GIVEN a project with all supported entity types and local ACL permissions
+        project = Project(name=f"test_project_{uuid.uuid4()}")
+        entities = await self.create_all_entity_types_with_acl(project)
+
+        # AND I verify AUTHENTICATED_USERS has READ permissions before deletion
+        initial_acl_result = entities["project"].list_acl(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=[
+                "file",
+                "folder",
+                "table",
+                "entityview",
+                "materializedview",
+                "virtualtable",
+                "dataset",
+                "datasetcollection",
+            ],
+            synapse_client=self.syn,
+        )
+
+        # Verify structure and content before deletion
+        assert isinstance(initial_acl_result, AclListResult)
+        entities_with_permissions_before = set()
+        for entity_acl in initial_acl_result.all_entity_acls:
+            for acl_entry in entity_acl.acl_entries:
+                if (
+                    acl_entry.principal_id == str(AUTHENTICATED_USERS)
+                    and "READ" in acl_entry.permissions
+                ):
+                    entities_with_permissions_before.add(entity_acl.entity_id)
+
+        assert (
+            len(entities_with_permissions_before) > 0
+        ), "Should have entities with READ permissions before deletion"
+
+        # WHEN I call delete_permissions with dry_run=False for actual deletion
+        entities["project"].delete_permissions(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=[
+                "file",
+                "folder",
+                "table",
+                "entityview",
+                "materializedview",
+                "virtualtable",
+                "dataset",
+                "datasetcollection",
+            ],
+            dry_run=False,
+            synapse_client=self.syn,
+        )
+
+        # THEN permissions should be actually deleted (inheritance restored)
+        final_acl_result = entities["project"].list_acl(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=[
+                "file",
+                "folder",
+                "table",
+                "entityview",
+                "materializedview",
+                "virtualtable",
+                "dataset",
+                "datasetcollection",
+            ],
+            synapse_client=self.syn,
+        )
+
+        # AND Verify that local ACL permissions have been removed
+        entities_with_permissions_after = set()
+        for entity_acl in final_acl_result.all_entity_acls:
+            for acl_entry in entity_acl.acl_entries:
+                if (
+                    acl_entry.principal_id == str(AUTHENTICATED_USERS)
+                    and "READ" in acl_entry.permissions
+                ):
+                    entities_with_permissions_after.add(entity_acl.entity_id)
+
+        # AND Should have fewer entities with local ACL permissions after deletion
+        for entity_type, entity in entities.items():
+            if entity_type != "project":
+                acl_after = entity.get_acl(
+                    principal_id=AUTHENTICATED_USERS,
+                    synapse_client=self.syn,
+                    check_benefactor=False,
+                )
+                assert not acl_after, "Local ACL should be removed"
+
+    async def test_mixed_case_entity_types_actual_deletion(self) -> None:
+        """Test that entity types are case-insensitive with actual deletion."""
+        # GIVEN a project with all supported entity types
+        project = Project(name=f"test_project_{uuid.uuid4()}")
+        entities = await self.create_all_entity_types_with_acl(project)
+
+        # AND I verify initial ACL state
+        initial_result = entities["project"].list_acl(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=["FILE", "Folder", "TABLE"],
+            synapse_client=self.syn,
+        )
+
+        assert isinstance(initial_result, AclListResult)
+        initial_entities_with_permissions = set()
+        for entity_acl in initial_result.all_entity_acls:
+            for acl_entry in entity_acl.acl_entries:
+                if (
+                    acl_entry.principal_id == str(AUTHENTICATED_USERS)
+                    and "READ" in acl_entry.permissions
+                ):
+                    initial_entities_with_permissions.add(entity_acl.entity_id)
+
+        assert (
+            len(initial_entities_with_permissions) > 0
+        ), "Should have entities with READ permissions before deletion"
+
+        # WHEN I call delete_permissions with mixed case entity types and dry_run=False
+        entities["project"].delete_permissions(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=["FILE", "Folder", "TABLE"],
+            dry_run=False,
+            synapse_client=self.syn,
+        )
+
+        # THEN verify that permissions were actually deleted
+        final_result = entities["project"].list_acl(
+            recursive=True,
+            include_container_content=True,
+            target_entity_types=["FILE", "Folder", "TABLE"],
+            synapse_client=self.syn,
+        )
+
+        assert isinstance(final_result, AclListResult)
+        final_entities_with_permissions = set()
+        for entity_acl in final_result.all_entity_acls:
+            for acl_entry in entity_acl.acl_entries:
+                if (
+                    acl_entry.principal_id == str(AUTHENTICATED_USERS)
+                    and "READ" in acl_entry.permissions
+                ):
+                    final_entities_with_permissions.add(entity_acl.entity_id)
+
+        # AND Verify individual entity permissions were removed/restored to inheritance
+        for entity_type in ["file", "folder", "table"]:
+            entity = entities[entity_type]
+            acl_after = entity.get_acl(
+                principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
+            )
+            assert (
+                not acl_after
+            ), f"Local ACL for {entity_type} {entity.id} should be removed after deletion"
