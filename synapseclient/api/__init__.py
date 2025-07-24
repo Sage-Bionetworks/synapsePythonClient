@@ -68,6 +68,7 @@ from .json_schema_services import (
 from .table_services import (
     ViewEntityType,
     ViewTypeMask,
+    create_table_snapshot,
     get_columns,
     get_default_columns,
     post_columns,
@@ -181,4 +182,6 @@ __all__ = [
     "get_user_profile_by_id",
     "get_user_profile_by_username",
     "is_user_certified",
+    # table_services
+    "create_table_snapshot",
 ]
