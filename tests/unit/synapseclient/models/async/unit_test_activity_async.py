@@ -1,6 +1,6 @@
 """Unit tests for Activity."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -28,44 +28,6 @@ class TestActivity:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn):
         self.syn = syn
-
-    def get_example_synapse_activity_input(self) -> Synapse_Activity:
-        return Synapse_Activity(
-            name=ACTIVITY_NAME,
-            description=DESCRIPTION,
-            used=[
-                {
-                    "wasExecuted": False,
-                    "concreteType": USED_URL,
-                    "url": BOGUS_URL,
-                    "name": EXAMPLE_NAME,
-                },
-                {
-                    "wasExecuted": False,
-                    "concreteType": USED_ENTITY,
-                    "reference": {
-                        "targetId": SYN_456,
-                        "targetVersionNumber": 1,
-                    },
-                },
-            ],
-            executed=[
-                {
-                    "wasExecuted": True,
-                    "concreteType": USED_URL,
-                    "url": BOGUS_URL,
-                    "name": EXAMPLE_NAME,
-                },
-                {
-                    "wasExecuted": True,
-                    "concreteType": USED_ENTITY,
-                    "reference": {
-                        "targetId": SYN_789,
-                        "targetVersionNumber": 1,
-                    },
-                },
-            ],
-        )
 
     def get_example_synapse_activity_output(self) -> Synapse_Activity:
         synapse_activity = Synapse_Activity(
@@ -162,19 +124,51 @@ class TestActivity:
         )
 
         # WHEN we store it
-        with patch.object(
-            self.syn,
-            "updateActivity",
+        with patch(
+            "synapseclient.models.activity.update_activity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_activity_output()),
         ) as path_update_activity:
             result_of_store = await activity.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            sample_input = self.get_example_synapse_activity_input()
-            sample_input["id"] = SYN_123
-            sample_input["etag"] = None
+            expected_request = {
+                "id": SYN_123,
+                "name": ACTIVITY_NAME,
+                "description": DESCRIPTION,
+                "used": [
+                    {
+                        "concreteType": USED_URL,
+                        "name": EXAMPLE_NAME,
+                        "url": BOGUS_URL,
+                        "wasExecuted": False,
+                    },
+                    {
+                        "concreteType": USED_ENTITY,
+                        "reference": {
+                            "targetId": SYN_456,
+                            "targetVersionNumber": 1,
+                        },
+                        "wasExecuted": False,
+                    },
+                    {
+                        "concreteType": USED_URL,
+                        "name": EXAMPLE_NAME,
+                        "url": BOGUS_URL,
+                        "wasExecuted": True,
+                    },
+                    {
+                        "concreteType": USED_ENTITY,
+                        "reference": {
+                            "targetId": SYN_789,
+                            "targetVersionNumber": 1,
+                        },
+                        "wasExecuted": True,
+                    },
+                ],
+            }
             path_update_activity.assert_called_once_with(
-                activity=sample_input,
+                expected_request, synapse_client=self.syn
             )
 
             # AND we should get back the stored activity
@@ -217,9 +211,8 @@ class TestActivity:
         )
 
         # WHEN we store it
-        with patch.object(
-            self.syn,
-            "setProvenance",
+        with patch(
+            "synapseclient.models.activity.set_entity_provenance",
             return_value=(self.get_example_synapse_activity_output()),
         ) as path_set_provenance:
             result_of_store = await activity.store_async(
@@ -227,10 +220,44 @@ class TestActivity:
             )
 
             # THEN we should call the method with this data
-            sample_input = self.get_example_synapse_activity_input()
+            expected_request = {
+                "name": ACTIVITY_NAME,
+                "description": DESCRIPTION,
+                "used": [
+                    {
+                        "concreteType": USED_URL,
+                        "name": EXAMPLE_NAME,
+                        "url": BOGUS_URL,
+                        "wasExecuted": False,
+                    },
+                    {
+                        "concreteType": USED_ENTITY,
+                        "reference": {
+                            "targetId": SYN_456,
+                            "targetVersionNumber": 1,
+                        },
+                        "wasExecuted": False,
+                    },
+                    {
+                        "concreteType": USED_URL,
+                        "name": EXAMPLE_NAME,
+                        "url": BOGUS_URL,
+                        "wasExecuted": True,
+                    },
+                    {
+                        "concreteType": USED_ENTITY,
+                        "reference": {
+                            "targetId": SYN_789,
+                            "targetVersionNumber": 1,
+                        },
+                        "wasExecuted": True,
+                    },
+                ],
+            }
             path_set_provenance.assert_called_once_with(
-                entity="syn999",
-                activity=sample_input,
+                entity_id="syn999",
+                activity=expected_request,
+                synapse_client=self.syn,
             )
 
             # AND we should get back the stored activity
@@ -262,9 +289,8 @@ class TestActivity:
         parent = File("syn999", version_number=1)
 
         # WHEN I get the activity
-        with patch.object(
-            self.syn,
-            "getProvenance",
+        with patch(
+            "synapseclient.models.activity.get_entity_provenance",
             return_value=(self.get_example_synapse_activity_output()),
         ) as path_get_provenance:
             result_of_get = await Activity.from_parent_async(
@@ -273,8 +299,9 @@ class TestActivity:
 
             # THEN we should call the method with this data
             path_get_provenance.assert_called_once_with(
-                entity="syn999",
-                version=1,
+                entity_id="syn999",
+                version_number=1,
+                synapse_client=self.syn,
             )
 
             # AND we should get back the stored activity
@@ -306,14 +333,14 @@ class TestActivity:
         parent = File(id="syn999")
 
         # WHEN I delete the activity
-        with patch.object(
-            self.syn,
-            attribute="deleteProvenance",
+        with patch(
+            "synapseclient.models.activity.delete_entity_provenance",
             return_value=None,
         ) as path_delete_provenance:
             await Activity.delete_async(parent=parent, synapse_client=self.syn)
 
             # THEN we should call the method with this data
             path_delete_provenance.assert_called_once_with(
-                entity="syn999",
+                entity_id="syn999",
+                synapse_client=self.syn,
             )

@@ -1,14 +1,21 @@
-import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 
 from opentelemetry import trace
 
-from synapseclient.activity import Activity as Synapse_Activity
-from synapseclient.api import delete_entity_generated_by
+from synapseclient.api import (
+    create_activity,
+    delete_entity_generated_by,
+    delete_entity_provenance,
+    get_activity,
+    get_entity_provenance,
+    set_entity_provenance,
+    update_activity,
+)
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants.concrete_types import USED_ENTITY, USED_URL
 from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.utils import delete_none_keys, get_synid_and_version
 from synapseclient.models.protocols.activity_protocol import ActivitySynchronousProtocol
 
 if TYPE_CHECKING:
@@ -46,6 +53,27 @@ class UsedEntity:
             return_value += f".{self.target_version_number}"
         return return_value
 
+    def to_synapse_request(
+        self, was_executed: bool = False
+    ) -> Dict[str, Union[str, bool, Dict]]:
+        """
+        Converts the UsedEntity to a request expected by the Synapse REST API.
+
+        Arguments:
+            was_executed: Whether the entity was executed (vs. just used).
+
+        Returns:
+            A dictionary representation matching the Synapse REST API format.
+        """
+        return {
+            "concreteType": USED_ENTITY,
+            "reference": {
+                "targetId": self.target_id,
+                "targetVersionNumber": self.target_version_number,
+            },
+            "wasExecuted": was_executed,
+        }
+
 
 @dataclass
 class UsedURL:
@@ -79,6 +107,25 @@ class UsedURL:
             return_value = self.url
 
         return return_value
+
+    def to_synapse_request(
+        self, was_executed: bool = False
+    ) -> Dict[str, Union[str, bool]]:
+        """
+        Converts the UsedURL to a request expected by the Synapse REST API.
+
+        Arguments:
+            was_executed: Whether the URL was executed (vs. just used).
+
+        Returns:
+            A dictionary representation matching the Synapse REST API format.
+        """
+        return {
+            "concreteType": USED_URL,
+            "name": self.name,
+            "url": self.url,
+            "wasExecuted": was_executed,
+        }
 
 
 class UsedAndExecutedSynapseActivities(NamedTuple):
@@ -155,7 +202,7 @@ class Activity(ActivitySynchronousProtocol):
     """The entities executed by this Activity."""
 
     def fill_from_dict(
-        self, synapse_activity: Union[Synapse_Activity, Dict]
+        self, synapse_activity: Dict[str, Union[str, List[Dict[str, Union[str, bool]]]]]
     ) -> "Activity":
         """
         Converts a response from the REST API into this dataclass.
@@ -220,46 +267,64 @@ class Activity(ActivitySynchronousProtocol):
         for used in self.used:
             if isinstance(used, UsedEntity):
                 synapse_activity_used.append(
-                    {
-                        "reference": {
-                            "targetId": used.target_id,
-                            "targetVersionNumber": used.target_version_number,
-                        }
-                    }
+                    used.to_synapse_request(was_executed=False)
                 )
             elif isinstance(used, UsedURL):
                 synapse_activity_used.append(
-                    {
-                        "name": used.name,
-                        "url": used.url,
-                    }
+                    used.to_synapse_request(was_executed=False)
                 )
 
         for executed in self.executed:
             if isinstance(executed, UsedEntity):
                 synapse_activity_executed.append(
-                    {
-                        "reference": {
-                            "targetId": executed.target_id,
-                            "targetVersionNumber": executed.target_version_number,
-                        },
-                        "wasExecuted": True,
-                    }
+                    executed.to_synapse_request(was_executed=True)
                 )
             elif isinstance(executed, UsedURL):
                 synapse_activity_executed.append(
-                    {"name": executed.name, "url": executed.url, "wasExecuted": True}
+                    executed.to_synapse_request(was_executed=True)
                 )
+
         return UsedAndExecutedSynapseActivities(
             used=synapse_activity_used, executed=synapse_activity_executed
         )
+
+    def to_synapse_request(self) -> Dict[str, Union[str, List[Dict]]]:
+        """
+        Converts the Activity to a request expected by the Synapse REST API.
+
+        Returns:
+            A dictionary representation matching the Synapse REST API format.
+        """
+        used_and_executed_activities = (
+            self._create_used_and_executed_synapse_activities()
+        )
+
+        combined_used = (
+            used_and_executed_activities.used + used_and_executed_activities.executed
+        )
+
+        request = {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "etag": self.etag,
+            "createdOn": self.created_on,
+            "modifiedOn": self.modified_on,
+            "createdBy": self.created_by,
+            "modifiedBy": self.modified_by,
+            "used": combined_used,
+        }
+
+        delete_none_keys(request)
+
+        return request
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Activity_store: {self.name}"
     )
     async def store_async(
         self,
-        parent: Optional[Union["Table", "File", "EntityView", "Dataset"]] = None,
+        parent: Optional[Union["Table", "File", "EntityView", "Dataset", str]] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> "Activity":
@@ -267,7 +332,8 @@ class Activity(ActivitySynchronousProtocol):
         Store the Activity in Synapse.
 
         Arguments:
-            parent: The parent entity to associate this activity with.
+            parent: The parent entity to associate this activity with. Can be an entity
+                object or a string ID (e.g., "syn123").
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -284,54 +350,41 @@ class Activity(ActivitySynchronousProtocol):
         from synapseclient import Synapse
 
         # TODO: Input validation: SYNPY-1400
-        used_and_executed_activities = (
-            self._create_used_and_executed_synapse_activities()
-        )
-
-        synapse_activity = Synapse_Activity(
-            name=self.name,
-            description=self.description,
-            used=used_and_executed_activities.used,
-            executed=used_and_executed_activities.executed,
-        )
-
-        loop = asyncio.get_event_loop()
-        if self.id:
-            # Despite init in `Synapse_Activity` not accepting an ID/ETAG the
-            # `updateActivity` method expects that it exists on the dict
-            # and `setProvenance` accepts it as well.
-            synapse_activity["id"] = self.id
-            synapse_activity["etag"] = self.etag
         if parent:
-            saved_activity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).setProvenance(
-                    entity=parent.id,
-                    activity=synapse_activity,
-                ),
+            parent_id = parent if isinstance(parent, str) else parent.id
+            saved_activity = await set_entity_provenance(
+                entity_id=parent_id,
+                activity=self.to_synapse_request(),
+                synapse_client=synapse_client,
             )
         else:
-            saved_activity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).updateActivity(
-                    activity=synapse_activity,
-                ),
-            )
+            if self.id:
+                saved_activity = await update_activity(
+                    self.to_synapse_request(), synapse_client=synapse_client
+                )
+            else:
+                saved_activity = await create_activity(
+                    self.to_synapse_request(), synapse_client=synapse_client
+                )
         self.fill_from_dict(synapse_activity=saved_activity)
-        Synapse.get_client(synapse_client=synapse_client).logger.info(
-            f"[{parent.id}]: Stored activity"
-            if parent
-            else f"[{self.id}]: Stored activity"
-        )
+
+        if parent:
+            parent_display_id = parent if isinstance(parent, str) else parent.id
+            Synapse.get_client(synapse_client=synapse_client).logger.info(
+                f"[{parent_display_id}]: Stored activity"
+            )
+        else:
+            Synapse.get_client(synapse_client=synapse_client).logger.info(
+                f"[{self.id}]: Stored activity"
+            )
 
         return self
 
     @classmethod
     async def from_parent_async(
         cls,
-        parent: Union["Table", "File", "EntityView", "Dataset"],
+        parent: Union["Table", "File", "EntityView", "Dataset", str],
+        parent_version_number: Optional[int] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> Union["Activity", None]:
@@ -342,6 +395,10 @@ class Activity(ActivitySynchronousProtocol):
             parent: The parent entity this activity is associated with. The parent may
                 also have a version_number. Gets the most recent version if version is
                 omitted.
+            parent_version_number: The version number of the parent entity. When parent
+                is a string with version (e.g., "syn123.4"), the version in the string
+                takes precedence. When parent is an object, this parameter takes precedence
+                over parent.version_number. Gets the most recent version if omitted.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -352,20 +409,25 @@ class Activity(ActivitySynchronousProtocol):
         Raises:
             ValueError: If the parent does not have an ID.
         """
-        from synapseclient import Synapse
+        if isinstance(parent, str):
+            parent_id, version = get_synid_and_version(parent)
+            if version is None:
+                version = parent_version_number
+        else:
+            parent_id = parent.id
+            version = (
+                parent_version_number
+                if parent_version_number is not None
+                else parent.version_number
+            )
 
         # TODO: Input validation: SYNPY-1400
-        with tracer.start_as_current_span(name=f"Activity_get: Parent_ID: {parent.id}"):
-            loop = asyncio.get_event_loop()
+        with tracer.start_as_current_span(name=f"Activity_get: Parent_ID: {parent_id}"):
             try:
-                synapse_activity = await loop.run_in_executor(
-                    None,
-                    lambda: Synapse.get_client(
-                        synapse_client=synapse_client
-                    ).getProvenance(
-                        entity=parent.id,
-                        version=parent.version_number,
-                    ),
+                synapse_activity = await get_entity_provenance(
+                    entity_id=parent_id,
+                    version_number=version,
+                    synapse_client=synapse_client,
                 )
             except SynapseHTTPError as ex:
                 if ex.response.status_code == 404:
@@ -380,7 +442,7 @@ class Activity(ActivitySynchronousProtocol):
     @classmethod
     async def delete_async(
         cls,
-        parent: Union["Table", "File"],
+        parent: Union["Table", "File", str],
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
@@ -401,27 +463,21 @@ class Activity(ActivitySynchronousProtocol):
         Raises:
             ValueError: If the parent does not have an ID.
         """
-        from synapseclient import Synapse
-
+        parent_id = parent if isinstance(parent, str) else parent.id
         # TODO: Input validation: SYNPY-1400
         with tracer.start_as_current_span(
-            name=f"Activity_delete: Parent_ID: {parent.id}"
+            name=f"Activity_delete: Parent_ID: {parent_id}"
         ):
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(
-                    synapse_client=synapse_client
-                ).deleteProvenance(
-                    entity=parent.id,
-                ),
+            await delete_entity_provenance(
+                entity_id=parent_id, synapse_client=synapse_client
             )
-            parent.activity = None
+            if not isinstance(parent, str):
+                parent.activity = None
 
     @classmethod
     async def disassociate_from_entity_async(
         cls,
-        parent: Union["Table", "File"],
+        parent: Union["Table", "File", str],
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
@@ -439,11 +495,144 @@ class Activity(ActivitySynchronousProtocol):
         Raises:
             ValueError: If the parent does not have an ID.
         """
+        parent_id = parent if isinstance(parent, str) else parent.id
         # TODO: Input validation: SYNPY-1400
         with tracer.start_as_current_span(
-            name=f"Activity_disassociate: Parent_ID: {parent.id}"
+            name=f"Activity_disassociate: Parent_ID: {parent_id}"
         ):
             await delete_entity_generated_by(
-                entity_id=parent.id, synapse_client=synapse_client
+                entity_id=parent_id, synapse_client=synapse_client
             )
-            parent.activity = None
+            if not isinstance(parent, str):
+                parent.activity = None
+
+    @classmethod
+    async def get_async(
+        cls,
+        activity_id: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        parent_version_number: Optional[int] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> Union["Activity", None]:
+        """
+        Get an Activity from Synapse by either activity ID or parent entity ID.
+
+        Arguments:
+            activity_id: The ID of the activity to retrieve. If provided, this takes
+                precedence over parent_id.
+            parent_id: The ID of the parent entity to get the activity for.
+                Only used if activity_id is not provided (ignored when activity_id is provided).
+            parent_version_number: The version number of the parent entity. Only used when
+                parent_id is provided (ignored when activity_id is provided). Gets the
+                most recent version if omitted.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The activity object or None if it does not exist.
+
+        Raises:
+            ValueError: If neither activity_id nor parent_id is provided.
+
+        Example: Get activity by activity ID
+            Retrieve an activity using its ID.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Activity
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                activity = await Activity.get_async(activity_id="12345")
+                if activity:
+                    print(f"Activity: {activity.name}")
+                else:
+                    print("Activity not found")
+
+            asyncio.run(main())
+            ```
+
+        Example: Get activity by parent entity ID
+            Retrieve an activity using the parent entity ID.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Activity
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                activity = await Activity.get_async(parent_id="syn123")
+                if activity:
+                    print(f"Activity: {activity.name}")
+                else:
+                    print("No activity found for entity")
+
+            asyncio.run(main())
+            ```
+
+        Example: Get activity by parent entity ID with version
+            Retrieve an activity for a specific version of a parent entity.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Activity
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                activity = await Activity.get_async(
+                    parent_id="syn123",
+                    parent_version_number=3
+                )
+                if activity:
+                    print(f"Activity: {activity.name}")
+                else:
+                    print("No activity found for entity version")
+
+            asyncio.run(main())
+            ```
+        """
+        if not activity_id and not parent_id:
+            raise ValueError("Either activity_id or parent_id must be provided")
+
+        if activity_id:
+            try:
+                synapse_activity = await get_activity(
+                    activity_id=activity_id,
+                    synapse_client=synapse_client,
+                )
+                if synapse_activity:
+                    return cls().fill_from_dict(synapse_activity=synapse_activity)
+                else:
+                    return None
+            except SynapseHTTPError as ex:
+                if ex.response.status_code == 404:
+                    return None
+                else:
+                    raise ex
+        else:
+            try:
+                synapse_activity = await get_entity_provenance(
+                    entity_id=parent_id,
+                    version_number=parent_version_number,
+                    synapse_client=synapse_client,
+                )
+                if synapse_activity:
+                    return cls().fill_from_dict(synapse_activity=synapse_activity)
+                else:
+                    return None
+            except SynapseHTTPError as ex:
+                if ex.response.status_code == 404:
+                    return None
+                else:
+                    raise ex

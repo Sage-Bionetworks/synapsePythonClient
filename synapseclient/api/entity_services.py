@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from async_lru import alru_cache
 
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import get_synid_and_version
 
 if TYPE_CHECKING:
@@ -542,3 +543,327 @@ async def get_entities_by_md5(
     return await client.rest_get_async(
         uri=f"/entity/md5/{md5}",
     )
+
+
+async def get_entity_provenance(
+    entity_id: str,
+    version_number: Optional[int] = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """
+    Retrieve provenance information for a Synapse Entity.
+
+    Arguments:
+        entity_id: The ID of the entity. This may include version `syn123.0` or `syn123`.
+            If the version is included in `entity_id` and `version_number` is also
+            passed in, then the version in `entity_id` will be used.
+        version_number: The version of the Entity to retrieve. Gets the most recent version if omitted.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        Activity object as a dictionary or raises exception if no provenance record exists.
+
+    Example: Get provenance for an entity
+        Get the provenance information for entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_entity_provenance
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            activity = await get_entity_provenance(entity_id="syn123")
+            print(f"Activity: {activity}")
+
+        asyncio.run(main())
+        ```
+
+    Example: Get provenance for a specific version
+        Get the provenance information for version 3 of entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_entity_provenance
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            activity = await get_entity_provenance(entity_id="syn123", version_number=3)
+            print(f"Activity: {activity}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    syn_id, syn_version = get_synid_and_version(entity_id)
+    if not syn_version:
+        syn_version = version_number
+
+    if syn_version:
+        uri = f"/entity/{syn_id}/version/{syn_version}/generatedBy"
+    else:
+        uri = f"/entity/{syn_id}/generatedBy"
+
+    return await client.rest_get_async(uri=uri)
+
+
+async def set_entity_provenance(
+    entity_id: str,
+    activity: Dict[str, Any],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """
+    Stores a record of the code and data used to derive a Synapse entity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        activity: A dictionary representing an Activity object.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        An updated Activity object as a dictionary.
+
+    Example: Set provenance for an entity
+        Set the provenance for entity `syn123` with an activity.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import set_entity_provenance, create_activity
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            # First create or get an activity
+            activity = await create_activity({
+                "name": "Analysis Step",
+                "description": "Data processing step"
+            })
+
+            # Set the provenance
+            updated_activity = await set_entity_provenance(
+                entity_id="syn123",
+                activity=activity
+            )
+            print(f"Updated activity: {updated_activity}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    if "id" in activity:
+        saved_activity = await update_activity(activity, synapse_client=synapse_client)
+    else:
+        saved_activity = await create_activity(activity, synapse_client=synapse_client)
+
+    uri = f"/entity/{entity_id}/generatedBy?generatedBy={saved_activity['id']}"
+    return await client.rest_put_async(uri=uri)
+
+
+async def delete_entity_provenance(
+    entity_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Removes provenance information from an Entity and deletes the associated Activity.
+
+    Arguments:
+        entity_id: The ID of the entity.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Example: Delete provenance for an entity
+        Delete the provenance for entity `syn123`.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import delete_entity_provenance
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            await delete_entity_provenance(entity_id="syn123")
+
+        asyncio.run(main())
+        ```
+
+    Returns: None
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    try:
+        activity = await get_entity_provenance(entity_id, synapse_client=synapse_client)
+    except SynapseHTTPError:
+        # If no provenance exists, nothing to delete
+        return
+
+    if not activity:
+        return
+
+    await client.rest_delete_async(uri=f"/entity/{entity_id}/generatedBy")
+
+    # If the activity is shared by more than one entity you recieve an HTTP 400 error:
+    # "If you wish to delete this activity, please first delete all Entities generated by this Activity.""
+    await client.rest_delete_async(uri=f"/activity/{activity['id']}")
+
+
+async def create_activity(
+    activity: Dict[str, Any],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """
+    Create a new Activity in Synapse.
+
+    Arguments:
+        activity: A dictionary representing an Activity object.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        The created Activity object as a dictionary.
+
+    Example: Create a new activity
+        Create a new activity in Synapse.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import create_activity
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            activity = await create_activity({
+                "name": "Data Analysis",
+                "description": "Processing raw data"
+            })
+            print(f"Created activity: {activity}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_post_async(uri="/activity", body=json.dumps(activity))
+
+
+async def update_activity(
+    activity: Dict[str, Any],
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """
+    Modifies an existing Activity.
+
+    Arguments:
+        activity: The Activity to be updated. Must contain an 'id' field.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        An updated Activity object as a dictionary.
+
+    Raises:
+        ValueError: If the activity does not contain an 'id' field.
+
+    Example: Update an existing activity
+        Update an existing activity in Synapse.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import update_activity
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            activity = {
+                "id": "12345",
+                "name": "Updated Analysis",
+                "description": "Updated processing step"
+            }
+            updated_activity = await update_activity(activity)
+            print(f"Updated activity: {updated_activity}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    if "id" not in activity:
+        raise ValueError("The activity you want to update must exist on Synapse")
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    uri = f"/activity/{activity['id']}"
+    return await client.rest_put_async(uri=uri, body=json.dumps(activity))
+
+
+async def get_activity(
+    activity_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Any]:
+    """
+    Retrieve an Activity by its ID.
+
+    Arguments:
+        activity_id: The ID of the activity to retrieve.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        Activity object as a dictionary.
+
+    Example: Get activity by ID
+        Retrieve an activity using its ID.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_activity
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            activity = await get_activity(activity_id="12345")
+            print(f"Activity: {activity}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+    return await client.rest_get_async(uri=f"/activity/{activity_id}")
