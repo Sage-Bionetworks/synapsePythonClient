@@ -610,6 +610,7 @@ class TestDatasetCollection:
 
     async def test_dataset_collection_versioning(self, project_model: Project) -> None:
         """Test versioning of DatasetCollections"""
+
         # GIVEN a DatasetCollection and datasets
         dataset1 = await self.create_dataset(project_model)
         dataset2 = await self.create_dataset(project_model)
@@ -627,7 +628,7 @@ class TestDatasetCollection:
         collection.snapshot(synapse_client=self.syn)
 
         # AND I update the collection and make version 2
-        collection.name = "Updated collection"
+        collection.name = f"Updated collection {uuid.uuid4()}"
         collection.add_item(dataset2)
         collection.store(synapse_client=self.syn)
         collection.snapshot(synapse_client=self.syn)
@@ -644,6 +645,6 @@ class TestDatasetCollection:
             synapse_client=self.syn
         )
         assert len(v2.items) == 2
-        assert v2.name == "Updated collection"
+        assert v2.name == collection.name
         assert EntityRef(id=dataset1.id, version=dataset1.version_number) in v2.items
         assert EntityRef(id=dataset2.id, version=dataset2.version_number) in v2.items
