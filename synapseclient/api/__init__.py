@@ -69,8 +69,11 @@ from .table_services import (
     ViewEntityType,
     ViewTypeMask,
     create_table_snapshot,
+    get_column,
     get_columns,
     get_default_columns,
+    list_columns,
+    list_columns_sync,
     post_columns,
 )
 from .team_services import (
@@ -151,6 +154,9 @@ __all__ = [
     # columns
     "get_columns",
     "post_columns",
+    "get_column",
+    "list_columns",
+    "list_columns_sync",
     "get_default_columns",
     "ViewTypeMask",
     "ViewEntityType",

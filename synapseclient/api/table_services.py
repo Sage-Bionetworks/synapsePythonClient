@@ -5,7 +5,7 @@ columns in the Synapse REST API.
 
 import json
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, AsyncGenerator, Dict, Generator, List, Optional, Union
 
 from synapseclient.core.utils import delete_none_keys, id_of
 
@@ -121,6 +121,97 @@ async def get_columns(
         columns.append(Column().fill_from_dict(synapse_column=column))
 
     return columns
+
+
+async def get_column(
+    column_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Dict[str, Union[str, int]]:
+    """Get a single column by ID.
+
+    Arguments:
+        column_id: The ID of the column to retrieve.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Returns:
+        The column matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnModel.html>
+    """
+    from synapseclient import Synapse
+
+    return await Synapse.get_client(synapse_client=synapse_client).rest_get_async(
+        f"/column/{column_id}",
+    )
+
+
+async def list_columns(
+    prefix: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> AsyncGenerator["Column", None]:
+    """List columns with optional prefix filtering.
+
+    Arguments:
+        prefix: Optional prefix to filter columns by name.
+        limit: Number of columns to retrieve per request to Synapse (pagination parameter).
+            The function will continue retrieving results until all matching columns are returned.
+        offset: The index of the first column to return (pagination parameter).
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Yields: Column instances.
+    """
+    from synapseclient.api.api_client import rest_get_paginated_async
+    from synapseclient.models import Column
+
+    if prefix is None:
+        uri = "/column"
+    else:
+        uri = f"/column?prefix={prefix}"
+
+    async for result in rest_get_paginated_async(
+        uri, limit=limit, offset=offset, synapse_client=synapse_client
+    ):
+        yield Column().fill_from_dict(synapse_column=result)
+
+
+def list_columns_sync(
+    prefix: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Generator["Column", None, None]:
+    """List columns with optional prefix filtering (synchronous version).
+
+    Arguments:
+        prefix: Optional prefix to filter columns by name.
+        limit: Number of columns to retrieve per request to Synapse (pagination parameter).
+            The function will continue retrieving results until all matching columns are returned.
+        offset: The index of the first column to return (pagination parameter).
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Yields: Column instances.
+    """
+    from synapseclient import Synapse
+    from synapseclient.models import Column
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    if prefix is None:
+        uri = "/column"
+    else:
+        uri = f"/column?prefix={prefix}"
+
+    for result in client._GET_paginated(uri, limit=limit, offset=offset):
+        yield Column().fill_from_dict(synapse_column=result)
 
 
 async def post_columns(
