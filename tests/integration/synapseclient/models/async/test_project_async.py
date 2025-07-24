@@ -9,7 +9,21 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import File, Folder, Project
+from synapseclient.models import (
+    Column,
+    ColumnType,
+    Dataset,
+    DatasetCollection,
+    EntityRef,
+    EntityView,
+    File,
+    Folder,
+    MaterializedView,
+    Project,
+    Table,
+    ViewTypeMask,
+    VirtualTable,
+)
 
 CONTENT_TYPE = "text/plain"
 DESCRIPTION_FILE = "This is an example file."
@@ -470,3 +484,118 @@ class TestProjectCopySync:
                     utils.md5_for_file(sub_file.path).hexdigest()
                     == sub_file.file_handle.content_md5
                 )
+
+    async def test_sync_all_entity_types(self) -> None:
+        """Test syncing a project with all supported entity types."""
+        # GIVEN a project with one of each entity type
+
+        # Create a unique project for this test
+        project_model = Project(
+            name=f"test_sync_project_{str(uuid.uuid4())}",
+            description="Test project for sync all entity types",
+        )
+        project_model = await project_model.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_model.id)
+
+        # Create and store a Table
+        table = Table(
+            name=f"test_table_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            columns=[
+                Column(name="test_column", column_type=ColumnType.STRING),
+                Column(name="test_column2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Create and store an EntityView
+        entity_view = EntityView(
+            name=f"test_entityview_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            scope_ids=[project_model.id],
+            view_type_mask=ViewTypeMask.FILE,
+            include_default_columns=True,
+        )
+        entity_view = await entity_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(entity_view.id)
+
+        # Create and store a MaterializedView
+        materialized_view = MaterializedView(
+            name=f"test_materializedview_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        materialized_view = await materialized_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(materialized_view.id)
+
+        # Create and store a VirtualTable
+        virtual_table = VirtualTable(
+            name=f"test_virtualtable_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table.id)
+
+        # Create and store a File for the dataset
+        file = File(
+            name=f"test_file_{str(uuid.uuid4())}.txt",
+            parent_id=project_model.id,
+            path=utils.make_bogus_uuid_file(),
+        )
+        file = await file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(file.id)
+
+        # Create and store a Dataset
+        dataset = Dataset(
+            name=f"test_dataset_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            items=[EntityRef(id=file.id, version=1)],
+        )
+        dataset = await dataset.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset.id)
+
+        # Create and store a DatasetCollection
+        dataset_collection = DatasetCollection(
+            name=f"test_dataset_collection_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            items=[EntityRef(id=dataset.id, version=1)],
+        )
+        dataset_collection = await dataset_collection.store_async(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I sync the project from Synapse
+        synced_project = await project_model.sync_from_synapse_async(
+            recursive=False, download_file=False
+        )
+
+        # THEN all entity types should be present
+        assert len(synced_project.tables) == 1
+        assert synced_project.tables[0].id == table.id
+        assert synced_project.tables[0].name == table.name
+
+        assert len(synced_project.entityviews) == 1
+        assert synced_project.entityviews[0].id == entity_view.id
+        assert synced_project.entityviews[0].name == entity_view.name
+
+        assert len(synced_project.materializedviews) == 1
+        assert synced_project.materializedviews[0].id == materialized_view.id
+        assert synced_project.materializedviews[0].name == materialized_view.name
+
+        assert len(synced_project.virtualtables) == 1
+        assert synced_project.virtualtables[0].id == virtual_table.id
+        assert synced_project.virtualtables[0].name == virtual_table.name
+
+        assert len(synced_project.datasets) == 1
+        assert synced_project.datasets[0].id == dataset.id
+        assert synced_project.datasets[0].name == dataset.name
+
+        assert len(synced_project.datasetcollections) == 1
+        assert synced_project.datasetcollections[0].id == dataset_collection.id
+        assert synced_project.datasetcollections[0].name == dataset_collection.name
+
+        # Verify that submission views are empty (since we didn't create any evaluation queues)
+        assert len(synced_project.submissionviews) == 0

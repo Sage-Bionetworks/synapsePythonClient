@@ -164,7 +164,7 @@ async def get_invalid_json_schema_validation(
     request_body = {"containerId": synapse_id}
     response = rest_post_paginated_async(
         f"/entity/{synapse_id}/schema/validation/invalid",
-        body=json.dumps(request_body),
+        body=request_body,
         synapse_client=synapse_client,
     )
     async for item in response:

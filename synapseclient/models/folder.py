@@ -27,7 +27,16 @@ from synapseclient.models.services.storable_entity_components import (
 from synapseutils import copy
 
 if TYPE_CHECKING:
-    from synapseclient.models import Project
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        MaterializedView,
+        Project,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
 
 
 @dataclass()
@@ -59,6 +68,13 @@ class Folder(
         modified_by: (Read Only) The ID of the user that last modified this entity.
         files: Files that exist within this folder.
         folders: Folders that exist within this folder.
+        tables: Tables that exist within this folder.
+        entityviews: Entity views that exist within this folder.
+        submissionviews: Submission views that exist within this folder.
+        datasets: Datasets that exist within this folder.
+        datasetcollections: Dataset collections that exist within this folder.
+        materializedviews: Materialized views that exist within this folder.
+        virtualtables: Virtual tables that exist within this folder.
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -115,6 +131,31 @@ class Folder(
 
     folders: List["Folder"] = field(default_factory=list, compare=False)
     """Folders that exist within this folder."""
+
+    tables: List["Table"] = field(default_factory=list, compare=False)
+    """Tables that exist within this folder."""
+
+    entityviews: List["EntityView"] = field(default_factory=list, compare=False)
+    """Entity views that exist within this folder."""
+
+    submissionviews: List["SubmissionView"] = field(default_factory=list, compare=False)
+    """Submission views that exist within this folder."""
+
+    datasets: List["Dataset"] = field(default_factory=list, compare=False)
+    """Datasets that exist within this folder."""
+
+    datasetcollections: List["DatasetCollection"] = field(
+        default_factory=list, compare=False
+    )
+    """Dataset collections that exist within this folder."""
+
+    materializedviews: List["MaterializedView"] = field(
+        default_factory=list, compare=False
+    )
+    """Materialized views that exist within this folder."""
+
+    virtualtables: List["VirtualTable"] = field(default_factory=list, compare=False)
+    """Virtual tables that exist within this folder."""
 
     annotations: Optional[
         Dict[

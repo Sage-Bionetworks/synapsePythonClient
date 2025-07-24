@@ -8,11 +8,19 @@ from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api import get_entity_id_bundle2
+from synapseclient.api.entity_services import get_children
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.constants.concrete_types import (
+    DATASET_COLLECTION_ENTITY,
+    DATASET_ENTITY,
+    ENTITY_VIEW,
     FILE_ENTITY,
     FOLDER_ENTITY,
     LINK_ENTITY,
+    MATERIALIZED_VIEW,
+    SUBMISSION_VIEW,
+    TABLE_ENTITY,
+    VIRTUAL_TABLE,
 )
 from synapseclient.core.constants.method_flags import COLLISION_OVERWRITE_LOCAL
 from synapseclient.core.exceptions import SynapseError
@@ -26,7 +34,18 @@ from synapseclient.models.services.storable_entity_components import (
 )
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder
+    # TODO: Support DockerRepo and Link in https://sagebionetworks.jira.com/browse/SYNPY-1343 epic or later
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        File,
+        Folder,
+        MaterializedView,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
 
 
 @async_to_sync
@@ -39,6 +58,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
     - `id`
     - `files`
     - `folders`
+    - `tables`
+    - `entityviews`
+    - `submissionviews`
+    - `datasets`
+    - `datasetcollections`
+    - `materializedviews`
+    - `virtualtables`
     - `_last_persistent_instance`
     - `_synced_from_synapse`
 
@@ -49,8 +75,17 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
     id: None = None
     name: None = None
-    files: "File" = None
-    folders: "Folder" = None
+    files: List["File"] = None
+    folders: List["Folder"] = None
+    tables: List["Table"] = None
+    # links: List["Link"] = None
+    entityviews: List["EntityView"] = None
+    # dockerrepos: List["DockerRepo"] = None
+    submissionviews: List["SubmissionView"] = None
+    datasets: List["Dataset"] = None
+    datasetcollections: List["DatasetCollection"] = None
+    materializedviews: List["MaterializedView"] = None
+    virtualtables: List["VirtualTable"] = None
     _last_persistent_instance: None = None
     _synced_from_synapse: bool = False
 
@@ -107,21 +142,28 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         follow_link: bool = False,
         link_hops: int = 1,
         queue: asyncio.Queue = None,
+        include_types: Optional[List[str]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
         """
         Sync this container and all possible sub-folders from Synapse. By default this
         will download the files that are found and it will populate the
-        `files` and `folders` attributes with the found files and folders. If you only
-        want to retrieve the full tree of metadata about your container specify
-        `download_file` as False.
+        `files` and `folders` attributes with the found files and folders, along with
+        all other entity types (tables, entityviews, etc.) present in the container.
+        If you only want to retrieve the full tree of metadata about your
+        container specify `download_file` as False.
 
         This works similar to [synapseutils.syncFromSynapse][], however, this does not
         currently support the writing of data to a manifest TSV file. This will be a
         future enhancement.
 
-        Only Files and Folders are supported at this time to be synced from synapse.
+        Supports syncing Files, Folders, Tables, EntityViews, SubmissionViews, Datasets,
+        DatasetCollections, MaterializedViews, and VirtualTables from Synapse. The
+        metadata for these entity types will be populated in their respective
+        attributes (`files`, `folders`, `tables`, `entityviews`, `submissionviews`,
+        `datasets`, `datasetcollections`, `materializedviews`, `virtualtables`) if
+        they are found within the container.
 
         Arguments:
             path: An optional path where the file hierarchy will be reproduced. If not
@@ -143,6 +185,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 prevent circular references. There is nothing in place to prevent
                 infinite loops. Be careful if setting this above 1.
             queue: An optional queue to use to download files in parallel.
+            include_types: Must be a list of entity types (ie. ["folder","file"]) which
+                can be found
+                [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html).
+                Defaults to
+                `["folder", "file", "table", "entityview", "dockerrepo",
+                "submissionview", "dataset", "datasetcollection", "materializedview",
+                "virtualtable"]`.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -154,9 +203,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         Example: Using this function
             Suppose I want to walk the immediate children of a folder without downloading the files:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
 
+            async def my_function():
                 syn = Synapse()
                 syn.login()
 
@@ -169,11 +221,23 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 for file in my_folder.files:
                     print(file.name)
 
+                for table in my_folder.tables:
+                    print(table.name)
+
+                for dataset in my_folder.datasets:
+                    print(dataset.name)
+
+            asyncio.run(my_function())
+            ```
+
             Suppose I want to download the immediate children of a folder:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Folder
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
 
+            async def my_function():
                 syn = Synapse()
                 syn.login()
 
@@ -186,17 +250,52 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 for file in my_folder.files:
                     print(file.name)
 
+            asyncio.run(my_function())
+            ```
 
-            Suppose I want to download the immediate all children of a Project and all sub-folders and files:
+            Suppose I want to sync only specific entity types from a Project:
 
-                from synapseclient import Synapse
-                from synapseclient.models import Project
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
 
+            async def my_function():
+                syn = Synapse()
+                syn.login()
+
+                my_project = Project(id="syn12345")
+                await my_project.sync_from_synapse_async(
+                    path="/path/to/folder",
+                    include_types=["folder", "file", "table", "dataset"]
+                )
+
+                # Access different entity types
+                for table in my_project.tables:
+                    print(f"Table: {table.name}")
+
+                for dataset in my_project.datasets:
+                    print(f"Dataset: {dataset.name}")
+
+            asyncio.run(my_function())
+            ```
+
+            Suppose I want to download all the children of a Project and all sub-folders and files:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Project
+
+            async def my_function():
                 syn = Synapse()
                 syn.login()
 
                 my_project = Project(id="syn12345")
                 await my_project.sync_from_synapse_async(path="/path/to/folder")
+
+            asyncio.run(my_function())
+            ```
 
 
         Raises:
@@ -281,6 +380,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 follow_link=follow_link,
                 link_hops=link_hops,
                 queue=queue,
+                include_types=include_types,
                 synapse_client=syn,
             )
 
@@ -295,6 +395,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         follow_link: bool = False,
         link_hops: int = 1,
         queue: asyncio.Queue = None,
+        include_types: Optional[List[str]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Self:
@@ -311,13 +412,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         )
         path = os.path.expanduser(path) if path else None
 
-        loop = asyncio.get_event_loop()
-        children = await loop.run_in_executor(
-            None,
-            lambda: self._retrieve_children(
-                follow_link=follow_link,
-                synapse_client=syn,
-            ),
+        children = await self._retrieve_children(
+            follow_link=follow_link,
+            include_types=include_types,
+            synapse_client=syn,
         )
 
         create_workers = not queue
@@ -338,6 +436,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         pending_tasks = []
         self.folders = []
         self.files = []
+        self.tables = []
+        self.entityviews = []
+        self.submissionviews = []
+        self.datasets = []
+        self.datasetcollections = []
+        self.materializedviews = []
+        self.virtualtables = []
 
         for child in children:
             pending_tasks.extend(
@@ -353,6 +458,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                     follow_link=follow_link,
                     link_hops=link_hops,
                     queue=queue,
+                    include_types=include_types,
                 )
             )
 
@@ -453,33 +559,58 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         return directory_map
 
-    def _retrieve_children(
+    async def _retrieve_children(
         self,
         follow_link: bool,
+        include_types: Optional[List[str]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> List:
         """
-        This wraps the `getChildren` generator to return back a list of children.
+        Retrieve children entities using the async get_children API.
 
         Arguments:
             follow_link: Whether to follow a link entity or not. Links can be used to
                 point at other Synapse entities.
+            include_types: Must be a list of entity types (ie. ["folder","file"]) which
+                can be found
+                [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html).
+                Defaults to
+                `["folder", "file", "table", "entityview", "dockerrepo",
+                "submissionview", "dataset", "datasetcollection", "materializedview",
+                "virtualtable"]`.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+
+        Returns:
+            A list of child entities.
         """
-        include_types = ["folder", "file"]
-        if follow_link:
-            include_types.append("link")
-        children_objects = Synapse.get_client(
-            synapse_client=synapse_client
-        ).getChildren(
-            parent=self.id,
-            includeTypes=include_types,
-        )
+        if not include_types:
+            include_types = [
+                "folder",
+                "file",
+                "table",
+                "entityview",
+                "dockerrepo",
+                "submissionview",
+                "dataset",
+                "datasetcollection",
+                "materializedview",
+                "virtualtable",
+            ]
+            if follow_link:
+                include_types.append("link")
+        else:
+            if follow_link and "link" not in include_types:
+                include_types.append("link")
+
         children = []
-        for child in children_objects:
+        async for child in get_children(
+            parent=self.id,
+            include_types=include_types,
+            synapse_client=synapse_client,
+        ):
             children.append(child)
         return children
 
@@ -495,6 +626,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         include_activity: bool = True,
         follow_link: bool = False,
         link_hops: int = 1,
+        include_types: Optional[List[str]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
@@ -520,6 +652,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             link_hops=link_hops,
             synapse_client=synapse_client,
             queue=queue,
+            include_types=include_types,
         )
 
     def _create_task_for_child(
@@ -534,6 +667,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         include_activity: bool = True,
         follow_link: bool = False,
         link_hops: int = 1,
+        include_types: Optional[List[str]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> List[asyncio.Task]:
@@ -566,6 +700,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             link_hops: The number of hops to follow the link. A number of 1 is used to
                 prevent circular references. There is nothing in place to prevent
                 infinite loops. Be careful if setting this above 1.
+            include_types: Must be a list of entity types (ie. ["folder","file"]) which
+                can be found
+                [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html)
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -598,6 +735,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                             link_hops=link_hops,
                             synapse_client=synapse_client,
                             queue=queue,
+                            include_types=include_types,
                         )
                     )
                 )
@@ -642,8 +780,94 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                             include_activity=include_activity,
                             follow_link=follow_link,
                             link_hops=link_hops - 1,
+                            include_types=include_types,
                             queue=queue,
                         )
+                    )
+                )
+            )
+        elif synapse_id and child_type == TABLE_ENTITY:
+            # Lazy import to avoid circular import
+            from synapseclient.models import Table
+
+            table = Table(id=synapse_id, name=name)
+            self.tables.append(table)
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(table.get_async(synapse_client=synapse_client))
+                )
+            )
+        elif synapse_id and child_type == ENTITY_VIEW:
+            # Lazy import to avoid circular import
+            from synapseclient.models import EntityView
+
+            entityview = EntityView(id=synapse_id, name=name)
+            self.entityviews.append(entityview)
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(entityview.get_async(synapse_client=synapse_client))
+                )
+            )
+        elif synapse_id and child_type == SUBMISSION_VIEW:
+            # Lazy import to avoid circular import
+            from synapseclient.models import SubmissionView
+
+            submissionview = SubmissionView(id=synapse_id, name=name)
+            self.submissionviews.append(submissionview)
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(
+                        submissionview.get_async(synapse_client=synapse_client)
+                    )
+                )
+            )
+        elif synapse_id and child_type == DATASET_ENTITY:
+            # Lazy import to avoid circular import
+            from synapseclient.models import Dataset
+
+            dataset = Dataset(id=synapse_id, name=name)
+            self.datasets.append(dataset)
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(dataset.get_async(synapse_client=synapse_client))
+                )
+            )
+        elif synapse_id and child_type == DATASET_COLLECTION_ENTITY:
+            # Lazy import to avoid circular import
+            from synapseclient.models import DatasetCollection
+
+            datasetcollection = DatasetCollection(id=synapse_id, name=name)
+            self.datasetcollections.append(datasetcollection)
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(
+                        datasetcollection.get_async(synapse_client=synapse_client)
+                    )
+                )
+            )
+        elif synapse_id and child_type == MATERIALIZED_VIEW:
+            # Lazy import to avoid circular import
+            from synapseclient.models import MaterializedView
+
+            materializedview = MaterializedView(id=synapse_id, name=name)
+            self.materializedviews.append(materializedview)
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(
+                        materializedview.get_async(synapse_client=synapse_client)
+                    )
+                )
+            )
+        elif synapse_id and child_type == VIRTUAL_TABLE:
+            # Lazy import to avoid circular import
+            from synapseclient.models import VirtualTable
+
+            virtualtable = VirtualTable(id=synapse_id, name=name)
+            self.virtualtables.append(virtualtable)
+            pending_tasks.append(
+                asyncio.create_task(
+                    wrap_coroutine(
+                        virtualtable.get_async(synapse_client=synapse_client)
                     )
                 )
             )
@@ -662,6 +886,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         include_activity: bool = True,
         follow_link: bool = False,
         link_hops: int = 0,
+        include_types: Optional[List[str]] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> None:
@@ -709,6 +934,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             follow_link=follow_link,
             link_hops=link_hops,
             queue=queue,
+            include_types=include_types,
             synapse_client=synapse_client,
         )
         for task in asyncio.as_completed(pending_tasks):
@@ -721,20 +947,32 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
     def _resolve_sync_from_synapse_result(
         self,
-        result: Union[None, "Folder", "File", BaseException],
+        result: Union[
+            None,
+            "Folder",
+            "File",
+            "Table",
+            "EntityView",
+            "SubmissionView",
+            "Dataset",
+            "DatasetCollection",
+            "MaterializedView",
+            "VirtualTable",
+            BaseException,
+        ],
         failure_strategy: FailureStrategy,
         *,
         synapse_client: Union[None, Synapse],
     ) -> None:
         """
         Handle what to do based on what was returned from the latest task to complete.
-        We are updating the object in place and appending the returned Folder/Files to
+        We are updating the object in place and appending the returned entities to
         the appropriate list.
 
         Arguments:
             result: The result of the task that was completed.
             failure_strategy: Determines how to handle failures when retrieving children
-                under this Folder and an exception occurs.
+                under this container and an exception occurs.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -745,7 +983,15 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             # appropriate folder/file objects in place.
             pass
         elif (
-            result.__class__.__name__ == "Folder" or result.__class__.__name__ == "File"
+            result.__class__.__name__ == "Folder"
+            or result.__class__.__name__ == "File"
+            or result.__class__.__name__ == "Table"
+            or result.__class__.__name__ == "EntityView"
+            or result.__class__.__name__ == "SubmissionView"
+            or result.__class__.__name__ == "Dataset"
+            or result.__class__.__name__ == "DatasetCollection"
+            or result.__class__.__name__ == "MaterializedView"
+            or result.__class__.__name__ == "VirtualTable"
         ):
             # Do nothing as the objects are updated in place and the container has
             # already been updated to append the new objects.

@@ -2,7 +2,7 @@ import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from opentelemetry import trace
 
@@ -25,6 +25,17 @@ from synapseclient.models.services.storable_entity_components import (
     store_entity_components,
 )
 from synapseutils.copy_functions import copy
+
+if TYPE_CHECKING:
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        MaterializedView,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
 
 
 @dataclass()
@@ -55,6 +66,13 @@ class Project(
         alias: The project alias for use in friendly project urls.
         files: Any files that are at the root directory of the project.
         folders: Any folders that are at the root directory of the project.
+        tables: Any tables that are at the root directory of the project.
+        entityviews: Any entity views that are at the root directory of the project.
+        submissionviews: Any submission views that are at the root directory of the project.
+        datasets: Any datasets that are at the root directory of the project.
+        datasetcollections: Any dataset collections that are at the root directory of the project.
+        materializedviews: Any materialized views that are at the root directory of the project.
+        virtualtables: Any virtual tables that are at the root directory of the project.
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -148,6 +166,31 @@ class Project(
 
     folders: List["Folder"] = field(default_factory=list, compare=False)
     """Any folders that are at the root directory of the project."""
+
+    tables: List["Table"] = field(default_factory=list, compare=False)
+    """Any tables that are at the root directory of the project."""
+
+    entityviews: List["EntityView"] = field(default_factory=list, compare=False)
+    """Any entity views that are at the root directory of the project."""
+
+    submissionviews: List["SubmissionView"] = field(default_factory=list, compare=False)
+    """Any submission views that are at the root directory of the project."""
+
+    datasets: List["Dataset"] = field(default_factory=list, compare=False)
+    """Any datasets that are at the root directory of the project."""
+
+    datasetcollections: List["DatasetCollection"] = field(
+        default_factory=list, compare=False
+    )
+    """Any dataset collections that are at the root directory of the project."""
+
+    materializedviews: List["MaterializedView"] = field(
+        default_factory=list, compare=False
+    )
+    """Any materialized views that are at the root directory of the project."""
+
+    virtualtables: List["VirtualTable"] = field(default_factory=list, compare=False)
+    """Any virtual tables that are at the root directory of the project."""
 
     annotations: Optional[
         Dict[

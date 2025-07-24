@@ -3395,6 +3395,13 @@ class Synapse(object):
     #                         Querying                         #
     ############################################################
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the new dataclass models `from synapseclient.models import Project, Folder` "
+        "with their `sync_from_synapse` method for most use cases, "
+        "or the `synapseclient.api.get_children` function for direct API access with sorting and filtering.",
+    )
     def getChildren(
         self,
         parent,
@@ -3427,6 +3434,87 @@ class Synapse(object):
         Also see:
 
         - [synapseutils.walk][]
+
+        Example: Migrating from this method to new approaches
+            &nbsp;
+
+            **Legacy approach (deprecated):**
+            ```python
+            # Using the deprecated getChildren method
+            for child in syn.getChildren("syn12345", includeTypes=["file", "folder"]):
+                print(f"Child: {child['name']} (ID: {child['id']})")
+            ```
+
+            **New approach using dataclass models with sync_from_synapse:**
+            ```python
+            import synapseclient
+            from synapseclient.models import Project, Folder
+
+            # Create client and login
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # For projects - get all children automatically (recursive by default)
+            project = Project(id="syn12345")
+            project = project.sync_from_synapse(download_file=False)
+
+            # Access different types of children
+            print(f"Files: {len(project.files)}")
+            for file in project.files:
+                print(f"  File: {file.name} (ID: {file.id})")
+
+            print(f"Folders: {len(project.folders)}")
+            for folder in project.folders:
+                print(f"  Folder: {folder.name} (ID: {folder.id})")
+
+            print(f"Tables: {len(project.tables)}")
+            for table in project.tables:
+                print(f"  Table: {table.name} (ID: {table.id})")
+
+            # For folders - get all children automatically (recursive by default)
+            folder = Folder(id="syn67890")
+            folder = folder.sync_from_synapse(download_file=False)
+
+            # Access children in the same way
+            for file in folder.files:
+                print(f"  File: {file.name} (ID: {file.id})")
+
+            # For non-recursive behavior (equivalent to single getChildren call)
+            folder = Folder(id="syn67890")
+            folder = folder.sync_from_synapse(download_file=False, recursive=False)
+
+            # This will only get immediate children, not subfolders' contents
+            for file in folder.files:
+                print(f"  File: {file.name} (ID: {file.id})")
+            for subfolder in folder.folders:
+                print(f"  Subfolder: {subfolder.name} (ID: {subfolder.id})")
+                # Note: subfolder.files and subfolder.folders will be empty
+                # because recursive=False
+            ```
+
+            **New approach using the API directly (for advanced sorting/filtering):**
+            ```python
+            import asyncio
+            import synapseclient
+            from synapseclient.api import get_children
+
+            # Create client and login
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # Using the new async API function directly
+            async def get_sorted_children():
+                async for child in get_children(
+                    parent="syn12345",
+                    include_types=["file", "folder"],
+                    sort_by="NAME",
+                    sort_direction="ASC"
+                ):
+                    print(f"Child: {child['name']} (ID: {child['id']}, Type: {child['type']})")
+
+            # Run the async function
+            asyncio.run(get_sorted_children())
+            ```
         """
         parentId = id_of(parent) if parent is not None else None
 
