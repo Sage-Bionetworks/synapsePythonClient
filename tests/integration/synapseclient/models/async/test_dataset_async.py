@@ -655,7 +655,7 @@ class TestDatasetCollection:
         await collection.snapshot_async(synapse_client=self.syn)
 
         # AND I update the collection and make version 2
-        collection.name = "Updated collection"
+        collection.name = f"Updated collection {uuid.uuid4()}"
         collection.add_item(dataset2)
         await collection.store_async(synapse_client=self.syn)
         await collection.snapshot_async(synapse_client=self.syn)
@@ -672,6 +672,6 @@ class TestDatasetCollection:
             synapse_client=self.syn
         )
         assert len(v2.items) == 2
-        assert v2.name == "Updated collection"
+        assert v2.name == collection.name
         assert EntityRef(id=dataset1.id, version=dataset1.version_number) in v2.items
         assert EntityRef(id=dataset2.id, version=dataset2.version_number) in v2.items
