@@ -288,7 +288,7 @@ def set_privacy(
 
 @deprecated(
     version="4.9.0",
-    reason="Use the dataclass model attributes instead. "
+    reason="To be removed in 5.0.0. Use the dataclass model attributes instead. "
     "All dataclass models support annotations: File, Folder, Project, Table, EntityView, Dataset, "
     "DatasetCollection, MaterializedView, SubmissionView, VirtualTable. "
     "Access annotations directly via `instance.annotations` attribute.",

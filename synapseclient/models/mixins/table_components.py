@@ -2295,6 +2295,8 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         # pandas.read_csv. During implmentation a determination on how large of a CSV
         # that can be loaded from Memory will be needed. When that limit is reached we
         # should continue to force the download of those results to disk.
+
+        # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         results = await loop.run_in_executor(
             None,
             lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
@@ -2388,6 +2390,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(f"Running query: {query}")
 
+        # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         results = await loop.run_in_executor(
             None,
             lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
@@ -2397,6 +2400,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             ),
         )
 
+        # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         as_df = await loop.run_in_executor(
             None,
             lambda: results.asDataFrame(rowIdAndVersionInIndex=False),

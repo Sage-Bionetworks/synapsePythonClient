@@ -14,6 +14,8 @@ at your own risk.
         - store_async
         - delete_async
         - sync_from_synapse_async
+        - flatten_file_list
+        - map_directory_to_all_contained_files
         - get_permissions_async
         - get_acl_async
         - set_permissions_async
