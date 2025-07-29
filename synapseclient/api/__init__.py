@@ -73,6 +73,7 @@ from .json_schema_services import (
     list_json_schema_versions,
     list_json_schemas,
     list_organizations,
+    list_organizations_sync,
     update_organization_acl,
     validate_entity_with_json_schema,
 )
@@ -183,6 +184,7 @@ __all__ = [
     "create_organization",
     "get_organization",
     "list_organizations",
+    "list_organizations_sync",
     "delete_organization",
     "get_organization_acl",
     "update_organization_acl",

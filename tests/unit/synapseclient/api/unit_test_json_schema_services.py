@@ -133,9 +133,26 @@ async def test_list_organizations(mock_synapse):
             yield {"id": "2"}
 
         mock_rest_post.return_value = async_gen()
-        result = await jss.list_organizations(synapse_client=None)
+        result = []
+        async for item in jss.list_organizations(synapse_client=None):
+            result.append(item)
         assert result == [{"id": "1"}, {"id": "2"}]
         mock_rest_post.assert_called_once()
+
+
+@patch("synapseclient.Synapse")
+def test_list_organizations_sync(mock_synapse):
+    mock_client = MagicMock()
+    mock_synapse.get_client.return_value = mock_client
+    mock_client._POST_paginated.return_value = iter(
+        [
+            {"id": "1"},
+            {"id": "2"},
+        ]
+    )
+    result = list(jss.list_organizations_sync(synapse_client=None))
+    assert result == [{"id": "1"}, {"id": "2"}]
+    mock_client._POST_paginated.assert_called_once()
 
 
 @patch("synapseclient.Synapse")

@@ -312,6 +312,8 @@ async def create_organization(
         - name: The organization name
         - createdOn: Creation timestamp
         - createdBy: ID of the user who created the organization
+
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html>
     """
     from synapseclient import Synapse
 
@@ -344,6 +346,8 @@ async def get_organization(
         - name: The organization name
         - createdOn: Creation timestamp
         - createdBy: ID of the user who created the organization
+
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html>
     """
     from synapseclient import Synapse
 
@@ -356,9 +360,9 @@ async def get_organization(
 
 async def list_organizations(
     *, synapse_client: Optional["Synapse"] = None
-) -> List[Dict[str, Any]]:
+) -> AsyncGenerator[Dict[str, Any]]:
     """
-    List all JSON schema organizations.
+    Generator to list all JSON schema organizations.
 
     Retrieves a list of all organizations that are visible to the caller. This operation
     does not require authentication and will return all publicly visible organizations.
@@ -374,6 +378,8 @@ async def list_organizations(
         - name: The organization name
         - createdOn: Creation timestamp
         - createdBy: ID of the user who created the organization
+
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html>
     """
     from synapseclient import Synapse
 
@@ -381,14 +387,43 @@ async def list_organizations(
 
     request_body = {}
 
-    results = []
-
     async for item in rest_post_paginated_async(
         "/schema/organization/list", body=request_body, synapse_client=client
     ):
-        results.append(item)
+        yield item
 
-    return results
+
+def list_organizations_sync(
+    *, synapse_client: Optional["Synapse"] = None
+) -> Generator[Dict[str, Any]]:
+    """
+    Generator to list all JSON schema organizations.
+
+    Retrieves a list of all organizations that are visible to the caller. This operation
+    does not require authentication and will return all publicly visible organizations.
+
+    Arguments:
+        synapse_client: If not passed in and caching was not disabled by
+                       `Synapse.allow_client_caching(False)` this will use the last created
+                       instance from the Synapse class constructor
+
+    Returns:
+        A list of Organization objects, each containing:
+        - id: The numeric identifier of the organization
+        - name: The organization name
+        - createdOn: Creation timestamp
+        - createdBy: ID of the user who created the organization
+
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html>
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    request_body = {}
+
+    for item in client._POST_paginated("/schema/organization/list", body=request_body):
+        yield item
 
 
 async def delete_organization(
@@ -433,8 +468,9 @@ async def get_organization_acl(
     Returns:
         An AccessControlList object containing:
         - id: The organization ID
+        - creationDate: The date the ACL was created
         - etag: The etag for concurrency control
-        - resourceAccess: List of ResourceAccess objects with principalId and accessType arrays
+        - resourceAccess: List of ResourceAccess objects with principalId and accessType arrays matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/ResourceAccess.html>
     """
     from synapseclient import Synapse
 
@@ -500,12 +536,12 @@ async def list_json_schemas(
 
     Returns:
         A list of JsonSchemaInfo objects, each containing:
-        - organizationId: The numeric organization ID
-        - organizationName: The organization name
-        - schemaId: The schema's unique identifier
-        - schemaName: The schema name
-        - createdOn: Schema creation timestamp
-        - createdBy: ID of the user who created the schema
+        - organizationId: The Synapse issued numeric identifier for the organization.
+        - organizationName: The name of the organization to which this schema belongs.
+        - schemaId: The Synapse issued numeric identifier for the schema.
+        - schemaName: The name of the this schema.
+        - createdOn: The date this JSON schema was created.
+        - createdBy: The ID of the user that created this JSON schema.
     """
     from synapseclient import Synapse
 
@@ -544,15 +580,18 @@ async def list_json_schema_versions(
 
     Returns:
         A list of JsonSchemaVersionInfo objects, each containing:
-        - organizationId: The numeric organization ID
-        - organizationName: The organization name
-        - schemaName: The schema name
-        - schemaId: The schema's unique identifier
-        - versionId: The version's unique identifier
-        - semanticVersion: The semantic version string (if specified)
-        - createdOn: Version creation timestamp
-        - createdBy: ID of the user who created this version
-        - jsonSHA256Hex: SHA256 hash of the schema content
+        - organizationId: The Synapse issued numeric identifier for the organization.
+        - organizationName: The name of the organization to which this schema belongs.
+        - schemaName: The name of the this schema.
+        - schemaId: The Synapse issued numeric identifier for the schema.
+        - versionId: The Synapse issued numeric identifier for this version.
+        - $id: The full '$id' of this schema version
+        - semanticVersion: The semantic version label provided when this version was created. Can be null if a semantic version was not provided when this version was created.
+        - createdOn: The date this JSON schema version was created.
+        - createdBy: The ID of the user that created this JSON schema version.
+        - jsonSHA256Hex: The SHA-256 hexadecimal hash of the UTF-8 encoded JSON schema.
+
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaVersionInfo.html>
     """
     from synapseclient import Synapse
 
@@ -583,19 +622,13 @@ async def get_json_schema_body(
     does not require authentication for publicly registered schemas.
 
     Arguments:
-        json_schema_uri: The $id URI of the JSON schema (e.g., "my.org-schema.name-1.0.0")
+        json_schema_uri: The relative $id of the JSON schema to get (e.g., "my.org-schema.name-1.0.0")
         synapse_client: If not passed in and caching was not disabled by
                        `Synapse.allow_client_caching(False)` this will use the last created
                        instance from the Synapse class constructor
 
     Returns:
-        The complete JSON schema object as a dictionary, including:
-        - $id: The schema's unique identifier
-        - $schema: The JSON schema specification version
-        - type: The schema type (typically "object")
-        - properties: The schema property definitions
-        - required: List of required properties
-        - Any other schema-specific fields
+        The complete JSON schema object as a dictionary, matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html>
     """
     from synapseclient import Synapse
 
