@@ -360,7 +360,7 @@ async def get_organization(
 
 async def list_organizations(
     *, synapse_client: Optional["Synapse"] = None
-) -> AsyncGenerator[Dict[str, Any]]:
+) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Generator to list all JSON schema organizations.
 
@@ -395,7 +395,7 @@ async def list_organizations(
 
 def list_organizations_sync(
     *, synapse_client: Optional["Synapse"] = None
-) -> Generator[Dict[str, Any]]:
+) -> Generator[Dict[str, Any], None, None]:
     """
     Generator to list all JSON schema organizations.
 
