@@ -339,7 +339,7 @@ class AccessControllable(AccessControllableSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            An Access Control List object
+            An Access Control List object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html>.
 
         Example: Setting permissions
             Grant all registered users download access

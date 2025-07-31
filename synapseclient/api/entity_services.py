@@ -433,6 +433,10 @@ async def get_entity_acl(
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+
+    Returns:
+        A dictionary of the Entity's ACL.
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html>
     """
     from synapseclient import Synapse
 
@@ -464,6 +468,9 @@ async def get_entity_acl_with_benefactor(
 
     Returns:
         A dictionary of the Entity's ACL.
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
+        If the entity does not have its own ACL and check_benefactor is False,
+        returns {"resourceAccess": []}.
 
     Example: Get ACL with benefactor checking
         Get the effective ACL for entity `syn123`.
@@ -524,6 +531,10 @@ async def put_entity_acl(
     """
     Update the Access Control List (ACL) for an entity.
 
+    API Matches <https://rest-docs.synapse.org/rest/PUT/entity/id/acl.html>.
+
+    Note: The caller must be granted `CHANGE_PERMISSIONS` on the Entity to call this method.
+
     Arguments:
         entity_id: The ID of the entity.
         acl: The ACL to set for the entity.
@@ -532,7 +543,8 @@ async def put_entity_acl(
                 instance from the Synapse class constructor.
 
     Returns:
-        The updated ACL.
+        The updated ACL matching
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
     Example: Update ACL for an entity
         Update the ACL for entity `syn123`.
@@ -580,6 +592,10 @@ async def post_entity_acl(
     """
     Create a new Access Control List (ACL) for an entity.
 
+    API Matches <https://rest-docs.synapse.org/rest/POST/entity/id/acl.html>.
+
+    Note: The caller must be granted `CHANGE_PERMISSIONS` on the Entity to call this method.
+
     Arguments:
         entity_id: The ID of the entity.
         acl: The ACL to create for the entity.
@@ -588,7 +604,8 @@ async def post_entity_acl(
                 instance from the Synapse class constructor.
 
     Returns:
-        The created ACL.
+        The created ACL matching
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html>.
 
     Example: Create ACL for an entity
         Create a new ACL for entity `syn123`.
@@ -1277,7 +1294,8 @@ async def set_entity_permissions(
                 instance from the Synapse class constructor.
 
     Returns:
-        The updated ACL.
+        The updated ACL matching
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
     Example: Set permissions for an entity
         Grant all registered users download access.
@@ -1486,10 +1504,10 @@ async def get_entity_acl_list(
 
 async def update_entity_acl(
     entity_id: str,
-    acl: Dict[str, Any],
+    acl: Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]],
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Dict[str, Any]:
+) -> Dict[str, Union[str, List[Dict[str, Union[int, List[str]]]]]]:
     """
     Create or update the Access Control List(ACL) for an entity.
 
@@ -1505,7 +1523,8 @@ async def update_entity_acl(
                 instance from the Synapse class constructor.
 
     Returns:
-        The created or updated ACL.
+        The created or updated ACL matching
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
     Example: Update entity ACL
         Update the ACL for entity `syn123`.
