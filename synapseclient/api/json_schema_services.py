@@ -557,7 +557,7 @@ async def list_json_schemas(
 
 def list_json_schemas_sync(
     organization_name: str, *, synapse_client: Optional["Synapse"] = None
-) -> Generator[Dict[str, Any], None]:
+) -> Generator[Dict[str, Any], None, None]:
     """
     List all JSON schemas for an organization.
 
@@ -639,7 +639,7 @@ def list_json_schema_versions_sync(
     json_schema_name: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Generator[Dict[str, Any]]:
+) -> Generator[Dict[str, Any], None, None]:
     """
     List version information for a JSON schema.
 
