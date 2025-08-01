@@ -443,4 +443,4 @@ class AccessControllableSynchronousProtocol(Protocol):
             print(acl_result.ascii_tree)
             ```
         """
-        return None
+        return AclListResult()
