@@ -85,3 +85,9 @@ USED_ENTITY = "org.sagebionetworks.repo.model.provenance.UsedEntity"
 
 # Agent
 AGENT_CHAT_REQUEST = "org.sagebionetworks.repo.model.agent.AgentChatRequest"
+
+# JSON Schema
+GET_VALIDATION_SCHEMA_REQUEST = (
+    "org.sagebionetworks.repo.model.schema.GetValidationSchemaRequest"
+)
+CREATE_SCHEMA_REQUEST = "org.sagebionetworks.repo.model.schema.CreateSchemaRequest"
