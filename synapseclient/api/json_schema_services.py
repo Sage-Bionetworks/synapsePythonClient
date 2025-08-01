@@ -521,7 +521,7 @@ async def update_organization_acl(
 
 async def list_json_schemas(
     organization_name: str, *, synapse_client: Optional["Synapse"] = None
-) -> List[Dict[str, Any]]:
+) -> AsyncGenerator[Dict[str, Any], None]:
     """
     List all JSON schemas for an organization.
 
@@ -535,7 +535,7 @@ async def list_json_schemas(
                        instance from the Synapse class constructor
 
     Returns:
-        A list of JsonSchemaInfo objects, each containing:
+        A generator of JsonSchemaInfo objects, each containing:
         - organizationId: The Synapse issued numeric identifier for the organization.
         - organizationName: The name of the organization to which this schema belongs.
         - schemaId: The Synapse issued numeric identifier for the schema.
@@ -549,14 +549,44 @@ async def list_json_schemas(
 
     request_body = {"organizationName": organization_name}
 
-    results = []
-
     async for item in rest_post_paginated_async(
         "/schema/list", body=request_body, synapse_client=client
     ):
-        results.append(item)
+        yield item
 
-    return results
+
+def list_json_schemas_sync(
+    organization_name: str, *, synapse_client: Optional["Synapse"] = None
+) -> Generator[Dict[str, Any], None, None]:
+    """
+    List all JSON schemas for an organization.
+
+    Retrieves all JSON schemas that belong to the specified organization. This operation
+    does not require authentication and will return all publicly visible schemas.
+
+    Arguments:
+        organization_name: The name of the organization to list schemas for
+        synapse_client: If not passed in and caching was not disabled by
+                       `Synapse.allow_client_caching(False)` this will use the last created
+                       instance from the Synapse class constructor
+
+    Returns:
+        A generator of JsonSchemaInfo objects, each containing:
+        - organizationId: The Synapse issued numeric identifier for the organization.
+        - organizationName: The name of the organization to which this schema belongs.
+        - schemaId: The Synapse issued numeric identifier for the schema.
+        - schemaName: The name of the this schema.
+        - createdOn: The date this JSON schema was created.
+        - createdBy: The ID of the user that created this JSON schema.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    request_body = {"organizationName": organization_name}
+
+    for item in client._POST_paginated("/schema/list", body=request_body):
+        yield item
 
 
 async def list_json_schema_versions(
@@ -564,7 +594,7 @@ async def list_json_schema_versions(
     json_schema_name: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> List[Dict[str, Any]]:
+) -> AsyncGenerator[Dict[str, Any], None]:
     """
     List version information for a JSON schema.
 
@@ -579,7 +609,52 @@ async def list_json_schema_versions(
                        instance from the Synapse class constructor
 
     Returns:
-        A list of JsonSchemaVersionInfo objects, each containing:
+        A generator of JsonSchemaVersionInfo objects, each containing:
+        - organizationId: The Synapse issued numeric identifier for the organization.
+        - organizationName: The name of the organization to which this schema belongs.
+        - schemaName: The name of the this schema.
+        - schemaId: The Synapse issued numeric identifier for the schema.
+        - versionId: The Synapse issued numeric identifier for this version.
+        - $id: The full '$id' of this schema version
+        - semanticVersion: The semantic version label provided when this version was created. Can be null if a semantic version was not provided when this version was created.
+        - createdOn: The date this JSON schema version was created.
+        - createdBy: The ID of the user that created this JSON schema version.
+        - jsonSHA256Hex: The SHA-256 hexadecimal hash of the UTF-8 encoded JSON schema.
+
+        Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaVersionInfo.html>
+    """
+    request_body = {
+        "organizationName": organization_name,
+        "schemaName": json_schema_name,
+    }
+
+    async for item in rest_post_paginated_async(
+        "/schema/version/list", body=request_body, synapse_client=synapse_client
+    ):
+        yield item
+
+
+def list_json_schema_versions_sync(
+    organization_name: str,
+    json_schema_name: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Generator[Dict[str, Any], None, None]:
+    """
+    List version information for a JSON schema.
+
+    Retrieves version information for all versions of the specified JSON schema within
+    an organization. This shows the history and available versions of a schema.
+
+    Arguments:
+        organization_name: The name of the organization containing the schema
+        json_schema_name: The name of the JSON schema to list versions for
+        synapse_client: If not passed in and caching was not disabled by
+                       `Synapse.allow_client_caching(False)` this will use the last created
+                       instance from the Synapse class constructor
+
+    Returns:
+        A generator of JsonSchemaVersionInfo objects, each containing:
         - organizationId: The Synapse issued numeric identifier for the organization.
         - organizationName: The name of the organization to which this schema belongs.
         - schemaName: The name of the this schema.
@@ -602,14 +677,8 @@ async def list_json_schema_versions(
         "schemaName": json_schema_name,
     }
 
-    results = []
-
-    async for item in rest_post_paginated_async(
-        "/schema/version/list", body=request_body, synapse_client=client
-    ):
-        results.append(item)
-
-    return results
+    for item in client._POST_paginated("/schema/version/list", body=request_body):
+        yield item
 
 
 async def get_json_schema_body(
