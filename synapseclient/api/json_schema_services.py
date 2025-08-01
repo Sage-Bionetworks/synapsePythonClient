@@ -373,7 +373,7 @@ async def list_organizations(
                        instance from the Synapse class constructor
 
     Returns:
-        A list of Organization objects, each containing:
+        A generator of Organization objects, each containing:
         - id: The numeric identifier of the organization
         - name: The organization name
         - createdOn: Creation timestamp
@@ -408,7 +408,7 @@ def list_organizations_sync(
                        instance from the Synapse class constructor
 
     Returns:
-        A list of Organization objects, each containing:
+        A generator of Organization objects, each containing:
         - id: The numeric identifier of the organization
         - name: The organization name
         - createdOn: Creation timestamp
@@ -506,7 +506,7 @@ async def update_organization_acl(
                        instance from the Synapse class constructor
 
     Returns:
-        The updated AccessControlList object
+        The updated AccessControlList object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html>
     """
     from synapseclient import Synapse
 
