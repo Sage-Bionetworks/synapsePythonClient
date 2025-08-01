@@ -594,7 +594,7 @@ async def list_json_schema_versions(
     json_schema_name: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> AsyncGenerator[Dict[str, Any]]:
+) -> AsyncGenerator[Dict[str, Any], None]:
     """
     List version information for a JSON schema.
 
