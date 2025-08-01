@@ -85,7 +85,7 @@ class UserProfile(UserProfileSynchronousProtocol):
         id: A foreign key to the ID of the 'principal' object for the user.
         etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
             concurrent updates. Since the E-Tag changes every time an entity is updated
-            it is used to detect when a client's currentrepresentation of an entity is
+            it is used to detect when a client's current representation of an entity is
             out-of-date.
         first_name: This person's given name (forename)
         last_name: This person's family name (surname)
