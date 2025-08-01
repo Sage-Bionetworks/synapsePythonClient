@@ -200,7 +200,9 @@ async def test_list_json_schemas(mock_synapse):
             yield {"schemaId": "2"}
 
         mock_rest_post.return_value = async_gen()
-        result = await jss.list_json_schemas("org", synapse_client=None)
+        result = []
+        async for item in jss.list_json_schemas("org", synapse_client=None):
+            result.append(item)
         assert result == [{"schemaId": "1"}, {"schemaId": "2"}]
         mock_rest_post.assert_called_once()
 
@@ -218,11 +220,45 @@ async def test_list_json_schema_versions(mock_synapse):
             yield {"versionId": "2"}
 
         mock_rest_post.return_value = async_gen()
-        result = await jss.list_json_schema_versions(
+        result = []
+        async for item in jss.list_json_schema_versions(
             "org", "schema", synapse_client=None
-        )
+        ):
+            result.append(item)
         assert result == [{"versionId": "1"}, {"versionId": "2"}]
         mock_rest_post.assert_called_once()
+
+
+@patch("synapseclient.Synapse")
+def test_list_json_schemas_sync(mock_synapse):
+    mock_client = MagicMock()
+    mock_synapse.get_client.return_value = mock_client
+    mock_client._POST_paginated.return_value = iter(
+        [
+            {"schemaId": "1"},
+            {"schemaId": "2"},
+        ]
+    )
+    result = list(jss.list_json_schemas_sync("org", synapse_client=None))
+    assert result == [{"schemaId": "1"}, {"schemaId": "2"}]
+    mock_client._POST_paginated.assert_called_once()
+
+
+@patch("synapseclient.Synapse")
+def test_list_json_schema_versions_sync(mock_synapse):
+    mock_client = MagicMock()
+    mock_synapse.get_client.return_value = mock_client
+    mock_client._POST_paginated.return_value = iter(
+        [
+            {"versionId": "1"},
+            {"versionId": "2"},
+        ]
+    )
+    result = list(
+        jss.list_json_schema_versions_sync("org", "schema", synapse_client=None)
+    )
+    assert result == [{"versionId": "1"}, {"versionId": "2"}]
+    mock_client._POST_paginated.assert_called_once()
 
 
 @patch("synapseclient.Synapse")
