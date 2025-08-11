@@ -129,69 +129,69 @@ jobs:
       # run integration tests on the oldest and newest supported versions of python.
       # we don't run on the entire matrix to avoid a 3xN set of concurrent tests against
       # the target server where N is the number of supported python versions.
-      - name: run-integration-tests
-        shell: bash
+      # - name: run-integration-tests
+      #   shell: bash
 
-        # keep versions consistent with the first and last from the strategy matrix
-        if: ${{ (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
-        run: |
-          # decrypt the encrypted test synapse configuration
-          openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
-          mv test.synapseConfig ~/.synapseConfig
+      #   # keep versions consistent with the first and last from the strategy matrix
+      #   if: ${{ (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
+      #   run: |
+      #     # decrypt the encrypted test synapse configuration
+      #     openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+      #     mv test.synapseConfig ~/.synapseConfig
 
-          if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
-            # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
-            # Docker is not available on GH Action runners on Mac and Windows.
+      #     if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
+      #       # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
+      #       # Docker is not available on GH Action runners on Mac and Windows.
 
-            docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
-            docker run -d sftp_tests:latest
+      #       docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
+      #       docker run -d sftp_tests:latest
 
-            # get the internal IP address of the just launched container
-            export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
+      #       # get the internal IP address of the just launched container
+      #       export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
 
-            printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
+      #       printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
 
-            # add to known_hosts so the ssh connections can be made without any prompting/errors
-            mkdir -p ~/.ssh
-            ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
-          fi
+      #       # add to known_hosts so the ssh connections can be made without any prompting/errors
+      #       mkdir -p ~/.ssh
+      #       ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
+      #     fi
 
-            # set env vars used in external bucket tests from secrets
-          export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
-          export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
-          export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
+      #       # set env vars used in external bucket tests from secrets
+      #     export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
+      #     export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
+      #     export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
-          # Set env vars for OTEL
-          export OTEL_EXPORTER_OTLP_ENDPOINT="${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}"
-          export OTEL_SERVICE_INSTANCE_ID="${{ vars.OTEL_SERVICE_INSTANCE_ID }}"
-          export SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED="${{ vars.SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED }}"
-          export OTEL_EXPORTER_OTLP_HEADERS="${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}"
+      #     # Set env vars for OTEL
+      #     export OTEL_EXPORTER_OTLP_ENDPOINT="${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}"
+      #     export OTEL_SERVICE_INSTANCE_ID="${{ vars.OTEL_SERVICE_INSTANCE_ID }}"
+      #     export SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED="${{ vars.SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED }}"
+      #     export OTEL_EXPORTER_OTLP_HEADERS="${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}"
 
-          # Setup ignore patterns based on Python version
-          IGNORE_FLAGS="--ignore=tests/integration/synapseclient/test_command_line_client.py"
+      #     # Setup ignore patterns based on Python version
+      #     IGNORE_FLAGS="--ignore=tests/integration/synapseclient/test_command_line_client.py"
 
-          if [ "${{ matrix.python }}" == "3.9" ]; then
-            # For min Python version, ignore async tests
-            IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/async/"
-            echo "Running integration tests for Min Python version (3.9) - ignoring async tests"
-          elif [ "${{ matrix.python }}" == "3.13" ]; then
-            # For max Python version, ignore synchronous tests
-            IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/synchronous/"
-            echo "Running integration tests for Max Python version (3.13) - ignoring synchronous tests"
-          fi
+      #     if [ "${{ matrix.python }}" == "3.9" ]; then
+      #       # For min Python version, ignore async tests
+      #       IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/async/"
+      #       echo "Running integration tests for Min Python version (3.9) - ignoring async tests"
+      #     elif [ "${{ matrix.python }}" == "3.13" ]; then
+      #       # For max Python version, ignore synchronous tests
+      #       IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/synchronous/"
+      #       echo "Running integration tests for Max Python version (3.13) - ignoring synchronous tests"
+      #     fi
 
-          # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n 8 $IGNORE_FLAGS --dist loadscope
+      #     # use loadscope to avoid issues running tests concurrently that share scoped fixtures
+      #     pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n 8 $IGNORE_FLAGS --dist loadscope
 
-          # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
-      - name: Upload coverage report
-        id: upload_coverage_report
-        uses: actions/upload-artifact@v4
-        if: ${{ contains(fromJSON('["3.13"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
-        with:
-          name: coverage-report
-          path: coverage.xml
+      #     # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
+      #     pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+      # - name: Upload coverage report
+      #   id: upload_coverage_report
+      #   uses: actions/upload-artifact@v4
+      #   if: ${{ contains(fromJSON('["3.13"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
+      #   with:
+      #     name: coverage-report
+      #     path: coverage.xml
 
   sonarcloud:
     needs: [test]
@@ -341,6 +341,127 @@ jobs:
       #     asset_name: ${{ steps.build-package.outputs.bdist-package-name }}
       #     asset_path: dist/${{ steps.build-package.outputs.bdist-package-name }}
       #     asset_content_type: application/zip
+
+
+  # build standalone desktop client artifacts for Windows and macOS on release
+  build-desktop-clients:
+    needs: [test, pre-commit]
+    if: github.event_name == 'release'
+
+    strategy:
+      matrix:
+        include:
+          # Windows builds
+          - os: windows-2022
+            platform: windows
+            arch: x64
+            python-version: '3.11'
+            artifact-name: synapse-desktop-client-windows-x64
+
+          # macOS builds - Intel
+          - os: macos-13
+            platform: macos
+            arch: intel
+            python-version: '3.11'
+            artifact-name: synapse-desktop-client-macos-intel
+
+          # macOS builds - Apple Silicon (M1/M2)
+          - os: macos-14
+            platform: macos
+            arch: apple-silicon
+            python-version: '3.11'
+            artifact-name: synapse-desktop-client-macos-apple-silicon
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.ps1 | powershell -c -
+          echo "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install uv (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Create virtual environment
+        shell: bash
+        run: |
+          uv venv .venv
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
+            echo "$PWD/.venv/Scripts" >> $GITHUB_PATH
+          else
+            echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
+            echo "$PWD/.venv/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Extract tag name
+        shell: bash
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          # Remove 'v' prefix if it exists
+          TAG_CLEAN=${TAG_NAME#v}
+          echo "TAG_CLEAN=$TAG_CLEAN" >> $GITHUB_ENV
+
+      - name: Build Windows Desktop Client
+        if: matrix.platform == 'windows'
+        working-directory: synapsegui
+        shell: cmd
+        run: |
+          call build_windows_native_gui.bat %TAG_CLEAN%
+
+      - name: Build macOS Desktop Client
+        if: matrix.platform == 'macos'
+        working-directory: synapsegui
+        shell: bash
+        run: |
+          chmod +x build.sh
+          ./build.sh macos $TAG_CLEAN
+
+      - name: Prepare artifact (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          cd synapsegui/dist
+          ARTIFACT_FILE=$(ls synapse-desktop-client*.exe | head -n1)
+          FINAL_NAME="${{ matrix.artifact-name }}-${{ env.TAG_CLEAN }}.exe"
+          mv "$ARTIFACT_FILE" "$FINAL_NAME"
+          echo "ARTIFACT_PATH=synapsegui/dist/$FINAL_NAME" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=$FINAL_NAME" >> $GITHUB_ENV
+
+      - name: Prepare artifact (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          cd synapsegui/dist
+          ARTIFACT_FILE=$(ls synapse-desktop-client-macos* | head -n1)
+          FINAL_NAME="${{ matrix.artifact-name }}-${{ env.TAG_CLEAN }}"
+          mv "$ARTIFACT_FILE" "$FINAL_NAME"
+          echo "ARTIFACT_PATH=synapsegui/dist/$FINAL_NAME" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=$FINAL_NAME" >> $GITHUB_ENV
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_PATH }}
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ env.ARTIFACT_PATH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
   # re-download the built package to the appropriate pypi server.

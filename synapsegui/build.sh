@@ -1,16 +1,18 @@
 #!/bin/bash
 
-# Build script for minimal Synapse CLI
+# Build script for Synapse Desktop Client
 # This script creates cross-platform binaries using PyInstaller
-# Usage: ./build.sh [platform]
-# Platforms: linux, macos, windows, all
+# Usage: ./build.sh [platform] [suffix]
+# Platforms: linux, macos, all
+# Suffix: optional suffix to add to the output filename
 
 set -e
 
 # Default to current platform if no argument provided
 TARGET_PLATFORM=${1:-"auto"}
+SUFFIX=${2:-""}
 
-echo "Building Minimal Synapse CLI..."
+echo "Building Synapse Desktop Client..."
 
 # Install required packages
 echo "Installing required packages..."
@@ -28,7 +30,8 @@ build_for_platform() {
     local extra_args=$3
 
     echo "Building for platform: $platform"
-    local output_name="minimal-synapse-${platform}${extension}"
+    local base_name="synapse-desktop-client-${platform}"
+    local output_name="${base_name}${SUFFIX}${extension}"
 
     echo "Building executable: $output_name"
 
@@ -39,7 +42,7 @@ build_for_platform() {
         --collect-all=synapseclient \
         --console \
         $extra_args \
-        minimal_synapse_cli.py
+        synapse_gui.py
 
     # Clean up spec file
     rm -f *.spec
@@ -70,11 +73,10 @@ case "$TARGET_PLATFORM" in
             build_for_platform "linux" ""
         elif [[ "$OSTYPE" == "darwin"* ]]; then
             build_for_platform "macos" ""
-        elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
-            build_for_platform "windows" ".exe"
         else
-            echo "Unknown platform: $OSTYPE"
-            echo "Please specify platform: linux, macos, windows, or all"
+            echo "Unsupported platform: $OSTYPE"
+            echo "This script only supports Linux and macOS platforms"
+            echo "Please specify platform: linux, macos, or all"
             exit 1
         fi
         ;;
@@ -84,18 +86,14 @@ case "$TARGET_PLATFORM" in
     "macos")
         build_for_platform "macos" ""
         ;;
-    "windows")
-        build_for_platform "windows" ".exe"
-        ;;
     "all")
-        echo "Building for all platforms..."
+        echo "Building for all supported platforms..."
         build_for_platform "linux" ""
         build_for_platform "macos" ""
-        build_for_platform "windows" ".exe"
         ;;
     *)
         echo "Unknown platform: $TARGET_PLATFORM"
-        echo "Available platforms: linux, macos, windows, all"
+        echo "Available platforms: linux, macos, all"
         exit 1
         ;;
 esac
@@ -104,29 +102,26 @@ echo ""
 echo "Build(s) complete!"
 echo ""
 echo "Available executables:"
-ls -la dist/minimal-synapse-* 2>/dev/null || echo "No executables found"
+ls -la dist/synapse-desktop-client-* 2>/dev/null || echo "No executables found"
 
 echo ""
 echo "Usage examples:"
-if [ -f "dist/minimal-synapse-linux" ]; then
-    echo "  ./dist/minimal-synapse-linux get syn123"
-    echo "  ./dist/minimal-synapse-linux store myfile.txt --parentid syn456"
+if ls dist/synapse-desktop-client-linux* 1> /dev/null 2>&1; then
+    local linux_file=$(ls dist/synapse-desktop-client-linux* | head -n1)
+    echo "  ./$linux_file get syn123"
+    echo "  ./$linux_file store myfile.txt --parentid syn456"
 fi
-if [ -f "dist/minimal-synapse-macos" ]; then
-    echo "  ./dist/minimal-synapse-macos get syn123"
-    echo "  ./dist/minimal-synapse-macos store myfile.txt --parentid syn456"
-fi
-if [ -f "dist/minimal-synapse-windows.exe" ]; then
-    echo "  ./dist/minimal-synapse-windows.exe get syn123"
-    echo "  ./dist/minimal-synapse-windows.exe store myfile.txt --parentid syn456"
+if ls dist/synapse-desktop-client-macos* 1> /dev/null 2>&1; then
+    local macos_file=$(ls dist/synapse-desktop-client-macos* | head -n1)
+    echo "  ./$macos_file get syn123"
+    echo "  ./$macos_file store myfile.txt --parentid syn456"
 fi
 
 echo ""
 echo "To install system-wide (Linux/macOS):"
-echo "  sudo cp dist/minimal-synapse-linux /usr/local/bin/synapse-cli"
-echo "  sudo cp dist/minimal-synapse-macos /usr/local/bin/synapse-cli"
+echo "  sudo cp dist/synapse-desktop-client-linux* /usr/local/bin/synapse-desktop-client"
+echo "  sudo cp dist/synapse-desktop-client-macos* /usr/local/bin/synapse-desktop-client"
 echo ""
 echo "Cross-platform build notes:"
 echo "- Linux binary: Works on most Linux distributions"
 echo "- macOS binary: Requires macOS to build, works on macOS 10.15+"
-echo "- Windows binary: Built with simplified approach following Windows native script"
