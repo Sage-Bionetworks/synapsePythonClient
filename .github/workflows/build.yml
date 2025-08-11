@@ -393,8 +393,8 @@ jobs:
           # ensure that numpy c extensions are installed on windows
           # https://stackoverflow.com/a/59346525
           if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
-            uv pip uninstall -y numpy
-            uv pip uninstall -y setuptools
+            uv pip uninstall numpy
+            uv pip uninstall setuptools
             uv pip install setuptools
             uv pip install numpy
           fi
