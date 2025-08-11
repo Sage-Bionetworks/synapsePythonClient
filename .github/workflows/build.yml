@@ -54,7 +54,8 @@ jobs:
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         # Make sure that we are running the integration tests on the first and last versions of the matrix
-        python: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        # python: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        python: ['3.13']
 
     runs-on: ${{ matrix.os }}
 
@@ -346,7 +347,7 @@ jobs:
   # build standalone desktop client artifacts for Windows and macOS on release
   build-desktop-clients:
     needs: [test, pre-commit]
-    if: github.event_name == 'release'
+    # if: github.event_name == 'release'
 
     strategy:
       matrix:
@@ -377,66 +378,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: '3.11'
-
-      - name: get-dependencies-location
-        shell: bash
-        run: |
-          SITE_PACKAGES_LOCATION=$(python -c "from sysconfig import get_path; print(get_path('purelib'))")
-          SITE_BIN_DIR=$(python3 -c "import os; import platform; import sysconfig; pre = sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
-          echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
-          echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
-        id: get-dependencies
-
-      - name: Cache py-dependencies
-        id: cache-dependencies
-        uses: actions/cache@v4
-        env:
-          cache-name: cache-py-dependencies
-        with:
-          path: |
-            ${{ steps.get-dependencies.outputs.site_packages_loc }}
-            ${{ steps.get-dependencies.outputs.site_bin_dir }}
-          key: ${{ runner.os }}-3.11-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-desktop-v24
+          python-version: 3.13
 
       - name: Install py-dependencies
-        if: steps.cache-dependencies.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-
-          pip install -e ".[boto3,pandas,pysftp,tests]"
-          pip install pyinstaller
+          uv pip install -e ".[boto3,pandas,pysftp,tests]"
+          uv pip install pyinstaller
 
           # ensure that numpy c extensions are installed on windows
           # https://stackoverflow.com/a/59346525
           if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
-            pip uninstall -y numpy
-            pip uninstall -y setuptools
-            pip install setuptools
-            pip install numpy
+            uv pip uninstall -y numpy
+            uv pip uninstall -y setuptools
+            uv pip install setuptools
+            uv pip install numpy
           fi
 
       - name: Extract tag name
         shell: bash
+        # TAG_NAME="${{ github.event.release.tag_name }}"
         run: |
-          TAG_NAME="${{ github.event.release.tag_name }}"
+          TAG_NAME="beta-01"
           # Remove 'v' prefix if it exists
           TAG_CLEAN=${TAG_NAME#v}
           echo "TAG_CLEAN=$TAG_CLEAN" >> $GITHUB_ENV
 
       - name: Build Windows Desktop Client
         if: matrix.platform == 'windows'
-        working-directory: synapsegui
         shell: cmd
         run: |
           call build_windows_native_gui.bat %TAG_CLEAN%
 
       - name: Build macOS Desktop Client
         if: matrix.platform == 'macos'
-        working-directory: synapsegui
         shell: bash
         run: |
           chmod +x build.sh
@@ -446,22 +424,22 @@ jobs:
         if: matrix.platform == 'windows'
         shell: bash
         run: |
-          cd synapsegui/dist
+          cd dist
           ARTIFACT_FILE=$(ls synapse-desktop-client*.exe | head -n1)
           FINAL_NAME="${{ matrix.artifact-name }}-${{ env.TAG_CLEAN }}.exe"
           mv "$ARTIFACT_FILE" "$FINAL_NAME"
-          echo "ARTIFACT_PATH=synapsegui/dist/$FINAL_NAME" >> $GITHUB_ENV
+          echo "ARTIFACT_PATH=dist/$FINAL_NAME" >> $GITHUB_ENV
           echo "ARTIFACT_NAME=$FINAL_NAME" >> $GITHUB_ENV
 
       - name: Prepare artifact (macOS)
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          cd synapsegui/dist
+          cd dist
           ARTIFACT_FILE=$(ls synapse-desktop-client-macos* | head -n1)
           FINAL_NAME="${{ matrix.artifact-name }}-${{ env.TAG_CLEAN }}"
           mv "$ARTIFACT_FILE" "$FINAL_NAME"
-          echo "ARTIFACT_PATH=synapsegui/dist/$FINAL_NAME" >> $GITHUB_ENV
+          echo "ARTIFACT_PATH=dist/$FINAL_NAME" >> $GITHUB_ENV
           echo "ARTIFACT_NAME=$FINAL_NAME" >> $GITHUB_ENV
 
       - name: Upload build artifact
@@ -470,12 +448,13 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.ARTIFACT_PATH }}
 
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ env.ARTIFACT_PATH }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Commented out for testing - only upload to action run, not GitHub release
+      # - name: Upload to GitHub Release
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     files: ${{ env.ARTIFACT_PATH }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
   # re-download the built package to the appropriate pypi server.

@@ -8,6 +8,11 @@ if not "%SUFFIX%"=="" set SUFFIX=-%SUFFIX%
 
 echo Building Synapse Desktop Client for Windows...
 
+REM Install required packages
+echo Installing required packages...
+uv pip install pyinstaller
+uv pip install -e .
+
 if errorlevel 1 (
     echo ERROR: Failed to install dependencies
     exit /b 1
