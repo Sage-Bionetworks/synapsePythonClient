@@ -12,7 +12,7 @@ REM Install required packages
 echo Installing required packages...
 call .venv\Scripts\activate
 uv pip install pyinstaller
-uv pip install -e .
+uv pip install -e ..
 
 if errorlevel 1 (
     echo ERROR: Failed to install dependencies

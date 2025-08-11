@@ -17,7 +17,7 @@ echo "Building Synapse Desktop Client..."
 # Install required packages
 echo "Installing required packages..."
 uv pip install pyinstaller
-uv pip install -e .
+uv pip install -e ..
 
 # Clean previous builds
 echo "Cleaning previous builds..."
