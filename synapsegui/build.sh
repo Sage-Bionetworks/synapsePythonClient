@@ -16,8 +16,8 @@ echo "Building Synapse Desktop Client..."
 
 # Install required packages
 echo "Installing required packages..."
-uv pip install pyinstaller
-uv pip install -e ..
+pip install pyinstaller
+pip install -e ..
 
 # Clean previous builds
 echo "Cleaning previous builds..."
@@ -94,25 +94,3 @@ echo "Build(s) complete!"
 echo ""
 echo "Available executables:"
 ls -la dist/synapse-desktop-client-* 2>/dev/null || echo "No executables found"
-
-echo ""
-echo "Usage examples:"
-if ls dist/synapse-desktop-client-linux* 1> /dev/null 2>&1; then
-    local linux_file=$(ls dist/synapse-desktop-client-linux* | head -n1)
-    echo "  ./$linux_file get syn123"
-    echo "  ./$linux_file store myfile.txt --parentid syn456"
-fi
-if ls dist/synapse-desktop-client-macos* 1> /dev/null 2>&1; then
-    local macos_file=$(ls dist/synapse-desktop-client-macos* | head -n1)
-    echo "  ./$macos_file get syn123"
-    echo "  ./$macos_file store myfile.txt --parentid syn456"
-fi
-
-echo ""
-echo "To install system-wide (Linux/macOS):"
-echo "  sudo cp dist/synapse-desktop-client-linux* /usr/local/bin/synapse-desktop-client"
-echo "  sudo cp dist/synapse-desktop-client-macos* /usr/local/bin/synapse-desktop-client"
-echo ""
-echo "Cross-platform build notes:"
-echo "- Linux binary: Works on most Linux distributions"
-echo "- macOS binary: Requires macOS to build, works on macOS 10.15+"

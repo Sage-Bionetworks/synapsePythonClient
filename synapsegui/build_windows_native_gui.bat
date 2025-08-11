@@ -10,9 +10,8 @@ echo Building Synapse Desktop Client for Windows...
 
 REM Install required packages
 echo Installing required packages...
-call .venv\Scripts\activate
-uv pip install pyinstaller
-uv pip install -e ..
+pip install pyinstaller
+pip install -e ..
 
 if errorlevel 1 (
     echo ERROR: Failed to install dependencies
