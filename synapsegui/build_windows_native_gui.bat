@@ -46,16 +46,6 @@ echo Executable location: dist\synapse-desktop-client%SUFFIX%.exe
 REM Show file size
 for %%I in (dist\synapse-desktop-client%SUFFIX%.exe) do echo File size: %%~zI bytes
 
-REM Test the executable (GUI mode - just check if it exists and runs briefly)
-echo Testing executable...
-if exist dist\synapse-desktop-client%SUFFIX%.exe (
-    echo ✓ Executable created successfully
-    echo Note: This is a GUI application - double-click to run the interface
-) else (
-    echo ✗ Executable not found
-    exit /b 1
-)
-
 echo.
 echo SUCCESS: Synapse Desktop Client built!
 echo.

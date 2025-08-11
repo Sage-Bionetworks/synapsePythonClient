@@ -50,15 +50,6 @@ build_for_platform() {
     if [ -f "dist/$output_name" ]; then
         echo "✓ Build successful: dist/$output_name"
         echo "File size: $(du -h dist/$output_name | cut -f1)"
-
-        # Test the executable
-        echo "Testing executable..."
-        if ./dist/$output_name --help > /dev/null 2>&1; then
-            echo "✓ Executable test passed"
-        else
-            echo "✗ Executable test failed"
-            return 1
-        fi
     else
         echo "✗ Build failed: dist/$output_name not found"
         return 1

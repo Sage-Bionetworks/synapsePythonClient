@@ -383,8 +383,10 @@ jobs:
 
       - name: Install uv (Windows)
         if: runner.os == 'Windows'
+        shell: powershell
         run: |
-          curl -LsSf https://astral.sh/uv/install.ps1 | powershell -c -
+          irm https://astral.sh/uv/install.ps1 | iex
+          $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
           echo "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install uv (macOS)
@@ -393,17 +395,21 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - name: Create virtual environment
+      - name: Create virtual environment (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          %USERPROFILE%\.cargo\bin\uv.exe venv .venv
+          echo VIRTUAL_ENV=%CD%\.venv >> %GITHUB_ENV%
+          echo %CD%\.venv\Scripts >> %GITHUB_PATH%
+
+      - name: Create virtual environment (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           uv venv .venv
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
-            echo "$PWD/.venv/Scripts" >> $GITHUB_PATH
-          else
-            echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
-            echo "$PWD/.venv/bin" >> $GITHUB_PATH
-          fi
+          echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Extract tag name
         shell: bash
