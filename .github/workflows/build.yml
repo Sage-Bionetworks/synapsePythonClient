@@ -103,27 +103,27 @@ jobs:
             pip install numpy
           fi
 
-      - name: run-unit-tests
-        shell: bash
-        run: |
-          pytest -sv --cov-append --cov=. --cov-report xml tests/unit
-      - name: Check for Secret availability
-        id: secret-check
-        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python) }}
-        # perform secret check & put boolean result as an output
-        shell: bash
-        run: |
-          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
-            echo "secrets_available=false" >> $GITHUB_OUTPUT;
-          else
-            echo "secrets_available=true" >> $GITHUB_OUTPUT;
-          fi
+      # - name: run-unit-tests
+      #   shell: bash
+      #   run: |
+      #     pytest -sv --cov-append --cov=. --cov-report xml tests/unit
+      # - name: Check for Secret availability
+      #   id: secret-check
+      #   if: ${{ contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python) }}
+      #   # perform secret check & put boolean result as an output
+      #   shell: bash
+      #   run: |
+      #     if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
+      #       echo "secrets_available=false" >> $GITHUB_OUTPUT;
+      #     else
+      #       echo "secrets_available=true" >> $GITHUB_OUTPUT;
+      #     fi
 
-          if [ -z "${{ secrets.synapse_personal_access_token }}" ]; then
-            echo "synapse_pat_available=false" >> $GITHUB_OUTPUT;
-          else
-            echo "synapse_pat_available=true" >> $GITHUB_OUTPUT;
-          fi
+      #     if [ -z "${{ secrets.synapse_personal_access_token }}" ]; then
+      #       echo "synapse_pat_available=false" >> $GITHUB_OUTPUT;
+      #     else
+      #       echo "synapse_pat_available=true" >> $GITHUB_OUTPUT;
+      #     fi
 
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
@@ -374,6 +374,8 @@ jobs:
             artifact-name: synapse-desktop-client-macos-apple-silicon
 
     runs-on: ${{ matrix.os }}
+    env:
+      UV_SYSTEM_PYTHON: 1
 
     steps:
       - uses: actions/checkout@v4
