@@ -374,8 +374,6 @@ jobs:
             artifact-name: synapse-desktop-client-macos-apple-silicon
 
     runs-on: ${{ matrix.os }}
-    env:
-      UV_SYSTEM_PYTHON: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -383,6 +381,7 @@ jobs:
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v6
         with:
+          activate-environment: true
           python-version: 3.13
 
       - name: Install py-dependencies
