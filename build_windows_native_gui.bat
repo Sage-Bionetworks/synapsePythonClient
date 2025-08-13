@@ -26,13 +26,22 @@ if exist *.spec del *.spec
 
 echo Building Windows executable...
 
-REM Build using the fixed CLI script
+REM Build using the refactored structure
 pyinstaller ^
     --onefile ^
     --name "synapse-desktop-client%SUFFIX%.exe" ^
     --collect-all=synapseclient ^
+    --hidden-import=synapsegui.models.synapse_client ^
+    --hidden-import=synapsegui.models.config ^
+    --hidden-import=synapsegui.components.login_component ^
+    --hidden-import=synapsegui.components.download_component ^
+    --hidden-import=synapsegui.components.upload_component ^
+    --hidden-import=synapsegui.components.output_component ^
+    --hidden-import=synapsegui.controllers.app_controller ^
+    --hidden-import=synapsegui.utils.progress ^
+    --hidden-import=synapsegui.utils.tooltips ^
     --windowed ^
-    synapse_gui.py
+    synapsegui/main.py
 
 if errorlevel 1 (
     echo ERROR: Build failed

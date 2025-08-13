@@ -30,14 +30,23 @@ build_for_platform() {
 
     echo "Building executable: $output_name"
 
-    # Build the executable with simplified PyInstaller command (following Windows approach)
+    # Build the executable with the refactored structure
     pyinstaller \
         --onefile \
         --name "$output_name" \
         --collect-all=synapseclient \
+        --hidden-import=synapsegui.models.synapse_client \
+        --hidden-import=synapsegui.models.config \
+        --hidden-import=synapsegui.components.login_component \
+        --hidden-import=synapsegui.components.download_component \
+        --hidden-import=synapsegui.components.upload_component \
+        --hidden-import=synapsegui.components.output_component \
+        --hidden-import=synapsegui.controllers.app_controller \
+        --hidden-import=synapsegui.utils.progress \
+        --hidden-import=synapsegui.utils.tooltips \
         --console \
         $extra_args \
-        synapse_gui.py
+        synapsegui/main.py
 
     # Clean up spec file
     rm -f *.spec
