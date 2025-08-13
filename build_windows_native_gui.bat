@@ -30,6 +30,7 @@ REM Build using the refactored structure
 pyinstaller ^
     --onefile ^
     --name "synapse-desktop-client%SUFFIX%.exe" ^
+    --icon="docs/assets/synapse_logo.png" ^
     --collect-all=synapseclient ^
     --hidden-import=synapsegui.models.synapse_client ^
     --hidden-import=synapsegui.models.config ^
@@ -37,6 +38,8 @@ pyinstaller ^
     --hidden-import=synapsegui.components.download_component ^
     --hidden-import=synapsegui.components.upload_component ^
     --hidden-import=synapsegui.components.output_component ^
+    --hidden-import=synapsegui.components.bulk_download_component ^
+    --hidden-import=synapsegui.components.bulk_upload_component ^
     --hidden-import=synapsegui.controllers.app_controller ^
     --hidden-import=synapsegui.utils.progress ^
     --hidden-import=synapsegui.utils.tooltips ^

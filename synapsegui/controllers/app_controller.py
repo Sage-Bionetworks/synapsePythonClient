@@ -25,13 +25,21 @@ class ApplicationController:
         self.output_component = None
 
     def set_ui_components(
-        self, login_component, download_component, upload_component, output_component
+        self,
+        login_component,
+        download_component,
+        upload_component,
+        output_component,
+        bulk_download_component=None,
+        bulk_upload_component=None,
     ) -> None:
         """Set references to UI components"""
         self.login_component = login_component
         self.download_component = download_component
         self.upload_component = upload_component
         self.output_component = output_component
+        self.bulk_download_component = bulk_download_component
+        self.bulk_upload_component = bulk_upload_component
 
     def handle_login(self, mode: str, credentials: Dict[str, Any]) -> None:
         """Handle login request from UI"""
@@ -166,3 +174,92 @@ class ApplicationController:
             self.download_component.set_enabled(enabled)
         if self.upload_component:
             self.upload_component.set_enabled(enabled)
+        if self.bulk_download_component:
+            pass
+        if self.bulk_upload_component:
+            pass
+
+    def handle_bulk_download(
+        self, items: list, download_path: str, recursive: bool
+    ) -> None:
+        """
+        Handle bulk download request from UI.
+
+        Args:
+            items: List of BulkItem objects to download
+            download_path: Local directory path where files will be downloaded
+            recursive: Whether to download folder contents recursively.
+                      If True, all subfolders and files within folders will be downloaded.
+                      If False, only the immediate contents of folders will be downloaded.
+        """
+
+        def bulk_download_worker():
+            result = asyncio.run(
+                self.synapse_client.bulk_download(
+                    items,
+                    download_path,
+                    recursive,
+                    self._on_progress_update,
+                    self._on_detail_message,
+                )
+            )
+
+            if result["success"]:
+                self.output_component.log_message(
+                    f"Bulk download complete: {result['summary']}"
+                )
+                if self.bulk_download_component:
+                    # Could add a success notification method here if desired
+                    pass
+            else:
+                self.output_component.log_message(
+                    f"Bulk download failed: {result['error']}", error=True
+                )
+
+        self.output_component.log_message(
+            f"Starting bulk download of {len(items)} items..."
+        )
+        threading.Thread(target=bulk_download_worker, daemon=True).start()
+
+    def handle_bulk_upload(
+        self, items: list, parent_id: str, preserve_structure: bool
+    ) -> None:
+        """Handle bulk upload request from UI"""
+
+        def bulk_upload_worker():
+            result = asyncio.run(
+                self.synapse_client.bulk_upload(
+                    items,
+                    parent_id,
+                    preserve_structure,
+                    self._on_progress_update,
+                    self._on_detail_message,
+                )
+            )
+
+            if result["success"]:
+                self.output_component.log_message(
+                    f"Bulk upload complete: {result['summary']}"
+                )
+                if self.bulk_upload_component:
+                    # Could add a success notification method here if desired
+                    pass
+            else:
+                self.output_component.log_message(
+                    f"Bulk upload failed: {result['error']}", error=True
+                )
+
+        self.output_component.log_message(
+            f"Starting bulk upload of {len(items)} items..."
+        )
+        threading.Thread(target=bulk_upload_worker, daemon=True).start()
+
+    def _on_progress_update(self, progress: int, message: str) -> None:
+        """Handle progress updates from bulk operations"""
+        if self.output_component:
+            self.output_component.log_message(f"Progress: {progress}% - {message}")
+
+    def _on_detail_message(self, message: str) -> None:
+        """Handle detailed progress messages from bulk operations"""
+        if self.output_component:
+            self.output_component.log_message(message)

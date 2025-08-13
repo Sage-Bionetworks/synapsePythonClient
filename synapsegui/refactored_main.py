@@ -1,10 +1,12 @@
 """
-Example of how the refactored main GUI would look
+Example of how the refactored main GUI would look with bulk operations
 """
 import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING
 
+from .components.bulk_download_component import BulkDownloadComponent
+from .components.bulk_upload_component import BulkUploadComponent
 from .components.download_component import DownloadComponent
 from .components.login_component import LoginComponent
 from .components.output_component import OutputComponent
@@ -35,6 +37,8 @@ class RefactoredSynapseGUI:
             self.download_component,
             self.upload_component,
             self.output_component,
+            self.bulk_download_component,
+            self.bulk_upload_component,
         )
 
     def create_widgets(self) -> None:
@@ -87,10 +91,37 @@ class RefactoredSynapseGUI:
             row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10)
         )
 
+        # Bulk Download component
+        self.bulk_download_component = BulkDownloadComponent(
+            self.notebook,
+            self.controller.handle_bulk_download,
+            self.output_component.log_message,
+            self._on_progress_update,
+        )
+        self.notebook.add(
+            self.bulk_download_component.create_ui(), text="Bulk Download"
+        )
+
+        # Bulk Upload component
+        self.bulk_upload_component = BulkUploadComponent(
+            self.notebook,
+            self.controller.handle_bulk_upload,
+            self.output_component.log_message,
+            self._on_progress_update,
+        )
+        self.notebook.add(self.bulk_upload_component.create_ui(), text="Bulk Upload")
+
         # Status bar
         self.output_component.get_status_bar().grid(
             row=4, column=0, sticky=(tk.W, tk.E)
         )
+
+    def _on_progress_update(self, message: str, progress: int) -> None:
+        """Handle progress updates from bulk operations"""
+        # Note: parameters are swapped compared to controller callback
+        # to match the component's expected signature
+        if self.output_component:
+            self.output_component.log_message(f"Progress: {progress}% - {message}")
 
 
 def main() -> None:
