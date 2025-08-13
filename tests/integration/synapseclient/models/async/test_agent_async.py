@@ -17,8 +17,8 @@ from synapseclient.models.agent import (
 # The Bedrock agent is hosted on Sage Bionetworks AWS infrastructure.
 # CFN Template:
 # https://raw.githubusercontent.com/Sage-Bionetworks-Workflows/dpe-agents/refs/heads/main/client_integration_test/template.json
+
 AGENT_AWS_ID = "QOTV3KQM1X"
-AGENT_REGISTRATION_ID = "29"
 
 
 class TestAgentPrompt:
@@ -27,6 +27,10 @@ class TestAgentPrompt:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse) -> None:
         self.syn = syn
+        if syn.repoEndpoint == "https://repo-dev.dev.sagebase.org/repo/v1":
+            self.AGENT_REGISTRATION_ID = "7"
+        else:
+            self.AGENT_REGISTRATION_ID = "29"
 
     async def test_send_job_and_wait_async_with_post_exchange_args(self) -> None:
         # GIVEN an AgentPrompt with a valid concrete type, prompt, and enable_trace
@@ -37,7 +41,7 @@ class TestAgentPrompt:
         )
         # AND the ID of an existing agent session
         test_session = await AgentSession(
-            agent_registration_id=AGENT_REGISTRATION_ID
+            agent_registration_id=self.AGENT_REGISTRATION_ID
         ).start_async(synapse_client=self.syn)
         test_prompt.session_id = test_session.id
         # WHEN I send the job and wait for it to complete
@@ -59,7 +63,7 @@ class TestAgentSession:
 
     async def test_start(self) -> None:
         # GIVEN an agent session with a valid agent registration id
-        agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
+        agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
 
         # WHEN the start method is called
         result_session = await agent_session.start_async(synapse_client=self.syn)
@@ -73,13 +77,13 @@ class TestAgentSession:
         assert result_session.started_on is not None
         assert result_session.started_by is not None
         assert result_session.modified_on is not None
-        assert result_session.agent_registration_id == AGENT_REGISTRATION_ID
+        assert result_session.agent_registration_id == self.AGENT_REGISTRATION_ID
         assert result_session.etag is not None
         assert result_session.chat_history == []
 
     async def test_get(self) -> None:
         # GIVEN an agent session with a valid agent registration id
-        agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
+        agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I start a session
         await agent_session.start_async(synapse_client=self.syn)
         # THEN I expect to be able to get the session with its id
@@ -92,7 +96,7 @@ class TestAgentSession:
         # GIVEN an agent session with a valid agent
         # registration id and access level set
         agent_session = AgentSession(
-            agent_registration_id=AGENT_REGISTRATION_ID,
+            agent_registration_id=self.AGENT_REGISTRATION_ID,
             access_level=AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE,
         )
         # WHEN I start a session
@@ -111,7 +115,7 @@ class TestAgentSession:
 
     async def test_prompt(self) -> None:
         # GIVEN an agent session with a valid agent registration id
-        agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
+        agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I start a session
         await agent_session.start_async(synapse_client=self.syn)
         # THEN I expect to be able to prompt the agent
@@ -133,7 +137,7 @@ class TestAgent:
         return Agent(
             cloud_agent_id=AGENT_AWS_ID,
             cloud_alias_id="TSTALIASID",
-            registration_id=AGENT_REGISTRATION_ID,
+            registration_id=self.AGENT_REGISTRATION_ID,
             registered_on="2025-01-16T18:57:35.680Z",
             type="CUSTOM",
             sessions={},
@@ -155,7 +159,7 @@ class TestAgent:
 
     async def test_get(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = Agent(registration_id=AGENT_REGISTRATION_ID)
+        agent = Agent(registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I get the agent
         await agent.get_async(synapse_client=self.syn)
         # THEN I expect the agent to be returned
@@ -171,7 +175,7 @@ class TestAgent:
 
     async def test_start_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = Agent(registration_id=AGENT_REGISTRATION_ID)
+        agent = Agent(registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I start a session
         await agent.start_session_async(synapse_client=self.syn)
         # THEN I expect a current session to be set
@@ -181,7 +185,7 @@ class TestAgent:
 
     async def test_get_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = Agent(registration_id=AGENT_REGISTRATION_ID)
+        agent = Agent(registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I start a session
         await agent.start_session_async(synapse_client=self.syn)
         # THEN I expect to be able to get the session with its id
@@ -193,12 +197,12 @@ class TestAgent:
 
     async def test_prompt_with_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = await Agent(registration_id=AGENT_REGISTRATION_ID).get_async(
+        agent = await Agent(registration_id=self.AGENT_REGISTRATION_ID).get_async(
             synapse_client=self.syn
         )
         # AND a session started separately
         session = await AgentSession(
-            agent_registration_id=AGENT_REGISTRATION_ID
+            agent_registration_id=self.AGENT_REGISTRATION_ID
         ).start_async(synapse_client=self.syn)
         # WHEN I prompt the agent with a session
         await agent.prompt_async(prompt="hello", enable_trace=True, session=session)
@@ -213,7 +217,7 @@ class TestAgent:
 
     async def test_prompt_no_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = await Agent(registration_id=AGENT_REGISTRATION_ID).get_async(
+        agent = await Agent(registration_id=self.AGENT_REGISTRATION_ID).get_async(
             synapse_client=self.syn
         )
         # WHEN I prompt the agent without a current session set
