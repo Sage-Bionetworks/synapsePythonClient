@@ -72,7 +72,7 @@ class ApplicationController:
                 self.output_component.log_message(
                     f"Login failed: {result['error']}", error=True
                 )
-            
+
             # Re-enable login/logout button after login attempt completes
             self.login_component.set_login_button_state(True)
 
@@ -185,13 +185,17 @@ class ApplicationController:
             if self.bulk_download_component:
                 if result["success"]:
                     self.bulk_download_component.parent.after(
-                        0, 
-                        lambda: self.bulk_download_component.handle_enumeration_result(result["items"])
+                        0,
+                        lambda: self.bulk_download_component.handle_enumeration_result(
+                            result["items"]
+                        ),
                     )
                 else:
                     self.bulk_download_component.parent.after(
                         0,
-                        lambda: self.bulk_download_component.handle_enumeration_result([], result["error"])
+                        lambda: self.bulk_download_component.handle_enumeration_result(
+                            [], result["error"]
+                        ),
                     )
 
         threading.Thread(target=enumerate_worker, daemon=True).start()
@@ -224,8 +228,10 @@ class ApplicationController:
         def bulk_download_worker():
             # Start the operation
             if self.bulk_download_component:
-                self.output_component.get_frame().after(0, lambda: self.bulk_download_component.start_bulk_operation())
-                
+                self.output_component.get_frame().after(
+                    0, lambda: self.bulk_download_component.start_bulk_operation()
+                )
+
             result = asyncio.run(
                 self.synapse_client.bulk_download(
                     items,
@@ -241,13 +247,23 @@ class ApplicationController:
                     f"Bulk download complete: {result['summary']}"
                 )
                 if self.bulk_download_component:
-                    self.output_component.get_frame().after(0, lambda: self.bulk_download_component.complete_bulk_operation(True, result['summary']))
+                    self.output_component.get_frame().after(
+                        0,
+                        lambda: self.bulk_download_component.complete_bulk_operation(
+                            True, result["summary"]
+                        ),
+                    )
             else:
                 self.output_component.log_message(
                     f"Bulk download failed: {result['error']}", error=True
                 )
                 if self.bulk_download_component:
-                    self.output_component.get_frame().after(0, lambda: self.bulk_download_component.complete_bulk_operation(False, result['error']))
+                    self.output_component.get_frame().after(
+                        0,
+                        lambda: self.bulk_download_component.complete_bulk_operation(
+                            False, result["error"]
+                        ),
+                    )
 
         self.output_component.log_message(
             f"Starting bulk download of {len(items)} items..."
@@ -262,8 +278,10 @@ class ApplicationController:
         def bulk_upload_worker():
             # Start the operation
             if self.bulk_upload_component:
-                self.output_component.get_frame().after(0, lambda: self.bulk_upload_component.start_bulk_operation())
-                
+                self.output_component.get_frame().after(
+                    0, lambda: self.bulk_upload_component.start_bulk_operation()
+                )
+
             result = asyncio.run(
                 self.synapse_client.bulk_upload(
                     items,
@@ -279,13 +297,23 @@ class ApplicationController:
                     f"Bulk upload complete: {result['summary']}"
                 )
                 if self.bulk_upload_component:
-                    self.output_component.get_frame().after(0, lambda: self.bulk_upload_component.complete_bulk_operation(True, result['summary']))
+                    self.output_component.get_frame().after(
+                        0,
+                        lambda: self.bulk_upload_component.complete_bulk_operation(
+                            True, result["summary"]
+                        ),
+                    )
             else:
                 self.output_component.log_message(
                     f"Bulk upload failed: {result['error']}", error=True
                 )
                 if self.bulk_upload_component:
-                    self.output_component.get_frame().after(0, lambda: self.bulk_upload_component.complete_bulk_operation(False, result['error']))
+                    self.output_component.get_frame().after(
+                        0,
+                        lambda: self.bulk_upload_component.complete_bulk_operation(
+                            False, result["error"]
+                        ),
+                    )
 
         self.output_component.log_message(
             f"Starting bulk upload of {len(items)} items..."
@@ -296,17 +324,26 @@ class ApplicationController:
         """Handle progress updates from bulk download operations"""
         # Schedule UI updates on the main thread
         if self.bulk_download_component:
-            self.output_component.get_frame().after(0, lambda: self.bulk_download_component.update_progress(progress, message))
+            self.output_component.get_frame().after(
+                0,
+                lambda: self.bulk_download_component.update_progress(progress, message),
+            )
         if self.output_component:
-            self.output_component.log_message(f"Download Progress: {progress}% - {message}")
+            self.output_component.log_message(
+                f"Download Progress: {progress}% - {message}"
+            )
 
     def _on_bulk_upload_progress_update(self, progress: int, message: str) -> None:
         """Handle progress updates from bulk upload operations"""
         # Schedule UI updates on the main thread
         if self.bulk_upload_component:
-            self.output_component.get_frame().after(0, lambda: self.bulk_upload_component.update_progress(progress, message))
+            self.output_component.get_frame().after(
+                0, lambda: self.bulk_upload_component.update_progress(progress, message)
+            )
         if self.output_component:
-            self.output_component.log_message(f"Upload Progress: {progress}% - {message}")
+            self.output_component.log_message(
+                f"Upload Progress: {progress}% - {message}"
+            )
 
     def _on_progress_update(self, progress: int, message: str) -> None:
         """Handle progress updates from single file operations"""

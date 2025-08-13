@@ -50,17 +50,17 @@ class LoggingIntegration:
         self.gui_handler.set_root(root)
 
         # Set formatter to match GUI expectations
-        formatter = logging.Formatter('%(name)s: %(message)s')
+        formatter = logging.Formatter("%(name)s: %(message)s")
         self.gui_handler.setFormatter(formatter)
 
         # Add the handler to the synapseclient loggers
         synapse_loggers = [
-            'synapseclient_default',
-            'synapseclient_debug', 
-            'synapseclient',
-            'synapseclient.client',
-            'synapseclient.core',
-            'synapseclient.models'
+            "synapseclient_default",
+            "synapseclient_debug",
+            "synapseclient",
+            "synapseclient.client",
+            "synapseclient.core",
+            "synapseclient.models",
         ]
 
         for logger_name in synapse_loggers:
@@ -74,12 +74,12 @@ class LoggingIntegration:
         """Clean up logging integration"""
         if self.gui_handler:
             synapse_loggers = [
-                'synapseclient_default',
-                'synapseclient_debug',
-                'synapseclient',
-                'synapseclient.client', 
-                'synapseclient.core',
-                'synapseclient.models'
+                "synapseclient_default",
+                "synapseclient_debug",
+                "synapseclient",
+                "synapseclient.client",
+                "synapseclient.core",
+                "synapseclient.models",
             ]
 
             for logger_name in synapse_loggers:

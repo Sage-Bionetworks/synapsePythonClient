@@ -20,7 +20,7 @@ def _fix_console_streams():
 if __name__ == "__main__":
     # Fix console streams first for PyInstaller compatibility
     _fix_console_streams()
-    
+
     # Get the directory containing this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     # Add the parent directory to Python path

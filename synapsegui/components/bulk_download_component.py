@@ -90,7 +90,9 @@ class BulkDownloadComponent:
         )
 
         # Progress bar for bulk operations
-        self.bulk_progress_bar = ttk.Progressbar(progress_frame, mode="determinate", length=300)
+        self.bulk_progress_bar = ttk.Progressbar(
+            progress_frame, mode="determinate", length=300
+        )
         self.bulk_progress_bar.pack(side="right", padx=(10, 0))
 
         # Selection tree section
@@ -196,20 +198,23 @@ class BulkDownloadComponent:
         self._clear_tree()
         self.container_items.clear()
         self.selected_items.clear()
-        
+
         # Update status
         self.progress_var.set("Enumerating contents...")
         self.on_log_message(
-            f"Starting enumeration of {container_id} (recursive={self.recursive_var.get()})", False
+            f"Starting enumeration of {container_id} (recursive={self.recursive_var.get()})",
+            False,
         )
 
         # Delegate to controller using the same pattern as other operations
         self.on_enumerate(container_id, self.recursive_var.get())
 
-    def handle_enumeration_result(self, items: List[BulkItem], error: str = None) -> None:
+    def handle_enumeration_result(
+        self, items: List[BulkItem], error: str = None
+    ) -> None:
         """
         Handle enumeration results from the controller.
-        
+
         Args:
             items: List of enumerated BulkItem objects, or empty list if error
             error: Error message if enumeration failed, None if successful
@@ -218,7 +223,7 @@ class BulkDownloadComponent:
             self.progress_var.set("Enumeration failed")
             self.on_log_message(f"Enumeration failed: {error}", True)
             return
-        
+
         # Store items and update UI
         self.container_items = items
         self._populate_tree()
@@ -410,7 +415,7 @@ class BulkDownloadComponent:
 
     def update_progress(self, progress: int, message: str) -> None:
         """Update the progress bar and status message.
-        
+
         Args:
             progress: Progress percentage (0-100)
             message: Status message to display
@@ -427,7 +432,7 @@ class BulkDownloadComponent:
 
     def complete_bulk_operation(self, success: bool, message: str) -> None:
         """Called when a bulk operation completes
-        
+
         Args:
             success: Whether the operation was successful
             message: Completion message
@@ -435,7 +440,7 @@ class BulkDownloadComponent:
         if self.bulk_progress_bar:
             self.bulk_progress_bar["value"] = 100 if success else 0
         self.progress_var.set(message)
-        
+
         if success:
             self.on_log_message(f"Bulk download completed: {message}", False)
         else:

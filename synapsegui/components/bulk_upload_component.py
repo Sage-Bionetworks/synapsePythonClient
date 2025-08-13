@@ -103,7 +103,9 @@ class BulkUploadComponent:
         )
 
         # Progress bar for bulk operations
-        self.bulk_progress_bar = ttk.Progressbar(status_frame, mode="determinate", length=300)
+        self.bulk_progress_bar = ttk.Progressbar(
+            status_frame, mode="determinate", length=300
+        )
         self.bulk_progress_bar.pack(side="right", padx=(10, 0))
 
         # File list tree section
@@ -263,7 +265,7 @@ class BulkUploadComponent:
                     if self._add_file_item(str(item_path)):
                         added_count += 1
                 # Note: We deliberately do NOT add subdirectories as separate BulkItem objects
-                # The directory structure will be preserved through the file paths and 
+                # The directory structure will be preserved through the file paths and
                 # recreated during upload when preserve_structure is enabled
         except PermissionError as e:
             self.on_log_message(f"Permission error accessing {folder_path}: {e}", True)
@@ -281,7 +283,7 @@ class BulkUploadComponent:
             item_tags = self.tree.item(item_id, "tags")
             if "visual_directory" in item_tags:
                 continue
-                
+
             item_values = self.tree.item(item_id, "values")
             if len(item_values) >= 3:
                 selected_paths.append(item_values[2])  # Local Path column
@@ -329,9 +331,11 @@ class BulkUploadComponent:
                 # Check if this folder is not a subfolder of another folder in the list
                 is_root = True
                 for other_item in self.upload_items:
-                    if (other_item.item_type == "Folder" and 
-                        other_item.path != item.path and 
-                        self._is_subpath(item.path, other_item.path)):
+                    if (
+                        other_item.item_type == "Folder"
+                        and other_item.path != item.path
+                        and self._is_subpath(item.path, other_item.path)
+                    ):
                         is_root = False
                         break
                 if is_root:
@@ -339,44 +343,52 @@ class BulkUploadComponent:
 
         # Build tree structure for each root folder
         tree_nodes = {}  # Maps folder paths to tree node IDs
-        
+
         # Add root folders first - these appear at the top level
         for root_folder in root_folders:
             root_id = self.tree.insert(
                 "",
-                "end", 
+                "end",
                 text=root_folder.name,
-                values=(root_folder.item_type, root_folder.get_display_size(), root_folder.path),
+                values=(
+                    root_folder.item_type,
+                    root_folder.get_display_size(),
+                    root_folder.path,
+                ),
                 tags=(root_folder.path,),
             )
             tree_nodes[root_folder.path] = root_id
 
         # Sort remaining items (files and any standalone files) by path depth
-        remaining_items = [item for item in self.upload_items if item not in root_folders]
-        
+        remaining_items = [
+            item for item in self.upload_items if item not in root_folders
+        ]
+
         for item in sorted(remaining_items, key=lambda x: len(Path(x.path).parts)):
             # Find which root folder this item belongs to
             parent_id = ""
             best_parent_path = ""
-            
+
             for root_folder in root_folders:
                 if self._is_subpath(item.path, root_folder.path):
                     parent_id = tree_nodes[root_folder.path]
                     best_parent_path = root_folder.path
                     break
-            
+
             if parent_id and best_parent_path:
                 # Build intermediate directory structure within the selected folder only
-                relative_parts = self._get_relative_path_parts(item.path, best_parent_path)
-                
+                relative_parts = self._get_relative_path_parts(
+                    item.path, best_parent_path
+                )
+
                 current_parent_id = parent_id
                 current_path = Path(best_parent_path)
-                
+
                 # Build intermediate directories for display (exclude the last part which is the item itself)
                 for part in relative_parts[:-1]:
                     current_path = current_path / part
                     current_path_str = str(current_path)
-                    
+
                     if current_path_str not in tree_nodes:
                         # Create visual directory node (not a BulkItem)
                         current_parent_id = self.tree.insert(
@@ -389,7 +401,7 @@ class BulkUploadComponent:
                         tree_nodes[current_path_str] = current_parent_id
                     else:
                         current_parent_id = tree_nodes[current_path_str]
-                
+
                 # Add the actual item (file)
                 self.tree.insert(
                     current_parent_id,
@@ -506,7 +518,7 @@ class BulkUploadComponent:
 
     def update_progress(self, progress: int, message: str) -> None:
         """Update the progress bar and status message.
-        
+
         Args:
             progress: Progress percentage (0-100)
             message: Status message to display
@@ -523,7 +535,7 @@ class BulkUploadComponent:
 
     def complete_bulk_operation(self, success: bool, message: str) -> None:
         """Called when a bulk operation completes
-        
+
         Args:
             success: Whether the operation was successful
             message: Completion message
@@ -531,7 +543,7 @@ class BulkUploadComponent:
         if self.bulk_progress_bar:
             self.bulk_progress_bar["value"] = 100 if success else 0
         self.status_var.set(message)
-        
+
         if success:
             self.on_log_message(f"Bulk upload completed: {message}", False)
         else:

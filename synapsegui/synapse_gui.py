@@ -131,7 +131,7 @@ class SynapseGUI:
 
     def cleanup(self) -> None:
         """Clean up resources when closing the application"""
-        if hasattr(self, 'logging_integration'):
+        if hasattr(self, "logging_integration"):
             self.logging_integration.cleanup_logging_integration()
 
 

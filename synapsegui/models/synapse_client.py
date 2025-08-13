@@ -17,13 +17,15 @@ from synapseclient.models import File
 def _safe_stderr_redirect(new_stderr):
     """
     Safely redirect stderr, handling the case where original stderr might be None.
-    
+
     Returns:
         Tuple of (original_stderr, safe_original_stderr) where safe_original_stderr
         is guaranteed to be a valid file-like object.
     """
     original_stderr = sys.stderr
-    safe_original_stderr = original_stderr if original_stderr is not None else io.StringIO()
+    safe_original_stderr = (
+        original_stderr if original_stderr is not None else io.StringIO()
+    )
     sys.stderr = new_stderr
     return original_stderr, safe_original_stderr
 
@@ -104,13 +106,13 @@ class SynapseClientManager:
             )
 
             # Log successful login
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             logger.info(f"Successfully logged in as {self.username}")
 
             return {"success": True, "username": self.username}
         except Exception as e:
             # Log login error
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             logger.error(f"Login failed: {str(e)}")
             return {"success": False, "error": str(e)}
 
@@ -131,13 +133,15 @@ class SynapseClientManager:
             )
 
             # Log successful login
-            logger = logging.getLogger('synapseclient')
-            logger.info(f"Successfully logged in as {self.username} using profile {profile_name}")
+            logger = logging.getLogger("synapseclient")
+            logger.info(
+                f"Successfully logged in as {self.username} using profile {profile_name}"
+            )
 
             return {"success": True, "username": self.username}
         except Exception as e:
             # Log login error
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             logger.error(f"Login with profile '{profile_name}' failed: {str(e)}")
             return {"success": False, "error": str(e)}
 
@@ -146,7 +150,7 @@ class SynapseClientManager:
         if self.client:
             self.client.logout()
             # Log logout
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             logger.info(f"User {self.username} logged out")
         self.client = None
         self.is_logged_in = False
@@ -166,15 +170,19 @@ class SynapseClientManager:
                 return {"success": False, "error": "Not logged in"}
 
             # Log download start
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             version_info = f" version {version}" if version else ""
-            logger.info(f"Starting download of {synapse_id}{version_info} to {download_path}")
+            logger.info(
+                f"Starting download of {synapse_id}{version_info} to {download_path}"
+            )
 
             # Create progress capture for TQDM output
             progress_capture = TQDMProgressCapture(progress_callback, detail_callback)
 
             # Safely redirect stderr to capture TQDM output
-            original_stderr, safe_original_stderr = _safe_stderr_redirect(progress_capture)
+            original_stderr, safe_original_stderr = _safe_stderr_redirect(
+                progress_capture
+            )
 
             try:
                 file_obj = File(
@@ -187,7 +195,9 @@ class SynapseClientManager:
                 file_obj = file_obj.get(synapse_client=self.client)
 
                 if file_obj.path and os.path.exists(file_obj.path):
-                    logger.info(f"Successfully downloaded {synapse_id} to {file_obj.path}")
+                    logger.info(
+                        f"Successfully downloaded {synapse_id} to {file_obj.path}"
+                    )
                     return {"success": True, "path": file_obj.path}
                 else:
                     error_msg = f"No files associated with entity {synapse_id}"
@@ -198,7 +208,7 @@ class SynapseClientManager:
                 _safe_stderr_restore(original_stderr, safe_original_stderr)
 
         except Exception as e:
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             logger.error(f"Download failed for {synapse_id}: {str(e)}")
             return {"success": False, "error": str(e)}
 
@@ -220,17 +230,23 @@ class SynapseClientManager:
                 return {"success": False, "error": f"File does not exist: {file_path}"}
 
             # Log upload start
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             if entity_id:
-                logger.info(f"Starting upload of {file_path} to update entity {entity_id}")
+                logger.info(
+                    f"Starting upload of {file_path} to update entity {entity_id}"
+                )
             else:
-                logger.info(f"Starting upload of {file_path} to create new entity in {parent_id}")
+                logger.info(
+                    f"Starting upload of {file_path} to create new entity in {parent_id}"
+                )
 
             # Create progress capture for TQDM output
             progress_capture = TQDMProgressCapture(progress_callback, detail_callback)
 
             # Safely redirect stderr to capture TQDM output
-            original_stderr, safe_original_stderr = _safe_stderr_redirect(progress_capture)
+            original_stderr, safe_original_stderr = _safe_stderr_redirect(
+                progress_capture
+            )
 
             try:
                 if entity_id:  # Update existing
@@ -255,10 +271,12 @@ class SynapseClientManager:
                     )
 
                 file_obj = file_obj.store(synapse_client=self.client)
-                
+
                 # Log successful upload
-                logger.info(f"Successfully uploaded {file_path} as entity {file_obj.id}: {file_obj.name}")
-                
+                logger.info(
+                    f"Successfully uploaded {file_path} as entity {file_obj.id}: {file_obj.name}"
+                )
+
                 return {
                     "success": True,
                     "entity_id": file_obj.id,
@@ -269,7 +287,7 @@ class SynapseClientManager:
                 _safe_stderr_restore(original_stderr, safe_original_stderr)
 
         except Exception as e:
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             logger.error(f"Upload failed for {file_path}: {str(e)}")
             return {"success": False, "error": str(e)}
 
@@ -291,9 +309,11 @@ class SynapseClientManager:
                 return {"success": False, "error": "Not logged in"}
 
             # Log enumeration start
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             recursive_info = " (recursive)" if recursive else ""
-            logger.info(f"Starting enumeration of container {container_id}{recursive_info}")
+            logger.info(
+                f"Starting enumeration of container {container_id}{recursive_info}"
+            )
 
             # Import here to avoid circular imports
             from synapseclient.models import Folder, Project
@@ -314,12 +334,14 @@ class SynapseClientManager:
             items = self._convert_to_bulk_items(container, recursive)
 
             # Log successful enumeration
-            logger.info(f"Successfully enumerated {len(items)} items from container {container_id}")
+            logger.info(
+                f"Successfully enumerated {len(items)} items from container {container_id}"
+            )
 
             return {"success": True, "items": items}
 
         except Exception as e:
-            logger = logging.getLogger('synapseclient')
+            logger = logging.getLogger("synapseclient")
             logger.error(f"Enumeration failed for container {container_id}: {str(e)}")
             return {"success": False, "error": str(e)}
 
@@ -524,10 +546,10 @@ class SynapseClientManager:
                     if preserve_structure and item.path:
                         # Find the appropriate parent folder for this file
                         item_dir = os.path.dirname(item.path)
-                        
+
                         # Normalize path separators to match folder_mapping keys
-                        normalized_item_dir = item_dir.replace('\\', '/')
-                        
+                        normalized_item_dir = item_dir.replace("\\", "/")
+
                         # First check for exact match
                         if normalized_item_dir in folder_mapping:
                             target_parent = folder_mapping[normalized_item_dir]
@@ -603,9 +625,11 @@ class SynapseClientManager:
                 # Check if this folder is not a subfolder of another folder in the list
                 is_root = True
                 for other_item in items:
-                    if (other_item.item_type == "Folder" and 
-                        other_item.path != item.path and 
-                        self._is_subpath(item.path, other_item.path)):
+                    if (
+                        other_item.item_type == "Folder"
+                        and other_item.path != item.path
+                        and self._is_subpath(item.path, other_item.path)
+                    ):
                         is_root = False
                         break
                 if is_root:
@@ -613,11 +637,11 @@ class SynapseClientManager:
 
         # Get all unique directory paths that need to be created
         dir_paths = set()
-        
+
         # First, add the explicitly selected folders
         for root_folder in root_folders:
             dir_paths.add(root_folder.path)
-        
+
         # Then, add subdirectories within selected folders only
         for item in items:
             if item.path and item.item_type == "File":
@@ -629,11 +653,11 @@ class SynapseClientManager:
                             # Add all directories between root folder and file's directory
                             current_path = Path(dir_path)
                             root_path = Path(root_folder.path)
-                            
+
                             # Build list of directories from root folder to file's directory
                             relative_parts = current_path.relative_to(root_path).parts
                             temp_path = root_path
-                            
+
                             for part in relative_parts:
                                 temp_path = temp_path / part
                                 dir_paths.add(str(temp_path))
@@ -658,14 +682,16 @@ class SynapseClientManager:
 
             # Determine parent folder ID
             parent_folder_id = base_parent_id
-            
+
             # For root folders, parent is the base parent
-            is_root_folder = any(root_folder.path == dir_path for root_folder in root_folders)
-            
+            is_root_folder = any(
+                root_folder.path == dir_path for root_folder in root_folders
+            )
+
             if not is_root_folder:
                 # Find the parent directory that should already be created
                 parent_path = str(path_obj.parent)
-                normalized_parent_path = parent_path.replace('\\', '/')
+                normalized_parent_path = parent_path.replace("\\", "/")
                 if normalized_parent_path in folder_mapping:
                     parent_folder_id = folder_mapping[normalized_parent_path]
                 else:
@@ -680,9 +706,11 @@ class SynapseClientManager:
                 folder = Folder(name=folder_name, parent_id=parent_folder_id)
                 folder = folder.store(synapse_client=self.client)
                 # Normalize path separators for consistent lookup
-                normalized_dir_path = dir_path.replace('\\', '/')
+                normalized_dir_path = dir_path.replace("\\", "/")
                 folder_mapping[normalized_dir_path] = folder.id
-                detail_callback(f"Created folder: {folder_name} ({folder.id}) from path {dir_path}")
+                detail_callback(
+                    f"Created folder: {folder_name} ({folder.id}) from path {dir_path}"
+                )
             except Exception as e:
                 detail_callback(f"Error creating folder {folder_name}: {str(e)}")
 
