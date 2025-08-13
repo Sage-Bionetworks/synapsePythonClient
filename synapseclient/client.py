@@ -7386,9 +7386,17 @@ class Synapse(object):
         for result in self.restGET(uri)["results"]:
             yield Column(**result)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `query` or `query_async` functions from `synapseclient.models` instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def tableQuery(self, query: str, resultsAs: str = "csv", **kwargs):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `query` or `query_async` functions from [synapseclient.models][] instead.
+
         Query a Synapse Table.
 
         You can receive query results either as a generator over rows or as a CSV file. For smallish tables, either
@@ -7420,6 +7428,69 @@ class Synapse(object):
 
                   # Sets the max timeout to 5 minutes.
                   syn.table_query_timeout = 300
+
+        Example: Using this function (DEPRECATED)
+            Getting query results as a DataFrame:
+
+                results = syn.tableQuery("SELECT * FROM syn12345")
+                df = results.asDataFrame()
+
+            Getting query results as a CSV file:
+
+                results = syn.tableQuery("SELECT * FROM syn12345", resultsAs="csv", downloadLocation="./my_data/")
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import query, query_async
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Synchronous query (recommended for most use cases)
+            results = query(query="SELECT * FROM syn12345")
+            print(results)
+
+            # Query with specific options
+            results = query(
+                query="SELECT * FROM syn12345",
+                include_row_id_and_row_version=True,
+                convert_to_datetime=True
+            )
+            print(results)
+
+            # Download query results to a CSV file
+            file_path = query(
+                query="SELECT * FROM syn12345",
+                download_location="./my_data/",
+                separator=",",
+                quote_character='"',
+                header=True
+            )
+            print(f"Results downloaded to: {file_path}")
+
+            # Asynchronous query (for advanced use cases)
+            async def async_query_example():
+                results = await query_async(query="SELECT * FROM syn12345")
+                print(results)
+
+                # Download query results to a CSV file asynchronously
+                file_path = await query_async(
+                    query="SELECT * FROM syn12345",
+                    download_location="./my_data/",
+                    separator=",",
+                    quote_character='"',
+                    header=True
+                )
+                print(f"Results downloaded to: {file_path}")
+
+            # Run the async example
+            asyncio.run(async_query_example())
+            ```
 
         """
         if resultsAs.lower() == "rowset":
