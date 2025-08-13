@@ -137,24 +137,26 @@ class TestAgentSession:
 class TestAgent:
     """Integration tests for the synchronous methods of the Agent class."""
 
-    def get_test_agent(self) -> Agent:
-        return Agent(
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse) -> None:
+        self.syn = syn
+
+        if syn.repoEndpoint == "https://repo-dev.dev.sagebase.org/repo/v1":
+            self.AGENT_REGISTRATION_ID = "7"
+            registered_on = "2025-08-11T20:39:35.355Z"
+        else:
+            self.AGENT_REGISTRATION_ID = "29"
+            registered_on = "2025-01-16T18:57:35.680Z"
+
+        self.agent = Agent(
             cloud_agent_id=AGENT_AWS_ID,
             cloud_alias_id="TSTALIASID",
             registration_id=self.AGENT_REGISTRATION_ID,
-            registered_on="2025-01-16T18:57:35.680Z",
+            registered_on=registered_on,
             type="CUSTOM",
             sessions={},
             current_session=None,
         )
-
-    @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse) -> None:
-        self.syn = syn
-        if syn.repoEndpoint == "https://repo-dev.dev.sagebase.org/repo/v1":
-            self.AGENT_REGISTRATION_ID = "7"
-        else:
-            self.AGENT_REGISTRATION_ID = "29"
 
     async def test_register(self) -> None:
         # GIVEN an Agent with a valid agent AWS id
@@ -162,7 +164,7 @@ class TestAgent:
         # WHEN I register the agent
         await agent.register_async(synapse_client=self.syn)
         # THEN I expect the agent to be registered
-        expected_agent = self.get_test_agent()
+        expected_agent = self.agent
         assert agent == expected_agent
 
     async def test_get(self) -> None:
@@ -171,7 +173,7 @@ class TestAgent:
         # WHEN I get the agent
         await agent.get_async(synapse_client=self.syn)
         # THEN I expect the agent to be returned
-        expected_agent = self.get_test_agent()
+        expected_agent = self.agent
         assert agent == expected_agent
 
     async def test_get_no_registration_id(self) -> None:
