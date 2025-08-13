@@ -14,8 +14,13 @@ from synapseclient.models import File
 class TQDMProgressCapture:
     """Capture TQDM progress updates for GUI display"""
 
-    def __init__(self, progress_callback: Callable[[int, str], None]):
+    def __init__(
+        self,
+        progress_callback: Callable[[int, str], None],
+        detail_callback: Callable[[str], None],
+    ):
         self.progress_callback = progress_callback
+        self.detail_callback = detail_callback
         self.last_progress = 0
 
     def write(self, s: str) -> None:
@@ -34,7 +39,10 @@ class TQDMProgressCapture:
                         progress = int(match.group(1))
                         if progress != self.last_progress:
                             self.last_progress = progress
+                            # Send progress update for progress bar
                             self.progress_callback(progress, f"Progress: {progress}%")
+                            # Send detailed progress line for output logging
+                            self.detail_callback(progress_line)
                 except Exception:
                     pass
 
@@ -103,6 +111,7 @@ class SynapseClientManager:
         version: Optional[int],
         download_path: str,
         progress_callback: Callable[[int, str], None],
+        detail_callback: Callable[[str], None],
     ) -> Dict[str, Any]:
         """Download file from Synapse"""
         try:
@@ -110,7 +119,7 @@ class SynapseClientManager:
                 return {"success": False, "error": "Not logged in"}
 
             # Create progress capture for TQDM output
-            progress_capture = TQDMProgressCapture(progress_callback)
+            progress_capture = TQDMProgressCapture(progress_callback, detail_callback)
 
             # Redirect stderr to capture TQDM output
             original_stderr = sys.stderr
@@ -147,6 +156,7 @@ class SynapseClientManager:
         entity_id: Optional[str],
         name: Optional[str],
         progress_callback: Callable[[int, str], None],
+        detail_callback: Callable[[str], None],
     ) -> Dict[str, Any]:
         """Upload file to Synapse"""
         try:
@@ -157,7 +167,7 @@ class SynapseClientManager:
                 return {"success": False, "error": f"File does not exist: {file_path}"}
 
             # Create progress capture for TQDM output
-            progress_capture = TQDMProgressCapture(progress_callback)
+            progress_capture = TQDMProgressCapture(progress_callback, detail_callback)
 
             # Redirect stderr to capture TQDM output
             original_stderr = sys.stderr

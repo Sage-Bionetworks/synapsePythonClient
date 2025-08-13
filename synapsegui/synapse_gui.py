@@ -167,7 +167,7 @@ class ToolTip:
 class SynapseGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Synapse File Manager")
+        self.root.title("Synapse Desktop Client")
         self.root.geometry("800x700")
         self.root.resizable(True, True)
 
@@ -202,7 +202,7 @@ class SynapseGUI:
 
         # Title
         title_label = ttk.Label(
-            main_frame, text="Synapse File Manager", font=("Arial", 16, "bold")
+            main_frame, text="Synapse Desktop Client", font=("Arial", 16, "bold")
         )
         title_label.grid(row=0, column=0, pady=(0, 20))
 

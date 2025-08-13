@@ -97,9 +97,16 @@ class ApplicationController:
             def progress_callback(progress: int, message: str):
                 self.download_component.update_progress(progress, message)
 
+            def detail_callback(detail_message: str):
+                self.output_component.log_message(detail_message)
+
             result = asyncio.run(
                 self.synapse_client.download_file(
-                    synapse_id, version_num, download_path, progress_callback
+                    synapse_id,
+                    version_num,
+                    download_path,
+                    progress_callback,
+                    detail_callback,
                 )
             )
 
@@ -124,6 +131,9 @@ class ApplicationController:
             def progress_callback(progress: int, message: str):
                 self.upload_component.update_progress(progress, message)
 
+            def detail_callback(detail_message: str):
+                self.output_component.log_message(detail_message)
+
             result = asyncio.run(
                 self.synapse_client.upload_file(
                     file_path,
@@ -131,6 +141,7 @@ class ApplicationController:
                     entity_id or None,
                     name or None,
                     progress_callback,
+                    detail_callback,
                 )
             )
 

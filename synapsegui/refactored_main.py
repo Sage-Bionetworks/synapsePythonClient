@@ -1,0 +1,116 @@
+"""
+Example of how the refactored main GUI would look
+"""
+import tkinter as tk
+from tkinter import ttk
+from typing import TYPE_CHECKING
+
+from .components.download_component import DownloadComponent
+from .components.login_component import LoginComponent
+from .components.output_component import OutputComponent
+from .components.upload_component import UploadComponent
+from .controllers.app_controller import ApplicationController
+
+if TYPE_CHECKING:
+    pass
+
+
+class RefactoredSynapseGUI:
+    """Main GUI window - now much simpler and focused on coordination"""
+
+    def __init__(self, root: tk.Tk) -> None:
+        self.root = root
+        self.root.title("Synapse Desktop Client")
+        self.root.geometry("800x700")
+
+        # Initialize controller
+        self.controller = ApplicationController()
+
+        # Create UI components
+        self.create_widgets()
+
+        # Connect components to controller
+        self.controller.set_ui_components(
+            self.login_component,
+            self.download_component,
+            self.upload_component,
+            self.output_component,
+        )
+
+    def create_widgets(self) -> None:
+        """Create main window layout and components"""
+        # Main container
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Configure grid weights
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(3, weight=1)
+
+        # Title
+        title_label = ttk.Label(
+            main_frame, text="Synapse Desktop Client", font=("Arial", 16, "bold")
+        )
+        title_label.grid(row=0, column=0, pady=(0, 20))
+
+        # Login component
+        self.login_component = LoginComponent(
+            main_frame,
+            self.controller.config_manager,
+            self.controller.handle_login,
+            self.controller.handle_logout,
+        )
+
+        # Operation tabs
+        self.notebook = ttk.Notebook(main_frame)
+        self.notebook.grid(
+            row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10)
+        )
+
+        # Download component
+        self.download_component = DownloadComponent(
+            self.notebook, self.controller.handle_download
+        )
+        self.notebook.add(self.download_component.get_frame(), text="Download File")
+
+        # Upload component
+        self.upload_component = UploadComponent(
+            self.notebook, self.controller.handle_upload
+        )
+        self.notebook.add(self.upload_component.get_frame(), text="Upload File")
+
+        # Output component
+        self.output_component = OutputComponent(main_frame)
+        self.output_component.get_frame().grid(
+            row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10)
+        )
+
+        # Status bar
+        self.output_component.get_status_bar().grid(
+            row=4, column=0, sticky=(tk.W, tk.E)
+        )
+
+
+def main() -> None:
+    """Main function - much cleaner now"""
+    root = tk.Tk()
+    RefactoredSynapseGUI(root)
+
+    # Center the window
+    root.update_idletasks()
+    width = root.winfo_width()
+    height = root.winfo_height()
+    x = (root.winfo_screenwidth() // 2) - (width // 2)
+    y = (root.winfo_screenheight() // 2) - (height // 2)
+    root.geometry(f"{width}x{height}+{x}+{y}")
+
+    try:
+        root.mainloop()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()
