@@ -53,14 +53,3 @@ class BulkItem:
                 return f"{size:.1f} {unit}"
             size /= 1024.0
         return f"{size:.1f} PB"
-
-    def get_display_modified(self) -> str:
-        """
-        Get formatted modification date for display.
-
-        Returns:
-            Formatted date string or empty if no date
-        """
-        if not self.modified:
-            return ""
-        return self.modified.strftime("%Y-%m-%d %H:%M")

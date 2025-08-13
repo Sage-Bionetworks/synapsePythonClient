@@ -30,26 +30,21 @@ build_for_platform() {
 
     echo "Building executable: $output_name"
 
-    # Build the executable with the refactored structure
+    # Build
     pyinstaller \
         --onefile \
         --name "$output_name" \
-        --icon="docs/assets/synapse_logo.png" \
+        --icon="docs/assets/favicon.ico" \
         --collect-all=synapseclient \
-        --hidden-import=synapsegui.models.synapse_client \
-        --hidden-import=synapsegui.models.config \
-        --hidden-import=synapsegui.components.login_component \
-        --hidden-import=synapsegui.components.download_component \
-        --hidden-import=synapsegui.components.upload_component \
-        --hidden-import=synapsegui.components.output_component \
-        --hidden-import=synapsegui.components.bulk_download_component \
-        --hidden-import=synapsegui.components.bulk_upload_component \
-        --hidden-import=synapsegui.controllers.app_controller \
-        --hidden-import=synapsegui.utils.progress \
-        --hidden-import=synapsegui.utils.tooltips \
-        --console \
+        --hidden-import=io \
+        --paths "synapsegui" \
+        --paths "synapsegui/utils" \
+        --paths "synapsegui/components" \
+        --paths "synapsegui/controllers" \
+        --paths "synapsegui/models" \
+        --windowed \
         $extra_args \
-        synapsegui/main.py
+        gui_entrypoint.py
 
     # Clean up spec file
     rm -f *.spec

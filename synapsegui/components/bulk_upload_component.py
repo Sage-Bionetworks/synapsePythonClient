@@ -5,7 +5,6 @@ This component provides functionality to upload multiple files and folders
 to Synapse containers with directory structure preservation.
 """
 
-import os
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -44,6 +43,7 @@ class BulkUploadComponent:
         self.preserve_structure_var = tk.BooleanVar(value=True)
         self.tree: Optional[ttk.Treeview] = None
         self.status_var = tk.StringVar()
+        self.bulk_progress_bar: Optional[ttk.Progressbar] = None
 
         # Data
         self.upload_items: List[BulkItem] = []
@@ -101,6 +101,10 @@ class BulkUploadComponent:
         ttk.Label(status_frame, textvariable=self.status_var).pack(
             side="left", padx=(5, 0)
         )
+
+        # Progress bar for bulk operations
+        self.bulk_progress_bar = ttk.Progressbar(status_frame, mode="determinate", length=300)
+        self.bulk_progress_bar.pack(side="right", padx=(10, 0))
 
         # File list tree section
         tree_frame = ttk.LabelFrame(self.frame, text="Files to Upload")
@@ -213,7 +217,6 @@ class BulkUploadComponent:
             name=path_obj.name,
             item_type="File",
             size=stat.st_size,
-            modified=None,  # Will be set from file timestamp if needed
             parent_id=None,  # Will be determined during upload
             path=file_path,
         )
@@ -243,7 +246,6 @@ class BulkUploadComponent:
             name=folder_obj.name,
             item_type="Folder",
             size=None,
-            modified=None,
             parent_id=None,
             path=folder_path,
         )
@@ -254,28 +256,15 @@ class BulkUploadComponent:
             self.upload_items.append(folder_item)
             added_count += 1
 
-        # Add all files and subfolders
+        # Add all files (but not subdirectories as separate items)
         try:
             for item_path in folder_obj.rglob("*"):
                 if item_path.is_file():
                     if self._add_file_item(str(item_path)):
                         added_count += 1
-                elif item_path.is_dir() and item_path != folder_obj:
-                    # Add subdirectory if not already added
-                    if not any(
-                        item.path == str(item_path) for item in self.upload_items
-                    ):
-                        subfolder_item = BulkItem(
-                            synapse_id="",
-                            name=item_path.name,
-                            item_type="Folder",
-                            size=None,
-                            modified=None,
-                            parent_id=None,
-                            path=str(item_path),
-                        )
-                        self.upload_items.append(subfolder_item)
-                        added_count += 1
+                # Note: We deliberately do NOT add subdirectories as separate BulkItem objects
+                # The directory structure will be preserved through the file paths and 
+                # recreated during upload when preserve_structure is enabled
         except PermissionError as e:
             self.on_log_message(f"Permission error accessing {folder_path}: {e}", True)
 
@@ -288,6 +277,11 @@ class BulkUploadComponent:
 
         selected_paths = []
         for item_id in self.tree.selection():
+            # Skip visual directory nodes (they're not actual BulkItems)
+            item_tags = self.tree.item(item_id, "tags")
+            if "visual_directory" in item_tags:
+                continue
+                
             item_values = self.tree.item(item_id, "values")
             if len(item_values) >= 3:
                 selected_paths.append(item_values[2])  # Local Path column
@@ -328,50 +322,112 @@ class BulkUploadComponent:
 
     def _populate_tree_structured(self) -> None:
         """Populate tree with directory structure preserved."""
-        # Build directory tree
-        dirs_added = set()
+        # Find root folders (folders that were explicitly selected)
+        root_folders = []
+        for item in self.upload_items:
+            if item.item_type == "Folder":
+                # Check if this folder is not a subfolder of another folder in the list
+                is_root = True
+                for other_item in self.upload_items:
+                    if (other_item.item_type == "Folder" and 
+                        other_item.path != item.path and 
+                        self._is_subpath(item.path, other_item.path)):
+                        is_root = False
+                        break
+                if is_root:
+                    root_folders.append(item)
 
-        # Sort items by path depth to ensure parents are added first
-        sorted_items = sorted(self.upload_items, key=lambda x: len(Path(x.path).parts))
-
-        for item in sorted_items:
-            path_obj = Path(item.path)
-
-            # Ensure parent directories are in tree
-            parent_iid = ""
-            current_path = ""
-
-            for part in path_obj.parts[:-1]:  # Exclude the file/folder name itself
-                current_path = (
-                    os.path.join(current_path, part) if current_path else part
-                )
-                dir_key = (parent_iid, part)
-
-                if dir_key not in dirs_added:
-                    parent_iid = self.tree.insert(
-                        parent_iid,
-                        "end",
-                        text=part,
-                        values=("Directory", "", current_path),
-                        tags=("directory",),
-                    )
-                    dirs_added.add(dir_key)
-                else:
-                    # Find existing directory item
-                    for child in self.tree.get_children(parent_iid):
-                        if self.tree.item(child, "text") == part:
-                            parent_iid = child
-                            break
-
-            # Add the actual item
-            size_str = item.get_display_size()
-            self.tree.insert(
-                parent_iid,
-                "end",
-                text=item.name,
-                values=(item.item_type, size_str, item.path),
-                tags=(item.path,),
+        # Build tree structure for each root folder
+        tree_nodes = {}  # Maps folder paths to tree node IDs
+        
+        # Add root folders first - these appear at the top level
+        for root_folder in root_folders:
+            root_id = self.tree.insert(
+                "",
+                "end", 
+                text=root_folder.name,
+                values=(root_folder.item_type, root_folder.get_display_size(), root_folder.path),
+                tags=(root_folder.path,),
             )
+            tree_nodes[root_folder.path] = root_id
+
+        # Sort remaining items (files and any standalone files) by path depth
+        remaining_items = [item for item in self.upload_items if item not in root_folders]
+        
+        for item in sorted(remaining_items, key=lambda x: len(Path(x.path).parts)):
+            # Find which root folder this item belongs to
+            parent_id = ""
+            best_parent_path = ""
+            
+            for root_folder in root_folders:
+                if self._is_subpath(item.path, root_folder.path):
+                    parent_id = tree_nodes[root_folder.path]
+                    best_parent_path = root_folder.path
+                    break
+            
+            if parent_id and best_parent_path:
+                # Build intermediate directory structure within the selected folder only
+                relative_parts = self._get_relative_path_parts(item.path, best_parent_path)
+                
+                current_parent_id = parent_id
+                current_path = Path(best_parent_path)
+                
+                # Build intermediate directories for display (exclude the last part which is the item itself)
+                for part in relative_parts[:-1]:
+                    current_path = current_path / part
+                    current_path_str = str(current_path)
+                    
+                    if current_path_str not in tree_nodes:
+                        # Create visual directory node (not a BulkItem)
+                        current_parent_id = self.tree.insert(
+                            current_parent_id,
+                            "end",
+                            text=part,
+                            values=("Directory", "", current_path_str),
+                            tags=("visual_directory",),
+                        )
+                        tree_nodes[current_path_str] = current_parent_id
+                    else:
+                        current_parent_id = tree_nodes[current_path_str]
+                
+                # Add the actual item (file)
+                self.tree.insert(
+                    current_parent_id,
+                    "end",
+                    text=item.name,
+                    values=(item.item_type, item.get_display_size(), item.path),
+                    tags=(item.path,),
+                )
+            else:
+                # Standalone file (no parent folder selected) - show at root level
+                self.tree.insert(
+                    "",
+                    "end",
+                    text=item.name,
+                    values=(item.item_type, item.get_display_size(), item.path),
+                    tags=(item.path,),
+                )
+
+    def _is_subpath(self, child_path: str, parent_path: str) -> bool:
+        """Check if child_path is a subpath of parent_path."""
+        try:
+            Path(child_path).relative_to(Path(parent_path))
+            return True
+        except ValueError:
+            return False
+
+    def _get_relative_path_parts(self, child_path: str, parent_path: str) -> List[str]:
+        """Get the relative path parts from parent to child."""
+        try:
+            relative_path = Path(child_path).relative_to(Path(parent_path))
+            return list(relative_path.parts)
+        except ValueError:
+            return []
+
+    def _get_path_for_node(self, node_id: str) -> str:
+        """Get the file path for a tree node."""
+        values = self.tree.item(node_id, "values")
+        return values[2] if len(values) >= 3 else ""
 
     def _populate_tree_flat(self) -> None:
         """Populate tree with flat structure (no directories)."""
@@ -447,3 +503,36 @@ class BulkUploadComponent:
         self.on_bulk_upload(
             self.upload_items.copy(), parent_id, self.preserve_structure_var.get()
         )
+
+    def update_progress(self, progress: int, message: str) -> None:
+        """Update the progress bar and status message.
+        
+        Args:
+            progress: Progress percentage (0-100)
+            message: Status message to display
+        """
+        if self.bulk_progress_bar:
+            self.bulk_progress_bar["value"] = progress
+        self.status_var.set(message)
+
+    def start_bulk_operation(self) -> None:
+        """Called when a bulk operation starts"""
+        self.status_var.set("Starting bulk upload...")
+        if self.bulk_progress_bar:
+            self.bulk_progress_bar["value"] = 0
+
+    def complete_bulk_operation(self, success: bool, message: str) -> None:
+        """Called when a bulk operation completes
+        
+        Args:
+            success: Whether the operation was successful
+            message: Completion message
+        """
+        if self.bulk_progress_bar:
+            self.bulk_progress_bar["value"] = 100 if success else 0
+        self.status_var.set(message)
+        
+        if success:
+            self.on_log_message(f"Bulk upload completed: {message}", False)
+        else:
+            self.on_log_message(f"Bulk upload failed: {message}", True)

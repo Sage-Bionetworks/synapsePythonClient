@@ -5,12 +5,10 @@ This component provides functionality to enumerate and selectively download
 multiple items from Synapse containers (Projects/Folders).
 """
 
-import asyncio
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any, Callable, Dict, List, Optional
-
-from synapseclient.models import Folder, Project
 
 from ..models.bulk_item import BulkItem
 
@@ -22,6 +20,7 @@ class BulkDownloadComponent:
         self,
         parent: tk.Widget,
         on_bulk_download: Callable[[List[BulkItem], str, bool], None],
+        on_enumerate: Callable[[str, bool], None],
         on_log_message: Callable[[str, bool], None],
         on_progress_update: Callable[[str, int], None],
     ) -> None:
@@ -31,21 +30,24 @@ class BulkDownloadComponent:
         Args:
             parent: Parent widget
             on_bulk_download: Callback for bulk download operation
+            on_enumerate: Callback for enumeration operation
             on_log_message: Callback for logging messages
             on_progress_update: Callback for progress updates
         """
         self.parent = parent
         self.on_bulk_download = on_bulk_download
+        self.on_enumerate = on_enumerate
         self.on_log_message = on_log_message
         self.on_progress_update = on_progress_update
 
         # UI elements
         self.frame: Optional[ttk.Frame] = None
         self.container_id_var = tk.StringVar()
-        self.download_path_var = tk.StringVar()
+        self.download_path_var = tk.StringVar(value=str(Path.home() / "Downloads"))
         self.recursive_var = tk.BooleanVar(value=True)
         self.tree: Optional[ttk.Treeview] = None
         self.progress_var = tk.StringVar()
+        self.bulk_progress_bar: Optional[ttk.Progressbar] = None
 
         # Data
         self.container_items: List[BulkItem] = []
@@ -87,6 +89,10 @@ class BulkDownloadComponent:
             side="left", padx=(5, 0)
         )
 
+        # Progress bar for bulk operations
+        self.bulk_progress_bar = ttk.Progressbar(progress_frame, mode="determinate", length=300)
+        self.bulk_progress_bar.pack(side="right", padx=(10, 0))
+
         # Selection tree section
         tree_frame = ttk.LabelFrame(self.frame, text="Contents Selection")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=5)
@@ -97,18 +103,20 @@ class BulkDownloadComponent:
 
         self.tree = ttk.Treeview(
             tree_container,
-            columns=("Type", "Size"),
+            columns=("ID", "Type", "Size"),
             show="tree headings",
             selectmode="extended",
         )
 
         # Configure columns
         self.tree.heading("#0", text="Name")
+        self.tree.heading("ID", text="Synapse ID")
         self.tree.heading("Type", text="Type")
         self.tree.heading("Size", text="Size")
 
-        self.tree.column("#0", width=300)
-        self.tree.column("Type", width=100)
+        self.tree.column("#0", width=250)
+        self.tree.column("ID", width=120)
+        self.tree.column("Type", width=80)
         self.tree.column("Size", width=100)
 
         # Scrollbars for tree
@@ -184,119 +192,39 @@ class BulkDownloadComponent:
             messagebox.showerror("Error", "ID must start with 'syn' or 'project'")
             return
 
-        # Start enumeration in background
-        self._start_enumeration_task(container_id, self.recursive_var.get())
-
-    def _start_enumeration_task(self, container_id: str, recursive: bool) -> None:
-        """Start the enumeration task asynchronously."""
-        self.progress_var.set("Enumerating contents...")
-        self.on_log_message(
-            f"Starting enumeration of {container_id} (recursive={recursive})", False
-        )
-
         # Clear previous results
         self._clear_tree()
         self.container_items.clear()
         self.selected_items.clear()
-
-        # Create enumeration task
-        task = asyncio.create_task(
-            self._enumerate_container_async(container_id, recursive)
+        
+        # Update status
+        self.progress_var.set("Enumerating contents...")
+        self.on_log_message(
+            f"Starting enumeration of {container_id} (recursive={self.recursive_var.get()})", False
         )
 
-        # Schedule completion callback
-        task.add_done_callback(self._on_enumeration_complete)
+        # Delegate to controller using the same pattern as other operations
+        self.on_enumerate(container_id, self.recursive_var.get())
 
-    async def _enumerate_container_async(
-        self, container_id: str, recursive: bool
-    ) -> None:
+    def handle_enumeration_result(self, items: List[BulkItem], error: str = None) -> None:
         """
-        Enumerate container contents asynchronously.
-
+        Handle enumeration results from the controller.
+        
         Args:
-            container_id: Synapse ID of container to enumerate
-            recursive: Whether to enumerate recursively
+            items: List of enumerated BulkItem objects, or empty list if error
+            error: Error message if enumeration failed, None if successful
         """
-        try:
-            # Determine container type and create appropriate object
-            if container_id.startswith("project"):
-                container = Project(id=container_id)
-            else:
-                container = Folder(id=container_id)
-
-            # Sync metadata only (download_file=False)
-            await container.sync_from_synapse_async(
-                download_file=False, recursive=recursive
-            )
-
-            # Convert to BulkItem objects
-            self.container_items = self._convert_to_bulk_items(container, recursive)
-
-        except Exception as e:
-            self.on_log_message(f"Error during enumeration: {str(e)}", True)
-            raise
-
-    def _convert_to_bulk_items(self, container: Any, recursive: bool) -> List[BulkItem]:
-        """
-        Convert container contents to BulkItem objects.
-
-        Args:
-            container: Container object with populated files/folders
-            recursive: Whether enumeration was recursive
-
-        Returns:
-            List of BulkItem objects
-        """
-        items = []
-
-        # Add files
-        if hasattr(container, "files"):
-            for file in container.files:
-                items.append(
-                    BulkItem(
-                        synapse_id=file.id,
-                        name=file.name,
-                        item_type="File",
-                        size=file.file_handle.content_size if file.file_handle else 0,
-                        parent_id=file.parent_id,
-                        path=file.path if hasattr(file, "path") else None,
-                    )
-                )
-
-        # Add folders
-        if hasattr(container, "folders"):
-            for folder in container.folders:
-                items.append(
-                    BulkItem(
-                        synapse_id=folder.id,
-                        name=folder.name,
-                        item_type="Folder",
-                        size=None,
-                        parent_id=folder.parent_id,
-                        path=folder.path if hasattr(folder, "path") else None,
-                    )
-                )
-
-                # Recursively add folder contents if recursive
-                if recursive:
-                    items.extend(self._convert_to_bulk_items(folder, recursive))
-
-        return items
-
-    def _on_enumeration_complete(self, task: asyncio.Task) -> None:
-        """Handle completion of enumeration task."""
-        try:
-            task.result()  # This will raise any exception that occurred
-
-            # Update UI with results
-            self._populate_tree()
-            count = len(self.container_items)
-            self.progress_var.set(f"Found {count} items")
-            self.on_log_message(f"Enumeration complete: {count} items found", False)
-
-        except Exception as e:
+        if error:
             self.progress_var.set("Enumeration failed")
-            self.on_log_message(f"Enumeration failed: {str(e)}", True)
+            self.on_log_message(f"Enumeration failed: {error}", True)
+            return
+        
+        # Store items and update UI
+        self.container_items = items
+        self._populate_tree()
+        count = len(self.container_items)
+        self.progress_var.set(f"Found {count} items")
+        self.on_log_message(f"Enumeration complete: {count} items found", False)
 
     def _populate_tree(self) -> None:
         """Populate the tree view with enumerated items."""
@@ -305,14 +233,27 @@ class BulkDownloadComponent:
         # Group items by parent to build tree structure
         parent_map = {}
         root_items = []
+        all_parent_ids = set()
 
         for item in self.container_items:
             if item.parent_id:
                 if item.parent_id not in parent_map:
                     parent_map[item.parent_id] = []
                 parent_map[item.parent_id].append(item)
+                all_parent_ids.add(item.parent_id)
             else:
                 root_items.append(item)
+
+        # If we have no root items but have items with parent_ids,
+        # find items whose parent_id doesn't exist in our item list
+        # These are effectively the "root" items for our view
+        if not root_items and self.container_items:
+            item_ids = {item.synapse_id for item in self.container_items}
+            for item in self.container_items:
+                if item.parent_id and item.parent_id not in item_ids:
+                    # This item's parent is not in our enumerated list,
+                    # so treat it as a root item for display purposes
+                    root_items.append(item)
 
         # Insert root items
         for item in root_items:
@@ -335,12 +276,12 @@ class BulkDownloadComponent:
         # Format size
         size_str = self._format_size(item.size) if item.size else ""
 
-        # Insert item
+        # Insert item with ID, Type, and Size columns
         iid = self.tree.insert(
             parent_iid,
             "end",
             text=item.name,
-            values=(item.item_type, size_str),
+            values=(item.synapse_id, item.item_type, size_str),
             tags=(item.synapse_id,),
         )
 
@@ -408,7 +349,8 @@ class BulkDownloadComponent:
         """Recursively collect items of specific type."""
         for item_id in items:
             item_values = self.tree.item(item_id, "values")
-            if item_values and item_values[0] == item_type:
+            # Type is now at index 1 (ID, Type, Size)
+            if item_values and len(item_values) > 1 and item_values[1] == item_type:
                 result.append(item_id)
 
             # Check children
@@ -465,3 +407,36 @@ class BulkDownloadComponent:
 
         # Call the bulk download callback
         self.on_bulk_download(selected_list, download_path, self.recursive_var.get())
+
+    def update_progress(self, progress: int, message: str) -> None:
+        """Update the progress bar and status message.
+        
+        Args:
+            progress: Progress percentage (0-100)
+            message: Status message to display
+        """
+        if self.bulk_progress_bar:
+            self.bulk_progress_bar["value"] = progress
+        self.progress_var.set(message)
+
+    def start_bulk_operation(self) -> None:
+        """Called when a bulk operation starts"""
+        self.progress_var.set("Starting bulk download...")
+        if self.bulk_progress_bar:
+            self.bulk_progress_bar["value"] = 0
+
+    def complete_bulk_operation(self, success: bool, message: str) -> None:
+        """Called when a bulk operation completes
+        
+        Args:
+            success: Whether the operation was successful
+            message: Completion message
+        """
+        if self.bulk_progress_bar:
+            self.bulk_progress_bar["value"] = 100 if success else 0
+        self.progress_var.set(message)
+        
+        if success:
+            self.on_log_message(f"Bulk download completed: {message}", False)
+        else:
+            self.on_log_message(f"Bulk download failed: {message}", True)

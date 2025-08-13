@@ -33,3 +33,4 @@ coverage.xml
 .ipynb_checkpoints
 *.ipynb
 .env
+*.spec

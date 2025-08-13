@@ -67,7 +67,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Run the GUI
-python main.py
+python gui_entrypoint.py
 ```
 
 ### Development Tools
@@ -90,8 +90,8 @@ pytest tests/
 
 ```
 synapsegui/
-├── __init__.py                 # Package initialization
-├── main.py                    # Main application entry point
+├── __init__.py                # Package initialization
+├── gui_entrypoint.py          # Main application entry point
 ├── README.md                  # This file
 ├── REFACTORING_GUIDE.md       # Architecture migration guide
 │
