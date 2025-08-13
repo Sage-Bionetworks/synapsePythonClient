@@ -37,6 +37,10 @@ build_for_platform() {
         --icon="docs/assets/favicon.icns" \
         --collect-all=synapseclient \
         --hidden-import=io \
+        --hidden-import=tkinter \
+        --hidden-import=tkinter.ttk \
+        --hidden-import=tkinter.filedialog \
+        --hidden-import=tkinter.messagebox \
         --paths "synapsegui" \
         --paths "synapsegui/utils" \
         --paths "synapsegui/components" \
