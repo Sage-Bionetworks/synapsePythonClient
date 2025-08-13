@@ -11,8 +11,7 @@ from synapseclient.models.agent import Agent, AgentSession, AgentSessionAccessLe
 # The Bedrock agent is hosted on Sage Bionetworks AWS infrastructure.
 # CFN Template:
 # https://raw.githubusercontent.com/Sage-Bionetworks-Workflows/dpe-agents/refs/heads/main/client_integration_test/template.json
-CLOUD_AGENT_ID = "QOTV3KQM1X"
-AGENT_REGISTRATION_ID = "29"
+AGENT_AWS_ID = "QOTV3KQM1X"
 
 
 class TestAgentSession:
@@ -21,10 +20,14 @@ class TestAgentSession:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse) -> None:
         self.syn = syn
+        if syn.repoEndpoint == "https://repo-dev.dev.sagebase.org/repo/v1":
+            self.AGENT_REGISTRATION_ID = "7"
+        else:
+            self.AGENT_REGISTRATION_ID = "29"
 
     async def test_start(self) -> None:
         # GIVEN an agent session with a valid agent registration id
-        agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
+        agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
 
         # WHEN the start method is called
         result_session = agent_session.start(synapse_client=self.syn)
@@ -38,13 +41,13 @@ class TestAgentSession:
         assert result_session.started_on is not None
         assert result_session.started_by is not None
         assert result_session.modified_on is not None
-        assert result_session.agent_registration_id == str(AGENT_REGISTRATION_ID)
+        assert result_session.agent_registration_id == str(self.AGENT_REGISTRATION_ID)
         assert result_session.etag is not None
         assert result_session.chat_history == []
 
     async def test_get(self) -> None:
         # GIVEN an agent session with a valid agent registration id
-        agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
+        agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I start a session
         agent_session.start(synapse_client=self.syn)
         # THEN I expect to be able to get the session with its id
@@ -54,7 +57,7 @@ class TestAgentSession:
     async def test_update(self) -> None:
         # GIVEN an agent session with a valid agent registration id and access level set
         agent_session = AgentSession(
-            agent_registration_id=AGENT_REGISTRATION_ID,
+            agent_registration_id=self.AGENT_REGISTRATION_ID,
             access_level=AgentSessionAccessLevel.PUBLICLY_ACCESSIBLE,
         )
         # WHEN I start a session
@@ -71,7 +74,7 @@ class TestAgentSession:
 
     async def test_prompt(self) -> None:
         # GIVEN an agent session with a valid agent registration id
-        agent_session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID)
+        agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I start a session
         agent_session.start(synapse_client=self.syn)
         # THEN I expect to be able to prompt the agent
@@ -89,37 +92,43 @@ class TestAgentSession:
 class TestAgent:
     """Integration tests for the synchronous methods of the Agent class."""
 
-    def get_test_agent(self) -> Agent:
-        return Agent(
-            cloud_agent_id=CLOUD_AGENT_ID,
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse) -> None:
+        self.syn = syn
+
+        if syn.repoEndpoint == "https://repo-dev.dev.sagebase.org/repo/v1":
+            self.AGENT_REGISTRATION_ID = "7"
+            registered_on = "2025-08-11T20:39:35.355Z"
+        else:
+            self.AGENT_REGISTRATION_ID = "29"
+            registered_on = "2025-01-16T18:57:35.680Z"
+
+        self.agent = Agent(
+            cloud_agent_id=AGENT_AWS_ID,
             cloud_alias_id="TSTALIASID",
-            registration_id=AGENT_REGISTRATION_ID,
-            registered_on="2025-01-16T18:57:35.680Z",
+            registration_id=self.AGENT_REGISTRATION_ID,
+            registered_on=registered_on,
             type="CUSTOM",
             sessions={},
             current_session=None,
         )
 
-    @pytest.fixture(autouse=True, scope="function")
-    def init(self, syn: Synapse) -> None:
-        self.syn = syn
-
     async def test_register(self) -> None:
         # GIVEN an Agent with a valid agent AWS id
-        agent = Agent(cloud_agent_id=CLOUD_AGENT_ID)
+        agent = Agent(cloud_agent_id=AGENT_AWS_ID)
         # WHEN I register the agent
         agent.register(synapse_client=self.syn)
         # THEN I expect the agent to be registered
-        expected_agent = self.get_test_agent()
+        expected_agent = self.agent
         assert agent == expected_agent
 
     async def test_get(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = Agent(registration_id=AGENT_REGISTRATION_ID)
+        agent = Agent(registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I get the agent
         agent.get(synapse_client=self.syn)
         # THEN I expect the agent to be returned
-        expected_agent = self.get_test_agent()
+        expected_agent = self.agent
         assert agent == expected_agent
 
     async def test_get_no_registration_id(self) -> None:
@@ -131,7 +140,7 @@ class TestAgent:
 
     async def test_start_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(
+        agent = Agent(registration_id=self.AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
         )
         # WHEN I start a session
@@ -143,7 +152,7 @@ class TestAgent:
 
     async def test_get_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(
+        agent = Agent(registration_id=self.AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
         )
         # WHEN I start a session
@@ -157,11 +166,11 @@ class TestAgent:
 
     async def test_prompt_with_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(
+        agent = Agent(registration_id=self.AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
         )
         # AND a session started separately
-        session = AgentSession(agent_registration_id=AGENT_REGISTRATION_ID).start(
+        session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID).start(
             synapse_client=self.syn
         )
         # WHEN I prompt the agent with a session
@@ -177,7 +186,7 @@ class TestAgent:
 
     async def test_prompt_no_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
-        agent = Agent(registration_id=AGENT_REGISTRATION_ID).get(
+        agent = Agent(registration_id=self.AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
         )
         # WHEN I prompt the agent without a current session set
