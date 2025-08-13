@@ -34,7 +34,7 @@ build_for_platform() {
     pyinstaller \
         --onefile \
         --name "$output_name" \
-        --icon="docs/assets/favicon.ico" \
+        --icon="docs/assets/favicon.icns" \
         --collect-all=synapseclient \
         --hidden-import=io \
         --paths "synapsegui" \
