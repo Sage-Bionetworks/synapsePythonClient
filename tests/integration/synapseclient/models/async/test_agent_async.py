@@ -60,6 +60,10 @@ class TestAgentSession:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse) -> None:
         self.syn = syn
+        if syn.repoEndpoint == "https://repo-dev.dev.sagebase.org/repo/v1":
+            self.AGENT_REGISTRATION_ID = "7"
+        else:
+            self.AGENT_REGISTRATION_ID = "29"
 
     async def test_start(self) -> None:
         # GIVEN an agent session with a valid agent registration id
@@ -147,6 +151,10 @@ class TestAgent:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse) -> None:
         self.syn = syn
+        if syn.repoEndpoint == "https://repo-dev.dev.sagebase.org/repo/v1":
+            self.AGENT_REGISTRATION_ID = "7"
+        else:
+            self.AGENT_REGISTRATION_ID = "29"
 
     async def test_register(self) -> None:
         # GIVEN an Agent with a valid agent AWS id
