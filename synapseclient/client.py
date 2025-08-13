@@ -7389,13 +7389,13 @@ class Synapse(object):
     @deprecated(
         version="4.9.0",
         reason="To be removed in 5.0.0. "
-        "Use the `query` or `query_async` functions from `synapseclient.models` instead. "
+        "Use the `query` or `query_async` functions from `synapseclient.models.Table` instead. "
         "Check the docstring for the replacement function example.",
     )
     def tableQuery(self, query: str, resultsAs: str = "csv", **kwargs):
         """
         **Deprecated with replacement.** This method will be removed in 5.0.0.
-        Use the `query` or `query_async` functions from [synapseclient.models][] instead.
+        Use the `query` or `query_async` functions from [synapseclient.models.Table][] instead.
 
         Query a Synapse Table.
 
@@ -7506,7 +7506,11 @@ class Synapse(object):
                 "Unknown return type requested from tableQuery: " + str(resultsAs)
             )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.5.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
+    )
     def _queryTable(
         self,
         query: str,
@@ -7516,8 +7520,52 @@ class Synapse(object):
         partMask=None,
     ) -> TableQueryResult:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.
+
         Query a table and return the first page of results as a [QueryResultBundle](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html).
         If the result contains a *nextPageToken*, following pages a retrieved by calling [_queryTableNext][].
+
+        **Migration Example**:
+
+        **OLD (deprecated) way**:
+        ```python
+        # Using the deprecated _queryTable method
+        result = syn._queryTable(
+            query="SELECT * FROM syn123",
+            partMask=0x1
+        )
+        ```
+
+        **NEW way**:
+        ```python
+        # Using the new query_part_mask method
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.models import Table
+
+        # Login to Synapse
+        syn = Synapse()
+        syn.login()
+
+        table = Table(id="syn123")
+        result = table.query_part_mask(
+            query="SELECT * FROM syn123",
+            part_mask=0x1  # QUERY_RESULTS
+        )
+
+        # Or using the async version
+        async def async_query_example():
+            table = Table(id="syn123")
+            result = await table.query_part_mask_async(
+                query="SELECT * FROM syn123",
+                part_mask=0x1  # QUERY_RESULTS
+            )
+            print(result)
+
+        # Run the async example
+        asyncio.run(async_query_example())
+        ```
 
         Arguments:
             query:        A sql query
@@ -7558,10 +7606,62 @@ class Synapse(object):
 
         return self._waitForAsync(uri=uri, request=query_bundle_request)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.5.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
+    )
     def _queryTableNext(self, nextPageToken: str, tableId: str) -> TableQueryResult:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.
+
         Retrieve following pages if the result contains a *nextPageToken*
+
+        **Migration Example**:
+
+        **OLD (deprecated) way**:
+        ```python
+        # Using the deprecated _queryTableNext method
+        result = syn._queryTableNext(
+            nextPageToken="some_token",
+            tableId="syn123"
+        )
+        ```
+
+        **NEW way**:
+        ```python
+        # Using the new query_part_mask method with pagination
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.models import Table
+
+        # Login to Synapse
+        syn = Synapse()
+        syn.login()
+
+        table = Table(id="syn123")
+
+        # For pagination, use LIMIT and OFFSET directly in the SQL query instead of nextPageToken.
+        # LIMIT controls the number of rows returned per page, OFFSET skips the specified number of rows.
+        # For example: LIMIT 100 OFFSET 100 returns rows 101-200, LIMIT 100 OFFSET 200 returns rows 201-300, etc.
+        result = table.query_part_mask(
+            query="SELECT * FROM syn123 LIMIT 100 OFFSET 100",
+            part_mask=0x1  # QUERY_RESULTS
+        )
+
+        # Or using the async version
+        async def async_query_example():
+            table = Table(id="syn123")
+            result = await table.query_part_mask_async(
+                query="SELECT * FROM syn123 LIMIT 100 OFFSET 100",
+                part_mask=0x1  # QUERY_RESULTS
+            )
+            print(result)
+
+        # Run the async example
+        asyncio.run(async_query_example())
+        ```
 
         Arguments:
             nextPageToken: Forward this token to get the next page of results.
