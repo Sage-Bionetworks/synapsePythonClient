@@ -7541,46 +7541,44 @@ class Synapse(object):
         Returns:
             The first page of results as a QueryResultBundle
 
-        **Migration Example**:
+        Example: Using this function (DEPRECATED)
+            Query a table with part mask:
 
-        **OLD (deprecated) way**:
-        ```python
-        # Using the deprecated _queryTable method
-        result = syn._queryTable(
-            query="SELECT * FROM syn123",
-            partMask=0x1
-        )
-        ```
+                result = syn._queryTable(
+                    query="SELECT * FROM syn123",
+                    partMask=0x1
+                )
 
-        **NEW way**:
-        ```python
-        # Using the new query_part_mask method
-        import asyncio
-        from synapseclient import Synapse
-        from synapseclient.models import Table
+        Example: Migration to new method
+            &nbsp;
 
-        # Login to Synapse
-        syn = Synapse()
-        syn.login()
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-        table = Table(id="syn123")
-        result = table.query_part_mask(
-            query="SELECT * FROM syn123",
-            part_mask=0x1  # QUERY_RESULTS
-        )
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
 
-        # Or using the async version
-        async def async_query_example():
             table = Table(id="syn123")
-            result = await table.query_part_mask_async(
+            result = table.query_part_mask(
                 query="SELECT * FROM syn123",
                 part_mask=0x1  # QUERY_RESULTS
             )
-            print(result)
 
-        # Run the async example
-        asyncio.run(async_query_example())
-        ```
+            # Or using the async version
+            async def async_query_example():
+                table = Table(id="syn123")
+                result = await table.query_part_mask_async(
+                    query="SELECT * FROM syn123",
+                    part_mask=0x1  # QUERY_RESULTS
+                )
+                print(result)
+
+            # Run the async example
+            asyncio.run(async_query_example())
+            ```
 
         """
         # See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
@@ -7626,50 +7624,48 @@ class Synapse(object):
         Returns:
             The following page of results as a QueryResultBundle
 
-        **Migration Example**:
+        Example: Using this function (DEPRECATED)
+            Get the next page of results:
 
-        **OLD (deprecated) way**:
-        ```python
-        # Using the deprecated _queryTableNext method
-        result = syn._queryTableNext(
-            nextPageToken="some_token",
-            tableId="syn123"
-        )
-        ```
+                result = syn._queryTableNext(
+                    nextPageToken="some_token",
+                    tableId="syn123"
+                )
 
-        **NEW way**:
-        ```python
-        # Using the new query_part_mask method with pagination
-        import asyncio
-        from synapseclient import Synapse
-        from synapseclient.models import Table
+        Example: Migration to new method
+            &nbsp;
 
-        # Login to Synapse
-        syn = Synapse()
-        syn.login()
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
 
-        table = Table(id="syn123")
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
 
-        # For pagination, use LIMIT and OFFSET directly in the SQL query instead of nextPageToken.
-        # LIMIT controls the number of rows returned per page, OFFSET skips the specified number of rows.
-        # For example: LIMIT 100 OFFSET 100 returns rows 101-200, LIMIT 100 OFFSET 200 returns rows 201-300, etc.
-        result = table.query_part_mask(
-            query="SELECT * FROM syn123 LIMIT 100 OFFSET 100",
-            part_mask=0x1  # QUERY_RESULTS
-        )
-
-        # Or using the async version
-        async def async_query_example():
             table = Table(id="syn123")
-            result = await table.query_part_mask_async(
+
+            # For pagination, use LIMIT and OFFSET directly in the SQL query instead of nextPageToken.
+            # LIMIT controls the number of rows returned per page, OFFSET skips the specified number of rows.
+            # For example: LIMIT 100 OFFSET 100 returns rows 101-200, LIMIT 100 OFFSET 200 returns rows 201-300, etc.
+            result = table.query_part_mask(
                 query="SELECT * FROM syn123 LIMIT 100 OFFSET 100",
                 part_mask=0x1  # QUERY_RESULTS
             )
-            print(result)
 
-        # Run the async example
-        asyncio.run(async_query_example())
-        ```
+            # Or using the async version
+            async def async_query_example():
+                table = Table(id="syn123")
+                result = await table.query_part_mask_async(
+                    query="SELECT * FROM syn123 LIMIT 100 OFFSET 100",
+                    part_mask=0x1  # QUERY_RESULTS
+                )
+                print(result)
+
+            # Run the async example
+            asyncio.run(async_query_example())
+            ```
         """
         uri = "/entity/{id}/table/query/nextPage/async".format(id=tableId)
         return self._waitForAsync(uri=uri, request=nextPageToken)
@@ -7757,7 +7753,7 @@ class Synapse(object):
                     client=syn,
                     job_timeout=600,
                     additional_changes=None  # Add additional changes if needed
-            )
+                )
 
             # Run the async function
             asyncio.run(upload_csv_with_chunk_method(table_id=TABLE_ID, path=PATH))
@@ -7858,57 +7854,6 @@ class Synapse(object):
 
         Sends a [DownloadFromTableRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html) to Synapse.
 
-        **Migration Example**:
-
-        **OLD (deprecated) way**:
-        ```python
-        # Using the deprecated _queryTableCsv method
-        result, csv_path = syn._queryTableCsv(
-            query="SELECT * FROM syn123",
-            downloadLocation="/path/to/download",
-            quoteCharacter='"',
-            separator=","
-        )
-        ```
-
-        **NEW way**:
-        ```python
-        # Using the new query function with download_location
-        import asyncio
-        from synapseclient import Synapse
-        from synapseclient.models import query, query_async
-
-        # Login to Synapse
-        syn = Synapse()
-        syn.login()
-
-        # Synchronous query with CSV download
-        csv_path = query(
-            query="SELECT * FROM syn123",
-            download_location="/path/to/download",
-            quote_character='"',
-            separator=",",
-            header=True,
-            include_row_id_and_row_version=True
-        )
-        print(f"CSV downloaded to: {csv_path}")
-
-        # Asynchronous query with CSV download
-        async def async_csv_download():
-            csv_path = await query_async(
-                query="SELECT * FROM syn123",
-                download_location="/path/to/download",
-                quote_character='"',
-                separator=",",
-                header=True,
-                include_row_id_and_row_version=True
-            )
-            print(f"CSV downloaded to: {csv_path}")
-
-        # Run the async example
-        asyncio.run(async_csv_download())
-        ```
-
         Arguments:
             query:                     A sql query
             quoteCharacter:            Quotation character
@@ -7921,6 +7866,55 @@ class Synapse(object):
 
         Returns:
             A tuple containing a [DownloadFromTableResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html)
+
+        Example: Using this function (DEPRECATED)
+            Query a table and download CSV:
+
+                result, csv_path = syn._queryTableCsv(
+                    query="SELECT * FROM syn123",
+                    downloadLocation="/path/to/download",
+                    quoteCharacter='"',
+                    separator=","
+                )
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import query, query_async
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Synchronous query with CSV download
+            csv_path = query(
+                query="SELECT * FROM syn123",
+                download_location="/path/to/download",
+                quote_character='"',
+                separator=",",
+                header=True,
+                include_row_id_and_row_version=True
+            )
+            print(f"CSV downloaded to: {csv_path}")
+
+            # Asynchronous query with CSV download
+            async def async_csv_download():
+                csv_path = await query_async(
+                    query="SELECT * FROM syn123",
+                    download_location="/path/to/download",
+                    quote_character='"',
+                    separator=",",
+                    header=True,
+                    include_row_id_and_row_version=True
+                )
+                print(f"CSV downloaded to: {csv_path}")
+
+            # Run the async example
+            asyncio.run(async_csv_download())
+            ```
 
         The DownloadFromTableResult object contains these fields:
          * headers:             ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
