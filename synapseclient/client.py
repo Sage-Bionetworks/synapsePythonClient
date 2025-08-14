@@ -7526,6 +7526,21 @@ class Synapse(object):
         Query a table and return the first page of results as a [QueryResultBundle](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html).
         If the result contains a *nextPageToken*, following pages a retrieved by calling [_queryTableNext][].
 
+        Arguments:
+            query:        A sql query
+            limit:        The optional limit to the results
+            offset:       The optional offset into the results
+            isConsistent: Whether the index is inconsistent with the true state of the table
+            partMask:     Optional, default all. The 'partsMask' is a bit field for requesting
+                          different elements in the resulting JSON bundle.
+                          Query Results (queryResults) = 0x1
+                          Query Count (queryCount) = 0x2
+                          Select Columns (selectColumns) = 0x4
+                          Max Rows Per Page (maxRowsPerPage) = 0x8
+
+        Returns:
+            The first page of results as a QueryResultBundle
+
         **Migration Example**:
 
         **OLD (deprecated) way**:
@@ -7567,20 +7582,6 @@ class Synapse(object):
         asyncio.run(async_query_example())
         ```
 
-        Arguments:
-            query:        A sql query
-            limit:        The optional limit to the results
-            offset:       The optional offset into the results
-            isConsistent: Whether the index is inconsistent with the true state of the table
-            partMask:     Optional, default all. The 'partsMask' is a bit field for requesting
-                          different elements in the resulting JSON bundle.
-                          Query Results (queryResults) = 0x1
-                          Query Count (queryCount) = 0x2
-                          Select Columns (selectColumns) = 0x4
-                          Max Rows Per Page (maxRowsPerPage) = 0x8
-
-        Returns:
-            The first page of results as a QueryResultBundle
         """
         # See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
         query_bundle_request = {
@@ -7617,6 +7618,13 @@ class Synapse(object):
         Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.
 
         Retrieve following pages if the result contains a *nextPageToken*
+
+        Arguments:
+            nextPageToken: Forward this token to get the next page of results.
+            tableId:       The Synapse ID of the table
+
+        Returns:
+            The following page of results as a QueryResultBundle
 
         **Migration Example**:
 
@@ -7662,18 +7670,16 @@ class Synapse(object):
         # Run the async example
         asyncio.run(async_query_example())
         ```
-
-        Arguments:
-            nextPageToken: Forward this token to get the next page of results.
-            tableId:       The Synapse ID of the table
-
-        Returns:
-            The following page of results as a QueryResultBundle
         """
         uri = "/entity/{id}/table/query/nextPage/async".format(id=tableId)
         return self._waitForAsync(uri=uri, request=nextPageToken)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `_chunk_and_upload_csv` method on the `from synapseclient.models import Table` class instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def _uploadCsv(
         self,
         filepath: str,
@@ -7687,6 +7693,9 @@ class Synapse(object):
         linesToSkip: int = 0,
     ) -> dict:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `_chunk_and_upload_csv` method on [synapseclient.models.Table][] instead for efficient CSV processing.
+
         Send an [UploadToTableRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html) to Synapse.
 
         Arguments:
@@ -7704,6 +7713,55 @@ class Synapse(object):
 
         Returns:
             [UploadToTableResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html)
+
+        Example: Using this function (DEPRECATED)
+            Uploading a CSV file to an existing table:
+
+                response = syn._uploadCsv(
+                    filepath='/path/to/table.csv',
+                    schema='syn123'
+                )
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
+            from synapseclient.models.mixins.table_components import CsvTableDescriptor
+
+            TABLE_ID ="syn123"  # Replace with your table ID
+            PATH = "/path/to/table.csv"
+
+            # Login to Synapse
+            # syn = Synapse()
+            # syn.login()
+
+            # Create CSV table descriptor with your settings
+            csv_descriptor = CsvTableDescriptor(
+                is_file_line_header=True,
+                separator=",",  # or your custom separator
+                quote_character='"',  # or your custom quote character
+                escape_character="\\",  # or your custom escape character
+            )
+
+            # Define an async function to upload CSV with chunk method
+            async def upload_csv_with_chunk_method(table_id, path):
+                table = await Table(id=table_id).get_async(include_columns=True)
+                await table._chunk_and_upload_csv(
+                    path_to_csv=path,
+                    insert_size_bytes=900 * 1024 * 1024,  # 900MB chunks
+                    csv_table_descriptor=csv_descriptor,
+                    schema_change_request=None,  # Add schema changes if needed
+                    client=syn,
+                    job_timeout=600,
+                    additional_changes=None  # Add additional changes if needed
+            )
+
+            # Run the async function
+            asyncio.run(upload_csv_with_chunk_method(table_id=TABLE_ID, path=PATH))
+            ```
         """
 
         fileHandleId = wrap_async_to_sync(
@@ -7732,7 +7790,11 @@ class Synapse(object):
 
         return response
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _check_table_transaction_response(self, response):
         for result in response["results"]:
             result_type = result["concreteType"]
