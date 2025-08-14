@@ -8321,7 +8321,10 @@ class Synapse(object):
 
         return file_handle_to_path_map
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _build_table_download_file_handle_list(self, table, columns, downloadLocation):
         # ------------------------------------------------------------
         # build list of file handles to download
@@ -8363,7 +8366,10 @@ class Synapse(object):
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _get_default_view_columns(self, view_type, view_type_mask=None):
         """Get default view columns"""
         uri = f"/column/tableview/defaults?viewEntityType={view_type}"
@@ -8371,7 +8377,10 @@ class Synapse(object):
             uri += f"&viewTypeMask={view_type_mask}"
         return [Column(**col) for col in self.restGET(uri)["list"]]
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _get_annotation_view_columns(
         self, scope_ids: list, view_type: str, view_type_mask: str = None
     ) -> list:
