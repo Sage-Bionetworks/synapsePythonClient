@@ -5,7 +5,7 @@ verify_ssl = true
 
 [packages]
 synapseclient = {file = ".", editable = true, path = "."}
-paramiko = ">=4.0.0"
+paramiko = "<4.0.0"
 
 [requires]
 python_version = "3.12.6"
