@@ -11,14 +11,19 @@ from ..utils.progress import ProgressManager
 
 
 class ApplicationController:
-    """Main application controller that coordinates between UI and business logic"""
+    """
+    Main application controller that coordinates between UI components and business logic.
+    
+    Handles user interactions, manages the Synapse client, and orchestrates
+    data flow between the UI components and backend services.
+    """
 
     def __init__(self) -> None:
+        """Initialize the application controller with necessary managers and components."""
         self.synapse_client = SynapseClientManager()
         self.config_manager = ConfigManager()
         self.progress_manager = ProgressManager()
 
-        # UI components will be set by the main window
         self.login_component = None
         self.download_component = None
         self.upload_component = None
@@ -33,7 +38,17 @@ class ApplicationController:
         bulk_download_component=None,
         bulk_upload_component=None,
     ) -> None:
-        """Set references to UI components"""
+        """
+        Set references to UI components for interaction.
+
+        Args:
+            login_component: Login UI component
+            download_component: Download UI component  
+            upload_component: Upload UI component
+            output_component: Output/logging UI component
+            bulk_download_component: Bulk download UI component (optional)
+            bulk_upload_component: Bulk upload UI component (optional)
+        """
         self.login_component = login_component
         self.download_component = download_component
         self.upload_component = upload_component
@@ -42,9 +57,16 @@ class ApplicationController:
         self.bulk_upload_component = bulk_upload_component
 
     def handle_login(self, mode: str, credentials: Dict[str, Any]) -> None:
-        """Handle login request from UI"""
+        """
+        Handle login request from UI components.
 
-        def login_worker():
+        Args:
+            mode: Login mode ("manual" or "config")
+            credentials: Dictionary containing login credentials
+        """
+
+        def login_worker() -> None:
+            """Worker function to handle login in background thread."""
             if mode == "manual":
                 result = asyncio.run(
                     self.synapse_client.login_manual(
@@ -73,30 +95,33 @@ class ApplicationController:
                     f"Login failed: {result['error']}", error=True
                 )
 
-            # Re-enable login/logout button after login attempt completes
             self.login_component.set_login_button_state(True)
 
-        # Disable login button during attempt
         self.login_component.set_login_button_state(False)
-
-        # Run in background thread
         threading.Thread(target=login_worker, daemon=True).start()
 
     def handle_logout(self) -> None:
-        """Handle logout request"""
+        """Handle logout request and update UI components accordingly."""
         self.synapse_client.logout()
         self.login_component.update_login_state(False)
         self._enable_operations(False)
         self.output_component.log_message("Logged out successfully")
-        # Ensure login button remains enabled after logout
         self.login_component.set_login_button_state(True)
 
     def handle_download(
         self, synapse_id: str, version: str, download_path: str
     ) -> None:
-        """Handle file download request"""
+        """
+        Handle file download request from UI.
 
-        def download_worker():
+        Args:
+            synapse_id: Synapse entity ID to download
+            version: Entity version (optional, empty string if not specified)
+            download_path: Local path where file should be downloaded
+        """
+
+        def download_worker() -> None:
+            """Worker function to handle download in background thread."""
             version_num = None
             if version:
                 try:
@@ -107,10 +132,12 @@ class ApplicationController:
                     )
                     return
 
-            def progress_callback(progress: int, message: str):
+            def progress_callback(progress: int, message: str) -> None:
+                """Callback for download progress updates."""
                 self.download_component.update_progress(progress, message)
 
-            def detail_callback(detail_message: str):
+            def detail_callback(detail_message: str) -> None:
+                """Callback for detailed download messages."""
                 self.output_component.log_message(detail_message)
 
             result = asyncio.run(
@@ -138,13 +165,24 @@ class ApplicationController:
     def handle_upload(
         self, file_path: str, parent_id: str, entity_id: str, name: str
     ) -> None:
-        """Handle file upload request"""
+        """
+        Handle file upload request from UI.
 
-        def upload_worker():
-            def progress_callback(progress: int, message: str):
+        Args:
+            file_path: Local path to file to upload
+            parent_id: Parent entity ID for new files (empty for updates)
+            entity_id: Entity ID for file updates (empty for new files)
+            name: Entity name (optional)
+        """
+
+        def upload_worker() -> None:
+            """Worker function to handle upload in background thread."""
+            def progress_callback(progress: int, message: str) -> None:
+                """Callback for upload progress updates."""
                 self.upload_component.update_progress(progress, message)
 
-            def detail_callback(detail_message: str):
+            def detail_callback(detail_message: str) -> None:
+                """Callback for detailed upload messages."""
                 self.output_component.log_message(detail_message)
 
             result = asyncio.run(
@@ -174,14 +212,20 @@ class ApplicationController:
         threading.Thread(target=upload_worker, daemon=True).start()
 
     def handle_enumerate(self, container_id: str, recursive: bool) -> None:
-        """Handle container enumeration request from UI"""
+        """
+        Handle container enumeration request from UI.
 
-        def enumerate_worker():
+        Args:
+            container_id: Synapse container ID to enumerate
+            recursive: Whether to enumerate contents recursively
+        """
+
+        def enumerate_worker() -> None:
+            """Worker function to handle enumeration in background thread."""
             result = asyncio.run(
                 self.synapse_client.enumerate_container(container_id, recursive)
             )
 
-            # Schedule UI updates on the main thread using after()
             if self.bulk_download_component:
                 if result["success"]:
                     self.bulk_download_component.parent.after(
@@ -201,7 +245,12 @@ class ApplicationController:
         threading.Thread(target=enumerate_worker, daemon=True).start()
 
     def _enable_operations(self, enabled: bool) -> None:
-        """Enable/disable operation buttons based on login state"""
+        """
+        Enable or disable operation buttons based on login state.
+
+        Args:
+            enabled: True to enable operations, False to disable
+        """
         if self.download_component:
             self.download_component.set_enabled(enabled)
         if self.upload_component:
@@ -225,7 +274,8 @@ class ApplicationController:
                       If False, only the immediate contents of folders will be downloaded.
         """
 
-        def bulk_download_worker():
+        def bulk_download_worker() -> None:
+            """Worker function to handle bulk download in background thread."""
             # Start the operation
             if self.bulk_download_component:
                 self.output_component.get_frame().after(
@@ -273,9 +323,17 @@ class ApplicationController:
     def handle_bulk_upload(
         self, items: list, parent_id: str, preserve_structure: bool
     ) -> None:
-        """Handle bulk upload request from UI"""
+        """
+        Handle bulk upload request from UI.
 
-        def bulk_upload_worker():
+        Args:
+            items: List of BulkItem objects to upload
+            parent_id: Synapse parent folder ID for uploads
+            preserve_structure: Whether to preserve directory structure
+        """
+
+        def bulk_upload_worker() -> None:
+            """Worker function to handle bulk upload in background thread."""
             # Start the operation
             if self.bulk_upload_component:
                 self.output_component.get_frame().after(
@@ -321,8 +379,13 @@ class ApplicationController:
         threading.Thread(target=bulk_upload_worker, daemon=True).start()
 
     def _on_bulk_download_progress_update(self, progress: int, message: str) -> None:
-        """Handle progress updates from bulk download operations"""
-        # Schedule UI updates on the main thread
+        """
+        Handle progress updates from bulk download operations.
+
+        Args:
+            progress: Progress percentage (0-100)
+            message: Progress message to display
+        """
         if self.bulk_download_component:
             self.output_component.get_frame().after(
                 0,
@@ -334,8 +397,13 @@ class ApplicationController:
             )
 
     def _on_bulk_upload_progress_update(self, progress: int, message: str) -> None:
-        """Handle progress updates from bulk upload operations"""
-        # Schedule UI updates on the main thread
+        """
+        Handle progress updates from bulk upload operations.
+
+        Args:
+            progress: Progress percentage (0-100) 
+            message: Progress message to display
+        """
         if self.bulk_upload_component:
             self.output_component.get_frame().after(
                 0, lambda: self.bulk_upload_component.update_progress(progress, message)
@@ -346,11 +414,22 @@ class ApplicationController:
             )
 
     def _on_progress_update(self, progress: int, message: str) -> None:
-        """Handle progress updates from single file operations"""
+        """
+        Handle progress updates from single file operations.
+
+        Args:
+            progress: Progress percentage (0-100)
+            message: Progress message to display
+        """
         if self.output_component:
             self.output_component.log_message(f"Progress: {progress}% - {message}")
 
     def _on_detail_message(self, message: str) -> None:
-        """Handle detailed progress messages from bulk operations"""
+        """
+        Handle detailed progress messages from bulk operations.
+
+        Args:
+            message: Detailed message to log
+        """
         if self.output_component:
             self.output_component.log_message(message)

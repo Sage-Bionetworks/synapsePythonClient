@@ -418,8 +418,8 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          chmod +x build.sh
-          ./build.sh macos $TAG_CLEAN
+          chmod +x build_gui.sh
+          ./build_gui.sh macos $TAG_CLEAN
 
       - name: Prepare artifact (Windows)
         if: matrix.platform == 'windows'

@@ -37,7 +37,6 @@ class BulkUploadComponent:
         self.on_log_message = on_log_message
         self.on_progress_update = on_progress_update
 
-        # UI elements
         self.frame: Optional[ttk.Frame] = None
         self.parent_id_var = tk.StringVar()
         self.preserve_structure_var = tk.BooleanVar(value=True)
@@ -45,7 +44,6 @@ class BulkUploadComponent:
         self.status_var = tk.StringVar()
         self.bulk_progress_bar: Optional[ttk.Progressbar] = None
 
-        # Data
         self.upload_items: List[BulkItem] = []
         self.selected_items: Dict[str, BulkItem] = {}
 
@@ -53,7 +51,6 @@ class BulkUploadComponent:
         """Create and return the bulk upload UI."""
         self.frame = ttk.Frame(self.parent)
 
-        # Parent container section
         parent_frame = ttk.LabelFrame(self.frame, text="Upload Destination")
         parent_frame.pack(fill="x", padx=10, pady=5)
 
@@ -70,7 +67,6 @@ class BulkUploadComponent:
             variable=self.preserve_structure_var,
         ).grid(row=0, column=2, padx=10, pady=5)
 
-        # File selection section
         selection_frame = ttk.LabelFrame(self.frame, text="File Selection")
         selection_frame.pack(fill="x", padx=10, pady=5)
 
@@ -93,7 +89,6 @@ class BulkUploadComponent:
             side="left", padx=5
         )
 
-        # Status section
         status_frame = ttk.Frame(self.frame)
         status_frame.pack(fill="x", padx=10, pady=5)
 
@@ -102,17 +97,14 @@ class BulkUploadComponent:
             side="left", padx=(5, 0)
         )
 
-        # Progress bar for bulk operations
         self.bulk_progress_bar = ttk.Progressbar(
             status_frame, mode="determinate", length=300
         )
         self.bulk_progress_bar.pack(side="right", padx=(10, 0))
 
-        # File list tree section
         tree_frame = ttk.LabelFrame(self.frame, text="Files to Upload")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
-        # Tree with scrollbars
         tree_container = ttk.Frame(tree_frame)
         tree_container.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -123,7 +115,6 @@ class BulkUploadComponent:
             selectmode="extended",
         )
 
-        # Configure columns
         self.tree.heading("#0", text="Name")
         self.tree.heading("Type", text="Type")
         self.tree.heading("Size", text="Size")
@@ -134,7 +125,6 @@ class BulkUploadComponent:
         self.tree.column("Size", width=100)
         self.tree.column("Local Path", width=400)
 
-        # Scrollbars for tree
         v_scrollbar = ttk.Scrollbar(
             tree_container, orient="vertical", command=self.tree.yview
         )
@@ -152,7 +142,6 @@ class BulkUploadComponent:
         tree_container.grid_rowconfigure(0, weight=1)
         tree_container.grid_columnconfigure(0, weight=1)
 
-        # Upload section
         upload_frame = ttk.LabelFrame(self.frame, text="Upload Options")
         upload_frame.pack(fill="x", padx=10, pady=5)
 
@@ -160,13 +149,12 @@ class BulkUploadComponent:
             upload_frame, text="Start Bulk Upload", command=self._on_upload_clicked
         ).pack(pady=10)
 
-        # Bind tree selection
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_selection_changed)
 
         return self.frame
 
     def _add_files(self) -> None:
-        """Add individual files to upload list."""
+        """Open file dialog to add individual files to the upload list."""
         files = filedialog.askopenfilenames(
             title="Select Files to Upload", filetypes=[("All Files", "*.*")]
         )
@@ -182,7 +170,7 @@ class BulkUploadComponent:
             self.on_log_message(f"Added {added_count} files", False)
 
     def _add_folder(self) -> None:
-        """Add a folder and its contents to upload list."""
+        """Open directory dialog to add a folder and its contents to the upload list."""
         folder_path = filedialog.askdirectory(title="Select Folder to Upload")
 
         if folder_path:
@@ -201,19 +189,16 @@ class BulkUploadComponent:
         Returns:
             True if file was added, False if already exists
         """
-        # Check if already added
         for item in self.upload_items:
             if item.path == file_path:
                 return False
 
-        # Get file info
         path_obj = Path(file_path)
         if not path_obj.exists():
             return False
 
         stat = path_obj.stat()
 
-        # Create BulkItem
         item = BulkItem(
             synapse_id="",  # Will be set after upload
             name=path_obj.name,
@@ -228,13 +213,13 @@ class BulkUploadComponent:
 
     def _add_folder_recursive(self, folder_path: str) -> int:
         """
-        Add a folder and all its contents recursively.
+        Add a folder and all its contents recursively to the upload list.
 
         Args:
-            folder_path: Path to the folder
+            folder_path: Path to the folder to add
 
         Returns:
-            Number of items added
+            Number of items added to the upload list
         """
         added_count = 0
         folder_obj = Path(folder_path)
@@ -242,7 +227,6 @@ class BulkUploadComponent:
         if not folder_obj.exists() or not folder_obj.is_dir():
             return 0
 
-        # Add the folder itself
         folder_item = BulkItem(
             synapse_id="",
             name=folder_obj.name,
@@ -252,43 +236,36 @@ class BulkUploadComponent:
             path=folder_path,
         )
 
-        # Check if folder already added
         folder_exists = any(item.path == folder_path for item in self.upload_items)
         if not folder_exists:
             self.upload_items.append(folder_item)
             added_count += 1
 
-        # Add all files (but not subdirectories as separate items)
         try:
             for item_path in folder_obj.rglob("*"):
                 if item_path.is_file():
                     if self._add_file_item(str(item_path)):
                         added_count += 1
-                # Note: We deliberately do NOT add subdirectories as separate BulkItem objects
-                # The directory structure will be preserved through the file paths and
-                # recreated during upload when preserve_structure is enabled
         except PermissionError as e:
             self.on_log_message(f"Permission error accessing {folder_path}: {e}", True)
 
         return added_count
 
     def _remove_selected(self) -> None:
-        """Remove selected items from upload list."""
+        """Remove selected items from the upload list."""
         if not self.tree or not self.tree.selection():
             return
 
         selected_paths = []
         for item_id in self.tree.selection():
-            # Skip visual directory nodes (they're not actual BulkItems)
             item_tags = self.tree.item(item_id, "tags")
             if "visual_directory" in item_tags:
                 continue
 
             item_values = self.tree.item(item_id, "values")
             if len(item_values) >= 3:
-                selected_paths.append(item_values[2])  # Local Path column
+                selected_paths.append(item_values[2])
 
-        # Remove items
         original_count = len(self.upload_items)
         self.upload_items = [
             item for item in self.upload_items if item.path not in selected_paths
@@ -301,7 +278,7 @@ class BulkUploadComponent:
             self.on_log_message(f"Removed {removed_count} items", False)
 
     def _clear_all(self) -> None:
-        """Clear all items from upload list."""
+        """Clear all items from the upload list."""
         if self.upload_items:
             count = len(self.upload_items)
             self.upload_items.clear()
@@ -311,24 +288,20 @@ class BulkUploadComponent:
 
     def _refresh_tree(self) -> None:
         """Refresh the tree view with current upload items."""
-        # Clear tree
         if self.tree:
             for item in self.tree.get_children():
                 self.tree.delete(item)
 
-        # Group items by directory structure if preserving structure
         if self.preserve_structure_var.get():
             self._populate_tree_structured()
         else:
             self._populate_tree_flat()
 
     def _populate_tree_structured(self) -> None:
-        """Populate tree with directory structure preserved."""
-        # Find root folders (folders that were explicitly selected)
+        """Populate tree view with hierarchical directory structure preserved."""
         root_folders = []
         for item in self.upload_items:
             if item.item_type == "Folder":
-                # Check if this folder is not a subfolder of another folder in the list
                 is_root = True
                 for other_item in self.upload_items:
                     if (
@@ -341,10 +314,8 @@ class BulkUploadComponent:
                 if is_root:
                     root_folders.append(item)
 
-        # Build tree structure for each root folder
-        tree_nodes = {}  # Maps folder paths to tree node IDs
+        tree_nodes = {}
 
-        # Add root folders first - these appear at the top level
         for root_folder in root_folders:
             root_id = self.tree.insert(
                 "",
@@ -359,13 +330,11 @@ class BulkUploadComponent:
             )
             tree_nodes[root_folder.path] = root_id
 
-        # Sort remaining items (files and any standalone files) by path depth
         remaining_items = [
             item for item in self.upload_items if item not in root_folders
         ]
 
         for item in sorted(remaining_items, key=lambda x: len(Path(x.path).parts)):
-            # Find which root folder this item belongs to
             parent_id = ""
             best_parent_path = ""
 
@@ -376,7 +345,6 @@ class BulkUploadComponent:
                     break
 
             if parent_id and best_parent_path:
-                # Build intermediate directory structure within the selected folder only
                 relative_parts = self._get_relative_path_parts(
                     item.path, best_parent_path
                 )
@@ -384,13 +352,11 @@ class BulkUploadComponent:
                 current_parent_id = parent_id
                 current_path = Path(best_parent_path)
 
-                # Build intermediate directories for display (exclude the last part which is the item itself)
                 for part in relative_parts[:-1]:
                     current_path = current_path / part
                     current_path_str = str(current_path)
 
                     if current_path_str not in tree_nodes:
-                        # Create visual directory node (not a BulkItem)
                         current_parent_id = self.tree.insert(
                             current_parent_id,
                             "end",
@@ -402,7 +368,6 @@ class BulkUploadComponent:
                     else:
                         current_parent_id = tree_nodes[current_path_str]
 
-                # Add the actual item (file)
                 self.tree.insert(
                     current_parent_id,
                     "end",
@@ -411,7 +376,6 @@ class BulkUploadComponent:
                     tags=(item.path,),
                 )
             else:
-                # Standalone file (no parent folder selected) - show at root level
                 self.tree.insert(
                     "",
                     "end",
@@ -421,7 +385,16 @@ class BulkUploadComponent:
                 )
 
     def _is_subpath(self, child_path: str, parent_path: str) -> bool:
-        """Check if child_path is a subpath of parent_path."""
+        """
+        Check if child_path is a subpath of parent_path.
+        
+        Args:
+            child_path: Path to check if it's a child
+            parent_path: Path to check if it's a parent
+            
+        Returns:
+            True if child_path is within parent_path
+        """
         try:
             Path(child_path).relative_to(Path(parent_path))
             return True
@@ -429,7 +402,16 @@ class BulkUploadComponent:
             return False
 
     def _get_relative_path_parts(self, child_path: str, parent_path: str) -> List[str]:
-        """Get the relative path parts from parent to child."""
+        """
+        Get the relative path parts from parent to child.
+        
+        Args:
+            child_path: Full path to the child
+            parent_path: Full path to the parent
+            
+        Returns:
+            List of path components from parent to child
+        """
         try:
             relative_path = Path(child_path).relative_to(Path(parent_path))
             return list(relative_path.parts)
@@ -437,12 +419,20 @@ class BulkUploadComponent:
             return []
 
     def _get_path_for_node(self, node_id: str) -> str:
-        """Get the file path for a tree node."""
+        """
+        Get the file path for a tree node.
+        
+        Args:
+            node_id: Tree node identifier
+            
+        Returns:
+            File path associated with the node
+        """
         values = self.tree.item(node_id, "values")
         return values[2] if len(values) >= 3 else ""
 
     def _populate_tree_flat(self) -> None:
-        """Populate tree with flat structure (no directories)."""
+        """Populate tree view with flat structure without directory hierarchy."""
         for item in self.upload_items:
             size_str = item.get_display_size()
             self.tree.insert(
@@ -454,7 +444,7 @@ class BulkUploadComponent:
             )
 
     def _update_status(self) -> None:
-        """Update status display."""
+        """Update the status display with current file and folder counts."""
         file_count = sum(1 for item in self.upload_items if item.item_type == "File")
         folder_count = sum(
             1 for item in self.upload_items if item.item_type == "Folder"
@@ -467,7 +457,15 @@ class BulkUploadComponent:
         self.status_var.set(status_text)
 
     def _format_size(self, size: int) -> str:
-        """Format file size for display."""
+        """
+        Format file size for human-readable display.
+        
+        Args:
+            size: File size in bytes
+            
+        Returns:
+            Formatted size string with appropriate units
+        """
         size = float(size)
         for unit in ["B", "KB", "MB", "GB", "TB"]:
             if size < 1024.0:
@@ -476,12 +474,16 @@ class BulkUploadComponent:
         return f"{size:.1f} PB"
 
     def _on_tree_selection_changed(self, event: tk.Event) -> None:
-        """Handle tree selection change."""
-        # Update selected items for potential removal
+        """
+        Handle tree view selection changes.
+        
+        Args:
+            event: Tkinter event object
+        """
         pass
 
     def _on_upload_clicked(self) -> None:
-        """Handle upload button click."""
+        """Handle upload button click to initiate bulk upload."""
         if not self.upload_items:
             messagebox.showwarning("Warning", "Please add files or folders to upload")
             return
@@ -495,7 +497,6 @@ class BulkUploadComponent:
             messagebox.showerror("Error", "Parent ID must start with 'syn'")
             return
 
-        # Confirm upload
         file_count = sum(1 for item in self.upload_items if item.item_type == "File")
         folder_count = sum(
             1 for item in self.upload_items if item.item_type == "Folder"
@@ -511,7 +512,6 @@ class BulkUploadComponent:
             f"Starting bulk upload of {len(self.upload_items)} items", False
         )
 
-        # Call the bulk upload callback
         self.on_bulk_upload(
             self.upload_items.copy(), parent_id, self.preserve_structure_var.get()
         )

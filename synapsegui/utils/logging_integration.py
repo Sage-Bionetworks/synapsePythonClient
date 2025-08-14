@@ -7,56 +7,87 @@ from typing import Callable, Optional
 
 
 class GUILogHandler(logging.Handler):
-    """Custom logging handler that forwards log messages to the GUI"""
+    """
+    Custom logging handler that forwards log messages to the GUI.
+    
+    Captures Python logging messages and forwards them to a GUI callback
+    function for display in the application interface.
+    """
 
-    def __init__(self, log_callback: Callable[[str, bool], None]):
+    def __init__(self, log_callback: Callable[[str, bool], None]) -> None:
+        """
+        Initialize the GUI log handler.
+
+        Args:
+            log_callback: Function to call with log messages (message, is_error)
+        """
         super().__init__()
         self.log_callback = log_callback
         self.root = None
 
     def set_root(self, root: tk.Tk) -> None:
-        """Set the tkinter root for thread-safe GUI updates"""
+        """
+        Set the tkinter root for thread-safe GUI updates.
+
+        Args:
+            root: The main tkinter window
+        """
         self.root = root
 
     def emit(self, record: logging.LogRecord) -> None:
-        """Emit a log record to the GUI"""
+        """
+        Emit a log record to the GUI.
+
+        Args:
+            record: The log record to emit
+        """
         try:
             message = self.format(record)
             is_error = record.levelno >= logging.ERROR
 
-            # If we have a root widget, schedule the GUI update on the main thread
             if self.root:
                 self.root.after(0, lambda: self.log_callback(message, is_error))
             else:
-                # Fallback: call directly (may not be thread-safe)
                 self.log_callback(message, is_error)
         except Exception:
-            # Avoid recursion errors by not logging the exception
             pass
 
 
 class LoggingIntegration:
-    """Manages integration between Python logging and GUI logging"""
+    """
+    Manages integration between Python logging and GUI logging.
+    
+    Handles setup and cleanup of logging handlers to forward Python
+    log messages to the GUI output component.
+    """
 
-    def __init__(self, log_callback: Callable[[str, bool], None]):
+    def __init__(self, log_callback: Callable[[str, bool], None]) -> None:
+        """
+        Initialize the logging integration.
+
+        Args:
+            log_callback: Function to call with log messages (message, is_error)
+        """
         self.log_callback = log_callback
         self.gui_handler: Optional[GUILogHandler] = None
         self.original_handlers = []
 
     def setup_logging_integration(self, root: tk.Tk) -> None:
-        """Setup logging to forward messages to GUI"""
-        # Create GUI log handler
+        """
+        Setup logging to forward messages to GUI.
+
+        Args:
+            root: The main tkinter window for thread-safe updates
+        """
         self.gui_handler = GUILogHandler(self.log_callback)
         self.gui_handler.set_root(root)
 
-        # Set formatter to match GUI expectations
         formatter = logging.Formatter("%(name)s: %(message)s")
         self.gui_handler.setFormatter(formatter)
 
-        # Add the handler to the synapseclient loggers
         synapse_loggers = [
             "synapseclient_default",
-            "synapseclient_debug",
+            "synapseclient_debug", 
             "synapseclient",
             "synapseclient.client",
             "synapseclient.core",
@@ -65,19 +96,17 @@ class LoggingIntegration:
 
         for logger_name in synapse_loggers:
             logger = logging.getLogger(logger_name)
-            # Store original handlers for cleanup
             self.original_handlers.extend(logger.handlers[:])
-            # Add our GUI handler
             logger.addHandler(self.gui_handler)
 
     def cleanup_logging_integration(self) -> None:
-        """Clean up logging integration"""
+        """Clean up logging integration by removing GUI handlers."""
         if self.gui_handler:
             synapse_loggers = [
                 "synapseclient_default",
                 "synapseclient_debug",
                 "synapseclient",
-                "synapseclient.client",
+                "synapseclient.client", 
                 "synapseclient.core",
                 "synapseclient.models",
             ]

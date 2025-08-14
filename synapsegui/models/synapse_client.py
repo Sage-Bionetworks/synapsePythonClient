@@ -1,5 +1,9 @@
 """
-Synapse client operations - separated from UI logic
+Synapse client operations and management.
+
+This module provides the SynapseClientManager class and supporting utilities
+for handling all Synapse client operations, including authentication, file
+uploads/downloads, and bulk operations, separated from UI logic.
 """
 import io
 import logging
@@ -14,13 +18,16 @@ from synapseclient.core import utils
 from synapseclient.models import File
 
 
-def _safe_stderr_redirect(new_stderr):
+def _safe_stderr_redirect(new_stderr: Any) -> tuple[Any, Any]:
     """
     Safely redirect stderr, handling the case where original stderr might be None.
 
+    Args:
+        new_stderr: New stderr object to redirect to
+
     Returns:
         Tuple of (original_stderr, safe_original_stderr) where safe_original_stderr
-        is guaranteed to be a valid file-like object.
+        is guaranteed to be a valid file-like object
     """
     original_stderr = sys.stderr
     safe_original_stderr = (
@@ -30,38 +37,57 @@ def _safe_stderr_redirect(new_stderr):
     return original_stderr, safe_original_stderr
 
 
-def _safe_stderr_restore(original_stderr, safe_original_stderr):
+def _safe_stderr_restore(original_stderr: Any, safe_original_stderr: Any) -> None:
     """
     Safely restore stderr, ensuring we never set it to None.
+
+    Args:
+        original_stderr: The original stderr object
+        safe_original_stderr: Fallback stderr object if original was None
     """
     if original_stderr is not None:
         sys.stderr = original_stderr
     else:
-        # If original was None, use a StringIO to avoid None issues
         sys.stderr = safe_original_stderr
 
 
 class TQDMProgressCapture:
-    """Capture TQDM progress updates for GUI display"""
+    """
+    Capture TQDM progress updates for GUI display.
+    
+    Intercepts TQDM progress output and extracts progress information
+    to provide callbacks for GUI progress bars and status updates.
+    """
 
     def __init__(
         self,
         progress_callback: Callable[[int, str], None],
         detail_callback: Callable[[str], None],
-    ):
+    ) -> None:
+        """
+        Initialize the TQDM progress capture.
+
+        Args:
+            progress_callback: Function to call with progress updates (progress%, message)
+            detail_callback: Function to call with detailed progress messages
+        """
         self.progress_callback = progress_callback
         self.detail_callback = detail_callback
         self.last_progress = 0
 
     def write(self, s: str) -> None:
-        """Capture TQDM output and extract progress information"""
+        """
+        Capture TQDM output and extract progress information.
+
+        Args:
+            s: String output from TQDM to parse for progress information
+        """
         if s and "\r" in s:
             # TQDM typically uses \r for progress updates
             progress_line = s.strip().replace("\r", "")
             if "%" in progress_line and (
                 "B/s" in progress_line or "it/s" in progress_line
             ):
-                # Parse progress percentage
                 try:
                     # Look for percentage in the format "XX%"
                     match = re.search(r"(\d+)%", progress_line)
@@ -69,30 +95,43 @@ class TQDMProgressCapture:
                         progress = int(match.group(1))
                         if progress != self.last_progress:
                             self.last_progress = progress
-                            # Send progress update for progress bar
                             self.progress_callback(progress, f"Progress: {progress}%")
-                            # Send detailed progress line for output logging
                             self.detail_callback(progress_line)
                 except Exception:
                     pass
 
     def flush(self) -> None:
-        """Required for file-like object interface"""
+        """Required for file-like object interface."""
         pass
 
 
 class SynapseClientManager:
-    """Handles all Synapse client operations"""
+    """
+    Handles all Synapse client operations.
+    
+    Manages authentication, file operations, and bulk operations for the 
+    Synapse platform, providing a clean interface between the GUI and
+    the underlying synapseclient library.
+    """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the Synapse client manager with default state."""
         self.client: Optional[synapseclient.Synapse] = None
         self.is_logged_in = False
         self.username = ""
 
     async def login_manual(self, username: str, token: str) -> Dict[str, Any]:
-        """Login with username and token"""
+        """
+        Login with username and authentication token.
+
+        Args:
+            username: Synapse username or email address
+            token: Personal access token for authentication
+
+        Returns:
+            Dictionary with 'success' boolean and either 'username' or 'error' key
+        """
         try:
-            # Create client with debug logging to capture detailed messages
             self.client = synapseclient.Synapse(skip_checks=True, debug=False)
 
             if username:
@@ -105,21 +144,26 @@ class SynapseClientManager:
                 self.client, "email", "Unknown User"
             )
 
-            # Log successful login
             logger = logging.getLogger("synapseclient")
             logger.info(f"Successfully logged in as {self.username}")
 
             return {"success": True, "username": self.username}
         except Exception as e:
-            # Log login error
             logger = logging.getLogger("synapseclient")
             logger.error(f"Login failed: {str(e)}")
             return {"success": False, "error": str(e)}
 
     async def login_with_profile(self, profile_name: str) -> Dict[str, Any]:
-        """Login with config file profile"""
+        """
+        Login with configuration file profile.
+
+        Args:
+            profile_name: Name of the profile from Synapse configuration file
+
+        Returns:
+            Dictionary with 'success' boolean and either 'username' or 'error' key
+        """
         try:
-            # Create client with debug logging to capture detailed messages
             self.client = synapseclient.Synapse(skip_checks=True, debug=False)
 
             if profile_name == "authentication (legacy)":
@@ -132,7 +176,6 @@ class SynapseClientManager:
                 self.client, "email", "Unknown User"
             )
 
-            # Log successful login
             logger = logging.getLogger("synapseclient")
             logger.info(
                 f"Successfully logged in as {self.username} using profile {profile_name}"
@@ -140,16 +183,14 @@ class SynapseClientManager:
 
             return {"success": True, "username": self.username}
         except Exception as e:
-            # Log login error
             logger = logging.getLogger("synapseclient")
             logger.error(f"Login with profile '{profile_name}' failed: {str(e)}")
             return {"success": False, "error": str(e)}
 
     def logout(self) -> None:
-        """Logout from Synapse"""
+        """Logout from Synapse and clear authentication state."""
         if self.client:
             self.client.logout()
-            # Log logout
             logger = logging.getLogger("synapseclient")
             logger.info(f"User {self.username} logged out")
         self.client = None
@@ -164,22 +205,30 @@ class SynapseClientManager:
         progress_callback: Callable[[int, str], None],
         detail_callback: Callable[[str], None],
     ) -> Dict[str, Any]:
-        """Download file from Synapse"""
+        """
+        Download a file from Synapse.
+
+        Args:
+            synapse_id: Synapse entity ID to download
+            version: Specific version to download (None for latest)
+            download_path: Local directory path for download
+            progress_callback: Function for progress updates (progress%, message)
+            detail_callback: Function for detailed progress messages
+
+        Returns:
+            Dictionary with 'success' boolean and either 'path' or 'error' key
+        """
         try:
             if not self.is_logged_in:
                 return {"success": False, "error": "Not logged in"}
 
-            # Log download start
             logger = logging.getLogger("synapseclient")
             version_info = f" version {version}" if version else ""
             logger.info(
                 f"Starting download of {synapse_id}{version_info} to {download_path}"
             )
 
-            # Create progress capture for TQDM output
             progress_capture = TQDMProgressCapture(progress_callback, detail_callback)
-
-            # Safely redirect stderr to capture TQDM output
             original_stderr, safe_original_stderr = _safe_stderr_redirect(
                 progress_capture
             )
@@ -204,7 +253,6 @@ class SynapseClientManager:
                     logger.error(error_msg)
                     return {"success": False, "error": error_msg}
             finally:
-                # Safely restore original stderr
                 _safe_stderr_restore(original_stderr, safe_original_stderr)
 
         except Exception as e:
@@ -221,7 +269,20 @@ class SynapseClientManager:
         progress_callback: Callable[[int, str], None],
         detail_callback: Callable[[str], None],
     ) -> Dict[str, Any]:
-        """Upload file to Synapse"""
+        """
+        Upload a file to Synapse.
+
+        Args:
+            file_path: Local path to the file to upload
+            parent_id: Parent entity ID for new files (required for new files)
+            entity_id: Entity ID to update (for updating existing files)
+            name: Name for the entity (optional, uses filename if not provided)
+            progress_callback: Function for progress updates (progress%, message)
+            detail_callback: Function for detailed progress messages
+
+        Returns:
+            Dictionary with 'success' boolean and either entity info or 'error' key
+        """
         try:
             if not self.is_logged_in:
                 return {"success": False, "error": "Not logged in"}
@@ -229,7 +290,6 @@ class SynapseClientManager:
             if not os.path.exists(file_path):
                 return {"success": False, "error": f"File does not exist: {file_path}"}
 
-            # Log upload start
             logger = logging.getLogger("synapseclient")
             if entity_id:
                 logger.info(
@@ -240,16 +300,13 @@ class SynapseClientManager:
                     f"Starting upload of {file_path} to create new entity in {parent_id}"
                 )
 
-            # Create progress capture for TQDM output
             progress_capture = TQDMProgressCapture(progress_callback, detail_callback)
-
-            # Safely redirect stderr to capture TQDM output
             original_stderr, safe_original_stderr = _safe_stderr_redirect(
                 progress_capture
             )
 
             try:
-                if entity_id:  # Update existing
+                if entity_id:
                     file_obj = File(
                         id=entity_id, path=file_path, name=name, download_file=False
                     )
@@ -257,7 +314,7 @@ class SynapseClientManager:
                     file_obj.path = file_path
                     if name:
                         file_obj.name = name
-                else:  # Create new
+                else:
                     if not parent_id:
                         return {
                             "success": False,
@@ -272,7 +329,6 @@ class SynapseClientManager:
 
                 file_obj = file_obj.store(synapse_client=self.client)
 
-                # Log successful upload
                 logger.info(
                     f"Successfully uploaded {file_path} as entity {file_obj.id}: {file_obj.name}"
                 )
@@ -283,7 +339,6 @@ class SynapseClientManager:
                     "name": file_obj.name,
                 }
             finally:
-                # Safely restore original stderr
                 _safe_stderr_restore(original_stderr, safe_original_stderr)
 
         except Exception as e:
@@ -316,24 +371,17 @@ class SynapseClientManager:
             )
 
             # Import here to avoid circular imports
-            from synapseclient.models import Folder, Project
+            from synapseclient.models import Folder
 
-            # Determine container type and create appropriate object
-            # TODO: This needs to be fixed as this is not correct
-            if container_id.startswith("project"):
-                container = Project(id=container_id)
-            else:
-                container = Folder(id=container_id)
+            container = Folder(id=container_id)
 
             # Sync metadata only (download_file=False)
             await container.sync_from_synapse_async(
-                download_file=False, recursive=recursive, synapse_client=self.client
+                download_file=False, recursive=recursive, include_types=["file", "folder"], synapse_client=self.client
             )
 
-            # Convert to BulkItem objects
-            items = self._convert_to_bulk_items(container, recursive)
+            items = self._convert_to_bulk_items(container=container, recursive=recursive)
 
-            # Log successful enumeration
             logger.info(
                 f"Successfully enumerated {len(items)} items from container {container_id}"
             )
@@ -360,7 +408,6 @@ class SynapseClientManager:
 
         items = []
 
-        # Add files
         if hasattr(container, "files"):
             for file in container.files:
                 items.append(
@@ -374,7 +421,6 @@ class SynapseClientManager:
                     )
                 )
 
-        # Add folders
         if hasattr(container, "folders"):
             for folder in container.folders:
                 items.append(
@@ -388,7 +434,6 @@ class SynapseClientManager:
                     )
                 )
 
-                # Recursively add folder contents if recursive
                 if recursive:
                     items.extend(self._convert_to_bulk_items(folder, recursive))
 
@@ -423,7 +468,6 @@ class SynapseClientManager:
             total_items = len(items)
 
             for i, item in enumerate(items):
-                # Update overall progress
                 overall_progress = int((i / total_items) * 100)
                 progress_callback(
                     overall_progress, f"Processing item {i + 1} of {total_items}"
@@ -432,7 +476,6 @@ class SynapseClientManager:
 
                 try:
                     if item.item_type == "File":
-                        # Download individual file
                         result = await self.download_file(
                             synapse_id=item.synapse_id,
                             version=None,
@@ -442,7 +485,6 @@ class SynapseClientManager:
                         )
                         results.append({"item": item, "result": result})
                     elif item.item_type == "Folder":
-                        # Use sync_from_synapse_async for folders
                         from synapseclient.models import Folder
 
                         folder = Folder(id=item.synapse_id)
@@ -450,6 +492,7 @@ class SynapseClientManager:
                             path=os.path.join(download_path, item.name),
                             download_file=True,
                             recursive=recursive,
+                            include_types=["file", "folder"],
                             synapse_client=self.client,
                         )
 
@@ -462,27 +505,14 @@ class SynapseClientManager:
                                 },
                             }
                         )
-                    else:
-                        # Skip non-downloadable items
-                        results.append(
-                            {
-                                "item": item,
-                                "result": {
-                                    "success": False,
-                                    "error": f"Cannot download {item.item_type}",
-                                },
-                            }
-                        )
 
                 except Exception as e:
                     results.append(
                         {"item": item, "result": {"success": False, "error": str(e)}}
                     )
 
-            # Final progress
             progress_callback(100, "Bulk download complete")
 
-            # Count successes and failures
             successes = sum(1 for r in results if r["result"].get("success", False))
             failures = total_items - successes
 
@@ -529,11 +559,9 @@ class SynapseClientManager:
                     items, parent_id, progress_callback, detail_callback
                 )
 
-            # Upload files
             file_items = [item for item in items if item.item_type == "File"]
 
             for i, item in enumerate(file_items):
-                # Update overall progress
                 overall_progress = int((i / len(file_items)) * 100)
                 progress_callback(
                     overall_progress, f"Uploading file {i + 1} of {len(file_items)}"
@@ -541,16 +569,13 @@ class SynapseClientManager:
                 detail_callback(f"Uploading {item.name}")
 
                 try:
-                    # Determine target parent
                     target_parent = parent_id
                     if preserve_structure and item.path:
                         # Find the appropriate parent folder for this file
                         item_dir = os.path.dirname(item.path)
 
-                        # Normalize path separators to match folder_mapping keys
                         normalized_item_dir = item_dir.replace("\\", "/")
 
-                        # First check for exact match
                         if normalized_item_dir in folder_mapping:
                             target_parent = folder_mapping[normalized_item_dir]
                         else:
@@ -579,10 +604,8 @@ class SynapseClientManager:
                         {"item": item, "result": {"success": False, "error": str(e)}}
                     )
 
-            # Final progress
             progress_callback(100, "Bulk upload complete")
 
-            # Count successes and failures
             successes = sum(1 for r in results if r["result"].get("success", False))
             failures = len(file_items) - successes
 
@@ -618,11 +641,9 @@ class SynapseClientManager:
 
         folder_mapping = {}
 
-        # Find root folders (explicitly selected folders)
         root_folders = []
         for item in items:
             if item.item_type == "Folder":
-                # Check if this folder is not a subfolder of another folder in the list
                 is_root = True
                 for other_item in items:
                     if (
@@ -635,7 +656,6 @@ class SynapseClientManager:
                 if is_root:
                     root_folders.append(item)
 
-        # Get all unique directory paths that need to be created
         dir_paths = set()
 
         # First, add the explicitly selected folders
@@ -663,16 +683,15 @@ class SynapseClientManager:
                                 dir_paths.add(str(temp_path))
                             break
 
-        # Sort by depth (create parents first)
         sorted_dirs = sorted(dir_paths, key=lambda x: len(Path(x).parts))
 
         detail_callback("Creating folder structure...")
 
         for i, dir_path in enumerate(sorted_dirs):
-            if i % 5 == 0:  # Update progress periodically
+            if i % 5 == 0:
                 progress = int(
                     (i / len(sorted_dirs)) * 50
-                )  # Use 50% for folder creation
+                )
                 progress_callback(
                     progress, f"Creating folders ({i}/{len(sorted_dirs)})"
                 )
@@ -680,7 +699,6 @@ class SynapseClientManager:
             path_obj = Path(dir_path)
             folder_name = path_obj.name
 
-            # Determine parent folder ID
             parent_folder_id = base_parent_id
 
             # For root folders, parent is the base parent
@@ -701,11 +719,9 @@ class SynapseClientManager:
                             parent_folder_id = folder_mapping[normalized_parent_path]
                             break
 
-            # Create folder
             try:
                 folder = Folder(name=folder_name, parent_id=parent_folder_id)
                 folder = folder.store(synapse_client=self.client)
-                # Normalize path separators for consistent lookup
                 normalized_dir_path = dir_path.replace("\\", "/")
                 folder_mapping[normalized_dir_path] = folder.id
                 detail_callback(
@@ -717,7 +733,16 @@ class SynapseClientManager:
         return folder_mapping
 
     def _is_subpath(self, child_path: str, parent_path: str) -> bool:
-        """Check if child_path is a subpath of parent_path."""
+        """
+        Check if child_path is a subpath of parent_path.
+
+        Args:
+            child_path: The potential child path to check
+            parent_path: The potential parent path
+
+        Returns:
+            True if child_path is a subpath of parent_path, False otherwise
+        """
         try:
             Path(child_path).relative_to(Path(parent_path))
             return True

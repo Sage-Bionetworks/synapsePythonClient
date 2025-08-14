@@ -8,17 +8,28 @@ from typing import Callable, Optional
 
 
 class UploadComponent:
-    """Upload file UI component"""
+    """
+    Upload file UI component.
+    
+    Provides functionality for uploading individual files to Synapse,
+    supporting both new file creation and updating existing entities.
+    """
 
     def __init__(
         self,
         parent: tk.Widget,
         on_upload_callback: Callable[[str, str, str, str], None],
-    ):
+    ) -> None:
+        """
+        Initialize the upload component.
+
+        Args:
+            parent: Parent widget to contain this component
+            on_upload_callback: Callback function for upload operations
+        """
         self.parent = parent
         self.on_upload = on_upload_callback
 
-        # State variables
         self.upload_file_var = tk.StringVar()
         self.upload_mode_var = tk.StringVar(value="new")
         self.parent_id_var = tk.StringVar()
@@ -26,7 +37,6 @@ class UploadComponent:
         self.upload_name_var = tk.StringVar()
         self.upload_progress_var = tk.StringVar(value="")
 
-        # UI references
         self.upload_button: Optional[ttk.Button] = None
         self.upload_progress_bar: Optional[ttk.Progressbar] = None
         self.parent_id_entry: Optional[ttk.Entry] = None
@@ -36,11 +46,10 @@ class UploadComponent:
         self.create_ui()
 
     def create_ui(self) -> None:
-        """Create upload UI components"""
+        """Create and configure the upload UI components."""
         self.frame = ttk.Frame(self.parent, padding="10")
         self.frame.columnconfigure(1, weight=1)
 
-        # File selection
         ttk.Label(self.frame, text="File to Upload:").grid(
             row=0, column=0, sticky=tk.W, pady=(0, 5)
         )
@@ -57,7 +66,6 @@ class UploadComponent:
         )
         browse_file_button.grid(row=0, column=1)
 
-        # Upload mode selection
         mode_frame = ttk.LabelFrame(self.frame, text="Upload Mode", padding="10")
         mode_frame.grid(
             row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0)
@@ -82,7 +90,6 @@ class UploadComponent:
         )
         update_radio.grid(row=1, column=0, sticky=tk.W)
 
-        # Parent ID / Entity ID fields
         parent_label = ttk.Label(mode_frame, text="Parent ID (Project/Folder):")
         parent_label.grid(row=0, column=1, sticky=tk.W, padx=(20, 5), pady=(0, 5))
 
@@ -99,7 +106,6 @@ class UploadComponent:
         )
         self.entity_id_entry.grid(row=1, column=2, sticky=(tk.W, tk.E))
 
-        # File name
         ttk.Label(self.frame, text="Entity Name (optional):").grid(
             row=2, column=0, sticky=tk.W, pady=(10, 5)
         )
@@ -110,7 +116,6 @@ class UploadComponent:
             row=2, column=1, sticky=(tk.W, tk.E), pady=(10, 5), padx=(10, 0)
         )
 
-        # Upload button
         self.upload_button = ttk.Button(
             self.frame,
             text="Upload File",
@@ -119,7 +124,6 @@ class UploadComponent:
         )
         self.upload_button.grid(row=3, column=0, columnspan=2, pady=(20, 0))
 
-        # Progress bar for uploads
         upload_progress_label = ttk.Label(
             self.frame,
             textvariable=self.upload_progress_var,
@@ -134,7 +138,7 @@ class UploadComponent:
         )
 
     def browse_upload_file(self) -> None:
-        """Browse for file to upload"""
+        """Open file browser to select a file for upload."""
         file_path = filedialog.askopenfilename(
             title="Select file to upload", initialdir=str(Path.home())
         )
@@ -144,7 +148,7 @@ class UploadComponent:
                 self.upload_name_var.set(Path(file_path).name)
 
     def on_upload_mode_change(self) -> None:
-        """Handle upload mode radio button changes"""
+        """Handle upload mode radio button changes to update field availability."""
         mode = self.upload_mode_var.get()
         if mode == "new":
             if self.parent_id_entry:
@@ -152,7 +156,7 @@ class UploadComponent:
             if self.entity_id_entry:
                 self.entity_id_entry.config(state="disabled")
             self.entity_id_var.set("")
-        else:  # update
+        else:
             if self.parent_id_entry:
                 self.parent_id_entry.config(state="disabled")
             if self.entity_id_entry:
@@ -160,7 +164,7 @@ class UploadComponent:
             self.parent_id_var.set("")
 
     def _handle_upload(self) -> None:
-        """Handle upload button click"""
+        """Handle upload button click and validate input parameters."""
         file_path = self.upload_file_var.get().strip()
         parent_id = self.parent_id_var.get().strip()
         entity_id = self.entity_id_var.get().strip()
@@ -181,37 +185,63 @@ class UploadComponent:
         self.on_upload(file_path, parent_id, entity_id, name)
 
     def set_enabled(self, enabled: bool) -> None:
-        """Enable/disable upload functionality"""
+        """
+        Enable or disable upload functionality.
+
+        Args:
+            enabled: True to enable upload operations, False to disable
+        """
         state = "normal" if enabled else "disabled"
         if self.upload_button:
             self.upload_button.config(state=state)
 
     def start_operation(self) -> None:
-        """Called when upload operation starts"""
+        """Initialize UI state when upload operation begins."""
         self.upload_progress_var.set("Preparing upload...")
         if self.upload_progress_bar:
             self.upload_progress_bar["value"] = 0
 
     def update_progress(self, progress: int, message: str) -> None:
-        """Update progress bar and message"""
+        """
+        Update progress bar and status message.
+
+        Args:
+            progress: Progress percentage (0-100)
+            message: Status message to display
+        """
         if self.upload_progress_bar:
             self.upload_progress_bar["value"] = progress
         self.upload_progress_var.set(message)
 
     def show_success(self, message: str) -> None:
-        """Show success state"""
+        """
+        Display success state and message.
+
+        Args:
+            message: Success message to display
+        """
         self.upload_progress_var.set("Upload completed")
         if self.upload_progress_bar:
             self.upload_progress_bar["value"] = 100
         messagebox.showinfo("Success", message)
 
     def show_error(self, error_message: str) -> None:
-        """Show error state"""
+        """
+        Display error state and message.
+
+        Args:
+            error_message: Error message to display
+        """
         self.upload_progress_var.set("Upload failed")
         if self.upload_progress_bar:
             self.upload_progress_bar["value"] = 0
         messagebox.showerror("Upload Error", error_message)
 
     def get_frame(self) -> ttk.Frame:
-        """Get the main frame for this component"""
+        """
+        Get the main frame for this component.
+
+        Returns:
+            The main frame widget containing all upload UI elements
+        """
         return self.frame

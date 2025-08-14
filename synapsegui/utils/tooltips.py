@@ -5,22 +5,47 @@ import tkinter as tk
 
 
 class ToolTip:
-    """Create a tooltip for a given widget"""
+    """
+    Create a tooltip for a given widget.
+    
+    Provides hover-based tooltips that appear when the mouse enters
+    a widget and disappear when it leaves.
+    """
 
-    def __init__(self, widget, text="widget info"):
+    def __init__(self, widget: tk.Widget, text: str = "widget info") -> None:
+        """
+        Initialize the tooltip for a widget.
+
+        Args:
+            widget: The widget to attach the tooltip to
+            text: The text to display in the tooltip
+        """
         self.widget = widget
         self.text = text
         self.widget.bind("<Enter>", self.enter)
         self.widget.bind("<Leave>", self.leave)
         self.tipwindow = None
 
-    def enter(self, event=None):
+    def enter(self, event: tk.Event = None) -> None:
+        """
+        Handle mouse enter event to show tooltip.
+
+        Args:
+            event: Tkinter event object (optional)
+        """
         self.show_tooltip()
 
-    def leave(self, event=None):
+    def leave(self, event: tk.Event = None) -> None:
+        """
+        Handle mouse leave event to hide tooltip.
+
+        Args:
+            event: Tkinter event object (optional)
+        """
         self.hide_tooltip()
 
-    def show_tooltip(self):
+    def show_tooltip(self) -> None:
+        """Display the tooltip window near the widget."""
         if self.tipwindow or not self.text:
             return
         x, y, cx, cy = self.widget.bbox("insert")
@@ -40,7 +65,8 @@ class ToolTip:
         )
         label.pack(ipadx=1)
 
-    def hide_tooltip(self):
+    def hide_tooltip(self) -> None:
+        """Hide and destroy the tooltip window."""
         tw = self.tipwindow
         self.tipwindow = None
         if tw:

@@ -2,7 +2,7 @@
 
 # Build script for Synapse Desktop Client
 # This script creates cross-platform binaries using PyInstaller
-# Usage: ./build.sh [platform] [suffix]
+# Usage: ./build_gui.sh [platform] [suffix]
 # Platforms: linux, macos, all
 # Suffix: optional suffix to add to the output filename
 

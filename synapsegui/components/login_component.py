@@ -10,7 +10,12 @@ from ..utils.tooltips import ToolTip
 
 
 class LoginComponent:
-    """Login section UI component"""
+    """
+    Login section UI component.
+    
+    Provides functionality for user authentication through manual login
+    (username/token) or configuration file profiles.
+    """
 
     def __init__(
         self,
@@ -19,12 +24,20 @@ class LoginComponent:
         on_login_callback: Callable,
         on_logout_callback: Callable,
     ) -> None:
+        """
+        Initialize the login component.
+
+        Args:
+            parent: Parent widget to contain this component
+            config_manager: Configuration manager for profile handling
+            on_login_callback: Callback function for login events
+            on_logout_callback: Callback function for logout events
+        """
         self.parent = parent
         self.config_manager = config_manager
         self.on_login = on_login_callback
         self.on_logout = on_logout_callback
 
-        # State variables
         self.login_mode_var = tk.StringVar()
         self.profile_var = tk.StringVar()
         self.profile_info_var = tk.StringVar()
@@ -33,7 +46,6 @@ class LoginComponent:
         self.login_status_var = tk.StringVar(value="Not logged in")
         self.user_info_var = tk.StringVar()
 
-        # UI references
         self.login_button = None
         self.login_status_label = None
         self.profile_combo = None
@@ -43,12 +55,11 @@ class LoginComponent:
         self.create_ui()
 
     def create_ui(self) -> None:
-        """Create login UI components"""
+        """Create and configure the login UI components."""
         login_frame = ttk.LabelFrame(self.parent, text="Login", padding="10")
         login_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         login_frame.columnconfigure(1, weight=1)
 
-        # Determine default login mode
         available_profiles = self.config_manager.get_available_profiles()
         config_available = len(available_profiles) > 0
         default_mode = "config" if config_available else "manual"
@@ -60,12 +71,17 @@ class LoginComponent:
         self._create_login_button(login_frame)
         self._create_status_labels(login_frame)
 
-        # Initialize interface
         self.refresh_profiles()
         self.on_login_mode_change()
 
     def _create_mode_selection(self, parent: tk.Widget, config_available: bool) -> None:
-        """Create login mode radio buttons"""
+        """
+        Create login mode radio buttons.
+
+        Args:
+            parent: Parent widget to contain the mode selection
+            config_available: Whether configuration file profiles are available
+        """
         mode_frame = ttk.Frame(parent)
         mode_frame.grid(
             row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10)
@@ -88,12 +104,16 @@ class LoginComponent:
         )
         config_radio.grid(row=0, column=1, sticky=tk.W)
 
-        # Add tooltip if no config file available
         if not config_available:
             ToolTip(config_radio, "No Synapse config file found at ~/.synapseConfig")
 
     def _create_profile_section(self, parent: tk.Widget) -> None:
-        """Create profile selection UI"""
+        """
+        Create profile selection UI elements.
+
+        Args:
+            parent: Parent widget to contain the profile section
+        """
         self.profile_frame = ttk.Frame(parent)
         self.profile_frame.grid(
             row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10)
@@ -113,7 +133,6 @@ class LoginComponent:
         self.profile_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 10))
         self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_selected)
 
-        # Profile info label
         profile_info_label = ttk.Label(
             self.profile_frame,
             textvariable=self.profile_info_var,
@@ -123,14 +142,18 @@ class LoginComponent:
         profile_info_label.grid(row=1, column=0, columnspan=3, sticky=tk.W, pady=(5, 0))
 
     def _create_manual_section(self, parent: tk.Widget) -> None:
-        """Create manual login fields"""
+        """
+        Create manual login input fields.
+
+        Args:
+            parent: Parent widget to contain the manual section
+        """
         self.manual_frame = ttk.Frame(parent)
         self.manual_frame.grid(
             row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10)
         )
         self.manual_frame.columnconfigure(1, weight=1)
 
-        # Username
         ttk.Label(self.manual_frame, text="Username/Email:").grid(
             row=0, column=0, sticky=tk.W, padx=(0, 5)
         )
@@ -139,7 +162,6 @@ class LoginComponent:
         )
         username_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 10))
 
-        # Auth Token
         ttk.Label(self.manual_frame, text="Personal Access Token:").grid(
             row=1, column=0, sticky=tk.W, padx=(0, 5), pady=(5, 0)
         )
@@ -151,14 +173,24 @@ class LoginComponent:
         )
 
     def _create_login_button(self, parent: tk.Widget) -> None:
-        """Create login/logout button"""
+        """
+        Create the login/logout button.
+
+        Args:
+            parent: Parent widget to contain the button
+        """
         self.login_button = ttk.Button(
             parent, text="Login", command=self._handle_login_logout
         )
         self.login_button.grid(row=3, column=0, columnspan=3, pady=(10, 0))
 
     def _create_status_labels(self, parent: tk.Widget) -> None:
-        """Create status and user info labels"""
+        """
+        Create status and user information labels.
+
+        Args:
+            parent: Parent widget to contain the labels
+        """
         self.login_status_label = ttk.Label(
             parent, textvariable=self.login_status_var, foreground="red"
         )
@@ -173,18 +205,18 @@ class LoginComponent:
         user_info_label.grid(row=5, column=0, columnspan=3, pady=(5, 0))
 
     def on_login_mode_change(self) -> None:
-        """Handle login mode radio button changes"""
+        """Handle login mode radio button changes to show/hide appropriate sections."""
         mode = self.login_mode_var.get()
         if mode == "manual":
             self.manual_frame.grid()
             self.profile_frame.grid_remove()
-        else:  # config
+        else:
             self.manual_frame.grid_remove()
             self.profile_frame.grid()
             self.refresh_profiles()
 
     def refresh_profiles(self) -> None:
-        """Refresh the list of available profiles"""
+        """Refresh the list of available configuration profiles."""
         try:
             profiles = self.config_manager.get_available_profiles()
             if profiles:
@@ -201,8 +233,13 @@ class LoginComponent:
             self.profile_var.set("")
             self.profile_info_var.set(f"Error reading config: {str(e)}")
 
-    def on_profile_selected(self, event=None) -> None:
-        """Handle profile selection"""
+    def on_profile_selected(self, event: tk.Event = None) -> None:
+        """
+        Handle profile selection from the combobox.
+
+        Args:
+            event: Tkinter event object (optional)
+        """
         profile_name = self.profile_var.get()
         if profile_name:
             username = self.config_manager.get_profile_info(profile_name)
@@ -214,32 +251,39 @@ class LoginComponent:
             self.profile_info_var.set("")
 
     def _handle_login_logout(self) -> None:
-        """Handle login/logout button click"""
+        """Handle login/logout button click based on current state."""
         if self.login_button["text"] == "Login":
             self._handle_login()
         else:
             self._handle_logout()
 
     def _handle_login(self) -> None:
-        """Handle login attempt"""
+        """Handle login attempt using the selected authentication method."""
         mode = self.login_mode_var.get()
 
         if mode == "manual":
             username = self.username_var.get().strip()
             token = self.token_var.get().strip()
             self.on_login("manual", {"username": username, "token": token})
-        else:  # config
+        else:
             profile_name = self.profile_var.get()
             self.on_login("config", {"profile": profile_name})
 
     def _handle_logout(self) -> None:
-        """Handle logout"""
+        """Handle logout request."""
         self.on_logout()
 
     def update_login_state(
         self, is_logged_in: bool, username: str = "", error: str = ""
     ) -> None:
-        """Update UI based on login state"""
+        """
+        Update UI components based on current login state.
+
+        Args:
+            is_logged_in: Whether the user is currently logged in
+            username: Username of the logged-in user (if applicable)
+            error: Error message if login failed (if applicable)
+        """
         if is_logged_in:
             self.login_status_var.set("Logged in successfully")
             self.login_status_label.config(foreground="green")
@@ -255,5 +299,10 @@ class LoginComponent:
             self.user_info_var.set("")
 
     def set_login_button_state(self, enabled: bool) -> None:
-        """Enable/disable login button"""
+        """
+        Enable or disable the login button.
+
+        Args:
+            enabled: True to enable the button, False to disable
+        """
         self.login_button.config(state="normal" if enabled else "disabled")

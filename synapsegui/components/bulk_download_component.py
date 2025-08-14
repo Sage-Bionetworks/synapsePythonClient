@@ -40,7 +40,6 @@ class BulkDownloadComponent:
         self.on_log_message = on_log_message
         self.on_progress_update = on_progress_update
 
-        # UI elements
         self.frame: Optional[ttk.Frame] = None
         self.container_id_var = tk.StringVar()
         self.download_path_var = tk.StringVar(value=str(Path.home() / "Downloads"))
@@ -49,7 +48,6 @@ class BulkDownloadComponent:
         self.progress_var = tk.StringVar()
         self.bulk_progress_bar: Optional[ttk.Progressbar] = None
 
-        # Data
         self.container_items: List[BulkItem] = []
         self.selected_items: Dict[str, BulkItem] = {}
 
@@ -57,7 +55,6 @@ class BulkDownloadComponent:
         """Create and return the bulk download UI."""
         self.frame = ttk.Frame(self.parent)
 
-        # Container ID section
         container_frame = ttk.LabelFrame(self.frame, text="Container Information")
         container_frame.pack(fill="x", padx=10, pady=5)
 
@@ -80,7 +77,6 @@ class BulkDownloadComponent:
             command=self._on_enumerate_clicked,
         ).grid(row=0, column=3, padx=5, pady=5)
 
-        # Progress section
         progress_frame = ttk.Frame(self.frame)
         progress_frame.pack(fill="x", padx=10, pady=5)
 
@@ -89,17 +85,14 @@ class BulkDownloadComponent:
             side="left", padx=(5, 0)
         )
 
-        # Progress bar for bulk operations
         self.bulk_progress_bar = ttk.Progressbar(
             progress_frame, mode="determinate", length=300
         )
         self.bulk_progress_bar.pack(side="right", padx=(10, 0))
 
-        # Selection tree section
         tree_frame = ttk.LabelFrame(self.frame, text="Contents Selection")
         tree_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
-        # Tree with scrollbars
         tree_container = ttk.Frame(tree_frame)
         tree_container.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -110,7 +103,6 @@ class BulkDownloadComponent:
             selectmode="extended",
         )
 
-        # Configure columns
         self.tree.heading("#0", text="Name")
         self.tree.heading("ID", text="Synapse ID")
         self.tree.heading("Type", text="Type")
@@ -121,7 +113,6 @@ class BulkDownloadComponent:
         self.tree.column("Type", width=80)
         self.tree.column("Size", width=100)
 
-        # Scrollbars for tree
         v_scrollbar = ttk.Scrollbar(
             tree_container, orient="vertical", command=self.tree.yview
         )
@@ -139,7 +130,6 @@ class BulkDownloadComponent:
         tree_container.grid_rowconfigure(0, weight=1)
         tree_container.grid_columnconfigure(0, weight=1)
 
-        # Selection buttons
         selection_frame = ttk.Frame(tree_frame)
         selection_frame.pack(fill="x", padx=5, pady=5)
 
@@ -158,7 +148,6 @@ class BulkDownloadComponent:
             command=self._select_folders_only,
         ).pack(side="left", padx=5)
 
-        # Download section
         download_frame = ttk.LabelFrame(self.frame, text="Download Options")
         download_frame.pack(fill="x", padx=10, pady=5)
 
@@ -178,13 +167,12 @@ class BulkDownloadComponent:
             command=self._on_download_clicked,
         ).grid(row=1, column=1, pady=10)
 
-        # Bind tree selection
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_selection_changed)
 
         return self.frame
 
     def _on_enumerate_clicked(self) -> None:
-        """Handle enumerate button click."""
+        """Handle enumerate button click to start the enumeration process."""
         container_id = self.container_id_var.get().strip()
         if not container_id:
             messagebox.showerror("Error", "Please enter a Project or Folder ID")
@@ -194,19 +182,16 @@ class BulkDownloadComponent:
             messagebox.showerror("Error", "ID must start with 'syn' or 'project'")
             return
 
-        # Clear previous results
         self._clear_tree()
         self.container_items.clear()
         self.selected_items.clear()
 
-        # Update status
         self.progress_var.set("Enumerating contents...")
         self.on_log_message(
             f"Starting enumeration of {container_id} (recursive={self.recursive_var.get()})",
             False,
         )
 
-        # Delegate to controller using the same pattern as other operations
         self.on_enumerate(container_id, self.recursive_var.get())
 
     def handle_enumeration_result(
@@ -216,7 +201,7 @@ class BulkDownloadComponent:
         Handle enumeration results from the controller.
 
         Args:
-            items: List of enumerated BulkItem objects, or empty list if error
+            items: List of enumerated BulkItem objects, or empty list if error occurred
             error: Error message if enumeration failed, None if successful
         """
         if error:
@@ -224,7 +209,6 @@ class BulkDownloadComponent:
             self.on_log_message(f"Enumeration failed: {error}", True)
             return
 
-        # Store items and update UI
         self.container_items = items
         self._populate_tree()
         count = len(self.container_items)
@@ -232,10 +216,9 @@ class BulkDownloadComponent:
         self.on_log_message(f"Enumeration complete: {count} items found", False)
 
     def _populate_tree(self) -> None:
-        """Populate the tree view with enumerated items."""
+        """Populate the tree view with enumerated items using hierarchical structure."""
         self._clear_tree()
 
-        # Group items by parent to build tree structure
         parent_map = {}
         root_items = []
         all_parent_ids = set()
@@ -249,18 +232,12 @@ class BulkDownloadComponent:
             else:
                 root_items.append(item)
 
-        # If we have no root items but have items with parent_ids,
-        # find items whose parent_id doesn't exist in our item list
-        # These are effectively the "root" items for our view
         if not root_items and self.container_items:
             item_ids = {item.synapse_id for item in self.container_items}
             for item in self.container_items:
                 if item.parent_id and item.parent_id not in item_ids:
-                    # This item's parent is not in our enumerated list,
-                    # so treat it as a root item for display purposes
                     root_items.append(item)
 
-        # Insert root items
         for item in root_items:
             self._insert_item_with_children(item, "", parent_map)
 
@@ -278,10 +255,8 @@ class BulkDownloadComponent:
         Returns:
             Tree item ID
         """
-        # Format size
         size_str = self._format_size(item.size) if item.size else ""
 
-        # Insert item with ID, Type, and Size columns
         iid = self.tree.insert(
             parent_iid,
             "end",
@@ -290,7 +265,6 @@ class BulkDownloadComponent:
             tags=(item.synapse_id,),
         )
 
-        # Insert children if any
         if item.synapse_id in parent_map:
             for child in parent_map[item.synapse_id]:
                 self._insert_item_with_children(child, iid, parent_map)
@@ -298,7 +272,15 @@ class BulkDownloadComponent:
         return iid
 
     def _format_size(self, size: Any) -> str:
-        """Format file size for display."""
+        """
+        Format file size for human-readable display.
+        
+        Args:
+            size: File size in bytes
+            
+        Returns:
+            Formatted size string with appropriate units
+        """
         if not isinstance(size, (int, float)):
             return ""
 
@@ -309,25 +291,25 @@ class BulkDownloadComponent:
         return f"{size:.1f} PB"
 
     def _clear_tree(self) -> None:
-        """Clear all items from the tree."""
+        """Clear all items from the tree view."""
         if self.tree:
             for item in self.tree.get_children():
                 self.tree.delete(item)
 
     def _select_all(self) -> None:
-        """Select all items in the tree."""
+        """Select all items in the tree view."""
         if self.tree:
             self.tree.selection_set(self.tree.get_children())
             self._update_selected_items()
 
     def _select_none(self) -> None:
-        """Deselect all items in the tree."""
+        """Deselect all items in the tree view."""
         if self.tree:
             self.tree.selection_remove(self.tree.selection())
             self._update_selected_items()
 
     def _select_files_only(self) -> None:
-        """Select only file items."""
+        """Select only file items in the tree view."""
         if self.tree:
             self.tree.selection_remove(self.tree.selection())
             file_items = []
@@ -337,7 +319,7 @@ class BulkDownloadComponent:
             self._update_selected_items()
 
     def _select_folders_only(self) -> None:
-        """Select only folder items."""
+        """Select only folder items in the tree view."""
         if self.tree:
             self.tree.selection_remove(self.tree.selection())
             folder_items = []
@@ -351,24 +333,34 @@ class BulkDownloadComponent:
     def _collect_items_by_type(
         self, items: List[str], item_type: str, result: List[str]
     ) -> None:
-        """Recursively collect items of specific type."""
+        """
+        Recursively collect tree items of a specific type.
+        
+        Args:
+            items: List of tree item IDs to check
+            item_type: Type of items to collect ("File" or "Folder")
+            result: List to append matching items to
+        """
         for item_id in items:
             item_values = self.tree.item(item_id, "values")
-            # Type is now at index 1 (ID, Type, Size)
             if item_values and len(item_values) > 1 and item_values[1] == item_type:
                 result.append(item_id)
 
-            # Check children
             children = self.tree.get_children(item_id)
             if children:
                 self._collect_items_by_type(children, item_type, result)
 
     def _on_tree_selection_changed(self, event: tk.Event) -> None:
-        """Handle tree selection change."""
+        """
+        Handle tree view selection changes.
+        
+        Args:
+            event: Tkinter event object
+        """
         self._update_selected_items()
 
     def _update_selected_items(self) -> None:
-        """Update the selected items dictionary."""
+        """Update the selected items dictionary based on current tree selection."""
         self.selected_items.clear()
 
         if not self.tree:
@@ -376,24 +368,22 @@ class BulkDownloadComponent:
 
         selection = self.tree.selection()
         for item_id in selection:
-            # Get synapse ID from tags
             tags = self.tree.item(item_id, "tags")
             if tags:
                 synapse_id = tags[0]
-                # Find the corresponding BulkItem
                 for bulk_item in self.container_items:
                     if bulk_item.synapse_id == synapse_id:
                         self.selected_items[synapse_id] = bulk_item
                         break
 
     def _browse_download_path(self) -> None:
-        """Browse for download directory."""
+        """Open directory browser to select download location."""
         path = filedialog.askdirectory(title="Select Download Directory")
         if path:
             self.download_path_var.set(path)
 
     def _on_download_clicked(self) -> None:
-        """Handle download button click."""
+        """Handle download button click to initiate bulk download."""
         if not self.selected_items:
             messagebox.showwarning("Warning", "Please select items to download")
             return
@@ -403,14 +393,12 @@ class BulkDownloadComponent:
             messagebox.showerror("Error", "Please select a download directory")
             return
 
-        # Get list of selected items
         selected_list = list(self.selected_items.values())
 
         self.on_log_message(
             f"Starting bulk download of {len(selected_list)} items", False
         )
 
-        # Call the bulk download callback
         self.on_bulk_download(selected_list, download_path, self.recursive_var.get())
 
     def update_progress(self, progress: int, message: str) -> None:
@@ -425,17 +413,18 @@ class BulkDownloadComponent:
         self.progress_var.set(message)
 
     def start_bulk_operation(self) -> None:
-        """Called when a bulk operation starts"""
+        """Initialize UI state for starting a bulk operation."""
         self.progress_var.set("Starting bulk download...")
         if self.bulk_progress_bar:
             self.bulk_progress_bar["value"] = 0
 
     def complete_bulk_operation(self, success: bool, message: str) -> None:
-        """Called when a bulk operation completes
+        """
+        Update UI state when a bulk operation completes.
 
         Args:
             success: Whether the operation was successful
-            message: Completion message
+            message: Completion message to display
         """
         if self.bulk_progress_bar:
             self.bulk_progress_bar["value"] = 100 if success else 0
