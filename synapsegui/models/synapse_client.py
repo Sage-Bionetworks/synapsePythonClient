@@ -17,6 +17,7 @@ import synapseclient
 from synapseclient.core import utils
 from synapseclient.models import File
 
+DESKTOP_CLIENT_VERSION = "0.1.0"
 
 def _safe_stderr_redirect(new_stderr: Any) -> tuple[Any, Any]:
     """
@@ -132,7 +133,7 @@ class SynapseClientManager:
             Dictionary with 'success' boolean and either 'username' or 'error' key
         """
         try:
-            self.client = synapseclient.Synapse(skip_checks=True, debug=False)
+            self.client = synapseclient.Synapse(skip_checks=True, debug=False, user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"])
 
             if username:
                 self.client.login(email=username, authToken=token, silent=False)
@@ -164,7 +165,7 @@ class SynapseClientManager:
             Dictionary with 'success' boolean and either 'username' or 'error' key
         """
         try:
-            self.client = synapseclient.Synapse(skip_checks=True, debug=False)
+            self.client = synapseclient.Synapse(skip_checks=True, debug=False, user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"])
 
             if profile_name == "authentication (legacy)":
                 self.client.login(silent=False)
