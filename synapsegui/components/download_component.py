@@ -10,7 +10,7 @@ from typing import Callable, Optional
 class DownloadComponent:
     """
     Download file UI component.
-    
+
     Provides functionality for downloading individual files from Synapse,
     including optional version specification and custom download location.
     """

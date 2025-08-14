@@ -7,7 +7,7 @@ import tkinter as tk
 class ToolTip:
     """
     Create a tooltip for a given widget.
-    
+
     Provides hover-based tooltips that appear when the mouse enters
     a widget and disappear when it leaves.
     """

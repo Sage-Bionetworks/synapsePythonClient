@@ -19,6 +19,7 @@ from synapseclient.models import File
 
 DESKTOP_CLIENT_VERSION = "0.1.0"
 
+
 def _safe_stderr_redirect(new_stderr: Any) -> tuple[Any, Any]:
     """
     Safely redirect stderr, handling the case where original stderr might be None.
@@ -55,7 +56,7 @@ def _safe_stderr_restore(original_stderr: Any, safe_original_stderr: Any) -> Non
 class TQDMProgressCapture:
     """
     Capture TQDM progress updates for GUI display.
-    
+
     Intercepts TQDM progress output and extracts progress information
     to provide callbacks for GUI progress bars and status updates.
     """
@@ -109,8 +110,8 @@ class TQDMProgressCapture:
 class SynapseClientManager:
     """
     Handles all Synapse client operations.
-    
-    Manages authentication, file operations, and bulk operations for the 
+
+    Manages authentication, file operations, and bulk operations for the
     Synapse platform, providing a clean interface between the GUI and
     the underlying synapseclient library.
     """
@@ -133,7 +134,11 @@ class SynapseClientManager:
             Dictionary with 'success' boolean and either 'username' or 'error' key
         """
         try:
-            self.client = synapseclient.Synapse(skip_checks=True, debug=False, user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"])
+            self.client = synapseclient.Synapse(
+                skip_checks=True,
+                debug=False,
+                user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
+            )
 
             if username:
                 self.client.login(email=username, authToken=token, silent=False)
@@ -165,7 +170,11 @@ class SynapseClientManager:
             Dictionary with 'success' boolean and either 'username' or 'error' key
         """
         try:
-            self.client = synapseclient.Synapse(skip_checks=True, debug=False, user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"])
+            self.client = synapseclient.Synapse(
+                skip_checks=True,
+                debug=False,
+                user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
+            )
 
             if profile_name == "authentication (legacy)":
                 self.client.login(silent=False)
@@ -378,10 +387,15 @@ class SynapseClientManager:
 
             # Sync metadata only (download_file=False)
             await container.sync_from_synapse_async(
-                download_file=False, recursive=recursive, include_types=["file", "folder"], synapse_client=self.client
+                download_file=False,
+                recursive=recursive,
+                include_types=["file", "folder"],
+                synapse_client=self.client,
             )
 
-            items = self._convert_to_bulk_items(container=container, recursive=recursive)
+            items = self._convert_to_bulk_items(
+                container=container, recursive=recursive
+            )
 
             logger.info(
                 f"Successfully enumerated {len(items)} items from container {container_id}"
@@ -690,9 +704,7 @@ class SynapseClientManager:
 
         for i, dir_path in enumerate(sorted_dirs):
             if i % 5 == 0:
-                progress = int(
-                    (i / len(sorted_dirs)) * 50
-                )
+                progress = int((i / len(sorted_dirs)) * 50)
                 progress_callback(
                     progress, f"Creating folders ({i}/{len(sorted_dirs)})"
                 )

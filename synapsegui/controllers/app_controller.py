@@ -13,7 +13,7 @@ from ..utils.progress import ProgressManager
 class ApplicationController:
     """
     Main application controller that coordinates between UI components and business logic.
-    
+
     Handles user interactions, manages the Synapse client, and orchestrates
     data flow between the UI components and backend services.
     """
@@ -43,7 +43,7 @@ class ApplicationController:
 
         Args:
             login_component: Login UI component
-            download_component: Download UI component  
+            download_component: Download UI component
             upload_component: Upload UI component
             output_component: Output/logging UI component
             bulk_download_component: Bulk download UI component (optional)
@@ -177,6 +177,7 @@ class ApplicationController:
 
         def upload_worker() -> None:
             """Worker function to handle upload in background thread."""
+
             def progress_callback(progress: int, message: str) -> None:
                 """Callback for upload progress updates."""
                 self.upload_component.update_progress(progress, message)
@@ -401,7 +402,7 @@ class ApplicationController:
         Handle progress updates from bulk upload operations.
 
         Args:
-            progress: Progress percentage (0-100) 
+            progress: Progress percentage (0-100)
             message: Progress message to display
         """
         if self.bulk_upload_component:

@@ -387,11 +387,11 @@ class BulkUploadComponent:
     def _is_subpath(self, child_path: str, parent_path: str) -> bool:
         """
         Check if child_path is a subpath of parent_path.
-        
+
         Args:
             child_path: Path to check if it's a child
             parent_path: Path to check if it's a parent
-            
+
         Returns:
             True if child_path is within parent_path
         """
@@ -404,11 +404,11 @@ class BulkUploadComponent:
     def _get_relative_path_parts(self, child_path: str, parent_path: str) -> List[str]:
         """
         Get the relative path parts from parent to child.
-        
+
         Args:
             child_path: Full path to the child
             parent_path: Full path to the parent
-            
+
         Returns:
             List of path components from parent to child
         """
@@ -421,10 +421,10 @@ class BulkUploadComponent:
     def _get_path_for_node(self, node_id: str) -> str:
         """
         Get the file path for a tree node.
-        
+
         Args:
             node_id: Tree node identifier
-            
+
         Returns:
             File path associated with the node
         """
@@ -459,10 +459,10 @@ class BulkUploadComponent:
     def _format_size(self, size: int) -> str:
         """
         Format file size for human-readable display.
-        
+
         Args:
             size: File size in bytes
-            
+
         Returns:
             Formatted size string with appropriate units
         """
@@ -476,7 +476,7 @@ class BulkUploadComponent:
     def _on_tree_selection_changed(self, event: tk.Event) -> None:
         """
         Handle tree view selection changes.
-        
+
         Args:
             event: Tkinter event object
         """

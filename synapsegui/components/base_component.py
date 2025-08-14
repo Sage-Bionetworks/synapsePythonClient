@@ -9,7 +9,7 @@ from typing import Optional
 class BaseComponent:
     """
     Base class for UI components.
-    
+
     Provides common functionality for UI component management including
     frame creation, enabling/disabling, and cleanup operations.
     """
@@ -28,7 +28,7 @@ class BaseComponent:
     def create_ui(self) -> None:
         """
         Create the UI elements for this component.
-        
+
         Raises:
             NotImplementedError: Must be implemented by subclasses
         """
@@ -37,10 +37,10 @@ class BaseComponent:
     def get_frame(self) -> tk.Widget:
         """
         Get the main frame for this component.
-        
+
         Returns:
             The main frame widget
-            
+
         Raises:
             ValueError: If frame not initialized
         """
@@ -51,7 +51,7 @@ class BaseComponent:
     def set_enabled(self, enabled: bool) -> None:
         """
         Enable or disable the component and all its child widgets.
-        
+
         Args:
             enabled: True to enable, False to disable
         """

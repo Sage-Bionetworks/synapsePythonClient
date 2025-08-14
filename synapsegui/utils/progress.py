@@ -7,8 +7,8 @@ from typing import Callable
 class ProgressManager:
     """
     Manages progress updates for different operations.
-    
-    Provides a centralized way to register, update, and manage 
+
+    Provides a centralized way to register, update, and manage
     progress callbacks for various application operations.
     """
 
@@ -16,7 +16,9 @@ class ProgressManager:
         """Initialize the progress manager with an empty callback registry."""
         self.callbacks = {}
 
-    def register_callback(self, operation: str, callback: Callable[[int, str], None]) -> None:
+    def register_callback(
+        self, operation: str, callback: Callable[[int, str], None]
+    ) -> None:
         """
         Register a progress callback for a specific operation.
 

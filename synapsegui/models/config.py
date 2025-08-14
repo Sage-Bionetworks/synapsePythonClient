@@ -10,7 +10,7 @@ from synapseclient.api.configuration_services import get_config_file
 class ConfigManager:
     """
     Manages Synapse configuration profiles.
-    
+
     Handles reading and parsing Synapse configuration files to extract
     available authentication profiles and their associated information.
     """
@@ -20,7 +20,7 @@ class ConfigManager:
         Initialize the configuration manager.
 
         Args:
-            config_path: Path to the Synapse configuration file. 
+            config_path: Path to the Synapse configuration file.
                         Defaults to ~/.synapseConfig if not provided.
         """
         self.config_path = config_path or os.path.expanduser("~/.synapseConfig")

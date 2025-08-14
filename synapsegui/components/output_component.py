@@ -9,8 +9,8 @@ from typing import Optional
 class OutputComponent:
     """
     Output and logging UI component.
-    
-    Provides a scrollable text area for displaying log messages, 
+
+    Provides a scrollable text area for displaying log messages,
     progress updates, and application status information.
     """
 

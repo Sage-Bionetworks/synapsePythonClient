@@ -274,10 +274,10 @@ class BulkDownloadComponent:
     def _format_size(self, size: Any) -> str:
         """
         Format file size for human-readable display.
-        
+
         Args:
             size: File size in bytes
-            
+
         Returns:
             Formatted size string with appropriate units
         """
@@ -335,7 +335,7 @@ class BulkDownloadComponent:
     ) -> None:
         """
         Recursively collect tree items of a specific type.
-        
+
         Args:
             items: List of tree item IDs to check
             item_type: Type of items to collect ("File" or "Folder")
@@ -353,7 +353,7 @@ class BulkDownloadComponent:
     def _on_tree_selection_changed(self, event: tk.Event) -> None:
         """
         Handle tree view selection changes.
-        
+
         Args:
             event: Tkinter event object
         """

@@ -9,7 +9,7 @@ from typing import Callable, Optional
 class GUILogHandler(logging.Handler):
     """
     Custom logging handler that forwards log messages to the GUI.
-    
+
     Captures Python logging messages and forwards them to a GUI callback
     function for display in the application interface.
     """
@@ -56,7 +56,7 @@ class GUILogHandler(logging.Handler):
 class LoggingIntegration:
     """
     Manages integration between Python logging and GUI logging.
-    
+
     Handles setup and cleanup of logging handlers to forward Python
     log messages to the GUI output component.
     """
@@ -87,7 +87,7 @@ class LoggingIntegration:
 
         synapse_loggers = [
             "synapseclient_default",
-            "synapseclient_debug", 
+            "synapseclient_debug",
             "synapseclient",
             "synapseclient.client",
             "synapseclient.core",
@@ -106,7 +106,7 @@ class LoggingIntegration:
                 "synapseclient_default",
                 "synapseclient_debug",
                 "synapseclient",
-                "synapseclient.client", 
+                "synapseclient.client",
                 "synapseclient.core",
                 "synapseclient.models",
             ]

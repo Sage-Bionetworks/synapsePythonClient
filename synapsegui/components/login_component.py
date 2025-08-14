@@ -12,7 +12,7 @@ from ..utils.tooltips import ToolTip
 class LoginComponent:
     """
     Login section UI component.
-    
+
     Provides functionality for user authentication through manual login
     (username/token) or configuration file profiles.
     """

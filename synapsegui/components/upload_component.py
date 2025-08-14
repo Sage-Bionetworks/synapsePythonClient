@@ -10,7 +10,7 @@ from typing import Callable, Optional
 class UploadComponent:
     """
     Upload file UI component.
-    
+
     Provides functionality for uploading individual files to Synapse,
     supporting both new file creation and updating existing entities.
     """
