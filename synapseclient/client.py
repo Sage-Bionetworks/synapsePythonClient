@@ -7771,7 +7771,12 @@ class Synapse(object):
                     % (result_type, result)
                 )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `query` or `query_async` functions from `synapseclient.models.Table` with `download_location` parameter instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def _queryTableCsv(
         self,
         query: str,
@@ -7784,9 +7789,63 @@ class Synapse(object):
         downloadLocation: str = None,
     ) -> Tuple:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `query` or `query_async` functions from [synapseclient.models.Table][] with `download_location` parameter instead.
+
         Query a Synapse Table and download a CSV file containing the results.
 
         Sends a [DownloadFromTableRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html) to Synapse.
+
+        **Migration Example**:
+
+        **OLD (deprecated) way**:
+        ```python
+        # Using the deprecated _queryTableCsv method
+        result, csv_path = syn._queryTableCsv(
+            query="SELECT * FROM syn123",
+            downloadLocation="/path/to/download",
+            quoteCharacter='"',
+            separator=","
+        )
+        ```
+
+        **NEW way**:
+        ```python
+        # Using the new query function with download_location
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.models import query, query_async
+
+        # Login to Synapse
+        syn = Synapse()
+        syn.login()
+
+        # Synchronous query with CSV download
+        csv_path = query(
+            query="SELECT * FROM syn123",
+            download_location="/path/to/download",
+            quote_character='"',
+            separator=",",
+            header=True,
+            include_row_id_and_row_version=True
+        )
+        print(f"CSV downloaded to: {csv_path}")
+
+        # Asynchronous query with CSV download
+        async def async_csv_download():
+            csv_path = await query_async(
+                query="SELECT * FROM syn123",
+                download_location="/path/to/download",
+                quote_character='"',
+                separator=",",
+                header=True,
+                include_row_id_and_row_version=True
+            )
+            print(f"CSV downloaded to: {csv_path}")
+
+        # Run the async example
+        asyncio.run(async_csv_download())
+        ```
 
         Arguments:
             query:                     A sql query
