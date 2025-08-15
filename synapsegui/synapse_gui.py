@@ -30,21 +30,21 @@ class SynapseGUI:
         """
         self.root = root
         self.root.title("Synapse Desktop Client")
-        
+
         # Make window resizable
         self.root.resizable(True, True)
-        
+
         # Set minimum size to ensure usability
         self.root.minsize(600, 500)
-        
+
         # Set initial geometry, but make it responsive to screen size
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        
+
         # Use 80% of screen size or default values, whichever is smaller
         window_width = min(800, int(screen_width * 0.8))
         window_height = min(700, int(screen_height * 0.8))
-        
+
         self.root.geometry(f"{window_width}x{window_height}")
 
         self.controller = ApplicationController()
@@ -71,8 +71,7 @@ class SynapseGUI:
         self.scrollable_frame = ttk.Frame(canvas)
 
         self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
         canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
@@ -92,19 +91,19 @@ class SynapseGUI:
 
         # Enable mouse wheel scrolling
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
         canvas.bind("<MouseWheel>", _on_mousewheel)
-        
+
         # Bind canvas to mouse wheel events when mouse enters
         def _bind_to_mousewheel(event):
             canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
+
         def _unbind_from_mousewheel(event):
             canvas.unbind_all("<MouseWheel>")
-        
-        canvas.bind('<Enter>', _bind_to_mousewheel)
-        canvas.bind('<Leave>', _unbind_from_mousewheel)
+
+        canvas.bind("<Enter>", _bind_to_mousewheel)
+        canvas.bind("<Leave>", _unbind_from_mousewheel)
 
         title_label = ttk.Label(
             main_frame, text="Synapse Desktop Client", font=("Arial", 16, "bold")
@@ -202,13 +201,13 @@ def main() -> None:
     screen_height = root.winfo_screenheight()
     x = max(0, (screen_width // 2) - (width // 2))
     y = max(0, (screen_height // 2) - (height // 2))
-    
+
     # Ensure window fits on screen
     if x + width > screen_width:
         x = screen_width - width
     if y + height > screen_height:
         y = screen_height - height
-        
+
     root.geometry(f"{width}x{height}+{x}+{y}")
 
     try:
