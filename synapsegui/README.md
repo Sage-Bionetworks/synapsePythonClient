@@ -144,9 +144,9 @@ def handle_long_operation(self):
             result = self.model.long_operation()
 
             # Update UI on main thread
-            self.root.after(0.001, lambda: self.update_ui(result))
+            self.root.after(0, lambda: self.update_ui(result))
         except Exception as e:
-            self.root.after(0.001, lambda: self.show_error(str(e)))
+            self.root.after(0, lambda: self.show_error(str(e)))
 
     threading.Thread(target=worker, daemon=True).start()
 
@@ -172,7 +172,7 @@ def bad_operation(self):
 def good_operation(self):
     def worker():
         time.sleep(10)  # Runs in background
-        self.root.after(0.001, self.update_ui)  # Update UI on main thread
+        self.root.after(0, self.update_ui)  # Update UI on main thread
 
     threading.Thread(target=worker, daemon=True).start()
 ```

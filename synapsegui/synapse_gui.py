@@ -30,7 +30,22 @@ class SynapseGUI:
         """
         self.root = root
         self.root.title("Synapse Desktop Client")
-        self.root.geometry("800x700")
+        
+        # Make window resizable
+        self.root.resizable(True, True)
+        
+        # Set minimum size to ensure usability
+        self.root.minsize(600, 500)
+        
+        # Set initial geometry, but make it responsive to screen size
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        
+        # Use 80% of screen size or default values, whichever is smaller
+        window_width = min(800, int(screen_width * 0.8))
+        window_height = min(700, int(screen_height * 0.8))
+        
+        self.root.geometry(f"{window_width}x{window_height}")
 
         self.controller = ApplicationController()
         self.create_widgets()
@@ -50,13 +65,46 @@ class SynapseGUI:
 
     def create_widgets(self) -> None:
         """Create and configure the main window layout and components."""
-        main_frame = ttk.Frame(self.root, padding="10")
+        # Create a canvas with scrollbar for scrollable content
+        canvas = tk.Canvas(self.root)
+        scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = ttk.Frame(canvas)
+
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Main content frame inside the scrollable area
+        main_frame = ttk.Frame(self.scrollable_frame, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
+        self.scrollable_frame.columnconfigure(0, weight=1)
+        self.scrollable_frame.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(3, weight=1)
+
+        # Enable mouse wheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        
+        # Bind canvas to mouse wheel events when mouse enters
+        def _bind_to_mousewheel(event):
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        def _unbind_from_mousewheel(event):
+            canvas.unbind_all("<MouseWheel>")
+        
+        canvas.bind('<Enter>', _bind_to_mousewheel)
+        canvas.bind('<Leave>', _unbind_from_mousewheel)
 
         title_label = ttk.Label(
             main_frame, text="Synapse Desktop Client", font=("Arial", 16, "bold")
@@ -126,7 +174,7 @@ class SynapseGUI:
             if self.output_component:
                 self.output_component.log_message(f"Progress: {progress}% - {message}")
 
-        self.root.after(0.001, update_ui)
+        self.root.after(0, update_ui)
 
     def cleanup(self) -> None:
         """Clean up resources when closing the application."""
@@ -146,11 +194,21 @@ def main() -> None:
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
+    # Center the window on screen
     root.update_idletasks()
     width = root.winfo_width()
     height = root.winfo_height()
-    x = (root.winfo_screenwidth() // 2) - (width // 2)
-    y = (root.winfo_screenheight() // 2) - (height // 2)
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x = max(0, (screen_width // 2) - (width // 2))
+    y = max(0, (screen_height // 2) - (height // 2))
+    
+    # Ensure window fits on screen
+    if x + width > screen_width:
+        x = screen_width - width
+    if y + height > screen_height:
+        y = screen_height - height
+        
     root.geometry(f"{width}x{height}+{x}+{y}")
 
     try:

@@ -110,9 +110,9 @@ class ApplicationController:
                 self.login_component.set_login_button_state(True)
 
             if result["success"]:
-                self.root.after(0.001, update_ui_on_success)
+                self.root.after(0, update_ui_on_success)
             else:
-                self.root.after(0.001, update_ui_on_failure)
+                self.root.after(0, update_ui_on_failure)
 
         self.login_component.set_login_button_state(False)
         threading.Thread(target=login_worker, daemon=True).start()
@@ -158,7 +158,7 @@ class ApplicationController:
                 def update_progress():
                     self.download_component.update_progress(progress, message)
 
-                self.root.after(0.001, update_progress)
+                self.root.after(0, update_progress)
 
             def detail_callback(detail_message: str) -> None:
                 """Callback for detailed download messages."""
@@ -166,7 +166,7 @@ class ApplicationController:
                 def log_message():
                     self.output_component.log_message(detail_message)
 
-                self.root.after(0.001, log_message)
+                self.root.after(0, log_message)
 
             result = asyncio.run(
                 self.synapse_client.download_file(
@@ -191,9 +191,9 @@ class ApplicationController:
                 self.download_component.show_error(result["error"])
 
             if result["success"]:
-                self.root.after(0.001, handle_success)
+                self.root.after(0, handle_success)
             else:
-                self.root.after(0.001, handle_error)
+                self.root.after(0, handle_error)
 
         self.download_component.start_operation()
         threading.Thread(target=download_worker, daemon=True).start()
@@ -220,7 +220,7 @@ class ApplicationController:
                 def update_progress():
                     self.upload_component.update_progress(progress, message)
 
-                self.root.after(0.001, update_progress)
+                self.root.after(0, update_progress)
 
             def detail_callback(detail_message: str) -> None:
                 """Callback for detailed upload messages."""
@@ -228,7 +228,7 @@ class ApplicationController:
                 def log_message():
                     self.output_component.log_message(detail_message)
 
-                self.root.after(0.001, log_message)
+                self.root.after(0, log_message)
 
             result = asyncio.run(
                 self.synapse_client.upload_file(
@@ -257,9 +257,9 @@ class ApplicationController:
                 self.upload_component.show_error(result["error"])
 
             if result["success"]:
-                self.root.after(0.001, handle_success)
+                self.root.after(0, handle_success)
             else:
-                self.root.after(0.001, handle_error)
+                self.root.after(0, handle_error)
 
         self.upload_component.start_operation()
         threading.Thread(target=upload_worker, daemon=True).start()
@@ -292,9 +292,9 @@ class ApplicationController:
                     )
 
                 if result["success"]:
-                    self.root.after(0.001, handle_success)
+                    self.root.after(0, handle_success)
                 else:
-                    self.root.after(0.001, handle_error)
+                    self.root.after(0, handle_error)
 
         threading.Thread(target=enumerate_worker, daemon=True).start()
 
@@ -355,7 +355,7 @@ class ApplicationController:
                             True, result["summary"]
                         )
 
-                self.root.after(0.001, handle_success)
+                self.root.after(0, handle_success)
             else:
 
                 def handle_error():
@@ -367,7 +367,7 @@ class ApplicationController:
                             False, result["error"]
                         )
 
-                self.root.after(0.001, handle_error)
+                self.root.after(0, handle_error)
 
         self.output_component.log_message(
             f"Starting bulk download of {len(items)} items..."
@@ -413,7 +413,7 @@ class ApplicationController:
                             True, result["summary"]
                         )
 
-                self.root.after(0.001, handle_success)
+                self.root.after(0, handle_success)
             else:
 
                 def handle_error():
@@ -425,7 +425,7 @@ class ApplicationController:
                             False, result["error"]
                         )
 
-                self.root.after(0.001, handle_error)
+                self.root.after(0, handle_error)
 
         self.output_component.log_message(
             f"Starting bulk upload of {len(items)} items..."
@@ -449,7 +449,7 @@ class ApplicationController:
                     f"Download Progress: {progress}% - {message}"
                 )
 
-        self.root.after(0.001, update_ui)
+        self.root.after(0, update_ui)
 
     def _on_bulk_upload_progress_update(self, progress: int, message: str) -> None:
         """
@@ -468,7 +468,7 @@ class ApplicationController:
                     f"Upload Progress: {progress}% - {message}"
                 )
 
-        self.root.after(0.001, update_ui)
+        self.root.after(0, update_ui)
 
     def _on_progress_update(self, progress: int, message: str) -> None:
         """
@@ -493,4 +493,4 @@ class ApplicationController:
             if self.output_component:
                 self.output_component.log_message(message)
 
-        self.root.after(0.001, update_ui)
+        self.root.after(0, update_ui)
