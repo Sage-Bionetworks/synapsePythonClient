@@ -160,7 +160,7 @@ class SelectColumn(DictObject):
         name:       The display name of the column
     """
 
-    def __init__(self, id=None, columnType=None, name=None, **kwargs):
+    def __init__(self, id=None, column_type=None, name=None, **kwargs):
         super(SelectColumn, self).__init__()
         if id:
             self.id = id
@@ -168,8 +168,8 @@ class SelectColumn(DictObject):
         if name:
             self.name = name
 
-        if columnType:
-            self.columnType = columnType
+        if column_type:
+            self.column_type = column_type
 
         # Notes that this param is only used to support forward compatibility.
         self.update(kwargs)
@@ -279,28 +279,24 @@ def tableQuery(synapse, query: str, results_as: str = "csv", **kwargs):
                 list_columns = []
                 dtype = {}
 
-                if self.headers is not None:
-                    for select_column in self.headers:
-                        if select_column.columnType == "STRING":
-                            # we want to identify string columns so that pandas doesn't try to
-                            # automatically parse strings in a string column to other data types
-                            dtype[select_column.name] = str
-                        elif select_column.columnType in LIST_COLUMN_TYPES:
-                            list_columns.append(select_column.name)
-                        elif (
-                            select_column.columnType == "DATE" and convert_to_date_time
-                        ):
-                            date_columns.append(select_column.name)
+                for select_column in self.headers:
+                    if select_column.columnType == "STRING":
+                        # we want to identify string columns so that pandas doesn't try to
+                        # automatically parse strings in a string column to other data types
+                        dtype[select_column.name] = str
+                    elif select_column.columnType in LIST_COLUMN_TYPES:
+                        list_columns.append(select_column.name)
+                    elif select_column.columnType == "DATE" and convert_to_date_time:
+                        date_columns.append(select_column.name)
 
                 return csv_to_pandas_df(
                     self.file_path,
                     separator=kwargs.get("separator"),
                     quote_char=kwargs.get("quote_character"),
                     escape_char=kwargs.get("escape_character"),
-                    line_end=kwargs.get("line_end"),
+                    row_id_and_version_in_index=include_row_id_and_row_version,
                     date_columns=date_columns,
                     list_columns=list_columns,
-                    include_row_id_and_row_version=include_row_id_and_row_version,
                 )
 
         return CsvResult(csv_path)
