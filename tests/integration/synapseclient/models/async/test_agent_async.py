@@ -1,7 +1,5 @@
 """Integration tests for the asynchronous methods of the AgentPrompt, AgentSession, and Agent classes."""
 
-# These tests have been disabled until out `test` user has needed permissions
-# Context: https://sagebionetworks.jira.com/browse/SYNPY-1544?focusedCommentId=235070
 import pytest
 
 from synapseclient import Synapse
