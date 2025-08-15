@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-synapseclient = {file = ".", editable = true, path = "."}
+synapseclient = {file = ".", editable = true}
 
 [requires]
 python_version = "3.12.6"

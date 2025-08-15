@@ -29,14 +29,29 @@ from synapseclient.api import (
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
-from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.client import TableQueryResult
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    otel_trace_method,
+    wrap_async_to_sync,
+)
+from synapseclient.core.download.download_functions import (
+    download_by_file_handle,
+    ensure_download_location_is_directory,
+)
 from synapseclient.core.exceptions import SynapseTimeoutError
+from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_dataframe_async,
     multipart_upload_file_async,
     multipart_upload_partial_file_async,
 )
-from synapseclient.core.utils import MB, log_dataclass_diff, merge_dataclass_entities
+from synapseclient.core.utils import (
+    MB,
+    extract_synapse_id_from_query,
+    log_dataclass_diff,
+    merge_dataclass_entities,
+)
 from synapseclient.models import Activity
 from synapseclient.models.services.search import get_id
 from synapseclient.models.services.storable_entity_components import (
@@ -97,6 +112,15 @@ RESERVED_COLUMN_NAMES = [
 DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 SERIES_TYPE = TypeVar("pd.Series")
 
+LIST_COLUMN_TYPES = {
+    "STRING_LIST",
+    "INTEGER_LIST",
+    "BOOLEAN_LIST",
+    "DATE_LIST",
+    "ENTITYID_LIST",
+    "USERID_LIST",
+}
+
 
 def test_import_pandas() -> None:
     """This function is called within other functions and methods to ensure that pandas is installed."""
@@ -115,6 +139,175 @@ def test_import_pandas() -> None:
     # catch other errors (see SYNPY-177)
     except:  # noqa
         raise
+
+
+class SelectColumn(DictObject):
+    """
+    Defines a column to be used in a table [Schema][synapseclient.table.Schema].
+
+    Attributes:
+        id:         An immutable ID issued by the platform
+        columnType: Can be any of:
+
+            - `STRING`
+            - `DOUBLE`
+            - `INTEGER`
+            - `BOOLEAN`
+            - `DATE`
+            - `FILEHANDLEID`
+            - `ENTITYID`
+
+        name:       The display name of the column
+    """
+
+    def __init__(self, id=None, columnType=None, name=None, **kwargs):
+        super(SelectColumn, self).__init__()
+        if id:
+            self.id = id
+
+        if name:
+            self.name = name
+
+        if columnType:
+            self.columnType = columnType
+
+        # Notes that this param is only used to support forward compatibility.
+        self.update(kwargs)
+
+    @classmethod
+    def from_column(cls, column):
+        return cls(
+            column.get("id", None),
+            column.get("columnType", None),
+            column.get("name", None),
+        )
+
+
+def queryTableCsv(
+    query: str,
+    synapse,
+    quote_character: str = '"',
+    escape_character: str = "\\",
+    line_end: str = os.linesep,
+    separator: str = ",",
+    header: bool = True,
+    include_row_id_and_row_version: bool = True,
+    download_location: str = None,
+):
+    download_from_table_request = {
+        "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
+        "csvTableDescriptor": {
+            "isFirstLineHeader": header,
+            "quoteCharacter": quote_character,
+            "escapeCharacter": escape_character,
+            "lineEnd": line_end,
+            "separator": separator,
+        },
+        "sql": query,
+        "writeHeader": header,
+        "includeRowIdAndRowVersion": include_row_id_and_row_version,
+        "includeEntityEtag": True,
+    }
+
+    uri = "/entity/{id}/table/download/csv/async".format(
+        id=extract_synapse_id_from_query(query)
+    )
+    download_from_table_result = synapse._waitForAsync(
+        uri=uri, request=download_from_table_request
+    )
+    file_handle_id = download_from_table_result["resultsFileHandleId"]
+    cached_file_path = synapse.cache.get(
+        file_handle_id=file_handle_id, path=download_location
+    )
+    if cached_file_path is not None:
+        return download_from_table_result, cached_file_path
+
+    if download_location:
+        download_dir = ensure_download_location_is_directory(
+            download_location=download_location
+        )
+    else:
+        download_dir = synapse.cache.get_cache_dir(file_handle_id=file_handle_id)
+
+    os.makedirs(download_dir, exist_ok=True)
+    filename = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
+    path = wrap_async_to_sync(
+        coroutine=download_by_file_handle(
+            file_handle_id=file_handle_id,
+            synapse_id=extract_synapse_id_from_query(query),
+            entity_type="TableEntity",
+            destination=os.path.join(download_dir, filename),
+            synapse_client=synapse,
+        ),
+        syn=synapse,
+    )
+
+    return download_from_table_result, path
+
+
+def tableQuery(synapse, query: str, results_as: str = "csv", **kwargs):
+    if results_as.lower() == "rowset":
+        # synapse._queryTable(synapse, query, **kwargs)
+        return TableQueryResult(synapse, query, **kwargs)
+    elif results_as.lower() == "csv":
+        # TODO: remove isConsistent because it has now been deprecated
+        # from the backend
+        if kwargs.get("isConsistent") is not None:
+            kwargs.pop("isConsistent")
+        # Use the new query functions internally
+        _, csv_path = queryTableCsv(
+            query=query,
+            synapse=synapse,
+            quote_character=kwargs.get("quote_character"),
+            escape_character=kwargs.get("escape_character"),
+            line_end=kwargs.get("line_end"),
+            separator=kwargs.get("separator"),
+            header=kwargs.get("header"),
+            include_row_id_and_row_version=kwargs.get("include_row_id_and_row_version"),
+            download_location=kwargs.get("download_location"),
+        )
+
+        class CsvResult:
+            def __init__(self, file_path):
+                self.file_path = file_path
+
+            def asDataFrame(
+                self, include_row_id_and_row_version=True, convert_to_date_time=False
+            ):
+                # determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
+                date_columns = []
+                list_columns = []
+                dtype = {}
+
+                if self.headers is not None:
+                    for select_column in self.headers:
+                        if select_column.columnType == "STRING":
+                            # we want to identify string columns so that pandas doesn't try to
+                            # automatically parse strings in a string column to other data types
+                            dtype[select_column.name] = str
+                        elif select_column.columnType in LIST_COLUMN_TYPES:
+                            list_columns.append(select_column.name)
+                        elif (
+                            select_column.columnType == "DATE" and convert_to_date_time
+                        ):
+                            date_columns.append(select_column.name)
+
+                return csv_to_pandas_df(
+                    self.file_path,
+                    separator=kwargs.get("separator"),
+                    quote_char=kwargs.get("quote_character"),
+                    escape_char=kwargs.get("escape_character"),
+                    line_end=kwargs.get("line_end"),
+                    date_columns=date_columns,
+                    list_columns=list_columns,
+                    include_row_id_and_row_version=include_row_id_and_row_version,
+                )
+
+        return CsvResult(csv_path)
+    else:
+        raise ValueError(
+            "Unknown return type requested from tableQuery: " + str(results_as)
+        )
 
 
 @dataclass
@@ -2299,21 +2492,23 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         results = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
+            lambda: tableQuery(
+                synapse=client,
                 query=query,
-                includeRowIdAndRowVersion=include_row_id_and_row_version,
-                quoteCharacter=quote_character,
-                escapeCharacter=escape_character,
-                lineEnd=line_end,
+                include_row_id_and_row_version=include_row_id_and_row_version,
+                quote_char=quote_character,
+                escape_char=escape_character,
+                line_end=line_end,
                 separator=separator,
                 header=header,
-                downloadLocation=download_location,
+                download_location=download_location,
             ),
         )
         if download_location:
-            return results.filepath
+            return results.file_path
+
         return results.asDataFrame(
-            rowIdAndVersionInIndex=False,
+            row_id_and_version_in_index=False,
             convert_to_datetime=convert_to_datetime,
             **kwargs,
         )
@@ -2393,7 +2588,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         results = await loop.run_in_executor(
             None,
-            lambda: Synapse.get_client(synapse_client=synapse_client).tableQuery(
+            lambda: tableQuery(
                 query=query,
                 resultsAs="rowset",
                 partMask=part_mask,
