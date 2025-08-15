@@ -28,6 +28,9 @@ class ApplicationController:
         self.download_component = None
         self.upload_component = None
         self.output_component = None
+        self.bulk_download_component = None
+        self.bulk_upload_component = None
+        self.root = None
 
     def set_ui_components(
         self,
@@ -35,6 +38,7 @@ class ApplicationController:
         download_component,
         upload_component,
         output_component,
+        root,
         bulk_download_component=None,
         bulk_upload_component=None,
     ) -> None:
@@ -46,15 +50,20 @@ class ApplicationController:
             download_component: Download UI component
             upload_component: Upload UI component
             output_component: Output/logging UI component
+            root: Main tkinter window for thread-safe GUI updates (required)
             bulk_download_component: Bulk download UI component (optional)
             bulk_upload_component: Bulk upload UI component (optional)
         """
+        if root is None:
+            raise ValueError("Root window is required for thread-safe GUI operations")
+
         self.login_component = login_component
         self.download_component = download_component
         self.upload_component = upload_component
         self.output_component = output_component
         self.bulk_download_component = bulk_download_component
         self.bulk_upload_component = bulk_upload_component
+        self.root = root
 
     def handle_login(self, mode: str, credentials: Dict[str, Any]) -> None:
         """
@@ -80,8 +89,9 @@ class ApplicationController:
                     )
                 )
 
-            # Update UI based on result
-            if result["success"]:
+            # Update UI based on result - marshal to main thread
+            def update_ui_on_success():
+                """Update UI components on successful login."""
                 self.login_component.update_login_state(
                     True, result.get("username", "")
                 )
@@ -89,13 +99,20 @@ class ApplicationController:
                 self.output_component.log_message(
                     f"Login successful! Logged in as: {result.get('username', '')}"
                 )
-            else:
+                self.login_component.set_login_button_state(True)
+
+            def update_ui_on_failure():
+                """Update UI components on failed login."""
                 self.login_component.update_login_state(False, error=result["error"])
                 self.output_component.log_message(
                     f"Login failed: {result['error']}", error=True
                 )
+                self.login_component.set_login_button_state(True)
 
-            self.login_component.set_login_button_state(True)
+            if result["success"]:
+                self.root.after(0.001, update_ui_on_success)
+            else:
+                self.root.after(0.001, update_ui_on_failure)
 
         self.login_component.set_login_button_state(False)
         threading.Thread(target=login_worker, daemon=True).start()
@@ -127,18 +144,29 @@ class ApplicationController:
                 try:
                     version_num = int(version)
                 except ValueError:
-                    self.output_component.log_message(
-                        "Version must be a number", error=True
+                    self.root.after(
+                        0.001,
+                        lambda: self.output_component.log_message(
+                            "Version must be a number", error=True
+                        ),
                     )
                     return
 
             def progress_callback(progress: int, message: str) -> None:
                 """Callback for download progress updates."""
-                self.download_component.update_progress(progress, message)
+
+                def update_progress():
+                    self.download_component.update_progress(progress, message)
+
+                self.root.after(0.001, update_progress)
 
             def detail_callback(detail_message: str) -> None:
                 """Callback for detailed download messages."""
-                self.output_component.log_message(detail_message)
+
+                def log_message():
+                    self.output_component.log_message(detail_message)
+
+                self.root.after(0.001, log_message)
 
             result = asyncio.run(
                 self.synapse_client.download_file(
@@ -150,14 +178,22 @@ class ApplicationController:
                 )
             )
 
-            if result["success"]:
+            def handle_success():
+                """Handle successful download result."""
                 self.output_component.log_message(f"Downloaded: {result['path']}")
                 self.download_component.show_success(f"Downloaded: {result['path']}")
-            else:
+
+            def handle_error():
+                """Handle failed download result."""
                 self.output_component.log_message(
                     f"Download failed: {result['error']}", error=True
                 )
                 self.download_component.show_error(result["error"])
+
+            if result["success"]:
+                self.root.after(0.001, handle_success)
+            else:
+                self.root.after(0.001, handle_error)
 
         self.download_component.start_operation()
         threading.Thread(target=download_worker, daemon=True).start()
@@ -180,11 +216,19 @@ class ApplicationController:
 
             def progress_callback(progress: int, message: str) -> None:
                 """Callback for upload progress updates."""
-                self.upload_component.update_progress(progress, message)
+
+                def update_progress():
+                    self.upload_component.update_progress(progress, message)
+
+                self.root.after(0.001, update_progress)
 
             def detail_callback(detail_message: str) -> None:
                 """Callback for detailed upload messages."""
-                self.output_component.log_message(detail_message)
+
+                def log_message():
+                    self.output_component.log_message(detail_message)
+
+                self.root.after(0.001, log_message)
 
             result = asyncio.run(
                 self.synapse_client.upload_file(
@@ -197,17 +241,25 @@ class ApplicationController:
                 )
             )
 
-            if result["success"]:
+            def handle_success():
+                """Handle successful upload result."""
                 message = (
                     f"Created/Updated entity: {result['entity_id']} - {result['name']}"
                 )
                 self.output_component.log_message(message)
                 self.upload_component.show_success(message)
-            else:
+
+            def handle_error():
+                """Handle failed upload result."""
                 self.output_component.log_message(
                     f"Upload failed: {result['error']}", error=True
                 )
                 self.upload_component.show_error(result["error"])
+
+            if result["success"]:
+                self.root.after(0.001, handle_success)
+            else:
+                self.root.after(0.001, handle_error)
 
         self.upload_component.start_operation()
         threading.Thread(target=upload_worker, daemon=True).start()
@@ -228,20 +280,21 @@ class ApplicationController:
             )
 
             if self.bulk_download_component:
+
+                def handle_success():
+                    self.bulk_download_component.handle_enumeration_result(
+                        result["items"]
+                    )
+
+                def handle_error():
+                    self.bulk_download_component.handle_enumeration_result(
+                        [], result["error"]
+                    )
+
                 if result["success"]:
-                    self.bulk_download_component.parent.after(
-                        0,
-                        lambda: self.bulk_download_component.handle_enumeration_result(
-                            result["items"]
-                        ),
-                    )
+                    self.root.after(0.001, handle_success)
                 else:
-                    self.bulk_download_component.parent.after(
-                        0,
-                        lambda: self.bulk_download_component.handle_enumeration_result(
-                            [], result["error"]
-                        ),
-                    )
+                    self.root.after(0.001, handle_error)
 
         threading.Thread(target=enumerate_worker, daemon=True).start()
 
@@ -277,11 +330,9 @@ class ApplicationController:
 
         def bulk_download_worker() -> None:
             """Worker function to handle bulk download in background thread."""
-            # Start the operation
+            # Start the operation - marshal to main thread
             if self.bulk_download_component:
-                self.output_component.get_frame().after(
-                    0, lambda: self.bulk_download_component.start_bulk_operation()
-                )
+                self.root.after(0, self.bulk_download_component.start_bulk_operation)
 
             result = asyncio.run(
                 self.synapse_client.bulk_download(
@@ -294,27 +345,29 @@ class ApplicationController:
             )
 
             if result["success"]:
-                self.output_component.log_message(
-                    f"Bulk download complete: {result['summary']}"
-                )
-                if self.bulk_download_component:
-                    self.output_component.get_frame().after(
-                        0,
-                        lambda: self.bulk_download_component.complete_bulk_operation(
+
+                def handle_success():
+                    self.output_component.log_message(
+                        f"Bulk download complete: {result['summary']}"
+                    )
+                    if self.bulk_download_component:
+                        self.bulk_download_component.complete_bulk_operation(
                             True, result["summary"]
-                        ),
-                    )
+                        )
+
+                self.root.after(0.001, handle_success)
             else:
-                self.output_component.log_message(
-                    f"Bulk download failed: {result['error']}", error=True
-                )
-                if self.bulk_download_component:
-                    self.output_component.get_frame().after(
-                        0,
-                        lambda: self.bulk_download_component.complete_bulk_operation(
-                            False, result["error"]
-                        ),
+
+                def handle_error():
+                    self.output_component.log_message(
+                        f"Bulk download failed: {result['error']}", error=True
                     )
+                    if self.bulk_download_component:
+                        self.bulk_download_component.complete_bulk_operation(
+                            False, result["error"]
+                        )
+
+                self.root.after(0.001, handle_error)
 
         self.output_component.log_message(
             f"Starting bulk download of {len(items)} items..."
@@ -335,11 +388,9 @@ class ApplicationController:
 
         def bulk_upload_worker() -> None:
             """Worker function to handle bulk upload in background thread."""
-            # Start the operation
+            # Start the operation - marshal to main thread
             if self.bulk_upload_component:
-                self.output_component.get_frame().after(
-                    0, lambda: self.bulk_upload_component.start_bulk_operation()
-                )
+                self.root.after(0, self.bulk_upload_component.start_bulk_operation)
 
             result = asyncio.run(
                 self.synapse_client.bulk_upload(
@@ -352,27 +403,29 @@ class ApplicationController:
             )
 
             if result["success"]:
-                self.output_component.log_message(
-                    f"Bulk upload complete: {result['summary']}"
-                )
-                if self.bulk_upload_component:
-                    self.output_component.get_frame().after(
-                        0,
-                        lambda: self.bulk_upload_component.complete_bulk_operation(
+
+                def handle_success():
+                    self.output_component.log_message(
+                        f"Bulk upload complete: {result['summary']}"
+                    )
+                    if self.bulk_upload_component:
+                        self.bulk_upload_component.complete_bulk_operation(
                             True, result["summary"]
-                        ),
-                    )
+                        )
+
+                self.root.after(0.001, handle_success)
             else:
-                self.output_component.log_message(
-                    f"Bulk upload failed: {result['error']}", error=True
-                )
-                if self.bulk_upload_component:
-                    self.output_component.get_frame().after(
-                        0,
-                        lambda: self.bulk_upload_component.complete_bulk_operation(
-                            False, result["error"]
-                        ),
+
+                def handle_error():
+                    self.output_component.log_message(
+                        f"Bulk upload failed: {result['error']}", error=True
                     )
+                    if self.bulk_upload_component:
+                        self.bulk_upload_component.complete_bulk_operation(
+                            False, result["error"]
+                        )
+
+                self.root.after(0.001, handle_error)
 
         self.output_component.log_message(
             f"Starting bulk upload of {len(items)} items..."
@@ -387,15 +440,16 @@ class ApplicationController:
             progress: Progress percentage (0-100)
             message: Progress message to display
         """
-        if self.bulk_download_component:
-            self.output_component.get_frame().after(
-                0,
-                lambda: self.bulk_download_component.update_progress(progress, message),
-            )
-        if self.output_component:
-            self.output_component.log_message(
-                f"Download Progress: {progress}% - {message}"
-            )
+
+        def update_ui():
+            if self.bulk_download_component:
+                self.bulk_download_component.update_progress(progress, message)
+            if self.output_component:
+                self.output_component.log_message(
+                    f"Download Progress: {progress}% - {message}"
+                )
+
+        self.root.after(0.001, update_ui)
 
     def _on_bulk_upload_progress_update(self, progress: int, message: str) -> None:
         """
@@ -405,14 +459,16 @@ class ApplicationController:
             progress: Progress percentage (0-100)
             message: Progress message to display
         """
-        if self.bulk_upload_component:
-            self.output_component.get_frame().after(
-                0, lambda: self.bulk_upload_component.update_progress(progress, message)
-            )
-        if self.output_component:
-            self.output_component.log_message(
-                f"Upload Progress: {progress}% - {message}"
-            )
+
+        def update_ui():
+            if self.bulk_upload_component:
+                self.bulk_upload_component.update_progress(progress, message)
+            if self.output_component:
+                self.output_component.log_message(
+                    f"Upload Progress: {progress}% - {message}"
+                )
+
+        self.root.after(0.001, update_ui)
 
     def _on_progress_update(self, progress: int, message: str) -> None:
         """
@@ -432,5 +488,9 @@ class ApplicationController:
         Args:
             message: Detailed message to log
         """
-        if self.output_component:
-            self.output_component.log_message(message)
+
+        def update_ui():
+            if self.output_component:
+                self.output_component.log_message(message)
+
+        self.root.after(0.001, update_ui)

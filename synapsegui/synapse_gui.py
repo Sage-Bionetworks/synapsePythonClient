@@ -36,12 +36,13 @@ class SynapseGUI:
         self.create_widgets()
 
         self.controller.set_ui_components(
-            self.login_component,
-            self.download_component,
-            self.upload_component,
-            self.output_component,
-            self.bulk_download_component,
-            self.bulk_upload_component,
+            login_component=self.login_component,
+            download_component=self.download_component,
+            upload_component=self.upload_component,
+            output_component=self.output_component,
+            root=self.root,
+            bulk_download_component=self.bulk_download_component,
+            bulk_upload_component=self.bulk_upload_component,
         )
 
         self.logging_integration = LoggingIntegration(self.output_component.log_message)
@@ -120,8 +121,12 @@ class SynapseGUI:
             message: Progress message to display
             progress: Progress percentage (0-100)
         """
-        if self.output_component:
-            self.output_component.log_message(f"Progress: {progress}% - {message}")
+
+        def update_ui():
+            if self.output_component:
+                self.output_component.log_message(f"Progress: {progress}% - {message}")
+
+        self.root.after(0.001, update_ui)
 
     def cleanup(self) -> None:
         """Clean up resources when closing the application."""

@@ -46,7 +46,7 @@ class GUILogHandler(logging.Handler):
             is_error = record.levelno >= logging.ERROR
 
             if self.root:
-                self.root.after(0, lambda: self.log_callback(message, is_error))
+                self.root.after(0.001, lambda: self.log_callback(message, is_error))
             else:
                 self.log_callback(message, is_error)
         except Exception:
