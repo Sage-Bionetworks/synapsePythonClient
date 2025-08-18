@@ -6059,7 +6059,6 @@ class Synapse(object):
             team = Team.from_id(id="67890")
             status = team.get_user_membership_status(
                 user_id="12345",
-                team="67890"
             )
             print(status)
 
@@ -6072,8 +6071,7 @@ class Synapse(object):
 
                 # Get user's membership status
                 status = await team.get_user_membership_status_async(
-                    user_id="12345",
-                    team="67890"
+                    user_id="12345"
                 )
                 return status
 

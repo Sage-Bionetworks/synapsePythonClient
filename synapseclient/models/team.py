@@ -435,7 +435,6 @@ class Team(TeamSynchronousProtocol):
     async def get_user_membership_status_async(
         self,
         user_id: str,
-        team: Union[str, int],
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> TeamMembershipStatus:
@@ -443,7 +442,6 @@ class Team(TeamSynchronousProtocol):
 
         Arguments:
             user_id: Synapse user ID
-            team: Synapse team ID
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -455,6 +453,6 @@ class Team(TeamSynchronousProtocol):
 
         client = Synapse.get_client(synapse_client=synapse_client)
         status = await get_membership_status(
-            user_id=user_id, team=team, synapse_client=client
+            user_id=user_id, team=self.id, synapse_client=client
         )
         return TeamMembershipStatus().fill_from_dict(status)
