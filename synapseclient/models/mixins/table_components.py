@@ -258,22 +258,45 @@ def tableQuery(synapse, query: str, results_as: str = "csv", **kwargs):
         result, csv_path = queryTableCsv(
             query=query,
             synapse=synapse,
-            quote_character=kwargs.get("quote_character"),
-            escape_character=kwargs.get("escape_character"),
-            line_end=kwargs.get("line_end"),
-            separator=kwargs.get("separator"),
-            header=kwargs.get("header"),
-            include_row_id_and_row_version=kwargs.get("include_row_id_and_row_version"),
-            download_location=kwargs.get("download_location"),
+            quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
+            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
+            line_end=kwargs.get("line_end", str(os.linesep)),
+            separator=kwargs.get("separator", DEFAULT_SEPARATOR),
+            header=kwargs.get("header", True),
+            include_row_id_and_row_version=kwargs.get(
+                "include_row_id_and_row_version", True
+            ),
+            download_location=kwargs.get("download_location", None),
         )
 
         class CsvResult:
-            def __init__(self, file_path):
+            def __init__(self, file_path, include_row_id_and_row_version=True):
                 self.file_path = file_path
-                self.headers = result.get("headers") if result else None
+                self.include_row_id_and_row_version = include_row_id_and_row_version
+
+                if result and result.get("headers"):
+                    headers = result.get("headers")
+                    headers = [SelectColumn(**header) for header in headers]
+                    self.headers = self.set_column_headers(headers) if headers else None
+
+            def set_column_headers(self, headers):
+                """
+                Set the list of [SelectColumn][synapseclient.table.SelectColumn] objects that will be used to convert fields to the
+                appropriate data types.
+
+                Column headers are automatically set when querying.
+                """
+                if self.include_row_id_and_row_version:
+                    names = [header.name for header in headers]
+                    if "ROW_ID" not in names and "ROW_VERSION" not in names:
+                        headers = [
+                            SelectColumn(name="ROW_ID", columnType="STRING"),
+                            SelectColumn(name="ROW_VERSION", columnType="STRING"),
+                        ] + headers
+                self.headers = headers
 
             def asDataFrame(
-                self, include_row_id_and_row_version=True, convert_to_date_time=False
+                self, row_id_and_version_in_index=True, convert_to_datetime=False
             ):
                 # determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
                 date_columns = []
@@ -288,22 +311,23 @@ def tableQuery(synapse, query: str, results_as: str = "csv", **kwargs):
                             dtype[select_column.name] = str
                         elif select_column.columnType in LIST_COLUMN_TYPES:
                             list_columns.append(select_column.name)
-                        elif (
-                            select_column.columnType == "DATE" and convert_to_date_time
-                        ):
+                        elif select_column.columnType == "DATE" and convert_to_datetime:
                             date_columns.append(select_column.name)
 
                 return csv_to_pandas_df(
                     self.file_path,
-                    separator=kwargs.get("separator"),
-                    quote_char=kwargs.get("quote_character"),
-                    escape_char=kwargs.get("escape_character"),
-                    row_id_and_version_in_index=include_row_id_and_row_version,
+                    separator=kwargs.get("separator", DEFAULT_SEPARATOR),
+                    quote_char=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
+                    escape_char=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
+                    row_id_and_version_in_index=row_id_and_version_in_index,
                     date_columns=date_columns,
                     list_columns=list_columns,
                 )
 
-        return CsvResult(csv_path)
+        return CsvResult(
+            file_path=csv_path,
+            include_row_id_and_row_version=kwargs.get("include_row_id_and_row_version"),
+        )
     else:
         raise ValueError(
             "Unknown return type requested from tableQuery: " + str(results_as)
@@ -2489,7 +2513,6 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         # that can be loaded from Memory will be needed. When that limit is reached we
         # should continue to force the download of those results to disk.
 
-        # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         results = await loop.run_in_executor(
             None,
             lambda: tableQuery(
