@@ -277,7 +277,9 @@ def table_query(synapse, query: str, results_as: str = "csv", **kwargs):
                 if result and result.get("headers"):
                     headers = result.get("headers")
                     headers = [SelectColumn(**header) for header in headers]
-                    self.headers = self.set_column_headers(headers) if headers else None
+                    self.headers = self.set_column_headers(headers)
+                else:
+                    self.headers = None
 
             def set_column_headers(self, headers):
                 """
