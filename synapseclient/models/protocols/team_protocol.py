@@ -159,3 +159,26 @@ class TeamSynchronousProtocol(Protocol):
             List[dict]: A list of invitations.
         """
         return list({})
+
+    def get_user_membership_status(
+        self,
+        user_id: str,
+        team: Union[int, str],
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Dict[str, str]:
+        """Retrieve a user's Team Membership Status bundle.
+
+        <https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html>
+
+        Arguments:
+            user_id: The ID of the user whose membership status is being queried.
+            team: A team's ID.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A dictionary of TeamMembershipStatus
+        """
+        return {}

@@ -365,15 +365,17 @@ class Team(TeamSynchronousProtocol):
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> str:
-        """Retrieve a user's Team Membership Status bundle.
-        <https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html>
+        """Retrieve a user's Team Membership Status bundle for this team.
 
         Arguments:
-            user: Synapse user ID
-            team: A [synapseclient.team.Team][] object or a team's ID.
+            user_id: Synapse user ID
+            team: A team's ID.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Returns:
-            dict of TeamMembershipStatus
+            A dictionary of TeamMembershipStatus
         """
         from synapseclient import Synapse
 
