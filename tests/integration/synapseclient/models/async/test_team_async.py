@@ -152,7 +152,7 @@ class TestTeam:
         try:
             # AND I get the membership status for the creator (who should be a member)
             creator_status = await test_team.get_user_membership_status_async(
-                user_id=self.syn.getUserProfile().ownerId, team=test_team.id
+                user_id=self.syn.getUserProfile().ownerId
             )
 
             # THEN the creator should have membership status indicating they are a member
@@ -168,8 +168,7 @@ class TestTeam:
 
             # Check the invited user's status
             invited_status = await test_team.get_user_membership_status_async(
-                user_id=self.syn.getUserProfile(self.TEST_USER).ownerId,
-                team=test_team.id,
+                user_id=self.syn.getUserProfile(self.TEST_USER).ownerId
             )
 
             # THEN the invited user should show they have an open invitation
