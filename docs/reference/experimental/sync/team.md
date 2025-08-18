@@ -32,3 +32,4 @@ at your own risk.
 ---
 
 ::: synapseclient.models.TeamMember
+::: synapseclient.models.TeamMembershipStatus
