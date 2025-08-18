@@ -61,18 +61,19 @@ class TeamMember:
 class TeamMembershipStatus:
     """
     Contains information about a user's membership status in a Team.
-    In practice the constructor is not called directly by the client.
+    Represents a [Synapse TeamMembershipStatus](<https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/TeamMembershipStatus.html>).
+    User definable fields are:
 
     Attributes:
-        team_id: The synapse ID of the team
-        user_id: The synapse ID of the user
-        is_member: Whether the user is a member of the team
-        has_open_invitation: Whether the user has an open invitation to join the team
-        has_open_request: Whether the user has an open request to join the team
-        can_join: Whether the user can join the team
-        membership_approval_required: Whether membership approval is required for the team
-        has_unmet_access_requirement: Whether the user has unmet access requirements
-        can_send_email: Whether the user can send email to the team
+        team_id: The id of the Team.
+        user_id: The principal id of the user.
+        is_member: true if and only if the user is a member of the team
+        has_open_invitation: true if and only if the user has an open invitation to join the team
+        has_open_request: true if and only if the user has an open request to join the team
+        can_join: true if and only if the user requesting this status information can join the user to the team
+        membership_approval_required: true if and only if team admin approval is required for the user to join the team
+        has_unmet_access_requirement: true if and only if there is at least one unmet access requirement for the user on the team
+        can_send_email: true if and only if the user can send an email to the team
     """
 
     team_id: Optional[str] = None
