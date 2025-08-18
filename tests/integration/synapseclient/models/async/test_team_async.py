@@ -169,9 +169,7 @@ class TestTeam:
                 message=self.TEST_MESSAGE,
             )
 
-            # AND accept the invitation by adding the user directly to team
-
-            # Check the invited user's status (should have open invitation)
+            # Check the invited user's status
             invited_status = await test_team.get_user_membership_status_async(
                 user_id=self.syn.getUserProfile(self.TEST_USER).ownerId,
                 team=test_team.id,
