@@ -6023,7 +6023,7 @@ class Synapse(object):
     @deprecated(
         version="4.9.0",
         reason="To be removed in 5.0.0. "
-        "Use the `get_user_membership_status_async` method on the `Team` class from `synapseclient.models` instead. "
+        "Use the `get_user_membership_status` method on the `Team` class from `synapseclient.models` instead. "
         "Check the docstring for the replacement function example.",
     )
     def get_membership_status(self, userid, team):
@@ -6050,11 +6050,21 @@ class Synapse(object):
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Team
-            import asyncio
 
             # Login to Synapse
             syn = Synapse()
             syn.login()
+
+            # Use synchronous version (recommended for most use cases)
+            team = Team.from_id(id="67890")
+            status = team.get_user_membership_status(
+                user_id="12345",
+                team="67890"
+            )
+            print(status)
+
+            # Alternative: Use async version for advanced use cases
+            import asyncio
 
             async def get_membership_status():
                 # Get the team object
@@ -6069,14 +6079,6 @@ class Synapse(object):
 
             # Run the async function
             status = asyncio.run(get_membership_status())
-            print(status)
-
-            # Alternative: Use synchronous version
-            team = Team.from_id(id="67890")
-            status = team.get_user_membership_status(
-                user_id="12345",
-                team="67890"
-            )
             print(status)
             ```
         """
