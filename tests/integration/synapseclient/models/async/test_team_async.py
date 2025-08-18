@@ -157,11 +157,8 @@ class TestTeam:
 
             # THEN the creator should have membership status indicating they are a member
             assert creator_status is not None
-            assert "teamId" in creator_status
-            assert creator_status["teamId"] == str(test_team.id)
-            assert "userId" in creator_status
-            assert "isMember" in creator_status
-            assert creator_status["isMember"] is True
+            assert creator_status.team_id == str(test_team.id)
+            assert creator_status.is_member is True
 
             # WHEN I invite a test user to the team
             invite = await test_team.invite_async(
@@ -177,11 +174,11 @@ class TestTeam:
 
             # THEN the invited user should show they have an open invitation
             assert invited_status is not None
-            assert invited_status["teamId"] == str(test_team.id)
-            assert invited_status["hasOpenInvitation"] is True
-            assert invited_status["membershipApprovalRequired"] is True
-            assert invited_status["canSendEmail"] is True
-            assert invited_status["isMember"] is False
+            assert invited_status.team_id == str(test_team.id)
+            assert invited_status.has_open_invitation is True
+            assert invited_status.membership_approval_required is True
+            assert invited_status.can_send_email is True
+            assert invited_status.is_member is False
 
         finally:
             # Clean up

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
 from synapseclient import Synapse
 
 if TYPE_CHECKING:
-    from synapseclient.models import Team, TeamMember
+    from synapseclient.models import Team, TeamMember, TeamMembershipStatus
 
 
 class TeamSynchronousProtocol(Protocol):
@@ -166,7 +166,7 @@ class TeamSynchronousProtocol(Protocol):
         team: Union[int, str],
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict[str, str]:
+    ) -> "TeamMembershipStatus":
         """Retrieve a user's Team Membership Status bundle.
 
         <https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html>
@@ -179,6 +179,8 @@ class TeamSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            A dictionary of TeamMembershipStatus
+            TeamMembershipStatus object
         """
-        return {}
+        from synapseclient.models.team import TeamMembershipStatus
+
+        return TeamMembershipStatus().fill_from_dict({})

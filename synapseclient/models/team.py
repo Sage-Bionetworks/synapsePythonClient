@@ -58,6 +58,79 @@ class TeamMember:
 
 
 @dataclass
+class TeamMembershipStatus:
+    """
+    Contains information about a user's membership status in a Team.
+    In practice the constructor is not called directly by the client.
+
+    Attributes:
+        team_id: The synapse ID of the team
+        user_id: The synapse ID of the user
+        is_member: Whether the user is a member of the team
+        has_open_invitation: Whether the user has an open invitation to join the team
+        has_open_request: Whether the user has an open request to join the team
+        can_join: Whether the user can join the team
+        membership_approval_required: Whether membership approval is required for the team
+        has_unmet_access_requirement: Whether the user has unmet access requirements
+        can_send_email: Whether the user can send email to the team
+    """
+
+    team_id: Optional[str] = None
+    """The ID of the team"""
+
+    user_id: Optional[str] = None
+    """The ID of the user"""
+
+    is_member: Optional[bool] = None
+    """Whether the user is a member of the team"""
+
+    has_open_invitation: Optional[bool] = None
+    """Whether the user has an open invitation to join the team"""
+
+    has_open_request: Optional[bool] = None
+    """Whether the user has an open request to join the team"""
+
+    can_join: Optional[bool] = None
+    """Whether the user can join the team"""
+
+    membership_approval_required: Optional[bool] = None
+    """Whether membership approval is required for the team"""
+
+    has_unmet_access_requirement: Optional[bool] = None
+    """Whether the user has unmet access requirements"""
+
+    can_send_email: Optional[bool] = None
+    """Whether the user can send email to the team"""
+
+    def fill_from_dict(
+        self, membership_status_dict: Dict[str, Union[str, bool]]
+    ) -> "TeamMembershipStatus":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            membership_status_dict: The response from the REST API.
+
+        Returns:
+            The TeamMembershipStatus object.
+        """
+        self.team_id = membership_status_dict.get("teamId", None)
+        self.user_id = membership_status_dict.get("userId", None)
+        self.is_member = membership_status_dict.get("isMember", None)
+        self.has_open_invitation = membership_status_dict.get("hasOpenInvitation", None)
+        self.has_open_request = membership_status_dict.get("hasOpenRequest", None)
+        self.can_join = membership_status_dict.get("canJoin", None)
+        self.membership_approval_required = membership_status_dict.get(
+            "membershipApprovalRequired", None
+        )
+        self.has_unmet_access_requirement = membership_status_dict.get(
+            "hasUnmetAccessRequirement", None
+        )
+        self.can_send_email = membership_status_dict.get("canSendEmail", None)
+        return self
+
+
+@dataclass
 @async_to_sync
 class Team(TeamSynchronousProtocol):
     """
@@ -364,7 +437,7 @@ class Team(TeamSynchronousProtocol):
         team: Union[str, int],
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> str:
+    ) -> TeamMembershipStatus:
         """Retrieve a user's Team Membership Status bundle for this team.
 
         Arguments:
@@ -375,7 +448,7 @@ class Team(TeamSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            A dictionary of TeamMembershipStatus
+            TeamMembershipStatus object
         """
         from synapseclient import Synapse
 
@@ -383,4 +456,4 @@ class Team(TeamSynchronousProtocol):
         status = await get_membership_status(
             user_id=user_id, team=team, synapse_client=client
         )
-        return status
+        return TeamMembershipStatus().fill_from_dict(status)
