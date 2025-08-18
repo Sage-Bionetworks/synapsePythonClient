@@ -245,7 +245,11 @@ def query_table_csv(
     return download_from_table_result, path
 
 
-def table_query(synapse, query: str, results_as: str = "csv", **kwargs):
+def table_query(
+    query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
+):
+    client = Synapse.get_client(synapse_client=synapse)
+
     if results_as.lower() == "rowset":
         # synapse._queryTable(synapse, query, **kwargs)
         return TableQueryResult(synapse, query, **kwargs)
@@ -257,7 +261,7 @@ def table_query(synapse, query: str, results_as: str = "csv", **kwargs):
         # Use the new query functions internally
         result, csv_path = query_table_csv(
             query=query,
-            synapse=synapse,
+            synapse=client,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
             escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
             line_end=kwargs.get("line_end", str(os.linesep)),
@@ -2518,7 +2522,6 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         results = await loop.run_in_executor(
             None,
             lambda: table_query(
-                synapse=client,
                 query=query,
                 include_row_id_and_row_version=include_row_id_and_row_version,
                 quote_char=quote_character,
