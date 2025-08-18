@@ -7,6 +7,7 @@ from synapseclient import Synapse
 from synapseclient.api import (
     create_team,
     delete_team,
+    get_membership_status,
     get_team,
     get_team_members,
     get_team_open_invitations,
@@ -356,3 +357,28 @@ class Team(TeamSynchronousProtocol):
             team=self.id, synapse_client=synapse_client
         )
         return list(invitations)
+
+    async def get_user_membership_status_async(
+        self,
+        user_id: str,
+        team: Union[str, int],
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> str:
+        """Retrieve a user's Team Membership Status bundle.
+        <https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html>
+
+        Arguments:
+            user: Synapse user ID
+            team: A [synapseclient.team.Team][] object or a team's ID.
+
+        Returns:
+            dict of TeamMembershipStatus
+        """
+        from synapseclient import Synapse
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+        status = await get_membership_status(
+            user_id=user_id, team=team, synapse_client=client
+        )
+        return status
