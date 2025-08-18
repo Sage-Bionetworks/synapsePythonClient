@@ -183,7 +183,7 @@ class SelectColumn(DictObject):
         )
 
 
-def queryTableCsv(
+def query_table_csv(
     query: str,
     synapse,
     quote_character: str = '"',
@@ -245,7 +245,7 @@ def queryTableCsv(
     return download_from_table_result, path
 
 
-def tableQuery(synapse, query: str, results_as: str = "csv", **kwargs):
+def table_query(synapse, query: str, results_as: str = "csv", **kwargs):
     if results_as.lower() == "rowset":
         # synapse._queryTable(synapse, query, **kwargs)
         return TableQueryResult(synapse, query, **kwargs)
@@ -255,7 +255,7 @@ def tableQuery(synapse, query: str, results_as: str = "csv", **kwargs):
         if kwargs.get("isConsistent") is not None:
             kwargs.pop("isConsistent")
         # Use the new query functions internally
-        result, csv_path = queryTableCsv(
+        result, csv_path = query_table_csv(
             query=query,
             synapse=synapse,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
@@ -330,7 +330,7 @@ def tableQuery(synapse, query: str, results_as: str = "csv", **kwargs):
         )
     else:
         raise ValueError(
-            "Unknown return type requested from tableQuery: " + str(results_as)
+            "Unknown return type requested from table query: " + str(results_as)
         )
 
 
@@ -2515,7 +2515,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
 
         results = await loop.run_in_executor(
             None,
-            lambda: tableQuery(
+            lambda: table_query(
                 synapse=client,
                 query=query,
                 include_row_id_and_row_version=include_row_id_and_row_version,
@@ -2611,7 +2611,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         results = await loop.run_in_executor(
             None,
-            lambda: tableQuery(
+            lambda: table_query(
                 query=query,
                 resultsAs="rowset",
                 partMask=part_mask,
