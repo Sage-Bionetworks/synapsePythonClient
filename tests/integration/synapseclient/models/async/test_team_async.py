@@ -156,9 +156,14 @@ class TestTeam:
             )
 
             # THEN the creator should have membership status indicating they are a member
-            assert creator_status is not None
-            assert creator_status.team_id == str(test_team.id)
             assert creator_status.is_member is True
+            assert creator_status.team_id == str(test_team.id)
+            assert creator_status.has_open_invitation is False
+            assert creator_status.has_open_request is False
+            assert creator_status.can_join is True
+            assert creator_status.membership_approval_required is False
+            assert creator_status.has_unmet_access_requirement is False
+            assert creator_status.can_send_email is True
 
             # WHEN I invite a test user to the team
             invite = await test_team.invite_async(
