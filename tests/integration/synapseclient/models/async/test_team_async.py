@@ -143,3 +143,48 @@ class TestTeam:
 
         # Clean up
         await test_team.delete_async()
+
+    async def test_get_user_membership_status(self) -> None:
+        """Test getting user membership status for a team"""
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create_async()
+
+        try:
+            # AND I get the membership status for the creator (who should be a member)
+            creator_status = await test_team.get_user_membership_status_async(
+                user_id=self.syn.getUserProfile().ownerId, team=test_team.id
+            )
+
+            # THEN the creator should have membership status indicating they are a member
+            assert creator_status is not None
+            assert "teamId" in creator_status
+            assert creator_status["teamId"] == str(test_team.id)
+            assert "userId" in creator_status
+            assert "isMember" in creator_status
+            assert creator_status["isMember"] is True
+
+            # WHEN I invite a test user to the team
+            invite = await test_team.invite_async(
+                user=self.TEST_USER,
+                message=self.TEST_MESSAGE,
+            )
+
+            # AND accept the invitation by adding the user directly to team
+
+            # Check the invited user's status (should have open invitation)
+            invited_status = await test_team.get_user_membership_status_async(
+                user_id=self.syn.getUserProfile(self.TEST_USER).ownerId,
+                team=test_team.id,
+            )
+
+            # THEN the invited user should show they have an open invitation
+            assert invited_status is not None
+            assert invited_status["teamId"] == str(test_team.id)
+            assert invited_status["hasOpenInvitation"] is True
+            assert invited_status["membershipApprovalRequired"] is True
+            assert invited_status["canSendEmail"] is True
+            assert invited_status["isMember"] is False
+
+        finally:
+            # Clean up
+            await test_team.delete_async()
