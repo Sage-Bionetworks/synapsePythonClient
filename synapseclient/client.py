@@ -7389,7 +7389,7 @@ class Synapse(object):
     @deprecated(
         version="4.9.0",
         reason="To be removed in 5.0.0. "
-        "Use the `query` or `query_async` functions from `synapseclient.models.Table` instead. "
+        "Use the `query` functions from `synapseclient.models.Table` instead. "
         "Check the docstring for the replacement function example.",
     )
     def tableQuery(self, query: str, resultsAs: str = "csv", **kwargs):
@@ -7509,7 +7509,7 @@ class Synapse(object):
     @deprecated(
         version="4.5.0",
         reason="To be removed in 5.0.0. "
-        "Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
+        "Use the `query_part_mask` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
     )
     def _queryTable(
         self,
