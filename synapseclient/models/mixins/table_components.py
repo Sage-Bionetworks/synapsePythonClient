@@ -68,6 +68,7 @@ from synapseclient.models.table_components import (
     QueryResultBundle,
     SchemaStorageStrategy,
     SnapshotRequest,
+    SumFileSizes,
     TableSchemaChangeRequest,
     TableUpdateTransaction,
     UploadToTableRequest,
@@ -155,7 +156,7 @@ def row_labels_from_rows(rows):
     )
 
 
-def query_table_csv(
+def _query_table_csv(
     query: str,
     synapse: Synapse,
     quote_character: str = '"',
@@ -165,7 +166,27 @@ def query_table_csv(
     header: bool = True,
     include_row_id_and_row_version: bool = True,
     download_location: str = None,
-):
+) -> Union[Tuple[Dict[str, str], str], Tuple[Dict[str, str], None]]:
+    """
+    Query a Synapse Table and download a CSV file containing the results.
+
+    Sends a [DownloadFromTableRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html) to Synapse.
+
+    Arguments:
+        query:                     A sql query
+        synapse:                   Synapse client instance
+        quote_character:           Quotation character
+        escape_character:          Escape character
+        line_end:                  The string used to separate lines
+        separator:                 Separator character
+        header:                    Whether to set the first line as header.
+        include_row_id_and_row_version: Whether to set the first two columns contains the row ID and row version.
+        download_location:        The download location
+
+    Returns:
+        A tuple containing the download result and the path to the downloaded CSV file.
+        The download result is a dictionary containing information about the download.
+    """
     download_from_table_request = {
         "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
         "csvTableDescriptor": {
@@ -217,6 +238,24 @@ def query_table_csv(
     return download_from_table_result, path
 
 
+def _query_table_next_page(
+    next_page_token: str, table_id: str, synapse: Synapse
+) -> "QueryResultBundle":
+    """
+    Retrieve following pages if the result contains a *nextPageToken*
+
+    Arguments:
+        next_page_token: Forward this token to get the next page of results.
+        table_id:       The Synapse ID of the table
+        synapse: An authenticated Synapse client instance used for making the API call.
+
+    Returns:
+        The following page of results as a QueryResultBundle
+    """
+    uri = "/entity/{id}/table/query/nextPage/async".format(id=table_id)
+    return synapse._waitForAsync(uri=uri, request=next_page_token)
+
+
 def query_table_row_set(
     query: str,
     synapse: Synapse,
@@ -235,13 +274,8 @@ def query_table_row_set(
         offset (int, optional): Number of rows to skip before starting to return rows. Defaults to None.
         part_mask (optional): Bit mask to specify which parts of the query result bundle to return. See Synapse REST docs for details.
 
-    Returns:
-        Any: The response from the Synapse async query, typically a dictionary containing the query results.
-
-    References:
-        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+    Returns: a QueryRequestBundle object <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
     """
-    # See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
     query_bundle_request = {
         "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
         "query": {
@@ -264,16 +298,43 @@ def query_table_row_set(
     return synapse._waitForAsync(uri=uri, request=query_bundle_request)
 
 
-def table_query(
+def _table_query(
     query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
-):
+) -> Union["QueryResultBundle", Tuple[Dict, str]]:
+    """
+    Query a Synapse Table.
+
+    You can receive query results either as a generator over rows or as a CSV file. For smallish tables, either
+    method will work equally well. Use of a "rowset" generator allows rows to be processed one at a time and
+    processing may be stopped before downloading the entire table.
+
+    Optional keyword arguments differ for the two return types of `rowset` or `csv`:
+
+    - For `rowset`, you can specify:
+        - `limit`: Maximum number of rows to return.
+        - `offset`: Number of rows to skip before starting to return rows.
+        - `part_mask`: Bit mask to specify which parts of the query result bundle to return.
+
+    - For `csv`, you can specify:
+        - `quote_character`: Character used for quoting fields.
+        - `escape_character`: Character used for escaping quotes within fields.
+        - `line_end`: Character(s) used to terminate lines.
+        - `separator`: Character used to separate fields.
+        - `header`: Whether to include a header row.
+        - `include_row_id_and_row_version`: Whether to include row ID and version in the output.
+        - `download_location`: Location to download the CSV file.
+
+    Returns:
+        If `results_as` is "rowset", returns a QueryResultBundle object.
+        If `results_as` is "csv", returns a tuple of (download_from_table_result, csv_path).
+    """
     client = Synapse.get_client(synapse_client=synapse)
 
     if results_as.lower() == "rowset":
         return query_table_row_set(query=query, synapse=client, **kwargs)
 
     elif results_as.lower() == "csv":
-        result, csv_path = query_table_csv(
+        result, csv_path = _query_table_csv(
             query=query,
             synapse=client,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
@@ -289,19 +350,40 @@ def table_query(
         return result, csv_path
 
 
-def rowset_to_pandas_df(
-    rowset, row_id_and_version_in_index: bool = True, **kwargs
+def _rowset_to_pandas_df(
+    query_result_bundle,
+    synapse: Synapse,
+    row_id_and_version_in_index: bool = True,
+    **kwargs,
 ) -> "DATA_FRAME_TYPE":
-    """Converts a rowset to a pandas DataFrame."""
+    """
+    Converts a Synapse table query rowset result to a pandas DataFrame.
+
+    Arguments:
+        query_result_bundle: The query result bundle containing rows and headers from a Synapse
+            table query. This is typically the response from a table query operation
+            that includes query results, headers, and pagination information.
+            see here: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html
+        synapse: An authenticated Synapse client instance used for making additional
+            API calls when pagination is required to fetch subsequent pages of results.
+        row_id_and_version_in_index: If True, uses ROW_ID, ROW_VERSION (and ROW_ETAG
+            if present) as the DataFrame index.
+        **kwargs: Additional keyword arguments (currently unused but maintained for
+            API compatibility).
+
+    Returns:
+        A pandas DataFrame containing all the query results.
+    """
+
     test_import_pandas()
     import collections
 
     import pandas as pd
 
-    def construct_rownames(rowset, offset=0):
+    def construct_rownames(query_result_bundle, offset=0):
         try:
             return (
-                row_labels_from_rows(rowset["rows"])
+                row_labels_from_rows(query_result_bundle["rows"])
                 if row_id_and_version_in_index
                 else None
             )
@@ -312,16 +394,17 @@ def rowset_to_pandas_df(
 
     # first page of rows
     offset = 0
-    rownames = construct_rownames(rowset, offset)
-    rows = rowset["queryResult"]["queryResults"]["rows"]
-    headers = rowset["queryResult"]["queryResults"]["headers"]
+    rownames = construct_rownames(query_result_bundle, offset)
+    rowset = query_result_bundle["queryResult"]["queryResults"]
+    rows = rowset["rows"]
+    headers = rowset["headers"]
     offset += len(rows)
     series = collections.OrderedDict()
 
     if not row_id_and_version_in_index:
         # Since we use an OrderedDict this must happen before we construct the other columns
         # add row id, verison, and etag as rows
-        # append_etag = False  # only useful when (not row_id_and_version_in_index), hooray for lazy variables!
+        append_etag = False  # only useful when (not row_id_and_version_in_index), hooray for lazy variables!
         series["ROW_ID"] = pd.Series(name="ROW_ID", data=[row["rowId"] for row in rows])
         series["ROW_VERSION"] = pd.Series(
             name="ROW_VERSION",
@@ -330,7 +413,7 @@ def rowset_to_pandas_df(
 
         row_etag = [row.get("etag") for row in rows]
         if any(row_etag):
-            # append_etag = True
+            append_etag = True
             series["ROW_ETAG"] = pd.Series(name="ROW_ETAG", data=row_etag)
 
     for i, header in enumerate(headers):
@@ -340,6 +423,53 @@ def rowset_to_pandas_df(
             data=[row["values"][i] for row in rows],
             index=rownames,
         )
+
+    next_page_token = query_result_bundle["queryResult"].get("nextPageToken", None)
+
+    while next_page_token:
+        # see QueryResult: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html
+        # see RowSet: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html
+        result = _query_table_next_page(
+            next_page_token=next_page_token, table_id=rowset["tableId"], synapse=synapse
+        )
+        rowset = result["queryResult"]["queryResults"]
+        next_page_token = result.get("nextPageToken", None)
+
+        rownames = construct_rownames(rowset, offset)
+        offset += len(rowset["rows"])
+
+        if not row_id_and_version_in_index:
+            # TODO: Look into why this isn't being assigned
+            series["ROW_ID"].append(
+                pd.Series(name="ROW_ID", data=[row["id"] for row in rowset["rows"]])
+            )
+            series["ROW_VERSION"].append(
+                pd.Series(
+                    name="ROW_VERSION",
+                    data=[row["version"] for row in rowset["rows"]],
+                )
+            )
+            if append_etag:
+                series["ROW_ETAG"] = pd.Series(
+                    name="ROW_ETAG",
+                    data=[row.get("etag") for row in rowset["rows"]],
+                )
+
+        for i, header in enumerate(rowset["headers"]):
+            column_name = header.name
+            series[column_name] = pd.concat(
+                [
+                    series[column_name],
+                    pd.Series(
+                        name=column_name,
+                        data=[row["values"][i] for row in rowset["rows"]],
+                        index=rownames,
+                    ),
+                ],
+                # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
+                verify_integrity=row_id_and_version_in_index,
+            )
+
     return pd.DataFrame(data=series)
 
 
@@ -2278,7 +2408,7 @@ class QueryMixinSynchronousProtocol(Protocol):
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
-    ) -> Union[DATA_FRAME_TYPE, str]:
+    ) -> Union["DATA_FRAME_TYPE", str]:
         """Query for data on a table stored in Synapse. The results will always be
         returned as a Pandas DataFrame unless you specify a `download_location` in which
         case the results will be downloaded to that location. There are a number of
@@ -2360,7 +2490,7 @@ class QueryMixinSynchronousProtocol(Protocol):
         part_mask: int = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> QueryResultBundle:
+    ) -> "QueryResultBundle":
         """Query for data on a table stored in Synapse. This is a more advanced use case
         of the `query` function that allows you to determine what addiitional metadata
         about the table or query should also be returned. If you do not need this
@@ -2415,13 +2545,7 @@ class QueryMixinSynchronousProtocol(Protocol):
             print(result)
             ```
         """
-        # Replaced at runtime
-        return QueryResultBundle(
-            query_results=DATA_FRAME_TYPE(),
-            query_count=0,
-            sum_file_sizes_bytes=0,
-            last_updated_on=None,
-        )
+        return QueryResultBundle()
 
 
 @async_to_sync
@@ -2442,7 +2566,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
-    ) -> DATA_FRAME_TYPE:
+    ) -> "DATA_FRAME_TYPE":
         """Query for data on a table stored in Synapse. The results will always be
         returned as a Pandas DataFrame unless you specify a `download_location` in which
         case the results will be downloaded to that location. There are a number of
@@ -2531,7 +2655,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
 
         results, csv_path = await loop.run_in_executor(
             None,
-            lambda: table_query(
+            lambda: _table_query(
                 query=query,
                 include_row_id_and_row_version=include_row_id_and_row_version,
                 quote_char=quote_character,
@@ -2577,7 +2701,8 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         part_mask: int,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> QueryResultBundle:
+        **kwargs,
+    ) -> "QueryResultBundle":
         """Query for data on a table stored in Synapse. This is a more advanced use case
         of the `query` function that allows you to determine what addiitional metadata
         about the table or query should also be returned. If you do not need this
@@ -2605,7 +2730,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The results of the query as a Pandas DataFrame.
+            The results of the query as a QueryResultBundle object.
 
         Example: Querying for data with a part mask
             This example shows how to use the bitwise `OR` of Python to combine the
@@ -2642,24 +2767,46 @@ class QueryMixin(QueryMixinSynchronousProtocol):
 
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(f"Running query: {query}")
+        limit = kwargs.get("limit", None)
+        offset = kwargs.get("offset", None)
 
         results = await loop.run_in_executor(
             None,
-            lambda: table_query(
+            lambda: _table_query(
                 query=query,
                 results_as="rowset",
                 part_mask=part_mask,
+                limit=limit,
+                offset=offset,
             ),
         )
 
         as_df = await loop.run_in_executor(
             None,
-            lambda: rowset_to_pandas_df(
-                rowset=results,
+            lambda: _rowset_to_pandas_df(
+                synapse=client,
+                query_result_bundle=results,
                 row_id_and_version_in_index=False,
             ),
         )
-        return as_df
+
+        count = results.get("queryCount", None)
+        sum_file_sizes = results.get("sumFileSizes", None)
+        last_updated_on = results.get("lastUpdatedOn", None)
+
+        return QueryResultBundle(
+            result=as_df,
+            count=count,
+            sum_file_sizes=(
+                SumFileSizes(
+                    sum_file_size_bytes=sum_file_sizes.get("sumFileSizesBytes", None),
+                    greater_than=sum_file_sizes.get("greaterThan", None),
+                )
+                if sum_file_sizes
+                else None
+            ),
+            last_updated_on=last_updated_on,
+        )
 
 
 @async_to_sync

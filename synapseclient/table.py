@@ -263,10 +263,20 @@ def column_ids(columns):
     return [col.id for col in columns if "id" in col]
 
 
+@deprecated(
+    version="4.9.0",
+    reason="To be removed in 5.0.0. "
+    "Moved to synapseclient.models.mixins.table_components. ",
+)
 def row_labels_from_id_and_version(rows):
     return ["_".join(map(str, row)) for row in rows]
 
 
+@deprecated(
+    version="4.9.0",
+    reason="To be removed in 5.0.0. "
+    "Moved to synapseclient.models.mixins.table_components. ",
+)
 def row_labels_from_rows(rows):
     return row_labels_from_id_and_version(
         [

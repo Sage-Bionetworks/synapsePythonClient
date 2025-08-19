@@ -7608,7 +7608,7 @@ class Synapse(object):
     @deprecated(
         version="4.5.0",
         reason="To be removed in 5.0.0. "
-        "Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
+        "Use the `query_part_mask` method on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
     )
     def _queryTableNext(self, nextPageToken: str, tableId: str) -> TableQueryResult:
         """
