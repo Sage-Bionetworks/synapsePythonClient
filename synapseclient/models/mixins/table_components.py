@@ -29,7 +29,6 @@ from synapseclient.api import (
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
-from synapseclient.client import TableQueryResult
 from synapseclient.core.async_utils import (
     async_to_sync,
     otel_trace_method,
@@ -40,7 +39,6 @@ from synapseclient.core.download.download_functions import (
     ensure_download_location_is_directory,
 )
 from synapseclient.core.exceptions import SynapseTimeoutError
-from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_dataframe_async,
     multipart_upload_file_async,
@@ -70,7 +68,6 @@ from synapseclient.models.table_components import (
     QueryResultBundle,
     SchemaStorageStrategy,
     SnapshotRequest,
-    SumFileSizes,
     TableSchemaChangeRequest,
     TableUpdateTransaction,
     UploadToTableRequest,
@@ -141,51 +138,26 @@ def test_import_pandas() -> None:
         raise
 
 
-class SelectColumn(DictObject):
-    """
-    Defines a column to be used in a table [Schema][synapseclient.table.Schema].
+def row_labels_from_id_and_version(rows):
+    return ["_".join(map(str, row)) for row in rows]
 
-    Attributes:
-        id:         An immutable ID issued by the platform
-        columnType: Can be any of:
 
-            - `STRING`
-            - `DOUBLE`
-            - `INTEGER`
-            - `BOOLEAN`
-            - `DATE`
-            - `FILEHANDLEID`
-            - `ENTITYID`
-
-        name:       The display name of the column
-    """
-
-    def __init__(self, id=None, column_type=None, name=None, **kwargs):
-        super(SelectColumn, self).__init__()
-        if id:
-            self.id = id
-
-        if name:
-            self.name = name
-
-        if column_type:
-            self.column_type = column_type
-
-        # Notes that this param is only used to support forward compatibility.
-        self.update(kwargs)
-
-    @classmethod
-    def from_column(cls, column):
-        return cls(
-            column.get("id", None),
-            column.get("columnType", None),
-            column.get("name", None),
-        )
+def row_labels_from_rows(rows):
+    return row_labels_from_id_and_version(
+        [
+            (
+                (row["rowId"], row["versionNumber"], row["etag"])
+                if "etag" in row
+                else (row["rowId"], row["versionNumber"])
+            )
+            for row in rows
+        ]
+    )
 
 
 def query_table_csv(
     query: str,
-    synapse,
+    synapse: Synapse,
     quote_character: str = '"',
     escape_character: str = "\\",
     line_end: str = os.linesep,
@@ -245,20 +217,62 @@ def query_table_csv(
     return download_from_table_result, path
 
 
+def query_table_row_set(
+    query: str,
+    synapse: Synapse,
+    limit: int = None,
+    offset: int = None,
+    part_mask=None,
+) -> "QueryResultBundle":
+    """
+    Executes a SQL query against a Synapse table and returns the resulting row set.
+
+    Args:
+        query (str): The SQL query string to execute.
+        synapse (Synapse): An authenticated Synapse client instance.
+        synapse (Synapse): An authenticated Synapse client instance.
+        limit (int, optional): Maximum number of rows to return. Defaults to None.
+        offset (int, optional): Number of rows to skip before starting to return rows. Defaults to None.
+        part_mask (optional): Bit mask to specify which parts of the query result bundle to return. See Synapse REST docs for details.
+
+    Returns:
+        Any: The response from the Synapse async query, typically a dictionary containing the query results.
+
+    References:
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+    """
+    # See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
+    query_bundle_request = {
+        "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
+        "query": {
+            "sql": query,
+            "includeEntityEtag": True,
+        },
+    }
+
+    if part_mask:
+        query_bundle_request["partMask"] = part_mask
+    if limit is not None:
+        query_bundle_request["query"]["limit"] = limit
+    if offset is not None:
+        query_bundle_request["query"]["offset"] = offset
+
+    uri = "/entity/{id}/table/query/async".format(
+        id=extract_synapse_id_from_query(query)
+    )
+
+    return synapse._waitForAsync(uri=uri, request=query_bundle_request)
+
+
 def table_query(
     query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
 ):
     client = Synapse.get_client(synapse_client=synapse)
 
     if results_as.lower() == "rowset":
-        # synapse._queryTable(synapse, query, **kwargs)
-        return TableQueryResult(synapse, query, **kwargs)
+        return query_table_row_set(query=query, synapse=client, **kwargs)
+
     elif results_as.lower() == "csv":
-        # TODO: remove isConsistent because it has now been deprecated
-        # from the backend
-        if kwargs.get("isConsistent") is not None:
-            kwargs.pop("isConsistent")
-        # Use the new query functions internally
         result, csv_path = query_table_csv(
             query=query,
             synapse=client,
@@ -272,72 +286,61 @@ def table_query(
             ),
             download_location=kwargs.get("download_location", None),
         )
+        return result, csv_path
 
-        class CsvResult:
-            def __init__(self, file_path, include_row_id_and_row_version=True):
-                self.file_path = file_path
-                self.include_row_id_and_row_version = include_row_id_and_row_version
 
-                if result and result.get("headers"):
-                    headers = result.get("headers")
-                    headers = [SelectColumn(**header) for header in headers]
-                    self.headers = self.set_column_headers(headers)
-                else:
-                    self.headers = None
+def rowset_to_pandas_df(
+    rowset, row_id_and_version_in_index: bool = True, **kwargs
+) -> "DATA_FRAME_TYPE":
+    """Converts a rowset to a pandas DataFrame."""
+    test_import_pandas()
+    import collections
 
-            def set_column_headers(self, headers):
-                """
-                Set the list of [SelectColumn][synapseclient.table.SelectColumn] objects that will be used to convert fields to the
-                appropriate data types.
+    import pandas as pd
 
-                Column headers are automatically set when querying.
-                """
-                if self.include_row_id_and_row_version:
-                    names = [header.name for header in headers]
-                    if "ROW_ID" not in names and "ROW_VERSION" not in names:
-                        headers = [
-                            SelectColumn(name="ROW_ID", columnType="STRING"),
-                            SelectColumn(name="ROW_VERSION", columnType="STRING"),
-                        ] + headers
-                self.headers = headers
+    def construct_rownames(rowset, offset=0):
+        try:
+            return (
+                row_labels_from_rows(rowset["rows"])
+                if row_id_and_version_in_index
+                else None
+            )
+        except KeyError:
+            # if we don't have row id and version, just number the rows
+            # python3 cast range to list for safety
+            return list(range(offset, offset + len(rowset["rows"])))
 
-            def asDataFrame(
-                self, row_id_and_version_in_index=True, convert_to_datetime=False
-            ):
-                # determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
-                date_columns = []
-                list_columns = []
-                dtype = {}
+    # first page of rows
+    offset = 0
+    rownames = construct_rownames(rowset, offset)
+    rows = rowset["queryResult"]["queryResults"]["rows"]
+    headers = rowset["queryResult"]["queryResults"]["headers"]
+    offset += len(rows)
+    series = collections.OrderedDict()
 
-                if self.headers is not None:
-                    for select_column in self.headers:
-                        if select_column.columnType == "STRING":
-                            # we want to identify string columns so that pandas doesn't try to
-                            # automatically parse strings in a string column to other data types
-                            dtype[select_column.name] = str
-                        elif select_column.columnType in LIST_COLUMN_TYPES:
-                            list_columns.append(select_column.name)
-                        elif select_column.columnType == "DATE" and convert_to_datetime:
-                            date_columns.append(select_column.name)
-
-                return csv_to_pandas_df(
-                    self.file_path,
-                    separator=kwargs.get("separator", DEFAULT_SEPARATOR),
-                    quote_char=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
-                    escape_char=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
-                    row_id_and_version_in_index=row_id_and_version_in_index,
-                    date_columns=date_columns,
-                    list_columns=list_columns,
-                )
-
-        return CsvResult(
-            file_path=csv_path,
-            include_row_id_and_row_version=kwargs.get("include_row_id_and_row_version"),
+    if not row_id_and_version_in_index:
+        # Since we use an OrderedDict this must happen before we construct the other columns
+        # add row id, verison, and etag as rows
+        # append_etag = False  # only useful when (not row_id_and_version_in_index), hooray for lazy variables!
+        series["ROW_ID"] = pd.Series(name="ROW_ID", data=[row["rowId"] for row in rows])
+        series["ROW_VERSION"] = pd.Series(
+            name="ROW_VERSION",
+            data=[row["versionNumber"] for row in rows],
         )
-    else:
-        raise ValueError(
-            "Unknown return type requested from table query: " + str(results_as)
+
+        row_etag = [row.get("etag") for row in rows]
+        if any(row_etag):
+            # append_etag = True
+            series["ROW_ETAG"] = pd.Series(name="ROW_ETAG", data=row_etag)
+
+    for i, header in enumerate(headers):
+        column_name = header["name"]
+        series[column_name] = pd.Series(
+            name=column_name,
+            data=[row["values"][i] for row in rows],
+            index=rownames,
         )
+    return pd.DataFrame(data=series)
 
 
 @dataclass
@@ -2351,7 +2354,10 @@ class QueryMixinSynchronousProtocol(Protocol):
     @staticmethod
     def query_part_mask(
         query: str,
-        part_mask: int,
+        limit: int = None,
+        offset: int = None,
+        is_consistent: bool = True,
+        part_mask: int = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> QueryResultBundle:
@@ -2371,7 +2377,6 @@ class QueryMixinSynchronousProtocol(Protocol):
             part_mask: The bitwise OR of the part mask values you want to return in the
                 results. The following list of part masks are implemented to be returned
                 in the results:
-
                 - Query Results (queryResults) = 0x1
                 - Query Count (queryCount) = 0x2
                 - The sum of the file sizes (sumFileSizesBytes) = 0x40
@@ -2411,7 +2416,12 @@ class QueryMixinSynchronousProtocol(Protocol):
             ```
         """
         # Replaced at runtime
-        return QueryResultBundle(result=None)
+        return QueryResultBundle(
+            query_results=DATA_FRAME_TYPE(),
+            query_count=0,
+            sum_file_sizes_bytes=0,
+            last_updated_on=None,
+        )
 
 
 @async_to_sync
@@ -2519,7 +2529,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         # that can be loaded from Memory will be needed. When that limit is reached we
         # should continue to force the download of those results to disk.
 
-        results = await loop.run_in_executor(
+        results, csv_path = await loop.run_in_executor(
             None,
             lambda: table_query(
                 query=query,
@@ -2533,11 +2543,31 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             ),
         )
         if download_location:
-            return results.file_path
+            return csv_path
 
-        return results.asDataFrame(
+        date_columns = []
+        list_columns = []
+        dtype = {}
+
+        if results.get("headers") is not None:
+            for column in results.get("headers"):
+                if column["columnType"] == "STRING":
+                    # we want to identify string columns so that pandas doesn't try to
+                    # automatically parse strings in a string column to other data types
+                    dtype[column["name"]] = str
+                elif column["columnType"] in LIST_COLUMN_TYPES:
+                    list_columns.append(column["name"])
+                elif column["columnType"] == "DATE" and convert_to_datetime:
+                    date_columns.append(column["name"])
+
+        return csv_to_pandas_df(
+            csv_path,
+            separator=kwargs.get("separator", DEFAULT_SEPARATOR),
+            quote_char=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
+            escape_char=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
             row_id_and_version_in_index=False,
-            convert_to_datetime=convert_to_datetime,
+            date_columns=date_columns if date_columns else None,
+            list_columns=list_columns if list_columns else None,
             **kwargs,
         )
 
@@ -2613,36 +2643,23 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         client = Synapse.get_client(synapse_client=synapse_client)
         client.logger.info(f"Running query: {query}")
 
-        # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         results = await loop.run_in_executor(
             None,
             lambda: table_query(
                 query=query,
-                resultsAs="rowset",
-                partMask=part_mask,
+                results_as="rowset",
+                part_mask=part_mask,
             ),
         )
 
-        # TODO: Replace method in https://sagebionetworks.jira.com/browse/SYNPY-1632
         as_df = await loop.run_in_executor(
             None,
-            lambda: results.asDataFrame(rowIdAndVersionInIndex=False),
-        )
-        return QueryResultBundle(
-            result=as_df,
-            count=results.count,
-            sum_file_sizes=(
-                SumFileSizes(
-                    sum_file_size_bytes=results.sumFileSizes.get(
-                        "sumFileSizesBytes", None
-                    ),
-                    greater_than=results.sumFileSizes.get("greaterThan", None),
-                )
-                if results.sumFileSizes
-                else None
+            lambda: rowset_to_pandas_df(
+                rowset=results,
+                row_id_and_version_in_index=False,
             ),
-            last_updated_on=results.lastUpdatedOn,
         )
+        return as_df
 
 
 @async_to_sync
