@@ -29,23 +29,24 @@ DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 @dataclass
 class SumFileSizes:
-    sum_file_size_bytes: int
+    """
+    A model for the sum of file sizes in a query result bundle.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SumFileSizes.html>
+    """
+
+    sum_file_size_bytes: int = 0
     """The sum of the file size in bytes."""
 
-    greater_than: bool
-    """When true, the actual sum of the files sizes is greater than the value provided
-    with 'sum_file_size_bytes'. When false, the actual sum of the files sizes is equals
-    the value provided with 'sum_file_size_bytes'"""
+    greater_than: bool = False
+    """When true, the actual sum of the files sizes is greater than the value provided with 'sumFileSizesBytes'. When false, the actual sum of the files sizes is equlas the value provided with 'sumFileSizesBytes'"""
 
 
 @dataclass
-class QueryResultBundle:
+class QueryResultOutput:
     """
     The result of querying Synapse with an included `part_mask`. This class contains a
     subnet of the available items that may be returned by specifying a `part_mask`.
-
-
-    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
 
     result: "DATA_FRAME_TYPE"
@@ -64,6 +65,29 @@ class QueryResultBundle:
     eventually consistent a view might still be out-of-date even if it was recently
     updated. Use mask = 0x80 to include in the bundle. This is returned in the
     ISO8601 format like `2000-01-01T00:00:00.000Z`."""
+
+    @classmethod
+    def fill_from_dict(
+        cls, result: "DATA_FRAME_TYPE", data: Dict[str, Any]
+    ) -> "QueryResultOutput":
+        """
+        Create a QueryResultOutput from a result DataFrame and dictionary response.
+
+        Arguments:
+            result: The pandas DataFrame result from the query.
+            data: The dictionary response from the REST API containing metadata.
+
+        Returns:
+            A QueryResultOutput instance.
+        """
+        return cls(
+            result=result,
+            count=data.get("count"),
+            sum_file_sizes=SumFileSizes(**data.get("sum_file_sizes", {}))
+            if data.get("sum_file_sizes")
+            else None,
+            last_updated_on=data.get("last_updated_on"),
+        )
 
 
 @dataclass
@@ -480,6 +504,274 @@ class ColumnType(str, Enum):
     def __repr__(self) -> str:
         """Print out the string value of self"""
         return self.value
+
+
+@dataclass
+class Row:
+    """
+    Represents a single row of a TableEntity.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>
+    """
+
+    row_id: Optional[int] = None
+    """The immutable ID issued to a new row."""
+
+    version_number: Optional[int] = None
+    """The version number of this row. Each row version is immutable, so when a row
+    is updated a new version is created."""
+
+    etag: Optional[str] = None
+    """For queries against EntityViews with query.includeEntityEtag=true, this field
+    will contain the etag of the entity. Will be null for all other cases."""
+
+    values: Optional[List[str]] = None
+    """The values for each column of this row. To delete a row, set this to an empty list: []"""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "Row":
+        """Create a Row from a dictionary response."""
+        return cls(
+            row_id=data.get("rowId"),
+            version_number=data.get("versionNumber"),
+            etag=data.get("etag"),
+            values=data.get("values"),
+        )
+
+
+@dataclass
+class ActionRequiredCount:
+    """
+    Represents a single action that the user will need to take in order to download one or more files.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/ActionRequiredCount.html>
+    """
+
+    action: Dict[str, Any]
+    """An action that the user must take in order to download a file."""
+
+    count: int
+    """The number of files that require this action."""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "ActionRequiredCount":
+        """Create an ActionRequiredCount from a dictionary response."""
+        return cls(
+            action=data.get("action"),
+            count=data.get("count"),
+        )
+
+
+@dataclass
+class SelectColumn:
+    """
+    A column model contains the metadata of a single column of a TableEntity.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SelectColumn.html>
+    """
+
+    name: str
+    """The required display name of the column"""
+
+    column_type: ColumnType
+    """The column type determines the type of data that can be stored in a column.
+    Switching between types (using a transaction with TableUpdateTransactionRequest
+    in the "changes" list) is generally allowed except for switching to "_LIST"
+    suffixed types. In such cases, a new column must be created and data must be
+    copied over manually"""
+
+    id: Optional[str] = None
+    """The optional ID of the select column, if this is a direct column selected"""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "SelectColumn":
+        """Create a SelectColumn from a dictionary response."""
+        return cls(
+            name=data.get("name", ""),
+            column_type=ColumnType(data.get("columnType", None)),
+            id=data.get("id"),
+        )
+
+
+@dataclass
+class QueryNextPageToken:
+    """
+    Token for retrieving the next page of query results.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryNextPageToken.html>
+    """
+
+    concrete_type: Optional[str] = None
+    """The concrete type of this object"""
+
+    entity_id: Optional[str] = None
+    """The ID of the entity (table/view) being queried"""
+
+    token: Optional[str] = None
+    """The token for the next page."""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryNextPageToken":
+        """Create a QueryNextPageToken from a dictionary response."""
+        return cls(
+            concrete_type=data.get("concreteType"),
+            entity_id=data.get("entityId"),
+            token=data.get("token"),
+        )
+
+
+@dataclass
+class RowSet:
+    """
+    Represents a set of row of a TableEntity.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>
+    """
+
+    concrete_type: Optional[str] = None
+    """The concrete type of this object"""
+
+    table_id: Optional[str] = None
+    """The ID of the TableEntity than owns these rows"""
+
+    etag: Optional[str] = None
+    """Any RowSet returned from Synapse will contain the current etag of the change set.
+    To update any rows from a RowSet the etag must be provided with the POST."""
+
+    headers: Optional[List[SelectColumn]] = None
+    """The list of SelectColumns that describes the rows of this set."""
+
+    rows: Optional[List[Row]] = None
+    """The Rows of this set. The index of each row value aligns with the index of each header."""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "RowSet":
+        """Create a RowSet from a dictionary response."""
+        return cls(
+            concrete_type=data.get("concreteType"),
+            table_id=data.get("tableId"),
+            etag=data.get("etag"),
+            headers=[
+                SelectColumn.fill_from_dict(header)
+                for header in data.get("headers", [])
+            ],
+            rows=[Row.fill_from_dict(row) for row in data.get("rows", [])],
+        )
+
+
+@dataclass
+class QueryResult:
+    """
+    A page of query result.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html>
+    """
+
+    concrete_type: str
+    """The concrete type of this object"""
+
+    query_results: RowSet
+    """Represents a set of row of a TableEntity (RowSet)"""
+
+    next_page_token: Optional[QueryNextPageToken] = None
+    """Token for retrieving the next page of results, if available"""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResult":
+        """Create a QueryResult from a dictionary response."""
+        return cls(
+            concrete_type=data.get("concreteType"),
+            query_results=RowSet.fill_from_dict(data.get("queryResults", {})),
+            next_page_token=QueryNextPageToken.fill_from_dict(
+                data.get("nextPageToken", {})
+            ),
+        )
+
+
+@dataclass
+class QueryResultBundle:
+    """
+    A bundle of information about a query result.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
+    """
+
+    concrete_type: str
+    """The concrete type of this object"""
+
+    query_result: QueryResult
+    """A page of query result"""
+
+    query_count: Optional[int] = None
+    """The total number of rows that match the query. Use mask = 0x2 to include in the
+    bundle."""
+
+    select_columns: Optional[List[SelectColumn]] = None
+    """The list of SelectColumns from the select clause. Use mask = 0x4 to include in
+    the bundle."""
+
+    max_rows_per_page: Optional[int] = None
+    """The maximum number of rows that can be retrieved in a single call. This is a
+    function of the columns that are selected in the query. Use mask = 0x8 to include
+    in the bundle."""
+
+    column_models: Optional[List[Dict[str, Any]]] = None
+    """TODO: create columnModels dataclass"""
+    """The list of ColumnModels for the table. Use mask = 0x10 to include in the bundle."""
+
+    facets: Optional[List[Dict[str, Any]]] = None
+    """TODO: create facets dataclass"""
+    """The list of facets for the search results. Use mask = 0x20 to include in the bundle."""
+
+    sum_file_sizes: Optional[SumFileSizes] = None
+    """The sum of the file size for all files in the given view query. Use mask = 0x40
+    to include in the bundle."""
+
+    last_updated_on: Optional[str] = None
+    """The date-time when this table/view was last updated. Note: Since views are
+    eventually consistent a view might still be out-of-date even if it was recently
+    updated. Use mask = 0x80 to include in the bundle. This is returned in the
+    ISO8601 format like `2000-01-01T00:00:00.000Z`."""
+
+    combined_sql: Optional[str] = None
+    """The SQL that is combination of a the input SQL, FacetRequests, AdditionalFilters,
+    Sorting, and Pagination. Use mask = 0x100 to include in the bundle."""
+
+    actions_required: Optional[List[ActionRequiredCount]] = None
+    """The first 50 actions required to download the files that are part of the query.
+    Use mask = 0x200 to include them in the bundle."""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResultBundle":
+        """Create a QueryResultBundle from a dictionary response."""
+        return cls(
+            concrete_type=data.get("concreteType"),
+            query_result=QueryResult.fill_from_dict(data.get("queryResult", {})),
+            query_count=data.get("queryCount"),
+            select_columns=[
+                SelectColumn.fill_from_dict(col)
+                for col in data.get("selectColumns", [])
+            ],
+            max_rows_per_page=data.get("maxRowsPerPage"),
+            column_models=data.get("columnModels"),
+            facets=data.get("facets"),
+            sum_file_sizes=(
+                SumFileSizes(
+                    sum_file_size_bytes=data["sumFileSizes"].get(
+                        "sumFileSizesBytes", 0
+                    ),
+                    greater_than=data["sumFileSizes"].get("greaterThan", False),
+                )
+                if data.get("sumFileSizes")
+                else None
+            ),
+            last_updated_on=data.get("lastUpdatedOn"),
+            combined_sql=data.get("combinedSql"),
+            actions_required=[
+                ActionRequiredCount.fill_from_dict(action)
+                for action in data.get("actionsRequired", [])
+            ],
+        )
 
 
 @dataclass

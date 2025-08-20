@@ -65,10 +65,11 @@ from synapseclient.models.table_components import (
     CsvTableDescriptor,
     PartialRow,
     PartialRowSet,
+    QueryNextPageToken,
     QueryResultBundle,
+    QueryResultOutput,
     SchemaStorageStrategy,
     SnapshotRequest,
-    SumFileSizes,
     TableSchemaChangeRequest,
     TableUpdateTransaction,
     UploadToTableRequest,
@@ -239,7 +240,7 @@ def _query_table_csv(
 
 
 def _query_table_next_page(
-    next_page_token: str, table_id: str, synapse: Synapse
+    next_page_token: "QueryNextPageToken", table_id: str, synapse: Synapse
 ) -> "QueryResultBundle":
     """
     Retrieve following pages if the result contains a *nextPageToken*
@@ -253,7 +254,7 @@ def _query_table_next_page(
         The following page of results as a QueryResultBundle
     """
     uri = "/entity/{id}/table/query/nextPage/async".format(id=table_id)
-    return synapse._waitForAsync(uri=uri, request=next_page_token)
+    return synapse._waitForAsync(uri=uri, request=next_page_token.token)
 
 
 def query_table_row_set(
@@ -294,19 +295,16 @@ def query_table_row_set(
     uri = "/entity/{id}/table/query/async".format(
         id=extract_synapse_id_from_query(query)
     )
-
-    return synapse._waitForAsync(uri=uri, request=query_bundle_request)
+    return QueryResultBundle.fill_from_dict(
+        data=synapse._waitForAsync(uri=uri, request=query_bundle_request)
+    )
 
 
 def _table_query(
     query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
-) -> Union["QueryResultBundle", Tuple[Dict, str]]:
+) -> Union["QueryResultBundle", str]:
     """
     Query a Synapse Table.
-
-    You can receive query results either as a generator over rows or as a CSV file. For smallish tables, either
-    method will work equally well. Use of a "rowset" generator allows rows to be processed one at a time and
-    processing may be stopped before downloading the entire table.
 
     Optional keyword arguments differ for the two return types of `rowset` or `csv`:
 
@@ -351,7 +349,7 @@ def _table_query(
 
 
 def _rowset_to_pandas_df(
-    query_result_bundle,
+    query_result_bundle: QueryResultBundle,
     synapse: Synapse,
     row_id_and_version_in_index: bool = True,
     **kwargs,
@@ -395,9 +393,9 @@ def _rowset_to_pandas_df(
     # first page of rows
     offset = 0
     rownames = construct_rownames(query_result_bundle, offset)
-    rowset = query_result_bundle["queryResult"]["queryResults"]
-    rows = rowset["rows"]
-    headers = rowset["headers"]
+    rowset = query_result_bundle.query_result.query_results
+    rows = rowset.rows
+    headers = rowset.headers
     offset += len(rows)
     series = collections.OrderedDict()
 
@@ -405,64 +403,64 @@ def _rowset_to_pandas_df(
         # Since we use an OrderedDict this must happen before we construct the other columns
         # add row id, verison, and etag as rows
         append_etag = False  # only useful when (not row_id_and_version_in_index), hooray for lazy variables!
-        series["ROW_ID"] = pd.Series(name="ROW_ID", data=[row["rowId"] for row in rows])
+        series["ROW_ID"] = pd.Series(name="ROW_ID", data=[row.row_id for row in rows])
         series["ROW_VERSION"] = pd.Series(
             name="ROW_VERSION",
-            data=[row["versionNumber"] for row in rows],
+            data=[row.version_number for row in rows],
         )
 
-        row_etag = [row.get("etag") for row in rows]
+        row_etag = [row.etag for row in rows]
         if any(row_etag):
             append_etag = True
             series["ROW_ETAG"] = pd.Series(name="ROW_ETAG", data=row_etag)
 
     for i, header in enumerate(headers):
-        column_name = header["name"]
+        column_name = header.name
         series[column_name] = pd.Series(
             name=column_name,
-            data=[row["values"][i] for row in rows],
+            data=[row.values[i] for row in rows],
             index=rownames,
         )
 
-    next_page_token = query_result_bundle["queryResult"].get("nextPageToken", None)
+    next_page_token = query_result_bundle.query_result.next_page_token.token
 
     while next_page_token:
         # see QueryResult: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html
         # see RowSet: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html
         result = _query_table_next_page(
-            next_page_token=next_page_token, table_id=rowset["tableId"], synapse=synapse
+            next_page_token=next_page_token, table_id=rowset.table_id, synapse=synapse
         )
-        rowset = result["queryResult"]["queryResults"]
+        rowset = result.query_result.query_results
         next_page_token = result.get("nextPageToken", None)
 
         rownames = construct_rownames(rowset, offset)
-        offset += len(rowset["rows"])
+        offset += len(rowset.rows)
 
         if not row_id_and_version_in_index:
             # TODO: Look into why this isn't being assigned
             series["ROW_ID"].append(
-                pd.Series(name="ROW_ID", data=[row["id"] for row in rowset["rows"]])
+                pd.Series(name="ROW_ID", data=[row.id for row in rowset.rows])
             )
             series["ROW_VERSION"].append(
                 pd.Series(
                     name="ROW_VERSION",
-                    data=[row["version"] for row in rowset["rows"]],
+                    data=[row.version_number for row in rowset.rows],
                 )
             )
             if append_etag:
                 series["ROW_ETAG"] = pd.Series(
                     name="ROW_ETAG",
-                    data=[row.get("etag") for row in rowset["rows"]],
+                    data=[row.etag for row in rowset.rows],
                 )
 
-        for i, header in enumerate(rowset["headers"]):
+        for i, header in enumerate(rowset.headers):
             column_name = header.name
             series[column_name] = pd.concat(
                 [
                     series[column_name],
                     pd.Series(
                         name=column_name,
-                        data=[row["values"][i] for row in rowset["rows"]],
+                        data=[row.values[i] for row in rowset.rows],
                         index=rownames,
                     ),
                 ],
@@ -2566,7 +2564,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
-    ) -> "DATA_FRAME_TYPE":
+    ) -> Union["DATA_FRAME_TYPE", str]:
         """Query for data on a table stored in Synapse. The results will always be
         returned as a Pandas DataFrame unless you specify a `download_location` in which
         case the results will be downloaded to that location. There are a number of
@@ -2652,8 +2650,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         # pandas.read_csv. During implmentation a determination on how large of a CSV
         # that can be loaded from Memory will be needed. When that limit is reached we
         # should continue to force the download of those results to disk.
-
-        results, csv_path = await loop.run_in_executor(
+        result, csv_path = await loop.run_in_executor(
             None,
             lambda: _table_query(
                 query=query,
@@ -2666,6 +2663,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
                 download_location=download_location,
             ),
         )
+
         if download_location:
             return csv_path
 
@@ -2673,8 +2671,8 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         list_columns = []
         dtype = {}
 
-        if results.get("headers") is not None:
-            for column in results.get("headers"):
+        if result.get("headers") is not None:
+            for column in result.get("headers"):
                 if column["columnType"] == "STRING":
                     # we want to identify string columns so that pandas doesn't try to
                     # automatically parse strings in a string column to other data types
@@ -2685,7 +2683,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
                     date_columns.append(column["name"])
 
         return csv_to_pandas_df(
-            csv_path,
+            filepath=csv_path,
             separator=kwargs.get("separator", DEFAULT_SEPARATOR),
             quote_char=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
             escape_char=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
@@ -2702,7 +2700,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         *,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
-    ) -> "QueryResultBundle":
+    ) -> "QueryResultOutput":
         """Query for data on a table stored in Synapse. This is a more advanced use case
         of the `query` function that allows you to determine what addiitional metadata
         about the table or query should also be returned. If you do not need this
@@ -2730,7 +2728,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The results of the query as a QueryResultBundle object.
+            The results of the query as a QueryResultOutput object.
 
         Example: Querying for data with a part mask
             This example shows how to use the bitwise `OR` of Python to combine the
@@ -2784,28 +2782,18 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         as_df = await loop.run_in_executor(
             None,
             lambda: _rowset_to_pandas_df(
-                synapse=client,
                 query_result_bundle=results,
+                synapse=client,
                 row_id_and_version_in_index=False,
             ),
         )
-
-        count = results.get("queryCount", None)
-        sum_file_sizes = results.get("sumFileSizes", None)
-        last_updated_on = results.get("lastUpdatedOn", None)
-
-        return QueryResultBundle(
+        return QueryResultOutput.fill_from_dict(
             result=as_df,
-            count=count,
-            sum_file_sizes=(
-                SumFileSizes(
-                    sum_file_size_bytes=sum_file_sizes.get("sumFileSizesBytes", None),
-                    greater_than=sum_file_sizes.get("greaterThan", None),
-                )
-                if sum_file_sizes
-                else None
-            ),
-            last_updated_on=last_updated_on,
+            data={
+                "count": results.query_count,
+                "last_updated_on": results.last_updated_on,
+                "sum_file_sizes_bytes": results.sum_file_sizes,
+            },
         )
 
 

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
+from numpy import dtype
 
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
@@ -26,6 +27,15 @@ from synapseclient.models.mixins.table_components import (
     ViewSnapshotMixin,
     ViewStoreMixin,
     ViewUpdateMixin,
+)
+from synapseclient.models.table_components import (
+    ColumnType,
+    QueryResult,
+    QueryResultBundle,
+    QueryResultOutput,
+    Row,
+    RowSet,
+    SelectColumn,
 )
 from synapseclient.table import TableQueryResult
 
@@ -984,16 +994,22 @@ class TestQueryMixin:
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
 
-        # Create a mock TableQueryResult without calling __init__
-        mock_query_result = MagicMock(spec=TableQueryResult)
-        mock_query_result.asDataFrame.return_value = pd.DataFrame(
-            {"col1": ["A", "B"], "col2": [1, 2]}
-        )
+        # CREATE a mock table query result
+        mock_df = pd.DataFrame({"col1": ["A", "B"], "col2": [1, 2]})
+        mock_query_result = mock_df, "dummy.csv"
 
         # WHEN I call query_async
-        with patch.object(
-            self.syn, "tableQuery", return_value=mock_query_result
-        ) as mock_table_query:
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components._table_query",
+                return_value=mock_query_result,
+            ) as mock_table_query,
+            patch(
+                "synapseclient.models.mixins.table_components.csv_to_pandas_df",
+                return_value=mock_df,
+            ) as mock_csv_to_pandas_df,
+            patch.object(os, "linesep", str(os.linesep)),
+        ):
             result = await test_instance.query_async(
                 query=self.fake_query, synapse_client=self.syn
             )
@@ -1001,39 +1017,140 @@ class TestQueryMixin:
             # THEN mock_table_query should be called with correct args
             mock_table_query.assert_called_once_with(
                 query=self.fake_query,
-                includeRowIdAndRowVersion=True,
-                quoteCharacter='"',
-                escapeCharacter="\\",
-                lineEnd=str(os.linesep),
+                include_row_id_and_row_version=True,
+                quote_char='"',
+                escape_char="\\",
+                line_end=str(os.linesep),
                 separator=",",
                 header=True,
-                downloadLocation=None,
+                download_location=None,
             )
 
-            # AND mock_as_data_frame should be called with correct args
-            mock_query_result.asDataFrame.assert_called_once_with(
-                rowIdAndVersionInIndex=False,
-                convert_to_datetime=False,
+            # AND csv_to_pandas_df should be called with correct args
+            mock_csv_to_pandas_df.assert_called_once_with(
+                filepath="dummy.csv",
+                separator=",",
+                quote_char='"',
+                escape_char="\\",
+                row_id_and_version_in_index=False,
+                date_columns=None,
+                list_columns=None,
             )
 
             # AND the result should match expected DataFrame
-            assert result.equals(pd.DataFrame({"col1": ["A", "B"], "col2": [1, 2]}))
+            assert result.equals(mock_df)
+
+    async def test_query_async_with_date_and_list_columns(self):
+        # GIVEN a TestClass instance
+        test_instance = self.ClassForTest()
+
+        # CREATE a mock table query result with headers containing date and list columns
+        mock_df = pd.DataFrame(
+            {
+                "date_col": ["2024-01-01", "2024-01-02"],
+                "list_col": [["item1", "item2"], ["item3", "item4"]],
+                "string_col": ["A", "B"],
+            }
+        )
+
+        # Mock query result with headers that include date and list column types
+        mock_query_result_with_headers = (
+            {
+                "headers": [
+                    {"name": "date_col", "columnType": "DATE"},
+                    {"name": "list_col", "columnType": "STRING_LIST"},
+                    {"name": "string_col", "columnType": "STRING"},
+                ]
+            },
+            "dummy.csv",
+        )
+
+        # WHEN I call query_async with convert_to_datetime=True
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components._table_query",
+                return_value=mock_query_result_with_headers,
+            ) as mock_table_query,
+            patch(
+                "synapseclient.models.mixins.table_components.csv_to_pandas_df",
+                return_value=mock_df,
+            ) as mock_csv_to_pandas_df,
+            patch.object(os, "linesep", str(os.linesep)),
+        ):
+            result = await test_instance.query_async(
+                query=self.fake_query, convert_to_datetime=True, synapse_client=self.syn
+            )
+
+            # THEN mock_table_query should be called with correct args
+            mock_table_query.assert_called_once_with(
+                query=self.fake_query,
+                include_row_id_and_row_version=True,
+                quote_char='"',
+                escape_char="\\",
+                line_end=str(os.linesep),
+                separator=",",
+                header=True,
+                download_location=None,
+            )
+
+            # AND csv_to_pandas_df should be called with date_columns and list_columns populated
+            mock_csv_to_pandas_df.assert_called_once_with(
+                filepath="dummy.csv",
+                separator=",",
+                quote_char='"',
+                escape_char="\\",
+                row_id_and_version_in_index=False,
+                date_columns=["date_col"],  # Should contain the DATE column
+                list_columns=["list_col"],  # Should contain the STRING_LIST column
+            )
+
+            # AND the result should match expected DataFrame
+            assert result.equals(mock_df)
 
     async def test_query_part_mask_async(self):
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
 
-        # Create mock query result with all possible part mask returns
-        mock_query_result = MagicMock(spec=TableQueryResult)
-        mock_query_result.asDataFrame.return_value = pd.DataFrame(
-            {"col1": ["A", "B"], "col2": [1, 2]}
+        # Create mock QueryResultBundle
+        mock_query_result_bundle = QueryResultBundle(
+            concrete_type="org.sagebionetworks.repo.model.table.QueryResultBundle",
+            query_result=QueryResult(
+                concrete_type="org.sagebionetworks.repo.model.table.QueryResult",
+                query_results=RowSet(
+                    concrete_type="org.sagebionetworks.repo.model.table.RowSet",
+                    table_id="syn123",
+                    etag="test etag",
+                    headers=[
+                        SelectColumn(
+                            name="test_col", column_type=ColumnType.STRING, id="242777"
+                        ),
+                        SelectColumn(
+                            name="test_col2", column_type=ColumnType.STRING, id="242778"
+                        ),
+                    ],
+                    rows=[
+                        Row(
+                            row_id=1,
+                            version_number=1,
+                            values=["random string1", "random string2"],
+                        ),
+                        Row(
+                            row_id=2,
+                            version_number=1,
+                            values=["random string3", "random string4"],
+                        ),
+                    ],
+                ),
+                next_page_token=None,
+            ),
+            query_count=2,
+            last_updated_on="2025-08-17T09:50:35.248Z",
         )
-        mock_query_result.count = 2
-        mock_query_result.sumFileSizes = {
-            "sumFileSizesBytes": 1000,
-            "greaterThan": False,
-        }
-        mock_query_result.lastUpdatedOn = "2024-02-21"
+
+        # Create expected DataFrame result
+        expected_df = pd.DataFrame(
+            {"test_col": ["random string1"], "test_col2": ["random string2"]}
+        )
 
         # Set up part mask combining all options
         QUERY_RESULTS = 0x1
@@ -1043,9 +1160,16 @@ class TestQueryMixin:
         part_mask = QUERY_RESULTS | QUERY_COUNT | SUM_FILE_SIZES | LAST_UPDATED_ON
 
         # WHEN I call query_part_mask_async
-        with patch.object(
-            self.syn, "tableQuery", return_value=mock_query_result
-        ) as mock_table_query:
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components._table_query",
+                return_value=mock_query_result_bundle,
+            ) as mock_table_query,
+            patch(
+                "synapseclient.models.mixins.table_components._rowset_to_pandas_df",
+                return_value=expected_df,
+            ) as mock_rowset_to_pandas_df,
+        ):
             result = await test_instance.query_part_mask_async(
                 query=self.fake_query, part_mask=part_mask, synapse_client=self.syn
             )
@@ -1053,44 +1177,89 @@ class TestQueryMixin:
             # THEN mock_table_query should be called with correct args
             mock_table_query.assert_called_once_with(
                 query=self.fake_query,
-                resultsAs="rowset",
-                partMask=part_mask,
+                results_as="rowset",
+                part_mask=part_mask,
+                limit=None,
+                offset=None,
             )
-
-            # AND mock_as_data_frame should be called
-            mock_query_result.asDataFrame.assert_called_once_with(
-                rowIdAndVersionInIndex=False
+            # AND mock_rowset_to_pandas_df should be called with correct args
+            mock_rowset_to_pandas_df.assert_called_once_with(
+                query_result_bundle=mock_query_result_bundle,
+                synapse=self.syn,
+                row_id_and_version_in_index=False,
             )
-
-            # AND the result should contain all requested parts
-            assert result.result.equals(
-                pd.DataFrame({"col1": ["A", "B"], "col2": [1, 2]})
+            # THEN mock_table_query should be called with correct args
+            mock_table_query.assert_called_once_with(
+                query=self.fake_query,
+                results_as="rowset",
+                part_mask=part_mask,
+                limit=None,
+                offset=None,
             )
-            assert result.count == 2
-            assert result.sum_file_sizes.sum_file_size_bytes == 1000
-            assert result.sum_file_sizes.greater_than is False
-            assert result.last_updated_on == "2024-02-21"
+            # AND the result should be a QueryResultOutput with expected values
+            assert isinstance(result, QueryResultOutput)
+            assert result.result.equals(expected_df)
+            assert result.count == mock_query_result_bundle.query_count
+            assert result.last_updated_on == mock_query_result_bundle.last_updated_on
+            assert result.sum_file_sizes is None  # Not set in mock, should be None
 
     async def test_query_part_mask_async_minimal(self):
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
 
-        # Create mock with just query results
-        mock_query_result = MagicMock(spec=TableQueryResult)
-        mock_query_result.asDataFrame.return_value = pd.DataFrame(
-            {"col1": ["A", "B"], "col2": [1, 2]}
+        mock_query_result = QueryResult(
+            concrete_type="org.sagebionetworks.repo.model.table.QueryResult",
+            query_results=RowSet(
+                concrete_type="org.sagebionetworks.repo.model.table.RowSet",
+                table_id="syn456",
+                etag="etag",
+                headers=[
+                    SelectColumn(
+                        name="test_col", column_type=ColumnType.STRING, id="242777"
+                    ),
+                    SelectColumn(
+                        name="test_col2", column_type=ColumnType.STRING, id="242778"
+                    ),
+                ],
+                rows=[
+                    Row(
+                        row_id=1,
+                        version_number=1,
+                        values=["random string1", "random string2"],
+                    ),
+                    Row(
+                        row_id=2,
+                        version_number=1,
+                        values=["random string3", "random string4"],
+                    ),
+                ],
+            ),
+            next_page_token=None,
         )
-        mock_query_result.count = None
-        mock_query_result.sumFileSizes = None
-        mock_query_result.lastUpdatedOn = None
+        mock_query_result_bundle = QueryResultBundle(
+            concrete_type="org.sagebionetworks.repo.model.table.QueryResult",
+            query_result=mock_query_result,
+        )
+
+        # Create expected DataFrame result
+        expected_df = pd.DataFrame(
+            {"test_col": ["random string1"], "test_col2": ["random string2"]}
+        )
 
         # Use just QUERY_RESULTS mask
         part_mask = 0x1  # QUERY_RESULTS only
 
         # WHEN I call query_part_mask_async
-        with patch.object(
-            self.syn, "tableQuery", return_value=mock_query_result
-        ) as mock_table_query:
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components._table_query",
+                return_value=mock_query_result_bundle,
+            ) as mock_table_query,
+            patch(
+                "synapseclient.models.mixins.table_components._rowset_to_pandas_df",
+                return_value=expected_df,
+            ) as mock_rowset_to_pandas_df,
+        ):
             result = await test_instance.query_part_mask_async(
                 query=self.fake_query, part_mask=part_mask, synapse_client=self.syn
             )
@@ -1098,22 +1267,24 @@ class TestQueryMixin:
             # THEN mock_table_query should be called with correct args
             mock_table_query.assert_called_once_with(
                 query=self.fake_query,
-                resultsAs="rowset",
-                partMask=part_mask,
+                results_as="rowset",
+                part_mask=part_mask,
+                limit=None,
+                offset=None,
             )
 
-            # AND mock_as_data_frame should be called
-            mock_query_result.asDataFrame.assert_called_once_with(
-                rowIdAndVersionInIndex=False
+            mock_rowset_to_pandas_df.assert_called_once_with(
+                query_result_bundle=mock_query_result_bundle,
+                synapse=self.syn,
+                row_id_and_version_in_index=False,
             )
 
-            # AND the result should contain only the query results
-            assert result.result.equals(
-                pd.DataFrame({"col1": ["A", "B"], "col2": [1, 2]})
-            )
+            # AND the result should be a QueryResultOutput with expected values
+            assert isinstance(result, QueryResultOutput)
+            assert result.result.equals(expected_df)
             assert result.count is None
-            assert result.sum_file_sizes is None
             assert result.last_updated_on is None
+            assert result.sum_file_sizes is None
 
 
 class TestViewSnapshotMixin:
