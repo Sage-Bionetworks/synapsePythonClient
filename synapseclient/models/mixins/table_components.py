@@ -29,11 +29,7 @@ from synapseclient.api import (
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
-from synapseclient.core.async_utils import (
-    async_to_sync,
-    otel_trace_method,
-    wrap_async_to_sync,
-)
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.download.download_functions import (
     download_by_file_handle,
     ensure_download_location_is_directory,
@@ -157,7 +153,7 @@ def row_labels_from_rows(rows):
     )
 
 
-def _query_table_csv(
+async def _query_table_csv(
     query: str,
     synapse: Synapse,
     quote_character: str = '"',
@@ -167,7 +163,7 @@ def _query_table_csv(
     header: bool = True,
     include_row_id_and_row_version: bool = True,
     download_location: str = None,
-) -> Union[Tuple[Dict[str, str], str], Tuple[Dict[str, str], None]]:
+) -> Tuple[Dict[str, str], str]:
     """
     Query a Synapse Table and download a CSV file containing the results.
 
@@ -225,15 +221,12 @@ def _query_table_csv(
 
     os.makedirs(download_dir, exist_ok=True)
     filename = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
-    path = wrap_async_to_sync(
-        coroutine=download_by_file_handle(
-            file_handle_id=file_handle_id,
-            synapse_id=extract_synapse_id_from_query(query),
-            entity_type="TableEntity",
-            destination=os.path.join(download_dir, filename),
-            synapse_client=synapse,
-        ),
-        syn=synapse,
+    path = await download_by_file_handle(
+        file_handle_id=file_handle_id,
+        synapse_id=extract_synapse_id_from_query(query),
+        entity_type="TableEntity",
+        destination=os.path.join(download_dir, filename),
+        synapse_client=synapse,
     )
 
     return download_from_table_result, path
@@ -300,9 +293,9 @@ def query_table_row_set(
     )
 
 
-def _table_query(
+async def _table_query(
     query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
-) -> Union["QueryResultBundle", str]:
+) -> Union["QueryResultBundle", Tuple[Dict[str, str], str]]:
     """
     Query a Synapse Table.
 
@@ -332,7 +325,7 @@ def _table_query(
         return query_table_row_set(query=query, synapse=client, **kwargs)
 
     elif results_as.lower() == "csv":
-        result, csv_path = _query_table_csv(
+        result, csv_path = await _query_table_csv(
             query=query,
             synapse=client,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
@@ -2638,7 +2631,6 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             asyncio.run(main())
             ```
         """
-        loop = asyncio.get_event_loop()
 
         client = Synapse.get_client(synapse_client=synapse_client)
 
@@ -2650,18 +2642,15 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         # pandas.read_csv. During implmentation a determination on how large of a CSV
         # that can be loaded from Memory will be needed. When that limit is reached we
         # should continue to force the download of those results to disk.
-        result, csv_path = await loop.run_in_executor(
-            None,
-            lambda: _table_query(
-                query=query,
-                include_row_id_and_row_version=include_row_id_and_row_version,
-                quote_char=quote_character,
-                escape_char=escape_character,
-                line_end=line_end,
-                separator=separator,
-                header=header,
-                download_location=download_location,
-            ),
+        result, csv_path = await _table_query(
+            query=query,
+            include_row_id_and_row_version=include_row_id_and_row_version,
+            quote_char=quote_character,
+            escape_char=escape_character,
+            line_end=line_end,
+            separator=separator,
+            header=header,
+            download_location=download_location,
         )
 
         if download_location:
@@ -2768,15 +2757,12 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         limit = kwargs.get("limit", None)
         offset = kwargs.get("offset", None)
 
-        results = await loop.run_in_executor(
-            None,
-            lambda: _table_query(
-                query=query,
-                results_as="rowset",
-                part_mask=part_mask,
-                limit=limit,
-                offset=offset,
-            ),
+        results = await _table_query(
+            query=query,
+            results_as="rowset",
+            part_mask=part_mask,
+            limit=limit,
+            offset=offset,
         )
 
         as_df = await loop.run_in_executor(
