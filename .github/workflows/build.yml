@@ -454,7 +454,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: synapse-electron/dist/*
+          path: |
+            synapse-electron/dist/*.exe
+            synapse-electron/dist/*.dmg
+            synapse-electron/dist/*.AppImage
+            synapse-electron/dist/*.deb
+            synapse-electron/dist/*.pkg
 
 
   # re-download the built package to the appropriate pypi server.
