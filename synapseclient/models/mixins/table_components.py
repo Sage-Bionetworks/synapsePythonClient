@@ -2558,7 +2558,7 @@ class QueryMixinSynchronousProtocol(Protocol):
             print(result)
             ```
         """
-        return QueryResultBundle()
+        return QueryResultOutput()
 
 
 @async_to_sync
