@@ -252,6 +252,7 @@ def _query_table_next_page(
 
     Returns:
         The following page of results as a QueryResultBundle
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
     uri = "/entity/{id}/table/query/nextPage/async".format(id=table_id)
     result = synapse._waitForAsync(uri=uri, request=next_page_token.token)
@@ -276,7 +277,7 @@ def query_table_row_set(
         offset (int, optional): Number of rows to skip before starting to return rows. Defaults to None.
         part_mask (optional): Bit mask to specify which parts of the query result bundle to return. See Synapse REST docs for details.
 
-    Returns: a QueryRequestBundle object <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
+    Returns: a QueryResultBundle object <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
     query_bundle_request = {
         "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
@@ -350,19 +351,6 @@ async def _table_query(
                 download_location=kwargs.get("download_location", None),
             ),
         )
-        # result, csv_path = await _query_table_csv(
-        #     query=query,
-        #     synapse=client,
-        #     quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
-        #     escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
-        #     line_end=kwargs.get("line_end", str(os.linesep)),
-        #     separator=kwargs.get("separator", DEFAULT_SEPARATOR),
-        #     header=kwargs.get("header", True),
-        #     include_row_id_and_row_version=kwargs.get(
-        #         "include_row_id_and_row_version", True
-        #     ),
-        #     download_location=kwargs.get("download_location", None),
-        # )
         return result, csv_path
 
 
