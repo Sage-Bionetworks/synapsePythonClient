@@ -68,7 +68,7 @@ from synapseclient.models.table_components import (
     QueryNextPageToken,
     QueryResultBundle,
     QueryResultOutput,
-    RowSet,
+    Row,
     SchemaStorageStrategy,
     SnapshotRequest,
     TableSchemaChangeRequest,
@@ -145,7 +145,7 @@ def row_labels_from_id_and_version(rows):
     return ["_".join(map(str, row)) for row in rows]
 
 
-def row_labels_from_rows(rows: "RowSet") -> "RowSet":
+def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     return row_labels_from_id_and_version(
         [
             (
