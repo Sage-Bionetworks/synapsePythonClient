@@ -7,17 +7,17 @@ class SynapseDesktopClient {
         this.websocketConnected = false;
         this.containerItems = [];
         this.selectedItems = new Set();
-        
+
         // Upload-specific properties
         this.uploadFileItems = [];
         this.selectedUploadFiles = new Set();
-        
+
         // Auto-scroll related properties
         this.autoScrollEnabled = true;
         this.lastScrollTime = 0;
         this.scrollThrottleDelay = 50; // Minimum ms between scroll operations
         this.pendingScroll = false;
-        
+
         this.initializeApp();
     }
 
@@ -27,40 +27,40 @@ class SynapseDesktopClient {
             await this.loadAppVersion();
             await this.loadProfiles();
             await this.setupWebSocketListener();
-            
+
             // Initialize auto-scroll UI
             this.updateAutoScrollUI();
             this.updateLogCount();
-            
+
             // Start polling for log messages
             this.startLogPolling();
-            
+
             // Set default download location
             const homeResult = await window.electronAPI.getHomeDirectory();
             let defaultDownloadPath = 'Downloads'; // fallback
-            
+
             if (homeResult.success && homeResult.data.downloads_directory) {
                 defaultDownloadPath = homeResult.data.downloads_directory;
             } else {
                 console.error('Error getting home directory:', homeResult.error);
             }
-            
+
             const downloadLocationEl = document.getElementById('download-location');
             const bulkDownloadLocationEl = document.getElementById('bulk-download-location');
-            
+
             if (downloadLocationEl) {
                 downloadLocationEl.value = defaultDownloadPath;
             }
             if (bulkDownloadLocationEl) {
                 bulkDownloadLocationEl.value = defaultDownloadPath;
             }
-            
+
             // Initialize button states based on current form values
             this.updateUploadButtonState();
             this.updateDownloadButtonState();
             this.updateBulkUploadButtonState();
             this.updateBulkDownloadButtonState();
-            
+
             console.log('Synapse Desktop Client initialized');
         } catch (error) {
             console.error('Error in initializeApp:', error);
@@ -324,18 +324,18 @@ class SynapseDesktopClient {
     handleLogMessage(logMessage) {
         // Display in the UI log with enhanced formatting
         this.logMessageAdvanced(logMessage);
-        
+
         // Auto-scroll if enabled and requested
         if (logMessage.auto_scroll) {
             this.autoScrollIfEnabled();
         }
-        
+
         // Also log to browser console with more details
-        const timestamp = logMessage.timestamp ? 
-            new Date(logMessage.timestamp * 1000).toISOString() : 
+        const timestamp = logMessage.timestamp ?
+            new Date(logMessage.timestamp * 1000).toISOString() :
             new Date().toISOString();
         const consoleMessage = `[${timestamp}] [${logMessage.logger_name || 'backend'}] ${logMessage.message}`;
-        
+
         switch (logMessage.level) {
             case 'error':
             case 'critical':
@@ -353,7 +353,7 @@ class SynapseDesktopClient {
                 console.info(consoleMessage);
                 break;
         }
-        
+
         // For synapse client logs, add special formatting
         if (logMessage.logger_name && logMessage.logger_name.includes('synapse')) {
             console.group(`🔬 Synapse Client Log [${logMessage.level.toUpperCase()}]`);
@@ -371,7 +371,7 @@ class SynapseDesktopClient {
         this.websocketConnected = connected;
         const statusElement = document.getElementById('connection-status');
         const icon = statusElement.querySelector('i');
-        
+
         if (connected) {
             icon.className = 'fas fa-circle status-connected';
             statusElement.lastChild.textContent = 'Connected';
@@ -397,7 +397,7 @@ class SynapseDesktopClient {
     populateProfiles(profiles) {
         const profileSelect = document.getElementById('profile');
         profileSelect.innerHTML = '<option value="">Select a profile...</option>';
-        
+
         profiles.forEach(profile => {
             const option = document.createElement('option');
             option.value = profile.name;
@@ -409,7 +409,7 @@ class SynapseDesktopClient {
     updateLoginModeAvailability(hasProfiles) {
         const configMode = document.getElementById('config-mode');
         const manualMode = document.getElementById('manual-mode');
-        
+
         if (!hasProfiles) {
             configMode.disabled = true;
             manualMode.checked = true;
@@ -431,7 +431,7 @@ class SynapseDesktopClient {
     toggleLoginMode(mode) {
         const manualForm = document.getElementById('manual-login');
         const configForm = document.getElementById('config-login');
-        
+
         if (mode === 'manual') {
             manualForm.classList.add('active');
             configForm.classList.remove('active');
@@ -444,7 +444,7 @@ class SynapseDesktopClient {
     toggleUploadMode(mode) {
         const parentIdGroup = document.getElementById('parent-id-group');
         const entityIdGroup = document.getElementById('entity-id-group');
-        
+
         if (mode === 'new') {
             parentIdGroup.style.display = 'block';
             entityIdGroup.style.display = 'none';
@@ -461,62 +461,62 @@ class SynapseDesktopClient {
             console.error('switchTab called with invalid tabName:', tabName);
             return;
         }
-        
+
         // Update tab buttons
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.remove('active');
         });
-        
+
         const activeTabBtn = document.querySelector(`[data-tab="${tabName}"]`);
         if (activeTabBtn) {
             activeTabBtn.classList.add('active');
         } else {
             console.error(`No tab button found with data-tab="${tabName}"`);
         }
-        
+
         // Update tab panels
         document.querySelectorAll('.tab-panel').forEach(panel => {
             panel.classList.remove('active');
         });
-        
+
         const activeTabPanel = document.getElementById(`${tabName}-tab`);
         if (activeTabPanel) {
             activeTabPanel.classList.add('active');
         } else {
             console.error(`No tab panel found with id="${tabName}-tab"`);
         }
-        
+
         this.activeTab = tabName;
     }
 
     async handleLogin() {
         const loginBtn = document.getElementById('login-btn');
         const statusDiv = document.getElementById('login-status');
-        
+
         loginBtn.disabled = true;
         loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
-        
+
         try {
             const mode = document.querySelector('input[name="loginMode"]:checked').value;
             let credentials = { mode };
-            
+
             if (mode === 'manual') {
                 credentials.username = document.getElementById('username').value.trim();
                 credentials.token = document.getElementById('token').value.trim();
-                
+
                 if (!credentials.username || !credentials.token) {
                     throw new Error('Username and token are required');
                 }
             } else {
                 credentials.profile = document.getElementById('profile').value;
-                
+
                 if (!credentials.profile) {
                     throw new Error('Please select a profile');
                 }
             }
-            
+
             const result = await window.electronAPI.login(credentials);
-            
+
             if (result.success) {
                 this.handleLoginSuccess(result.data);
             } else {
@@ -533,14 +533,14 @@ class SynapseDesktopClient {
     handleLoginSuccess(userData) {
         this.isLoggedIn = true;
         this.currentUser = userData;
-        
+
         // Hide login section and show main app
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('main-section').style.display = 'flex';
-        
+
         // Update user info
         document.getElementById('user-name').textContent = userData.username || userData.name || 'User';
-        
+
         this.logMessage(`Successfully logged in as ${userData.username || userData.name}`, false);
         this.setStatus('Logged in successfully');
     }
@@ -548,23 +548,23 @@ class SynapseDesktopClient {
     async handleLogout() {
         try {
             await window.electronAPI.logout();
-            
+
             this.isLoggedIn = false;
             this.currentUser = null;
-            
+
             // Show login section and hide main app
             document.getElementById('login-section').style.display = 'flex';
             document.getElementById('main-section').style.display = 'none';
-            
+
             // Clear form data
             document.getElementById('username').value = '';
             document.getElementById('token').value = '';
             document.getElementById('profile').value = '';
-            
+
             // Clear status
             document.getElementById('login-status').classList.remove('success', 'error', 'info');
             document.getElementById('login-status').style.display = 'none';
-            
+
             this.logMessage('Logged out successfully', false);
             this.setStatus('Ready');
         } catch (error) {
@@ -579,10 +579,10 @@ class SynapseDesktopClient {
                 properties: ['openDirectory'],
                 defaultPath: document.getElementById(inputId).value || ''
             });
-            
+
             if (!result.canceled && result.filePaths.length > 0) {
                 document.getElementById(inputId).value = result.filePaths[0];
-                
+
                 // Trigger scan for bulk upload if it's the upload location
                 if (inputId === 'bulk-upload-location') {
                     this.handleScanUploadDirectory();
@@ -600,10 +600,10 @@ class SynapseDesktopClient {
                 properties: ['openFile'],
                 defaultPath: document.getElementById(inputId).value || ''
             });
-            
+
             if (!result.canceled && result.filePaths.length > 0) {
                 document.getElementById(inputId).value = result.filePaths[0];
-                
+
                 // Auto-populate upload name if empty
                 if (inputId === 'upload-file' && !document.getElementById('upload-name').value) {
                     const fileName = result.filePaths[0].split('\\').pop().split('/').pop();
@@ -620,24 +620,24 @@ class SynapseDesktopClient {
         const synapseId = document.getElementById('download-id').value.trim();
         const version = document.getElementById('download-version').value.trim();
         const downloadPath = document.getElementById('download-location').value.trim();
-        
+
         if (!synapseId) {
             this.logMessage('Synapse ID is required for download', true);
             return;
         }
-        
+
         if (!downloadPath) {
             this.logMessage('Download location is required', true);
             return;
         }
-        
+
         try {
             const result = await window.electronAPI.downloadFile({
                 synapse_id: synapseId,
                 version: version || null,
                 download_path: downloadPath
             });
-            
+
             if (result.success) {
                 this.logMessage(`Download initiated for ${synapseId}`, false);
             } else {
@@ -653,22 +653,22 @@ class SynapseDesktopClient {
         const parentId = document.getElementById('parent-id').value.trim();
         const entityId = document.getElementById('entity-id').value.trim();
         const name = document.getElementById('upload-name').value.trim();
-        
+
         if (!filePath) {
             this.logMessage('File path is required for upload', true);
             return;
         }
-        
+
         if (mode === 'new' && !parentId) {
             this.logMessage('Parent ID is required for new file upload', true);
             return;
         }
-        
+
         if (mode === 'update' && !entityId) {
             this.logMessage('Entity ID is required for file update', true);
             return;
         }
-        
+
         try {
             const result = await window.electronAPI.uploadFile({
                 file_path: filePath,
@@ -677,7 +677,7 @@ class SynapseDesktopClient {
                 entity_id: entityId || null,
                 name: name || null
             });
-            
+
             if (result.success) {
                 this.logMessage(`Upload initiated for ${filePath}`, false);
             } else {
@@ -690,18 +690,18 @@ class SynapseDesktopClient {
     async handleEnumerate() {
         const containerId = document.getElementById('container-id').value.trim();
         const recursive = document.getElementById('recursive').checked;
-        
+
         if (!containerId) {
             this.logMessage('Container ID is required for enumeration', true);
             return;
         }
-        
+
         try {
             const result = await window.electronAPI.enumerate({
                 container_id: containerId,
                 recursive: recursive
             });
-            
+
             if (result.success) {
                 this.displayContainerContents(result.data.items);
                 this.logMessage(`Found ${result.data.items.length} items in container`, false);
@@ -716,20 +716,20 @@ class SynapseDesktopClient {
     displayContainerContents(items) {
         this.containerItems = items;
         this.selectedItems.clear();
-        
+
         const contentsDiv = document.getElementById('container-contents');
         const treeDiv = document.getElementById('items-tree');
-        
+
         treeDiv.innerHTML = '';
-        
+
         // Build hierarchical structure
         const { rootItems, parentMap } = this.buildHierarchy(items);
-        
+
         // Use JSTree for better tree functionality
         this.initializeJSTree(treeDiv, rootItems, parentMap);
-        
+
         contentsDiv.style.display = 'block';
-        
+
         // Update status
         const folderCount = items.filter(item => {
             const itemType = item.type || item.item_type || 'file';
@@ -744,10 +744,10 @@ class SynapseDesktopClient {
         if ($.fn.jstree && $(container).jstree) {
             $(container).jstree('destroy');
         }
-        
+
         // Build JSTree data structure
         const treeData = this.buildJSTreeData(rootItems, parentMap);
-        
+
         // Initialize JSTree with enhanced features
         $(container).jstree({
             'core': {
@@ -789,13 +789,13 @@ class SynapseDesktopClient {
 
     buildJSTreeData(items, parentMap, parentPath = '') {
         const treeData = [];
-        
+
         items.forEach(item => {
             const hasChildren = parentMap[item.id] && parentMap[item.id].length > 0;
             const currentPath = parentPath ? `${parentPath}/${item.name}` : item.name;
             const sizeStr = this.formatFileSize(item.size);
             const itemType = item.type || item.item_type || 'file';
-            
+
             const nodeData = {
                 'id': item.id,
                 'text': `${item.name} <span class="tree-item-details">(${itemType}${sizeStr ? ', ' + sizeStr : ''})</span>`,
@@ -809,35 +809,35 @@ class SynapseDesktopClient {
                     'opened': false
                 }
             };
-            
+
             if (hasChildren) {
                 nodeData.children = this.buildJSTreeData(parentMap[item.id], parentMap, currentPath);
             }
-            
+
             treeData.push(nodeData);
         });
-        
+
         return treeData;
     }
 
     handleJSTreeSelection(data) {
         console.log('handleJSTreeSelection called');
         const treeDiv = document.getElementById('items-tree');
-        
+
         // Get all checked nodes to rebuild the selection set
         if ($.fn.jstree && $(treeDiv).jstree) {
             const checkedNodes = $(treeDiv).jstree('get_checked', true);
             this.selectedItems.clear();
-            
+
             checkedNodes.forEach(node => {
                 if (node.data && node.data.item) {
                     this.selectedItems.add(node.data.item.id);
                 }
             });
-            
+
             console.log(`handleJSTreeSelection: ${this.selectedItems.size} items selected`);
         }
-        
+
         this.updateSelectionCount();
     }
 
@@ -845,7 +845,7 @@ class SynapseDesktopClient {
         const parentMap = {};
         const rootItems = [];
         const allItemIds = new Set(items.map(item => item.id));
-        
+
         // Build parent-child relationships
         items.forEach(item => {
             if (item.parent_id) {
@@ -857,7 +857,7 @@ class SynapseDesktopClient {
                 rootItems.push(item);
             }
         });
-        
+
         // Handle orphaned items (parent not in current item set)
         if (rootItems.length === 0 && items.length > 0) {
             items.forEach(item => {
@@ -866,7 +866,7 @@ class SynapseDesktopClient {
                 }
             });
         }
-        
+
         // Sort items: folders first, then alphabetically
         rootItems.sort((a, b) => {
             const aType = a.type || a.item_type || 'file';
@@ -876,7 +876,7 @@ class SynapseDesktopClient {
             }
             return a.name.localeCompare(b.name);
         });
-        
+
         Object.values(parentMap).forEach(children => {
             children.sort((a, b) => {
                 const aType = a.type || a.item_type || 'file';
@@ -887,7 +887,7 @@ class SynapseDesktopClient {
                 return a.name.localeCompare(b.name);
             });
         });
-        
+
         return { rootItems, parentMap };
     }
 
@@ -895,25 +895,25 @@ class SynapseDesktopClient {
         items.forEach(item => {
             const hasChildren = parentMap[item.id] && parentMap[item.id].length > 0;
             const currentPath = parentPath ? `${parentPath}/${item.name}` : item.name;
-            
+
             // Create tree item element
             const itemDiv = this.createTreeItem(item, level, hasChildren, currentPath);
             container.appendChild(itemDiv);
-            
+
             // Create children container
             if (hasChildren) {
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'tree-children';
                 childrenDiv.id = `children-${item.id}`;
-                
+
                 this.populateTreeLevel(
-                    childrenDiv, 
-                    parentMap[item.id], 
-                    parentMap, 
-                    level + 1, 
+                    childrenDiv,
+                    parentMap[item.id],
+                    parentMap,
+                    level + 1,
                     currentPath
                 );
-                
+
                 container.appendChild(childrenDiv);
             }
         });
@@ -925,13 +925,13 @@ class SynapseDesktopClient {
         itemDiv.dataset.itemId = item.id;
         itemDiv.dataset.level = level;
         itemDiv.style.setProperty('--indent-level', level);
-        
+
         // Format size for display
         const sizeStr = this.formatFileSize(item.size);
         const itemType = item.type || item.item_type || 'file';
-        
+
         itemDiv.innerHTML = `
-            <button class="tree-toggle ${hasChildren ? 'expanded' : 'leaf'}" 
+            <button class="tree-toggle ${hasChildren ? 'expanded' : 'leaf'}"
                     ${hasChildren ? `onclick="window.synapseApp.toggleTreeNode('${item.id}')"` : ''}>
             </button>
             <div class="tree-item-content">
@@ -943,29 +943,29 @@ class SynapseDesktopClient {
                 <span class="tree-item-path" title="${currentPath}">${currentPath}</span>
             </div>
         `;
-        
+
         // Add checkbox event listener
         const checkbox = itemDiv.querySelector('input[type="checkbox"]');
         checkbox.addEventListener('change', (e) => {
             this.handleItemSelection(e, item, itemDiv);
         });
-        
+
         // Add context menu support
         itemDiv.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.showTreeItemContextMenu(e, item, itemDiv);
         });
-        
+
         return itemDiv;
     }
 
     toggleTreeNode(itemId) {
         const toggleButton = document.querySelector(`.tree-item[data-item-id="${itemId}"] .tree-toggle`);
         const childrenDiv = document.getElementById(`children-${itemId}`);
-        
+
         if (toggleButton && childrenDiv) {
             const isExpanded = toggleButton.classList.contains('expanded');
-            
+
             if (isExpanded) {
                 toggleButton.classList.remove('expanded');
                 toggleButton.classList.add('collapsed');
@@ -986,7 +986,7 @@ class SynapseDesktopClient {
             this.selectedItems.delete(item.id);
             itemDiv.classList.remove('selected');
         }
-        
+
         // Update selection count display
         this.updateSelectionCount();
     }
@@ -994,26 +994,26 @@ class SynapseDesktopClient {
     updateSelectionCount() {
         const count = this.selectedItems.size;
         console.log(`updateSelectionCount called: ${count} items selected`);
-        
+
         // Calculate stats for selected items
-        const selectedItemsData = this.containerItems.filter(item => 
+        const selectedItemsData = this.containerItems.filter(item =>
             this.selectedItems.has(item.id)
         );
-        
+
         const fileCount = selectedItemsData.filter(item => {
             const itemType = item.type || item.item_type || 'file';
             return itemType === 'file';
         }).length;
-        
+
         const folderCount = selectedItemsData.filter(item => {
             const itemType = item.type || item.item_type || 'file';
             return itemType === 'folder';
         }).length;
-        
+
         const totalSize = selectedItemsData.reduce((sum, item) => {
             return sum + (item.size || 0);
         }, 0);
-        
+
         // Update selection info
         let selectionInfo = document.querySelector('.selection-info');
         if (!selectionInfo) {
@@ -1021,27 +1021,27 @@ class SynapseDesktopClient {
             selectionInfo = document.createElement('div');
             selectionInfo.className = 'selection-info';
             selectionInfo.style.cssText = 'margin: 0.5rem 0; font-size: 0.875rem; color: var(--text-muted);';
-            
+
             const controlsDiv = document.querySelector('.selection-controls');
             if (controlsDiv) {
                 controlsDiv.parentNode.insertBefore(selectionInfo, controlsDiv.nextSibling);
             }
         }
-        
+
         // Format the selection information
         if (count === 0) {
             selectionInfo.textContent = 'No items selected';
         } else {
             const sizeStr = this.formatFileSize(totalSize);
             const parts = [];
-            
+
             if (fileCount > 0) {
                 parts.push(`${fileCount} file${fileCount !== 1 ? 's' : ''}`);
             }
             if (folderCount > 0) {
                 parts.push(`${folderCount} folder${folderCount !== 1 ? 's' : ''}`);
             }
-            
+
             let infoText = `${count} item${count !== 1 ? 's' : ''} selected`;
             if (parts.length > 0) {
                 infoText += ` (${parts.join(', ')})`;
@@ -1049,10 +1049,10 @@ class SynapseDesktopClient {
             if (sizeStr) {
                 infoText += ` - Total size: ${sizeStr}`;
             }
-            
+
             selectionInfo.textContent = infoText;
         }
-        
+
         // Update download button text and state
         const downloadBtn = document.getElementById('bulk-download-btn');
         if (downloadBtn) {
@@ -1061,7 +1061,7 @@ class SynapseDesktopClient {
                 downloadBtn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Download Selected Items';
             } else {
                 const sizeStr = this.formatFileSize(totalSize);
-                const btnText = sizeStr 
+                const btnText = sizeStr
                     ? `Download ${count} item${count !== 1 ? 's' : ''} (${sizeStr})`
                     : `Download ${count} item${count !== 1 ? 's' : ''}`;
                 downloadBtn.innerHTML = `<i class="fas fa-cloud-download-alt"></i> ${btnText}`;
@@ -1075,16 +1075,16 @@ class SynapseDesktopClient {
 
     formatFileSize(bytes) {
         if (!bytes || bytes === 0) return '';
-        
+
         const units = ['B', 'KB', 'MB', 'GB', 'TB'];
         let size = bytes;
         let unitIndex = 0;
-        
+
         while (size >= 1024 && unitIndex < units.length - 1) {
             size /= 1024;
             unitIndex++;
         }
-        
+
         return `${size.toFixed(1)} ${units[unitIndex]}`;
     }
 
@@ -1117,7 +1117,7 @@ class SynapseDesktopClient {
         if (existingMenu) {
             existingMenu.remove();
         }
-        
+
         // Create context menu
         const contextMenu = document.createElement('div');
         contextMenu.className = 'tree-context-menu';
@@ -1132,10 +1132,10 @@ class SynapseDesktopClient {
             z-index: 1000;
             min-width: 150px;
         `;
-        
+
         const checkbox = itemDiv.querySelector('input[type="checkbox"]');
         const isSelected = checkbox.checked;
-        
+
         const menuItems = [
             {
                 label: isSelected ? 'Deselect Item' : 'Select Item',
@@ -1145,13 +1145,13 @@ class SynapseDesktopClient {
                 }
             }
         ];
-        
+
         // Add folder-specific options
         const itemType = item.type || item.item_type || 'file';
         if (itemType === 'folder') {
             const toggleButton = itemDiv.querySelector('.tree-toggle');
             const isExpanded = toggleButton && toggleButton.classList.contains('expanded');
-            
+
             menuItems.push({
                 label: isExpanded ? 'Collapse Folder' : 'Expand Folder',
                 action: () => {
@@ -1161,7 +1161,7 @@ class SynapseDesktopClient {
                 }
             });
         }
-        
+
         menuItems.push(
             { separator: true },
             {
@@ -1171,7 +1171,7 @@ class SynapseDesktopClient {
                 }
             }
         );
-        
+
         // Build menu HTML
         const menuHTML = menuItems.map(menuItem => {
             if (menuItem.separator) {
@@ -1179,9 +1179,9 @@ class SynapseDesktopClient {
             }
             return `<div class="context-menu-item" data-action="${menuItems.indexOf(menuItem)}">${menuItem.label}</div>`;
         }).join('');
-        
+
         contextMenu.innerHTML = menuHTML;
-        
+
         // Add event listeners
         contextMenu.addEventListener('click', (e) => {
             const actionIndex = e.target.dataset.action;
@@ -1190,7 +1190,7 @@ class SynapseDesktopClient {
             }
             contextMenu.remove();
         });
-        
+
         // Close menu when clicking outside
         const closeMenu = (e) => {
             if (!contextMenu.contains(e.target)) {
@@ -1198,7 +1198,7 @@ class SynapseDesktopClient {
                 document.removeEventListener('click', closeMenu);
             }
         };
-        
+
         document.addEventListener('click', closeMenu);
         document.body.appendChild(contextMenu);
     }
@@ -1214,32 +1214,32 @@ Synapse ID: ${item.id}
 Size: ${item.size ? this.formatFileSize(item.size) : 'N/A'}
 Parent ID: ${item.parent_id || 'N/A'}
         `.trim();
-        
+
         alert(infoText);
     }
 
     selectAllItems(select) {
         const treeDiv = document.getElementById('items-tree');
-        
+
         if ($.fn.jstree && $(treeDiv).jstree) {
             if (select) {
                 $(treeDiv).jstree('check_all');
             } else {
                 $(treeDiv).jstree('uncheck_all');
             }
-            
+
             // Manually update the selection after JSTree operations
             // Use a short timeout to ensure JSTree has completed its operations
             setTimeout(() => {
                 const checkedNodes = $(treeDiv).jstree('get_checked', true);
                 this.selectedItems.clear();
-                
+
                 checkedNodes.forEach(node => {
                     if (node.data && node.data.item) {
                         this.selectedItems.add(node.data.item.id);
                     }
                 });
-                
+
                 console.log(`Select all ${select ? 'enabled' : 'disabled'}: ${this.selectedItems.size} items selected`);
                 this.updateSelectionCount();
             }, 10); // Slightly longer timeout to ensure completion
@@ -1247,11 +1247,11 @@ Parent ID: ${item.parent_id || 'N/A'}
             // Fallback to original method if JSTree is not available
             const checkboxes = document.querySelectorAll('#items-tree input[type="checkbox"]');
             this.selectedItems.clear();
-            
+
             checkboxes.forEach(checkbox => {
                 checkbox.checked = select;
                 const itemDiv = checkbox.closest('.tree-item');
-                
+
                 if (select) {
                     this.selectedItems.add(checkbox.dataset.itemId);
                     itemDiv.classList.add('selected');
@@ -1259,7 +1259,7 @@ Parent ID: ${item.parent_id || 'N/A'}
                     itemDiv.classList.remove('selected');
                 }
             });
-            
+
             console.log(`Select all ${select ? 'enabled' : 'disabled'} (fallback): ${this.selectedItems.size} items selected`);
             this.updateSelectionCount();
         }
@@ -1268,7 +1268,7 @@ Parent ID: ${item.parent_id || 'N/A'}
     // Add convenience methods for expand/collapse all
     expandAllFolders() {
         const treeDiv = document.getElementById('items-tree');
-        
+
         if ($.fn.jstree && $(treeDiv).jstree) {
             $(treeDiv).jstree('open_all');
         } else {
@@ -1282,7 +1282,7 @@ Parent ID: ${item.parent_id || 'N/A'}
 
     collapseAllFolders() {
         const treeDiv = document.getElementById('items-tree');
-        
+
         if ($.fn.jstree && $(treeDiv).jstree) {
             $(treeDiv).jstree('close_all');
         } else {
@@ -1296,28 +1296,28 @@ Parent ID: ${item.parent_id || 'N/A'}
 
     async handleBulkDownload() {
         const downloadPath = document.getElementById('bulk-download-location').value.trim();
-        
+
         if (this.selectedItems.size === 0) {
             this.logMessage('Please select items to download', true);
             return;
         }
-        
+
         if (!downloadPath) {
             this.logMessage('Download location is required', true);
             return;
         }
-        
+
         try {
-            const selectedItemsData = this.containerItems.filter(item => 
+            const selectedItemsData = this.containerItems.filter(item =>
                 this.selectedItems.has(item.id)
             );
-            
+
             const result = await window.electronAPI.bulkDownload({
                 items: selectedItemsData,
                 download_path: downloadPath,
                 create_subfolders: document.getElementById('recursive').checked
             });
-            
+
             if (result.success) {
                 this.logMessage(`Bulk download initiated for ${selectedItemsData.length} items`, false);
             } else {
@@ -1329,23 +1329,23 @@ Parent ID: ${item.parent_id || 'N/A'}
 
     async handleScanUploadDirectory() {
         const uploadPath = document.getElementById('bulk-upload-location').value.trim();
-        
+
         if (!uploadPath) {
             this.logMessage('Please select a directory to scan', true);
             return;
         }
-        
+
         try {
             this.logMessage('Scanning directory for files...', false);
-            
+
             const recursive = document.getElementById('bulk-preserve-structure').checked;
-            
+
             // Call backend API to scan directory
             const result = await window.electronAPI.scanDirectory({
                 directory_path: uploadPath,
                 recursive: recursive
             });
-            
+
             if (result.success) {
                 this.displayUploadFileContents(result.data.files);
                 const summary = result.data.summary;
@@ -1364,18 +1364,18 @@ Parent ID: ${item.parent_id || 'N/A'}
     displayUploadFileContents(files) {
         this.uploadFileItems = files;
         this.selectedUploadFiles.clear();
-        
+
         const contentsDiv = document.getElementById('bulk-upload-files');
         const treeDiv = document.getElementById('upload-files-tree');
-        
+
         treeDiv.innerHTML = '';
-        
+
         // Build hierarchical structure for files
         const { rootItems, parentMap } = this.buildUploadHierarchy(files);
-        
+
         // Create tree elements
         this.createUploadTreeElements(rootItems, treeDiv, parentMap);
-        
+
         contentsDiv.style.display = 'block';
         this.updateUploadSelectionDisplay();
     }
@@ -1389,14 +1389,14 @@ Parent ID: ${item.parent_id || 'N/A'}
         files.forEach(file => {
             // Handle both Windows (\) and Unix (/) path separators
             const pathParts = file.relative_path.replace(/\\/g, '/').split('/').filter(part => part.length > 0);
-            
+
             // Create all parent directories as virtual folders
             let currentPath = '';
             for (let i = 0; i < pathParts.length - 1; i++) {
                 const part = pathParts[i];
                 const parentPath = currentPath;
                 currentPath = currentPath ? `${currentPath}/${part}` : part;
-                
+
                 if (!itemsMap.has(currentPath)) {
                     const virtualFolder = {
                         id: `folder_${currentPath}`,
@@ -1406,7 +1406,7 @@ Parent ID: ${item.parent_id || 'N/A'}
                         isVirtual: true
                     };
                     itemsMap.set(currentPath, virtualFolder);
-                    
+
                     if (parentPath) {
                         if (!parentMap.has(parentPath)) {
                             parentMap.set(parentPath, []);
@@ -1417,7 +1417,7 @@ Parent ID: ${item.parent_id || 'N/A'}
                     }
                 }
             }
-            
+
             // Add the file itself
             const fileName = pathParts[pathParts.length - 1];
             const fileObj = {
@@ -1426,9 +1426,9 @@ Parent ID: ${item.parent_id || 'N/A'}
                 name: fileName,
                 type: 'file'
             };
-            
+
             const parentPath = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
-            
+
             if (parentPath) {
                 if (!parentMap.has(parentPath)) {
                     parentMap.set(parentPath, []);
@@ -1446,21 +1446,21 @@ Parent ID: ${item.parent_id || 'N/A'}
         items.forEach(item => {
             const itemElement = this.createUploadTreeItem(item, level);
             container.appendChild(itemElement);
-            
+
             // Add children if this is a folder
             if (item.type === 'folder' && parentMap.has(item.path)) {
                 const childrenContainer = document.createElement('div');
                 childrenContainer.className = 'tree-children';
                 childrenContainer.id = `upload-children-${item.id}`;
                 childrenContainer.style.display = 'block'; // Start expanded like download tree
-                
+
                 this.createUploadTreeElements(
-                    parentMap.get(item.path), 
-                    childrenContainer, 
-                    parentMap, 
+                    parentMap.get(item.path),
+                    childrenContainer,
+                    parentMap,
                     level + 1
                 );
-                
+
                 container.appendChild(childrenContainer);
             }
         });
@@ -1472,9 +1472,9 @@ Parent ID: ${item.parent_id || 'N/A'}
         itemDiv.dataset.id = item.id;
         itemDiv.dataset.type = item.type;
         itemDiv.dataset.level = level;
-        
+
         let content = '';
-        
+
         if (item.type === 'folder') {
             // For folders: "Folder Name (folder)" - we'll add count later if needed
             content = `
@@ -1497,14 +1497,14 @@ Parent ID: ${item.parent_id || 'N/A'}
                     <span class="upload-item-info">${this.escapeHtml(item.name)} <span class="item-meta">(${sizeStr})</span></span>
                 </div>
             `;
-            
+
             itemDiv.addEventListener('change', (e) => {
                 if (e.target.classList.contains('item-checkbox')) {
                     this.handleUploadFileSelection(item.id, e.target.checked);
                 }
             });
         }
-        
+
         itemDiv.innerHTML = content;
         return itemDiv;
     }
@@ -1521,7 +1521,7 @@ Parent ID: ${item.parent_id || 'N/A'}
     updateUploadSelectionDisplay() {
         const selectedCount = this.selectedUploadFiles.size;
         const totalFiles = this.uploadFileItems.filter(item => item.type === 'file').length;
-        
+
         const button = document.getElementById('bulk-upload-btn');
         if (button) {
             button.textContent = `Upload Selected Files (${selectedCount})`;
@@ -1547,10 +1547,10 @@ Parent ID: ${item.parent_id || 'N/A'}
     toggleUploadFolder(itemId) {
         const toggleButton = document.querySelector(`#upload-files-tree .tree-item[data-id="${itemId}"] .tree-toggle`);
         const childrenDiv = document.getElementById(`upload-children-${itemId}`);
-        
+
         if (toggleButton && childrenDiv) {
             const isExpanded = toggleButton.classList.contains('expanded');
-            
+
             if (isExpanded) {
                 toggleButton.classList.remove('expanded');
                 toggleButton.classList.add('collapsed');
@@ -1617,29 +1617,29 @@ Parent ID: ${item.parent_id || 'N/A'}
     async handleBulkUpload() {
         const parentId = document.getElementById('bulk-parent-id').value.trim();
         const preserveStructure = document.getElementById('bulk-preserve-structure').checked;
-        
+
         if (!parentId) {
             this.logMessage('Parent ID is required for bulk upload', true);
             return;
         }
-        
+
         if (this.selectedUploadFiles.size === 0) {
             this.logMessage('Please select files to upload', true);
             return;
         }
-        
+
         try {
             // Get selected file data
-            const selectedFileData = this.uploadFileItems.filter(file => 
+            const selectedFileData = this.uploadFileItems.filter(file =>
                 this.selectedUploadFiles.has(`file_${file.path}`)
             );
-            
+
             const result = await window.electronAPI.bulkUpload({
                 parent_id: parentId,
                 files: selectedFileData,
                 preserve_folder_structure: preserveStructure
             });
-            
+
             if (result.success) {
                 this.logMessage(`Bulk upload initiated for ${selectedFileData.length} files`, false);
             } else {
@@ -1653,7 +1653,7 @@ Parent ID: ${item.parent_id || 'N/A'}
         const progressText = document.getElementById(`${operation}-progress-text`);
         const progressBar = document.getElementById(`${operation}-progress`);
         const button = document.getElementById(`${operation}-btn`);
-        
+
         if (progressText) progressText.textContent = message;
         if (progressBar) {
             progressBar.style.width = '0%';
@@ -1668,17 +1668,17 @@ Parent ID: ${item.parent_id || 'N/A'}
                 button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             }
         }
-        
+
         this.setStatus(message);
     }
 
     updateProgress(operation, progress, message) {
         const progressText = document.getElementById(`${operation}-progress-text`);
         const progressBar = document.getElementById(`${operation}-progress`);
-        
+
         if (progressText) progressText.textContent = message;
         if (progressBar) progressBar.style.width = `${progress}%`;
-        
+
         this.setStatus(`${operation}: ${progress}%`);
     }
 
@@ -1686,7 +1686,7 @@ Parent ID: ${item.parent_id || 'N/A'}
         const progressText = document.getElementById(`${operation}-progress-text`);
         const progressBar = document.getElementById(`${operation}-progress`);
         const button = document.getElementById(`${operation}-btn`);
-        
+
         if (progressText) {
             progressText.textContent = success ? 'Operation completed' : 'Operation failed';
         }
@@ -1706,7 +1706,7 @@ Parent ID: ${item.parent_id || 'N/A'}
             }
             // Don't just enable the button - check if it should be enabled based on current form state
         }
-        
+
         this.setStatus(success ? 'Operation completed' : 'Operation failed');
     }
 
@@ -1739,30 +1739,30 @@ Parent ID: ${item.parent_id || 'N/A'}
         const modeEl = document.querySelector('input[name="uploadMode"]:checked');
         const parentIdEl = document.getElementById('parent-id');
         const entityIdEl = document.getElementById('entity-id');
-        
+
         if (!filePathEl || !parentIdEl || !entityIdEl) return false;
-        
+
         const filePath = filePathEl.value.trim();
         const mode = modeEl?.value;
         const parentId = parentIdEl.value.trim();
         const entityId = entityIdEl.value.trim();
-        
+
         if (!filePath) return false;
         if (mode === 'new' && !parentId) return false;
         if (mode === 'update' && !entityId) return false;
-        
+
         return true;
     }
 
     validateDownloadForm() {
         const synapseIdEl = document.getElementById('download-id');
         const downloadPathEl = document.getElementById('download-location');
-        
+
         if (!synapseIdEl || !downloadPathEl) return false;
-        
+
         const synapseId = synapseIdEl.value.trim();
         const downloadPath = downloadPathEl.value.trim();
-        
+
         return synapseId && downloadPath;
     }
 
@@ -1791,7 +1791,7 @@ Parent ID: ${item.parent_id || 'N/A'}
     updateBulkUploadButtonState() {
         const button = document.getElementById('bulk-upload-btn');
         const parentIdEl = document.getElementById('bulk-parent-id');
-        
+
         if (button && parentIdEl) {
             // Only update state if not currently processing
             const isProcessing = button.innerHTML.includes('fa-spinner') || button.disabled && button.innerHTML.includes('Processing');
@@ -1806,7 +1806,7 @@ Parent ID: ${item.parent_id || 'N/A'}
     updateBulkDownloadButtonState() {
         const button = document.getElementById('bulk-download-btn');
         const downloadPathEl = document.getElementById('bulk-download-location');
-        
+
         if (button && downloadPathEl) {
             // Only update state if not currently processing
             const isProcessing = button.innerHTML.includes('fa-spinner') || button.disabled && button.innerHTML.includes('Processing');
@@ -1820,7 +1820,7 @@ Parent ID: ${item.parent_id || 'N/A'}
 
     handleOperationComplete(operation, success, data) {
         console.log(`Operation complete: ${operation}, success: ${success}`, data);
-        
+
         if (success) {
             this.logMessage(`${operation} completed successfully`, false);
             if (data && data.message) {
@@ -1839,11 +1839,11 @@ Parent ID: ${item.parent_id || 'N/A'}
         const timestamp = new Date().toLocaleTimeString();
         const logClass = isError ? 'log-error' : 'log-success';
         const icon = isError ? '❌' : '✅';
-        
+
         const logEntry = document.createElement('div');
         logEntry.className = `log-entry ${logClass}`;
         logEntry.textContent = `[${timestamp}] ${icon} ${message}`;
-        
+
         outputLog.appendChild(logEntry);
         this.updateLogCount();
         this.autoScrollIfEnabled();
@@ -1851,10 +1851,10 @@ Parent ID: ${item.parent_id || 'N/A'}
 
     logMessageAdvanced(logMessage) {
         const outputLog = document.getElementById('output-log');
-        const timestamp = logMessage.timestamp ? 
-            new Date(logMessage.timestamp * 1000).toLocaleTimeString() : 
+        const timestamp = logMessage.timestamp ?
+            new Date(logMessage.timestamp * 1000).toLocaleTimeString() :
             new Date().toLocaleTimeString();
-        
+
         // Determine icon based on level
         const icons = {
             'error': '❌',
@@ -1865,32 +1865,32 @@ Parent ID: ${item.parent_id || 'N/A'}
             'debug': '🔍',
             'success': '✅'
         };
-        
+
         const icon = icons[logMessage.level] || 'ℹ️';
         const logClass = `log-${logMessage.level || 'info'}`;
-        
+
         const logEntry = document.createElement('div');
         logEntry.className = `log-entry ${logClass}`;
-        
+
         // Create structured log entry
         let logContent = '';
         logContent += `<span class="log-timestamp">[${timestamp}]</span>`;
-        
+
         if (logMessage.operation) {
             logContent += `<span class="log-operation">[${logMessage.operation}]</span>`;
         }
-        
+
         if (logMessage.source && logMessage.source !== 'synapse-backend') {
             logContent += `<span class="log-source">[${logMessage.source}]</span>`;
         }
-        
+
         logContent += ` ${icon} ${this.escapeHtml(logMessage.message)}`;
-        
+
         logEntry.innerHTML = logContent;
         outputLog.appendChild(logEntry);
-        
+
         this.updateLogCount();
-        
+
         // Always attempt auto-scroll for real-time updates
         this.autoScrollIfEnabled();
     }
@@ -1914,9 +1914,9 @@ Parent ID: ${item.parent_id || 'N/A'}
         if (!this.isAutoScrollEnabled()) {
             return;
         }
-        
+
         const now = Date.now();
-        
+
         // Throttle scroll operations to prevent excessive scrolling
         if (now - this.lastScrollTime < this.scrollThrottleDelay) {
             if (!this.pendingScroll) {
@@ -1930,13 +1930,13 @@ Parent ID: ${item.parent_id || 'N/A'}
             }
             return;
         }
-        
+
         this.performScroll();
     }
 
     performScroll() {
         this.lastScrollTime = Date.now();
-        
+
         // Use requestAnimationFrame to ensure DOM has updated before scrolling
         requestAnimationFrame(() => {
             this.scrollToBottom();
@@ -1950,14 +1950,14 @@ Parent ID: ${item.parent_id || 'N/A'}
     scrollToBottom() {
         const outputLog = document.getElementById('output-log');
         if (!outputLog) return;
-        
+
         // For real-time scrolling, we want immediate results, so use instant scroll
         // but also ensure it gets to the very bottom
         const targetScrollTop = outputLog.scrollHeight - outputLog.clientHeight;
-        
+
         // Set scroll position immediately
         outputLog.scrollTop = targetScrollTop;
-        
+
         // Double-check after a short delay to handle any DOM updates
         setTimeout(() => {
             const newTargetScrollTop = outputLog.scrollHeight - outputLog.clientHeight;
@@ -1975,7 +1975,7 @@ Parent ID: ${item.parent_id || 'N/A'}
     updateAutoScrollUI() {
         const toggleBtn = document.getElementById('auto-scroll-toggle');
         const statusSpan = document.getElementById('auto-scroll-status');
-        
+
         if (this.isAutoScrollEnabled()) {
             toggleBtn.classList.add('auto-scroll-enabled');
             toggleBtn.classList.remove('auto-scroll-disabled');
@@ -2002,7 +2002,7 @@ Parent ID: ${item.parent_id || 'N/A'}
     clearOutput() {
         document.getElementById('output-log').innerHTML = '';
         this.updateLogCount();
-        
+
         // Reset scroll state
         this.pendingScroll = false;
         this.lastScrollTime = 0;
@@ -2023,7 +2023,7 @@ Parent ID: ${item.parent_id || 'N/A'}
         element.textContent = message;
         element.className = `status-message ${type}`;
         element.style.display = 'block';
-        
+
         // Auto-hide after 5 seconds
         setTimeout(() => {
             element.style.display = 'none';

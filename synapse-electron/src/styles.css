@@ -1155,12 +1155,12 @@ input[type="checkbox"]:focus {
     .output-controls {
         gap: 0.25rem;
     }
-    
+
     .output-controls .btn {
         padding: 0.2rem 0.4rem;
         font-size: 0.7rem;
     }
-    
+
     .output-header {
         padding: 0.75rem;
     }
@@ -1202,16 +1202,16 @@ input[type="checkbox"]:focus {
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .radio-group {
         flex-direction: column;
         gap: 0.75rem;
     }
-    
+
     .tab-navigation {
         flex-wrap: wrap;
     }
-    
+
     .tab-btn {
         padding: 0.75rem 1rem;
         font-size: 0.875rem;
@@ -1287,22 +1287,22 @@ input[type="checkbox"]:focus {
         margin-bottom: 0.75rem;
         min-height: 28px;
     }
-    
+
     .checkbox-custom {
         width: 20px;
         height: 20px;
         margin-right: 0.75rem;
     }
-    
+
     .checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
         font-size: 11px;
     }
-    
+
     .items-tree .tree-item input[type="checkbox"] {
         width: 18px;
         height: 18px;
     }
-    
+
     .form-group label.checkbox-label {
         margin-bottom: 1rem;
     }

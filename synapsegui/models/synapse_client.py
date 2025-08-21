@@ -102,7 +102,9 @@ class TQDMProgressCapture:
                         if progress != self.last_progress:
                             self.last_progress = progress
                             if self.progress_callback:
-                                self.progress_callback(progress, f"Progress: {progress}%")
+                                self.progress_callback(
+                                    progress, f"Progress: {progress}%"
+                                )
                             if self.detail_callback:
                                 self.detail_callback(progress_line)
                 except Exception:
@@ -456,7 +458,11 @@ class SynapseClientManager:
             visited.add(item_id)
             item = id_to_item[item_id]
 
-            if item is None or item.parent_id is None or item.parent_id == root_container_id:
+            if (
+                item is None
+                or item.parent_id is None
+                or item.parent_id == root_container_id
+            ):
                 visited.remove(item_id)
                 return item.name if item else ""
 
@@ -503,7 +509,9 @@ class SynapseClientManager:
                 file_path = file.path if hasattr(file, "path") else None
                 # Log file path information for debugging
                 logger = logging.getLogger("synapseclient")
-                logger.info(f"DEBUG: Converting file {file.name} (ID: {file.id}) - path attribute: '{file_path}'")
+                logger.info(
+                    f"DEBUG: Converting file {file.name} (ID: {file.id}) - path attribute: '{file_path}'"
+                )
 
                 items.append(
                     BulkItem(
@@ -589,11 +597,10 @@ class SynapseClientManager:
                 await self._safe_callback(
                     progress_callback,
                     overall_progress,
-                    f"Processing item {i + 1} of {total_items}"
+                    f"Processing item {i + 1} of {total_items}",
                 )
                 await self._safe_callback(
-                    detail_callback,
-                    f"Downloading {item.name} ({item.synapse_id})"
+                    detail_callback, f"Downloading {item.name} ({item.synapse_id})"
                 )
 
                 try:
@@ -601,7 +608,7 @@ class SynapseClientManager:
                         # Log the item details for debugging
                         await self._safe_callback(
                             detail_callback,
-                            f"DEBUG: Processing file {item.name} with path: '{item.path}', parent_id: {item.parent_id}"
+                            f"DEBUG: Processing file {item.name} with path: '{item.path}', parent_id: {item.parent_id}",
                         )
 
                         # Determine the download path, considering the item's path within the container
@@ -610,7 +617,7 @@ class SynapseClientManager:
                             # Create subdirectory structure based on the item's hierarchical path
                             await self._safe_callback(
                                 detail_callback,
-                                f"DEBUG: Creating directory structure for path: '{item.path}'"
+                                f"DEBUG: Creating directory structure for path: '{item.path}'",
                             )
                             item_download_path = os.path.join(download_path, item.path)
                             # Ensure the directory exists
@@ -618,7 +625,7 @@ class SynapseClientManager:
 
                         await self._safe_callback(
                             detail_callback,
-                            f"DEBUG: Final download path for {item.name}: {item_download_path}"
+                            f"DEBUG: Final download path for {item.name}: {item_download_path}",
                         )
 
                         result = await self.download_file(
@@ -631,7 +638,9 @@ class SynapseClientManager:
                         results.append({"item": item, "result": result})
                     elif item.item_type.lower() == "folder":
                         if True:
-                            raise NotImplementedError("Folder download not implemented yet")
+                            raise NotImplementedError(
+                                "Folder download not implemented yet"
+                            )
                         from synapseclient.models import Folder
 
                         folder = Folder(id=item.synapse_id)
@@ -706,7 +715,7 @@ class SynapseClientManager:
                     items=items,
                     base_parent_id=parent_id,
                     progress_callback=progress_callback,
-                    detail_callback=detail_callback
+                    detail_callback=detail_callback,
                 )
 
             file_items = [item for item in items if item.item_type == "File"]
@@ -716,12 +725,9 @@ class SynapseClientManager:
                 await self._safe_callback(
                     progress_callback,
                     overall_progress,
-                    f"Uploading file {i + 1} of {len(file_items)}"
+                    f"Uploading file {i + 1} of {len(file_items)}",
                 )
-                await self._safe_callback(
-                    detail_callback,
-                    f"Uploading {item.name}"
-                )
+                await self._safe_callback(detail_callback, f"Uploading {item.name}")
 
                 try:
                     target_parent = parent_id

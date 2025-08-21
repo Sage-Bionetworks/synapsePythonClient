@@ -16,10 +16,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import uvicorn
+import websockets
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import websockets
 
 # Add the parent directory to the path to import synapsegui modules
 current_dir = Path(__file__).parent
@@ -28,12 +28,14 @@ sys.path.insert(0, str(parent_dir))
 
 try:
     # Import existing Synapse functionality
+    from synapsegui.models.bulk_item import BulkItem
     from synapsegui.models.config import ConfigManager
     from synapsegui.models.synapse_client import SynapseClientManager
-    from synapsegui.models.bulk_item import BulkItem
 except ImportError as e:
     print(f"Error importing synapsegui modules: {e}")
-    print("Make sure you're running this from the correct directory and synapsegui is accessible")
+    print(
+        "Make sure you're running this from the correct directory and synapsegui is accessible"
+    )
     sys.exit(1)
 
 # Configure logging
@@ -52,7 +54,7 @@ class ElectronLogHandler(logging.Handler):
         """Send log record to Electron frontend"""
         try:
             # Skip WebSocket-related logs to prevent feedback loops
-            if record.name.startswith('websockets'):
+            if record.name.startswith("websockets"):
                 return
 
             # Format the log message
@@ -64,7 +66,7 @@ class ElectronLogHandler(logging.Handler):
                 logging.INFO: "info",
                 logging.WARNING: "warning",
                 logging.ERROR: "error",
-                logging.CRITICAL: "critical"
+                logging.CRITICAL: "critical",
             }
             level = level_mapping.get(record.levelno, "info")
 
@@ -78,8 +80,8 @@ class ElectronLogHandler(logging.Handler):
                 "source": "python-logger",
                 "auto_scroll": True,
                 "raw_message": record.getMessage(),  # Original message without formatting
-                "filename": getattr(record, 'filename', ''),
-                "line_number": getattr(record, 'lineno', 0)
+                "filename": getattr(record, "filename", ""),
+                "line_number": getattr(record, "lineno", 0),
             }
 
             # Send to Electron via REST polling instead of WebSocket
@@ -105,7 +107,7 @@ log_message_queue = []
 # Set up the custom handler for the root logger to catch all logs
 electron_handler = ElectronLogHandler()
 electron_handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 electron_handler.setFormatter(formatter)
 
 # Add handler only to root logger to catch all log messages
@@ -114,7 +116,7 @@ root_logger.addHandler(electron_handler)
 root_logger.setLevel(logging.INFO)
 
 # Explicitly set WebSocket logger to WARNING to prevent debug spam
-websockets_logger = logging.getLogger('websockets')
+websockets_logger = logging.getLogger("websockets")
 websockets_logger.setLevel(logging.WARNING)
 
 # Pydantic models for API requests
@@ -188,7 +190,7 @@ def create_app() -> FastAPI:
         title="Synapse Desktop Client API",
         description="Backend API for Synapse Desktop Client",
         version="0.1.0",
-        lifespan=lifespan
+        lifespan=lifespan,
     )
 
     # Configure CORS for Electron app
@@ -211,14 +213,15 @@ app = create_app()
 async def handle_websocket_client(websocket, path=None):
     """Handle WebSocket connections from Electron frontend"""
     connected_clients.add(websocket)
-    logger.info(f"WebSocket client connected from path: {path}. Total clients: {len(connected_clients)}")
+    logger.info(
+        f"WebSocket client connected from path: {path}. Total clients: {len(connected_clients)}"
+    )
 
     # Send connection status
     try:
-        await websocket.send(json.dumps({
-            "type": "connection_status",
-            "connected": True
-        }))
+        await websocket.send(
+            json.dumps({"type": "connection_status", "connected": True})
+        )
 
         async for message in websocket:
             # Handle incoming WebSocket messages if needed
@@ -229,16 +232,23 @@ async def handle_websocket_client(websocket, path=None):
         logger.error(f"WebSocket error: {e}")
     finally:
         connected_clients.discard(websocket)
-        logger.info(f"WebSocket client removed. Total clients: {len(connected_clients)}")
+        logger.info(
+            f"WebSocket client removed. Total clients: {len(connected_clients)}"
+        )
 
 
 async def broadcast_message(message: dict):
     """Broadcast message to all connected WebSocket clients"""
     if not connected_clients:
         # Only log once per message type to avoid spam
-        message_type = message.get('type', 'unknown')
-        if message_type not in ['log', 'progress']:  # Don't spam for frequent message types
-            logger.debug(f"No WebSocket clients connected to send message: {message_type}")
+        message_type = message.get("type", "unknown")
+        if message_type not in [
+            "log",
+            "progress",
+        ]:  # Don't spam for frequent message types
+            logger.debug(
+                f"No WebSocket clients connected to send message: {message_type}"
+            )
         return
 
     # Add debug logging for completion messages
@@ -252,6 +262,7 @@ async def broadcast_message(message: dict):
     # Add timestamp if not present
     if "timestamp" not in message:
         import time
+
         message["timestamp"] = time.time()
 
     # Create a copy of the set to avoid "set changed size during iteration" error
@@ -273,6 +284,7 @@ async def broadcast_message(message: dict):
 
 # API Routes
 
+
 async def initialize_logging():
     """Initialize logging and send startup message"""
     try:
@@ -291,19 +303,10 @@ async def poll_log_messages():
         messages = log_message_queue.copy()
         log_message_queue.clear()
 
-        return {
-            "success": True,
-            "messages": messages,
-            "count": len(messages)
-        }
+        return {"success": True, "messages": messages, "count": len(messages)}
     except Exception as e:
         logger.error(f"Error polling log messages: {e}")
-        return {
-            "success": False,
-            "messages": [],
-            "count": 0,
-            "error": str(e)
-        }
+        return {"success": False, "messages": [], "count": 0, "error": str(e)}
 
 
 @app.get("/health")
@@ -343,10 +346,7 @@ async def get_home_directory():
                 # Fall back to home directory if Downloads can't be created
                 downloads_dir = home_dir
 
-        return {
-            "home_directory": home_dir,
-            "downloads_directory": downloads_dir
-        }
+        return {"home_directory": home_dir, "downloads_directory": downloads_dir}
     except Exception as e:
         logger.error(f"Error getting home directory: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -368,10 +368,9 @@ async def get_profiles():
         profile_data = []
 
         for profile in profiles:
-            profile_data.append({
-                "name": profile,
-                "display_name": profile.replace("_", " ").title()
-            })
+            profile_data.append(
+                {"name": profile, "display_name": profile.replace("_", " ").title()}
+            )
 
         return {"profiles": profile_data}
     except Exception as e:
@@ -391,7 +390,9 @@ async def login(request: LoginRequest):
 
         if request.mode == "manual":
             if not request.username or not request.token:
-                raise HTTPException(status_code=400, detail="Username and token are required")
+                raise HTTPException(
+                    status_code=400, detail="Username and token are required"
+                )
 
             # Handle manual login
             result = await synapse_client.login_manual(request.username, request.token)
@@ -407,7 +408,7 @@ async def login(request: LoginRequest):
                 "username": result.get("username", request.username),
                 "name": result.get("username", request.username),
                 "user_id": "",
-                "token": "authenticated"
+                "token": "authenticated",
             }
         else:
             raise HTTPException(status_code=401, detail=result["error"])
@@ -431,6 +432,7 @@ async def logout():
         logger.error(f"Logout error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # File operation endpoints
 
 
@@ -453,13 +455,15 @@ async def download_file(request: DownloadRequest):
                     version=int(request.version) if request.version else None,
                     download_path=request.download_path,
                     progress_callback=None,  # Disable progress callbacks
-                    detail_callback=None     # Disable detail callbacks
+                    detail_callback=None,  # Disable detail callbacks
                 )
 
                 # Manually log completion instead of broadcast_message (since we're in a thread)
                 if result["success"]:
                     logger.info(f"✅ Successfully downloaded {request.synapse_id}")
-                    logger.info(f"Downloaded to {result.get('path', 'download location')}")
+                    logger.info(
+                        f"Downloaded to {result.get('path', 'download location')}"
+                    )
                 else:
                     logger.error(f"❌ Download failed: {result['error']}")
             except Exception as e:
@@ -486,6 +490,7 @@ async def download_file(request: DownloadRequest):
 
         # Start in a thread to avoid blocking
         import threading
+
         thread = threading.Thread(target=run_download_in_background)
         thread.daemon = True
         thread.start()
@@ -518,7 +523,7 @@ async def upload_file(request: UploadRequest):
                     entity_id=request.entity_id if request.mode == "update" else None,
                     name=request.name,
                     progress_callback=None,  # Disable progress callbacks
-                    detail_callback=None     # Disable detail callbacks
+                    detail_callback=None,  # Disable detail callbacks
                 )
 
                 # Manually log completion instead of broadcast_message (since we're in a thread)
@@ -548,6 +553,7 @@ async def upload_file(request: UploadRequest):
 
         # Start in a thread to avoid blocking
         import threading
+
         thread = threading.Thread(target=run_upload_in_background)
         thread.daemon = True
         thread.start()
@@ -559,6 +565,7 @@ async def upload_file(request: UploadRequest):
     except Exception as e:
         logger.error(f"Upload endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Bulk operation endpoints
 
@@ -603,7 +610,7 @@ async def scan_directory(request: ScanDirectoryRequest):
                                 "path": item_path,
                                 "relative_path": relative_path,
                                 "parent_path": current_path,
-                                "mime_type": mime_type or "application/octet-stream"
+                                "mime_type": mime_type or "application/octet-stream",
                             }
                             items.append(file_info)
                             total_size += file_size
@@ -621,7 +628,7 @@ async def scan_directory(request: ScanDirectoryRequest):
                             "size": 0,
                             "path": item_path,
                             "relative_path": relative_path,
-                            "parent_path": current_path
+                            "parent_path": current_path,
                         }
                         items.append(folder_info)
 
@@ -649,8 +656,8 @@ async def scan_directory(request: ScanDirectoryRequest):
                 "total_items": len(files),
                 "file_count": file_count,
                 "folder_count": folder_count,
-                "total_size": total_size
-            }
+                "total_size": total_size,
+            },
         }
 
     except HTTPException:
@@ -671,23 +678,24 @@ async def enumerate_container(request: EnumerateRequest):
         logger.info(f"Enumerating container {request.container_id}")
 
         result = await synapse_client.enumerate_container(
-            request.container_id,
-            request.recursive
+            request.container_id, request.recursive
         )
 
         if result["success"]:
             # Convert items to JSON-serializable format
             items = []
             for item in result["items"]:
-                if hasattr(item, 'synapse_id'):  # BulkItem object
-                    items.append({
-                        "id": item.synapse_id,
-                        "name": item.name,
-                        "type": item.item_type.lower(),  # Use item_type and convert to lowercase
-                        "size": item.size,
-                        "parent_id": item.parent_id,
-                        "path": item.path if item.path else ""
-                    })
+                if hasattr(item, "synapse_id"):  # BulkItem object
+                    items.append(
+                        {
+                            "id": item.synapse_id,
+                            "name": item.name,
+                            "type": item.item_type.lower(),  # Use item_type and convert to lowercase
+                            "size": item.size,
+                            "parent_id": item.parent_id,
+                            "path": item.path if item.path else "",
+                        }
+                    )
                 else:  # Already a dict
                     items.append(item)
 
@@ -715,12 +723,16 @@ async def bulk_download(request: BulkDownloadRequest):
         # Execute the download task and wait for completion
         try:
             # Filter to only include files for bulk download
-            file_items_data = [item for item in request.items if item.get("type", "file").lower() == "file"]
+            file_items_data = [
+                item
+                for item in request.items
+                if item.get("type", "file").lower() == "file"
+            ]
 
             if not file_items_data:
                 raise HTTPException(
                     status_code=400,
-                    detail="No files selected for download. Only files can be bulk downloaded."
+                    detail="No files selected for download. Only files can be bulk downloaded.",
                 )
 
             logger.info(
@@ -736,7 +748,7 @@ async def bulk_download(request: BulkDownloadRequest):
                     item_type=item_data.get("type", "file"),
                     size=item_data.get("size"),
                     parent_id=item_data.get("parent_id"),
-                    path=item_data.get("path", "")
+                    path=item_data.get("path", ""),
                 )
                 bulk_items.append(bulk_item)
 
@@ -752,42 +764,50 @@ async def bulk_download(request: BulkDownloadRequest):
                 download_path=request.download_path,
                 recursive=request.create_subfolders,
                 progress_callback=async_progress_callback,
-                detail_callback=async_detail_callback
+                detail_callback=async_detail_callback,
             )
 
             if result["success"]:
                 logger.info(f"Successfully downloaded {len(file_items_data)} files")
-                await broadcast_message({
-                    "type": "complete",
-                    "operation": "bulk-download",
-                    "success": True,
-                    "data": {"message": f"Downloaded {len(file_items_data)} files"}
-                })
+                await broadcast_message(
+                    {
+                        "type": "complete",
+                        "operation": "bulk-download",
+                        "success": True,
+                        "data": {"message": f"Downloaded {len(file_items_data)} files"},
+                    }
+                )
                 return {
                     "success": True,
                     "message": "Bulk download completed successfully",
                     "item_count": len(file_items_data),
-                    "summary": result.get("summary", f"Downloaded {len(file_items_data)} files")
+                    "summary": result.get(
+                        "summary", f"Downloaded {len(file_items_data)} files"
+                    ),
                 }
             else:
                 logger.error(f"Bulk download failed: {result['error']}")
-                await broadcast_message({
-                    "type": "complete",
-                    "operation": "bulk-download",
-                    "success": False,
-                    "data": {"error": result['error']}
-                })
-                raise HTTPException(status_code=500, detail=result['error'])
+                await broadcast_message(
+                    {
+                        "type": "complete",
+                        "operation": "bulk-download",
+                        "success": False,
+                        "data": {"error": result["error"]},
+                    }
+                )
+                raise HTTPException(status_code=500, detail=result["error"])
 
         except Exception as e:
             logger.error(f"Bulk download task error: {e}")
             logger.info(f"Bulk download error: {str(e)}", True)
-            await broadcast_message({
-                "type": "complete",
-                "operation": "bulk-download",
-                "success": False,
-                "data": {"error": str(e)}
-            })
+            await broadcast_message(
+                {
+                    "type": "complete",
+                    "operation": "bulk-download",
+                    "success": False,
+                    "data": {"error": str(e)},
+                }
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     except HTTPException:
@@ -806,12 +826,14 @@ async def bulk_upload(request: BulkUploadRequest):
             raise HTTPException(status_code=401, detail="Not authenticated")
 
         # Filter to only include files for bulk upload
-        file_items_data = [file for file in request.files if file.get("type", "file").lower() == "file"]
+        file_items_data = [
+            file for file in request.files if file.get("type", "file").lower() == "file"
+        ]
 
         if not file_items_data:
             raise HTTPException(
                 status_code=400,
-                detail="No files selected for upload. Only files can be bulk uploaded."
+                detail="No files selected for upload. Only files can be bulk uploaded.",
             )
 
         logger.info(
@@ -831,20 +853,23 @@ async def bulk_upload(request: BulkUploadRequest):
             relative_path = file_data.get("relative_path", "")
 
             if not file_path or not os.path.exists(file_path):
-                logger.info(f"Skipping file with invalid path: {file_data.get('name', 'Unknown')}", True)
+                logger.info(
+                    f"Skipping file with invalid path: {file_data.get('name', 'Unknown')}",
+                    True,
+                )
                 continue
 
             # Create File object
             file_obj = File(
                 path=file_path,
                 name=file_data.get("name"),
-                description=file_data.get("description", None)
+                description=file_data.get("description", None),
             )
 
             if request.preserve_folder_structure and relative_path:
                 # Normalize path separators and split into folder parts
-                relative_path = relative_path.replace('\\', '/').strip('/')
-                path_parts = relative_path.split('/')
+                relative_path = relative_path.replace("\\", "/").strip("/")
+                path_parts = relative_path.split("/")
 
                 if len(path_parts) > 1:
                     # File is in a subfolder - build folder hierarchy
@@ -864,7 +889,7 @@ async def bulk_upload(request: BulkUploadRequest):
                                 name=folder_name,
                                 parent_id=current_parent_id,
                                 files=[],
-                                folders=[]
+                                folders=[],
                             )
                             folder_map[current_path] = folder_obj
 
@@ -893,21 +918,27 @@ async def bulk_upload(request: BulkUploadRequest):
         # Get all unique folders (top-level folders only for initial upload)
         top_level_folders = []
         for path, folder_obj in folder_map.items():
-            if '/' not in path:  # Top-level folder
+            if "/" not in path:  # Top-level folder
                 top_level_folders.append(folder_obj)
 
         total_items = len(root_files) + len(top_level_folders)
         if total_items == 0:
             logger.error("No valid files found to upload")
-            await broadcast_message({
-                "type": "complete",
-                "operation": "bulk-upload",
-                "success": False,
-                "data": {"error": "No valid files found to upload"}
-            })
-            raise HTTPException(status_code=400, detail="No valid files found to upload")
+            await broadcast_message(
+                {
+                    "type": "complete",
+                    "operation": "bulk-upload",
+                    "success": False,
+                    "data": {"error": "No valid files found to upload"},
+                }
+            )
+            raise HTTPException(
+                status_code=400, detail="No valid files found to upload"
+            )
 
-        logger.info(f"Created folder hierarchy: {len(top_level_folders)} folders, {len(root_files)} root files")
+        logger.info(
+            f"Created folder hierarchy: {len(top_level_folders)} folders, {len(root_files)} root files"
+        )
 
         # Track progress
         completed_items = 0
@@ -928,7 +959,7 @@ async def bulk_upload(request: BulkUploadRequest):
                     "item_name": item_name,
                     "item_type": item_type,
                     "entity_id": stored_item.id,
-                    "path": getattr(item, 'path', None)
+                    "path": getattr(item, "path", None),
                 }
             except Exception as e:
                 completed_items += 1
@@ -939,7 +970,7 @@ async def bulk_upload(request: BulkUploadRequest):
                     "item_name": item_name,
                     "item_type": item_type,
                     "error": str(e),
-                    "path": getattr(item, 'path', None)
+                    "path": getattr(item, "path", None),
                 }
 
         # Create upload tasks for all items
@@ -966,31 +997,35 @@ async def bulk_upload(request: BulkUploadRequest):
                 elif i - len(root_files) < len(top_level_folders):
                     item_name = top_level_folders[i - len(root_files)].name
 
-                processed_results.append({
-                    "success": False,
-                    "item_name": item_name,
-                    "error": str(result)
-                })
+                processed_results.append(
+                    {"success": False, "item_name": item_name, "error": str(result)}
+                )
             else:
                 processed_results.append(result)
 
         # Calculate final statistics
-        successful_uploads = sum(1 for r in processed_results if r.get("success", False))
+        successful_uploads = sum(
+            1 for r in processed_results if r.get("success", False)
+        )
         failed_uploads = total_items - successful_uploads
 
-        logger.info(f"Bulk upload completed: {successful_uploads} successful, {failed_uploads} failed")
+        logger.info(
+            f"Bulk upload completed: {successful_uploads} successful, {failed_uploads} failed"
+        )
 
-        await broadcast_message({
-            "type": "complete",
-            "operation": "bulk-upload",
-            "success": True,
-            "data": {
-                "message": f"Uploaded {successful_uploads} items, {failed_uploads} failed",
-                "successful_uploads": successful_uploads,
-                "failed_uploads": failed_uploads,
-                "results": processed_results
+        await broadcast_message(
+            {
+                "type": "complete",
+                "operation": "bulk-upload",
+                "success": True,
+                "data": {
+                    "message": f"Uploaded {successful_uploads} items, {failed_uploads} failed",
+                    "successful_uploads": successful_uploads,
+                    "failed_uploads": failed_uploads,
+                    "results": processed_results,
+                },
             }
-        })
+        )
 
         return {
             "success": True,
@@ -998,7 +1033,7 @@ async def bulk_upload(request: BulkUploadRequest):
             "successful_uploads": successful_uploads,
             "failed_uploads": failed_uploads,
             "total_items": total_items,
-            "summary": f"Uploaded {successful_uploads} items, {failed_uploads} failed"
+            "summary": f"Uploaded {successful_uploads} items, {failed_uploads} failed",
         }
 
     except HTTPException:
@@ -1006,17 +1041,20 @@ async def bulk_upload(request: BulkUploadRequest):
     except Exception as e:
         logger.exception("Bulk upload endpoint error")
         logger.info(f"Bulk upload error: {str(e)}", True)
-        await broadcast_message({
-            "type": "complete",
-            "operation": "bulk-upload",
-            "success": False,
-            "data": {"error": str(e)}
-        })
+        await broadcast_message(
+            {
+                "type": "complete",
+                "operation": "bulk-upload",
+                "success": False,
+                "data": {"error": str(e)},
+            }
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 def start_websocket_server(port: int):
     """Start the WebSocket server in a separate thread"""
+
     def run_websocket_server():
         async def websocket_server():
             # Create a wrapper that handles both old and new websockets library signatures
@@ -1057,11 +1095,7 @@ def main():
     logger.info("WebSocket server on ws://%s:%s", args.host, args.ws_port)
 
     uvicorn.run(
-        app,
-        host=args.host,
-        port=args.port,
-        reload=args.reload,
-        log_level="info"
+        app, host=args.host, port=args.port, reload=args.reload, log_level="info"
     )
 
 

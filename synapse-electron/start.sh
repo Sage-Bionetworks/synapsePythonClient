@@ -76,24 +76,24 @@ echo
 # Check if we're running in a headless environment (no DISPLAY set)
 if [ -z "$DISPLAY" ]; then
     echo "No display detected - starting virtual display for headless operation..."
-    
+
     # Start Xvfb (X Virtual Framebuffer) in the background
     export DISPLAY=:99
     Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
     XVFB_PID=$!
-    
+
     # Give Xvfb a moment to start
     sleep 2
-    
+
     echo "Virtual display started on DISPLAY=$DISPLAY"
-    
+
     # Function to cleanup Xvfb on exit
     cleanup() {
         echo "Cleaning up virtual display..."
         kill $XVFB_PID 2>/dev/null
         exit
     }
-    
+
     # Set trap to cleanup on script exit
     trap cleanup EXIT INT TERM
 fi

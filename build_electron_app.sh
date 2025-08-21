@@ -71,7 +71,7 @@ build_python_backend() {
     if [ -n "$SUFFIX" ]; then
         suffix_part="-$SUFFIX"
     fi
-    
+
     echo "Building Python backend for $platform..."
     cd synapse-electron/backend
 
@@ -107,7 +107,7 @@ build_python_backend() {
 # Function to build Electron app for a specific platform
 build_electron_app() {
     local platform=$1
-    
+
     echo "Building Electron application for $platform..."
     cd synapse-electron
 

@@ -426,7 +426,7 @@ jobs:
         run: |
           # Set environment variable to skip dependency installation in build script
           export SKIP_DEPENDENCY_INSTALL=1
-          
+
           # Use cmd to run the batch file with proper Windows syntax
           cmd //c "build_electron_app.bat ${TAG_CLEAN}"
 
@@ -436,7 +436,7 @@ jobs:
         run: |
           # Set environment variable to skip dependency installation in build script
           export SKIP_DEPENDENCY_INSTALL=1
-          
+
           chmod +x build_electron_app.sh
           ./build_electron_app.sh macos "${TAG_CLEAN}"
 

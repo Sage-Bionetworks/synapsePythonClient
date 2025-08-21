@@ -17,23 +17,23 @@ class SynapseElectronApp {
 
     async startPythonBackend() {
         log.info('Starting Python backend...');
-        
+
         // Determine Python executable path
         let pythonExe;
         let backendPath;
-        
+
         if (app.isPackaged) {
             // In packaged app, use the compiled backend
             backendPath = path.join(process.resourcesPath, 'backend');
-            
+
             if (process.platform === 'win32') {
                 pythonExe = path.join(backendPath, 'synapse-backend.exe');
             } else {
                 pythonExe = path.join(backendPath, 'synapse-backend');
             }
-            
+
             log.info(`Using packaged backend: ${pythonExe}`);
-            
+
             this.pythonProcess = spawn(pythonExe, [
                 '--port', this.backendPort.toString(),
                 '--ws-port', this.wsPort.toString()
@@ -44,7 +44,7 @@ class SynapseElectronApp {
         } else {
             // In development, use the Python script
             backendPath = path.join(__dirname, 'backend');
-            
+
             if (process.platform === 'win32') {
                 // On Windows, try to use the venv first, fallback to system python
                 const venvPython = path.join(backendPath, 'venv', 'Scripts', 'python.exe');
@@ -58,7 +58,7 @@ class SynapseElectronApp {
             } else {
                 pythonExe = 'python3';
             }
-                
+
             this.pythonProcess = spawn(pythonExe, [
                 path.join(backendPath, 'server.py'),
                 '--port', this.backendPort.toString(),
@@ -87,22 +87,22 @@ class SynapseElectronApp {
 
         // Wait for backend to be ready
         await this.waitForBackend();
-        
+
         // Start WebSocket server connection
         this.setupWebSocketConnection();
     }
 
     setupWebSocketConnection() {
         const wsUrl = `ws://127.0.0.1:${this.wsPort}`;
-        
+
         const connectWebSocket = () => {
             try {
                 this.ws = new WebSocket(wsUrl);
-                
+
                 this.ws.on('open', () => {
                     log.info('WebSocket connected to Python backend');
                 });
-                
+
                 this.ws.on('message', (data) => {
                     try {
                         const message = JSON.parse(data.toString());
@@ -111,12 +111,12 @@ class SynapseElectronApp {
                         log.error('Error parsing WebSocket message:', error);
                     }
                 });
-                
+
                 this.ws.on('close', () => {
                     log.warn('WebSocket connection closed, attempting to reconnect...');
                     setTimeout(connectWebSocket, 2000);
                 });
-                
+
                 this.ws.on('error', (error) => {
                     log.error('WebSocket error:', error);
                 });
@@ -125,7 +125,7 @@ class SynapseElectronApp {
                 setTimeout(connectWebSocket, 2000);
             }
         };
-        
+
         connectWebSocket();
     }
 
@@ -156,7 +156,7 @@ class SynapseElectronApp {
     createWindow() {
         // Check if we're running in a headless environment
         const isHeadless = process.env.DISPLAY === ':99' || process.env.CI || process.env.HEADLESS;
-        
+
         const webPrefs = {
             nodeIntegration: false,
             contextIsolation: true,
@@ -165,12 +165,12 @@ class SynapseElectronApp {
             // Force software rendering to avoid GPU issues
             hardwareAcceleration: false
         };
-        
+
         // Add offscreen rendering for headless mode
         if (isHeadless) {
             webPrefs.offscreen = true;
         }
-        
+
         this.mainWindow = new BrowserWindow({
             width: 1200,
             height: 800,
@@ -193,7 +193,7 @@ class SynapseElectronApp {
         if (!isHeadless) {
             this.mainWindow.once('ready-to-show', () => {
                 this.mainWindow.show();
-                
+
                 // Center window on screen
                 this.mainWindow.center();
             });
@@ -228,9 +228,9 @@ class SynapseElectronApp {
                 const response = await axios.post(`http://127.0.0.1:${this.backendPort}/auth/login`, credentials);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -240,9 +240,9 @@ class SynapseElectronApp {
                 const response = await axios.post(`http://127.0.0.1:${this.backendPort}/auth/logout`);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -252,9 +252,9 @@ class SynapseElectronApp {
                 const response = await axios.get(`http://127.0.0.1:${this.backendPort}/auth/profiles`);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -265,9 +265,9 @@ class SynapseElectronApp {
                 const response = await axios.post(`http://127.0.0.1:${this.backendPort}/files/upload`, uploadData);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -277,9 +277,9 @@ class SynapseElectronApp {
                 const response = await axios.post(`http://127.0.0.1:${this.backendPort}/files/download`, downloadData);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -290,9 +290,9 @@ class SynapseElectronApp {
                 const response = await axios.post(`http://127.0.0.1:${this.backendPort}/files/scan-directory`, scanData);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -302,9 +302,9 @@ class SynapseElectronApp {
                 const response = await axios.post(`http://127.0.0.1:${this.backendPort}/bulk/enumerate`, containerData);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -314,9 +314,9 @@ class SynapseElectronApp {
                 const response = await axios.post(`http://127.0.0.1:${this.backendPort}/bulk/download`, bulkData);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -326,9 +326,9 @@ class SynapseElectronApp {
                 const response = await axios.post(`http://127.0.0.1:${this.backendPort}/bulk/upload`, bulkData);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -360,9 +360,9 @@ class SynapseElectronApp {
                 const response = await axios.get(`http://127.0.0.1:${this.backendPort}/system/home-directory`);
                 return { success: true, data: response.data };
             } catch (error) {
-                return { 
-                    success: false, 
-                    error: error.response?.data?.detail || error.message 
+                return {
+                    success: false,
+                    error: error.response?.data?.detail || error.message
                 };
             }
         });
@@ -370,16 +370,16 @@ class SynapseElectronApp {
 
     async initialize() {
         await app.whenReady();
-        
+
         try {
             await this.startPythonBackend();
             this.createWindow();
             this.setupIPC();
-            
+
             log.info('Synapse Electron app initialized successfully');
         } catch (error) {
             log.error('Failed to initialize app:', error);
-            
+
             // Show error dialog and exit
             dialog.showErrorBox(
                 'Startup Error',
@@ -391,14 +391,14 @@ class SynapseElectronApp {
 
     cleanup() {
         log.info('Cleaning up application...');
-        
+
         if (this.ws) {
             this.ws.close();
         }
-        
+
         if (this.pythonProcess) {
             this.pythonProcess.kill('SIGTERM');
-            
+
             // Force kill after 5 seconds if still running
             setTimeout(() => {
                 if (this.pythonProcess && !this.pythonProcess.killed) {
@@ -420,7 +420,7 @@ if (process.platform === 'linux') {
     app.commandLine.appendSwitch('disable-background-timer-throttling');
     app.commandLine.appendSwitch('disable-renderer-backgrounding');
     app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
-    
+
     // Check if we're in a headless environment
     if (process.env.DISPLAY === ':99' || process.env.CI || process.env.HEADLESS) {
         app.commandLine.appendSwitch('headless');
@@ -441,10 +441,10 @@ if (process.platform === 'win32') {
     app.commandLine.appendSwitch('disable-gpu-memory-buffer-video-frames');
     app.commandLine.appendSwitch('enable-logging');
     app.commandLine.appendSwitch('log-level', '0');
-    
+
     // Use software rendering
     app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
-    
+
     log.info('Applied Windows GPU compatibility flags');
 }
 
