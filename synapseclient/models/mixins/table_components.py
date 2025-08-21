@@ -29,7 +29,11 @@ from synapseclient.api import (
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
-from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    otel_trace_method,
+    wrap_async_to_sync,
+)
 from synapseclient.core.download.download_functions import (
     download_by_file_handle,
     ensure_download_location_is_directory,
@@ -153,7 +157,7 @@ def row_labels_from_rows(rows):
     )
 
 
-async def _query_table_csv(
+def _query_table_csv(
     query: str,
     synapse: Synapse,
     quote_character: str = '"',
@@ -221,12 +225,15 @@ async def _query_table_csv(
 
     os.makedirs(download_dir, exist_ok=True)
     filename = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
-    path = await download_by_file_handle(
-        file_handle_id=file_handle_id,
-        synapse_id=extract_synapse_id_from_query(query),
-        entity_type="TableEntity",
-        destination=os.path.join(download_dir, filename),
-        synapse_client=synapse,
+    path = wrap_async_to_sync(
+        coroutine=download_by_file_handle(
+            file_handle_id=file_handle_id,
+            synapse_id=extract_synapse_id_from_query(query),
+            entity_type="TableEntity",
+            destination=os.path.join(download_dir, filename),
+            synapse_client=synapse,
+        ),
+        syn=synapse,
     )
 
     return download_from_table_result, path
@@ -248,8 +255,6 @@ def _query_table_next_page(
     """
     uri = "/entity/{id}/table/query/nextPage/async".format(id=table_id)
     result = synapse._waitForAsync(uri=uri, request=next_page_token.token)
-    # Debug the actual structure
-
     return QueryResultBundle.fill_from_dict(data=result)
 
 
@@ -322,25 +327,42 @@ async def _table_query(
         If `results_as` is "rowset", returns a QueryResultBundle object.
         If `results_as` is "csv", returns a tuple of (download_from_table_result, csv_path).
     """
+    loop = asyncio.get_event_loop()
     client = Synapse.get_client(synapse_client=synapse)
 
     if results_as.lower() == "rowset":
         return query_table_row_set(query=query, synapse=client, **kwargs)
 
     elif results_as.lower() == "csv":
-        result, csv_path = await _query_table_csv(
-            query=query,
-            synapse=client,
-            quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
-            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
-            line_end=kwargs.get("line_end", str(os.linesep)),
-            separator=kwargs.get("separator", DEFAULT_SEPARATOR),
-            header=kwargs.get("header", True),
-            include_row_id_and_row_version=kwargs.get(
-                "include_row_id_and_row_version", True
+        result, csv_path = await loop.run_in_executor(
+            None,
+            lambda: _query_table_csv(
+                query=query,
+                synapse=client,
+                quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
+                escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
+                line_end=kwargs.get("line_end", str(os.linesep)),
+                separator=kwargs.get("separator", DEFAULT_SEPARATOR),
+                header=kwargs.get("header", True),
+                include_row_id_and_row_version=kwargs.get(
+                    "include_row_id_and_row_version", True
+                ),
+                download_location=kwargs.get("download_location", None),
             ),
-            download_location=kwargs.get("download_location", None),
         )
+        # result, csv_path = await _query_table_csv(
+        #     query=query,
+        #     synapse=client,
+        #     quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
+        #     escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
+        #     line_end=kwargs.get("line_end", str(os.linesep)),
+        #     separator=kwargs.get("separator", DEFAULT_SEPARATOR),
+        #     header=kwargs.get("header", True),
+        #     include_row_id_and_row_version=kwargs.get(
+        #         "include_row_id_and_row_version", True
+        #     ),
+        #     download_location=kwargs.get("download_location", None),
+        # )
         return result, csv_path
 
 

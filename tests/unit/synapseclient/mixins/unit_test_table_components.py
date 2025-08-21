@@ -1454,7 +1454,7 @@ class TestQueryTableCsv:
             mock_download.return_value = sample_file_path
 
             # WHEN calling the function
-            result = await _query_table_csv(query=sample_query, synapse=mock_synapse)
+            result = _query_table_csv(query=sample_query, synapse=mock_synapse)
 
             # THEN ensure download result and path to downloaded file are returned
             assert result == (sample_download_result, sample_file_path)
@@ -1513,7 +1513,7 @@ class TestQueryTableCsv:
             mock_download.return_value = sample_file_path
 
             # WHEN calling the function with custom parameters
-            result = await _query_table_csv(
+            result = _query_table_csv(
                 query=sample_query, synapse=mock_synapse, **custom_params
             )
 
@@ -1555,7 +1555,7 @@ class TestQueryTableCsv:
             mock_download.return_value = sample_file_path
 
             # WHEN calling the function with a download location
-            result = await _query_table_csv(
+            result = _query_table_csv(
                 query=sample_query,
                 synapse=mock_synapse,
                 download_location=download_location,
