@@ -34,3 +34,5 @@ coverage.xml
 *.ipynb
 .env
 *.spec
+
+synapse-electron/node_modules

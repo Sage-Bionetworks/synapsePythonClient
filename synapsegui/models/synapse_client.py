@@ -5,6 +5,7 @@ This module provides the SynapseClientManager class and supporting utilities
 for handling all Synapse client operations, including authentication, file
 uploads/downloads, and bulk operations, separated from UI logic.
 """
+import asyncio
 import io
 import logging
 import os
@@ -18,6 +19,9 @@ from synapseclient.core import utils
 from synapseclient.models import File
 
 DESKTOP_CLIENT_VERSION = "0.1.0"
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 
 def _safe_stderr_redirect(new_stderr: Any) -> tuple[Any, Any]:
@@ -63,15 +67,15 @@ class TQDMProgressCapture:
 
     def __init__(
         self,
-        progress_callback: Callable[[int, str], None],
-        detail_callback: Callable[[str], None],
+        progress_callback: Optional[Callable[[int, str], None]],
+        detail_callback: Optional[Callable[[str], None]],
     ) -> None:
         """
         Initialize the TQDM progress capture.
 
         Args:
-            progress_callback: Function to call with progress updates (progress%, message)
-            detail_callback: Function to call with detailed progress messages
+            progress_callback: Function to call with progress updates (progress%, message) or None
+            detail_callback: Function to call with detailed progress messages or None
         """
         self.progress_callback = progress_callback
         self.detail_callback = detail_callback
@@ -97,8 +101,10 @@ class TQDMProgressCapture:
                         progress = int(match.group(1))
                         if progress != self.last_progress:
                             self.last_progress = progress
-                            self.progress_callback(progress, f"Progress: {progress}%")
-                            self.detail_callback(progress_line)
+                            if self.progress_callback:
+                                self.progress_callback(progress, f"Progress: {progress}%")
+                            if self.detail_callback:
+                                self.detail_callback(progress_line)
                 except Exception:
                     pass
 
@@ -136,7 +142,7 @@ class SynapseClientManager:
         try:
             self.client = synapseclient.Synapse(
                 skip_checks=True,
-                debug=False,
+                debug=True,
                 user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
             )
 
@@ -172,7 +178,7 @@ class SynapseClientManager:
         try:
             self.client = synapseclient.Synapse(
                 skip_checks=True,
-                debug=False,
+                debug=True,
                 user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
             )
 
@@ -212,8 +218,8 @@ class SynapseClientManager:
         synapse_id: str,
         version: Optional[int],
         download_path: str,
-        progress_callback: Callable[[int, str], None],
-        detail_callback: Callable[[str], None],
+        progress_callback: Optional[Callable[[int, str], None]],
+        detail_callback: Optional[Callable[[str], None]],
     ) -> Dict[str, Any]:
         """
         Download a file from Synapse.
@@ -276,8 +282,8 @@ class SynapseClientManager:
         parent_id: Optional[str],
         entity_id: Optional[str],
         name: Optional[str],
-        progress_callback: Callable[[int, str], None],
-        detail_callback: Callable[[str], None],
+        progress_callback: Optional[Callable[[int, str], None]],
+        detail_callback: Optional[Callable[[str], None]],
     ) -> Dict[str, Any]:
         """
         Upload a file to Synapse.
@@ -287,8 +293,8 @@ class SynapseClientManager:
             parent_id: Parent entity ID for new files (required for new files)
             entity_id: Entity ID to update (for updating existing files)
             name: Name for the entity (optional, uses filename if not provided)
-            progress_callback: Function for progress updates (progress%, message)
-            detail_callback: Function for detailed progress messages
+            progress_callback: Function for progress updates (progress%, message) or None
+            detail_callback: Function for detailed progress messages or None
 
         Returns:
             Dictionary with 'success' boolean and either entity info or 'error' key
@@ -397,6 +403,16 @@ class SynapseClientManager:
                 container=container, recursive=recursive
             )
 
+            # Build hierarchical paths for all items
+            logger.info("DEBUG: Building hierarchical paths for downloaded items")
+            path_mapping = self._build_hierarchical_paths(items, container_id)
+
+            # Update items with correct hierarchical paths
+            for item in items:
+                if item.synapse_id in path_mapping:
+                    item.path = path_mapping[item.synapse_id]
+                    logger.info(f"DEBUG: Set path for {item.name}: '{item.path}'")
+
             logger.info(
                 f"Successfully enumerated {len(items)} items from container {container_id}"
             )
@@ -407,6 +423,65 @@ class SynapseClientManager:
             logger = logging.getLogger("synapseclient")
             logger.error(f"Enumeration failed for container {container_id}: {str(e)}")
             return {"success": False, "error": str(e)}
+
+    def _build_hierarchical_paths(self, items: list, root_container_id: str) -> dict:
+        """
+        Build hierarchical paths for items based on parent-child relationships.
+
+        Args:
+            items: List of BulkItem objects
+            root_container_id: ID of the root container being enumerated
+
+        Returns:
+            Dictionary mapping synapse_id to hierarchical path
+        """
+        # Create a mapping of ID to item for quick lookups
+        id_to_item = {item.synapse_id: item for item in items}
+
+        # Add the root container to avoid issues
+        id_to_item[root_container_id] = None
+
+        # Function to recursively build path for an item
+        def get_item_path(item_id: str, visited: set = None) -> str:
+            if visited is None:
+                visited = set()
+
+            if item_id in visited:
+                # Circular reference protection
+                return ""
+
+            if item_id == root_container_id or item_id not in id_to_item:
+                return ""
+
+            visited.add(item_id)
+            item = id_to_item[item_id]
+
+            if item is None or item.parent_id is None or item.parent_id == root_container_id:
+                visited.remove(item_id)
+                return item.name if item else ""
+
+            parent_path = get_item_path(item.parent_id, visited)
+            visited.remove(item_id)
+
+            if parent_path:
+                return f"{parent_path}/{item.name}"
+            else:
+                return item.name
+
+        # Build paths for all items
+        path_mapping = {}
+        for item in items:
+            if item.item_type.lower() == "file":
+                # For files, we want the directory path (excluding the filename)
+                parent_path = ""
+                if item.parent_id and item.parent_id != root_container_id:
+                    parent_path = get_item_path(item.parent_id)
+                path_mapping[item.synapse_id] = parent_path
+            else:
+                # For folders, include the folder name in the path
+                path_mapping[item.synapse_id] = get_item_path(item.synapse_id)
+
+        return path_mapping
 
     def _convert_to_bulk_items(self, container: Any, recursive: bool) -> list:
         """
@@ -425,6 +500,11 @@ class SynapseClientManager:
 
         if hasattr(container, "files"):
             for file in container.files:
+                file_path = file.path if hasattr(file, "path") else None
+                # Log file path information for debugging
+                logger = logging.getLogger("synapseclient")
+                logger.info(f"DEBUG: Converting file {file.name} (ID: {file.id}) - path attribute: '{file_path}'")
+
                 items.append(
                     BulkItem(
                         synapse_id=file.id,
@@ -432,12 +512,20 @@ class SynapseClientManager:
                         item_type="File",
                         size=file.file_handle.content_size if file.file_handle else 0,
                         parent_id=file.parent_id,
-                        path=file.path if hasattr(file, "path") else None,
+                        path=file_path,
                     )
                 )
 
         if hasattr(container, "folders"):
             for folder in container.folders:
+                folder_path = folder.path if hasattr(folder, "path") else None
+                # Log folder path information for debugging
+                logger = logging.getLogger("synapseclient")
+                logger.info(
+                    f"DEBUG: Converting folder {folder.name} (ID: {folder.id}) - "
+                    f"path attribute: '{folder_path}'"
+                )
+
                 items.append(
                     BulkItem(
                         synapse_id=folder.id,
@@ -445,7 +533,7 @@ class SynapseClientManager:
                         item_type="Folder",
                         size=None,
                         parent_id=folder.parent_id,
-                        path=folder.path if hasattr(folder, "path") else None,
+                        path=folder_path,
                     )
                 )
 
@@ -453,6 +541,20 @@ class SynapseClientManager:
                     items.extend(self._convert_to_bulk_items(folder, recursive))
 
         return items
+
+    async def _safe_callback(self, callback, *args):
+        """Safely call a callback function, handling both sync and async callbacks."""
+        if callback is None:
+            return
+        try:
+            # Check if the callback is a coroutine function (async)
+            if asyncio.iscoroutinefunction(callback):
+                await callback(*args)
+            else:
+                # Call synchronous callback
+                callback(*args)
+        except Exception as e:
+            logger.warning(f"Callback error: {e}")
 
     async def bulk_download(
         self,
@@ -484,22 +586,52 @@ class SynapseClientManager:
 
             for i, item in enumerate(items):
                 overall_progress = int((i / total_items) * 100)
-                progress_callback(
-                    overall_progress, f"Processing item {i + 1} of {total_items}"
+                await self._safe_callback(
+                    progress_callback,
+                    overall_progress,
+                    f"Processing item {i + 1} of {total_items}"
                 )
-                detail_callback(f"Downloading {item.name} ({item.synapse_id})")
+                await self._safe_callback(
+                    detail_callback,
+                    f"Downloading {item.name} ({item.synapse_id})"
+                )
 
                 try:
-                    if item.item_type == "File":
+                    if item.item_type.lower() == "file":
+                        # Log the item details for debugging
+                        await self._safe_callback(
+                            detail_callback,
+                            f"DEBUG: Processing file {item.name} with path: '{item.path}', parent_id: {item.parent_id}"
+                        )
+
+                        # Determine the download path, considering the item's path within the container
+                        item_download_path = download_path
+                        if recursive and item.path and item.path.strip():
+                            # Create subdirectory structure based on the item's hierarchical path
+                            await self._safe_callback(
+                                detail_callback,
+                                f"DEBUG: Creating directory structure for path: '{item.path}'"
+                            )
+                            item_download_path = os.path.join(download_path, item.path)
+                            # Ensure the directory exists
+                            os.makedirs(item_download_path, exist_ok=True)
+
+                        await self._safe_callback(
+                            detail_callback,
+                            f"DEBUG: Final download path for {item.name}: {item_download_path}"
+                        )
+
                         result = await self.download_file(
                             synapse_id=item.synapse_id,
                             version=None,
-                            download_path=download_path,
+                            download_path=item_download_path,
                             progress_callback=progress_callback,
                             detail_callback=detail_callback,
                         )
                         results.append({"item": item, "result": result})
-                    elif item.item_type == "Folder":
+                    elif item.item_type.lower() == "folder":
+                        if True:
+                            raise NotImplementedError("Folder download not implemented yet")
                         from synapseclient.models import Folder
 
                         folder = Folder(id=item.synapse_id)
@@ -526,7 +658,7 @@ class SynapseClientManager:
                         {"item": item, "result": {"success": False, "error": str(e)}}
                     )
 
-            progress_callback(100, "Bulk download complete")
+            await self._safe_callback(progress_callback, 100, "Bulk download complete")
 
             successes = sum(1 for r in results if r["result"].get("success", False))
             failures = total_items - successes
@@ -571,17 +703,25 @@ class SynapseClientManager:
             folder_mapping = {}
             if preserve_structure:
                 folder_mapping = await self._create_folder_structure(
-                    items, parent_id, progress_callback, detail_callback
+                    items=items,
+                    base_parent_id=parent_id,
+                    progress_callback=progress_callback,
+                    detail_callback=detail_callback
                 )
 
             file_items = [item for item in items if item.item_type == "File"]
 
             for i, item in enumerate(file_items):
                 overall_progress = int((i / len(file_items)) * 100)
-                progress_callback(
-                    overall_progress, f"Uploading file {i + 1} of {len(file_items)}"
+                await self._safe_callback(
+                    progress_callback,
+                    overall_progress,
+                    f"Uploading file {i + 1} of {len(file_items)}"
                 )
-                detail_callback(f"Uploading {item.name}")
+                await self._safe_callback(
+                    detail_callback,
+                    f"Uploading {item.name}"
+                )
 
                 try:
                     target_parent = parent_id
@@ -619,7 +759,7 @@ class SynapseClientManager:
                         {"item": item, "result": {"success": False, "error": str(e)}}
                     )
 
-            progress_callback(100, "Bulk upload complete")
+            await self._safe_callback(progress_callback, 100, "Bulk upload complete")
 
             successes = sum(1 for r in results if r["result"].get("success", False))
             failures = len(file_items) - successes
@@ -700,12 +840,12 @@ class SynapseClientManager:
 
         sorted_dirs = sorted(dir_paths, key=lambda x: len(Path(x).parts))
 
-        detail_callback("Creating folder structure...")
+        await detail_callback("Creating folder structure...")
 
         for i, dir_path in enumerate(sorted_dirs):
             if i % 5 == 0:
                 progress = int((i / len(sorted_dirs)) * 50)
-                progress_callback(
+                await progress_callback(
                     progress, f"Creating folders ({i}/{len(sorted_dirs)})"
                 )
 
@@ -737,11 +877,11 @@ class SynapseClientManager:
                 folder = folder.store(synapse_client=self.client)
                 normalized_dir_path = dir_path.replace("\\", "/")
                 folder_mapping[normalized_dir_path] = folder.id
-                detail_callback(
+                await detail_callback(
                     f"Created folder: {folder_name} ({folder.id}) from path {dir_path}"
                 )
             except Exception as e:
-                detail_callback(f"Error creating folder {folder_name}: {str(e)}")
+                await detail_callback(f"Error creating folder {folder_name}: {str(e)}")
 
         return folder_mapping
 
