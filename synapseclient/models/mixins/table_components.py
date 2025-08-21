@@ -2499,13 +2499,11 @@ class QueryMixinSynchronousProtocol(Protocol):
     @staticmethod
     def query_part_mask(
         query: str,
-        limit: int = None,
-        offset: int = None,
-        is_consistent: bool = True,
-        part_mask: int = None,
+        part_mask: int,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> "QueryResultBundle":
+        **kwargs,
+    ) -> "QueryResultOutput":
         """Query for data on a table stored in Synapse. This is a more advanced use case
         of the `query` function that allows you to determine what addiitional metadata
         about the table or query should also be returned. If you do not need this
