@@ -648,10 +648,10 @@ class SelectColumn:
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SelectColumn.html>
     """
 
-    name: str
+    name: Optional[str] = None
     """The required display name of the column"""
 
-    column_type: ColumnType
+    column_type: Optional[ColumnType] = None
     """The column type determines the type of data that can be stored in a column.
     Switching between types (using a transaction with TableUpdateTransactionRequest
     in the "changes" list) is generally allowed except for switching to "_LIST"
@@ -664,9 +664,16 @@ class SelectColumn:
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "SelectColumn":
         """Create a SelectColumn from a dictionary response."""
+        column_type = None
+        column_type_value = data.get("columnType")
+        if column_type_value:
+            try:
+                column_type = ColumnType(column_type_value)
+            except ValueError:
+                column_type = None
         return cls(
-            name=data.get("name", ""),
-            column_type=ColumnType(data.get("columnType", None)),
+            name=data.get("name"),
+            column_type=column_type,
             id=data.get("id"),
         )
 

@@ -410,9 +410,6 @@ def _rowset_to_pandas_df(
     rows = rowset.rows
     headers = rowset.headers
 
-    if not rows or not headers:
-        raise ValueError("The provided rowset is missing 'rows' or 'headers' data.")
-
     offset += len(rows)
     series = collections.OrderedDict()
 
