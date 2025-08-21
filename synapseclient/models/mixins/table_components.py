@@ -247,7 +247,12 @@ def _query_table_next_page(
         The following page of results as a QueryResultBundle
     """
     uri = "/entity/{id}/table/query/nextPage/async".format(id=table_id)
-    return synapse._waitForAsync(uri=uri, request=next_page_token.token)
+    result = synapse._waitForAsync(uri=uri, request=next_page_token.token)
+    # Debug the actual structure
+    print("Full result:", result)
+    print("Type of result:", type(result))
+
+    return QueryResultBundle.fill_from_dict(data=result)
 
 
 def query_table_row_set(

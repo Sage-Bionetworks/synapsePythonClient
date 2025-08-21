@@ -28,9 +28,11 @@ from synapseclient.models.mixins.table_components import (
     ViewStoreMixin,
     ViewUpdateMixin,
     _query_table_csv,
+    _query_table_next_page,
 )
 from synapseclient.models.table_components import (
     ColumnType,
+    QueryNextPageToken,
     QueryResult,
     QueryResultBundle,
     QueryResultOutput,
@@ -38,7 +40,6 @@ from synapseclient.models.table_components import (
     RowSet,
     SelectColumn,
 )
-from synapseclient.table import TableQueryResult
 
 POST_COLUMNS_PATCH = "synapseclient.models.mixins.table_components.post_columns"
 GET_ID_PATCH = "synapseclient.models.mixins.table_components.get_id"
@@ -1564,3 +1565,102 @@ class TestQueryTableCsv:
             mock_ensure_dir.assert_called_once_with(download_location=download_location)
             mock_makedirs.assert_called_once_with(download_location, exist_ok=True)
             assert result == (sample_download_result, sample_file_path)
+
+
+class TestQueryTableNextPage:
+    """Test suite for the _query_table_next_page function."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    @pytest.fixture
+    def sample_table_id(self):
+        """Sample table ID for testing."""
+        return "syn123456"
+
+    @pytest.fixture
+    def sample_next_page_token(self):
+        """Sample QueryNextPageToken for testing."""
+        token = MagicMock(spec=QueryNextPageToken)
+        token.token = "sample_token_string"
+        return token
+
+    @pytest.fixture
+    def sample_synapse_response(self):
+        """Sample response from Synapse API."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResultBundle",
+            "queryResult": {
+                "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+                "queryResults": {
+                    "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+                    "tableId": "syn123456",
+                    "etag": "test-etag",
+                    "headers": [
+                        {"name": "col1", "columnType": "STRING", "id": "12345"},
+                        {"name": "col2", "columnType": "INTEGER", "id": "12346"},
+                    ],
+                    "rows": [
+                        {"rowId": 1, "versionNumber": 1, "values": ["test1", "100"]},
+                        {"rowId": 2, "versionNumber": 1, "values": ["test2", "200"]},
+                    ],
+                },
+                "nextPageToken": None,
+            },
+            "queryCount": 100,
+            "lastUpdatedOn": "2025-08-20T10:00:00.000Z",
+            "selectColumns": [
+                {"name": "column1", "columnType": "STRING", "id": "12345"}
+            ],
+        }
+
+    def test_query_table_next_page_basic_functionality(
+        self, sample_table_id, sample_next_page_token, sample_synapse_response
+    ):
+        """Test basic functionality of _query_table_next_page. Next page token is None"""
+        with patch(
+            "synapseclient.client.Synapse._waitForAsync",
+            return_value=sample_synapse_response,
+        ) as mock_wait_for_async:
+            # WHEN calling _query_table_next_page function
+            result = _query_table_next_page(
+                next_page_token=sample_next_page_token,
+                table_id=sample_table_id,
+                synapse=self.syn,
+            )
+            # Verify API call was made correctly
+            mock_wait_for_async.assert_called_once_with(
+                uri="/entity/syn123456/table/query/nextPage/async",
+                request="sample_token_string",
+            )
+
+            # Verify the QueryResultBundle was populated correctly from the response
+            assert (
+                result.concrete_type
+                == "org.sagebionetworks.repo.model.table.QueryResultBundle"
+            )
+            assert result.query_count == 100
+            assert result.last_updated_on == "2025-08-20T10:00:00.000Z"
+
+            # Verify the nested QueryResult
+            assert isinstance(result.query_result, QueryResult)
+            assert (
+                result.query_result.concrete_type
+                == "org.sagebionetworks.repo.model.table.QueryResult"
+            )
+            assert result.query_result.next_page_token is None
+
+            # Verify the nested RowSet
+            assert isinstance(result.query_result.query_results, RowSet)
+            assert result.query_result.query_results.table_id == sample_table_id
+            assert result.query_result.query_results.etag == "test-etag"
+            assert len(result.query_result.query_results.headers) == 2
+            assert len(result.query_result.query_results.rows) == 2
+
+            # Verify the nested SelectColumns
+            assert isinstance(result.select_columns, list)
+            assert len(result.select_columns) == 1
+            assert result.select_columns[0].name == "column1"
+            assert result.select_columns[0].column_type == "STRING"
+            assert result.select_columns[0].id == "12345"

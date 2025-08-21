@@ -35,10 +35,10 @@ class SumFileSizes:
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SumFileSizes.html>
     """
 
-    sum_file_size_bytes: int = 0
+    sum_file_size_bytes: int = None
     """The sum of the file size in bytes."""
 
-    greater_than: bool = False
+    greater_than: bool = None
     """When true, the actual sum of the files sizes is greater than the value provided with 'sumFileSizesBytes'. When false, the actual sum of the files sizes is equlas the value provided with 'sumFileSizesBytes'"""
 
 
@@ -80,13 +80,19 @@ class QueryResultOutput:
         Returns:
             A QueryResultOutput instance.
         """
+        sum_file_sizes = None
+        sum_file_sizes = data.get("sum_file_sizes")
+        if sum_file_sizes:
+            sum_file_sizes = SumFileSizes(
+                sum_file_size_bytes=sum_file_sizes.get("sumFileSizesBytes"),
+                greater_than=sum_file_sizes.get("greaterThan"),
+            )
+
         return cls(
             result=result,
-            count=data.get("count"),
-            sum_file_sizes=SumFileSizes(**data.get("sum_file_sizes", {}))
-            if data.get("sum_file_sizes")
-            else None,
-            last_updated_on=data.get("last_updated_on"),
+            count=data.get("count", None),
+            sum_file_sizes=sum_file_sizes,
+            last_updated_on=data.get("last_updated_on", None),
         )
 
 
@@ -547,18 +553,18 @@ class ActionRequiredCount:
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/ActionRequiredCount.html>
     """
 
-    action: Dict[str, Any]
+    action: Optional[Dict[str, Any]] = None
     """An action that the user must take in order to download a file."""
 
-    count: int
+    count: Optional[int] = None
     """The number of files that require this action."""
 
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "ActionRequiredCount":
         """Create an ActionRequiredCount from a dictionary response."""
         return cls(
-            action=data.get("action"),
-            count=data.get("count"),
+            action=data.get("action", None),
+            count=data.get("count", None),
         )
 
 
@@ -647,15 +653,27 @@ class RowSet:
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "RowSet":
         """Create a RowSet from a dictionary response."""
+        headers = data.get("headers", None)
+        rows = data.get("rows", None)
+
+        if headers is not None and not isinstance(headers, list):
+            # If headers is a single SelectColumn, convert it to a list
+            headers = []
+            for header in headers:
+                headers.append(SelectColumn.fill_from_dict(header))
+
+        if rows is not None and not isinstance(rows, list):
+            # If rows is a single Row, convert it to a list
+            rows = []
+            for row in rows:
+                rows.append(Row.fill_from_dict(row))
+
         return cls(
             concrete_type=data.get("concreteType"),
             table_id=data.get("tableId"),
             etag=data.get("etag"),
-            headers=[
-                SelectColumn.fill_from_dict(header)
-                for header in data.get("headers", [])
-            ],
-            rows=[Row.fill_from_dict(row) for row in data.get("rows", [])],
+            headers=headers,
+            rows=rows,
         )
 
 
@@ -679,12 +697,14 @@ class QueryResult:
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResult":
         """Create a QueryResult from a dictionary response."""
+        next_page_token = None
+        if data.get("nextPageToken", None):
+            next_page_token = QueryNextPageToken.fill_from_dict(data["nextPageToken"])
+
         return cls(
             concrete_type=data.get("concreteType"),
             query_results=RowSet.fill_from_dict(data.get("queryResults", {})),
-            next_page_token=QueryNextPageToken.fill_from_dict(
-                data.get("nextPageToken", {})
-            ),
+            next_page_token=next_page_token,
         )
 
 
@@ -744,33 +764,46 @@ class QueryResultBundle:
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResultBundle":
         """Create a QueryResultBundle from a dictionary response."""
+        # default to None
+        sum_file_sizes = None
+        query_result = None
+        select_columns = None
+        action_required = None
+        sum_file_sizes = data.get("sum_file_sizes")
+        query_result = data.get("queryResult")
+        select_columns = data.get("selectColumns")
+        action_required = data.get("actionsRequired")
+
+        if sum_file_sizes:
+            sum_file_sizes = SumFileSizes(
+                sum_file_size_bytes=sum_file_sizes.get("sumFileSizesBytes"),
+                greater_than=sum_file_sizes.get("greaterThan"),
+            )
+
+        if query_result:
+            query_result = QueryResult.fill_from_dict(query_result)
+
+        if select_columns and isinstance(select_columns, list):
+            select_columns = [
+                SelectColumn.fill_from_dict(col) for col in select_columns
+            ]
+        if action_required and isinstance(action_required, list):
+            action_required = [
+                ActionRequiredCount.fill_from_dict(action) for action in action_required
+            ]
+
         return cls(
             concrete_type=data.get("concreteType"),
-            query_result=QueryResult.fill_from_dict(data.get("queryResult", {})),
+            query_result=query_result,
             query_count=data.get("queryCount"),
-            select_columns=[
-                SelectColumn.fill_from_dict(col)
-                for col in data.get("selectColumns", [])
-            ],
+            select_columns=select_columns,
             max_rows_per_page=data.get("maxRowsPerPage"),
             column_models=data.get("columnModels"),
             facets=data.get("facets"),
-            sum_file_sizes=(
-                SumFileSizes(
-                    sum_file_size_bytes=data["sumFileSizes"].get(
-                        "sumFileSizesBytes", 0
-                    ),
-                    greater_than=data["sumFileSizes"].get("greaterThan", False),
-                )
-                if data.get("sumFileSizes")
-                else None
-            ),
+            sum_file_sizes=sum_file_sizes,
             last_updated_on=data.get("lastUpdatedOn"),
             combined_sql=data.get("combinedSql"),
-            actions_required=[
-                ActionRequiredCount.fill_from_dict(action)
-                for action in data.get("actionsRequired", [])
-            ],
+            actions_required=action_required,
         )
 
 
