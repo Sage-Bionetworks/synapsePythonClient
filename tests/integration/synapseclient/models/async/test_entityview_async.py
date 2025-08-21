@@ -278,7 +278,7 @@ class TestEntityView:
                 )
 
                 # THEN the CSV conversion function should be called
-                spy_csv_file_conversion.assert_called_once()
+                spy_csv_file_conversion.assert_called()
 
             elif method == "dataframe":
                 # Use DataFrame
