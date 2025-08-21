@@ -68,6 +68,7 @@ from synapseclient.models.table_components import (
     QueryNextPageToken,
     QueryResultBundle,
     QueryResultOutput,
+    RowSet,
     SchemaStorageStrategy,
     SnapshotRequest,
     TableSchemaChangeRequest,
@@ -144,13 +145,13 @@ def row_labels_from_id_and_version(rows):
     return ["_".join(map(str, row)) for row in rows]
 
 
-def row_labels_from_rows(rows):
+def row_labels_from_rows(rows: "RowSet") -> "RowSet":
     return row_labels_from_id_and_version(
         [
             (
-                (row["rowId"], row["versionNumber"], row["etag"])
-                if "etag" in row
-                else (row["rowId"], row["versionNumber"])
+                (row.row_id, row.version_number, row.etag)
+                if row.etag
+                else (row.row_id, row.version_number)
             )
             for row in rows
         ]
@@ -378,7 +379,6 @@ def _rowset_to_pandas_df(
     Returns:
         A pandas DataFrame containing all the query results.
     """
-
     test_import_pandas()
     import collections
 
@@ -387,7 +387,9 @@ def _rowset_to_pandas_df(
     def construct_rownames(query_result_bundle, offset=0):
         try:
             return (
-                row_labels_from_rows(query_result_bundle["rows"])
+                row_labels_from_rows(
+                    query_result_bundle.query_result.query_results.rows
+                )
                 if row_id_and_version_in_index
                 else None
             )
