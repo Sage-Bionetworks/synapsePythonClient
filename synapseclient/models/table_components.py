@@ -1,3 +1,4 @@
+import json
 import os
 from dataclasses import dataclass, field, replace
 from enum import Enum
@@ -17,7 +18,7 @@ from typing_extensions import Self
 from synapseclient import Column as Synapse_Column
 from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.utils import delete_none_keys
+from synapseclient.core.utils import delete_none_keys, from_unix_epoch_time
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 
@@ -80,13 +81,14 @@ class QueryResultOutput:
         Returns:
             A QueryResultOutput instance.
         """
-        sum_file_sizes = None
-        sum_file_sizes = data.get("sum_file_sizes")
-        if sum_file_sizes:
-            sum_file_sizes = SumFileSizes(
-                sum_file_size_bytes=sum_file_sizes.get("sumFileSizesBytes"),
-                greater_than=sum_file_sizes.get("greaterThan"),
+        sum_file_sizes = (
+            SumFileSizes(
+                sum_file_size_bytes=data["sum_file_sizes"].sum_file_size_bytes,
+                greater_than=data["sum_file_sizes"].greater_than,
             )
+            if data.get("sum_file_sizes")
+            else None
+        )
 
         return cls(
             result=result,
@@ -534,6 +536,76 @@ class Row:
     values: Optional[List[str]] = None
     """The values for each column of this row. To delete a row, set this to an empty list: []"""
 
+    def to_boolean(value):
+        """
+        Convert a string to boolean, case insensitively,
+        where true values are: true, t, and 1 and false values are: false, f, 0.
+        Raise a ValueError for all other values.
+        """
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            lower_value = value.lower()
+            if lower_value in ["true", "t", "1"]:
+                return True
+            if lower_value in ["false", "f", "0"]:
+                return False
+
+        raise ValueError(f"Can't convert {value} to boolean.")
+
+    @staticmethod
+    def cast_values(values, headers):
+        """
+        Convert a row of table query results from strings to the correct column type.
+
+        See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html>
+        """
+        if len(values) != len(headers):
+            raise ValueError(
+                f"The number of columns in the csv file does not match the given headers. {len(values)} fields, {len(headers)} headers"
+            )
+
+        result = []
+        for header, field in zip(headers, values):  # noqa: F402
+            columnType = header.get("columnType", "STRING")
+
+            # convert field to column type
+            if field is None or field == "":
+                result.append(None)
+            elif columnType in {
+                "STRING",
+                "ENTITYID",
+                "FILEHANDLEID",
+                "LARGETEXT",
+                "USERID",
+                "LINK",
+            }:
+                result.append(field)
+            elif columnType == "DOUBLE":
+                result.append(float(field))
+            elif columnType == "INTEGER":
+                result.append(int(field))
+            elif columnType == "BOOLEAN":
+                result.append(Row.to_boolean(field))
+            elif columnType == "DATE":
+                result.append(from_unix_epoch_time(field))
+            elif columnType in {
+                "STRING_LIST",
+                "INTEGER_LIST",
+                "BOOLEAN_LIST",
+                "ENTITYID_LIST",
+                "USERID_LIST",
+            }:
+                result.append(json.loads(field))
+            elif columnType == "DATE_LIST":
+                result.append(json.loads(field, parse_int=from_unix_epoch_time))
+            else:
+                # default to string for unknown column type
+                result.append(field)
+
+        return result
+
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "Row":
         """Create a Row from a dictionary response."""
@@ -651,22 +723,33 @@ class RowSet:
     """The Rows of this set. The index of each row value aligns with the index of each header."""
 
     @classmethod
+    def cast_row(
+        cls, row: Dict[str, Any], headers: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        row["values"] = Row.cast_values(row["values"], headers)
+        return row
+
+    @classmethod
+    def cast_row_set(cls, rows: List[Row], headers: List[Dict[str, Any]]) -> List[Row]:
+        rows = [cls.cast_row(row, headers) for row in rows]
+        return rows
+
+    @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "RowSet":
         """Create a RowSet from a dictionary response."""
         headers = data.get("headers", None)
         rows = data.get("rows", None)
 
-        if headers is not None and not isinstance(headers, list):
-            # If headers is a single SelectColumn, convert it to a list
-            headers = []
-            for header in headers:
-                headers.append(SelectColumn.fill_from_dict(header))
+        # Handle headers
+        headers_data = data.get("headers")
+        if headers_data and isinstance(headers_data, list):
+            headers = [SelectColumn.fill_from_dict(header) for header in headers_data]
 
-        if rows is not None and not isinstance(rows, list):
-            # If rows is a single Row, convert it to a list
-            rows = []
-            for row in rows:
-                rows.append(Row.fill_from_dict(row))
+        # Handle rows
+        if rows and isinstance(rows, list):
+            if headers_data and isinstance(headers_data, list):
+                rows = cls.cast_row_set(rows, headers_data)
+            rows = [Row.fill_from_dict(row) for row in rows]
 
         return cls(
             concrete_type=data.get("concreteType"),
@@ -698,12 +781,17 @@ class QueryResult:
     def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResult":
         """Create a QueryResult from a dictionary response."""
         next_page_token = None
+        query_results = data.get("queryResults", None)
+
         if data.get("nextPageToken", None):
             next_page_token = QueryNextPageToken.fill_from_dict(data["nextPageToken"])
 
+        if data.get("queryResults", None):
+            query_results = RowSet.fill_from_dict(data["queryResults"])
+
         return cls(
             concrete_type=data.get("concreteType"),
-            query_results=RowSet.fill_from_dict(data.get("queryResults", {})),
+            query_results=query_results,
             next_page_token=next_page_token,
         )
 
@@ -764,32 +852,36 @@ class QueryResultBundle:
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResultBundle":
         """Create a QueryResultBundle from a dictionary response."""
-        # default to None
+        # Handle sum_file_sizes
         sum_file_sizes = None
-        query_result = None
-        select_columns = None
-        action_required = None
-        sum_file_sizes = data.get("sum_file_sizes")
-        query_result = data.get("queryResult")
-        select_columns = data.get("selectColumns")
-        action_required = data.get("actionsRequired")
-
-        if sum_file_sizes:
+        sum_file_sizes_data = data.get("sumFileSizes")
+        if sum_file_sizes_data:
             sum_file_sizes = SumFileSizes(
-                sum_file_size_bytes=sum_file_sizes.get("sumFileSizesBytes"),
-                greater_than=sum_file_sizes.get("greaterThan"),
+                sum_file_size_bytes=sum_file_sizes_data.get("sumFileSizesBytes"),
+                greater_than=sum_file_sizes_data.get("greaterThan"),
             )
 
-        if query_result:
-            query_result = QueryResult.fill_from_dict(query_result)
+        # Handle query_result
+        query_result = None
+        query_result_data = data.get("queryResult")
+        if query_result_data:
+            query_result = QueryResult.fill_from_dict(query_result_data)
 
-        if select_columns and isinstance(select_columns, list):
+        # Handle select_columns
+        select_columns = None
+        select_columns_data = data.get("selectColumns")
+        if select_columns_data and isinstance(select_columns_data, list):
             select_columns = [
-                SelectColumn.fill_from_dict(col) for col in select_columns
+                SelectColumn.fill_from_dict(col) for col in select_columns_data
             ]
-        if action_required and isinstance(action_required, list):
-            action_required = [
-                ActionRequiredCount.fill_from_dict(action) for action in action_required
+
+        # Handle actions_required
+        actions_required = None
+        actions_required_data = data.get("actionsRequired")
+        if actions_required_data and isinstance(actions_required_data, list):
+            actions_required = [
+                ActionRequiredCount.fill_from_dict(action)
+                for action in actions_required_data
             ]
 
         return cls(
@@ -803,7 +895,7 @@ class QueryResultBundle:
             sum_file_sizes=sum_file_sizes,
             last_updated_on=data.get("lastUpdatedOn"),
             combined_sql=data.get("combinedSql"),
-            actions_required=action_required,
+            actions_required=actions_required,
         )
 
 

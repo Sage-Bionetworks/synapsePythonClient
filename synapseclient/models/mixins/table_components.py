@@ -249,8 +249,6 @@ def _query_table_next_page(
     uri = "/entity/{id}/table/query/nextPage/async".format(id=table_id)
     result = synapse._waitForAsync(uri=uri, request=next_page_token.token)
     # Debug the actual structure
-    print("Full result:", result)
-    print("Type of result:", type(result))
 
     return QueryResultBundle.fill_from_dict(data=result)
 
@@ -391,9 +389,18 @@ def _rowset_to_pandas_df(
     # first page of rows
     offset = 0
     rownames = construct_rownames(query_result_bundle, offset)
-    rowset = query_result_bundle.query_result.query_results
+    query_result = query_result_bundle.query_result
+    rowset = query_result.query_results
+
+    if not rowset:
+        raise ValueError("The provided query_result_bundle has no 'rowset' data.")
+
     rows = rowset.rows
     headers = rowset.headers
+
+    if not rows or not headers:
+        raise ValueError("The provided rowset is missing 'rows' or 'headers' data.")
+
     offset += len(rows)
     series = collections.OrderedDict()
 
@@ -420,7 +427,7 @@ def _rowset_to_pandas_df(
             index=rownames,
         )
 
-    next_page_token = query_result_bundle.query_result.next_page_token.token
+    next_page_token = query_result.next_page_token
 
     while next_page_token:
         # see QueryResult: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html
@@ -429,7 +436,7 @@ def _rowset_to_pandas_df(
             next_page_token=next_page_token, table_id=rowset.table_id, synapse=synapse
         )
         rowset = result.query_result.query_results
-        next_page_token = result.get("nextPageToken", None)
+        next_page_token = result.query_result.next_page_token
 
         rownames = construct_rownames(rowset, offset)
         offset += len(rowset.rows)
@@ -2783,7 +2790,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             data={
                 "count": results.query_count,
                 "last_updated_on": results.last_updated_on,
-                "sum_file_sizes_bytes": results.sum_file_sizes,
+                "sum_file_sizes": results.sum_file_sizes,
             },
         )
 
