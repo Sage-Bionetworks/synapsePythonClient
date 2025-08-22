@@ -21,20 +21,20 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Add the parent directory to the path to import synapsegui modules
+# Add the parent directory to the path to import synapseclient modules
 current_dir = Path(__file__).parent
 parent_dir = current_dir.parent.parent  # Go up two levels to reach the project root
 sys.path.insert(0, str(parent_dir))
 
 try:
-    # Import existing Synapse functionality
-    from synapsegui.models.bulk_item import BulkItem
-    from synapsegui.models.config import ConfigManager
-    from synapsegui.models.synapse_client import SynapseClientManager
+    # Import Synapse Desktop Client models
+    from models.bulk_item import BulkItem
+    from models.config import ConfigManager
+    from models.synapse_client import SynapseClientManager
 except ImportError as e:
-    print(f"Error importing synapsegui modules: {e}")
+    print(f"Error importing desktop client models: {e}")
     print(
-        "Make sure you're running this from the correct directory and synapsegui is accessible"
+        "Make sure you're running this from the correct directory and models are accessible"
     )
     sys.exit(1)
 

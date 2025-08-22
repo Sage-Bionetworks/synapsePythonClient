@@ -81,9 +81,7 @@ pyinstaller ^
     --collect-all=starlette ^
     --collect-all=pydantic ^
     --collect-all=websockets ^
-    --collect-all=synapsegui ^
     --paths "..\.." ^
-    --paths "..\..\synapsegui" ^
     --paths "..\..\synapseclient" ^
     --console ^
     server.py
