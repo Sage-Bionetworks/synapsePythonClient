@@ -105,10 +105,6 @@ def _add_message_metadata(message: Dict[str, Any]) -> None:
     Args:
         message: The message to add metadata to
     """
-    # Add debug logging for completion messages
-    if message.get("type") == "complete":
-        logger.info(f"Broadcasting completion message: {message}")
-
     # Add auto-scroll flag for log messages
     if message.get("type") == "log":
         message["auto_scroll"] = True

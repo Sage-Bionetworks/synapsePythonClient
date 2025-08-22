@@ -406,30 +406,10 @@ class SynapseClientManager:
                 f"Starting enumeration of container {container_id}{recursive_info}"
             )
 
-            # Debug: Log environment info
-            logger.info(f"DEBUG: Current working directory: {os.getcwd()}")
-            logger.info(
-                f"DEBUG: SYNAPSE_CACHE env var: {os.environ.get('SYNAPSE_CACHE', 'Not set')}"
-            )
-            logger.info(f"DEBUG: TMP env var: {os.environ.get('TMP', 'Not set')}")
-            logger.info(f"DEBUG: TEMP env var: {os.environ.get('TEMP', 'Not set')}")
-
             # Import here to avoid circular imports
             from synapseclient.models import Folder
 
-            logger.info("DEBUG: About to create Folder object")
             container = Folder(id=container_id)
-            logger.info(f"DEBUG: Created Folder object with ID: {container_id}")
-
-            # Debug: Check container attributes before sync
-            logger.info(
-                f"DEBUG: Container path attribute: {getattr(container, 'path', 'Not set')}"
-            )
-            logger.info(
-                f"DEBUG: Container cache dir: {getattr(container, 'cache_dir', 'Not set')}"
-            )
-
-            logger.info("DEBUG: About to call sync_from_synapse_async")
 
             # Sync metadata only (download_file=False)
             # Note: Progress bars are automatically disabled in packaged environments
@@ -439,36 +419,22 @@ class SynapseClientManager:
                 include_types=["file", "folder"],
                 synapse_client=self.client,
             )
-            logger.info("DEBUG: sync_from_synapse_async completed successfully")
 
-            logger.info("DEBUG: About to convert container to bulk items")
             items = self._convert_to_bulk_items(
                 container=container, recursive=recursive
             )
-            logger.info(f"DEBUG: Converted to {len(items)} bulk items")
 
             # Build hierarchical paths for all items
-            logger.info("DEBUG: Building hierarchical paths for downloaded items")
             try:
                 path_mapping = self._build_hierarchical_paths(items, container_id)
-                logger.info(f"DEBUG: Built path mapping for {len(path_mapping)} items")
             except Exception as path_error:
-                logger.error(f"DEBUG: Error building hierarchical paths: {path_error}")
+                logger.error(f"Error building hierarchical paths: {path_error}")
                 raise
 
             # Update items with correct hierarchical paths
-            logger.info("DEBUG: About to update items with hierarchical paths")
             for i, item in enumerate(items):
                 if item.synapse_id in path_mapping:
                     item.path = path_mapping[item.synapse_id]
-                    logger.info(
-                        f"DEBUG: Set path for item {i+1}/{len(items)} - {item.name}: '{item.path}'"
-                    )
-                else:
-                    logger.info(
-                        f"DEBUG: No path mapping for item {i+1}/{len(items)} - "
-                        f"{item.name} (ID: {item.synapse_id})"
-                    )
 
             logger.info(
                 f"Successfully enumerated {len(items)} items from container {container_id}"
@@ -478,15 +444,12 @@ class SynapseClientManager:
 
         except Exception as e:
             logger = logging.getLogger("synapseclient")
-            logger.error(f"DEBUG: Exception type: {type(e).__name__}")
-            logger.error(f"DEBUG: Exception args: {e.args}")
-            logger.error(f"DEBUG: Exception details: {repr(e)}")
             logger.error(f"Enumeration failed for container {container_id}: {str(e)}")
 
             # Add stack trace for better debugging
             import traceback
 
-            logger.error(f"DEBUG: Full traceback:\n{traceback.format_exc()}")
+            logger.error(f"Full traceback:\n{traceback.format_exc()}")
 
             return {"success": False, "error": str(e)}
 
@@ -571,11 +534,6 @@ class SynapseClientManager:
         if hasattr(container, "files"):
             for file in container.files:
                 file_path = file.path if hasattr(file, "path") else None
-                # Log file path information for debugging
-                logger = logging.getLogger("synapseclient")
-                logger.info(
-                    f"DEBUG: Converting file {file.name} (ID: {file.id}) - path attribute: '{file_path}'"
-                )
 
                 items.append(
                     BulkItem(
@@ -591,12 +549,6 @@ class SynapseClientManager:
         if hasattr(container, "folders"):
             for folder in container.folders:
                 folder_path = folder.path if hasattr(folder, "path") else None
-                # Log folder path information for debugging
-                logger = logging.getLogger("synapseclient")
-                logger.info(
-                    f"DEBUG: Converting folder {folder.name} (ID: {folder.id}) - "
-                    f"path attribute: '{folder_path}'"
-                )
 
                 items.append(
                     BulkItem(
@@ -669,28 +621,13 @@ class SynapseClientManager:
 
                 try:
                     if item.item_type.lower() == "file":
-                        # Log the item details for debugging
-                        await self._safe_callback(
-                            detail_callback,
-                            f"DEBUG: Processing file {item.name} with path: '{item.path}', parent_id: {item.parent_id}",
-                        )
-
                         # Determine the download path, considering the item's path within the container
                         item_download_path = download_path
                         if recursive and item.path and item.path.strip():
                             # Create subdirectory structure based on the item's hierarchical path
-                            await self._safe_callback(
-                                detail_callback,
-                                f"DEBUG: Creating directory structure for path: '{item.path}'",
-                            )
                             item_download_path = os.path.join(download_path, item.path)
                             # Ensure the directory exists
                             os.makedirs(item_download_path, exist_ok=True)
-
-                        await self._safe_callback(
-                            detail_callback,
-                            f"DEBUG: Final download path for {item.name}: {item_download_path}",
-                        )
 
                         result = await self.download_file(
                             synapse_id=item.synapse_id,
