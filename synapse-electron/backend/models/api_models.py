@@ -14,9 +14,15 @@ class LoginRequest(BaseModel):
     """Request model for user authentication."""
 
     mode: str = Field(..., description="Authentication mode: 'manual' or 'config'")
-    username: Optional[str] = Field(None, description="Username for manual authentication")
-    token: Optional[str] = Field(None, description="Authentication token for manual login")
-    profile: Optional[str] = Field(None, description="Profile name for config-based authentication")
+    username: Optional[str] = Field(
+        None, description="Username for manual authentication"
+    )
+    token: Optional[str] = Field(
+        None, description="Authentication token for manual login"
+    )
+    profile: Optional[str] = Field(
+        None, description="Profile name for config-based authentication"
+    )
 
 
 class DownloadRequest(BaseModel):
@@ -33,14 +39,18 @@ class UploadRequest(BaseModel):
     file_path: str = Field(..., description="Local path to the file to upload")
     mode: str = Field(..., description="Upload mode: 'new' or 'update'")
     parent_id: Optional[str] = Field(None, description="Parent entity ID for new files")
-    entity_id: Optional[str] = Field(None, description="Entity ID to update for existing files")
+    entity_id: Optional[str] = Field(
+        None, description="Entity ID to update for existing files"
+    )
     name: Optional[str] = Field(None, description="Name for the entity")
 
 
 class EnumerateRequest(BaseModel):
     """Request model for container enumeration."""
 
-    container_id: str = Field(..., description="Synapse ID of the container to enumerate")
+    container_id: str = Field(
+        ..., description="Synapse ID of the container to enumerate"
+    )
     recursive: bool = Field(True, description="Whether to enumerate recursively")
 
 
@@ -56,8 +66,12 @@ class BulkUploadRequest(BaseModel):
     """Request model for bulk file upload."""
 
     parent_id: str = Field(..., description="Parent entity ID for uploads")
-    files: List[Dict[str, Any]] = Field(..., description="List of file objects to upload")
-    preserve_folder_structure: bool = Field(True, description="Whether to preserve folder structure")
+    files: List[Dict[str, Any]] = Field(
+        ..., description="List of file objects to upload"
+    )
+    preserve_folder_structure: bool = Field(
+        True, description="Whether to preserve folder structure"
+    )
 
 
 class ScanDirectoryRequest(BaseModel):

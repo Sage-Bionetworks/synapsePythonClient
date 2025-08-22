@@ -95,9 +95,7 @@ def _log_no_clients_message(message: Dict[str, Any]) -> None:
     """
     message_type = message.get("type", "unknown")
     if message_type not in ["log", "progress"]:
-        logger.debug(
-            f"No WebSocket clients connected to send message: {message_type}"
-        )
+        logger.debug(f"No WebSocket clients connected to send message: {message_type}")
 
 
 def _add_message_metadata(message: Dict[str, Any]) -> None:
@@ -118,6 +116,7 @@ def _add_message_metadata(message: Dict[str, Any]) -> None:
     # Add timestamp if not present
     if "timestamp" not in message:
         import time
+
         message["timestamp"] = time.time()
 
 
@@ -128,10 +127,13 @@ def start_websocket_server(port: int) -> None:
     Args:
         port: The port number to bind the WebSocket server to
     """
+
     def run_websocket_server() -> None:
         """Run the WebSocket server in its own event loop."""
+
         async def websocket_server() -> None:
             """Create and run the WebSocket server."""
+
             async def websocket_handler(websocket: Any, path: str = None) -> None:
                 await handle_websocket_client(websocket, path)
 

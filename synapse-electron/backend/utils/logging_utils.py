@@ -11,7 +11,6 @@ from typing import List
 
 from models.api_models import LogMessage
 
-
 # Global message queue for logs to avoid asyncio issues
 log_message_queue: List[LogMessage] = []
 
@@ -128,7 +127,9 @@ def setup_logging(log_level: str = "info") -> None:
 
     # Create and configure the custom handler
     electron_handler = ElectronLogHandler()
-    electron_handler.setLevel(logging.DEBUG)  # Handler captures all, filtering happens at logger level
+    electron_handler.setLevel(
+        logging.DEBUG
+    )  # Handler captures all, filtering happens at logger level
 
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

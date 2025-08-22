@@ -148,7 +148,9 @@ class SynapseClientManager:
             silent_progress_bars=True,
         )
 
-    async def login_manual(self, username: str, token: str, debug_mode: bool = False) -> Dict[str, Any]:
+    async def login_manual(
+        self, username: str, token: str, debug_mode: bool = False
+    ) -> Dict[str, Any]:
         """
         Login with username and authentication token.
 
@@ -183,7 +185,9 @@ class SynapseClientManager:
             logger.error(f"Login failed: {str(e)}")
             return {"success": False, "error": str(e)}
 
-    async def login_with_profile(self, profile_name: str, debug_mode: bool = False) -> Dict[str, Any]:
+    async def login_with_profile(
+        self, profile_name: str, debug_mode: bool = False
+    ) -> Dict[str, Any]:
         """
         Login with configuration file profile.
 

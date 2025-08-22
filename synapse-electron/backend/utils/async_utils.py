@@ -8,14 +8,13 @@ async operations without blocking the main event loop.
 import asyncio
 import logging
 import threading
-from typing import Callable, Any
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
 
 def run_async_task_in_background(
-    async_task: Callable[[], Any],
-    task_name: str = "background_task"
+    async_task: Callable[[], Any], task_name: str = "background_task"
 ) -> None:
     """
     Run an async task in a background thread with its own event loop.
@@ -27,6 +26,7 @@ def run_async_task_in_background(
         async_task: The async function to run in the background
         task_name: Name for logging purposes
     """
+
     def run_task_in_thread() -> None:
         """Run the async task in a new event loop."""
         try:
@@ -46,9 +46,7 @@ def run_async_task_in_background(
 
 
 async def create_async_operation_wrapper(
-    operation_func: Callable[..., Any],
-    *args,
-    **kwargs
+    operation_func: Callable[..., Any], *args, **kwargs
 ) -> Any:
     """
     Wrap a potentially blocking operation to run asynchronously.

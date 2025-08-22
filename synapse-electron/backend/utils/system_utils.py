@@ -9,7 +9,7 @@ import logging
 import mimetypes
 import os
 import sys
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -143,15 +143,11 @@ def get_home_and_downloads_directories() -> Dict[str, str]:
             logger.warning("Could not create Downloads directory: %s", e)
             downloads_dir = home_dir
 
-    return {
-        "home_directory": home_dir,
-        "downloads_directory": downloads_dir
-    }
+    return {"home_directory": home_dir, "downloads_directory": downloads_dir}
 
 
 def scan_directory_for_files(
-    directory_path: str,
-    recursive: bool = True
+    directory_path: str, recursive: bool = True
 ) -> Dict[str, Any]:
     """
     Scan a directory for files and folders with metadata.
@@ -231,10 +227,7 @@ def scan_directory_for_files(
 
 
 def _get_file_info(
-    item_name: str,
-    item_path: str,
-    relative_path: str,
-    current_path: str
+    item_name: str, item_path: str, relative_path: str, current_path: str
 ) -> Optional[Dict[str, Any]]:
     """
     Get file information for a single file.
@@ -268,10 +261,7 @@ def _get_file_info(
 
 
 def _get_folder_info(
-    item_name: str,
-    item_path: str,
-    relative_path: str,
-    current_path: str
+    item_name: str, item_path: str, relative_path: str, current_path: str
 ) -> Dict[str, Any]:
     """
     Get folder information for a single folder.
