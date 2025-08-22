@@ -36,3 +36,4 @@ coverage.xml
 *.spec
 
 synapse-electron/node_modules
+synapse-electron/backend/build

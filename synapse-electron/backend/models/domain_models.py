@@ -1,7 +1,8 @@
 """
-Bulk Item Model for Synapse Desktop Client.
+Domain Models for Synapse Desktop Client.
 
-This module contains the data model for items in bulk operations.
+This module contains business domain models that represent core entities
+in the application with associated business logic methods.
 """
 
 from dataclasses import dataclass

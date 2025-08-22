@@ -1,7 +1,7 @@
 """
-Synapse client operations and management.
+Synapse service for Synapse Desktop Client.
 
-This module provides the SynapseClientManager class and supporting utilities
+This module provides the SynapseClientManager service class and supporting utilities
 for handling all Synapse client operations, including authentication, file
 uploads/downloads, and bulk operations, separated from UI logic.
 """
@@ -129,25 +129,40 @@ class SynapseClientManager:
         self.client: Optional[synapseclient.Synapse] = None
         self.is_logged_in = False
         self.username = ""
+        self.debug_mode = False
 
-    async def login_manual(self, username: str, token: str) -> Dict[str, Any]:
+    def _create_synapse_client(self, debug_mode: bool = False) -> synapseclient.Synapse:
+        """
+        Create a new Synapse client instance with the specified debug mode.
+
+        Args:
+            debug_mode: Whether to enable debug mode for the client
+
+        Returns:
+            New Synapse client instance
+        """
+        return synapseclient.Synapse(
+            skip_checks=True,
+            debug=debug_mode,
+            user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
+            silent_progress_bars=True,
+        )
+
+    async def login_manual(self, username: str, token: str, debug_mode: bool = False) -> Dict[str, Any]:
         """
         Login with username and authentication token.
 
         Args:
             username: Synapse username or email address
             token: Personal access token for authentication
+            debug_mode: Whether to enable debug mode for the Synapse client
 
         Returns:
             Dictionary with 'success' boolean and either 'username' or 'error' key
         """
         try:
-            self.client = synapseclient.Synapse(
-                skip_checks=True,
-                debug=True,
-                user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
-                silent_progress_bars=True,
-            )
+            self.debug_mode = debug_mode
+            self.client = self._create_synapse_client(debug_mode)
 
             if username:
                 self.client.login(email=username, authToken=token, silent=False)
@@ -168,23 +183,20 @@ class SynapseClientManager:
             logger.error(f"Login failed: {str(e)}")
             return {"success": False, "error": str(e)}
 
-    async def login_with_profile(self, profile_name: str) -> Dict[str, Any]:
+    async def login_with_profile(self, profile_name: str, debug_mode: bool = False) -> Dict[str, Any]:
         """
         Login with configuration file profile.
 
         Args:
             profile_name: Name of the profile from Synapse configuration file
+            debug_mode: Whether to enable debug mode for the Synapse client
 
         Returns:
             Dictionary with 'success' boolean and either 'username' or 'error' key
         """
         try:
-            self.client = synapseclient.Synapse(
-                skip_checks=True,
-                debug=True,
-                user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
-                silent_progress_bars=True,
-            )
+            self.debug_mode = debug_mode
+            self.client = self._create_synapse_client(debug_mode)
 
             if profile_name == "authentication (legacy)":
                 self.client.login(silent=False)
@@ -548,7 +560,7 @@ class SynapseClientManager:
         Returns:
             List of BulkItem objects
         """
-        from ..models.bulk_item import BulkItem
+        from ..models.domain_models import BulkItem
 
         items = []
 

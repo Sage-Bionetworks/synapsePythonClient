@@ -1,5 +1,8 @@
 """
-Configuration management for Synapse profiles
+Configuration service for Synapse Desktop Client.
+
+This module provides the ConfigManager service class for managing
+Synapse configuration profiles and authentication settings.
 """
 import os
 from typing import List
