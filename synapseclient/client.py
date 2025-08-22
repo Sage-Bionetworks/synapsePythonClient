@@ -6061,23 +6061,6 @@ class Synapse(object):
                 user_id="12345",
             )
             print(status)
-
-            # Alternative: Use async version for advanced use cases
-            import asyncio
-
-            async def get_membership_status():
-                # Get the team object
-                team = await Team.from_id_async(id="67890")
-
-                # Get user's membership status
-                status = await team.get_user_membership_status_async(
-                    user_id="12345"
-                )
-                return status
-
-            # Run the async function
-            status = asyncio.run(get_membership_status())
-            print(status)
             ```
         """
         teamid = id_of(team)
