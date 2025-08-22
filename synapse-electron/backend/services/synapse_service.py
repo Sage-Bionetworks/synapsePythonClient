@@ -183,7 +183,7 @@ class SynapseClientManager:
         except Exception as e:
             logger = logging.getLogger("synapseclient")
             logger.error(f"Login failed: {str(e)}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Authentication failed"}
 
     async def login_with_profile(
         self, profile_name: str, debug_mode: bool = False
@@ -221,7 +221,7 @@ class SynapseClientManager:
         except Exception as e:
             logger = logging.getLogger("synapseclient")
             logger.error(f"Login with profile '{profile_name}' failed: {str(e)}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Authentication failed"}
 
     def logout(self) -> None:
         """Logout from Synapse and clear authentication state."""
