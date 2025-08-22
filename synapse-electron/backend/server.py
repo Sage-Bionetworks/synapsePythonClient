@@ -951,7 +951,9 @@ async def bulk_upload(request: BulkUploadRequest):
                 logger.info(f"Uploading {item_type}: {item_name}")
 
                 # Store the item (folder or file)
-                stored_item = await item.store_async(synapse_client=synapse_client.client)
+                stored_item = await item.store_async(
+                    synapse_client=synapse_client.client
+                )
 
                 completed_items += 1
                 return {
@@ -1085,45 +1087,52 @@ def setup_electron_environment():
     try:
         # Detect if we're running from within Electron's environment
         is_electron_context = (
-            'electron' in sys.executable.lower() or
-            'resources' in os.getcwd() or
-            os.path.exists(os.path.join(os.getcwd(), '..', '..', 'app.asar'))
+            "electron" in sys.executable.lower()
+            or "resources" in os.getcwd()
+            or os.path.exists(os.path.join(os.getcwd(), "..", "..", "app.asar"))
         )
 
         if is_electron_context:
             logger.info("Detected Electron environment, setting up proper directories")
 
             # Get user's home directory for cache/temp storage
-            if os.name == 'nt':  # Windows
-                cache_base = os.getenv('LOCALAPPDATA') or os.getenv('APPDATA')
+            if os.name == "nt":  # Windows
+                cache_base = os.getenv("LOCALAPPDATA") or os.getenv("APPDATA")
                 if cache_base:
-                    app_cache_dir = os.path.join(cache_base, 'SynapseDesktopClient')
+                    app_cache_dir = os.path.join(cache_base, "SynapseDesktopClient")
                 else:
-                    app_cache_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'SynapseDesktopClient')
+                    app_cache_dir = os.path.join(
+                        os.path.expanduser("~"),
+                        "AppData",
+                        "Local",
+                        "SynapseDesktopClient",
+                    )
             else:  # Unix-like systems
-                cache_base = os.getenv('XDG_CACHE_HOME')
+                cache_base = os.getenv("XDG_CACHE_HOME")
                 if cache_base:
-                    app_cache_dir = os.path.join(cache_base, 'SynapseDesktopClient')
+                    app_cache_dir = os.path.join(cache_base, "SynapseDesktopClient")
                 else:
-                    app_cache_dir = os.path.join(os.path.expanduser('~'), '.cache', 'SynapseDesktopClient')
+                    app_cache_dir = os.path.join(
+                        os.path.expanduser("~"), ".cache", "SynapseDesktopClient"
+                    )
 
             # Create the cache directory if it doesn't exist
             os.makedirs(app_cache_dir, exist_ok=True)
 
             # Set up synapse cache directory
-            synapse_cache = os.path.join(app_cache_dir, 'synapse')
+            synapse_cache = os.path.join(app_cache_dir, "synapse")
             os.makedirs(synapse_cache, exist_ok=True)
-            os.environ['SYNAPSE_CACHE'] = synapse_cache
+            os.environ["SYNAPSE_CACHE"] = synapse_cache
 
             # Set up temporary directory in user space
-            temp_dir = os.path.join(app_cache_dir, 'temp')
+            temp_dir = os.path.join(app_cache_dir, "temp")
             os.makedirs(temp_dir, exist_ok=True)
-            os.environ['TMPDIR'] = temp_dir
-            os.environ['TMP'] = temp_dir
-            os.environ['TEMP'] = temp_dir
+            os.environ["TMPDIR"] = temp_dir
+            os.environ["TMP"] = temp_dir
+            os.environ["TEMP"] = temp_dir
 
             # Change working directory to user's home to avoid permission issues
-            user_home = os.path.expanduser('~')
+            user_home = os.path.expanduser("~")
             os.chdir(user_home)
 
             logger.info(f"Set SYNAPSE_CACHE to: {synapse_cache}")

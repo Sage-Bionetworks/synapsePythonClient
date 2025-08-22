@@ -375,7 +375,11 @@ class UploadAttemptAsync:
                 asyncio.create_task(self._handle_part_wrapper(part_number=part_number))
             )
 
-        if not self._syn.silent and not self._progress_bar and not self._syn.silent_progress_bars:
+        if (
+            not self._syn.silent
+            and not self._progress_bar
+            and not self._syn.silent_progress_bars
+        ):
             if self._is_copy():
                 # we won't have bytes to measure during a copy so the byte oriented
                 # progress bar is not useful

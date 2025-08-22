@@ -392,7 +392,9 @@ class SynapseClientManager:
 
             # Debug: Log environment info
             logger.info(f"DEBUG: Current working directory: {os.getcwd()}")
-            logger.info(f"DEBUG: SYNAPSE_CACHE env var: {os.environ.get('SYNAPSE_CACHE', 'Not set')}")
+            logger.info(
+                f"DEBUG: SYNAPSE_CACHE env var: {os.environ.get('SYNAPSE_CACHE', 'Not set')}"
+            )
             logger.info(f"DEBUG: TMP env var: {os.environ.get('TMP', 'Not set')}")
             logger.info(f"DEBUG: TEMP env var: {os.environ.get('TEMP', 'Not set')}")
 
@@ -404,8 +406,12 @@ class SynapseClientManager:
             logger.info(f"DEBUG: Created Folder object with ID: {container_id}")
 
             # Debug: Check container attributes before sync
-            logger.info(f"DEBUG: Container path attribute: {getattr(container, 'path', 'Not set')}")
-            logger.info(f"DEBUG: Container cache dir: {getattr(container, 'cache_dir', 'Not set')}")
+            logger.info(
+                f"DEBUG: Container path attribute: {getattr(container, 'path', 'Not set')}"
+            )
+            logger.info(
+                f"DEBUG: Container cache dir: {getattr(container, 'cache_dir', 'Not set')}"
+            )
 
             logger.info("DEBUG: About to call sync_from_synapse_async")
 
@@ -439,7 +445,9 @@ class SynapseClientManager:
             for i, item in enumerate(items):
                 if item.synapse_id in path_mapping:
                     item.path = path_mapping[item.synapse_id]
-                    logger.info(f"DEBUG: Set path for item {i+1}/{len(items)} - {item.name}: '{item.path}'")
+                    logger.info(
+                        f"DEBUG: Set path for item {i+1}/{len(items)} - {item.name}: '{item.path}'"
+                    )
                 else:
                     logger.info(
                         f"DEBUG: No path mapping for item {i+1}/{len(items)} - "
@@ -461,6 +469,7 @@ class SynapseClientManager:
 
             # Add stack trace for better debugging
             import traceback
+
             logger.error(f"DEBUG: Full traceback:\n{traceback.format_exc()}")
 
             return {"success": False, "error": str(e)}
