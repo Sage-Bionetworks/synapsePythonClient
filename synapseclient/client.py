@@ -345,6 +345,7 @@ class Synapse(object):
         cache_client: bool = True,
         user_agent: Union[str, List[str]] = None,
         http_timeout_seconds: int = 70,
+        silent_progress_bars: bool = None,
     ) -> "Synapse":
         """
         Initialize Synapse object
@@ -361,6 +362,8 @@ class Synapse(object):
                                 when making http requests.
             cache_root_dir:     Root directory for storing cache data.
             silent:             Suppresses message.
+            silent_progress_bars: Suppresses tqdm progress bars without silencing all output.
+                                Useful for packaged applications where progress bars may cause errors.
             requests_session_async_synapse: The HTTPX Async client for interacting with
                 Synapse services.
             requests_session_storage: The HTTPX client for interacting with
@@ -450,6 +453,7 @@ class Synapse(object):
             self.user_agent = user_agent
 
         self.silent = silent
+        self.silent_progress_bars = silent_progress_bars
         self._init_logger()  # initializes self.logger
 
         self.skip_checks = skip_checks

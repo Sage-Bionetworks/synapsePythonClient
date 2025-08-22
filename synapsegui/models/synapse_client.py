@@ -146,6 +146,7 @@ class SynapseClientManager:
                 skip_checks=True,
                 debug=True,
                 user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
+                silent_progress_bars=True,
             )
 
             if username:
@@ -182,6 +183,7 @@ class SynapseClientManager:
                 skip_checks=True,
                 debug=True,
                 user_agent=[f"synapsedesktopclient/{DESKTOP_CLIENT_VERSION}"],
+                silent_progress_bars=True,
             )
 
             if profile_name == "authentication (legacy)":
@@ -388,32 +390,61 @@ class SynapseClientManager:
                 f"Starting enumeration of container {container_id}{recursive_info}"
             )
 
+            # Debug: Log environment info
+            logger.info(f"DEBUG: Current working directory: {os.getcwd()}")
+            logger.info(f"DEBUG: SYNAPSE_CACHE env var: {os.environ.get('SYNAPSE_CACHE', 'Not set')}")
+            logger.info(f"DEBUG: TMP env var: {os.environ.get('TMP', 'Not set')}")
+            logger.info(f"DEBUG: TEMP env var: {os.environ.get('TEMP', 'Not set')}")
+
             # Import here to avoid circular imports
             from synapseclient.models import Folder
 
+            logger.info("DEBUG: About to create Folder object")
             container = Folder(id=container_id)
+            logger.info(f"DEBUG: Created Folder object with ID: {container_id}")
+
+            # Debug: Check container attributes before sync
+            logger.info(f"DEBUG: Container path attribute: {getattr(container, 'path', 'Not set')}")
+            logger.info(f"DEBUG: Container cache dir: {getattr(container, 'cache_dir', 'Not set')}")
+
+            logger.info("DEBUG: About to call sync_from_synapse_async")
 
             # Sync metadata only (download_file=False)
+            # Note: Progress bars are automatically disabled in packaged environments
             await container.sync_from_synapse_async(
                 download_file=False,
                 recursive=recursive,
                 include_types=["file", "folder"],
                 synapse_client=self.client,
             )
+            logger.info("DEBUG: sync_from_synapse_async completed successfully")
 
+            logger.info("DEBUG: About to convert container to bulk items")
             items = self._convert_to_bulk_items(
                 container=container, recursive=recursive
             )
+            logger.info(f"DEBUG: Converted to {len(items)} bulk items")
 
             # Build hierarchical paths for all items
             logger.info("DEBUG: Building hierarchical paths for downloaded items")
-            path_mapping = self._build_hierarchical_paths(items, container_id)
+            try:
+                path_mapping = self._build_hierarchical_paths(items, container_id)
+                logger.info(f"DEBUG: Built path mapping for {len(path_mapping)} items")
+            except Exception as path_error:
+                logger.error(f"DEBUG: Error building hierarchical paths: {path_error}")
+                raise
 
             # Update items with correct hierarchical paths
-            for item in items:
+            logger.info("DEBUG: About to update items with hierarchical paths")
+            for i, item in enumerate(items):
                 if item.synapse_id in path_mapping:
                     item.path = path_mapping[item.synapse_id]
-                    logger.info(f"DEBUG: Set path for {item.name}: '{item.path}'")
+                    logger.info(f"DEBUG: Set path for item {i+1}/{len(items)} - {item.name}: '{item.path}'")
+                else:
+                    logger.info(
+                        f"DEBUG: No path mapping for item {i+1}/{len(items)} - "
+                        f"{item.name} (ID: {item.synapse_id})"
+                    )
 
             logger.info(
                 f"Successfully enumerated {len(items)} items from container {container_id}"
@@ -423,7 +454,15 @@ class SynapseClientManager:
 
         except Exception as e:
             logger = logging.getLogger("synapseclient")
+            logger.error(f"DEBUG: Exception type: {type(e).__name__}")
+            logger.error(f"DEBUG: Exception args: {e.args}")
+            logger.error(f"DEBUG: Exception details: {repr(e)}")
             logger.error(f"Enumeration failed for container {container_id}: {str(e)}")
+
+            # Add stack trace for better debugging
+            import traceback
+            logger.error(f"DEBUG: Full traceback:\n{traceback.format_exc()}")
+
             return {"success": False, "error": str(e)}
 
     def _build_hierarchical_paths(self, items: list, root_container_id: str) -> dict:

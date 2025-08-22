@@ -148,7 +148,7 @@ def get_or_create_download_progress_bar(
 
     syn = Synapse.get_client(synapse_client=synapse_client)
 
-    if syn.silent:
+    if syn.silent or syn.silent_progress_bars:
         return None
 
     transfer_count: int = getattr(_thread_local, "transfer_count", 0)

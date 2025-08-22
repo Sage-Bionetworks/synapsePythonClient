@@ -480,7 +480,7 @@ def multipart_upload_file(
                 total=file_size,
                 leave=None,
             )
-            if not syn.silent
+            if not syn.silent and not syn.silent_progress_bars
             else None
         )
         md5_hex = md5_for_file(file_path, progress_bar=progress_bar).hexdigest()

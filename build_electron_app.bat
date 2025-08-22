@@ -3,9 +3,6 @@ REM Build script for Synapse Desktop Client (Electron + Python Backend)
 REM This script creates a complete packaged application with both frontend and backend
 REM Usage: build_electron_app.bat [suffix]
 
-echo *** RUNNING UPDATED SCRIPT VERSION - DEBUG MODE ***
-echo.
-
 set SUFFIX=%1
 if not "%SUFFIX%"=="" set SUFFIX=-%SUFFIX%
 

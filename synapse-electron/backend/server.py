@@ -951,7 +951,7 @@ async def bulk_upload(request: BulkUploadRequest):
                 logger.info(f"Uploading {item_type}: {item_name}")
 
                 # Store the item (folder or file)
-                stored_item = await item.store_async()
+                stored_item = await item.store_async(synapse_client=synapse_client.client)
 
                 completed_items += 1
                 return {
@@ -1077,6 +1077,66 @@ def start_websocket_server(port: int):
     ws_thread.start()
 
 
+def setup_electron_environment():
+    """
+    Setup environment variables and directories when running from Electron.
+    This fixes issues with temporary directories and cache paths in packaged apps.
+    """
+    try:
+        # Detect if we're running from within Electron's environment
+        is_electron_context = (
+            'electron' in sys.executable.lower() or
+            'resources' in os.getcwd() or
+            os.path.exists(os.path.join(os.getcwd(), '..', '..', 'app.asar'))
+        )
+
+        if is_electron_context:
+            logger.info("Detected Electron environment, setting up proper directories")
+
+            # Get user's home directory for cache/temp storage
+            if os.name == 'nt':  # Windows
+                cache_base = os.getenv('LOCALAPPDATA') or os.getenv('APPDATA')
+                if cache_base:
+                    app_cache_dir = os.path.join(cache_base, 'SynapseDesktopClient')
+                else:
+                    app_cache_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'SynapseDesktopClient')
+            else:  # Unix-like systems
+                cache_base = os.getenv('XDG_CACHE_HOME')
+                if cache_base:
+                    app_cache_dir = os.path.join(cache_base, 'SynapseDesktopClient')
+                else:
+                    app_cache_dir = os.path.join(os.path.expanduser('~'), '.cache', 'SynapseDesktopClient')
+
+            # Create the cache directory if it doesn't exist
+            os.makedirs(app_cache_dir, exist_ok=True)
+
+            # Set up synapse cache directory
+            synapse_cache = os.path.join(app_cache_dir, 'synapse')
+            os.makedirs(synapse_cache, exist_ok=True)
+            os.environ['SYNAPSE_CACHE'] = synapse_cache
+
+            # Set up temporary directory in user space
+            temp_dir = os.path.join(app_cache_dir, 'temp')
+            os.makedirs(temp_dir, exist_ok=True)
+            os.environ['TMPDIR'] = temp_dir
+            os.environ['TMP'] = temp_dir
+            os.environ['TEMP'] = temp_dir
+
+            # Change working directory to user's home to avoid permission issues
+            user_home = os.path.expanduser('~')
+            os.chdir(user_home)
+
+            logger.info(f"Set SYNAPSE_CACHE to: {synapse_cache}")
+            logger.info(f"Set temp directories to: {temp_dir}")
+            logger.info(f"Changed working directory to: {user_home}")
+        else:
+            logger.info("Not in Electron environment, using default settings")
+
+    except Exception as e:
+        logger.warning(f"Failed to setup Electron environment: {e}")
+        # Don't fail if environment setup has issues
+
+
 def main():
     """Main entry point for the backend server"""
     parser = argparse.ArgumentParser(description="Synapse Desktop Client Backend")
@@ -1086,6 +1146,9 @@ def main():
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
 
     args = parser.parse_args()
+
+    # Setup environment for proper operation when launched from Electron
+    setup_electron_environment()
 
     # Start WebSocket server
     start_websocket_server(args.ws_port)
