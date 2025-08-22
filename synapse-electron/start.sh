@@ -39,7 +39,7 @@ fi
 # Check if Python backend dependencies are installed
 cd backend
 
-# uv pip install -r requirements.txt
+# Note: Dependencies are now installed via setup.cfg electron extras
 cd ..
 cd ..
 

@@ -43,9 +43,8 @@ if not exist "venv" (
     python -m venv venv
     call venv\Scripts\activate
     echo Installing Python dependencies...
-    pip install -r requirements.txt
     cd ..
-    pip install -e .
+    pip install -e .[electron]
     cd backend
 ) else (
     call venv\Scripts\activate
