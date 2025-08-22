@@ -2,15 +2,13 @@
 
 # Build script for Synapse Desktop Client (Electron + Python Backend)
 # This script creates a complete packaged application with both frontend and backend
-# Usage: ./build_electron_app.sh [platform] [suffix]
+# Usage: ./build_electron_app.sh [platform]
 # Platforms: linux, macos, all
-# Suffix: optional suffix to add to the output filename
 
 set -e
 
 # Default to current platform if no argument provided
 TARGET_PLATFORM=${1:-"auto"}
-SUFFIX=${2:-""}
 
 echo "Building Synapse Desktop Client (Electron + Python Backend)..."
 
@@ -67,10 +65,6 @@ fi
 # Function to build Python backend for a specific platform
 build_python_backend() {
     local platform=$1
-    local suffix_part=""
-    if [ -n "$SUFFIX" ]; then
-        suffix_part="-$SUFFIX"
-    fi
 
     echo "Building Python backend for $platform..."
     cd synapse-electron/backend
@@ -81,7 +75,7 @@ build_python_backend() {
     # Create PyInstaller spec and build
     pyinstaller \
         --onefile \
-        --name "synapse-backend-${platform}${suffix_part}" \
+        --name "synapse-backend" \
         --collect-all=synapseclient \
         --collect-all=fastapi \
         --collect-all=uvicorn \
@@ -95,7 +89,7 @@ build_python_backend() {
         --console \
         server.py
 
-    if [ ! -f "dist/synapse-backend-${platform}${suffix_part}" ]; then
+    if [ ! -f "dist/synapse-backend" ]; then
         echo "ERROR: Python backend build failed"
         exit 1
     fi

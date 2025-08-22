@@ -1,10 +1,7 @@
 @echo off
 REM Build script for Synapse Desktop Client (Electron + Python Backend)
 REM This script creates a complete packaged application with both frontend and backend
-REM Usage: build_electron_app.bat [suffix]
-
-set SUFFIX=%1
-if not "%SUFFIX%"=="" set SUFFIX=-%SUFFIX%
+REM Usage: build_electron_app.bat
 
 echo Building Synapse Desktop Client (Electron + Python Backend)...
 
@@ -77,7 +74,7 @@ if exist *.spec del *.spec
 REM Build using the same pattern as the working build
 pyinstaller ^
     --onefile ^
-    --name "synapse-backend%SUFFIX%" ^
+    --name "synapse-backend" ^
     --collect-all=synapseclient ^
     --collect-all=fastapi ^
     --collect-all=uvicorn ^
@@ -92,7 +89,7 @@ pyinstaller ^
     server.py
 
 echo Checking if executable was created...
-if not exist "dist\synapse-backend%SUFFIX%.exe" (
+if not exist "dist\synapse-backend.exe" (
     echo ERROR: PyInstaller failed to create executable
     echo Check the output above for errors
     exit /b 1

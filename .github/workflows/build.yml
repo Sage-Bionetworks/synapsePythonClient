@@ -405,15 +405,6 @@ jobs:
             uv pip install numpy
           fi
 
-      - name: Extract tag name
-        shell: bash
-        # TAG_NAME="${{ github.event.release.tag_name }}"
-        run: |
-          TAG_NAME="beta-01"
-          # Remove 'v' prefix if it exists
-          TAG_CLEAN=${TAG_NAME#v}
-          echo "TAG_CLEAN=$TAG_CLEAN" >> $GITHUB_ENV
-
       - name: Install Node.js dependencies
         shell: bash
         run: |
@@ -428,7 +419,7 @@ jobs:
           export SKIP_DEPENDENCY_INSTALL=1
 
           # Use cmd to run the batch file with proper Windows syntax
-          cmd //c "build_electron_app.bat ${TAG_CLEAN}"
+          cmd //c "build_electron_app.bat"
 
       - name: Build using build scripts (macOS)
         if: matrix.platform == 'macos'
@@ -438,7 +429,7 @@ jobs:
           export SKIP_DEPENDENCY_INSTALL=1
 
           chmod +x build_electron_app.sh
-          ./build_electron_app.sh macos "${TAG_CLEAN}"
+          ./build_electron_app.sh macos
 
       - name: List built files
         shell: bash
