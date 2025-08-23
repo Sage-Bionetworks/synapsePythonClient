@@ -178,6 +178,33 @@ class TeamSynchronousProtocol(Protocol):
 
         Returns:
             TeamMembershipStatus object
+
+        Example:
+          Check if a user is a member of a team
+            This example shows how to check a user's membership status in a team.
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            syn = Synapse()
+            syn.login()
+
+            # Get a team by ID
+            team = Team.from_id(123456)
+
+            # Check membership status for a specific user
+            user_id = "3350396"  # Replace with actual user ID
+            status = team.get_user_membership_status(user_id)
+
+            print(f"User ID: {status.user_id}")
+            print(f"Is member: {status.is_member}")
+            print(f"Can join: {status.can_join}")
+            print(f"Has open invitation: {status.has_open_invitation}")
+            print(f"Has open request: {status.has_open_request}")
+            print(f"Membership approval required: {status.membership_approval_required}")
+            ```
         """
         from synapseclient.models.team import TeamMembershipStatus
 
