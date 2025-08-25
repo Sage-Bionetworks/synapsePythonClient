@@ -6020,7 +6020,12 @@ class Synapse(object):
         open_requests = self._GET_paginated(request)
         return open_requests
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1633
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `get_user_membership_status` method on the `Team` class from `synapseclient.models` instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def get_membership_status(self, userid, team):
         """Retrieve a user's Team Membership Status bundle.
         <https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html>
@@ -6031,6 +6036,41 @@ class Synapse(object):
 
         Returns:
             dict of TeamMembershipStatus
+
+        Example: Using this function (DEPRECATED)
+            &nbsp;
+            Getting a user's membership status for a team
+
+            ```python
+            from synapseclient import Synapse
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            status = syn.get_membership_status(userid="12345", team="67890")
+            print(status)
+            ```
+
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Use synchronous version (recommended for most use cases)
+            team = Team.from_id(id="67890")
+            status = team.get_user_membership_status(
+                user_id="12345",
+            )
+            print(status)
+            ```
         """
         teamid = id_of(team)
         request = "/team/{team}/member/{user}/membershipStatus".format(

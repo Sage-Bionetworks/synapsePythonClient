@@ -7,6 +7,7 @@ from synapseclient import Synapse
 from synapseclient.api import (
     create_team,
     delete_team,
+    get_membership_status,
     get_team,
     get_team_members,
     get_team_open_invitations,
@@ -53,6 +54,80 @@ class TeamMember:
             synapse_team_member.get("member", None)
         )
         self.is_admin = synapse_team_member.get("isAdmin", None)
+        return self
+
+
+@dataclass
+class TeamMembershipStatus:
+    """
+    Contains information about a user's membership status in a Team.
+    Represents a [Synapse TeamMembershipStatus](<https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/TeamMembershipStatus.html>).
+    User definable fields are:
+
+    Attributes:
+        team_id: The id of the Team.
+        user_id: The principal id of the user.
+        is_member: true if and only if the user is a member of the team
+        has_open_invitation: true if and only if the user has an open invitation to join the team
+        has_open_request: true if and only if the user has an open request to join the team
+        can_join: true if and only if the user requesting this status information can join the user to the team
+        membership_approval_required: true if and only if team admin approval is required for the user to join the team
+        has_unmet_access_requirement: true if and only if there is at least one unmet access requirement for the user on the team
+        can_send_email: true if and only if the user can send an email to the team
+    """
+
+    team_id: Optional[str] = None
+    """The ID of the team"""
+
+    user_id: Optional[str] = None
+    """The ID of the user"""
+
+    is_member: Optional[bool] = None
+    """Whether the user is a member of the team"""
+
+    has_open_invitation: Optional[bool] = None
+    """Whether the user has an open invitation to join the team"""
+
+    has_open_request: Optional[bool] = None
+    """Whether the user has an open request to join the team"""
+
+    can_join: Optional[bool] = None
+    """Whether the user can join the team"""
+
+    membership_approval_required: Optional[bool] = None
+    """Whether membership approval is required for the team"""
+
+    has_unmet_access_requirement: Optional[bool] = None
+    """Whether the user has unmet access requirements"""
+
+    can_send_email: Optional[bool] = None
+    """Whether the user can send email to the team"""
+
+    def fill_from_dict(
+        self, membership_status_dict: Dict[str, Union[str, bool]]
+    ) -> "TeamMembershipStatus":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            membership_status_dict: The response from the REST API.
+
+        Returns:
+            The TeamMembershipStatus object.
+        """
+        self.team_id = membership_status_dict.get("teamId", None)
+        self.user_id = membership_status_dict.get("userId", None)
+        self.is_member = membership_status_dict.get("isMember", None)
+        self.has_open_invitation = membership_status_dict.get("hasOpenInvitation", None)
+        self.has_open_request = membership_status_dict.get("hasOpenRequest", None)
+        self.can_join = membership_status_dict.get("canJoin", None)
+        self.membership_approval_required = membership_status_dict.get(
+            "membershipApprovalRequired", None
+        )
+        self.has_unmet_access_requirement = membership_status_dict.get(
+            "hasUnmetAccessRequirement", None
+        )
+        self.can_send_email = membership_status_dict.get("canSendEmail", None)
         return self
 
 
@@ -356,3 +431,57 @@ class Team(TeamSynchronousProtocol):
             team=self.id, synapse_client=synapse_client
         )
         return list(invitations)
+
+    async def get_user_membership_status_async(
+        self,
+        user_id: str,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> TeamMembershipStatus:
+        """Retrieve a user's Team Membership Status bundle for this team.
+
+        Arguments:
+            user_id: Synapse user ID
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            TeamMembershipStatus object
+
+        Example: Check if a user is a member of a team
+        This example shows how to check a user's membership status in a team.
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.models import Team
+
+        syn = Synapse()
+        syn.login()
+
+        async def check_membership():
+            # Get a team by ID
+            team = await Team.from_id_async(123456)
+
+            # Check membership status for a specific user
+            user_id = "3350396"  # Replace with actual user ID
+            status = await team.get_user_membership_status_async(user_id)
+
+            print(f"User ID: {status.user_id}")
+            print(f"Is member: {status.is_member}")
+            print(f"Can join: {status.can_join}")
+            print(f"Has open invitation: {status.has_open_invitation}")
+            print(f"Has open request: {status.has_open_request}")
+            print(f"Membership approval required: {status.membership_approval_required}")
+
+        asyncio.run(check_membership())
+        ```
+        """
+        from synapseclient import Synapse
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+        status = await get_membership_status(
+            user_id=user_id, team=self.id, synapse_client=client
+        )
+        return TeamMembershipStatus().fill_from_dict(status)

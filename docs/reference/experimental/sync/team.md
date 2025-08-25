@@ -28,6 +28,8 @@ at your own risk.
             - members
             - invite
             - open_invitations
+            - get_user_membership_status
 ---
 
 ::: synapseclient.models.TeamMember
+::: synapseclient.models.TeamMembershipStatus

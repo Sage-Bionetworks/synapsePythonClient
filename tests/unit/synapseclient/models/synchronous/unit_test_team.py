@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from synapseclient import Synapse
-from synapseclient.models.team import Team, TeamMember
+from synapseclient.models.team import Team, TeamMember, TeamMembershipStatus
 from synapseclient.models.user import UserGroupHeader
 
 
@@ -23,6 +23,38 @@ class TestTeamMember:
         assert team_member.team_id == 1
         assert team_member.member.owner_id == 2
         assert team_member.is_admin is True
+
+
+class TestTeamMembershipStatus:
+    """Tests for the TeamMembershipStatus class."""
+
+    def test_fill_from_dict(self) -> None:
+        # GIVEN a blank TeamMembershipStatus
+        status = TeamMembershipStatus()
+        # WHEN I fill it with a dictionary
+        status.fill_from_dict(
+            {
+                "teamId": "123",
+                "userId": "456",
+                "isMember": False,
+                "hasOpenInvitation": True,
+                "hasOpenRequest": False,
+                "canJoin": False,
+                "membershipApprovalRequired": True,
+                "hasUnmetAccessRequirement": False,
+                "canSendEmail": True,
+            }
+        )
+        # THEN I expect all fields to be set
+        assert status.team_id == "123"
+        assert status.user_id == "456"
+        assert status.is_member is False
+        assert status.has_open_invitation is True
+        assert status.has_open_request is False
+        assert status.can_join is False
+        assert status.membership_approval_required is True
+        assert status.has_unmet_access_requirement is False
+        assert status.can_send_email is True
 
 
 class TestTeam:

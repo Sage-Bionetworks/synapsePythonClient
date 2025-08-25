@@ -17,6 +17,8 @@ at your own risk.
             - members_async
             - invite_async
             - open_invitations_async
+            - get_user_membership_status_async
 ---
 
 ::: synapseclient.models.TeamMember
+::: synapseclient.models.TeamMembershipStatus
