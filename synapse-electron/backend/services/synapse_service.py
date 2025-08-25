@@ -178,8 +178,8 @@ class SynapseClientManager:
             logger.info(f"Successfully logged in as {self.username}")
 
             return {"success": True, "username": self.username}
-        except Exception as e:
-            logger.exception(f"Login failed")
+        except Exception:
+            logger.exception("Login failed")
             return {"success": False, "error": "Authentication failed"}
 
     async def login_with_profile(
@@ -214,8 +214,8 @@ class SynapseClientManager:
             )
 
             return {"success": True, "username": self.username}
-        except Exception as e:
-            logger.exception(f"Login with profile '{profile_name}' failed")
+        except Exception:
+            logger.exception("Login with profile '{profile_name}' failed")
             return {"success": False, "error": "Authentication failed"}
 
     def logout(self) -> None:
@@ -417,7 +417,7 @@ class SynapseClientManager:
             try:
                 path_mapping = self._build_hierarchical_paths(items, container_id)
             except Exception:
-                logger.exception(f"Error building hierarchical paths")
+                logger.exception("Error building hierarchical paths")
                 raise
 
             # Update items with correct hierarchical paths

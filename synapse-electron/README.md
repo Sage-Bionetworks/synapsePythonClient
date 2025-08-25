@@ -50,11 +50,11 @@ To debug the FastAPI backend server with breakpoints and step-through debugging:
    ```bash
    # Navigate to the backend directory
    cd backend
-   
+
    # Run the FastAPI server directly - Or through your regular debug session in VSCode
    python server.py
    ```
-   
+
    The backend will start on `http://localhost:8000` by default.
 
 2. **Set up your IDE for Python debugging**:
