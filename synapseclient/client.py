@@ -6038,10 +6038,19 @@ class Synapse(object):
             dict of TeamMembershipStatus
 
         Example: Using this function (DEPRECATED)
-        Getting a user's membership status for a team
+            &nbsp;
+            Getting a user's membership status for a team
 
-            status = syn.get_membership_status(user="12345", team="67890")
+            ```python
+            from synapseclient import Synapse
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            status = syn.get_membership_status(userid="12345", team="67890")
             print(status)
+            ```
 
 
         Example: Migration to new method
