@@ -124,7 +124,7 @@ async def poll_log_messages():
         messages = get_queued_messages()
         return {
             "success": True,
-            "messages": [msg.dict() for msg in messages],
+            "messages": [msg.model_dump() for msg in messages],
             "count": len(messages),
         }
     except Exception as e:
@@ -556,7 +556,7 @@ async def bulk_download(request: BulkDownloadRequest):
             detail_callback=None,
         )
 
-        return _handle_bulk_download_result(result, file_items_data)
+        return await _handle_bulk_download_result(result, file_items_data)
 
     except HTTPException:
         raise

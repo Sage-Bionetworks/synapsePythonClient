@@ -24,7 +24,6 @@ from .api_models import (
     FileInfo,
     HealthCheckResponse,
     LoginRequest,
-    LogLevelRequest,
     LogMessage,
     LogoutResponse,
     LogPollResponse,
@@ -45,7 +44,6 @@ from .domain_models import BulkItem as BulkItemModel
 __all__ = [
     # API Request Models
     "LoginRequest",
-    "LogLevelRequest",
     "DownloadRequest",
     "UploadRequest",
     "EnumerateRequest",

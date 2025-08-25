@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 import synapseclient
-from synapseclient.core import utils
 from synapseclient.models import File
 
 DESKTOP_CLIENT_VERSION = "0.1.0"
@@ -176,13 +175,11 @@ class SynapseClientManager:
                 self.client, "email", "Unknown User"
             )
 
-            logger = logging.getLogger("synapseclient")
             logger.info(f"Successfully logged in as {self.username}")
 
             return {"success": True, "username": self.username}
         except Exception as e:
-            logger = logging.getLogger("synapseclient")
-            logger.error(f"Login failed: {str(e)}")
+            logger.exception(f"Login failed")
             return {"success": False, "error": "Authentication failed"}
 
     async def login_with_profile(
@@ -212,22 +209,19 @@ class SynapseClientManager:
                 self.client, "email", "Unknown User"
             )
 
-            logger = logging.getLogger("synapseclient")
             logger.info(
                 f"Successfully logged in as {self.username} using profile {profile_name}"
             )
 
             return {"success": True, "username": self.username}
         except Exception as e:
-            logger = logging.getLogger("synapseclient")
-            logger.error(f"Login with profile '{profile_name}' failed: {str(e)}")
+            logger.exception(f"Login with profile '{profile_name}' failed")
             return {"success": False, "error": "Authentication failed"}
 
     def logout(self) -> None:
         """Logout from Synapse and clear authentication state."""
         if self.client:
             self.client.logout()
-            logger = logging.getLogger("synapseclient")
             logger.info(f"User {self.username} logged out")
         self.client = None
         self.is_logged_in = False
@@ -258,7 +252,6 @@ class SynapseClientManager:
             if not self.is_logged_in:
                 return {"success": False, "error": "Not logged in"}
 
-            logger = logging.getLogger("synapseclient")
             version_info = f" version {version}" if version else ""
             logger.info(
                 f"Starting download of {synapse_id}{version_info} to {download_path}"
@@ -292,8 +285,7 @@ class SynapseClientManager:
                 _safe_stderr_restore(original_stderr, safe_original_stderr)
 
         except Exception as e:
-            logger = logging.getLogger("synapseclient")
-            logger.error(f"Download failed for {synapse_id}: {str(e)}")
+            logger.exception(f"Download failed for {synapse_id}")
             return {"success": False, "error": str(e)}
 
     async def upload_file(
@@ -326,7 +318,6 @@ class SynapseClientManager:
             if not os.path.exists(file_path):
                 return {"success": False, "error": f"File does not exist: {file_path}"}
 
-            logger = logging.getLogger("synapseclient")
             if entity_id:
                 logger.info(
                     f"Starting upload of {file_path} to update entity {entity_id}"
@@ -346,7 +337,7 @@ class SynapseClientManager:
                     file_obj = File(
                         id=entity_id, path=file_path, name=name, download_file=False
                     )
-                    file_obj = file_obj.get(synapse_client=self.client)
+                    file_obj = await file_obj.get_async(synapse_client=self.client)
                     file_obj.path = file_path
                     if name:
                         file_obj.name = name
@@ -359,11 +350,11 @@ class SynapseClientManager:
 
                     file_obj = File(
                         path=file_path,
-                        name=name or utils.guess_file_name(file_path),
+                        name=name or None,
                         parent_id=parent_id,
                     )
 
-                file_obj = file_obj.store(synapse_client=self.client)
+                file_obj = await file_obj.store_async(synapse_client=self.client)
 
                 logger.info(
                     f"Successfully uploaded {file_path} as entity {file_obj.id}: {file_obj.name}"
@@ -378,8 +369,7 @@ class SynapseClientManager:
                 _safe_stderr_restore(original_stderr, safe_original_stderr)
 
         except Exception as e:
-            logger = logging.getLogger("synapseclient")
-            logger.error(f"Upload failed for {file_path}: {str(e)}")
+            logger.exception(f"Upload failed for {file_path}")
             return {"success": False, "error": str(e)}
 
     async def enumerate_container(
@@ -400,7 +390,6 @@ class SynapseClientManager:
                 return {"success": False, "error": "Not logged in"}
 
             # Log enumeration start
-            logger = logging.getLogger("synapseclient")
             recursive_info = " (recursive)" if recursive else ""
             logger.info(
                 f"Starting enumeration of container {container_id}{recursive_info}"
@@ -427,8 +416,8 @@ class SynapseClientManager:
             # Build hierarchical paths for all items
             try:
                 path_mapping = self._build_hierarchical_paths(items, container_id)
-            except Exception as path_error:
-                logger.error(f"Error building hierarchical paths: {path_error}")
+            except Exception:
+                logger.exception(f"Error building hierarchical paths")
                 raise
 
             # Update items with correct hierarchical paths
@@ -443,13 +432,7 @@ class SynapseClientManager:
             return {"success": True, "items": items}
 
         except Exception as e:
-            logger = logging.getLogger("synapseclient")
-            logger.error(f"Enumeration failed for container {container_id}: {str(e)}")
-
-            # Add stack trace for better debugging
-            import traceback
-
-            logger.error(f"Full traceback:\n{traceback.format_exc()}")
+            logger.exception(f"Enumeration failed for container {container_id}")
 
             return {"success": False, "error": str(e)}
 
@@ -527,7 +510,7 @@ class SynapseClientManager:
         Returns:
             List of BulkItem objects
         """
-        from ..models.domain_models import BulkItem
+        from models.domain_models import BulkItem
 
         items = []
 
@@ -624,10 +607,7 @@ class SynapseClientManager:
                         # Determine the download path, considering the item's path within the container
                         item_download_path = download_path
                         if recursive and item.path and item.path.strip():
-                            # Create subdirectory structure based on the item's hierarchical path
                             item_download_path = os.path.join(download_path, item.path)
-                            # Ensure the directory exists
-                            os.makedirs(item_download_path, exist_ok=True)
 
                         result = await self.download_file(
                             synapse_id=item.synapse_id,
@@ -637,32 +617,6 @@ class SynapseClientManager:
                             detail_callback=detail_callback,
                         )
                         results.append({"item": item, "result": result})
-                    elif item.item_type.lower() == "folder":
-                        if True:
-                            raise NotImplementedError(
-                                "Folder download not implemented yet"
-                            )
-                        from synapseclient.models import Folder
-
-                        folder = Folder(id=item.synapse_id)
-                        await folder.sync_from_synapse_async(
-                            path=os.path.join(download_path, item.name),
-                            download_file=True,
-                            recursive=recursive,
-                            include_types=["file", "folder"],
-                            synapse_client=self.client,
-                        )
-
-                        results.append(
-                            {
-                                "item": item,
-                                "result": {
-                                    "success": True,
-                                    "message": "Folder downloaded",
-                                },
-                            }
-                        )
-
                 except Exception as e:
                     results.append(
                         {"item": item, "result": {"success": False, "error": str(e)}}

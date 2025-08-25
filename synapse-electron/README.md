@@ -28,6 +28,8 @@ ElectronJS desktop application for interacting with Synapse, built with FastAPI 
 ## Quick Start
 
 ### Development
+
+#### Quick Start
 ```bash
 # Windows
 .\start.bat
@@ -35,6 +37,58 @@ ElectronJS desktop application for interacting with Synapse, built with FastAPI 
 # macOS/Linux
 ./start.sh
 ```
+
+#### Advanced Development & Debugging
+
+For developers who need to debug the underlying Python code or JavaScript frontend, follow these detailed instructions:
+
+##### Python Backend Debugging
+
+To debug the FastAPI backend server with breakpoints and step-through debugging:
+
+1. **Start the Python backend manually** (before running the start script):
+   ```bash
+   # Navigate to the backend directory
+   cd backend
+   
+   # Run the FastAPI server directly - Or through your regular debug session in VSCode
+   python server.py
+   ```
+   
+   The backend will start on `http://localhost:8000` by default.
+
+2. **Set up your IDE for Python debugging**:
+   - **VS Code**: Open `backend/server.py`, set breakpoints, and use F5 to start debugging
+   - **Other IDEs**: Configure to run `server.py` with your Python interpreter
+
+3. **Start the Electron frontend** (after the backend is running):
+   ```bash
+   # From the synapse-electron root directory
+   npm start
+   ```
+
+4. **Test your application** - breakpoints will be hit in both environments
+
+This setup allows you to:
+- Step through Python code in your IDE
+- Inspect FastAPI request/response cycles
+- Debug JavaScript interactions in the Chromium console
+- Test the full application flow with complete debugging capabilities
+
+**Important**: If you run `server.py` manually, you may still use the `start.bat`/`start.sh` scripts as. It will skip creating it's own Python process, however, the order of this is important. If you run the `start.bat`/`start.sh` scripts first it conflict with your debugging session (port already in use).
+
+##### JavaScript Frontend Debugging
+
+The ElectronJS application provides access to Chromium's developer tools:
+
+1. **Open Developer Console**:
+   - In the running Electron app, press `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (macOS)
+
+2. **Set breakpoints in JavaScript**:
+   - Open the Sources tab in Developer Tools
+   - Navigate to your JavaScript files (`app.js`, etc.)
+   - Click on line numbers to set breakpoints
+   - Use `debugger;` statements in your code for programmatic breakpoints
 
 ### Production Build
 ```bash
