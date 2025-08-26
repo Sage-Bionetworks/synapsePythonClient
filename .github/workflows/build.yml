@@ -354,23 +354,14 @@ jobs:
           # Windows builds
           - os: windows-2022
             platform: windows
-            arch: x64
             python-version: '3.11'
             artifact-name: synapse-desktop-client-windows-x64
 
-          # macOS builds - Intel
-          - os: macos-13
-            platform: macos
-            arch: intel
-            python-version: '3.11'
-            artifact-name: synapse-desktop-client-macos-intel
-
-          # macOS builds - Apple Silicon (M1/M2)
+          # macOS builds
           - os: macos-14
             platform: macos
-            arch: apple-silicon
             python-version: '3.11'
-            artifact-name: synapse-desktop-client-macos-apple-silicon
+            artifact-name: synapse-desktop-client-macos
 
     runs-on: ${{ matrix.os }}
 
@@ -441,17 +432,6 @@ jobs:
             echo "No dist directory found"
             fi
 
-      - name: Upload desktop client artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: |
-            synapse-electron/dist/*.exe
-            synapse-electron/dist/*.dmg
-            synapse-electron/dist/*.AppImage
-            synapse-electron/dist/*.deb
-            synapse-electron/dist/*.pkg
-
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
@@ -461,9 +441,6 @@ jobs:
           files: |
             synapse-electron/dist/*.exe
             synapse-electron/dist/*.dmg
-            synapse-electron/dist/*.AppImage
-            synapse-electron/dist/*.deb
-            synapse-electron/dist/*.pkg
 
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.

@@ -45,7 +45,8 @@
         }
       ],
       "icon": "assets/icon.ico",
-      "verifyUpdateCodeSignature": false
+      "verifyUpdateCodeSignature": false,
+      "artifactName": "${productName} Setup ${version}-${os}.${ext}"
     },
     "mac": {
       "target": [
@@ -57,7 +58,8 @@
           ]
         }
       ],
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.icns",
+      "artifactName": "${productName}-${version}-${arch}-${os}.${ext}"
     },
     "linux": {
       "target": [
