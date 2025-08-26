@@ -2,19 +2,15 @@
 
 # Build script for Synapse Desktop Client (Electron + Python Backend)
 # This script creates a complete packaged application with both frontend and backend
-# Usage: ./build_electron_app.sh [platform] [arch]
-# Platforms: linux, macos, windows, all
-# Architectures: x64, arm64, intel (for backwards compatibility)
+# Usage: ./build_electron_app.sh [platform]
+# Platforms: linux, macos, all
 
 set -e
 
 # Default to current platform if no argument provided
 TARGET_PLATFORM=${1:-"auto"}
-TARGET_ARCH=${2:-"auto"}
 
 echo "Building Synapse Desktop Client (Electron + Python Backend)..."
-echo "Target Platform: $TARGET_PLATFORM"
-echo "Target Architecture: $TARGET_ARCH"
 
 # Ensure we're in the project root
 cd "$(dirname "$0")"
@@ -100,38 +96,27 @@ build_python_backend() {
     cd ../..
 }
 
-# Function to build Electron app for a specific platform and architecture
+# Function to build Electron app for a specific platform
 build_electron_app() {
     local platform=$1
-    local arch=$2
 
-    echo "Building Electron application for $platform ($arch)..."
+    echo "Building Electron application for $platform..."
     cd synapse-electron
 
     # # Install Node.js dependencies
     # echo "Installing Node.js dependencies..."
     # npm install
 
-    # Set platform and architecture-specific build command
+    # Set platform-specific build command
     case "$platform" in
         "linux")
-            npm run dist:linux
+            npm run build -- --linux
             ;;
         "macos")
-            case "$arch" in
-                "x64"|"intel")
-                    npm run dist:mac:intel
-                    ;;
-                "arm64"|"apple-silicon")
-                    npm run dist:mac:arm64
-                    ;;
-                *)
-                    npm run dist:mac
-                    ;;
-            esac
+            npm run build -- --mac
             ;;
         "windows")
-            npm run dist:win
+            npm run build -- --win
             ;;
         *)
             npm run build
@@ -147,41 +132,35 @@ case "$TARGET_PLATFORM" in
         # Auto-detect current platform
         if [[ "$OSTYPE" == "linux-gnu"* ]]; then
             build_python_backend "linux"
-            build_electron_app "linux" "$TARGET_ARCH"
+            build_electron_app "linux"
         elif [[ "$OSTYPE" == "darwin"* ]]; then
             build_python_backend "macos"
-            build_electron_app "macos" "$TARGET_ARCH"
+            build_electron_app "macos"
         else
             echo "Unsupported platform: $OSTYPE"
             echo "This script supports Linux and macOS platforms"
-            echo "Please specify platform: linux, macos, windows, or all"
+            echo "Please specify platform: linux, macos, or all"
             exit 1
         fi
         ;;
     "linux")
         build_python_backend "linux"
-        build_electron_app "linux" "$TARGET_ARCH"
+        build_electron_app "linux"
         ;;
     "macos")
         build_python_backend "macos"
-        build_electron_app "macos" "$TARGET_ARCH"
-        ;;
-    "windows")
-        build_python_backend "windows"
-        build_electron_app "windows" "$TARGET_ARCH"
+        build_electron_app "macos"
         ;;
     "all")
         echo "Building for all supported platforms..."
         build_python_backend "linux"
         build_python_backend "macos"
-        build_python_backend "windows"
-        build_electron_app "linux" "$TARGET_ARCH"
-        build_electron_app "macos" "$TARGET_ARCH"
-        build_electron_app "windows" "$TARGET_ARCH"
+        build_electron_app "linux"
+        build_electron_app "macos"
         ;;
     *)
         echo "Unknown platform: $TARGET_PLATFORM"
-        echo "Available platforms: linux, macos, windows, all"
+        echo "Available platforms: linux, macos, all"
         exit 1
         ;;
 esac
