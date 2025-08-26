@@ -34,7 +34,7 @@ from synapseclient.models.table_components import (
     TableUpdateTransaction,
     UploadToTableRequest,
 )
-from synapseclient.models.team import Team, TeamMember
+from synapseclient.models.team import Team, TeamMember, TeamMembershipStatus
 from synapseclient.models.user import UserGroupHeader, UserPreference, UserProfile
 from synapseclient.models.virtualtable import VirtualTable
 
@@ -50,6 +50,7 @@ __all__ = [
     "Annotations",
     "Team",
     "TeamMember",
+    "TeamMembershipStatus",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",

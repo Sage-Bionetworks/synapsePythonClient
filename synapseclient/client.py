@@ -1125,6 +1125,10 @@ class Synapse(object):
 
         return transfer_config
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _is_logged_in(self) -> bool:
         """
         Test whether the user is logged in to Synapse.
@@ -1451,6 +1455,10 @@ class Synapse(object):
         response = self.restGET(f"/user/{userid}/certifiedUserPassingRecord")
         return response
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _get_user_bundle(self, userid: int, mask: int) -> Dict[str, Union[str, dict]]:
         """
         Retrieve the user bundle for the given user.
@@ -1525,6 +1533,7 @@ class Synapse(object):
                 return False
             raise
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
     def is_synapse_id(self, syn_id: str) -> bool:
         """Checks if given synID is valid (attached to actual entity?)
 
@@ -1555,6 +1564,7 @@ class Synapse(object):
         self.logger.warning("synID must be a string")
         return False
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
 
@@ -1575,6 +1585,7 @@ class Synapse(object):
                 "%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId)
             )
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623 or later
     def printEntity(self, entity, ensure_ascii=True) -> None:
         """
         Pretty prints an Entity.
@@ -1597,6 +1608,10 @@ class Synapse(object):
         except TypeError:
             self.logger.info(str(entity))
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _print_transfer_progress(self, *args, **kwargs) -> None:
         """
         Checking synapse if the mode is silent mode.
@@ -1616,6 +1631,7 @@ class Synapse(object):
         "json_schema": "JsonSchemaService",
     }
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1583
     def get_available_services(self) -> typing.List[str]:
         """Get available Synapse services
         This is a beta feature and is subject to change
@@ -1626,6 +1642,7 @@ class Synapse(object):
         services = self._services.keys()
         return list(services)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1583
     def service(self, service_name: str):
         """Get available Synapse services
         This is a beta feature and is subject to change
@@ -1653,6 +1670,7 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
     def get(self, entity, **kwargs):
         """
         Gets a Synapse entity from the repository service.
@@ -1745,6 +1763,10 @@ class Synapse(object):
         )
         return return_data
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _check_entity_restrictions(
         self, bundle: dict, entity: Union[str, Entity, dict], downloadFile: bool
     ) -> None:
@@ -1781,6 +1803,10 @@ class Synapse(object):
                 raise SynapseUnmetAccessRestrictions(warning_message)
             self.logger.warning(warning_message)
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getFromFile(
         self, filepath: str, limitSearch: str = None, md5: str = None
     ) -> Dict[str, dict]:
@@ -1942,6 +1968,10 @@ class Synapse(object):
 
         return entity
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getWithEntityBundle(
         self, entityBundle: dict, entity: Entity = None, **kwargs
     ) -> Entity:
@@ -2220,6 +2250,7 @@ class Synapse(object):
                 )
         return downloadPath
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
     def store(
         self,
         obj,
@@ -2574,6 +2605,10 @@ class Synapse(object):
         )
         return return_data
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _createAccessRequirementIfNone(self, entity: Union[Entity, str]) -> None:
         """
         Checks to see if the given entity has access requirements. If not, then one is added
@@ -2587,6 +2622,10 @@ class Synapse(object):
         if len(existingRestrictions["results"]) <= 0:
             self.restPOST("/entity/%s/lockAccessRequirement" % id_of(entity), body="")
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getEntityBundle(
         self,
         entity: Union[Entity, str],
@@ -2669,6 +2708,7 @@ class Synapse(object):
 
         return bundle
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
     def delete(
         self,
         obj,
@@ -2704,6 +2744,10 @@ class Synapse(object):
 
     _user_name_cache = {}
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _get_user_name(self, user_id: str) -> str:
         """
         Get username with ownerId
@@ -2720,6 +2764,10 @@ class Synapse(object):
             )
         return self._user_name_cache[user_id]
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _list(
         self,
         parent: str,
@@ -2795,6 +2843,12 @@ class Synapse(object):
                 )
             )
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to synapseclient/core/upload/upload_functions.py::upload_file_handle_async. "
+        "Use `upload_file_handle_async` directly instead.",
+    )
     def uploadFileHandle(
         self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None
     ):
@@ -2817,6 +2871,46 @@ class Synapse(object):
 
         Returns:
             A dict of a new FileHandle as a dict that represents the uploaded file
+
+        Example: Migrating from this method to upload_file_handle_async
+            **Legacy approach (deprecated):**
+            ```python
+            # Using the deprecated uploadFileHandle method
+            file_handle = syn.uploadFileHandle(
+                path="/path/to/file.txt",
+                parent="syn12345",
+                synapseStore=True,
+                mimetype="text/plain"
+            )
+            ```
+
+            **New approach using upload_file_handle:**
+            ```python
+            import asyncio
+            import synapseclient
+            from synapseclient.core.upload.upload_functions_async import upload_file_handle
+
+            # Create client and login
+            syn = synapseclient.Synapse()
+            syn.login()
+
+            # Using the new async function directly
+            async def upload_file():
+                file_handle = await upload_file_handle(
+                    syn=syn,
+                    parent_entity_id="syn12345",
+                    path="/path/to/file.txt",
+                    synapse_store=True,
+                    md5=None,
+                    file_size=None,
+                    mimetype="text/plain"
+                )
+                return file_handle
+
+            # Run the async function
+            file_handle = asyncio.run(upload_file())
+            print(f"File handle uploaded: {file_handle}")
+            ```
         """
         return wrap_async_to_sync(
             upload_file_handle_async(
@@ -2828,10 +2922,12 @@ class Synapse(object):
     ############################################################
     #                  Download List                           #
     ############################################################
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
     def clear_download_list(self):
         """Clear all files from download list"""
         self.restDELETE("/download/list")
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
     def remove_from_download_list(self, list_of_files: typing.List[typing.Dict]) -> int:
         """Remove a batch of files from download list
 
@@ -2847,6 +2943,7 @@ class Synapse(object):
         )
         return num_files_removed
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
     def _generate_manifest_from_download_list(
         self,
         quoteCharacter: str = '"',
@@ -2882,6 +2979,7 @@ class Synapse(object):
             uri="/download/list/manifest/async", request=request_body
         )
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
     def get_download_list_manifest(self):
         """Get the path of the download list manifest file
 
@@ -2908,6 +3006,7 @@ class Synapse(object):
         )
         return downloaded_path
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1439
     def get_download_list(self, downloadLocation: str = None) -> str:
         """Download all files from your Synapse download list
 
@@ -3000,7 +3099,7 @@ class Synapse(object):
 
     @deprecated(
         version="4.9.0",
-        reason="Use the dataclass model attributes instead. "
+        reason="To be removed in 5.0.0. Use the dataclass model attributes instead. "
         "All dataclass models support annotations: File, Folder, Project, Table, EntityView, Dataset, "
         "DatasetCollection, MaterializedView, SubmissionView, VirtualTable. "
         "Access annotations directly via `instance.annotations` attribute.",
@@ -3115,7 +3214,7 @@ class Synapse(object):
 
     @deprecated(
         version="4.9.0",
-        reason="Use the dataclass model attributes instead. "
+        reason="To be removed in 5.0.0. Use the dataclass model attributes instead. "
         "All dataclass models support annotations: File, Folder, Project, Table, EntityView, Dataset, "
         "DatasetCollection, MaterializedView, SubmissionView, VirtualTable. "
         "Set annotations via `instance.annotations = {...}` then call `instance.store()`.",
@@ -3542,6 +3641,7 @@ class Synapse(object):
                     "nextPageToken"
                 ]
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
     def md5Query(self, md5):
         """
         Find the Entities which have attached file(s) which have the given MD5 hash.
@@ -3559,6 +3659,10 @@ class Synapse(object):
     #                     ACL manipulation                     #
     ############################################################
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getBenefactor(
         self, entity: Union[Entity, str]
     ) -> Dict[str, Union[str, int, bool]]:
@@ -3579,6 +3683,10 @@ class Synapse(object):
 
         return entity
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _getACL(
         self, entity: Union[Entity, str], check_benefactor: bool = True
     ) -> Dict[str, Union[str, list]]:
@@ -3623,6 +3731,10 @@ class Synapse(object):
                         return {"resourceAccess": []}
                     raise e
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _storeACL(
         self, entity: Union[Entity, str], acl: Dict[str, Union[str, list]]
     ) -> Dict[str, Union[str, list]]:
@@ -3698,6 +3810,12 @@ class Synapse(object):
                 "Unknown Synapse user (%s).  %s." % (principalId, supplementalMessage)
             )
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `get_acl` method on the dataclass models that inherit from `AccessControllable` mixin. "
+        "Example: `from synapseclient.models import File; File(id='syn123').get_acl()`",
+    )
     def get_acl(
         self,
         entity: Union[Entity, Evaluation, str, collections.abc.Mapping],
@@ -3705,6 +3823,9 @@ class Synapse(object):
         check_benefactor: bool = True,
     ) -> typing.List[str]:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `get_acl` method on the dataclass models that inherit from `AccessControllable` mixin instead.
+
         Get the [ACL](https://rest-docs.synapse.org/rest/org/
         sagebionetworks/repo/model/ACCESS_TYPE.html)
         that a user or group has on an Entity.
@@ -3723,6 +3844,117 @@ class Synapse(object):
                 ['READ', 'UPDATE', 'CREATE', 'DELETE', 'DOWNLOAD', 'MODERATE',
                 'CHANGE_PERMISSIONS', 'CHANGE_SETTINGS']
                 or an empty array
+
+        Example: Using this function (DEPRECATED)
+            Getting ACL permissions for a user on an entity
+
+                permissions = syn.get_acl("syn123", principal_id="12345")
+
+            Getting ACL permissions for the public on an entity
+
+                permissions = syn.get_acl("syn123")
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                File, Folder, Project, Table, EntityView, Dataset,
+                DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+            )
+
+            # Create client and login
+            syn = Synapse()
+            syn.login()
+
+            # Get ACL permissions for a specific user on a File
+            file_instance = File(id="syn123")
+            permissions = file_instance.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on File syn123: {permissions}")
+
+            # Get ACL permissions for the public on a File
+            file_instance = File(id="syn123")
+            permissions = file_instance.get_acl()  # defaults to PUBLIC users
+            print(f"Public permissions on File syn123: {permissions}")
+
+            # Get ACL permissions with benefactor check disabled
+            file_instance = File(id="syn123")
+            permissions = file_instance.get_acl(
+                principal_id=12345,
+                check_benefactor=False
+            )
+            print(f"Entity-specific permissions for user 12345 on File syn123: {permissions}")
+
+            # Works with all AccessControllable models:
+
+            # Project
+            project = Project(id="syn123")
+            permissions = project.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on Project syn123: {permissions}")
+
+            # Folder
+            folder = Folder(id="syn123")
+            permissions = folder.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on Folder syn123: {permissions}")
+
+            # Table
+            table = Table(id="syn123")
+            permissions = table.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on Table syn123: {permissions}")
+
+            # EntityView
+            entity_view = EntityView(id="syn123")
+            permissions = entity_view.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on EntityView syn123: {permissions}")
+
+            # Dataset
+            dataset = Dataset(id="syn123")
+            permissions = dataset.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on Dataset syn123: {permissions}")
+
+            # DatasetCollection
+            dataset_collection = DatasetCollection(id="syn123")
+            permissions = dataset_collection.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on DatasetCollection syn123: {permissions}")
+
+            # MaterializedView
+            materialized_view = MaterializedView(id="syn123")
+            permissions = materialized_view.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on MaterializedView syn123: {permissions}")
+
+            # SubmissionView
+            submission_view = SubmissionView(id="syn123")
+            permissions = submission_view.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on SubmissionView syn123: {permissions}")
+
+            # VirtualTable
+            virtual_table = VirtualTable(id="syn123")
+            permissions = virtual_table.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on VirtualTable syn123: {permissions}")
+
+            # Additional functionality available on AccessControllable models:
+
+            # List all ACL entries for an entity
+            file_instance = File(id="syn123")
+            acl_list = file_instance.list_acl()
+            print(f"All ACL entries for File syn123: {acl_list}")
+
+            # Delete the entire ACL for an entity (makes it inherit from benefactor)
+            file_instance = File(id="syn123")
+            file_instance.delete_permissions()
+            print("Successfully deleted entire ACL for File syn123 - now inherits permissions")
+
+            # To remove permissions for a specific user/group, use set_permissions with empty access_type
+            file_instance = File(id="syn123")
+            file_instance.set_permissions(principal_id=12345, access_type=[])
+            print("Successfully removed all permissions for user 12345 on File syn123")
+
+            # Use dry_run to preview what would be deleted without actually deleting
+            file_instance = File(id="syn123")
+            file_instance.delete_permissions(dry_run=True)
+            print("Dry run completed - showed what would be deleted")
+            ```
         """
 
         principal_id = self._getUserbyPrincipalIdOrName(principal_id)
@@ -3790,10 +4022,21 @@ class Synapse(object):
 
         return self.get_acl(entity=entity, principal_id=principal_id)
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `get_permissions` method on the dataclass models that inherit from `AccessControllable` mixin. "
+        "Note: The new `get_permissions` method only returns permissions for the current user. "
+        "To get permissions for a specific principal, use the `get_acl` method instead. "
+        "Example: `from synapseclient.models import File; File(id='syn123').get_permissions(); File(id='syn123').get_acl(principal_id=12345)`",
+    )
     def get_permissions(
         self, entity: Union[Entity, Evaluation, str, collections.abc.Mapping]
     ) -> Permissions:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `get_permissions` method on the dataclass models that inherit from `AccessControllable` mixin instead.
+
         Get the [permissions](https://rest-docs.synapse.org/rest/org/
         sagebionetworks/repo/model/auth/UserEntityPermissions.html)
         that the caller has on an Entity.
@@ -3804,8 +4047,7 @@ class Synapse(object):
         Returns:
             An Permissions object
 
-
-        Example: Using this function:
+        Example: Using this function (DEPRECATED)
             Getting permissions for a Synapse Entity
 
                 permissions = syn.get_permissions(Entity)
@@ -3817,6 +4059,98 @@ class Synapse(object):
             Getting access types list from the Permissions object
 
                 permissions.access_types
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                File, Folder, Project, Table, EntityView, Dataset,
+                DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+            )
+
+            # Create client and login
+            syn = Synapse()
+            syn.login()
+
+            # Get permissions for the current user on a File
+            file_instance = File(id="syn12345")
+            permissions = file_instance.get_permissions()
+            print(f"Current user permissions on File syn12345: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # Get permissions for the current user on other entity types:
+
+            # Project
+            project = Project(id="syn12345")
+            permissions = project.get_permissions()
+            print(f"Current user permissions on Project {project.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # Folder
+            folder = Folder(id="syn12345")
+            permissions = folder.get_permissions()
+            print(f"Current user permissions on Folder {folder.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # Table
+            table = Table(id="syn12345")
+            permissions = table.get_permissions()
+            print(f"Current user permissions on Table {table.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # EntityView
+            entity_view = EntityView(id="syn12345")
+            permissions = entity_view.get_permissions()
+            print(f"Current user permissions on EntityView {entity_view.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # Dataset
+            dataset = Dataset(id="syn12345")
+            permissions = dataset.get_permissions()
+            print(f"Current user permissions on Dataset {dataset.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # DatasetCollection
+            dataset_collection = DatasetCollection(id="syn12345")
+            permissions = dataset_collection.get_permissions()
+            print(f"Current user permissions on DatasetCollection {dataset_collection.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # MaterializedView
+            materialized_view = MaterializedView(id="syn12345")
+            permissions = materialized_view.get_permissions()
+            print(f"Current user permissions on MaterializedView {materialized_view.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # SubmissionView
+            submission_view = SubmissionView(id="syn12345")
+            permissions = submission_view.get_permissions()
+            print(f"Current user permissions on SubmissionView {submission_view.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # VirtualTable
+            virtual_table = VirtualTable(id="syn12345")
+            permissions = virtual_table.get_permissions()
+            print(f"Current user permissions on VirtualTable {virtual_table.id}: {permissions}")
+            print(f"Current user access types: {permissions.access_types}")
+
+            # To get permissions for a specific user/group, use get_acl instead:
+            file_instance = File(id="syn12345")
+
+            # Get ACL permissions for a specific user
+            user_permissions = file_instance.get_acl(principal_id=12345)
+            print(f"User 12345 permissions on File {file_instance.id}: {user_permissions}")
+
+            # Get ACL permissions for the public
+            public_permissions = file_instance.get_acl()  # defaults to PUBLIC users
+            print(f"Public permissions on File {file_instance.id}: {public_permissions}")
+
+            # List all ACL entries for an entity
+            acl_list = file_instance.list_acl()
+            print(f"All ACL entries for File {file_instance.id}: {acl_list}")
+            ```
         """
 
         entity_id = id_of(entity)
@@ -3827,6 +4161,13 @@ class Synapse(object):
         data = self.restGET(url)
         return Permissions.from_dict(data)
 
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Moved to the `set_permissions` method on the dataclass models that inherit from `AccessControllable` mixin. "
+        "Example: `from synapseclient.models import File; File(id='syn123').set_permissions(principal_id=12345, access_type=['READ'])`. "
+        "To remove permissions for a specific user, use `access_type=[]` or `access_type=None`.",
+    )
     def setPermissions(
         self,
         entity,
@@ -3837,6 +4178,9 @@ class Synapse(object):
         overwrite=True,
     ):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `set_permissions` method on the dataclass models that inherit from `AccessControllable` mixin instead.
+
         Sets permission that a user or group has on an Entity.
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
@@ -3864,7 +4208,7 @@ class Synapse(object):
         Returns:
             An Access Control List object
 
-        Example: Setting permissions
+        Example: Using this function (DEPRECATED)
             Grant all registered users download access
 
                 syn.setPermissions('syn1234','273948',['READ','DOWNLOAD'])
@@ -3872,6 +4216,158 @@ class Synapse(object):
             Grant the public view access
 
                 syn.setPermissions('syn1234','273949',['READ'])
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse, AUTHENTICATED_USERS, PUBLIC
+            from synapseclient.models import (
+                File, Folder, Project, Table, EntityView, Dataset,
+                DatasetCollection, MaterializedView, SubmissionView, VirtualTable
+            )
+
+            # Create client and login
+            syn = Synapse()
+            syn.login()
+
+            # Set permissions for a File
+            file_instance = File(id="syn1234")
+
+            # Grant all registered users download access
+            file_instance.set_permissions(
+                principal_id=AUTHENTICATED_USERS,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully granted READ and DOWNLOAD access to all registered users on File {file_instance.id}")
+
+            # Grant the public view access
+            file_instance.set_permissions(
+                principal_id=PUBLIC,
+                access_type=["READ"]
+            )
+            print(f"Successfully granted READ access to public users on File {file_instance.id}")
+
+            # Set permissions with additional options
+            file_instance.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD", "UPDATE"],
+                modify_benefactor=True,
+                warn_if_inherits=False,
+                overwrite=False  # Add to existing permissions instead of overwriting
+            )
+            print(f"Successfully added READ, DOWNLOAD, and UPDATE access for user 12345 on File {file_instance.id}")
+
+            # Remove permissions for a specific user/group by setting access_type to empty list
+            file_instance.set_permissions(
+                principal_id=12345,
+                access_type=[]  # Empty list removes all permissions for this principal
+            )
+            print(f"Successfully removed all permissions for user 12345 on File {file_instance.id}")
+
+            # Alternative: Remove permissions by setting access_type to None
+            file_instance.set_permissions(
+                principal_id=12345,
+                access_type=None  # None also removes all permissions for this principal
+            )
+            print(f"Successfully removed all permissions for user 12345 on File {file_instance.id}")
+
+            # Set permissions for other entity types:
+
+            # Project
+            project = Project(id="syn1234")
+            project.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on Project {project.id}")
+
+            # Folder
+            folder = Folder(id="syn1234")
+            folder.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on Folder {folder.id}")
+
+            # Table
+            table = Table(id="syn1234")
+            table.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on Table {table.id}")
+
+            # EntityView
+            entity_view = EntityView(id="syn1234")
+            entity_view.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on EntityView {entity_view.id}")
+
+            # Dataset
+            dataset = Dataset(id="syn1234")
+            dataset.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on Dataset {dataset.id}")
+
+            # DatasetCollection
+            dataset_collection = DatasetCollection(id="syn1234")
+            dataset_collection.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on DatasetCollection {dataset_collection.id}")
+
+            # MaterializedView
+            materialized_view = MaterializedView(id="syn1234")
+            materialized_view.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on MaterializedView {materialized_view.id}")
+
+            # SubmissionView
+            submission_view = SubmissionView(id="syn1234")
+            submission_view.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on SubmissionView {submission_view.id}")
+
+            # VirtualTable
+            virtual_table = VirtualTable(id="syn1234")
+            virtual_table.set_permissions(
+                principal_id=12345,
+                access_type=["READ", "DOWNLOAD"]
+            )
+            print(f"Successfully set READ and DOWNLOAD permissions for user 12345 on VirtualTable {virtual_table.id}")
+
+            # Additional functionality available on AccessControllable models:
+
+            # List all ACL entries for an entity
+            file_instance = File(id="syn1234")
+            acl_list = file_instance.list_acl()
+            print(f"All ACL entries for File syn1234: {acl_list}")
+
+            # Delete the entire ACL for an entity (makes it inherit from benefactor)
+            file_instance = File(id="syn1234")
+            file_instance.delete_permissions()
+            print(f"Successfully deleted entire ACL for File {file_instance.id} - now inherits permissions")
+
+            # To remove permissions for a specific user/group, use set_permissions with empty access_type
+            file_instance = File(id="syn1234")
+            file_instance.set_permissions(principal_id=12345, access_type=[])
+            print(f"Successfully removed all permissions for user 12345 on File {file_instance.id}")
+
+            # Use dry_run to preview what would be deleted without actually deleting
+            file_instance = File(id="syn1234")
+            file_instance.delete_permissions(dry_run=True)
+            print("Dry run completed - showed what would be deleted")
+            ```
         """
         entity_id = id_of(entity)
         trace.get_current_span().set_attributes({"synapse.id": entity_id})
@@ -4186,6 +4682,7 @@ class Synapse(object):
         trace.get_current_span().set_attributes({"synapse.id": activity["id"]})
         return self._saveActivity(activity)
 
+    # TODO: Deprecate this method and point to new functionality - This is used from the CLI only
     def _convertProvenanceList(self, usedList: list, limitSearch: str = None) -> list:
         """
         Convert a list of Synapse IDs, URLs and local files by replacing local files with Synapse IDs
@@ -4925,6 +5422,7 @@ class Synapse(object):
     # Project/Folder storage location settings #
     ############################################
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
     def createStorageLocationSetting(self, storage_type, **kwargs):
         """
         Creates an IMMUTABLE storage location based on the specified type.
@@ -4981,6 +5479,7 @@ class Synapse(object):
 
         return self.restPOST("/storageLocation", body=json.dumps(kwargs))
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
     def getMyStorageLocationSetting(self, storage_location_id):
         """
         Get a StorageLocationSetting by its id.
@@ -4994,6 +5493,7 @@ class Synapse(object):
         """
         return self.restGET("/storageLocation/%s" % storage_location_id)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
     def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
@@ -5031,6 +5531,7 @@ class Synapse(object):
                 "/projectSettings", body=json.dumps(project_destination)
             )
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
     def getProjectSetting(self, project, setting_type):
         """
         Gets the ProjectSetting for a project.
@@ -5058,6 +5559,7 @@ class Synapse(object):
             response if response else None
         )  # if no project setting, a empty string is returned as the response
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
     def get_sts_storage_token(
         self, entity, permission, *, output_format="json", min_remaining_life=None
     ):
@@ -5090,6 +5592,7 @@ class Synapse(object):
             min_remaining_life=min_remaining_life,
         )
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
     def create_s3_storage_location(
         self,
         *,
@@ -5164,6 +5667,7 @@ class Synapse(object):
     #                   CRUD for Evaluations                   #
     ############################################################
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
     def getEvaluation(self, id):
         """
         Gets an Evaluation object from Synapse.
@@ -5184,7 +5688,7 @@ class Synapse(object):
         uri = Evaluation.getURI(evaluation_id)
         return Evaluation(**self.restGET(uri))
 
-    # TODO: Should this be combined with getEvaluation?
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
     def getEvaluationByName(self, name):
         """
         Gets an Evaluation object from Synapse.
@@ -5198,6 +5702,7 @@ class Synapse(object):
         uri = Evaluation.getByNameURI(name)
         return Evaluation(**self.restGET(uri))
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1589
     def getEvaluationByContentSource(self, entity):
         """
         Returns a generator over evaluations that derive their content from the given entity
@@ -5519,7 +6024,12 @@ class Synapse(object):
         open_requests = self._GET_paginated(request)
         return open_requests
 
-    # TODO: Deprecate this method after adding it to the Team dataclass. This should call the `synapseclient/api/team_services.py::get_membership_status` function
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `get_user_membership_status` method on the `Team` class from `synapseclient.models` instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def get_membership_status(self, userid, team):
         """Retrieve a user's Team Membership Status bundle.
         <https://rest-docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html>
@@ -5530,6 +6040,41 @@ class Synapse(object):
 
         Returns:
             dict of TeamMembershipStatus
+
+        Example: Using this function (DEPRECATED)
+            &nbsp;
+            Getting a user's membership status for a team
+
+            ```python
+            from synapseclient import Synapse
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            status = syn.get_membership_status(userid="12345", team="67890")
+            print(status)
+            ```
+
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Team
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Use synchronous version (recommended for most use cases)
+            team = Team.from_id(id="67890")
+            status = team.get_user_membership_status(
+                user_id="12345",
+            )
+            print(status)
+            ```
         """
         teamid = id_of(team)
         request = "/team/{team}/member/{user}/membershipStatus".format(
@@ -5723,6 +6268,7 @@ class Synapse(object):
         # Return None if no invite is sent.
         return None
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def submit(
         self,
         evaluation,
@@ -5847,6 +6393,7 @@ class Synapse(object):
 
         return Submission(**submitted)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def _submit(self, submission, entity_etag, eligibility_hash):
         require_param(submission, "submission")
         require_param(entity_etag, "entity_etag")
@@ -5857,6 +6404,7 @@ class Synapse(object):
         submitted = self.restPOST(uri, json.dumps(submission))
         return submitted
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def _get_contributors(self, evaluation_id, team):
         if not evaluation_id or not team:
             return None, None
@@ -5891,6 +6439,7 @@ class Synapse(object):
         ]
         return contributors, eligibility["eligibilityStateHash"]
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def _allowParticipation(
         self,
         evaluation: Union[Evaluation, str],
@@ -5945,6 +6494,7 @@ class Synapse(object):
 
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def getSubmissions(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         Arguments:
@@ -5994,6 +6544,7 @@ class Synapse(object):
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
             yield Submission(**result)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def _getSubmissionBundles(
         self,
         evaluation: Union[Evaluation, str],
@@ -6043,6 +6594,7 @@ class Synapse(object):
 
         return self._GET_paginated(url, limit=limit, offset=offset)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def getSubmissionBundles(
         self, evaluation, status=None, myOwn=False, limit=20, offset=0
     ):
@@ -6140,6 +6692,7 @@ class Synapse(object):
             if next_page_token is None:
                 break
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def getSubmission(
         self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
     ) -> Submission:
@@ -6188,6 +6741,7 @@ class Synapse(object):
 
         return submission
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
     def getSubmissionStatus(
         self, submission: typing.Union[str, int, collections.abc.Mapping]
     ) -> SubmissionStatus:
@@ -6210,6 +6764,7 @@ class Synapse(object):
     #                      CRUD for Wikis                      #
     ############################################################
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
     def getWiki(self, owner, subpageId=None, version=None):
         """
         Get a [synapseclient.wiki.Wiki][] object from Synapse. Uses wiki2 API which supports versioning.
@@ -6263,6 +6818,7 @@ class Synapse(object):
 
         return wiki
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
     def getWikiHeaders(self, owner):
         """
         Retrieves the headers of all Wikis belonging to the owner (the entity to which the Wiki is attached).
@@ -6277,6 +6833,7 @@ class Synapse(object):
         uri = "/entity/%s/wikiheadertree" % id_of(owner)
         return [DictObject(**header) for header in self._GET_paginated(uri)]
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
     def _storeWiki(self, wiki: Wiki, createOrUpdate: bool) -> Wiki:
         """
         Stores or updates the given Wiki.
@@ -6338,6 +6895,7 @@ class Synapse(object):
                     raise
         return updated_wiki
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
     def getWikiAttachments(self, wiki):
         """
         Retrieve the attachments to a wiki page.
@@ -6872,6 +7430,7 @@ class Synapse(object):
         for result in self.restGET(uri)["results"]:
             yield Column(**result)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def tableQuery(self, query: str, resultsAs: str = "csv", **kwargs):
         """
         Query a Synapse Table.
@@ -6920,6 +7479,7 @@ class Synapse(object):
                 "Unknown return type requested from tableQuery: " + str(resultsAs)
             )
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def _queryTable(
         self,
         query: str,
@@ -6971,6 +7531,7 @@ class Synapse(object):
 
         return self._waitForAsync(uri=uri, request=query_bundle_request)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def _queryTableNext(self, nextPageToken: str, tableId: str) -> TableQueryResult:
         """
         Retrieve following pages if the result contains a *nextPageToken*
@@ -6985,6 +7546,7 @@ class Synapse(object):
         uri = "/entity/{id}/table/query/nextPage/async".format(id=tableId)
         return self._waitForAsync(uri=uri, request=nextPageToken)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def _uploadCsv(
         self,
         filepath: str,
@@ -7043,6 +7605,7 @@ class Synapse(object):
 
         return response
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def _check_table_transaction_response(self, response):
         for result in response["results"]:
             result_type = result["concreteType"]
@@ -7081,6 +7644,7 @@ class Synapse(object):
                     % (result_type, result)
                 )
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def _queryTableCsv(
         self,
         query: str,
@@ -7371,6 +7935,7 @@ class Synapse(object):
                 return column
         return None
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def downloadTableColumns(self, table, columns, downloadLocation=None, **kwargs):
         """
         Bulk download of table-associated files.
@@ -7514,6 +8079,7 @@ class Synapse(object):
 
         return file_handle_to_path_map
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def _build_table_download_file_handle_list(self, table, columns, downloadLocation):
         # ------------------------------------------------------------
         # build list of file handles to download
@@ -7555,6 +8121,7 @@ class Synapse(object):
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def _get_default_view_columns(self, view_type, view_type_mask=None):
         """Get default view columns"""
         uri = f"/column/tableview/defaults?viewEntityType={view_type}"
@@ -7562,6 +8129,7 @@ class Synapse(object):
             uri += f"&viewTypeMask={view_type_mask}"
         return [Column(**col) for col in self.restGET(uri)["list"]]
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
     def _get_annotation_view_columns(
         self, scope_ids: list, view_type: str, view_type_mask: str = None
     ) -> list:
@@ -7602,6 +8170,7 @@ class Synapse(object):
     #              CRUD for Entities (properties)              #
     ############################################################
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
     def _getEntity(
         self, entity: Union[str, dict, Entity], version: int = None
     ) -> Dict[str, Union[str, bool]]:
@@ -7621,6 +8190,7 @@ class Synapse(object):
             uri += "/version/%d" % version
         return self.restGET(uri)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
     def _createEntity(self, entity: Union[dict, Entity]) -> Dict[str, Union[str, bool]]:
         """
         Create a new entity in Synapse.
@@ -7634,6 +8204,7 @@ class Synapse(object):
 
         return self.restPOST(uri="/entity", body=json.dumps(get_properties(entity)))
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
     def _updateEntity(
         self,
         entity: Union[dict, Entity],
@@ -7668,6 +8239,7 @@ class Synapse(object):
 
         return self.restPUT(uri, body=json.dumps(get_properties(entity)), params=params)
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
     def findEntityId(self, name, parent=None):
         """
         Find an Entity given its name and parent.

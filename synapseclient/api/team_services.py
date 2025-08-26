@@ -3,7 +3,7 @@
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, AsyncGenerator, Dict, List, Optional, Union
 
 from synapseclient.api import rest_get_paginated_async
 from synapseclient.core.exceptions import SynapseNotFoundError
@@ -107,6 +107,34 @@ async def delete_team(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     await client.rest_delete_async(uri=f"/team/{id}")
+
+
+async def get_teams_for_user(
+    user_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> AsyncGenerator[Dict, None]:
+    """
+    Retrieve teams for the matching user ID as an async generator.
+
+    This function yields team dictionaries one by one as they are retrieved from the
+    paginated API response, allowing for memory-efficient processing of large result sets.
+
+    Arguments:
+        user_id: Identifier of a user.
+        synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+    Yields:
+        Team dictionaries that the user is a member of. Each dictionary matches the
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>
+        structure.
+    """
+    async for result in rest_get_paginated_async(
+        uri=f"/user/{user_id}/team", synapse_client=synapse_client
+    ):
+        yield result
 
 
 async def get_team(
@@ -295,7 +323,8 @@ async def get_membership_status(
                 instance from the Synapse class constructor.
 
     Returns:
-        Dictionary of TeamMembershipStatus: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/TeamMembershipStatus.html>
+        Dictionary of TeamMembershipStatus:
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/TeamMembershipStatus.html>
     """
     from synapseclient import Synapse
 

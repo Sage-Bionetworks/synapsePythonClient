@@ -143,3 +143,46 @@ class TestTeam:
 
         # Clean up
         test_team.delete()
+
+    async def test_team_membership_status(self) -> None:
+        """Test getting user membership status in a team"""
+        # GIVEN a team object
+
+        # WHEN I create the team on Synapse
+        test_team = self.team.create()
+
+        # AND I get the membership status for the creator (who should be a member)
+        creator_status = test_team.get_user_membership_status(
+            user_id=self.syn.getUserProfile().ownerId
+        )
+
+        # THEN the creator should have membership status indicating they are a member
+        assert creator_status.is_member is True
+        assert creator_status.team_id == str(test_team.id)
+        assert creator_status.has_open_invitation is False
+        assert creator_status.has_open_request is False
+        assert creator_status.can_join is True
+        assert creator_status.membership_approval_required is False
+        assert creator_status.has_unmet_access_requirement is False
+        assert creator_status.can_send_email is True
+
+        # WHEN I invite a test user to the team
+        invite = await test_team.invite_async(
+            user=self.TEST_USER,
+            message=self.TEST_MESSAGE,
+        )
+        # Check the invited user's status
+        invited_status = await test_team.get_user_membership_status_async(
+            user_id=self.syn.getUserProfile(self.TEST_USER).ownerId
+        )
+
+        # THEN the invited user should show they have an open invitation
+        assert invited_status is not None
+        assert invited_status.team_id == str(test_team.id)
+        assert invited_status.has_open_invitation is True
+        assert invited_status.membership_approval_required is True
+        assert invited_status.can_send_email is True
+        assert invited_status.is_member is False
+
+        # Clean up
+        test_team.delete()
