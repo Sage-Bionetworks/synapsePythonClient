@@ -18,6 +18,7 @@ from typing_extensions import Self
 from synapseclient import Column as Synapse_Column
 from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 from synapseclient.core.constants import concrete_types
+from synapseclient.core.constants.concrete_types import QUERY_TABLE_CSV_REQUEST
 from synapseclient.core.utils import delete_none_keys, from_unix_epoch_time
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
@@ -804,6 +805,108 @@ class QueryResult:
 
 
 @dataclass
+class QueryJob(AsynchronousCommunicator):
+    """
+    A query job that can be submitted to Synapse and return a QueryResultBundle.
+
+    This class combines query request parameters with the ability to receive
+    query results through the AsynchronousCommunicator pattern.
+    """
+
+    # Request parameters
+    entity_id: str
+    """The ID of the entity (table/view) being queried"""
+
+    concrete_type: str = QUERY_TABLE_CSV_REQUEST
+
+    sql: Optional[str] = None
+    """The SQL query to execute"""
+
+    header: Optional[bool] = None
+    """Whether to include header in the result"""
+
+    quote_character: Optional[str] = None
+    """Quotation character"""
+
+    escape_character: Optional[str] = None
+    """Escape character"""
+
+    line_end: Optional[str] = None
+    """Line ending character"""
+
+    separator: Optional[str] = None
+    """Separator character"""
+
+    include_row_id_and_row_version: Optional[bool] = None
+    """Whether to include row ID and version"""
+
+    # Response attributes (filled after job completion)
+    job_id: Optional[str] = None
+    """The job ID returned from the async job"""
+
+    results_file_handle_id: Optional[str] = None
+    """The file handle ID of the results CSV file"""
+
+    table_id: Optional[str] = None
+    """The ID of the table that was queried"""
+
+    etag: Optional[str] = None
+    """The etag of the table"""
+
+    headers: Optional[List[Dict[str, Any]]] = None
+    """The column headers from the query result"""
+
+    response_concrete_type: Optional[str] = None
+    """The concrete type of the response (usually DownloadFromTableResult)"""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """Convert to DownloadFromTableRequest format for async job submission."""
+        # Apply defaults
+        header = self.header if self.header is not None else True
+        quote_character = (
+            self.quote_character if self.quote_character is not None else '"'
+        )
+        escape_character = (
+            self.escape_character if self.escape_character is not None else "\\"
+        )
+        line_end = self.line_end if self.line_end is not None else os.linesep
+        separator = self.separator if self.separator is not None else ","
+        include_row_id_and_row_version = (
+            self.include_row_id_and_row_version
+            if self.include_row_id_and_row_version is not None
+            else True
+        )
+
+        return {
+            "concreteType": QUERY_TABLE_CSV_REQUEST,
+            "entityId": self.entity_id,
+            "csvTableDescriptor": {
+                "isFirstLineHeader": header,
+                "quoteCharacter": quote_character,
+                "escapeCharacter": escape_character,
+                "lineEnd": line_end,
+                "separator": separator,
+            },
+            "sql": self.sql,
+            "writeHeader": header,
+            "includeRowIdAndRowVersion": include_row_id_and_row_version,
+            "includeEntityEtag": True,
+        }
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Self":
+        """Fill the job results from Synapse response."""
+        # Fill response attributes from DownloadFromTableResult
+        self.job_id = synapse_response.get("jobId")
+        self.response_concrete_type = synapse_response.get("concreteType")
+        self.results_file_handle_id = synapse_response.get("resultsFileHandleId")
+        self.table_id = synapse_response.get("tableId")
+        self.etag = synapse_response.get("etag")
+        self.headers = synapse_response.get("headers")
+
+        return self
+
+
+@dataclass
 class QueryResultBundle:
     """
     A bundle of information about a query result.
@@ -811,10 +914,10 @@ class QueryResultBundle:
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
 
-    concrete_type: str
+    concrete_type: str = QUERY_TABLE_CSV_REQUEST
     """The concrete type of this object"""
 
-    query_result: QueryResult
+    query_result: QueryResult = None
     """A page of query result"""
 
     query_count: Optional[int] = None

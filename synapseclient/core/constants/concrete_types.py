@@ -91,3 +91,9 @@ GET_VALIDATION_SCHEMA_REQUEST = (
     "org.sagebionetworks.repo.model.schema.GetValidationSchemaRequest"
 )
 CREATE_SCHEMA_REQUEST = "org.sagebionetworks.repo.model.schema.CreateSchemaRequest"
+
+# Query Table as a CSV
+# https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html
+QUERY_TABLE_CSV_REQUEST = (
+    "org.sagebionetworks.repo.model.table.DownloadFromTableRequest"
+)

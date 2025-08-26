@@ -14,6 +14,7 @@ from synapseclient.core.constants.concrete_types import (
     AGENT_CHAT_REQUEST,
     CREATE_SCHEMA_REQUEST,
     GET_VALIDATION_SCHEMA_REQUEST,
+    QUERY_TABLE_CSV_REQUEST,
     TABLE_UPDATE_TRANSACTION_REQUEST,
 )
 from synapseclient.core.exceptions import (
@@ -27,6 +28,7 @@ ASYNC_JOB_URIS = {
     TABLE_UPDATE_TRANSACTION_REQUEST: "/entity/{entityId}/table/transaction/async",
     GET_VALIDATION_SCHEMA_REQUEST: "/schema/type/validation/async",
     CREATE_SCHEMA_REQUEST: "/schema/type/create/async",
+    QUERY_TABLE_CSV_REQUEST: "/entity/{entityId}/table/download/csv/async",
 }
 
 

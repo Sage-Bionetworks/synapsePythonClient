@@ -29,11 +29,7 @@ from synapseclient.api import (
     post_entity_bundle2_create,
     put_entity_id_bundle2,
 )
-from synapseclient.core.async_utils import (
-    async_to_sync,
-    otel_trace_method,
-    wrap_async_to_sync,
-)
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.download.download_functions import (
     download_by_file_handle,
     ensure_download_location_is_directory,
@@ -65,6 +61,7 @@ from synapseclient.models.table_components import (
     CsvTableDescriptor,
     PartialRow,
     PartialRowSet,
+    QueryJob,
     QueryNextPageToken,
     QueryResultBundle,
     QueryResultOutput,
@@ -158,7 +155,7 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
-def _query_table_csv(
+async def _query_table_csv(
     query: str,
     synapse: Synapse,
     quote_character: str = '"',
@@ -168,7 +165,7 @@ def _query_table_csv(
     header: bool = True,
     include_row_id_and_row_version: bool = True,
     download_location: str = None,
-) -> Tuple[Dict[str, str], str]:
+) -> Tuple[QueryJob, str]:
     """
     Query a Synapse Table and download a CSV file containing the results.
 
@@ -186,31 +183,27 @@ def _query_table_csv(
         download_location:        The download location
 
     Returns:
-        A tuple containing the download result and the path to the downloaded CSV file.
+        A tuple containing the download result (QueryJob object) and the path to the downloaded CSV file.
         The download result is a dictionary containing information about the download.
     """
-    download_from_table_request = {
-        "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
-        "csvTableDescriptor": {
-            "isFirstLineHeader": header,
-            "quoteCharacter": quote_character,
-            "escapeCharacter": escape_character,
-            "lineEnd": line_end,
-            "separator": separator,
-        },
-        "sql": query,
-        "writeHeader": header,
-        "includeRowIdAndRowVersion": include_row_id_and_row_version,
-        "includeEntityEtag": True,
-    }
 
-    uri = "/entity/{id}/table/download/csv/async".format(
-        id=extract_synapse_id_from_query(query)
+    entity_id = extract_synapse_id_from_query(query)
+    query_job_request = QueryJob(
+        entity_id=entity_id,
+        sql=query,
+        header=header,
+        quote_character=quote_character,
+        escape_character=escape_character,
+        line_end=line_end,
+        separator=separator,
+        include_row_id_and_row_version=include_row_id_and_row_version,
     )
-    download_from_table_result = synapse._waitForAsync(
-        uri=uri, request=download_from_table_request
+
+    download_from_table_result = await query_job_request.send_job_and_wait_async(
+        synapse_client=synapse
     )
-    file_handle_id = download_from_table_result["resultsFileHandleId"]
+
+    file_handle_id = download_from_table_result.results_file_handle_id
     cached_file_path = synapse.cache.get(
         file_handle_id=file_handle_id, path=download_location
     )
@@ -226,21 +219,17 @@ def _query_table_csv(
 
     os.makedirs(download_dir, exist_ok=True)
     filename = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
-    path = wrap_async_to_sync(
-        coroutine=download_by_file_handle(
-            file_handle_id=file_handle_id,
-            synapse_id=extract_synapse_id_from_query(query),
-            entity_type="TableEntity",
-            destination=os.path.join(download_dir, filename),
-            synapse_client=synapse,
-        ),
-        syn=synapse,
+    path = await download_by_file_handle(
+        file_handle_id=file_handle_id,
+        synapse_id=extract_synapse_id_from_query(query),
+        entity_type="TableEntity",
+        destination=os.path.join(download_dir, filename),
+        synapse_client=synapse,
     )
-
     return download_from_table_result, path
 
 
-def _query_table_next_page(
+async def _query_table_next_page(
     next_page_token: "QueryNextPageToken", table_id: str, synapse: Synapse
 ) -> "QueryResultBundle":
     """
@@ -329,29 +318,26 @@ async def _table_query(
         If `results_as` is "rowset", returns a QueryResultBundle object.
         If `results_as` is "csv", returns a tuple of (download_from_table_result, csv_path).
     """
-    loop = asyncio.get_event_loop()
     client = Synapse.get_client(synapse_client=synapse)
 
     if results_as.lower() == "rowset":
         return query_table_row_set(query=query, synapse=client, **kwargs)
 
     elif results_as.lower() == "csv":
-        result, csv_path = await loop.run_in_executor(
-            None,
-            lambda: _query_table_csv(
-                query=query,
-                synapse=client,
-                quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
-                escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
-                line_end=kwargs.get("line_end", str(os.linesep)),
-                separator=kwargs.get("separator", DEFAULT_SEPARATOR),
-                header=kwargs.get("header", True),
-                include_row_id_and_row_version=kwargs.get(
-                    "include_row_id_and_row_version", True
-                ),
-                download_location=kwargs.get("download_location", None),
+        result, csv_path = await _query_table_csv(
+            query=query,
+            synapse=client,
+            quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
+            escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
+            line_end=kwargs.get("line_end", str(os.linesep)),
+            separator=kwargs.get("separator", DEFAULT_SEPARATOR),
+            header=kwargs.get("header", True),
+            include_row_id_and_row_version=kwargs.get(
+                "include_row_id_and_row_version", True
             ),
+            download_location=kwargs.get("download_location", None),
         )
+
         return result, csv_path
 
 
