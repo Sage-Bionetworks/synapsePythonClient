@@ -28,8 +28,17 @@ class ElectronLogHandler(logging.Handler):
         """
         Process a log record and add it to the message queue.
 
-        Args:
+        Processes incoming log records, formats them appropriately,
+        and adds them to the queue for frontend consumption.
+
+        Arguments:
             record: The log record to process
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Record processing errors are caught and printed to avoid recursion.
         """
         try:
             if self._should_skip_record(record):
@@ -45,11 +54,17 @@ class ElectronLogHandler(logging.Handler):
         """
         Check if a log record should be skipped.
 
-        Args:
+        Determines whether certain log records should be filtered out
+        to reduce noise in the frontend log viewer.
+
+        Arguments:
             record: The log record to check
 
         Returns:
-            True if the record should be skipped
+            bool: True if the record should be skipped
+
+        Raises:
+            None: This method does not raise exceptions.
         """
         return record.name.startswith("websockets")
 
@@ -57,11 +72,17 @@ class ElectronLogHandler(logging.Handler):
         """
         Create a LogMessage from a log record.
 
-        Args:
+        Converts a Python logging record into a LogMessage object
+        suitable for frontend consumption.
+
+        Arguments:
             record: The log record to convert
 
         Returns:
-            LogMessage object ready for the frontend
+            LogMessage: LogMessage object ready for the frontend
+
+        Raises:
+            Exception: Message creation errors are allowed to propagate.
         """
         message = self.format(record)
 
@@ -91,8 +112,17 @@ class ElectronLogHandler(logging.Handler):
         """
         Add log message to the queue with size management.
 
-        Args:
+        Adds the log message to the global queue and manages queue
+        size to prevent memory issues.
+
+        Arguments:
             log_data: The log message to add
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Queue management errors are caught and printed.
         """
         try:
             log_message_queue.append(log_data)
@@ -112,8 +142,14 @@ def setup_logging(log_level: str = "info") -> None:
     Sets up the custom ElectronLogHandler to capture all log messages
     and forward them to the frontend via the message queue.
 
-    Args:
+    Arguments:
         log_level: Log level to set. Options: "debug", "info", "warning", "error"
+
+    Returns:
+        None
+
+    Raises:
+        None: Configuration errors are handled gracefully.
     """
     # Map string levels to logging constants
     level_mapping = {
@@ -154,8 +190,17 @@ def _configure_specific_loggers(log_level: int) -> None:
     """
     Configure specific logger levels to reduce noise.
 
-    Args:
+    Sets appropriate log levels for various third-party and internal
+    loggers to maintain readability in the log output.
+
+    Arguments:
         log_level: The numeric logging level to apply
+
+    Returns:
+        None
+
+    Raises:
+        None: This function does not raise exceptions.
     """
     # WebSocket loggers - always keep at WARNING unless debug mode
     websockets_level = logging.WARNING if log_level > logging.DEBUG else log_level
@@ -171,12 +216,21 @@ def _configure_specific_loggers(log_level: int) -> None:
     logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-def get_queued_messages() -> List[LogMessage]:
+def get_queued_messages() -> list[LogMessage]:
     """
     Get all queued log messages and clear the queue.
 
+    Retrieves all pending log messages from the global queue and
+    clears the queue for the next polling cycle.
+
+    Arguments:
+        None
+
     Returns:
-        List of LogMessage objects from the queue
+        list[LogMessage]: List of LogMessage objects from the queue
+
+    Raises:
+        None: This function does not raise exceptions.
     """
     messages = log_message_queue.copy()
     log_message_queue.clear()
@@ -189,6 +243,15 @@ async def initialize_logging() -> None:
 
     This function should be called during application startup to
     emit initial log messages confirming the logging system is working.
+
+    Arguments:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        Exception: Initialization errors are caught and printed.
     """
     try:
         logger = logging.getLogger(__name__)

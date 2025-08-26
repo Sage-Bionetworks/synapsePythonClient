@@ -15,7 +15,7 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -61,17 +61,26 @@ setup_logging("info")
 logger = logging.getLogger(__name__)
 
 # Global instances
-synapse_client: SynapseClientManager = None
-config_manager: ConfigManager = None
+synapse_client: Optional[SynapseClientManager] = None
+config_manager: Optional[ConfigManager] = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> Any:
     """
     Manage application lifespan events.
 
     Handles startup and shutdown logic for the FastAPI application,
     including logging initialization and cleanup.
+
+    Arguments:
+        app: The FastAPI application instance.
+
+    Returns:
+        An async context manager that handles startup and shutdown.
+
+    Raises:
+        Exception: If logging initialization fails during startup.
     """
     # Startup
     setup_logging()
@@ -84,8 +93,17 @@ def create_app() -> FastAPI:
     """
     Create and configure the FastAPI application.
 
+    Sets up the FastAPI application with CORS middleware and proper configuration
+    for the Synapse Desktop Client backend API.
+
+    Arguments:
+        None
+
     Returns:
-        Configured FastAPI application instance
+        FastAPI: Configured FastAPI application instance with CORS middleware.
+
+    Raises:
+        Exception: If application creation or configuration fails.
     """
     app = FastAPI(
         title="Synapse Desktop Client API",
@@ -113,12 +131,25 @@ app = create_app()
 
 
 @app.get("/logs/poll")
-async def poll_log_messages():
+async def poll_log_messages() -> Dict[str, Any]:
     """
     Poll for new log messages from the queue.
 
+    Retrieves queued log messages from the logging system and returns them
+    to the frontend for display in the log viewer.
+
+    Arguments:
+        None
+
     Returns:
-        JSON response containing queued log messages
+        Dict[str, Any]: JSON response containing queued log messages with fields:
+            - success: Boolean indicating if polling was successful
+            - messages: List of log message dictionaries
+            - count: Number of messages returned
+            - error: Error message if polling failed (optional)
+
+    Raises:
+        Exception: If retrieving log messages fails, returns error in response.
     """
     try:
         messages = get_queued_messages()
@@ -136,23 +167,45 @@ async def poll_log_messages():
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> Dict[str, str]:
     """
     Health check endpoint for service monitoring.
 
+    Provides a simple health check endpoint that can be used by monitoring
+    systems to verify that the backend service is running and responsive.
+
+    Arguments:
+        None
+
     Returns:
-        JSON response indicating service health status
+        Dict[str, str]: JSON response indicating service health status with fields:
+            - status: Health status (always "healthy" if reachable)
+            - service: Service name identifier
+
+    Raises:
+        None: This endpoint should always succeed if the service is running.
     """
     return {"status": "healthy", "service": "synapse-backend"}
 
 
 @app.get("/test/logging")
-async def test_logging():
+async def test_logging() -> Dict[str, str]:
     """
     Test endpoint to verify logging functionality.
 
+    Emits test log messages at different levels to verify that the logging
+    system is working correctly and messages are being captured properly.
+
+    Arguments:
+        None
+
     Returns:
-        JSON response confirming logging is working
+        Dict[str, str]: JSON response confirming logging test with fields:
+            - message: Success message if test completed
+            - error: Error message if test failed
+
+    Raises:
+        Exception: If logging test fails, returns error message in response.
     """
     try:
         logger.info("Test logging endpoint called")
@@ -166,15 +219,23 @@ async def test_logging():
 
 
 @app.get("/system/home-directory")
-async def get_home_directory():
+async def get_home_directory() -> Dict[str, str]:
     """
     Get the user's home and downloads directory paths.
 
+    Retrieves the current user's home directory and downloads directory paths,
+    creating the downloads directory if it doesn't exist.
+
+    Arguments:
+        None
+
     Returns:
-        JSON response with directory paths
+        Dict[str, str]: JSON response with directory paths containing:
+            - home_directory: User's home directory path
+            - downloads_directory: User's downloads directory path
 
     Raises:
-        HTTPException: If directories cannot be accessed
+        HTTPException: If directories cannot be accessed or created.
     """
     try:
         directories = get_home_and_downloads_directories()
@@ -188,15 +249,22 @@ async def get_home_directory():
 
 
 @app.get("/auth/profiles")
-async def get_profiles():
+async def get_profiles() -> Dict[str, List[Dict[str, str]]]:
     """
     Get available authentication profiles from configuration.
 
+    Retrieves all available Synapse authentication profiles from the user's
+    configuration file and formats them for display in the frontend.
+
+    Arguments:
+        None
+
     Returns:
-        JSON response with list of available profiles
+        Dict[str, List[Dict[str, str]]]: JSON response with list of available profiles containing:
+            - profiles: List of profile dictionaries with 'name' and 'display_name' fields
 
     Raises:
-        HTTPException: If profiles cannot be retrieved
+        HTTPException: If profiles cannot be retrieved from configuration.
     """
     try:
         global config_manager
@@ -219,18 +287,25 @@ async def get_profiles():
 
 
 @app.post("/auth/login")
-async def login(request: LoginRequest):
+async def login(request: LoginRequest) -> Dict[str, str]:
     """
     Authenticate user with Synapse.
 
-    Args:
-        request: Login request containing authentication details and log level
+    Handles both manual authentication (with username/token) and profile-based
+    authentication using stored configuration profiles.
+
+    Arguments:
+        request: Login request containing authentication details and mode
 
     Returns:
-        JSON response with authentication result
+        Dict[str, str]: JSON response with authentication result containing:
+            - username: Authenticated username
+            - name: Display name (same as username)
+            - user_id: User ID (empty string for compatibility)
+            - token: Authentication status token
 
     Raises:
-        HTTPException: If authentication fails
+        HTTPException: If authentication fails or required parameters are missing.
     """
     try:
         global synapse_client, config_manager
@@ -262,11 +337,19 @@ async def _perform_authentication(request: LoginRequest) -> Dict[str, Any]:
     """
     Perform the actual authentication based on request mode.
 
-    Args:
-        request: Login request containing authentication details
+    Handles the authentication logic for both manual and profile-based login modes.
+
+    Arguments:
+        request: Login request containing authentication details and mode
 
     Returns:
-        Dictionary with authentication result
+        Dict[str, Any]: Dictionary with authentication result containing:
+            - success: Boolean indicating if authentication was successful
+            - username: Username if successful
+            - error: Error message if authentication failed
+
+    Raises:
+        HTTPException: If required parameters are missing for the authentication mode.
     """
     # Use default (non-debug) mode
     debug_mode = False
@@ -286,15 +369,22 @@ async def _perform_authentication(request: LoginRequest) -> Dict[str, Any]:
 
 
 @app.post("/auth/logout")
-async def logout():
+async def logout() -> Dict[str, str]:
     """
     Logout current user.
 
+    Terminates the current Synapse session and clears authentication state
+    for the authenticated user.
+
+    Arguments:
+        None
+
     Returns:
-        JSON response confirming logout
+        Dict[str, str]: JSON response confirming logout with:
+            - message: Confirmation message of successful logout
 
     Raises:
-        HTTPException: If logout fails
+        HTTPException: If logout operation fails.
     """
     try:
         global synapse_client
@@ -310,25 +400,30 @@ async def logout():
 
 
 @app.post("/files/download")
-async def download_file(request: DownloadRequest):
+async def download_file(request: DownloadRequest) -> Dict[str, str]:
     """
     Download a file from Synapse.
 
-    Args:
-        request: Download request with file details
+    Initiates a background download task for the specified Synapse entity.
+    The download runs asynchronously to avoid blocking the API response.
+
+    Arguments:
+        request: Download request with file details including synapse_id, version, and download_path
 
     Returns:
-        JSON response confirming download started
+        Dict[str, str]: JSON response confirming download started with:
+            - message: Confirmation that download has started
+            - synapse_id: The Synapse ID being downloaded
 
     Raises:
-        HTTPException: If download cannot be started
+        HTTPException: If user is not authenticated or download cannot be started.
     """
     try:
         global synapse_client
         if not synapse_client or not synapse_client.is_logged_in:
             raise HTTPException(status_code=401, detail="Not authenticated")
 
-        async def download_task():
+        async def download_task() -> None:
             try:
                 logger.info("Starting download of %s", request.synapse_id)
 
@@ -364,25 +459,30 @@ async def download_file(request: DownloadRequest):
 
 
 @app.post("/files/upload")
-async def upload_file(request: UploadRequest):
+async def upload_file(request: UploadRequest) -> Dict[str, str]:
     """
     Upload a file to Synapse.
 
-    Args:
-        request: Upload request with file details
+    Initiates a background upload task for the specified file. Supports both
+    creating new entities and updating existing ones based on the request mode.
+
+    Arguments:
+        request: Upload request with file details including file_path, mode, parent_id/entity_id, and name
 
     Returns:
-        JSON response confirming upload started
+        Dict[str, str]: JSON response confirming upload started with:
+            - message: Confirmation that upload has started
+            - file_path: The local file path being uploaded
 
     Raises:
-        HTTPException: If upload cannot be started
+        HTTPException: If user is not authenticated or upload cannot be started.
     """
     try:
         global synapse_client
         if not synapse_client or not synapse_client.is_logged_in:
             raise HTTPException(status_code=401, detail="Not authenticated")
 
-        async def upload_task():
+        async def upload_task() -> None:
             try:
                 logger.info("Starting upload of %s", request.file_path)
 
@@ -422,18 +522,24 @@ async def upload_file(request: UploadRequest):
 
 
 @app.post("/files/scan-directory")
-async def scan_directory(request: ScanDirectoryRequest):
+async def scan_directory(request: ScanDirectoryRequest) -> Dict[str, Any]:
     """
     Scan a directory for files to upload.
 
-    Args:
-        request: Directory scan request
+    Recursively scans the specified directory and returns file metadata
+    for all files found, including size, type, and path information.
+
+    Arguments:
+        request: Directory scan request with directory_path and recursive flag
 
     Returns:
-        JSON response with file listing and summary
+        Dict[str, Any]: JSON response with file listing and summary containing:
+            - success: Boolean indicating scan success
+            - files: List of file metadata dictionaries
+            - summary: Summary statistics about scanned files
 
     Raises:
-        HTTPException: If directory cannot be scanned
+        HTTPException: If directory doesn't exist, is not a directory, or scanning fails.
     """
     try:
         result = scan_directory_for_files(request.directory_path, request.recursive)
@@ -446,18 +552,22 @@ async def scan_directory(request: ScanDirectoryRequest):
 
 
 @app.post("/bulk/enumerate")
-async def enumerate_container(request: EnumerateRequest):
+async def enumerate_container(request: EnumerateRequest) -> Dict[str, List[Dict[str, Any]]]:
     """
     Enumerate contents of a Synapse container.
 
-    Args:
-        request: Container enumeration request
+    Lists all files and folders within the specified Synapse container (Project or Folder),
+    with optional recursive enumeration of subdirectories.
+
+    Arguments:
+        request: Container enumeration request with container_id and recursive flag
 
     Returns:
-        JSON response with container contents
+        Dict[str, List[Dict[str, Any]]]: JSON response with container contents containing:
+            - items: List of item dictionaries with metadata (id, name, type, size, etc.)
 
     Raises:
-        HTTPException: If enumeration fails
+        HTTPException: If user is not authenticated or enumeration fails.
     """
     try:
         global synapse_client
@@ -484,15 +594,27 @@ async def enumerate_container(request: EnumerateRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-def _convert_bulk_items_to_dict(items):
+def _convert_bulk_items_to_dict(items: List[Any]) -> List[Dict[str, Any]]:
     """
     Convert BulkItem objects to JSON-serializable dictionaries.
 
-    Args:
-        items: List of BulkItem objects or dictionaries
+    Transforms BulkItem objects or existing dictionaries into a standardized
+    dictionary format suitable for JSON serialization and frontend consumption.
+
+    Arguments:
+        items: List of BulkItem objects or dictionaries to convert
 
     Returns:
-        List of dictionaries
+        List[Dict[str, Any]]: List of dictionaries with standardized item metadata including:
+            - id: Item Synapse ID
+            - name: Item name
+            - type: Item type (file/folder)
+            - size: File size (for files)
+            - parent_id: Parent container ID
+            - path: Item path
+
+    Raises:
+        None: Handles conversion errors gracefully by preserving existing dictionaries.
     """
     converted_items = []
     for item in items:
@@ -513,18 +635,25 @@ def _convert_bulk_items_to_dict(items):
 
 
 @app.post("/bulk/download")
-async def bulk_download(request: BulkDownloadRequest):
+async def bulk_download(request: BulkDownloadRequest) -> Dict[str, Any]:
     """
     Bulk download files from Synapse.
 
-    Args:
-        request: Bulk download request
+    Downloads multiple files from Synapse to the specified local directory.
+    Only file items are processed; folders are filtered out automatically.
+
+    Arguments:
+        request: Bulk download request with items list, download_path, and options
 
     Returns:
-        JSON response with download results
+        Dict[str, Any]: JSON response with download results containing:
+            - success: Boolean indicating overall operation success
+            - message: Summary message
+            - item_count: Number of items processed
+            - summary: Detailed operation summary
 
     Raises:
-        HTTPException: If bulk download fails
+        HTTPException: If user is not authenticated, no files selected, or download fails.
     """
     logger.info("Bulk download endpoint")
     try:
@@ -565,13 +694,41 @@ async def bulk_download(request: BulkDownloadRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-def _filter_file_items(items):
-    """Filter items to only include files for bulk download."""
+def _filter_file_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Filter items to only include files for bulk download.
+
+    Removes non-file items (folders, etc.) from the items list since
+    bulk download operations only support files.
+
+    Arguments:
+        items: List of item dictionaries that may contain files and folders
+
+    Returns:
+        List[Dict[str, Any]]: Filtered list containing only file items
+
+    Raises:
+        None: This function does not raise exceptions.
+    """
     return [item for item in items if item.get("type", "file").lower() == "file"]
 
 
-def _convert_dict_to_bulk_items(file_items_data):
-    """Convert dictionary items to BulkItem objects."""
+def _convert_dict_to_bulk_items(file_items_data: List[Dict[str, Any]]) -> List[BulkItemModel]:
+    """
+    Convert dictionary items to BulkItem objects.
+
+    Transforms dictionary representations of file items into BulkItemModel
+    objects that can be used by the Synapse client for bulk operations.
+
+    Arguments:
+        file_items_data: List of file item dictionaries with metadata
+
+    Returns:
+        List[BulkItemModel]: List of BulkItemModel objects ready for bulk operations
+
+    Raises:
+        None: This function does not raise exceptions.
+    """
     bulk_items = []
     for item_data in file_items_data:
         bulk_item = BulkItemModel(
@@ -586,8 +743,29 @@ def _convert_dict_to_bulk_items(file_items_data):
     return bulk_items
 
 
-async def _handle_bulk_download_result(result, file_items_data):
-    """Handle the result of bulk download operation."""
+async def _handle_bulk_download_result(
+    result: Dict[str, Any], file_items_data: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Handle the result of bulk download operation.
+
+    Processes the result from a bulk download operation and broadcasts
+    completion messages via WebSocket to notify the frontend.
+
+    Arguments:
+        result: The result dictionary from the bulk download operation
+        file_items_data: The original file items data that were downloaded
+
+    Returns:
+        Dict[str, Any]: A response dictionary with the result of the bulk download operation containing:
+            - success: Boolean indicating operation success
+            - message: Summary message
+            - item_count: Number of items processed
+            - summary: Detailed operation summary
+
+    Raises:
+        HTTPException: If the bulk download operation failed.
+    """
     if result["success"]:
         logger.info("Successfully downloaded %d files", len(file_items_data))
         await broadcast_message(
@@ -620,18 +798,27 @@ async def _handle_bulk_download_result(result, file_items_data):
 
 
 @app.post("/bulk/upload")
-async def bulk_upload(request: BulkUploadRequest):
+async def bulk_upload(request: BulkUploadRequest) -> Dict[str, Any]:
     """
     Bulk upload files to Synapse with proper folder hierarchy.
 
-    Args:
-        request: Bulk upload request
+    Uploads multiple files to Synapse with optional preservation of the
+    local folder structure. Only file items are processed for upload.
+
+    Arguments:
+        request: Bulk upload request with parent_id, files list, and options
 
     Returns:
-        JSON response with upload results
+        Dict[str, Any]: JSON response with upload results containing:
+            - success: Boolean indicating overall operation success
+            - message: Summary message
+            - successful_uploads: Number of successful uploads
+            - failed_uploads: Number of failed uploads
+            - total_items: Total number of items processed
+            - summary: Detailed operation summary
 
     Raises:
-        HTTPException: If bulk upload fails
+        HTTPException: If user is not authenticated, no files selected, or upload fails.
     """
     try:
         global synapse_client
@@ -671,8 +858,25 @@ async def bulk_upload(request: BulkUploadRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-async def _perform_bulk_upload(request: BulkUploadRequest, file_items_data):
-    """Perform the actual bulk upload operation."""
+async def _perform_bulk_upload(
+    request: BulkUploadRequest, file_items_data: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Perform the actual bulk upload operation.
+
+    Handles the complete bulk upload process including folder hierarchy creation
+    and file uploads with proper parent-child relationships.
+
+    Arguments:
+        request: The bulk upload request with configuration options
+        file_items_data: List of filtered file items to upload
+
+    Returns:
+        Dict[str, Any]: Upload result summary with success counts and details
+
+    Raises:
+        HTTPException: If no valid files found to upload or upload preparation fails.
+    """
 
     folder_map, root_files = _build_folder_hierarchy(request, file_items_data)
 
@@ -694,8 +898,27 @@ async def _perform_bulk_upload(request: BulkUploadRequest, file_items_data):
     return _process_upload_results(upload_results, total_items, root_files, folder_map)
 
 
-def _build_folder_hierarchy(request: BulkUploadRequest, file_items_data):
-    """Build folder hierarchy for preserving structure during upload."""
+def _build_folder_hierarchy(
+    request: BulkUploadRequest, file_items_data: List[Dict[str, Any]]
+) -> tuple[Dict[str, Any], List[Any]]:
+    """
+    Build folder hierarchy for preserving structure during upload.
+
+    Creates the necessary folder structure in memory before upload to preserve
+    the local directory hierarchy in Synapse when requested.
+
+    Arguments:
+        request: The bulk upload request with hierarchy preservation settings
+        file_items_data: List of file items with path information
+
+    Returns:
+        tuple[Dict[str, Any], List[Any]]: A tuple containing:
+            - folder_map: Dictionary mapping folder paths to folder objects
+            - root_files: List of files that belong at the root level
+
+    Raises:
+        None: Skips files with invalid paths and logs warnings.
+    """
     from synapseclient.models.file import File
 
     folder_map = {}
@@ -728,8 +951,27 @@ def _build_folder_hierarchy(request: BulkUploadRequest, file_items_data):
     return folder_map, root_files
 
 
-def _add_file_to_folder_hierarchy(file_obj, relative_path, folder_map, parent_id):
-    """Add a file to the appropriate folder in the hierarchy."""
+def _add_file_to_folder_hierarchy(
+    file_obj: Any, relative_path: str, folder_map: Dict[str, Any], parent_id: str
+) -> None:
+    """
+    Add a file to the appropriate folder in the hierarchy.
+
+    Processes the relative path to create the necessary folder structure and
+    assigns the file to the correct parent folder.
+
+    Arguments:
+        file_obj: The file object to add to the hierarchy
+        relative_path: The relative path of the file from the upload root
+        folder_map: Dictionary tracking created folders by path
+        parent_id: The parent ID for the root of the hierarchy
+
+    Returns:
+        None: Modifies folder_map and file_obj in place
+
+    Raises:
+        None: This function handles errors gracefully.
+    """
     from synapseclient.models.folder import Folder
 
     relative_path = relative_path.replace("\\", "/").strip("/")
@@ -766,8 +1008,25 @@ def _add_file_to_folder_hierarchy(file_obj, relative_path, folder_map, parent_id
             folder_map[folder_path].files.append(file_obj)
 
 
-def _create_upload_tasks(root_files, folder_map):
-    """Create async upload tasks for all files and folders."""
+def _create_upload_tasks(
+    root_files: List[Any], folder_map: Dict[str, Any]
+) -> List[Any]:
+    """
+    Create async upload tasks for all files and folders.
+
+    Generates a list of async tasks that can be executed concurrently to
+    upload all files and create all folders in the hierarchy.
+
+    Arguments:
+        root_files: List of files that belong at the root level
+        folder_map: Dictionary mapping folder paths to folder objects
+
+    Returns:
+        List[Any]: List of async tasks for uploading items
+
+    Raises:
+        None: This function does not raise exceptions.
+    """
     upload_tasks = []
 
     for file_obj in root_files:
@@ -782,8 +1041,30 @@ def _create_upload_tasks(root_files, folder_map):
     return upload_tasks
 
 
-async def _upload_item(item, item_type: str, item_name: str) -> Dict[str, Any]:
-    """Upload a file or folder and return result."""
+async def _upload_item(item: Any, item_type: str, item_name: str) -> Dict[str, Any]:
+    """
+    Upload a file or folder and return result.
+
+    Performs the actual upload of a single item (file or folder) to Synapse
+    and returns detailed result information.
+
+    Arguments:
+        item: The item object (File or Folder) to upload
+        item_type: Type of item being uploaded ("file" or "folder")
+        item_name: Display name of the item for logging
+
+    Returns:
+        Dict[str, Any]: Upload result dictionary containing:
+            - success: Boolean indicating upload success
+            - item_name: Name of the item
+            - item_type: Type of the item
+            - entity_id: Synapse ID of uploaded item (if successful)
+            - error: Error message (if failed)
+            - path: Local file path (if applicable)
+
+    Raises:
+        Exception: Catches and handles upload errors, returning them in result dict.
+    """
     try:
         logger.info("Uploading %s: %s", item_type, item_name)
 
@@ -807,8 +1088,36 @@ async def _upload_item(item, item_type: str, item_name: str) -> Dict[str, Any]:
         }
 
 
-def _process_upload_results(upload_results, total_items, root_files, folder_map):
-    """Process upload results and return final response."""
+def _process_upload_results(
+    upload_results: List[Any],
+    total_items: int,
+    root_files: List[Any],
+    folder_map: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Process upload results and return final response.
+
+    Analyzes the results from all upload tasks and compiles a summary
+    response with success/failure counts and details.
+
+    Arguments:
+        upload_results: List of results from upload tasks (may include exceptions)
+        total_items: Total number of items that were attempted to upload
+        root_files: List of root-level files that were uploaded
+        folder_map: Dictionary of folders that were created
+
+    Returns:
+        Dict[str, Any]: Final upload summary containing:
+            - success: Always True (individual failures are counted)
+            - message: Summary message
+            - successful_uploads: Number of successful uploads
+            - failed_uploads: Number of failed uploads
+            - total_items: Total number of items processed
+            - summary: Detailed summary string
+
+    Raises:
+        None: This function processes exceptions and includes them in results.
+    """
     processed_results = []
     for i, result in enumerate(upload_results):
         if isinstance(result, Exception):
@@ -848,12 +1157,21 @@ def _process_upload_results(upload_results, total_items, root_files, folder_map)
     }
 
 
-def main():
+def main() -> None:
     """
     Main entry point for the backend server.
 
-    Parses command line arguments and starts the server with
-    appropriate configuration for the environment.
+    Parses command line arguments and starts the FastAPI server with WebSocket
+    support and appropriate configuration for the Synapse Desktop Client environment.
+
+    Arguments:
+        None: Uses command line arguments via argparse
+
+    Returns:
+        None: Runs the server until interrupted
+
+    Raises:
+        SystemExit: If argument parsing fails or server startup fails.
     """
     parser = argparse.ArgumentParser(description="Synapse Desktop Client Backend")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")

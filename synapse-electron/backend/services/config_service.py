@@ -5,7 +5,7 @@ This module provides the ConfigManager service class for managing
 Synapse configuration profiles and authentication settings.
 """
 import os
-from typing import List
+from typing import List, Optional
 
 from synapseclient.api.configuration_services import get_config_file
 
@@ -16,15 +16,25 @@ class ConfigManager:
 
     Handles reading and parsing Synapse configuration files to extract
     available authentication profiles and their associated information.
+    Provides methods to access profile data and validate configuration files.
     """
 
-    def __init__(self, config_path: str = None) -> None:
+    def __init__(self, config_path: Optional[str] = None) -> None:
         """
         Initialize the configuration manager.
 
-        Args:
+        Sets up the configuration manager with the specified or default
+        Synapse configuration file path.
+
+        Arguments:
             config_path: Path to the Synapse configuration file.
                         Defaults to ~/.synapseConfig if not provided.
+
+        Returns:
+            None
+
+        Raises:
+            None: Initialization does not perform file operations that could fail.
         """
         self.config_path = config_path or os.path.expanduser("~/.synapseConfig")
 
@@ -32,8 +42,19 @@ class ConfigManager:
         """
         Get list of available authentication profiles from configuration file.
 
+        Parses the Synapse configuration file to extract all available
+        authentication profiles including default, named profiles, and legacy.
+
+        Arguments:
+            None
+
         Returns:
-            List of profile names found in the configuration file
+            List[str]: List of profile names found in the configuration file.
+                      Returns empty list if no profiles found or file cannot be read.
+
+        Raises:
+            Exception: Catches and handles configuration file parsing errors,
+                      returning empty list on failure.
         """
         profiles = []
 
@@ -62,11 +83,18 @@ class ConfigManager:
         """
         Get username for a specific profile.
 
-        Args:
+        Retrieves the username associated with the specified profile from
+        the configuration file.
+
+        Arguments:
             profile_name: Name of the profile to get information for
 
         Returns:
-            Username associated with the profile, or empty string if not found
+            str: Username associated with the profile, or empty string if not found
+
+        Raises:
+            Exception: Catches and handles configuration file access errors,
+                      returning empty string on failure.
         """
         try:
             config = get_config_file(self.config_path)
@@ -91,8 +119,17 @@ class ConfigManager:
         """
         Check if configuration file exists and contains profiles.
 
+        Validates that the configuration file exists on the filesystem and
+        contains at least one authentication profile.
+
+        Arguments:
+            None
+
         Returns:
-            True if config file exists and has profiles, False otherwise
+            bool: True if config file exists and has profiles, False otherwise
+
+        Raises:
+            None: This method handles all exceptions internally.
         """
         return (
             os.path.exists(self.config_path) and len(self.get_available_profiles()) > 0

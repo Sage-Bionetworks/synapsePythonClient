@@ -27,16 +27,62 @@ ElectronJS desktop application for interacting with Synapse, built with FastAPI 
 
 ## Quick Start
 
+### Prerequisites
+
+Before running the Synapse Desktop Client, ensure you have the following system dependencies installed:
+
+#### Required Software
+- **Node.js** (v14 or higher) - Download from [https://nodejs.org/](https://nodejs.org/)
+  - Includes npm (Node Package Manager)
+- **Python** (v3.7 or higher) - Download from [https://python.org/](https://python.org/)
+  - On Windows: Use `python` command
+  - On macOS/Linux: Use `python3` command
+
+#### Environment Setup
+- Ensure both Node.js and Python are added to your system PATH
+- The start scripts will automatically check for these dependencies and guide you if anything is missing
+
 ### Development
 
 #### Quick Start
 ```bash
+# Make sure you are in the `synapse-electron` directory
+# cd synapse-electron
+
 # Windows
 .\start.bat
 
 # macOS/Linux
 ./start.sh
 ```
+
+After starting the application you should see a few things. First, you should see console logs similar to what is shown below:
+
+
+```
+Starting Synapse Desktop Client...
+Backend will start on http://localhost:8000
+WebSocket will start on ws://localhost:8001
+
+
+> synapse-desktop-client@0.1.0 dev
+> electron .
+
+
+12:22:17.807 > Starting Python backend...
+12:22:17.821 > Attempt 1/30: Checking backend health at http://127.0.0.1:8000/health
+12:22:17.841 > Backend not ready yet (attempt 1): connect ECONNREFUSED 127.0.0.1:8000
+12:22:18.847 > Attempt 2/30: Checking backend health at http://127.0.0.1:8000/health
+12:22:18.850 > Backend not ready yet (attempt 2): connect ECONNREFUSED 127.0.0.1:8000
+12:22:19.852 > Attempt 3/30: Checking backend health at http://127.0.0.1:8000/health
+12:22:19.856 > Python Backend: INFO:     127.0.0.1:52661 - "GET /health HTTP/1.1" 200 OK
+
+12:22:19.858 > Python backend is ready
+12:22:19.971 > Synapse Electron app initialized successfully
+12:22:19.988 > WebSocket connected to Python backend
+```
+
+Secondly, an application window should pop up allowing you to interact with the GUI.
 
 #### Advanced Development & Debugging
 
@@ -56,6 +102,8 @@ To debug the FastAPI backend server with breakpoints and step-through debugging:
    ```
 
    The backend will start on `http://localhost:8000` by default.
+
+   The FastAPI server also automatically exposes API Docs at the `http://localhost:8000/docs` URL.
 
 2. **Set up your IDE for Python debugging**:
    - **VS Code**: Open `backend/server.py`, set breakpoints, and use F5 to start debugging
@@ -171,3 +219,48 @@ synapse-electron/
 - **Backend Port**: Configured in `backend/server.py` (default: 8000)
 - **Build Settings**: Defined in package.json and `.electron-builder.json`
 - **Python Environment**: Managed in `backend/` directory
+
+## Releasing
+
+When incrementing the desktop application for a release, there are **2 versions** that need to be updated:
+
+1. **`package.json`** - Update the `version` field:
+   ```json
+   {
+     "name": "synapse-desktop-client",
+     "version": "X.Y.Z",
+     ...
+   }
+   ```
+
+2. **`backend/server.py`** - Update the FastAPI `version` parameter:
+   ```python
+   app = FastAPI(
+       title="Synapse Desktop Client API",
+       description="Backend API for Synapse Desktop Client",
+       version="X.Y.Z",
+       lifespan=lifespan,
+   )
+   ```
+
+### Release Process
+
+1. **Create Release Branch**: Create a new release candidate branch from the develop branch using the release candidate naming convention:
+   ```bash
+   git checkout -b synapsedesktopclient/vX.Y.Z-rc develop
+   ```
+   where `X.Y.Z` is the semantic version (e.g., `synapsedesktopclient/v1.2.3-rc`)
+
+2. **Update Versions**: Update both version locations mentioned above to match the release version.
+
+3. **Pre-release Distribution**: At this point in time we will only use the "pre-release" portion to push out the desktop client. This is temporary while we look to migrate to the sage monorepo.
+
+4. **Create and Deploy the Release Candidate**: Desktop client releases are created as GitHub releases.
+
+   - Click the "Draft a new release" button and fill the following values:
+     - **Tag version**: `synapsedesktopclient/vX.Y.Z-rc` where `X.Y.Z` is the semantic version
+     - **Target**: the previously created `synapsedesktopclient/vX.Y.Z-rc` branch
+     - **Release title**: Same as tag version (`synapsedesktopclient/vX.Y.Z-rc`)
+   - **IMPORTANT**: Check the "Set as a pre-release" checkbox
+
+**Note**: Replace `X.Y.Z` with the actual semantic version numbers (e.g., `1.2.3`).

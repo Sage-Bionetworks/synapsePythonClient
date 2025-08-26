@@ -12,7 +12,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import synapseclient
 from synapseclient.models import File
@@ -23,16 +23,22 @@ DESKTOP_CLIENT_VERSION = "0.1.0"
 logger = logging.getLogger(__name__)
 
 
-def _safe_stderr_redirect(new_stderr: Any) -> tuple[Any, Any]:
+def _safe_stderr_redirect(new_stderr: Any) -> Tuple[Any, Any]:
     """
     Safely redirect stderr, handling the case where original stderr might be None.
 
-    Args:
+    Provides a safe way to redirect stderr for capturing TQDM output while
+    ensuring we can always restore to a valid stderr stream.
+
+    Arguments:
         new_stderr: New stderr object to redirect to
 
     Returns:
-        Tuple of (original_stderr, safe_original_stderr) where safe_original_stderr
-        is guaranteed to be a valid file-like object
+        Tuple[Any, Any]: Tuple of (original_stderr, safe_original_stderr) where
+                        safe_original_stderr is guaranteed to be a valid file-like object
+
+    Raises:
+        None: This function does not raise exceptions.
     """
     original_stderr = sys.stderr
     safe_original_stderr = (
@@ -46,9 +52,18 @@ def _safe_stderr_restore(original_stderr: Any, safe_original_stderr: Any) -> Non
     """
     Safely restore stderr, ensuring we never set it to None.
 
-    Args:
-        original_stderr: The original stderr object
+    Restores stderr to its original state while ensuring we never set
+    sys.stderr to None which could cause issues.
+
+    Arguments:
+        original_stderr: The original stderr object (may be None)
         safe_original_stderr: Fallback stderr object if original was None
+
+    Returns:
+        None
+
+    Raises:
+        None: This function does not raise exceptions.
     """
     if original_stderr is not None:
         sys.stderr = original_stderr
@@ -72,9 +87,18 @@ class TQDMProgressCapture:
         """
         Initialize the TQDM progress capture.
 
-        Args:
+        Sets up progress capture with optional callbacks for progress updates
+        and detailed progress messages.
+
+        Arguments:
             progress_callback: Function to call with progress updates (progress%, message) or None
             detail_callback: Function to call with detailed progress messages or None
+
+        Returns:
+            None
+
+        Raises:
+            None: Initialization does not perform operations that could fail.
         """
         self.progress_callback = progress_callback
         self.detail_callback = detail_callback
@@ -84,8 +108,17 @@ class TQDMProgressCapture:
         """
         Capture TQDM output and extract progress information.
 
-        Args:
+        Parses TQDM output strings to extract progress percentages and
+        detailed progress information for callback notifications.
+
+        Arguments:
             s: String output from TQDM to parse for progress information
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Catches and handles progress parsing errors gracefully.
         """
         if s and "\r" in s:
             # TQDM typically uses \r for progress updates
@@ -110,7 +143,21 @@ class TQDMProgressCapture:
                     pass
 
     def flush(self) -> None:
-        """Required for file-like object interface."""
+        """
+        Required for file-like object interface.
+
+        Provides the flush method required for file-like objects,
+        though no actual flushing is needed for this implementation.
+
+        Arguments:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None: This method does not raise exceptions.
+        """
         pass
 
 
@@ -124,7 +171,21 @@ class SynapseClientManager:
     """
 
     def __init__(self) -> None:
-        """Initialize the Synapse client manager with default state."""
+        """
+        Initialize the Synapse client manager with default state.
+
+        Sets up the client manager with initial state values for
+        authentication and debugging configuration.
+
+        Arguments:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None: Initialization does not perform operations that could fail.
+        """
         self.client: Optional[synapseclient.Synapse] = None
         self.is_logged_in = False
         self.username = ""
@@ -134,11 +195,17 @@ class SynapseClientManager:
         """
         Create a new Synapse client instance with the specified debug mode.
 
-        Args:
+        Creates and configures a Synapse client with appropriate settings
+        for the desktop client environment.
+
+        Arguments:
             debug_mode: Whether to enable debug mode for the client
 
         Returns:
-            New Synapse client instance
+            synapseclient.Synapse: New Synapse client instance with desktop client configuration
+
+        Raises:
+            Exception: If client creation fails (propagated from synapseclient).
         """
         return synapseclient.Synapse(
             skip_checks=True,
@@ -153,13 +220,19 @@ class SynapseClientManager:
         """
         Login with username and authentication token.
 
-        Args:
+        Performs manual authentication using username and personal access token,
+        setting up the client for subsequent operations.
+
+        Arguments:
             username: Synapse username or email address
             token: Personal access token for authentication
             debug_mode: Whether to enable debug mode for the Synapse client
 
         Returns:
-            Dictionary with 'success' boolean and either 'username' or 'error' key
+            Dict[str, Any]: Dictionary with 'success' boolean and either 'username' or 'error' key
+
+        Raises:
+            Exception: Authentication errors are caught and returned in the result dictionary.
         """
         try:
             self.debug_mode = debug_mode
@@ -188,12 +261,18 @@ class SynapseClientManager:
         """
         Login with configuration file profile.
 
-        Args:
+        Performs authentication using a named profile from the Synapse
+        configuration file (~/.synapseConfig).
+
+        Arguments:
             profile_name: Name of the profile from Synapse configuration file
             debug_mode: Whether to enable debug mode for the Synapse client
 
         Returns:
-            Dictionary with 'success' boolean and either 'username' or 'error' key
+            Dict[str, Any]: Dictionary with 'success' boolean and either 'username' or 'error' key
+
+        Raises:
+            Exception: Authentication errors are caught and returned in the result dictionary.
         """
         try:
             self.debug_mode = debug_mode
@@ -219,7 +298,21 @@ class SynapseClientManager:
             return {"success": False, "error": "Authentication failed"}
 
     def logout(self) -> None:
-        """Logout from Synapse and clear authentication state."""
+        """
+        Logout from Synapse and clear authentication state.
+
+        Terminates the current Synapse session and resets all authentication
+        state to prepare for a new login.
+
+        Arguments:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Logout errors are logged but not propagated.
+        """
         if self.client:
             self.client.logout()
             logger.info(f"User {self.username} logged out")
@@ -238,7 +331,10 @@ class SynapseClientManager:
         """
         Download a file from Synapse.
 
-        Args:
+        Downloads a specific file or version from Synapse to the local filesystem,
+        with optional progress tracking through callbacks.
+
+        Arguments:
             synapse_id: Synapse entity ID to download
             version: Specific version to download (None for latest)
             download_path: Local directory path for download
@@ -246,7 +342,10 @@ class SynapseClientManager:
             detail_callback: Function for detailed progress messages
 
         Returns:
-            Dictionary with 'success' boolean and either 'path' or 'error' key
+            Dict[str, Any]: Dictionary with 'success' boolean and either 'path' or 'error' key
+
+        Raises:
+            Exception: Download errors are caught and returned in the result dictionary.
         """
         try:
             if not self.is_logged_in:

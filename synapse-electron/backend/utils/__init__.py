@@ -5,7 +5,7 @@ This package contains utility functions and helper classes used
 throughout the application.
 """
 
-from .async_utils import create_async_operation_wrapper, run_async_task_in_background
+from .async_utils import run_async_task_in_background
 from .logging_utils import get_queued_messages, initialize_logging, setup_logging
 from .system_utils import (
     get_home_and_downloads_directories,
@@ -33,5 +33,4 @@ __all__ = [
     "scan_directory_for_files",
     # Async utilities
     "run_async_task_in_background",
-    "create_async_operation_wrapper",
 ]

@@ -20,6 +20,16 @@ def setup_electron_environment() -> None:
 
     This fixes issues with temporary directories and cache paths in packaged apps.
     Detects if running in an Electron context and configures appropriate paths.
+
+    Arguments:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        OSError: If directory creation or environment setup fails.
+        IOError: If file system operations fail.
     """
     try:
         is_electron_context = _detect_electron_environment()
@@ -43,8 +53,17 @@ def _detect_electron_environment() -> bool:
     """
     Check if we're running from within Electron's environment.
 
+    Examines various environment indicators to determine if the
+    application is running within an Electron context.
+
+    Arguments:
+        None
+
     Returns:
-        True if running in Electron context, False otherwise
+        bool: True if running in Electron context, False otherwise
+
+    Raises:
+        None: This function does not raise exceptions.
     """
     return (
         "electron" in sys.executable.lower()
@@ -57,8 +76,17 @@ def _get_app_cache_directory() -> str:
     """
     Get the application cache directory for the current platform.
 
+    Determines the appropriate cache directory based on the operating
+    system and available environment variables.
+
+    Arguments:
+        None
+
     Returns:
-        Path to the application cache directory
+        str: Path to the application cache directory
+
+    Raises:
+        None: This function provides fallback paths for all scenarios.
     """
     if os.name == "nt":  # Windows
         cache_base = os.getenv("LOCALAPPDATA") or os.getenv("APPDATA")
@@ -85,8 +113,17 @@ def _setup_cache_directories(app_cache_dir: str) -> None:
     """
     Create and configure cache directories.
 
-    Args:
+    Sets up the application cache directories and configures
+    environment variables for Synapse client caching.
+
+    Arguments:
         app_cache_dir: Base application cache directory
+
+    Returns:
+        None
+
+    Raises:
+        OSError: If directory creation fails.
     """
     os.makedirs(app_cache_dir, exist_ok=True)
 
@@ -101,8 +138,17 @@ def _setup_temp_directories(app_cache_dir: str) -> None:
     """
     Create and configure temporary directories.
 
-    Args:
+    Sets up application-specific temporary directories and configures
+    environment variables to use them.
+
+    Arguments:
         app_cache_dir: Base application cache directory
+
+    Returns:
+        None
+
+    Raises:
+        OSError: If directory creation fails.
     """
     temp_dir = os.path.join(app_cache_dir, "temp")
     os.makedirs(temp_dir, exist_ok=True)
@@ -115,7 +161,21 @@ def _setup_temp_directories(app_cache_dir: str) -> None:
 
 
 def _change_working_directory() -> None:
-    """Change working directory to user's home to avoid permission issues."""
+    """
+    Change working directory to user's home to avoid permission issues.
+
+    Changes the current working directory to the user's home directory
+    to avoid potential permission issues in packaged app environments.
+
+    Arguments:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        OSError: If directory change fails (logged but not propagated).
+    """
     user_home = os.path.expanduser("~")
     os.chdir(user_home)
     logger.info("Changed working directory to: %s", user_home)
@@ -125,8 +185,14 @@ def get_home_and_downloads_directories() -> Dict[str, str]:
     """
     Get the user's home and downloads directory paths.
 
+    Retrieves the user's home directory and downloads directory paths,
+    creating the downloads directory if it doesn't exist.
+
+    Arguments:
+        None
+
     Returns:
-        Dictionary with 'home_directory' and 'downloads_directory' keys
+        Dict[str, str]: Dictionary with 'home_directory' and 'downloads_directory' keys
 
     Raises:
         Exception: If directories cannot be accessed or created
@@ -152,15 +218,22 @@ def scan_directory_for_files(
     """
     Scan a directory for files and folders with metadata.
 
-    Args:
+    Recursively scans a directory and collects metadata about all files
+    and folders found, including size, type, and path information.
+
+    Arguments:
         directory_path: The directory path to scan
         recursive: Whether to scan subdirectories recursively
 
     Returns:
-        Dictionary containing file list and summary information
+        Dict[str, Any]: Dictionary containing file list and summary information with:
+            - success: Boolean indicating scan success
+            - files: List of file/folder metadata
+            - summary: Summary statistics about scanned items
 
     Raises:
         ValueError: If directory doesn't exist or isn't a directory
+        OSError: If directory access fails
     """
     if not os.path.exists(directory_path):
         raise ValueError("Directory does not exist")
@@ -174,7 +247,23 @@ def scan_directory_for_files(
     total_size = 0
 
     def scan_recursive(current_path: str, base_path: str) -> List[Dict[str, Any]]:
-        """Recursively scan a directory."""
+        """
+        Recursively scan a directory.
+
+        Performs recursive directory scanning to collect file and folder
+        metadata at all levels.
+
+        Arguments:
+            current_path: Current directory being scanned
+            base_path: Base directory for relative path calculation
+
+        Returns:
+            List[Dict[str, Any]]: List of file/folder metadata dictionaries
+
+        Raises:
+            PermissionError: If directory access is denied (logged and handled)
+            OSError: If directory operations fail (logged and handled)
+        """
         nonlocal total_size
         items = []
 
@@ -232,14 +321,20 @@ def _get_file_info(
     """
     Get file information for a single file.
 
-    Args:
+    Collects metadata for a single file including size, type, and path information.
+
+    Arguments:
         item_name: Name of the file
         item_path: Full path to the file
         relative_path: Relative path from scan root
         current_path: Parent directory path
 
     Returns:
-        File information dictionary or None if file cannot be accessed
+        Optional[Dict[str, Any]]: File information dictionary or None if file cannot be accessed
+
+    Raises:
+        OSError: If file access fails (caught and handled gracefully)
+        IOError: If file operations fail (caught and handled gracefully)
     """
     try:
         file_size = os.path.getsize(item_path)
@@ -266,20 +361,24 @@ def _get_folder_info(
     """
     Get folder information for a single folder.
 
-    Args:
+    Collects metadata for a single folder including name and path information.
+
+    Arguments:
         item_name: Name of the folder
         item_path: Full path to the folder
         relative_path: Relative path from scan root
         current_path: Parent directory path
 
     Returns:
-        Folder information dictionary
+        Dict[str, Any]: Folder information dictionary
+
+    Raises:
+        None: This function does not raise exceptions.
     """
     return {
         "id": item_path,
         "name": item_name,
         "type": "folder",
-        "size": 0,
         "path": item_path,
         "relative_path": relative_path,
         "parent_path": current_path,

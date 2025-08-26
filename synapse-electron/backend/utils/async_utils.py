@@ -22,13 +22,33 @@ def run_async_task_in_background(
     This utility helps avoid blocking the main FastAPI event loop when
     running long-running tasks like file uploads/downloads.
 
-    Args:
+    Arguments:
         async_task: The async function to run in the background
         task_name: Name for logging purposes
+
+    Returns:
+        None
+
+    Raises:
+        Exception: Background task errors are logged but not propagated to caller.
     """
 
     def run_task_in_thread() -> None:
-        """Run the async task in a new event loop."""
+        """
+        Run the async task in a new event loop.
+
+        Creates a new event loop for the background thread and executes
+        the async task within it.
+
+        Arguments:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Task execution errors are logged and handled gracefully.
+        """
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -43,23 +63,3 @@ def run_async_task_in_background(
     thread.start()
 
     logger.info("Started background task: %s", task_name)
-
-
-async def create_async_operation_wrapper(
-    operation_func: Callable[..., Any], *args, **kwargs
-) -> Any:
-    """
-    Wrap a potentially blocking operation to run asynchronously.
-
-    Args:
-        operation_func: The function to wrap
-        *args: Positional arguments for the function
-        **kwargs: Keyword arguments for the function
-
-    Returns:
-        The result of the operation
-    """
-    loop = asyncio.get_event_loop()
-
-    # Run the operation in a thread pool to avoid blocking
-    return await loop.run_in_executor(None, operation_func, *args, **kwargs)

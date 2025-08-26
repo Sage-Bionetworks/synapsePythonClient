@@ -234,7 +234,7 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' && !startsWith(github.event.release.tag_name, 'synapsedesktopclient')
 
     outputs:
       sdist-package-name: ${{ steps.build-package.outputs.sdist-package-name }}
@@ -346,7 +346,7 @@ jobs:
   # build standalone desktop client artifacts for Windows and macOS on release
   build-electron-desktop-clients:
     needs: [test, pre-commit]
-    # if: github.event_name == 'release'
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'synapsedesktopclient')
 
     strategy:
       matrix:
@@ -452,6 +452,18 @@ jobs:
             synapse-electron/dist/*.deb
             synapse-electron/dist/*.pkg
 
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            synapse-electron/dist/*.exe
+            synapse-electron/dist/*.dmg
+            synapse-electron/dist/*.AppImage
+            synapse-electron/dist/*.deb
+            synapse-electron/dist/*.pkg
 
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.
