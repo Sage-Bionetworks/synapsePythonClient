@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const axios = require('axios');
@@ -163,7 +163,10 @@ class SynapseElectronApp {
             preload: path.join(__dirname, 'preload.js'),
             webSecurity: true,
             // Force software rendering to avoid GPU issues
-            hardwareAcceleration: false
+            hardwareAcceleration: false,
+            // Additional security settings
+            allowRunningInsecureContent: false,
+            experimentalFeatures: false
         };
 
         // Add offscreen rendering for headless mode
@@ -219,6 +222,132 @@ class SynapseElectronApp {
         if (!app.isPackaged) {
             this.mainWindow.webContents.openDevTools();
         }
+
+        // Configure CORS security for the renderer process
+        this.setupCORSSecurity();
+    }
+
+    setupCORSSecurity() {
+        const session = this.mainWindow.webContents.session;
+
+        // Define allowed origins that match the backend CORS configuration
+        const allowedOrigins = [
+            `http://localhost:${this.backendPort}`,
+            `http://127.0.0.1:${this.backendPort}`,
+            'file://',
+            // Allow any localhost port for development flexibility
+            /^http:\/\/localhost:\d+$/,
+            /^http:\/\/127\.0\.0\.1:\d+$/
+        ];
+
+        // Define the Content Security Policy
+        const cspPolicy = [
+            `default-src 'self' http://localhost:* http://127.0.0.1:* file:`,
+            `script-src 'self' 'unsafe-inline' http://localhost:* http://127.0.0.1:* https://cdnjs.cloudflare.com`,
+            `style-src 'self' 'unsafe-inline' http://localhost:* http://127.0.0.1:* https://cdnjs.cloudflare.com`,
+            `img-src 'self' data: blob: http://localhost:* http://127.0.0.1:* https://cdnjs.cloudflare.com`,
+            `connect-src 'self' ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*`,
+            `font-src 'self' data: https://cdnjs.cloudflare.com`,
+            `object-src 'none'`,
+            `base-uri 'self'`,
+            `form-action 'self'`
+        ].join('; ');
+
+        // Set up request filtering for enhanced security
+        session.webRequest.onBeforeRequest((details, callback) => {
+            const url = new URL(details.url);
+
+            // Allow local file protocol for the app's own files
+            if (url.protocol === 'file:') {
+                callback({ cancel: false });
+                return;
+            }
+
+            // Allow DevTools protocol and related resources
+            if (url.protocol === 'devtools:' ||
+                url.hostname === 'chrome-devtools-frontend.appspot.com') {
+                callback({ cancel: false });
+                return;
+            }
+
+            // Allow requests to backend server
+            if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+                callback({ cancel: false });
+                return;
+            }
+
+            // Allow requests to trusted CDNs
+            if (url.hostname === 'cdnjs.cloudflare.com') {
+                callback({ cancel: false });
+                return;
+            }
+
+            // Block all other external requests for security
+            log.warn(`Blocked request to external origin: ${details.url}`);
+            callback({ cancel: true });
+        });
+
+        // Set up response headers for additional security
+        session.webRequest.onHeadersReceived((details, callback) => {
+            const responseHeaders = details.responseHeaders || {};
+            const url = new URL(details.url);
+
+            // Don't apply CSP to DevTools resources
+            if (url.protocol === 'devtools:' || url.hostname === 'chrome-devtools-frontend.appspot.com') {
+                callback({ responseHeaders });
+                return;
+            }
+
+            // Add security headers for app resources only
+            responseHeaders['X-Content-Type-Options'] = ['nosniff'];
+            responseHeaders['X-Frame-Options'] = ['DENY'];
+            responseHeaders['X-XSS-Protection'] = ['1; mode=block'];
+            responseHeaders['Referrer-Policy'] = ['strict-origin-when-cross-origin'];
+
+            // Set Content Security Policy for app resources only
+            // Force override any existing CSP
+            responseHeaders['Content-Security-Policy'] = [cspPolicy];
+
+            callback({ responseHeaders });
+        });
+
+        // Also set CSP on the main frame directly
+        session.webRequest.onBeforeSendHeaders((details, callback) => {
+            // Inject CSP header for main frame requests
+            if (details.resourceType === 'mainFrame') {
+                const requestHeaders = details.requestHeaders || {};
+                callback({ requestHeaders });
+            } else {
+                callback({});
+            }
+        });
+
+        // Set CSP directly on webContents for immediate effect
+        this.mainWindow.webContents.on('dom-ready', () => {
+            // Only apply to main window, not DevTools
+            if (this.mainWindow.webContents.getURL().startsWith('file://')) {
+                this.mainWindow.webContents.executeJavaScript(`
+                    (function(cspContent) {
+                        // Remove any existing CSP meta tags that might conflict
+                        const existingCSPs = document.querySelectorAll('meta[http-equiv="Content-Security-Policy"]');
+                        existingCSPs.forEach(csp => csp.remove());
+
+                        // Add our CSP meta tag
+                        const meta = document.createElement('meta');
+                        meta.setAttribute('http-equiv', 'Content-Security-Policy');
+                        meta.setAttribute('content', cspContent);
+                        document.head.appendChild(meta);
+
+                        // Log for debugging
+                        console.log('CSP applied:', cspContent);
+                    })('${cspPolicy.replace(/'/g, "\\'")}');
+                `).catch(err => {
+                    log.error('Failed to inject CSP:', err);
+                });
+            }
+        });
+
+        log.info('CORS security configuration applied');
     }
 
     setupIPC() {
@@ -371,6 +500,9 @@ class SynapseElectronApp {
     async initialize() {
         await app.whenReady();
 
+        // Configure global security settings
+        this.setupGlobalSecurity();
+
         try {
             await this.startPythonBackend();
             this.createWindow();
@@ -387,6 +519,78 @@ class SynapseElectronApp {
             );
             app.quit();
         }
+    }
+
+    setupGlobalSecurity() {
+        // Prevent new window creation with insecure settings
+        app.on('web-contents-created', (event, contents) => {
+            contents.on('new-window', (event, navigationUrl) => {
+                const parsedUrl = new URL(navigationUrl);
+
+                // Allow DevTools protocol
+                if (parsedUrl.protocol === 'devtools:') {
+                    return;
+                }
+
+                // Only allow localhost and local file URLs
+                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'file:') {
+                    event.preventDefault();
+                    log.warn(`Blocked new window with protocol: ${parsedUrl.protocol}`);
+                    return;
+                }
+
+                if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+                    if (parsedUrl.hostname !== 'localhost' && parsedUrl.hostname !== '127.0.0.1') {
+                        event.preventDefault();
+                        log.warn(`Blocked new window to external host: ${parsedUrl.hostname}`);
+                        return;
+                    }
+                }
+            });
+
+            // Prevent navigation to external URLs
+            contents.on('will-navigate', (event, navigationUrl) => {
+                const parsedUrl = new URL(navigationUrl);
+
+                // Allow file protocol for local files
+                if (parsedUrl.protocol === 'file:') {
+                    return;
+                }
+
+                // Allow DevTools protocol
+                if (parsedUrl.protocol === 'devtools:') {
+                    return;
+                }
+
+                // Allow localhost/127.0.0.1 only
+                if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+                    if (parsedUrl.hostname !== 'localhost' && parsedUrl.hostname !== '127.0.0.1') {
+                        event.preventDefault();
+                        log.warn(`Blocked navigation to external URL: ${navigationUrl}`);
+                        return;
+                    }
+                }
+            });
+        });
+
+        // Set additional app-level security
+        app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+            // For localhost development, we might need to handle self-signed certificates
+            const parsedUrl = new URL(url);
+            if (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') {
+                // Allow certificate errors for localhost in development
+                if (!app.isPackaged) {
+                    event.preventDefault();
+                    callback(true);
+                    return;
+                }
+            }
+
+            // Deny all other certificate errors
+            callback(false);
+        });
+
+        log.info('Global security configuration applied');
     }
 
     cleanup() {
@@ -442,8 +646,16 @@ if (process.platform === 'win32') {
     app.commandLine.appendSwitch('enable-logging');
     app.commandLine.appendSwitch('log-level', '0');
 
-    // Use software rendering
+    // Use software rendering and disable GPU context creation
     app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
+    app.commandLine.appendSwitch('disable-d3d11');
+    app.commandLine.appendSwitch('disable-d3d9');
+    app.commandLine.appendSwitch('disable-webgl');
+    app.commandLine.appendSwitch('disable-webgl2');
+    app.commandLine.appendSwitch('disable-accelerated-2d-canvas');
+    app.commandLine.appendSwitch('disable-accelerated-jpeg-decoding');
+    app.commandLine.appendSwitch('disable-accelerated-mjpeg-decode');
+    app.commandLine.appendSwitch('disable-accelerated-video-decode');
 
     log.info('Applied Windows GPU compatibility flags');
 }
