@@ -368,9 +368,9 @@ jobs:
           # macOS builds - Apple Silicon (M1/M2)
           - os: macos-14
             platform: macos
-            arch: apple-silicon
+            arch: arm64
             python-version: '3.11'
-            artifact-name: synapse-desktop-client-macos-apple-silicon
+            artifact-name: synapse-desktop-client-macos-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -429,7 +429,7 @@ jobs:
           export SKIP_DEPENDENCY_INSTALL=1
 
           chmod +x build_electron_app.sh
-          ./build_electron_app.sh macos
+          ./build_electron_app.sh macos ${{ matrix.arch }}
 
       - name: List built files
         shell: bash
@@ -448,9 +448,6 @@ jobs:
           path: |
             synapse-electron/dist/*.exe
             synapse-electron/dist/*.dmg
-            synapse-electron/dist/*.AppImage
-            synapse-electron/dist/*.deb
-            synapse-electron/dist/*.pkg
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
@@ -461,9 +458,6 @@ jobs:
           files: |
             synapse-electron/dist/*.exe
             synapse-electron/dist/*.dmg
-            synapse-electron/dist/*.AppImage
-            synapse-electron/dist/*.deb
-            synapse-electron/dist/*.pkg
 
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.
