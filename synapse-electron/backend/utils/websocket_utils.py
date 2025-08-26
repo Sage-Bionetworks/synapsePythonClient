@@ -204,7 +204,9 @@ def start_websocket_server(port: int) -> None:
                 Exception: Server creation and runtime errors are caught and logged.
             """
 
-            async def websocket_handler(websocket: Any, path: Optional[str] = None) -> None:
+            async def websocket_handler(
+                websocket: Any, path: Optional[str] = None
+            ) -> None:
                 await handle_websocket_client(websocket, path)
 
             try:
@@ -212,7 +214,7 @@ def start_websocket_server(port: int) -> None:
                     logger.info("WebSocket server started on ws://localhost:%s", port)
                     await asyncio.Future()  # Run forever
             except Exception:
-                logger.exception(f"WebSocket server error")
+                logger.exception("WebSocket server error")
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

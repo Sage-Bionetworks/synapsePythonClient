@@ -552,7 +552,9 @@ async def scan_directory(request: ScanDirectoryRequest) -> Dict[str, Any]:
 
 
 @app.post("/bulk/enumerate")
-async def enumerate_container(request: EnumerateRequest) -> Dict[str, List[Dict[str, Any]]]:
+async def enumerate_container(
+    request: EnumerateRequest,
+) -> Dict[str, List[Dict[str, Any]]]:
     """
     Enumerate contents of a Synapse container.
 
@@ -713,7 +715,9 @@ def _filter_file_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [item for item in items if item.get("type", "file").lower() == "file"]
 
 
-def _convert_dict_to_bulk_items(file_items_data: List[Dict[str, Any]]) -> List[BulkItemModel]:
+def _convert_dict_to_bulk_items(
+    file_items_data: List[Dict[str, Any]]
+) -> List[BulkItemModel]:
     """
     Convert dictionary items to BulkItem objects.
 
@@ -1092,7 +1096,7 @@ def _process_upload_results(
     upload_results: List[Any],
     total_items: int,
     root_files: List[Any],
-    folder_map: Dict[str, Any]
+    folder_map: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
     Process upload results and return final response.
