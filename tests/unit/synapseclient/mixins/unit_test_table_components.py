@@ -1790,6 +1790,30 @@ class TestSelectColumn:
             assert result.id == "123"
 
 
+class TestQueryNextPageToken:
+    """Test suite for the QueryNextPageToken.fill_from_dict method."""
+
+    def test_fill_from_dict_with_complete_data(self):
+        """Test fill_from_dict with complete token data."""
+        # GIVEN complete token data
+        data = {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryNextPageToken",
+            "entityId": "syn123456",
+            "token": "next-page-token-12345",
+        }
+
+        # WHEN calling fill_from_dict
+        result = QueryNextPageToken.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert (
+            result.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryNextPageToken"
+        )
+        assert result.entity_id == "syn123456"
+        assert result.token == "next-page-token-12345"
+
+
 class TestQueryTableNextPage:
     """Test suite for the _query_table_next_page function."""
 
