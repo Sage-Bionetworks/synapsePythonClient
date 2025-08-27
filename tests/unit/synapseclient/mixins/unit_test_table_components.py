@@ -1790,6 +1790,67 @@ class TestSelectColumn:
             assert result.id == "123"
 
 
+class TestQueryResult:
+    """Test suite for the QueryResult.fill_from_dict method."""
+
+    @pytest.fixture
+    def sample_rowset_data(self):
+        """Sample RowSet data for testing."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+            "tableId": "syn123456",
+            "etag": "rowset-etag",
+            "headers": [{"name": "col1", "columnType": "STRING", "id": "123"}],
+            "rows": [{"rowId": 1, "versionNumber": 1, "values": ["test_value"]}],
+        }
+
+    @pytest.fixture
+    def sample_next_page_token_data(self):
+        """Sample QueryNextPageToken data for testing."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryNextPageToken",
+            "entityId": "syn123456",
+            "token": "next-page-token-xyz",
+        }
+
+    def test_fill_from_dict_with_complete_data(
+        self, sample_rowset_data, sample_next_page_token_data
+    ):
+        """Test fill_from_dict with complete QueryResult data."""
+        # GIVEN complete QueryResult data
+        data = {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+            "queryResults": sample_rowset_data,
+            "nextPageToken": sample_next_page_token_data,
+        }
+
+        # WHEN calling fill_from_dict
+        result = QueryResult.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert (
+            result.concrete_type == "org.sagebionetworks.repo.model.table.QueryResult"
+        )
+
+        # Verify nested RowSet
+        assert isinstance(result.query_results, RowSet)
+        assert (
+            result.query_results.concrete_type
+            == "org.sagebionetworks.repo.model.table.RowSet"
+        )
+        assert result.query_results.table_id == "syn123456"
+        assert result.query_results.etag == "rowset-etag"
+
+        # Verify nested QueryNextPageToken
+        assert isinstance(result.next_page_token, QueryNextPageToken)
+        assert (
+            result.next_page_token.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryNextPageToken"
+        )
+        assert result.next_page_token.entity_id == "syn123456"
+        assert result.next_page_token.token == "next-page-token-xyz"
+
+
 class TestRowSet:
     """Test suite for the RowSet.fill_from_dict method."""
 
