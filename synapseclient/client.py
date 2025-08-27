@@ -7507,7 +7507,7 @@ class Synapse(object):
             )
 
     @deprecated(
-        version="4.5.0",
+        version="4.9.0",
         reason="To be removed in 5.0.0. "
         "Use the `query_part_mask` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
     )
@@ -7606,7 +7606,7 @@ class Synapse(object):
         return self._waitForAsync(uri=uri, request=query_bundle_request)
 
     @deprecated(
-        version="4.5.0",
+        version="4.9.0",
         reason="To be removed in 5.0.0. "
         "Use the `query_part_mask` method on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
     )
