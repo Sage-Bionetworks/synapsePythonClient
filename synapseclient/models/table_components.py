@@ -972,210 +972,6 @@ class Query:
 
 
 @dataclass
-class QueryResultBundle:
-    """
-    A bundle of information about a query result.
-
-    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
-    """
-
-    concrete_type: str = QUERY_TABLE_CSV_REQUEST
-    """The concrete type of this object"""
-
-    query_result: QueryResult = None
-    """A page of query result"""
-
-    query_count: Optional[int] = None
-    """The total number of rows that match the query. Use mask = 0x2 to include in the
-    bundle."""
-
-    select_columns: Optional[List[SelectColumn]] = None
-    """The list of SelectColumns from the select clause. Use mask = 0x4 to include in
-    the bundle."""
-
-    max_rows_per_page: Optional[int] = None
-    """The maximum number of rows that can be retrieved in a single call. This is a
-    function of the columns that are selected in the query. Use mask = 0x8 to include
-    in the bundle."""
-
-    column_models: Optional[List[Dict[str, Any]]] = None
-    """TODO: create columnModels dataclass"""
-    """The list of ColumnModels for the table. Use mask = 0x10 to include in the bundle."""
-
-    facets: Optional[List[Dict[str, Any]]] = None
-    """TODO: create facets dataclass"""
-    """The list of facets for the search results. Use mask = 0x20 to include in the bundle."""
-
-    sum_file_sizes: Optional[SumFileSizes] = None
-    """The sum of the file size for all files in the given view query. Use mask = 0x40
-    to include in the bundle."""
-
-    last_updated_on: Optional[str] = None
-    """The date-time when this table/view was last updated. Note: Since views are
-    eventually consistent a view might still be out-of-date even if it was recently
-    updated. Use mask = 0x80 to include in the bundle. This is returned in the
-    ISO8601 format like `2000-01-01T00:00:00.000Z`."""
-
-    combined_sql: Optional[str] = None
-    """The SQL that is combination of a the input SQL, FacetRequests, AdditionalFilters,
-    Sorting, and Pagination. Use mask = 0x100 to include in the bundle."""
-
-    actions_required: Optional[List[ActionRequiredCount]] = None
-    """The first 50 actions required to download the files that are part of the query.
-    Use mask = 0x200 to include them in the bundle."""
-
-    @classmethod
-    def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResultBundle":
-        """Create a QueryResultBundle from a dictionary response."""
-        # Handle sum_file_sizes
-        sum_file_sizes = None
-        sum_file_sizes_data = data.get("sumFileSizes")
-        if sum_file_sizes_data:
-            sum_file_sizes = SumFileSizes(
-                sum_file_size_bytes=sum_file_sizes_data.get("sumFileSizesBytes"),
-                greater_than=sum_file_sizes_data.get("greaterThan"),
-            )
-
-        # Handle query_result
-        query_result = None
-        query_result_data = data.get("queryResult")
-        if query_result_data:
-            query_result = QueryResult.fill_from_dict(query_result_data)
-
-        # Handle select_columns
-        select_columns = None
-        select_columns_data = data.get("selectColumns")
-        if select_columns_data and isinstance(select_columns_data, list):
-            select_columns = [
-                SelectColumn.fill_from_dict(col) for col in select_columns_data
-            ]
-
-        # Handle actions_required
-        actions_required = None
-        actions_required_data = data.get("actionsRequired")
-        if actions_required_data and isinstance(actions_required_data, list):
-            actions_required = [
-                ActionRequiredCount.fill_from_dict(action)
-                for action in actions_required_data
-            ]
-
-        return cls(
-            concrete_type=data.get("concreteType"),
-            query_result=query_result,
-            query_count=data.get("queryCount"),
-            select_columns=select_columns,
-            max_rows_per_page=data.get("maxRowsPerPage"),
-            column_models=data.get("columnModels"),
-            facets=data.get("facets"),
-            sum_file_sizes=sum_file_sizes,
-            last_updated_on=data.get("lastUpdatedOn"),
-            combined_sql=data.get("combinedSql"),
-            actions_required=actions_required,
-        )
-
-
-@dataclass
-class QueryBundleRequest(AsynchronousCommunicator):
-    """
-    A query bundle request that can be submitted to Synapse to retrieve query results with metadata.
-
-    This class combines query request parameters with the ability to receive
-    a QueryResultBundle through the AsynchronousCommunicator pattern.
-
-    The partMask determines which parts of the result bundle are included:
-    - Query Results (queryResults) = 0x1
-    - Query Count (queryCount) = 0x2
-    - Select Columns (selectColumns) = 0x4
-    - Max Rows Per Page (maxRowsPerPage) = 0x8
-    - The Table Columns (columnModels) = 0x10
-    - Facet statistics for each faceted column (facetStatistics) = 0x20
-    - The sum of the file sizes (sumFileSizesBytes) = 0x40
-    - The last updated on date (lastUpdatedOn) = 0x80
-    - The combined SQL query including additional filters (combinedSql) = 0x100
-    - The list of actions required for any file in the query (actionsRequired) = 0x200
-
-    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
-    """
-
-    # Request parameters
-    entity_id: str
-    """The ID of the entity (table/view) being queried"""
-
-    query: Query
-    """The SQL query with parameters"""
-
-    concrete_type: str = QUERY_BUNDLE_REQUEST
-    """The concrete type of this request"""
-
-    part_mask: Optional[int] = None
-    """Optional integer mask to request specific parts. Default includes all parts if not specified."""
-
-    # Response attributes (filled after job completion from QueryResultBundle)
-    query_result: Optional[QueryResult] = None
-    """A page of query result"""
-
-    query_count: Optional[int] = None
-    """The total number of rows that match the query"""
-
-    select_columns: Optional[List[SelectColumn]] = None
-    """The list of SelectColumns from the select clause"""
-
-    max_rows_per_page: Optional[int] = None
-    """The maximum number of rows that can be retrieved in a single call"""
-
-    column_models: Optional[List[Dict[str, Any]]] = None
-    """The list of ColumnModels for the table"""
-
-    facets: Optional[List[Dict[str, Any]]] = None
-    """The list of facets for the search results"""
-
-    sum_file_sizes: Optional[SumFileSizes] = None
-    """The sum of the file size for all files in the given view query"""
-
-    last_updated_on: Optional[str] = None
-    """The date-time when this table/view was last updated"""
-
-    combined_sql: Optional[str] = None
-    """The SQL that is combination of a the input SQL, FacetRequests, AdditionalFilters, Sorting, and Pagination"""
-
-    actions_required: Optional[List[ActionRequiredCount]] = None
-    """The first 50 actions required to download the files that are part of the query"""
-
-    def to_synapse_request(self) -> Dict[str, Any]:
-        """Convert to QueryBundleRequest format for async job submission."""
-        result = {
-            "concreteType": self.concrete_type,
-            "entityId": self.entity_id,
-            "query": self.query,
-        }
-
-        if self.part_mask is not None:
-            result["partMask"] = self.part_mask
-
-        delete_none_keys(result)
-        return result
-
-    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Self":
-        """Fill the request results from Synapse response (QueryResultBundle)."""
-        # Use QueryResultBundle's fill_from_dict logic to populate response fields
-        bundle = QueryResultBundle.fill_from_dict(synapse_response)
-
-        # Copy all the result fields from the bundle
-        self.query_result = bundle.query_result
-        self.query_count = bundle.query_count
-        self.select_columns = bundle.select_columns
-        self.max_rows_per_page = bundle.max_rows_per_page
-        self.column_models = bundle.column_models
-        self.facets = bundle.facets
-        self.sum_file_sizes = bundle.sum_file_sizes
-        self.last_updated_on = bundle.last_updated_on
-        self.combined_sql = bundle.combined_sql
-        self.actions_required = bundle.actions_required
-
-        return self
-
-
-@dataclass
 class JsonSubColumn:
     """For column of type JSON that represents the combination of multiple
     sub-columns, this property is used to define each sub-column."""
@@ -1474,6 +1270,215 @@ class Column(ColumnSynchronousProtocol):
         }
         delete_none_keys(result)
         return result
+
+
+@dataclass
+class QueryResultBundle:
+    """
+    A bundle of information about a query result.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
+    """
+
+    concrete_type: str = QUERY_TABLE_CSV_REQUEST
+    """The concrete type of this object"""
+
+    query_result: QueryResult = None
+    """A page of query result"""
+
+    query_count: Optional[int] = None
+    """The total number of rows that match the query. Use mask = 0x2 to include in the
+    bundle."""
+
+    select_columns: Optional[List[SelectColumn]] = None
+    """The list of SelectColumns from the select clause. Use mask = 0x4 to include in
+    the bundle."""
+
+    max_rows_per_page: Optional[int] = None
+    """The maximum number of rows that can be retrieved in a single call. This is a
+    function of the columns that are selected in the query. Use mask = 0x8 to include
+    in the bundle."""
+
+    column_models: Optional[List[Column]] = None
+    """The list of ColumnModels for the table. Use mask = 0x10 to include in the bundle."""
+
+    facets: Optional[List[Dict[str, Any]]] = None
+    """TODO: create facets dataclass"""
+    """The list of facets for the search results. Use mask = 0x20 to include in the bundle."""
+
+    sum_file_sizes: Optional[SumFileSizes] = None
+    """The sum of the file size for all files in the given view query. Use mask = 0x40
+    to include in the bundle."""
+
+    last_updated_on: Optional[str] = None
+    """The date-time when this table/view was last updated. Note: Since views are
+    eventually consistent a view might still be out-of-date even if it was recently
+    updated. Use mask = 0x80 to include in the bundle. This is returned in the
+    ISO8601 format like `2000-01-01T00:00:00.000Z`."""
+
+    combined_sql: Optional[str] = None
+    """The SQL that is combination of a the input SQL, FacetRequests, AdditionalFilters,
+    Sorting, and Pagination. Use mask = 0x100 to include in the bundle."""
+
+    actions_required: Optional[List[ActionRequiredCount]] = None
+    """The first 50 actions required to download the files that are part of the query.
+    Use mask = 0x200 to include them in the bundle."""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResultBundle":
+        """Create a QueryResultBundle from a dictionary response."""
+        # Handle sum_file_sizes
+        sum_file_sizes = None
+        sum_file_sizes_data = data.get("sumFileSizes")
+        if sum_file_sizes_data:
+            sum_file_sizes = SumFileSizes(
+                sum_file_size_bytes=sum_file_sizes_data.get("sumFileSizesBytes"),
+                greater_than=sum_file_sizes_data.get("greaterThan"),
+            )
+
+        # Handle query_result
+        query_result = None
+        query_result_data = data.get("queryResult")
+        if query_result_data:
+            query_result = QueryResult.fill_from_dict(query_result_data)
+
+        # Handle select_columns
+        select_columns = None
+        select_columns_data = data.get("selectColumns")
+        if select_columns_data and isinstance(select_columns_data, list):
+            select_columns = [
+                SelectColumn.fill_from_dict(col) for col in select_columns_data
+            ]
+
+        # Handle actions_required
+        actions_required = None
+        actions_required_data = data.get("actionsRequired")
+        if actions_required_data and isinstance(actions_required_data, list):
+            actions_required = [
+                ActionRequiredCount.fill_from_dict(action)
+                for action in actions_required_data
+            ]
+
+        # Handle column_models
+        column_models = None
+        column_models_data = data.get("columnModels")
+        if column_models_data and isinstance(column_models_data, list):
+            column_models = [Column().fill_from_dict(col) for col in column_models_data]
+
+        return cls(
+            concrete_type=data.get("concreteType"),
+            query_result=query_result,
+            query_count=data.get("queryCount"),
+            select_columns=select_columns,
+            max_rows_per_page=data.get("maxRowsPerPage"),
+            column_models=column_models,
+            facets=data.get("facets"),
+            sum_file_sizes=sum_file_sizes,
+            last_updated_on=data.get("lastUpdatedOn"),
+            combined_sql=data.get("combinedSql"),
+            actions_required=actions_required,
+        )
+
+
+@dataclass
+class QueryBundleRequest(AsynchronousCommunicator):
+    """
+    A query bundle request that can be submitted to Synapse to retrieve query results with metadata.
+
+    This class combines query request parameters with the ability to receive
+    a QueryResultBundle through the AsynchronousCommunicator pattern.
+
+    The partMask determines which parts of the result bundle are included:
+    - Query Results (queryResults) = 0x1
+    - Query Count (queryCount) = 0x2
+    - Select Columns (selectColumns) = 0x4
+    - Max Rows Per Page (maxRowsPerPage) = 0x8
+    - The Table Columns (columnModels) = 0x10
+    - Facet statistics for each faceted column (facetStatistics) = 0x20
+    - The sum of the file sizes (sumFileSizesBytes) = 0x40
+    - The last updated on date (lastUpdatedOn) = 0x80
+    - The combined SQL query including additional filters (combinedSql) = 0x100
+    - The list of actions required for any file in the query (actionsRequired) = 0x200
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
+    """
+
+    # Request parameters
+    entity_id: str
+    """The ID of the entity (table/view) being queried"""
+
+    query: Query
+    """The SQL query with parameters"""
+
+    concrete_type: str = QUERY_BUNDLE_REQUEST
+    """The concrete type of this request"""
+
+    part_mask: Optional[int] = None
+    """Optional integer mask to request specific parts. Default includes all parts if not specified."""
+
+    # Response attributes (filled after job completion from QueryResultBundle)
+    query_result: Optional[QueryResult] = None
+    """A page of query result"""
+
+    query_count: Optional[int] = None
+    """The total number of rows that match the query"""
+
+    select_columns: Optional[List[SelectColumn]] = None
+    """The list of SelectColumns from the select clause"""
+
+    max_rows_per_page: Optional[int] = None
+    """The maximum number of rows that can be retrieved in a single call"""
+
+    column_models: Optional[List[Dict[str, Any]]] = None
+    """The list of ColumnModels for the table"""
+
+    facets: Optional[List[Dict[str, Any]]] = None
+    """The list of facets for the search results"""
+
+    sum_file_sizes: Optional[SumFileSizes] = None
+    """The sum of the file size for all files in the given view query"""
+
+    last_updated_on: Optional[str] = None
+    """The date-time when this table/view was last updated"""
+
+    combined_sql: Optional[str] = None
+    """The SQL that is combination of a the input SQL, FacetRequests, AdditionalFilters, Sorting, and Pagination"""
+
+    actions_required: Optional[List[ActionRequiredCount]] = None
+    """The first 50 actions required to download the files that are part of the query"""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """Convert to QueryBundleRequest format for async job submission."""
+        result = {
+            "concreteType": self.concrete_type,
+            "entityId": self.entity_id,
+            "query": self.query,
+        }
+
+        if self.part_mask is not None:
+            result["partMask"] = self.part_mask
+
+        delete_none_keys(result)
+        return result
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Self":
+        """Fill the request results from Synapse response (QueryResultBundle)."""
+        # Use QueryResultBundle's fill_from_dict logic to populate response fields
+        bundle = QueryResultBundle.fill_from_dict(synapse_response)
+
+        # Copy all the result fields from the bundle
+        self.query_result = bundle.query_result
+        self.query_count = bundle.query_count
+        self.select_columns = bundle.select_columns
+        self.max_rows_per_page = bundle.max_rows_per_page
+        self.column_models = bundle.column_models
+        self.facets = bundle.facets
+        self.sum_file_sizes = bundle.sum_file_sizes
+        self.last_updated_on = bundle.last_updated_on
+        self.combined_sql = bundle.combined_sql
+        self.actions_required = bundle.actions_required
+
+        return self
 
 
 class SchemaStorageStrategy(str, Enum):
