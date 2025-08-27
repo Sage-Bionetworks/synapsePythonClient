@@ -1385,16 +1385,35 @@ Parent ID: ${item.parent_id || 'N/A'}
         const parentMap = new Map();
         const rootItems = [];
 
-        // Create virtual folders for directory structure
-        files.forEach(file => {
+        // Separate files and folders
+        const actualFiles = files.filter(item => item.type === 'file');
+        const actualFolders = files.filter(item => item.type === 'folder');
+
+        // First, add all actual folders to the maps
+        actualFolders.forEach(folder => {
+            const normalizedPath = folder.relative_path.replace(/\\/g, '/');
+            if (!itemsMap.has(normalizedPath)) {
+                const folderObj = {
+                    ...folder,
+                    id: `folder_${folder.path}`,
+                    name: folder.name,
+                    type: 'folder',
+                    path: normalizedPath,
+                    isVirtual: false
+                };
+                itemsMap.set(normalizedPath, folderObj);
+            }
+        });
+
+        // Create virtual folders for any missing parent directories of files
+        actualFiles.forEach(file => {
             // Handle both Windows (\) and Unix (/) path separators
             const pathParts = file.relative_path.replace(/\\/g, '/').split('/').filter(part => part.length > 0);
 
-            // Create all parent directories as virtual folders
+            // Create all parent directories as virtual folders (only if they don't already exist as actual folders)
             let currentPath = '';
             for (let i = 0; i < pathParts.length - 1; i++) {
                 const part = pathParts[i];
-                const parentPath = currentPath;
                 currentPath = currentPath ? `${currentPath}/${part}` : part;
 
                 if (!itemsMap.has(currentPath)) {
@@ -1406,19 +1425,29 @@ Parent ID: ${item.parent_id || 'N/A'}
                         isVirtual: true
                     };
                     itemsMap.set(currentPath, virtualFolder);
-
-                    if (parentPath) {
-                        if (!parentMap.has(parentPath)) {
-                            parentMap.set(parentPath, []);
-                        }
-                        parentMap.get(parentPath).push(virtualFolder);
-                    } else {
-                        rootItems.push(virtualFolder);
-                    }
                 }
             }
+        });
 
-            // Add the file itself
+        // Now build the hierarchy relationships
+        itemsMap.forEach((item, path) => {
+            const pathParts = path.split('/');
+            if (pathParts.length === 1) {
+                // Root level item
+                rootItems.push(item);
+            } else {
+                // Find parent
+                const parentPath = pathParts.slice(0, -1).join('/');
+                if (!parentMap.has(parentPath)) {
+                    parentMap.set(parentPath, []);
+                }
+                parentMap.get(parentPath).push(item);
+            }
+        });
+
+        // Add files to their parent directories
+        actualFiles.forEach(file => {
+            const pathParts = file.relative_path.replace(/\\/g, '/').split('/').filter(part => part.length > 0);
             const fileName = pathParts[pathParts.length - 1];
             const fileObj = {
                 ...file,
@@ -1447,19 +1476,44 @@ Parent ID: ${item.parent_id || 'N/A'}
             const itemElement = this.createUploadTreeItem(item, level);
             container.appendChild(itemElement);
 
-            // Add children if this is a folder
-            if (item.type === 'folder' && parentMap.has(item.path)) {
+            // Add children if this is a folder and it has children
+            if (item.type === 'folder') {
+                const children = parentMap.get(item.path) || [];
                 const childrenContainer = document.createElement('div');
                 childrenContainer.className = 'tree-children';
-                childrenContainer.id = `upload-children-${item.id}`;
+                // Create a safe ID by replacing problematic characters
+                const safeId = item.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+                childrenContainer.id = `upload-children-${safeId}`;
                 childrenContainer.style.display = 'block'; // Start expanded like download tree
 
-                this.createUploadTreeElements(
-                    parentMap.get(item.path),
-                    childrenContainer,
-                    parentMap,
-                    level + 1
-                );
+                if (children.length > 0) {
+                    this.createUploadTreeElements(
+                        children,
+                        childrenContainer,
+                        parentMap,
+                        level + 1
+                    );
+                } else {
+                    // Handle empty folders - add a placeholder or just leave empty
+                    // The folder will still be expandable but show as empty
+                    const emptyMessage = document.createElement('div');
+                    emptyMessage.className = 'tree-item empty-folder level-' + (level + 1);
+                    emptyMessage.innerHTML = `
+                        <div class="tree-item-content upload-compact" style="opacity: 0.6; font-style: italic;">
+                            <span style="margin-left: 20px;">Empty folder</span>
+                        </div>
+                    `;
+                    childrenContainer.appendChild(emptyMessage);
+                }
+
+                // Update the toggle button class based on whether folder has children
+                const toggleButton = itemElement.querySelector('.tree-toggle');
+                if (toggleButton) {
+                    if (children.length === 0) {
+                        toggleButton.classList.remove('expanded');
+                        toggleButton.classList.add('leaf');
+                    }
+                }
 
                 container.appendChild(childrenContainer);
             }
@@ -1478,7 +1532,7 @@ Parent ID: ${item.parent_id || 'N/A'}
         if (item.type === 'folder') {
             // For folders: "Folder Name (folder)" - we'll add count later if needed
             content = `
-                <button class="tree-toggle expanded" onclick="window.synapseApp.toggleUploadFolder('${item.id}')">
+                <button class="tree-toggle expanded" data-folder-id="${this.escapeHtml(item.id)}">
                 </button>
                 <div class="tree-item-content upload-compact">
                     <i class="fas fa-folder tree-item-icon folder"></i>
@@ -1492,12 +1546,25 @@ Parent ID: ${item.parent_id || 'N/A'}
                 <button class="tree-toggle leaf">
                 </button>
                 <div class="tree-item-content upload-compact">
-                    <input type="checkbox" class="item-checkbox" data-id="${item.id}">
+                    <input type="checkbox" class="item-checkbox" data-id="${this.escapeHtml(item.id)}">
                     <i class="fas fa-file tree-item-icon file"></i>
                     <span class="upload-item-info">${this.escapeHtml(item.name)} <span class="item-meta">(${sizeStr})</span></span>
                 </div>
             `;
+        }
 
+        itemDiv.innerHTML = content;
+
+        // Add event listeners instead of inline onclick handlers
+        if (item.type === 'folder') {
+            const toggleButton = itemDiv.querySelector('.tree-toggle');
+            if (toggleButton) {
+                toggleButton.addEventListener('click', () => {
+                    this.toggleUploadFolder(item.id);
+                });
+            }
+        } else {
+            // Add event listener for file checkbox
             itemDiv.addEventListener('change', (e) => {
                 if (e.target.classList.contains('item-checkbox')) {
                     this.handleUploadFileSelection(item.id, e.target.checked);
@@ -1505,7 +1572,6 @@ Parent ID: ${item.parent_id || 'N/A'}
             });
         }
 
-        itemDiv.innerHTML = content;
         return itemDiv;
     }
 
@@ -1545,8 +1611,17 @@ Parent ID: ${item.parent_id || 'N/A'}
     }
 
     toggleUploadFolder(itemId) {
-        const toggleButton = document.querySelector(`#upload-files-tree .tree-item[data-id="${itemId}"] .tree-toggle`);
-        const childrenDiv = document.getElementById(`upload-children-${itemId}`);
+        // Find the tree item and toggle button using the dataset id
+        const treeItem = document.querySelector(`#upload-files-tree .tree-item[data-id="${CSS.escape(itemId)}"]`);
+        if (!treeItem) {
+            console.warn('Could not find tree item for ID:', itemId);
+            return;
+        }
+
+        const toggleButton = treeItem.querySelector('.tree-toggle');
+        // Create the same safe ID used when creating the container
+        const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const childrenDiv = document.getElementById(`upload-children-${safeId}`);
 
         if (toggleButton && childrenDiv) {
             const isExpanded = toggleButton.classList.contains('expanded');
@@ -1560,6 +1635,8 @@ Parent ID: ${item.parent_id || 'N/A'}
                 toggleButton.classList.add('expanded');
                 childrenDiv.style.display = 'block';
             }
+        } else {
+            console.warn('Could not find toggle button or children container for ID:', itemId, 'Safe ID:', safeId);
         }
     }
 
@@ -1569,7 +1646,8 @@ Parent ID: ${item.parent_id || 'N/A'}
             if (!toggle.classList.contains('leaf')) {
                 const treeItem = toggle.closest('.tree-item');
                 const itemId = treeItem.dataset.id;
-                const childrenContainer = document.getElementById(`upload-children-${itemId}`);
+                const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const childrenContainer = document.getElementById(`upload-children-${safeId}`);
                 if (childrenContainer) {
                     childrenContainer.style.display = 'block';
                     toggle.classList.remove('collapsed');
@@ -1585,24 +1663,13 @@ Parent ID: ${item.parent_id || 'N/A'}
             if (!toggle.classList.contains('leaf')) {
                 const treeItem = toggle.closest('.tree-item');
                 const itemId = treeItem.dataset.id;
-                const childrenContainer = document.getElementById(`upload-children-${itemId}`);
+                const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const childrenContainer = document.getElementById(`upload-children-${safeId}`);
                 if (childrenContainer) {
                     childrenContainer.style.display = 'none';
                     toggle.classList.remove('expanded');
                     toggle.classList.add('collapsed');
                 }
-            }
-        });
-    }
-
-    collapseAllUploadFolders() {
-        const toggles = document.querySelectorAll('#upload-files-tree .tree-toggle');
-        toggles.forEach(toggle => {
-            const folderElement = toggle.closest('.tree-item');
-            const childrenContainer = folderElement.nextElementSibling;
-            if (childrenContainer && childrenContainer.classList.contains('tree-children')) {
-                childrenContainer.style.display = 'none';
-                toggle.textContent = '▶';
             }
         });
     }
@@ -1629,10 +1696,11 @@ Parent ID: ${item.parent_id || 'N/A'}
         }
 
         try {
-            // Get selected file data
-            const selectedFileData = this.uploadFileItems.filter(file =>
-                this.selectedUploadFiles.has(`file_${file.path}`)
-            );
+            // Get selected file data - handle both old and new ID formats
+            const selectedFileData = this.uploadFileItems.filter(file => {
+                const fileId = `file_${file.path}`;
+                return this.selectedUploadFiles.has(fileId) || this.selectedUploadFiles.has(file.id);
+            });
 
             const result = await window.electronAPI.bulkUpload({
                 parent_id: parentId,
