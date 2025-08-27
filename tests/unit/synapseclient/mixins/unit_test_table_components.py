@@ -1790,6 +1790,78 @@ class TestSelectColumn:
             assert result.id == "123"
 
 
+class TestRowSet:
+    """Test suite for the RowSet.fill_from_dict method."""
+
+    @pytest.fixture
+    def sample_row_data(self):
+        """Sample row data for testing."""
+        return [
+            {
+                "rowId": 1,
+                "versionNumber": 1,
+                "etag": "etag-1",
+                "values": ["A", "1", "true"],
+            },
+            {
+                "rowId": 2,
+                "versionNumber": 2,
+                "etag": "etag-2",
+                "values": ["B", "2", "false"],
+            },
+        ]
+
+    @pytest.fixture
+    def sample_header_data(self):
+        """Sample header data for testing."""
+        return [
+            {"name": "col1", "columnType": "STRING", "id": "123"},
+            {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            {"name": "col3", "columnType": "BOOLEAN", "id": "125"},
+        ]
+
+    def test_fill_from_dict_with_complete_data(
+        self, sample_row_data, sample_header_data
+    ):
+        """Test fill_from_dict with complete RowSet data."""
+        # GIVEN complete RowSet data
+        data = {
+            "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+            "tableId": "syn123456",
+            "etag": "table-etag-123",
+            "headers": sample_header_data,
+            "rows": sample_row_data,
+        }
+
+        # WHEN calling fill_from_dict
+        result = RowSet.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert result.concrete_type == "org.sagebionetworks.repo.model.table.RowSet"
+        assert result.table_id == "syn123456"
+        assert result.etag == "table-etag-123"
+
+        # Verify headers
+        assert len(result.headers) == 3
+        assert result.headers[0].name == "col1"
+        assert result.headers[0].column_type == ColumnType.STRING
+        assert result.headers[0].id == "123"
+        assert result.headers[1].name == "col2"
+        assert result.headers[1].column_type == ColumnType.INTEGER
+        assert result.headers[1].id == "124"
+
+        # Verify rows
+        assert len(result.rows) == 2
+        assert result.rows[0].row_id == 1
+        assert result.rows[0].version_number == 1
+        assert result.rows[0].etag == "etag-1"
+        assert result.rows[0].values == ["A", 1, True]
+        assert result.rows[1].row_id == 2
+        assert result.rows[1].version_number == 2
+        assert result.rows[1].etag == "etag-2"
+        assert result.rows[1].values == ["B", 2, False]
+
+
 class TestQueryNextPageToken:
     """Test suite for the QueryNextPageToken.fill_from_dict method."""
 
