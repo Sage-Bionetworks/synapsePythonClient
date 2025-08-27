@@ -18,6 +18,7 @@ from synapseclient.models.mixins.table_components import (
     DeleteMixin,
     FailureStrategy,
     GetMixin,
+    QueryJob,
     QueryMixin,
     SnapshotRequest,
     TableDeleteRowMixin,
@@ -1416,12 +1417,26 @@ class TestQueryTableCsv:
     @pytest.fixture
     def sample_query(self):
         """Sample SQL query for testing."""
-        return "SELECT * FROM syn123"
+        return "SELECT * FROM syn1234"
 
     @pytest.fixture
-    def sample_download_result(self):
-        """Sample download result from Synapse API."""
-        return {"resultsFileHandleId": "12345", "status": "COMPLETE"}
+    def mock_query_job_response(self, sample_query):
+        """Sample query job response."""
+        # Create a mock query job response after calling send_job_and_wait_async
+        return QueryJob(
+            entity_id="syn1234",
+            sql=sample_query,
+            # Response attributes populated after job completion
+            job_id="1234",
+            results_file_handle_id="5678",
+            table_id="syn1234",
+            etag="test_etag",
+            headers=[
+                {"name": "test_col", "columnType": "STRING", "id": "242777"},
+                {"name": "test_col2", "columnType": "STRING", "id": "242778"},
+            ],
+            response_concrete_type="org.sagebionetworks.repo.model.table.DownloadFromTableResult",
+        )
 
     @pytest.fixture
     def sample_file_path(self):
@@ -1429,68 +1444,9 @@ class TestQueryTableCsv:
         return "/path/to/downloaded/file.csv"
 
     @pytest.mark.asyncio
-    async def test_query_table_csv_basic_functionality(
-        self, mock_synapse, sample_query, sample_download_result, sample_file_path
-    ):
-        """Test basic functionality of _query_table_csv."""
-        # GIVEN
-        mock_synapse._waitForAsync.return_value = sample_download_result
-        mock_synapse.cache.get.return_value = None
-        mock_synapse.cache.get_cache_dir.return_value = "/cache/dir"
-
-        with (
-            patch(
-                "synapseclient.models.mixins.table_components.extract_synapse_id_from_query"
-            ) as mock_extract_id,
-            patch(
-                "synapseclient.models.mixins.table_components.ensure_download_location_is_directory"
-            ) as mock_ensure_dir,
-            patch(
-                "synapseclient.models.mixins.table_components.download_by_file_handle"
-            ) as mock_download,
-            patch("os.makedirs") as mock_makedirs,
-        ):
-            mock_extract_id.return_value = "syn123"
-            mock_download.return_value = sample_file_path
-
-            # WHEN calling the function
-            result = _query_table_csv(query=sample_query, synapse=mock_synapse)
-
-            # THEN ensure download result and path to downloaded file are returned
-            assert result == (sample_download_result, sample_file_path)
-
-            # Verify API call was made correctly
-            mock_synapse._waitForAsync.assert_called_once()
-            call_args = mock_synapse._waitForAsync.call_args
-
-            expected_request = {
-                "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
-                "csvTableDescriptor": {
-                    "isFirstLineHeader": True,
-                    "quoteCharacter": '"',
-                    "escapeCharacter": "\\",
-                    "lineEnd": os.linesep,
-                    "separator": ",",
-                },
-                "sql": sample_query,
-                "writeHeader": True,
-                "includeRowIdAndRowVersion": True,
-                "includeEntityEtag": True,
-            }
-
-            assert call_args[1]["request"] == expected_request
-            assert call_args[1]["uri"] == "/entity/syn123/table/download/csv/async"
-
-    @pytest.mark.asyncio
-    async def test_query_table_csv_with_custom_parameters(
-        self, mock_synapse, sample_query, sample_download_result, sample_file_path
-    ):
-        """Test _query_table_csv with custom CSV format parameters."""
+    async def test_query_table_csv_request_generation(self, sample_query):
+        """Test that QueryJob generates the correct synapse request."""
         # GIVEN custom parameters for CSV formatting
-        mock_synapse._waitForAsync.return_value = sample_download_result
-        mock_synapse.cache.get.return_value = None
-        mock_synapse.cache.get_cache_dir.return_value = "/cache/dir"
-
         custom_params = {
             "quote_character": "'",
             "escape_character": "/",
@@ -1500,42 +1456,80 @@ class TestQueryTableCsv:
             "include_row_id_and_row_version": False,
         }
 
+        # WHEN creating a QueryJob with these parameters
+        query_job = QueryJob(entity_id="syn1234", sql=sample_query, **custom_params)
+
+        # THEN verify the to_synapse_request() method generates the correct request
+        synapse_request = query_job.to_synapse_request()
+
+        assert (
+            synapse_request["concreteType"]
+            == "org.sagebionetworks.repo.model.table.DownloadFromTableRequest"
+        )
+        assert synapse_request["entityId"] == "syn1234"
+        assert synapse_request["sql"] == sample_query
+        assert synapse_request["writeHeader"] == False
+        assert synapse_request["includeRowIdAndRowVersion"] == False
+        assert synapse_request["csvTableDescriptor"]["isFirstLineHeader"] == False
+        assert synapse_request["csvTableDescriptor"]["quoteCharacter"] == "'"
+        assert synapse_request["csvTableDescriptor"]["escapeCharacter"] == "/"
+        assert synapse_request["csvTableDescriptor"]["lineEnd"] == "\n"
+        assert synapse_request["csvTableDescriptor"]["separator"] == ";"
+
+    @pytest.mark.asyncio
+    async def test_query_table_csv_basic_functionality(
+        self, mock_synapse, sample_query, sample_file_path, mock_query_job_response
+    ):
+        """Test basic functionality of _query_table_csv."""
+        # GIVEN
+        mock_synapse.cache.get.return_value = None
+        mock_synapse.cache.get_cache_dir.return_value = "/cache/dir"
+
         with (
             patch(
                 "synapseclient.models.mixins.table_components.extract_synapse_id_from_query"
             ) as mock_extract_id,
             patch(
+                "synapseclient.models.mixins.table_components.ensure_download_location_is_directory"
+            ) as mock_ensure_dir,
+            patch(
                 "synapseclient.models.mixins.table_components.download_by_file_handle"
             ) as mock_download,
             patch("os.makedirs") as mock_makedirs,
+            patch(
+                "synapseclient.models.table_components.QueryJob.send_job_and_wait_async"
+            ) as mock_send_job_and_wait_async,
         ):
-            mock_extract_id.return_value = "syn456"
+            mock_extract_id.return_value = "syn1234"
             mock_download.return_value = sample_file_path
 
-            # WHEN calling the function with custom parameters
-            result = _query_table_csv(
-                query=sample_query, synapse=mock_synapse, **custom_params
+            mock_send_job_and_wait_async.return_value = mock_query_job_response
+
+            # WHEN calling the function
+            completed_query_job, file_path = await _query_table_csv(
+                query=sample_query, synapse=mock_synapse
             )
 
-            # THEN verify _waitForAsync was called with custom parameters
-            call_args = mock_synapse._waitForAsync.call_args
-            request = call_args[1]["request"]
+            # THEN ensure download file is correct
+            assert file_path == sample_file_path
+            assert completed_query_job.entity_id == "syn1234"
 
-            assert request["csvTableDescriptor"]["quoteCharacter"] == "'"
-            assert request["csvTableDescriptor"]["escapeCharacter"] == "/"
-            assert request["csvTableDescriptor"]["lineEnd"] == "\n"
-            assert request["csvTableDescriptor"]["separator"] == ";"
-            assert request["writeHeader"] == False
-            assert request["includeRowIdAndRowVersion"] == False
+            # Verify API call was made correctly
+            mock_send_job_and_wait_async.assert_called_once()
+
+            # Verify the completed job has the expected response data
+            assert completed_query_job.results_file_handle_id == "5678"
+            assert completed_query_job.job_id == "1234"
+            assert completed_query_job.table_id == "syn1234"
+            assert len(completed_query_job.headers) == 2
 
     @pytest.mark.asyncio
     async def test_query_table_csv_with_download_location(
-        self, mock_synapse, sample_query, sample_download_result, sample_file_path
+        self, mock_synapse, sample_query, sample_file_path, mock_query_job_response
     ):
         """Test _query_table_csv with specified download location."""
         # GIVEN a custom download location
         download_location = "/custom/download/path"
-        mock_synapse._waitForAsync.return_value = sample_download_result
         mock_synapse.cache.get.return_value = None
 
         with (
@@ -1549,13 +1543,17 @@ class TestQueryTableCsv:
                 "synapseclient.models.mixins.table_components.download_by_file_handle"
             ) as mock_download,
             patch("os.makedirs") as mock_makedirs,
+            patch(
+                "synapseclient.models.table_components.QueryJob.send_job_and_wait_async"
+            ) as mock_send_job_and_wait_async,
         ):
-            mock_extract_id.return_value = "syn123"
+            mock_extract_id.return_value = "syn1234"
             mock_ensure_dir.return_value = download_location
             mock_download.return_value = sample_file_path
+            mock_send_job_and_wait_async.return_value = mock_query_job_response
 
             # WHEN calling the function with a download location
-            result = _query_table_csv(
+            result = await _query_table_csv(
                 query=sample_query,
                 synapse=mock_synapse,
                 download_location=download_location,
@@ -1564,7 +1562,7 @@ class TestQueryTableCsv:
             # THEN verify ensure_download_location_is_directory is called with the correct location
             mock_ensure_dir.assert_called_once_with(download_location=download_location)
             mock_makedirs.assert_called_once_with(download_location, exist_ok=True)
-            assert result == (sample_download_result, sample_file_path)
+            assert result == (mock_query_job_response, sample_file_path)
 
 
 class TestQueryTableNextPage:
