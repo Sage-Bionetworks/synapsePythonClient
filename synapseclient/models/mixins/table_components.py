@@ -249,7 +249,7 @@ async def _query_table_next_page(
     return QueryResultBundle.fill_from_dict(data=result)
 
 
-def query_table_row_set(
+async def query_table_row_set(
     query: str,
     synapse: Synapse,
     limit: int = None,
@@ -269,26 +269,35 @@ def query_table_row_set(
 
     Returns: a QueryResultBundle object <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
-    query_bundle_request = {
-        "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
-        "query": {
-            "sql": query,
-            "includeEntityEtag": True,
-        },
-    }
+    from synapseclient.models.table_components import Query, QueryBundleRequest
 
-    if part_mask:
-        query_bundle_request["partMask"] = part_mask
-    if limit is not None:
-        query_bundle_request["query"]["limit"] = limit
-    if offset is not None:
-        query_bundle_request["query"]["offset"] = offset
-
-    uri = "/entity/{id}/table/query/async".format(
-        id=extract_synapse_id_from_query(query)
+    entity_id = extract_synapse_id_from_query(query)
+    query_cls = Query(
+        sql=query,
+        include_entity_etag=True,
+        limit=limit,
+        offset=offset,
     )
-    return QueryResultBundle.fill_from_dict(
-        data=synapse._waitForAsync(uri=uri, request=query_bundle_request)
+    query_request = query_cls.to_synapse_request()
+    query_bundle_request = QueryBundleRequest(
+        entity_id=entity_id, query=query_request, part_mask=part_mask
+    )
+
+    completed_request = await query_bundle_request.send_job_and_wait_async(
+        synapse_client=synapse
+    )
+
+    return QueryResultBundle(
+        query_result=completed_request.query_result,
+        query_count=completed_request.query_count,
+        select_columns=completed_request.select_columns,
+        max_rows_per_page=completed_request.max_rows_per_page,
+        column_models=completed_request.column_models,
+        facets=completed_request.facets,
+        sum_file_sizes=completed_request.sum_file_sizes,
+        last_updated_on=completed_request.last_updated_on,
+        combined_sql=completed_request.combined_sql,
+        actions_required=completed_request.actions_required,
     )
 
 
@@ -321,7 +330,7 @@ async def _table_query(
     client = Synapse.get_client(synapse_client=synapse)
 
     if results_as.lower() == "rowset":
-        return query_table_row_set(query=query, synapse=client, **kwargs)
+        return await query_table_row_set(query=query, synapse=client, **kwargs)
 
     elif results_as.lower() == "csv":
         result, csv_path = await _query_table_csv(

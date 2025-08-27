@@ -97,3 +97,7 @@ CREATE_SCHEMA_REQUEST = "org.sagebionetworks.repo.model.schema.CreateSchemaReque
 QUERY_TABLE_CSV_REQUEST = (
     "org.sagebionetworks.repo.model.table.DownloadFromTableRequest"
 )
+
+# Query Table Bundle Request
+# https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+QUERY_BUNDLE_REQUEST = "org.sagebionetworks.repo.model.table.QueryBundleRequest"
