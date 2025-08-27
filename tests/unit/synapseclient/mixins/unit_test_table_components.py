@@ -1613,7 +1613,7 @@ class TestQueryTableNextPage:
             ],
         }
 
-    def test_query_table_next_page_basic_functionality(
+    async def test_query_table_next_page_basic_functionality(
         self, sample_table_id, sample_next_page_token, sample_synapse_response
     ):
         """Test basic functionality of _query_table_next_page. Next page token is None"""

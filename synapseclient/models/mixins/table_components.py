@@ -229,7 +229,7 @@ async def _query_table_csv(
     return download_from_table_result, path
 
 
-async def _query_table_next_page(
+def _query_table_next_page(
     next_page_token: "QueryNextPageToken", table_id: str, synapse: Synapse
 ) -> "QueryResultBundle":
     """
