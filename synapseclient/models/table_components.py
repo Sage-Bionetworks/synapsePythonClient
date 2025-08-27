@@ -546,6 +546,9 @@ class Row:
         where true values are: true, t, and 1 and false values are: false, f, 0.
         Raise a ValueError for all other values.
         """
+        if value is None:
+            raise ValueError("Can't convert None to boolean.")
+
         if isinstance(value, bool):
             return value
 

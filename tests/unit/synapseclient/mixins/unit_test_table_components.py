@@ -1598,6 +1598,122 @@ class TestQueryResultOutput:
         assert result.sum_file_sizes.greater_than == False
 
 
+class TestRow:
+    """Test suite for the Row class."""
+
+    @pytest.fixture
+    def sample_row_data(self):
+        """Sample row data for testing."""
+        return {
+            "rowId": 12345,
+            "versionNumber": 1,
+            "etag": "test-etag-123",
+            "values": ["A", "1", "true", "160000000"],
+        }
+
+    @pytest.fixture
+    def sample_headers(self):
+        """Sample headers for testing cast_values method."""
+        return [
+            {"columnType": "STRING", "name": "string_col"},
+            {"columnType": "INTEGER", "name": "int_col"},
+            {"columnType": "BOOLEAN", "name": "bool_col"},
+            {"columnType": "DATE", "name": "date_col"},
+        ]
+
+    def test_fill_from_dict_complete_data(self, sample_row_data):
+        """Test fill_from_dict with complete row data."""
+        # WHEN creating Row from dictionary
+        row = Row.fill_from_dict(sample_row_data)
+
+        # THEN verify all fields are populated correctly
+        assert row.row_id == 12345
+        assert row.version_number == 1
+        assert row.etag == "test-etag-123"
+        assert row.values == ["A", "1", "true", "160000000"]
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (True, True),
+            (False, False),
+            ("true", True),
+            ("True", True),
+            ("TRUE", True),
+            ("t", True),
+            ("T", True),
+            ("1", True),
+            ("false", False),
+            ("False", False),
+            ("FALSE", False),
+            ("f", False),
+            ("F", False),
+            ("0", False),
+        ],
+    )
+    def test_to_boolean_valid_values(self, value, expected):
+        """Test to_boolean method with valid boolean values."""
+        # WHEN calling to_boolean with valid values
+        result = Row.to_boolean(value)
+
+        # THEN verify correct boolean conversion
+        assert result == expected
+        assert isinstance(result, bool)
+
+    @pytest.mark.parametrize(
+        "invalid_value",
+        [
+            "invalid",
+            "yes",
+            "no",
+            "2",
+            "",
+            None,
+        ],
+    )
+    def test_to_boolean_invalid_values(self, invalid_value):
+        """Test to_boolean method with invalid values."""
+        # WHEN calling to_boolean with invalid values
+        # THEN verify ValueError is raised
+        with pytest.raises(
+            ValueError, match=f"Can't convert {invalid_value} to boolean"
+        ):
+            Row.to_boolean(invalid_value)
+
+    def test_cast_values_string_column(self):
+        """Test cast_values with STRING column type."""
+        # GIVEN string values and headers
+        values = ["hello", "world", "test"]
+        headers = [
+            {"columnType": "STRING"},
+            {"columnType": "STRING"},
+            {"columnType": "STRING"},
+        ]
+
+        # WHEN casting values
+        result = Row.cast_values(values, headers)
+
+        # THEN verify strings are preserved
+        assert result == ["hello", "world", "test"]
+
+    def test_cast_values_integer_column(self):
+        """Test cast_values with INTEGER column type."""
+        # GIVEN integer values and headers
+        values = ["123", "456", "789"]
+        headers = [
+            {"columnType": "INTEGER"},
+            {"columnType": "INTEGER"},
+            {"columnType": "INTEGER"},
+        ]
+
+        # WHEN casting values
+        result = Row.cast_values(values, headers)
+
+        # THEN verify integers are converted
+        assert result == [123, 456, 789]
+        assert all(isinstance(val, int) for val in result)
+
+
 class TestQueryTableNextPage:
     """Test suite for the _query_table_next_page function."""
 
