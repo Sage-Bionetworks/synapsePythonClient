@@ -12,7 +12,7 @@ from numpy import dtype
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
 from synapseclient.core.utils import MB
-from synapseclient.models import Activity, Column, ColumnType
+from synapseclient.models import Activity, Column, ColumnType, SumFileSizes
 from synapseclient.models.mixins.table_components import (
     ColumnMixin,
     DeleteMixin,
@@ -1563,6 +1563,39 @@ class TestQueryTableCsv:
             mock_ensure_dir.assert_called_once_with(download_location=download_location)
             mock_makedirs.assert_called_once_with(download_location, exist_ok=True)
             assert result == (mock_query_job_response, sample_file_path)
+
+
+class TestQueryResultOutput:
+    """Test suite for the QueryResultOutput.fill_from_dict method."""
+
+    @pytest.fixture
+    def sample_dataframe(self):
+        """Sample pandas DataFrame for testing."""
+        import pandas as pd
+
+        return pd.DataFrame(
+            {"col1": ["A", "B", "C"], "col2": [1, 2, 3], "col3": ["X", "Y", "Z"]}
+        )
+
+    def test_fill_from_dict_with_full_data(self, sample_dataframe):
+        """Test fill_from_dict with complete data including sum_file_sizes."""
+        # GIVEN a complete data dictionary
+        data = {
+            "count": 100,
+            "last_updated_on": "2025-08-20T10:00:00.000Z",
+            "sum_file_sizes": SumFileSizes(
+                sum_file_size_bytes=1024000, greater_than=False
+            ),
+        }
+        # WHEN calling fill_from_dict
+        result = QueryResultOutput.fill_from_dict(result=sample_dataframe, data=data)
+
+        # THEN verify all attributes are set correctly
+        assert result.result.equals(sample_dataframe)
+        assert result.count == 100
+        assert result.last_updated_on == "2025-08-20T10:00:00.000Z"
+        assert result.sum_file_sizes.sum_file_size_bytes == 1024000
+        assert result.sum_file_sizes.greater_than == False
 
 
 class TestQueryTableNextPage:
