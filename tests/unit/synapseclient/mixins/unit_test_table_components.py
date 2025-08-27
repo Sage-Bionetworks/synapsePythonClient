@@ -32,6 +32,7 @@ from synapseclient.models.mixins.table_components import (
     _query_table_next_page,
 )
 from synapseclient.models.table_components import (
+    ActionRequiredCount,
     ColumnType,
     QueryNextPageToken,
     QueryResult,
@@ -1712,6 +1713,81 @@ class TestRow:
         # THEN verify integers are converted
         assert result == [123, 456, 789]
         assert all(isinstance(val, int) for val in result)
+
+
+class TestActionRequiredCount:
+    """Test suite for the ActionRequiredCount.fill_from_dict method."""
+
+    def test_fill_from_dict_with_complete_data(self):
+        """Test fill_from_dict with complete action data."""
+        # GIVEN complete action data
+        data = {
+            "action": {
+                "concreteType": "org.sagebionetworks.repo.model.download.MeetAccessRequirement",
+                "accessRequirementId": 12345,
+            },
+            "count": 42,
+        }
+
+        # WHEN calling fill_from_dict
+        result = ActionRequiredCount.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert result.action == data["action"]
+        assert result.count == 42
+
+
+class TestSelectColumn:
+    """Test suite for the SelectColumn.fill_from_dict method."""
+
+    def test_fill_from_dict_with_complete_data(self):
+        """Test fill_from_dict with complete column data."""
+        # GIVEN complete column data
+        data = {"name": "test_column", "columnType": "STRING", "id": "123456"}
+
+        # WHEN calling fill_from_dict
+        result = SelectColumn.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert result.name == "test_column"
+        assert result.column_type == ColumnType.STRING
+        assert result.id == "123456"
+
+    def test_fill_from_dict_with_valid_column_types(self):
+        """Test fill_from_dict with all valid column types."""
+        valid_column_types = [
+            "STRING",
+            "DOUBLE",
+            "INTEGER",
+            "BOOLEAN",
+            "DATE",
+            "FILEHANDLEID",
+            "ENTITYID",
+            "LINK",
+            "MEDIUMTEXT",
+            "LARGETEXT",
+            "USERID",
+            "STRING_LIST",
+            "INTEGER_LIST",
+            "USERID_LIST",
+            "JSON",
+        ]
+
+        for column_type_str in valid_column_types:
+            # GIVEN data with valid column type
+            data = {
+                "name": f"test_{column_type_str.lower()}",
+                "columnType": column_type_str,
+                "id": "123",
+            }
+
+            # WHEN calling fill_from_dict
+            result = SelectColumn.fill_from_dict(data)
+
+            # THEN verify column type is converted correctly
+            assert result.column_type == ColumnType(column_type_str)
+            assert result.name == f"test_{column_type_str.lower()}"
+            assert result.id == "123"
 
 
 class TestQueryTableNextPage:
