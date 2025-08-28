@@ -1467,7 +1467,6 @@ class QueryBundleRequest(AsynchronousCommunicator):
     def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Self":
         """Fill the request results from Synapse response (QueryResultBundle)."""
         # Use QueryResultBundle's fill_from_dict logic to populate response fields
-        print("before fill_from_dict", synapse_response)
         bundle = QueryResultBundle.fill_from_dict(synapse_response)
 
         # Copy all the result fields from the bundle

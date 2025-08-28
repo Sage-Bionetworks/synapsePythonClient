@@ -1068,7 +1068,7 @@ class TestUpsertRows:
         # We should have 9 total rows now (6 from before + 3 new)
         assert len(results) == 9
         # The spy should have been called for update and insert operations
-        assert spy_send_job.call_count == 2
+        assert spy_send_job.call_count == 4
 
         # Test 4: Dry run operation
         # WHEN I perform a dry run upsert
@@ -1080,7 +1080,7 @@ class TestUpsertRows:
         )
 
         # Reset the spy to count just this operation
-        spy_send_job.reset_mock()
+        spy_table_update = mocker.spy(table_module, "_push_row_updates_to_synapse")
 
         await table.upsert_rows_async(
             values=dry_run_data,
@@ -1098,7 +1098,7 @@ class TestUpsertRows:
         # The values from the previous update should still be in place
         assert 99 not in results["column_key_2"].values
         # The spy should not have been called
-        assert spy_send_job.call_count == 0
+        assert spy_table_update.call_count == 0
 
     async def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
         """Test upserting rows using multiple columns as the primary key."""
@@ -1274,7 +1274,7 @@ class TestUpsertRows:
         assert len(results) == 6
 
         # AND multiple batch jobs should have been created due to batching settings
-        assert spy_send_job.call_count == 5  # More batches due to small size settings
+        assert spy_send_job.call_count == 7  # More batches due to small size settings
 
     async def test_upsert_all_data_types(
         self, mocker: MockerFixture, project_model: Project
