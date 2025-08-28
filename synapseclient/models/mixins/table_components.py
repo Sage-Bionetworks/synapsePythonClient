@@ -61,6 +61,8 @@ from synapseclient.models.table_components import (
     CsvTableDescriptor,
     PartialRow,
     PartialRowSet,
+    Query,
+    QueryBundleRequest,
     QueryJob,
     QueryNextPageToken,
     QueryResultBundle,
@@ -269,8 +271,6 @@ async def query_table_row_set(
 
     Returns: a QueryResultBundle object <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
-    from synapseclient.models.table_components import Query, QueryBundleRequest
-
     entity_id = extract_synapse_id_from_query(query)
     query_cls = Query(
         sql=query,
