@@ -751,8 +751,8 @@ class RowSet:
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "RowSet":
         """Create a RowSet from a dictionary response."""
-        headers = data.get("headers", None)
-        rows = data.get("rows", None)
+        headers = None
+        rows = None
 
         # Handle headers
         headers_data = data.get("headers")
@@ -862,7 +862,7 @@ class QueryJob(AsynchronousCommunicator):
     etag: Optional[str] = None
     """The etag of the table"""
 
-    headers: Optional[List[Dict[str, Any]]] = None
+    headers: Optional[List[SelectColumn]] = None
     """The column headers from the query result"""
 
     response_concrete_type: Optional[str] = None
@@ -891,12 +891,17 @@ class QueryJob(AsynchronousCommunicator):
     def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Self":
         """Fill the job results from Synapse response."""
         # Fill response attributes from DownloadFromTableResult
+        headers = None
+        headers_data = synapse_response.get("headers")
+        if headers_data and isinstance(headers_data, list):
+            headers = [SelectColumn.fill_from_dict(header) for header in headers_data]
+
         self.job_id = synapse_response.get("jobId")
         self.response_concrete_type = synapse_response.get("concreteType")
         self.results_file_handle_id = synapse_response.get("resultsFileHandleId")
         self.table_id = synapse_response.get("tableId")
         self.etag = synapse_response.get("etag")
-        self.headers = synapse_response.get("headers")
+        self.headers = headers
 
         return self
 

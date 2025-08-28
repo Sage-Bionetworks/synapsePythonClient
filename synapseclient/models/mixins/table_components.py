@@ -303,7 +303,7 @@ async def query_table_row_set(
 
 async def _table_query(
     query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
-) -> Union["QueryResultBundle", Tuple[Dict[str, str], str]]:
+) -> Union["QueryResultBundle", Tuple["QueryJob", str]]:
     """
     Query a Synapse Table.
 
@@ -325,7 +325,7 @@ async def _table_query(
 
     Returns:
         If `results_as` is "rowset", returns a QueryResultBundle object.
-        If `results_as` is "csv", returns a tuple of (download_from_table_result, csv_path).
+        If `results_as` is "csv", returns a tuple of (QueryJob, csv_path).
     """
     client = Synapse.get_client(synapse_client=synapse)
 
@@ -2674,16 +2674,16 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         list_columns = []
         dtype = {}
 
-        if result.get("headers") is not None:
-            for column in result.get("headers"):
-                if column["columnType"] == "STRING":
+        if result.headers is not None:
+            for column in result.headers:
+                if column.column_type == "STRING":
                     # we want to identify string columns so that pandas doesn't try to
                     # automatically parse strings in a string column to other data types
-                    dtype[column["name"]] = str
-                elif column["columnType"] in LIST_COLUMN_TYPES:
-                    list_columns.append(column["name"])
-                elif column["columnType"] == "DATE" and convert_to_datetime:
-                    date_columns.append(column["name"])
+                    dtype[column.name] = str
+                elif column.column_type in LIST_COLUMN_TYPES:
+                    list_columns.append(column.name)
+                elif column.column_type == "DATE" and convert_to_datetime:
+                    date_columns.append(column.name)
 
         return csv_to_pandas_df(
             filepath=csv_path,

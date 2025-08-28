@@ -2408,10 +2408,16 @@ class TestQueryJob:
         assert job.results_file_handle_id == "file-handle-67890"
         assert job.table_id == "syn123456"
         assert job.etag == "table-etag-abc123"
-        assert job.headers == [
-            {"name": "col1", "columnType": "STRING", "id": "111"},
-            {"name": "col2", "columnType": "INTEGER", "id": "222"},
-        ]
+
+        # Verify the nested SelectColumns
+        assert isinstance(result.headers, list)
+        assert len(result.headers) == 2
+        assert result.headers[0].name == "col1"
+        assert result.headers[0].column_type == "STRING"
+        assert result.headers[0].id == "111"
+        assert result.headers[1].name == "col2"
+        assert result.headers[1].column_type == "INTEGER"
+        assert result.headers[1].id == "222"
 
 
 class TestQueryTableNextPage:
