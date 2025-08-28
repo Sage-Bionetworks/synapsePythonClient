@@ -34,6 +34,7 @@ from synapseclient.models.mixins.table_components import (
 from synapseclient.models.table_components import (
     ActionRequiredCount,
     ColumnType,
+    Query,
     QueryNextPageToken,
     QueryResult,
     QueryResultBundle,
@@ -939,6 +940,108 @@ class TestTableUpsertMixin:
                 job_timeout=600,
                 synapse_client=self.syn,
             )
+
+
+class TestQuery:
+    """Test suite for the Query.to_synapse_request method."""
+
+    def test_to_synapse_request_with_minimal_data(self):
+        """Test to_synapse_request with only required SQL parameter."""
+        # GIVEN a Query with minimal parameters
+        query = Query(sql="SELECT * FROM syn123456")
+
+        # WHEN calling to_synapse_request
+        result = query.to_synapse_request()
+
+        # THEN verify only sql is included (None values are deleted)
+        expected = {"sql": "SELECT * FROM syn123456"}
+        assert result == expected
+
+    def test_to_synapse_request_with_all_parameters(self):
+        """Test to_synapse_request with all parameters specified."""
+        # GIVEN a Query with all parameters
+        additional_filters = [
+            {
+                "concreteType": "org.example.Filter1",
+                "column": "col1",
+                "operator": "EQUALS",
+                "values": ["value1"],
+            },
+            {
+                "concreteType": "org.example.Filter2",
+                "column": "col2",
+                "operator": "GREATER_THAN",
+                "values": [10],
+            },
+        ]
+        selected_facets = [
+            {
+                "concreteType": "org.example.FacetColumnRangeRequest",
+                "columnName": "age",
+                "min": "18",
+                "max": "65",
+            },
+            {
+                "concreteType": "org.example.FacetColumnValuesRequest",
+                "columnName": "category",
+                "facetValues": ["A", "B"],
+            },
+        ]
+        sort_items = [
+            {"column": "name", "direction": "ASC"},
+            {"column": "date_created", "direction": "DESC"},
+        ]
+
+        query = Query(
+            sql="SELECT col1, col2, col3 FROM syn123456",
+            additional_filters=additional_filters,
+            selected_facets=selected_facets,
+            include_entity_etag=True,
+            select_file_column=123,
+            select_file_version_column=456,
+            offset=50,
+            limit=100,
+            sort=sort_items,
+        )
+
+        # WHEN calling to_synapse_request
+        result = query.to_synapse_request()
+
+        # THEN verify all parameters are included
+        expected = {
+            "sql": "SELECT col1, col2, col3 FROM syn123456",
+            "additionalFilters": additional_filters,
+            "selectedFacets": selected_facets,
+            "includeEntityEtag": True,
+            "selectFileColumn": 123,
+            "selectFileVersionColumn": 456,
+            "offset": 50,
+            "limit": 100,
+            "sort": sort_items,
+        }
+        assert result == expected
+
+    def test_to_synapse_request_with_partial_parameters(self):
+        """Test to_synapse_request with some parameters specified."""
+        # GIVEN a Query with partial parameters
+        query = Query(
+            sql="SELECT COUNT(*) FROM syn123456",
+            include_entity_etag=False,
+            offset=0,
+            limit=50,
+        )
+
+        # WHEN calling to_synapse_request
+        result = query.to_synapse_request()
+
+        # THEN verify only specified parameters are included
+        expected = {
+            "sql": "SELECT COUNT(*) FROM syn123456",
+            "includeEntityEtag": False,
+            "offset": 0,
+            "limit": 50,
+        }
+        assert result == expected
 
 
 class TestViewUpdateMixin:
