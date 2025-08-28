@@ -1084,6 +1084,136 @@ class TestViewUpdateMixin:
             )
 
 
+class TestQueryResultBundle:
+    """Test suite for the QueryResultBundle.fill_from_dict method."""
+
+    @pytest.fixture
+    def sample_query_result_data(self):
+        """Sample QueryResult data for testing."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+            "queryResults": {
+                "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+                "tableId": "syn123456",
+                "etag": "rowset-etag",
+                "headers": [
+                    {"name": "col1", "columnType": "STRING", "id": "123"},
+                    {"name": "col2", "columnType": "INTEGER", "id": "124"},
+                ],
+                "rows": [
+                    {"rowId": 1, "versionNumber": 1, "values": ["test1", "100"]},
+                    {"rowId": 2, "versionNumber": 1, "values": ["test2", "200"]},
+                ],
+            },
+            "nextPageToken": {
+                "concreteType": "org.sagebionetworks.repo.model.table.QueryNextPageToken",
+                "entityId": "syn123456",
+                "token": "next-page-token-abc",
+            },
+        }
+
+    @pytest.fixture
+    def sample_select_columns_data(self):
+        """Sample SelectColumn data for testing."""
+        return [
+            {"name": "col1", "columnType": "STRING", "id": "123"},
+            {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            {"name": "col3", "columnType": "BOOLEAN", "id": "125"},
+        ]
+
+    @pytest.fixture
+    def sample_sum_file_sizes_data(self):
+        """Sample SumFileSizes data for testing."""
+        return {"sumFileSizesBytes": 1048576, "greaterThan": False}
+
+    def test_fill_from_dict_with_complete_data(
+        self,
+        sample_query_result_data,
+        sample_select_columns_data,
+        sample_sum_file_sizes_data,
+    ):
+        """Test fill_from_dict with complete QueryResultBundle data."""
+        # GIVEN complete QueryResultBundle data
+        data = {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResultBundle",
+            "queryResult": sample_query_result_data,
+            "queryCount": 150,
+            "selectColumns": sample_select_columns_data,
+            "maxRowsPerPage": 100,
+            "columnModels": [
+                {"name": "col1", "columnType": "STRING", "id": "123"},
+                {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            ],
+            "facets": [
+                {
+                    "concreteType": "org.sagebionetworks.repo.model.table.FacetColumnResultValues",
+                    "columnName": "status",
+                    "facetType": "enumeration",
+                    "facetValues": [
+                        {"value": "active", "count": 50, "isSelected": False},
+                        {"value": "inactive", "count": 25, "isSelected": True},
+                    ],
+                }
+            ],
+            "sumFileSizes": sample_sum_file_sizes_data,
+            "lastUpdatedOn": "2025-08-20T15:30:45.123Z",
+            "combinedSql": "SELECT col1, col2 FROM syn123456 WHERE status = 'active'",
+        }
+
+        # WHEN calling fill_from_dict
+        result = QueryResultBundle.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert (
+            result.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryResultBundle"
+        )
+
+        # Verify nested QueryResult
+        assert isinstance(result.query_result, QueryResult)
+        assert (
+            result.query_result.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryResult"
+        )
+        assert isinstance(result.query_result.query_results, RowSet)
+        assert result.query_result.query_results.table_id == "syn123456"
+
+        # Verify scalar fields
+        assert result.query_count == 150
+        assert result.max_rows_per_page == 100
+        assert result.last_updated_on == "2025-08-20T15:30:45.123Z"
+        assert (
+            result.combined_sql
+            == "SELECT col1, col2 FROM syn123456 WHERE status = 'active'"
+        )
+
+        # Verify SelectColumns
+        assert len(result.select_columns) == 3
+        assert isinstance(result.select_columns[0], SelectColumn)
+        assert result.select_columns[0].name == "col1"
+        assert result.select_columns[0].column_type == ColumnType.STRING
+        assert result.select_columns[1].name == "col2"
+        assert result.select_columns[1].column_type == ColumnType.INTEGER
+        assert result.select_columns[2].name == "col3"
+        assert result.select_columns[2].column_type == ColumnType.BOOLEAN
+
+        # Verify ColumnModels
+        assert len(result.column_models) == 2
+        assert result.column_models[0].name == "col1"
+        assert result.column_models[1].column_type == "INTEGER"
+
+        # Verify Facets (stored as raw data)
+        assert len(result.facets) == 1
+        assert result.facets[0]["columnName"] == "status"
+        assert result.facets[0]["facetType"] == "enumeration"
+        assert len(result.facets[0]["facetValues"]) == 2
+
+        # Verify SumFileSizes
+        assert isinstance(result.sum_file_sizes, SumFileSizes)
+        assert result.sum_file_sizes.sum_file_size_bytes == 1048576
+        assert result.sum_file_sizes.greater_than == False
+
+
 class TestQueryMixin:
     fake_query = "SELECT * FROM syn123"
 
