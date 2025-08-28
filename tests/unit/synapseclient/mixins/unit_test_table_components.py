@@ -1392,9 +1392,26 @@ class TestQueryMixin:
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
 
+        mock_query_job = QueryJob(
+            entity_id="syn1234",
+            sql="SELECT * FROM syn1234",
+            # Response attributes populated after job completion
+            job_id="1234",
+            results_file_handle_id="5678",
+            table_id="syn1234",
+            etag="test_etag",
+            headers=[
+                SelectColumn(name="col1", column_type=ColumnType.STRING, id="111"),
+                SelectColumn(name="col2", column_type=ColumnType.INTEGER, id="222"),
+            ],
+            response_concrete_type="org.sagebionetworks.repo.model.table.DownloadFromTableResult",
+        )
+
         # CREATE a mock table query result
-        mock_df = pd.DataFrame({"col1": ["A", "B"], "col2": [1, 2]})
-        mock_query_result = mock_df, "dummy.csv"
+        mock_df = pd.DataFrame(
+            {"test_col": ["random string1"], "test_col2": ["random string2"]}
+        )
+        mock_query_result = mock_query_job, "dummy.csv"
 
         # WHEN I call query_async
         with (
@@ -1452,14 +1469,29 @@ class TestQueryMixin:
         )
 
         # Mock query result with headers that include date and list column types
+        mock_query_job_response = QueryJob(
+            entity_id="syn123",
+            sql="SELECT * FROM syn123",
+            header=True,
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            separator=",",
+            include_row_id_and_row_version=True,
+            job_id="test-job-12345",
+            response_concrete_type="org.sagebionetworks.repo.model.table.DownloadFromTableResult",
+            results_file_handle_id="file-handle-67890",
+            table_id="syn123",
+            etag="test-etag-abc123",
+            headers=[
+                SelectColumn(name="date_col", column_type=ColumnType.DATE),
+                SelectColumn(name="list_col", column_type=ColumnType.STRING_LIST),
+                SelectColumn(name="string_col", column_type=ColumnType.STRING),
+            ],
+        )
+
         mock_query_result_with_headers = (
-            {
-                "headers": [
-                    {"name": "date_col", "columnType": "DATE"},
-                    {"name": "list_col", "columnType": "STRING_LIST"},
-                    {"name": "string_col", "columnType": "STRING"},
-                ]
-            },
+            mock_query_job_response,
             "dummy.csv",
         )
 
@@ -1827,8 +1859,8 @@ class TestQueryTableCsv:
             table_id="syn1234",
             etag="test_etag",
             headers=[
-                {"name": "test_col", "columnType": "STRING", "id": "242777"},
-                {"name": "test_col2", "columnType": "STRING", "id": "242778"},
+                SelectColumn(name="col1", column_type=ColumnType.STRING, id="111"),
+                SelectColumn(name="col2", column_type=ColumnType.INTEGER, id="222"),
             ],
             response_concrete_type="org.sagebionetworks.repo.model.table.DownloadFromTableResult",
         )
