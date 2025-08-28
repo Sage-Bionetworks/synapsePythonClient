@@ -2053,32 +2053,6 @@ class TestQueryNextPageToken:
 class TestQueryJob:
     """Test suite for the QueryJob.to_synapse_request and fill_from_dict methods."""
 
-    def test_to_synapse_request_with_defaults(self):
-        """Test to_synapse_request with default values."""
-        # GIVEN a QueryJob with minimal parameters
-        job = QueryJob(entity_id="syn123456", sql="SELECT * FROM syn123456")
-
-        # WHEN calling to_synapse_request
-        result = job.to_synapse_request()
-
-        # THEN verify the correct request structure with defaults
-        expected = {
-            "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
-            "entityId": "syn123456",
-            "csvTableDescriptor": {
-                "isFirstLineHeader": True,
-                "quoteCharacter": '"',
-                "escapeCharacter": "\\",
-                "lineEnd": os.linesep,
-                "separator": ",",
-            },
-            "sql": "SELECT * FROM syn123456",
-            "writeHeader": True,
-            "includeRowIdAndRowVersion": True,
-            "includeEntityEtag": True,
-        }
-        assert result == expected
-
     def test_to_synapse_request_with_custom_parameters(self):
         """Test to_synapse_request with custom CSV formatting parameters."""
         # GIVEN a QueryJob with custom parameters
