@@ -751,19 +751,22 @@ class RowSet:
     @classmethod
     def fill_from_dict(cls, data: Dict[str, Any]) -> "RowSet":
         """Create a RowSet from a dictionary response."""
-        headers = None
-        rows = None
-
-        # Handle headers
         headers_data = data.get("headers")
+        rows_data = data.get("rows")
+
+        # Handle headers - convert to SelectColumn objects
+        headers = None
         if headers_data and isinstance(headers_data, list):
             headers = [SelectColumn.fill_from_dict(header) for header in headers_data]
 
-        # Handle rows
-        if rows and isinstance(rows, list):
+        # Handle rows - cast values and convert to Row objects
+        rows = None
+        if rows_data and isinstance(rows_data, list):
+            # Cast row values based on header types if headers are available
             if headers_data and isinstance(headers_data, list):
-                rows = cls.cast_row_set(rows, headers_data)
-            rows = [Row.fill_from_dict(row) for row in rows]
+                rows_data = cls.cast_row_set(rows_data, headers_data)
+            # Convert to Row objects
+            rows = [Row.fill_from_dict(row) for row in rows_data]
 
         return cls(
             concrete_type=data.get("concreteType"),
@@ -1464,6 +1467,7 @@ class QueryBundleRequest(AsynchronousCommunicator):
     def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Self":
         """Fill the request results from Synapse response (QueryResultBundle)."""
         # Use QueryResultBundle's fill_from_dict logic to populate response fields
+        print("before fill_from_dict", synapse_response)
         bundle = QueryResultBundle.fill_from_dict(synapse_response)
 
         # Copy all the result fields from the bundle
