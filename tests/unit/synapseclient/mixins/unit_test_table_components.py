@@ -1947,6 +1947,105 @@ class TestQueryNextPageToken:
         assert result.token == "next-page-token-12345"
 
 
+class TestQueryJob:
+    """Test suite for the QueryJob.to_synapse_request and fill_from_dict methods."""
+
+    def test_to_synapse_request_with_defaults(self):
+        """Test to_synapse_request with default values."""
+        # GIVEN a QueryJob with minimal parameters
+        job = QueryJob(entity_id="syn123456", sql="SELECT * FROM syn123456")
+
+        # WHEN calling to_synapse_request
+        result = job.to_synapse_request()
+
+        # THEN verify the correct request structure with defaults
+        expected = {
+            "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
+            "entityId": "syn123456",
+            "csvTableDescriptor": {
+                "isFirstLineHeader": True,
+                "quoteCharacter": '"',
+                "escapeCharacter": "\\",
+                "lineEnd": os.linesep,
+                "separator": ",",
+            },
+            "sql": "SELECT * FROM syn123456",
+            "writeHeader": True,
+            "includeRowIdAndRowVersion": True,
+            "includeEntityEtag": True,
+        }
+        assert result == expected
+
+    def test_to_synapse_request_with_custom_parameters(self):
+        """Test to_synapse_request with custom CSV formatting parameters."""
+        # GIVEN a QueryJob with custom parameters
+        job = QueryJob(
+            entity_id="syn789012",
+            sql="SELECT col1, col2 FROM syn789012",
+            header=False,
+            quote_character="'",
+            escape_character="/",
+            line_end="\n",
+            separator=";",
+            include_row_id_and_row_version=False,
+        )
+
+        # WHEN calling to_synapse_request
+        result = job.to_synapse_request()
+
+        # THEN verify the correct request structure with custom values
+        expected = {
+            "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
+            "entityId": "syn789012",
+            "csvTableDescriptor": {
+                "isFirstLineHeader": False,
+                "quoteCharacter": "'",
+                "escapeCharacter": "/",
+                "lineEnd": "\n",
+                "separator": ";",
+            },
+            "sql": "SELECT col1, col2 FROM syn789012",
+            "writeHeader": False,
+            "includeRowIdAndRowVersion": False,
+            "includeEntityEtag": True,
+        }
+        assert result == expected
+
+    def test_fill_from_dict_with_complete_response(self):
+        """Test fill_from_dict with complete DownloadFromTableResult response."""
+        # GIVEN a QueryJob and complete response data
+        job = QueryJob(entity_id="syn123456", sql="SELECT * FROM syn123456")
+        response_data = {
+            "jobId": "async-job-12345",
+            "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableResult",
+            "resultsFileHandleId": "file-handle-67890",
+            "tableId": "syn123456",
+            "etag": "table-etag-abc123",
+            "headers": [
+                {"name": "col1", "columnType": "STRING", "id": "111"},
+                {"name": "col2", "columnType": "INTEGER", "id": "222"},
+            ],
+        }
+
+        # WHEN calling fill_from_dict
+        result = job.fill_from_dict(response_data)
+
+        # THEN verify all response attributes are set
+        assert result is job  # Should return self
+        assert job.job_id == "async-job-12345"
+        assert (
+            job.response_concrete_type
+            == "org.sagebionetworks.repo.model.table.DownloadFromTableResult"
+        )
+        assert job.results_file_handle_id == "file-handle-67890"
+        assert job.table_id == "syn123456"
+        assert job.etag == "table-etag-abc123"
+        assert job.headers == [
+            {"name": "col1", "columnType": "STRING", "id": "111"},
+            {"name": "col2", "columnType": "INTEGER", "id": "222"},
+        ]
+
+
 class TestQueryTableNextPage:
     """Test suite for the _query_table_next_page function."""
 
