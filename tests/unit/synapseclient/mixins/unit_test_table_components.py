@@ -11,6 +11,10 @@ from numpy import dtype
 
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
+from synapseclient.core.constants.concrete_types import (
+    QUERY_BUNDLE_REQUEST,
+    QUERY_TABLE_CSV_REQUEST,
+)
 from synapseclient.core.utils import MB
 from synapseclient.models import Activity, Column, ColumnType, SumFileSizes
 from synapseclient.models.mixins.table_components import (
@@ -35,6 +39,7 @@ from synapseclient.models.table_components import (
     ActionRequiredCount,
     ColumnType,
     Query,
+    QueryBundleRequest,
     QueryNextPageToken,
     QueryResult,
     QueryResultBundle,
@@ -1042,6 +1047,162 @@ class TestQuery:
             "limit": 50,
         }
         assert result == expected
+
+
+class TestQueryBundleRequest:
+    """Test suite for the QueryBundleRequest.to_synapse_request and fill_from_dict methods."""
+
+    @pytest.fixture
+    def sample_query(self):
+        """Sample Query object for testing."""
+        return Query(
+            sql="SELECT * FROM syn123456", include_entity_etag=True, offset=0, limit=100
+        )
+
+    @pytest.fixture
+    def sample_query_result_bundle_data(self):
+        """Sample QueryResultBundle response data for testing."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResultBundle",
+            "queryResult": {
+                "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+                "queryResults": {
+                    "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+                    "tableId": "syn123456",
+                    "etag": "rowset-etag",
+                    "headers": [{"name": "col1", "columnType": "STRING", "id": "123"}],
+                    "rows": [
+                        {"rowId": 1, "versionNumber": 1, "values": ["test_value"]}
+                    ],
+                },
+            },
+            "queryCount": 250,
+            "selectColumns": [
+                {"name": "col1", "columnType": "STRING", "id": "123"},
+                {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            ],
+            "maxRowsPerPage": 100,
+            "columnModels": [
+                {"name": "col1", "columnType": "STRING", "id": "123"},
+                {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            ],
+            "facets": [
+                {
+                    "concreteType": "org.sagebionetworks.repo.model.table.FacetColumnResultValues",
+                    "columnName": "status",
+                    "facetType": "enumeration",
+                    "facetValues": [
+                        {"value": "active", "count": 100, "isSelected": False}
+                    ],
+                }
+            ],
+            "sumFileSizes": {"sumFileSizesBytes": 2048576, "greaterThan": True},
+            "lastUpdatedOn": "2025-08-27T12:30:45.678Z",
+            "combinedSql": "SELECT * FROM syn123456 WHERE status = 'active' LIMIT 100 OFFSET 0",
+            "actionsRequired": [
+                {
+                    "action": {
+                        "concreteType": "org.sagebionetworks.repo.model.download.MeetAccessRequirement",
+                        "accessRequirementId": 12345,
+                    },
+                    "count": 5,
+                }
+            ],
+        }
+
+    def test_to_synapse_request_with_minimal_parameters(self, sample_query):
+        """Test to_synapse_request with minimal parameters."""
+        # GIVEN a QueryBundleRequest with minimal parameters
+        request = QueryBundleRequest(entity_id="syn123456", query=sample_query)
+
+        # WHEN calling to_synapse_request
+        result = request.to_synapse_request()
+
+        # THEN verify the correct request structure
+        expected = {
+            "concreteType": QUERY_BUNDLE_REQUEST,
+            "entityId": "syn123456",
+            "query": sample_query,
+        }
+        assert result == expected
+
+    def test_to_synapse_request_with_part_mask(self, sample_query):
+        """Test to_synapse_request with part_mask specified."""
+        # GIVEN a QueryBundleRequest with part_mask
+        part_mask = 0x1 | 0x2 | 0x4
+        request = QueryBundleRequest(
+            entity_id="syn789012", query=sample_query, part_mask=part_mask
+        )
+
+        # WHEN calling to_synapse_request
+        result = request.to_synapse_request()
+
+        # THEN verify part_mask is included
+        expected = {
+            "concreteType": QUERY_BUNDLE_REQUEST,
+            "entityId": "syn789012",
+            "query": sample_query,
+            "partMask": part_mask,
+        }
+        assert result == expected
+
+    def test_fill_from_dict_with_complete_bundle(
+        self, sample_query, sample_query_result_bundle_data
+    ):
+        """Test fill_from_dict with complete QueryResultBundle response."""
+        # GIVEN a QueryBundleRequest and complete response data
+        request = QueryBundleRequest(
+            entity_id="syn123456", query=sample_query, part_mask=0x3FF
+        )
+
+        # WHEN calling fill_from_dict
+        result = request.fill_from_dict(sample_query_result_bundle_data)
+
+        # THEN verify all response attributes are set
+        assert result is request  # Should return self
+
+        # Verify nested QueryResult
+        assert isinstance(request.query_result, QueryResult)
+        assert (
+            request.query_result.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryResult"
+        )
+        assert isinstance(request.query_result.query_results, RowSet)
+        assert request.query_result.query_results.table_id == "syn123456"
+
+        # Verify scalar fields
+        assert request.query_count == 250
+        assert request.max_rows_per_page == 100
+        assert request.last_updated_on == "2025-08-27T12:30:45.678Z"
+        assert (
+            request.combined_sql
+            == "SELECT * FROM syn123456 WHERE status = 'active' LIMIT 100 OFFSET 0"
+        )
+
+        # Verify SelectColumns
+        assert len(request.select_columns) == 2
+        assert isinstance(request.select_columns[0], SelectColumn)
+        assert request.select_columns[0].name == "col1"
+        assert request.select_columns[0].column_type == ColumnType.STRING
+
+        # Verify ColumnModels
+        assert len(request.column_models) == 2
+        assert isinstance(request.column_models[0], Column)
+        assert request.column_models[0].name == "col1"
+
+        # Verify Facets (stored as raw data)
+        assert len(request.facets) == 1
+        assert request.facets[0]["columnName"] == "status"
+
+        # Verify SumFileSizes
+        assert isinstance(request.sum_file_sizes, SumFileSizes)
+        assert request.sum_file_sizes.sum_file_size_bytes == 2048576
+        assert request.sum_file_sizes.greater_than == True
+
+        # Verify ActionsRequired
+        assert len(request.actions_required) == 1
+        assert isinstance(request.actions_required[0], ActionRequiredCount)
+        assert request.actions_required[0].count == 5
 
 
 class TestViewUpdateMixin:
