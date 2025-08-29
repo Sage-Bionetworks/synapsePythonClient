@@ -740,11 +740,47 @@ class RowSet:
     def cast_row(
         cls, row: Dict[str, Any], headers: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
+        """
+        Cast the values in a single row to their appropriate column types.
+
+        This method takes a row dictionary containing string values from a table query
+        response and converts them to the correct Python types based on the column
+        headers. For example, converts string "123" to integer 123 for INTEGER columns,
+        or string "true" to boolean True for BOOLEAN columns.
+
+        Arguments:
+            row: A dictionary representing a single table row with keys that need to be cast to proper types.
+            headers: A list of header dictionaries, each containing column metadata
+                including 'columnType' which determines how to cast the corresponding
+                value in the row.
+
+        Returns:
+            The same row dictionary with the 'values' field updated to contain
+            properly typed values instead of strings.
+        """
         row["values"] = Row.cast_values(row["values"], headers)
         return row
 
     @classmethod
     def cast_row_set(cls, rows: List[Row], headers: List[Dict[str, Any]]) -> List[Row]:
+        """
+        Cast the values in multiple rows to their appropriate column types.
+
+        This method takes a list of row dictionaries containing string values from a table query
+        response and converts them to the correct Python types based on the column headers.
+        It applies the same type casting logic as `cast_row` to each row in the collection.
+
+        Arguments:
+            rows: A list of row dictionaries, each representing a single table row with
+                field contains a list of string values that need to be cast to proper types.
+            headers: A list of header dictionaries, each containing column metadata
+                including 'columnType' which determines how to cast the corresponding
+                values in each row.
+
+        Returns:
+            A list of row dictionaries with the 'values' field in each row updated to
+            contain properly typed values instead of strings.
+        """
         rows = [cls.cast_row(row, headers) for row in rows]
         return rows
 
