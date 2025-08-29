@@ -402,7 +402,7 @@ def _rowset_to_pandas_df(
     if not rowset:
         raise ValueError("The provided query_result_bundle has no 'rowset' data.")
 
-    rows = rowset.rows
+    rows = rowset.rows or []
     headers = rowset.headers
 
     offset += len(rows)
