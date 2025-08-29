@@ -53,6 +53,29 @@ at your own risk.
 ::: synapseclient.models.ColumnType
 [](){ #json-sub-column-reference-async }
 ::: synapseclient.models.JsonSubColumn
+[](){ #sumfilesize-reference-async }
+::: synapseclient.models.SumFileSizes
+[](){ #query-reference-async }
+::: synapseclient.models.Query
+[](){ #query-bundle-request-reference-async }
+::: synapseclient.models.QueryBundleRequest
+[](){ #query-job-reference-async }
+::: synapseclient.models.QueryJob
+[](){ #query-next-page-token-reference-async }
+::: synapseclient.models.QueryNextPageToken
+[](){ #query-result-reference-async }
+::: synapseclient.models.QueryResult
+[](){ #query-result-bundle-reference-async }
+::: synapseclient.models.QueryResultBundle
+[](){ #query-result-output-reference-async }
+::: synapseclient.models.QueryResultOutput
+[](){ #row-reference-async }
+::: synapseclient.models.Row
+[](){ #rowset-reference-async }
+::: synapseclient.models.RowSet
+[](){ #select-column-reference-async }
+::: synapseclient.models.SelectColumn
+
 
 
 [](){ #column-change-reference-async }
