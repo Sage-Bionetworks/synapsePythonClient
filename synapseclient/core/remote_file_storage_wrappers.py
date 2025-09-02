@@ -6,6 +6,7 @@ import urllib.parse as urllib_parse
 from contextlib import contextmanager
 from typing import Union
 
+from boto3.exceptions import S3UploadFailedError
 from tqdm import tqdm
 
 from synapseclient.core.retry import with_retry
@@ -222,13 +223,27 @@ class S3ClientWrapper:
             )
 
         # automatically determines whether to perform multi-part upload
-        s3.Bucket(bucket).upload_file(
-            upload_file_path,
-            remote_file_key,
-            Callback=progress_callback,
-            Config=transfer_config,
-            ExtraArgs={"ACL": "bucket-owner-full-control"},
-        )
+        try:
+            s3.Bucket(bucket).upload_file(
+                upload_file_path,
+                remote_file_key,
+                Callback=progress_callback,
+                Config=transfer_config,
+                ExtraArgs={"ACL": "bucket-owner-full-control"},
+            )
+        except S3UploadFailedError as upload_error:
+            if "Invalid canned ACL" in str(upload_error):
+                s3.Bucket(bucket).upload_file(
+                    upload_file_path,
+                    remote_file_key,
+                    Callback=progress_callback,
+                    Config=transfer_config,
+                    # https://sagebionetworks.jira.com/browse/SYNPY-1198
+                    # IBM Based buckets enforce this by default, and does not support this additional setting
+                    # ExtraArgs={"ACL": "bucket-owner-full-control"},
+                )
+            else:
+                raise upload_error
         if progress_bar is not None:
             progress_bar.close()
         return upload_file_path
