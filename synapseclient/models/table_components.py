@@ -734,7 +734,7 @@ class RowSet:
     headers: Optional[List[SelectColumn]] = None
     """The list of SelectColumns that describes the rows of this set."""
 
-    rows: Optional[List[Row]] = None
+    rows: Optional[List[Row]] = field(default_factory=list)
     """The Rows of this set. The index of each row value aligns with the index of each header."""
 
     @classmethod
