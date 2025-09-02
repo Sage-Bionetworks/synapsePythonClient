@@ -223,7 +223,6 @@ async def _query_table_csv(
         A tuple containing the download result (QueryJob object) and the path to the downloaded CSV file.
         The download result is a dictionary containing information about the download.
     """
-    from synapseclient.models.mixins.table_components import CsvTableDescriptor
 
     csv_descriptor = CsvTableDescriptor(
         separator=separator,
