@@ -7736,7 +7736,7 @@ class Synapse(object):
 
             # Create CSV table descriptor with your settings
             csv_descriptor = CsvTableDescriptor(
-                is_file_line_header=True,
+                is_first_line_header=True,
                 separator=",",  # or your custom separator
                 quote_character='"',  # or your custom quote character
                 escape_character="\\",  # or your custom escape character

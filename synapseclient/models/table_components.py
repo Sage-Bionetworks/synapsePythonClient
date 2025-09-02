@@ -129,7 +129,7 @@ class CsvTableDescriptor:
             "quoteCharacter": self.quote_character,
             "escapeCharacter": self.escape_character,
             "lineEnd": self.line_end,
-            "isFirstLineHeader": self.is_file_line_header,
+            "isFirstLineHeader": self.is_first_line_header,
         }
         delete_none_keys(request)
         return request
@@ -937,7 +937,7 @@ class QueryJob(AsynchronousCommunicator):
         synapse_request = {
             "concreteType": QUERY_TABLE_CSV_REQUEST,
             "entityId": self.entity_id,
-            "csvTableDescriptor": self.csv_table_descriptor,
+            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
             "sql": self.sql,
             "writeHeader": self.write_header,
             "includeRowIdAndRowVersion": self.include_row_id_and_row_version,
