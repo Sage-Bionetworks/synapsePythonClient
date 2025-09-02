@@ -6,7 +6,6 @@ import urllib.parse as urllib_parse
 from contextlib import contextmanager
 from typing import Union
 
-from boto3.exceptions import S3UploadFailedError
 from tqdm import tqdm
 
 from synapseclient.core.retry import with_retry
@@ -195,6 +194,7 @@ class S3ClientWrapper:
 
         S3ClientWrapper._attempt_import_boto3()
         import boto3.s3.transfer
+        from boto3.exceptions import S3UploadFailedError
 
         transfer_config = boto3.s3.transfer.TransferConfig(
             **(transfer_config_kwargs or {})
