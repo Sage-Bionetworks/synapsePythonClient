@@ -160,12 +160,22 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
 async def _query_table_csv(
     query: str,
     synapse: Synapse,
+    header: bool = True,
+    include_row_id_and_row_version: bool = True,
+    # for csvTableDescriptor
     quote_character: str = '"',
     escape_character: str = "\\",
     line_end: str = os.linesep,
     separator: str = ",",
-    header: bool = True,
-    include_row_id_and_row_version: bool = True,
+    # END for csvTableDescriptor
+    file_name: str = None,
+    additional_filters: Dict[str, Any] = None,
+    selected_facets: Dict[str, Any] = None,
+    include_entity_etag: bool = False,
+    select_file_column: int = None,
+    select_file_version_column: int = None,
+    offset: int = None,
+    sort: List[Dict[str, Any]] = None,
     download_location: str = None,
 ) -> Tuple[QueryJob, str]:
     """
@@ -182,23 +192,37 @@ async def _query_table_csv(
         separator:                 Separator character
         header:                    Whether to set the first line as header.
         include_row_id_and_row_version: Whether to set the first two columns contains the row ID and row version.
-        download_location:        The download location
+        download_location:         The download location
 
     Returns:
         A tuple containing the download result (QueryJob object) and the path to the downloaded CSV file.
         The download result is a dictionary containing information about the download.
     """
+    from synapseclient.models.mixins.table_components import CsvTableDescriptor
+
+    csv_descriptor = CsvTableDescriptor(
+        separator=separator,
+        escape_character=escape_character,
+        quote_character=quote_character,
+        line_end=line_end,
+        is_first_line_header=header,
+    )
 
     entity_id = extract_synapse_id_from_query(query)
     query_job_request = QueryJob(
         entity_id=entity_id,
         sql=query,
-        header=header,
-        quote_character=quote_character,
-        escape_character=escape_character,
-        line_end=line_end,
-        separator=separator,
+        write_header=header,
+        csv_table_descriptor=csv_descriptor,
         include_row_id_and_row_version=include_row_id_and_row_version,
+        file_name=file_name,
+        additional_filters=additional_filters,
+        selected_facets=selected_facets,
+        include_entity_etag=include_entity_etag,
+        select_file_column=select_file_column,
+        select_file_version_column=select_file_version_column,
+        offset=offset,
+        sort=sort,
     )
 
     download_from_table_result = await query_job_request.send_job_and_wait_async(

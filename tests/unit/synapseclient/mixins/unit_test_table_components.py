@@ -38,6 +38,7 @@ from synapseclient.models.mixins.table_components import (
 from synapseclient.models.table_components import (
     ActionRequiredCount,
     ColumnType,
+    CsvTableDescriptor,
     Query,
     QueryBundleRequest,
     QueryNextPageToken,
@@ -958,8 +959,8 @@ class TestQuery:
         # WHEN calling to_synapse_request
         result = query.to_synapse_request()
 
-        # THEN verify only sql is included (None values are deleted)
-        expected = {"sql": "SELECT * FROM syn123456"}
+        # THEN verify only sql and includeEntityEtag are included (None values are deleted)
+        expected = {"sql": "SELECT * FROM syn123456", "includeEntityEtag": False}
         assert result == expected
 
     def test_to_synapse_request_with_all_parameters(self):
@@ -1468,15 +1469,19 @@ class TestQueryMixin:
             }
         )
 
-        # Mock query result with headers that include date and list column types
-        mock_query_job_response = QueryJob(
-            entity_id="syn123",
-            sql="SELECT * FROM syn123",
-            header=True,
+        csv_table_descriptor = CsvTableDescriptor(
             quote_character='"',
             escape_character="\\",
             line_end=os.linesep,
             separator=",",
+            is_first_line_header=True,
+        )
+
+        # Mock query result with headers that include date and list column types
+        mock_query_job_response = QueryJob(
+            entity_id="syn123",
+            sql="SELECT * FROM syn123",
+            csv_table_descriptor=csv_table_descriptor,
             include_row_id_and_row_version=True,
             job_id="test-job-12345",
             response_concrete_type="org.sagebionetworks.repo.model.table.DownloadFromTableResult",
@@ -1879,12 +1884,18 @@ class TestQueryTableCsv:
             "escape_character": "/",
             "line_end": "\n",
             "separator": ";",
-            "header": False,
-            "include_row_id_and_row_version": False,
+            "is_first_line_header": False,
         }
+        csv_table_descriptor = CsvTableDescriptor(**custom_params)
 
         # WHEN creating a QueryJob with these parameters
-        query_job = QueryJob(entity_id="syn1234", sql=sample_query, **custom_params)
+        query_job = QueryJob(
+            entity_id="syn1234",
+            sql=sample_query,
+            include_row_id_and_row_version=False,
+            write_header=False,
+            csv_table_descriptor=csv_table_descriptor,
+        )
 
         # THEN verify the to_synapse_request() method generates the correct request
         synapse_request = query_job.to_synapse_request()
@@ -1897,11 +1908,11 @@ class TestQueryTableCsv:
         assert synapse_request["sql"] == sample_query
         assert synapse_request["writeHeader"] == False
         assert synapse_request["includeRowIdAndRowVersion"] == False
-        assert synapse_request["csvTableDescriptor"]["isFirstLineHeader"] == False
-        assert synapse_request["csvTableDescriptor"]["quoteCharacter"] == "'"
-        assert synapse_request["csvTableDescriptor"]["escapeCharacter"] == "/"
-        assert synapse_request["csvTableDescriptor"]["lineEnd"] == "\n"
-        assert synapse_request["csvTableDescriptor"]["separator"] == ";"
+        assert synapse_request["csvTableDescriptor"].is_first_line_header == False
+        assert synapse_request["csvTableDescriptor"].quote_character == "'"
+        assert synapse_request["csvTableDescriptor"].escape_character == "/"
+        assert synapse_request["csvTableDescriptor"].line_end == "\n"
+        assert synapse_request["csvTableDescriptor"].separator == ";"
 
     @pytest.mark.asyncio
     async def test_query_table_csv_basic_functionality(
@@ -2376,40 +2387,71 @@ class TestQueryNextPageToken:
 class TestQueryJob:
     """Test suite for the QueryJob.to_synapse_request and fill_from_dict methods."""
 
-    def test_to_synapse_request_with_custom_parameters(self):
-        """Test to_synapse_request with custom CSV formatting parameters."""
-        # GIVEN a QueryJob with custom parameters
-        job = QueryJob(
-            entity_id="syn789012",
-            sql="SELECT col1, col2 FROM syn789012",
-            header=False,
+    @pytest.fixture
+    def sample_csv_descriptor(self):
+        """Sample CsvTableDescriptor for testing."""
+        return CsvTableDescriptor(
             quote_character="'",
             escape_character="/",
             line_end="\n",
             separator=";",
-            include_row_id_and_row_version=False,
+        )
+
+    def test_to_synapse_request_with_defaults(self):
+        """Test to_synapse_request with default parameters."""
+        # GIVEN a QueryJob with minimal parameters (using defaults)
+        job = QueryJob(entity_id="syn123456", sql="SELECT * FROM syn123456")
+
+        # WHEN calling to_synapse_request
+        result = job.to_synapse_request()
+
+        # THEN verify default values are set correctly
+        expected = {
+            "concreteType": QUERY_TABLE_CSV_REQUEST,
+            "entityId": "syn123456",
+            "sql": "SELECT * FROM syn123456",
+            "writeHeader": True,  # Default value
+            "includeRowIdAndRowVersion": True,  # Default value
+            "includeEntityEtag": False,  # Default value
+        }
+        assert result == expected
+
+    def test_to_synapse_request_with_none_values(self):
+        """Test that None values are properly excluded from request."""
+        # GIVEN a QueryJob with some None values
+        job = QueryJob(
+            entity_id="syn123456",
+            sql="SELECT * FROM syn123456",
+            csv_table_descriptor=None,  # Should be excluded
+            include_entity_etag=None,  # Should be excluded
         )
 
         # WHEN calling to_synapse_request
         result = job.to_synapse_request()
 
-        # THEN verify the correct request structure with custom values
-        expected = {
-            "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
-            "entityId": "syn789012",
-            "csvTableDescriptor": {
-                "isFirstLineHeader": False,
-                "quoteCharacter": "'",
-                "escapeCharacter": "/",
-                "lineEnd": "\n",
-                "separator": ";",
-            },
-            "sql": "SELECT col1, col2 FROM syn789012",
-            "writeHeader": False,
-            "includeRowIdAndRowVersion": False,
-            "includeEntityEtag": True,
-        }
-        assert result == expected
+        # THEN verify None values are not included
+        assert "csvTableDescriptor" not in result
+        assert "includeEntityEtag" not in result
+
+    def test_to_synapse_request_csv_descriptor_integration(self, sample_csv_descriptor):
+        """Test that CsvTableDescriptor is properly integrated in request."""
+        # GIVEN a QueryJob with CsvTableDescriptor
+        job = QueryJob(
+            entity_id="syn123456",
+            sql="SELECT * FROM syn123456",
+            csv_table_descriptor=sample_csv_descriptor,
+        )
+
+        # WHEN calling to_synapse_request
+        result = job.to_synapse_request()
+
+        # THEN verify CsvTableDescriptor is included correctly
+        assert "csvTableDescriptor" in result
+        csv_desc = result["csvTableDescriptor"]
+        assert csv_desc.quote_character == "'"
+        assert csv_desc.escape_character == "/"
+        assert csv_desc.line_end == "\n"
+        assert csv_desc.separator == ";"
 
     def test_fill_from_dict_with_complete_response(self):
         """Test fill_from_dict with complete DownloadFromTableResult response."""
@@ -2444,6 +2486,8 @@ class TestQueryJob:
         # Verify the nested SelectColumns
         assert isinstance(result.headers, list)
         assert len(result.headers) == 2
+        assert isinstance(result.headers[0], SelectColumn)
+        assert isinstance(result.headers[1], SelectColumn)
         assert result.headers[0].name == "col1"
         assert result.headers[0].column_type == "STRING"
         assert result.headers[0].id == "111"
