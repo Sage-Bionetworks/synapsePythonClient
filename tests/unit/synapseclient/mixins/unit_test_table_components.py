@@ -17,13 +17,12 @@ from synapseclient.core.constants.concrete_types import (
     QUERY_TABLE_CSV_REQUEST,
 )
 from synapseclient.core.utils import MB
-from synapseclient.models import Activity, Column, ColumnType, SumFileSizes
+from synapseclient.models import Activity, Column, ColumnType
 from synapseclient.models.mixins.table_components import (
     ColumnMixin,
     DeleteMixin,
     FailureStrategy,
     GetMixin,
-    QueryJob,
     QueryMixin,
     SnapshotRequest,
     TableDeleteRowMixin,
@@ -43,6 +42,7 @@ from synapseclient.models.table_components import (
     CsvTableDescriptor,
     Query,
     QueryBundleRequest,
+    QueryJob,
     QueryNextPageToken,
     QueryResult,
     QueryResultBundle,
@@ -50,6 +50,7 @@ from synapseclient.models.table_components import (
     Row,
     RowSet,
     SelectColumn,
+    SumFileSizes,
 )
 
 POST_COLUMNS_PATCH = "synapseclient.models.mixins.table_components.post_columns"
@@ -1910,11 +1911,11 @@ class TestQueryTableCsv:
         assert synapse_request["sql"] == sample_query
         assert synapse_request["writeHeader"] == False
         assert synapse_request["includeRowIdAndRowVersion"] == False
-        assert synapse_request["csvTableDescriptor"].is_first_line_header == False
-        assert synapse_request["csvTableDescriptor"].quote_character == "'"
-        assert synapse_request["csvTableDescriptor"].escape_character == "/"
-        assert synapse_request["csvTableDescriptor"].line_end == "\n"
-        assert synapse_request["csvTableDescriptor"].separator == ";"
+        assert synapse_request["csvTableDescriptor"]["isFirstLineHeader"] == False
+        assert synapse_request["csvTableDescriptor"]["quoteCharacter"] == "'"
+        assert synapse_request["csvTableDescriptor"]["escapeCharacter"] == "/"
+        assert synapse_request["csvTableDescriptor"]["lineEnd"] == "\n"
+        assert synapse_request["csvTableDescriptor"]["separator"] == ";"
 
     @pytest.mark.asyncio
     async def test_query_table_csv_basic_functionality(
@@ -2450,10 +2451,10 @@ class TestQueryJob:
         # THEN verify CsvTableDescriptor is included correctly
         assert "csvTableDescriptor" in result
         csv_desc = result["csvTableDescriptor"]
-        assert csv_desc.quote_character == "'"
-        assert csv_desc.escape_character == "/"
-        assert csv_desc.line_end == "\n"
-        assert csv_desc.separator == ";"
+        assert csv_desc["quoteCharacter"] == "'"
+        assert csv_desc["escapeCharacter"] == "/"
+        assert csv_desc["lineEnd"] == "\n"
+        assert csv_desc["separator"] == ";"
 
     def test_fill_from_dict_with_complete_response(self):
         """Test fill_from_dict with complete DownloadFromTableResult response."""

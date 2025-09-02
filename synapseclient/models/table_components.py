@@ -934,10 +934,14 @@ class QueryJob(AsynchronousCommunicator):
     def to_synapse_request(self) -> Dict[str, Any]:
         """Convert to DownloadFromTableRequest format for async job submission."""
 
+        csv_table_descriptor = None
+        if self.csv_table_descriptor:
+            csv_table_descriptor = self.csv_table_descriptor.to_synapse_request()
+
         synapse_request = {
             "concreteType": QUERY_TABLE_CSV_REQUEST,
             "entityId": self.entity_id,
-            "csvTableDescriptor": self.csv_table_descriptor.to_synapse_request(),
+            "csvTableDescriptor": csv_table_descriptor,
             "sql": self.sql,
             "writeHeader": self.write_header,
             "includeRowIdAndRowVersion": self.include_row_id_and_row_version,
