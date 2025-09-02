@@ -300,7 +300,7 @@ def _query_table_next_page(
     return QueryResultBundle.fill_from_dict(data=result)
 
 
-async def query_table_row_set(
+async def _query_table_row_set(
     query: str,
     synapse: Synapse,
     limit: int = None,
@@ -388,7 +388,7 @@ async def _table_query(
     client = Synapse.get_client(synapse_client=synapse)
 
     if results_as.lower() == "rowset":
-        return await query_table_row_set(query=query, synapse=client, **kwargs)
+        return await _query_table_row_set(query=query, synapse=client, **kwargs)
 
     elif results_as.lower() == "csv":
         result, csv_path = await _query_table_csv(
