@@ -20,6 +20,7 @@ from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import (
     QUERY_BUNDLE_REQUEST,
+    QUERY_RESULT,
     QUERY_TABLE_CSV_REQUEST,
 )
 from synapseclient.core.utils import delete_none_keys, from_unix_epoch_time
@@ -821,11 +822,11 @@ class QueryResult:
     This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html>
     """
 
-    concrete_type: str
-    """The concrete type of this object"""
-
     query_results: RowSet
     """Represents a set of row of a TableEntity (RowSet)"""
+
+    concrete_type: str = QUERY_RESULT
+    """The concrete type of this object"""
 
     next_page_token: Optional[QueryNextPageToken] = None
     """Token for retrieving the next page of results, if available"""

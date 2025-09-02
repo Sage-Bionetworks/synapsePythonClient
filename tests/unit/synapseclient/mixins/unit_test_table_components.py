@@ -13,6 +13,7 @@ from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
 from synapseclient.core.constants.concrete_types import (
     QUERY_BUNDLE_REQUEST,
+    QUERY_RESULT,
     QUERY_TABLE_CSV_REQUEST,
 )
 from synapseclient.core.utils import MB
@@ -34,6 +35,7 @@ from synapseclient.models.mixins.table_components import (
     ViewUpdateMixin,
     _query_table_csv,
     _query_table_next_page,
+    _query_table_row_set,
 )
 from synapseclient.models.table_components import (
     ActionRequiredCount,
@@ -2494,6 +2496,179 @@ class TestQueryJob:
         assert result.headers[1].name == "col2"
         assert result.headers[1].column_type == "INTEGER"
         assert result.headers[1].id == "222"
+
+
+class TestQueryTableRowSet:
+    """Test suite for the _query_table_row_set function."""
+
+    @pytest.fixture
+    def mock_synapse_client(self):
+        """Mock Synapse client for testing."""
+        mock_client = MagicMock()
+        return mock_client
+
+    @pytest.fixture
+    def sample_query_result_bundle(self):
+        """Sample QueryResultBundle response."""
+        return QueryResultBundle(
+            query_result=QueryResult(
+                concrete_type=QUERY_RESULT,
+                query_results=RowSet(
+                    table_id="syn123456",
+                    etag="test-etag",
+                    headers=[
+                        SelectColumn(
+                            name="test_col", column_type=ColumnType.STRING, id="242777"
+                        ),
+                        SelectColumn(
+                            name="test_col2", column_type=ColumnType.STRING, id="242778"
+                        ),
+                    ],
+                    rows=[
+                        Row(
+                            row_id=1,
+                            version_number=1,
+                            etag=None,
+                            values=["random string1", "random string2"],
+                        )
+                    ],
+                ),
+                next_page_token=None,
+            ),
+            query_count=1,
+            select_columns=[
+                SelectColumn(name="col1", column_type=ColumnType.STRING, id="111"),
+                SelectColumn(name="col2", column_type=ColumnType.INTEGER, id="222"),
+            ],
+            max_rows_per_page=1000,
+            column_models=[
+                Column(
+                    id="242777",
+                    name="test_col",
+                    column_type=ColumnType.STRING,
+                    facet_type=None,
+                    default_value=None,
+                    maximum_size=50,
+                    maximum_list_length=None,
+                    enum_values=None,
+                    json_sub_columns=None,
+                ),
+                Column(
+                    id="242778",
+                    name="test_col2",
+                    column_type=ColumnType.STRING,
+                    facet_type=None,
+                    default_value=None,
+                    maximum_size=50,
+                    maximum_list_length=None,
+                    enum_values=None,
+                    json_sub_columns=None,
+                ),
+            ],
+            facets=[],
+            sum_file_sizes=SumFileSizes(sum_file_size_bytes=1024, greater_than=False),
+            last_updated_on="2025-08-26T21:38:31.677Z",
+            combined_sql="SELECT col1, col2 FROM syn123456",
+            actions_required=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_query_table_row_set_basic(
+        self, mock_synapse_client, sample_query_result_bundle
+    ):
+        """Test basic query_table_row_set functionality."""
+        # GIVEN a query and mock response
+        query = "SELECT col1, col2 FROM syn123456"
+
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.extract_synapse_id_from_query",
+                return_value="syn123456",
+            ) as mock_extract_id,
+            patch.object(
+                QueryBundleRequest,
+                "send_job_and_wait_async",
+                return_value=sample_query_result_bundle,
+            ) as mock_send_job,
+        ):
+            # WHEN calling _query_table_row_set
+            result = await _query_table_row_set(
+                query=query,
+                synapse=mock_synapse_client,
+            )
+
+            # THEN verify the result
+            assert isinstance(result, QueryResultBundle)
+            assert result.query_count == 1
+            assert result.query_result == sample_query_result_bundle.query_result
+            assert result.select_columns == sample_query_result_bundle.select_columns
+            assert result.sum_file_sizes == sample_query_result_bundle.sum_file_sizes
+            assert result.last_updated_on == sample_query_result_bundle.last_updated_on
+            assert result.combined_sql == sample_query_result_bundle.combined_sql
+            assert result.column_models == sample_query_result_bundle.column_models
+            assert result.facets == sample_query_result_bundle.facets
+            assert (
+                result.actions_required == sample_query_result_bundle.actions_required
+            )
+
+            # Verify extract_synapse_id_from_query was called correctly
+            mock_extract_id.assert_called_once_with(query)
+
+            # Verify send_job_and_wait_async was called correctly
+            mock_send_job.assert_called_once_with(synapse_client=mock_synapse_client)
+
+    @pytest.mark.asyncio
+    async def test_query_table_row_set_with_parameters(
+        self, mock_synapse_client, sample_query_result_bundle
+    ):
+        """Test _query_table_row_set with all optional parameters."""
+        # GIVEN a query with all parameters
+        query = "SELECT col1, col2 FROM syn123456"
+        limit = 100
+        offset = 50
+        part_mask = 0x1 | 0x2 | 0x4  # Query results + count + select columns
+
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.extract_synapse_id_from_query",
+                return_value="syn123456",
+            ) as mock_extract_id,
+            patch(
+                "synapseclient.models.mixins.table_components.Query"
+            ) as mock_query_class,
+            patch.object(
+                QueryBundleRequest,
+                "send_job_and_wait_async",
+                return_value=sample_query_result_bundle,
+            ) as mock_send_job,
+        ):
+            # Create mock instances
+            mock_query_instance = MagicMock()
+            mock_query_class.return_value = mock_query_instance
+
+            # WHEN calling _query_table_row_set with parameters
+            result = await _query_table_row_set(
+                query=query,
+                synapse=mock_synapse_client,
+                limit=limit,
+                offset=offset,
+                part_mask=part_mask,
+            )
+            # THEN verify the Query was created with correct parameters
+            mock_query_class.assert_called_once_with(
+                sql=query,
+                include_entity_etag=True,
+                limit=limit,
+                offset=offset,
+            )
+
+            # THEN verify the result structure
+            assert isinstance(result, QueryResultBundle)
+            assert result.query_count == 1
+            assert result.query_result == sample_query_result_bundle.query_result
+
+            # Verify the QueryBundleRequest was created with correct parameters
+            mock_send_job.assert_called_once_with(synapse_client=mock_synapse_client)
 
 
 class TestQueryTableNextPage:

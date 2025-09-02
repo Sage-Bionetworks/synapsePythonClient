@@ -101,3 +101,5 @@ QUERY_TABLE_CSV_REQUEST = (
 # Query Table Bundle Request
 # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
 QUERY_BUNDLE_REQUEST = "org.sagebionetworks.repo.model.table.QueryBundleRequest"
+
+QUERY_RESULT = "org.sagebionetworks.repo.model.table.QueryResult"
