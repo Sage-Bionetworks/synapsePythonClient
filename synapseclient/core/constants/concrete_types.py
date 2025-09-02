@@ -103,3 +103,5 @@ QUERY_TABLE_CSV_REQUEST = (
 QUERY_BUNDLE_REQUEST = "org.sagebionetworks.repo.model.table.QueryBundleRequest"
 
 QUERY_RESULT = "org.sagebionetworks.repo.model.table.QueryResult"
+
+QUERY_TABLE_CSV_RESULT = "org.sagebionetworks.repo.model.table.DownloadFromTableResult"

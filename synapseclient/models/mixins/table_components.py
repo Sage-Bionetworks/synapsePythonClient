@@ -194,7 +194,7 @@ async def _query_table_csv(
         quote_character: The character used for quoting fields in the CSV.
             The default is a double quote (").
         escape_character: The character used for escaping special characters in the CSV.
-            The default is a backslash (\).
+            The default character '\\' will be used if this is not provided by the caller.
         line_end: The string used to separate lines in the CSV.
             The default is the system's line separator.
         separator: The character used to separate fields in the CSV.
@@ -311,7 +311,6 @@ async def _query_table_row_set(
 
     Args:
         query (str): The SQL query string to execute.
-        synapse (Synapse): An authenticated Synapse client instance.
         synapse (Synapse): An authenticated Synapse client instance.
         limit (int, optional): Maximum number of rows to return. Defaults to None.
         offset (int, optional): Number of rows to skip before starting to return rows. Defaults to None.

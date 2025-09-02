@@ -22,6 +22,7 @@ from synapseclient.core.constants.concrete_types import (
     QUERY_BUNDLE_REQUEST,
     QUERY_RESULT,
     QUERY_TABLE_CSV_REQUEST,
+    QUERY_TABLE_CSV_RESULT,
 )
 from synapseclient.core.utils import delete_none_keys, from_unix_epoch_time
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
@@ -928,7 +929,7 @@ class QueryJob(AsynchronousCommunicator):
     headers: Optional[List[SelectColumn]] = None
     """The column headers from the query result"""
 
-    response_concrete_type: Optional[str] = None
+    response_concrete_type: Optional[str] = QUERY_TABLE_CSV_RESULT
     """The concrete type of the response (usually DownloadFromTableResult)"""
 
     def to_synapse_request(self) -> Dict[str, Any]:
