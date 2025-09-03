@@ -1079,7 +1079,6 @@ class TestUpsertRows:
             }
         )
 
-        # Reset the spy to count just this operation
         spy_table_update = mocker.spy(table_module, "_push_row_updates_to_synapse")
 
         await table.upsert_rows_async(

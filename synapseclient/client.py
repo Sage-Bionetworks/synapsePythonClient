@@ -7724,8 +7724,7 @@ class Synapse(object):
             ```python
             import asyncio
             from synapseclient import Synapse
-            from synapseclient.models import Table
-            from synapseclient.models.mixins.table_components import CsvTableDescriptor
+            from synapseclient.models import Table, CsvTableDescriptor
 
             TABLE_ID ="syn123"  # Replace with your table ID
             PATH = "/path/to/table.csv"
