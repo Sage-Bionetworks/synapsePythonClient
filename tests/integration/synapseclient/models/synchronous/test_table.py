@@ -793,7 +793,7 @@ class TestRowStorage:
         assert len(results) == 200
 
         # AND The spy should have been called in multiple batches
-        assert spy_send_job.call_count == 4
+        assert spy_send_job.call_count == 5
 
     async def test_store_rows_as_df_being_split_and_uploaded(
         self, project_model: Project, mocker: MockerFixture
@@ -857,7 +857,7 @@ class TestRowStorage:
 
         # AND The spy should have been called in multiple batches
         # Note: DataFrames have a minimum of 100 rows per batch
-        assert spy_send_job.call_count == 2
+        assert spy_send_job.call_count == 3
 
     @skip("Skip in normal testing because the large size makes it slow")
     async def test_store_rows_as_large_df_being_split_and_uploaded(
@@ -1040,7 +1040,7 @@ class TestUpsertRows:
         # We should have 9 total rows now (6 from before + 3 new)
         assert len(results) == 9
         # The spy should have been called for update and insert operations
-        assert spy_send_job.call_count == 2
+        assert spy_send_job.call_count == 4
 
         # Test 4: Dry run operation
         # WHEN I perform a dry run upsert
@@ -1238,7 +1238,7 @@ class TestUpsertRows:
         assert len(results) == 6
 
         # AND multiple batch jobs should have been created due to batching settings
-        assert spy_send_job.call_count == 5  # More batches due to small size settings
+        assert spy_send_job.call_count == 7  # More batches due to small size settings
 
     async def test_upsert_all_data_types(
         self, mocker: MockerFixture, project_model: Project
