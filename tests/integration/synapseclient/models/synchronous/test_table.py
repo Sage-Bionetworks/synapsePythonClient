@@ -1051,8 +1051,7 @@ class TestUpsertRows:
             }
         )
 
-        # Reset the spy to count just this operation
-        spy_send_job.reset_mock()
+        spy_table_update = mocker.spy(table_module, "_push_row_updates_to_synapse")
 
         table.upsert_rows(
             values=dry_run_data,
@@ -1068,7 +1067,7 @@ class TestUpsertRows:
         # The values from the previous update should still be in place
         assert 99 not in results["column_key_2"].values
         # The spy should not have been called
-        assert spy_send_job.call_count == 0
+        assert spy_table_update.call_count == 0
 
     async def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
         """Test upserting rows using multiple columns as the primary key."""
