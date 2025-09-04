@@ -44,7 +44,7 @@ class SumFileSizes:
 
     sum_file_size_bytes: int = None
     """The sum of the file size in bytes."""
-
+    greater_than: bool = None
     """When true, the actual sum of the files sizes is greater than the value provided with 'sumFileSizesBytes'. When false, the actual sum of the files sizes is equals the value provided with 'sumFileSizesBytes'"""
 
 
