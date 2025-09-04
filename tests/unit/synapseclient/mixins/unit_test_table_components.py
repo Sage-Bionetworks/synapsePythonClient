@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from numpy import dtype
 
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
