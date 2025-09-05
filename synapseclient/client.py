@@ -7426,9 +7426,17 @@ class Synapse(object):
         for result in self.restGET(uri)["results"]:
             yield Column(**result)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `query` functions from `synapseclient.models.Table` instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def tableQuery(self, query: str, resultsAs: str = "csv", **kwargs):
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `query` or `query_async` functions from [synapseclient.models.Table][] instead.
+
         Query a Synapse Table.
 
         You can receive query results either as a generator over rows or as a CSV file. For smallish tables, either
@@ -7461,6 +7469,69 @@ class Synapse(object):
                   # Sets the max timeout to 5 minutes.
                   syn.table_query_timeout = 300
 
+        Example: Using this function (DEPRECATED)
+            Getting query results as a DataFrame:
+
+                results = syn.tableQuery("SELECT * FROM syn12345")
+                df = results.asDataFrame()
+
+            Getting query results as a CSV file:
+
+                results = syn.tableQuery("SELECT * FROM syn12345", resultsAs="csv", downloadLocation="./my_data/")
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import query, query_async
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Synchronous query (recommended for most use cases)
+            results = query(query="SELECT * FROM syn12345")
+            print(results)
+
+            # Query with specific options
+            results = query(
+                query="SELECT * FROM syn12345",
+                include_row_id_and_row_version=True,
+                convert_to_datetime=True
+            )
+            print(results)
+
+            # Download query results to a CSV file
+            file_path = query(
+                query="SELECT * FROM syn12345",
+                download_location="./my_data/",
+                separator=",",
+                quote_character='"',
+                header=True
+            )
+            print(f"Results downloaded to: {file_path}")
+
+            # Asynchronous query (for advanced use cases)
+            async def async_query_example():
+                results = await query_async(query="SELECT * FROM syn12345")
+                print(results)
+
+                # Download query results to a CSV file asynchronously
+                file_path = await query_async(
+                    query="SELECT * FROM syn12345",
+                    download_location="./my_data/",
+                    separator=",",
+                    quote_character='"',
+                    header=True
+                )
+                print(f"Results downloaded to: {file_path}")
+
+            # Run the async example
+            asyncio.run(async_query_example())
+            ```
+
         """
         if resultsAs.lower() == "rowset":
             return TableQueryResult(self, query, **kwargs)
@@ -7475,7 +7546,11 @@ class Synapse(object):
                 "Unknown return type requested from tableQuery: " + str(resultsAs)
             )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `query_part_mask` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
+    )
     def _queryTable(
         self,
         query: str,
@@ -7485,6 +7560,9 @@ class Synapse(object):
         partMask=None,
     ) -> TableQueryResult:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.
+
         Query a table and return the first page of results as a [QueryResultBundle](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html).
         If the result contains a *nextPageToken*, following pages a retrieved by calling [_queryTableNext][].
 
@@ -7502,6 +7580,46 @@ class Synapse(object):
 
         Returns:
             The first page of results as a QueryResultBundle
+
+        Example: Using this function (DEPRECATED)
+            Query a table with part mask:
+
+                result = syn._queryTable(
+                    query="SELECT * FROM syn123",
+                    partMask=0x1
+                )
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            table = Table(id="syn123")
+            result = table.query_part_mask(
+                query="SELECT * FROM syn123",
+                part_mask=0x1  # QUERY_RESULTS
+            )
+
+            # Or using the async version
+            async def async_query_example():
+                table = Table(id="syn123")
+                result = await table.query_part_mask_async(
+                    query="SELECT * FROM syn123",
+                    part_mask=0x1  # QUERY_RESULTS
+                )
+                print(result)
+
+            # Run the async example
+            asyncio.run(async_query_example())
+            ```
+
         """
         # See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
         query_bundle_request = {
@@ -7527,9 +7645,16 @@ class Synapse(object):
 
         return self._waitForAsync(uri=uri, request=query_bundle_request)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `query_part_mask` method on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.",
+    )
     def _queryTableNext(self, nextPageToken: str, tableId: str) -> TableQueryResult:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `query_part_mask` or `query_part_mask_async` methods on the `Table`, `EntityView`, `SubmissionView`, `MaterializedView`, or `Dataset` classes instead.
+
         Retrieve following pages if the result contains a *nextPageToken*
 
         Arguments:
@@ -7538,11 +7663,59 @@ class Synapse(object):
 
         Returns:
             The following page of results as a QueryResultBundle
+
+        Example: Using this function (DEPRECATED)
+            Get the next page of results:
+
+                result = syn._queryTableNext(
+                    nextPageToken="some_token",
+                    tableId="syn123"
+                )
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            table = Table(id="syn123")
+
+            # For pagination, use LIMIT and OFFSET directly in the SQL query instead of nextPageToken.
+            # LIMIT controls the number of rows returned per page, OFFSET skips the specified number of rows.
+            # For example: LIMIT 100 OFFSET 100 returns rows 101-200, LIMIT 100 OFFSET 200 returns rows 201-300, etc.
+            result = table.query_part_mask(
+                query="SELECT * FROM syn123 LIMIT 100 OFFSET 100",
+                part_mask=0x1  # QUERY_RESULTS
+            )
+
+            # Or using the async version
+            async def async_query_example():
+                table = Table(id="syn123")
+                result = await table.query_part_mask_async(
+                    query="SELECT * FROM syn123 LIMIT 100 OFFSET 100",
+                    part_mask=0x1  # QUERY_RESULTS
+                )
+                print(result)
+
+            # Run the async example
+            asyncio.run(async_query_example())
+            ```
         """
         uri = "/entity/{id}/table/query/nextPage/async".format(id=tableId)
         return self._waitForAsync(uri=uri, request=nextPageToken)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `_chunk_and_upload_csv` method on the `from synapseclient.models import Table` class instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def _uploadCsv(
         self,
         filepath: str,
@@ -7556,6 +7729,9 @@ class Synapse(object):
         linesToSkip: int = 0,
     ) -> dict:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `_chunk_and_upload_csv` method on [synapseclient.models.Table][] instead for efficient CSV processing.
+
         Send an [UploadToTableRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html) to Synapse.
 
         Arguments:
@@ -7573,6 +7749,54 @@ class Synapse(object):
 
         Returns:
             [UploadToTableResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html)
+
+        Example: Using this function (DEPRECATED)
+            Uploading a CSV file to an existing table:
+
+                response = syn._uploadCsv(
+                    filepath='/path/to/table.csv',
+                    schema='syn123'
+                )
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table, CsvTableDescriptor
+
+            TABLE_ID ="syn123"  # Replace with your table ID
+            PATH = "/path/to/table.csv"
+
+            # Login to Synapse
+            # syn = Synapse()
+            # syn.login()
+
+            # Create CSV table descriptor with your settings
+            csv_descriptor = CsvTableDescriptor(
+                is_first_line_header=True,
+                separator=",",  # or your custom separator
+                quote_character='"',  # or your custom quote character
+                escape_character="\\",  # or your custom escape character
+            )
+
+            # Define an async function to upload CSV with chunk method
+            async def upload_csv_with_chunk_method(table_id, path):
+                table = await Table(id=table_id).get_async(include_columns=True)
+                await table._chunk_and_upload_csv(
+                    path_to_csv=path,
+                    insert_size_bytes=900 * 1024 * 1024,  # 900MB chunks
+                    csv_table_descriptor=csv_descriptor,
+                    schema_change_request=None,  # Add schema changes if needed
+                    client=syn,
+                    job_timeout=600,
+                    additional_changes=None  # Add additional changes if needed
+                )
+
+            # Run the async function
+            asyncio.run(upload_csv_with_chunk_method(table_id=TABLE_ID, path=PATH))
+            ```
         """
 
         fileHandleId = wrap_async_to_sync(
@@ -7601,7 +7825,11 @@ class Synapse(object):
 
         return response
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _check_table_transaction_response(self, response):
         for result in response["results"]:
             result_type = result["concreteType"]
@@ -7640,7 +7868,12 @@ class Synapse(object):
                     % (result_type, result)
                 )
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `query` or `query_async` functions from `synapseclient.models.Table` with `download_location` parameter instead. "
+        "Check the docstring for the replacement function example.",
+    )
     def _queryTableCsv(
         self,
         query: str,
@@ -7653,6 +7886,9 @@ class Synapse(object):
         downloadLocation: str = None,
     ) -> Tuple:
         """
+        **Deprecated with replacement.** This method will be removed in 5.0.0.
+        Use the `query` or `query_async` functions from [synapseclient.models.Table][] with `download_location` parameter instead.
+
         Query a Synapse Table and download a CSV file containing the results.
 
         Sends a [DownloadFromTableRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html) to Synapse.
@@ -7669,6 +7905,55 @@ class Synapse(object):
 
         Returns:
             A tuple containing a [DownloadFromTableResult](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html)
+
+        Example: Using this function (DEPRECATED)
+            Query a table and download CSV:
+
+                result, csv_path = syn._queryTableCsv(
+                    query="SELECT * FROM syn123",
+                    downloadLocation="/path/to/download",
+                    quoteCharacter='"',
+                    separator=","
+                )
+
+        Example: Migration to new method
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import query, query_async
+
+            # Login to Synapse
+            syn = Synapse()
+            syn.login()
+
+            # Synchronous query with CSV download
+            csv_path = query(
+                query="SELECT * FROM syn123",
+                download_location="/path/to/download",
+                quote_character='"',
+                separator=",",
+                header=True,
+                include_row_id_and_row_version=True
+            )
+            print(f"CSV downloaded to: {csv_path}")
+
+            # Asynchronous query with CSV download
+            async def async_csv_download():
+                csv_path = await query_async(
+                    query="SELECT * FROM syn123",
+                    download_location="/path/to/download",
+                    quote_character='"',
+                    separator=",",
+                    header=True,
+                    include_row_id_and_row_version=True
+                )
+                print(f"CSV downloaded to: {csv_path}")
+
+            # Run the async example
+            asyncio.run(async_csv_download())
+            ```
 
         The DownloadFromTableResult object contains these fields:
          * headers:             ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
@@ -8075,7 +8360,10 @@ class Synapse(object):
 
         return file_handle_to_path_map
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _build_table_download_file_handle_list(self, table, columns, downloadLocation):
         # ------------------------------------------------------------
         # build list of file handles to download
@@ -8117,7 +8405,10 @@ class Synapse(object):
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _get_default_view_columns(self, view_type, view_type_mask=None):
         """Get default view columns"""
         uri = f"/column/tableview/defaults?viewEntityType={view_type}"
@@ -8125,7 +8416,10 @@ class Synapse(object):
             uri += f"&viewTypeMask={view_type_mask}"
         return [Column(**col) for col in self.restGET(uri)["list"]]
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
     def _get_annotation_view_columns(
         self, scope_ids: list, view_type: str, view_type_mask: str = None
     ) -> list:

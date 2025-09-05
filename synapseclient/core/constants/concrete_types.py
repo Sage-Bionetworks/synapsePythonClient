@@ -91,3 +91,17 @@ GET_VALIDATION_SCHEMA_REQUEST = (
     "org.sagebionetworks.repo.model.schema.GetValidationSchemaRequest"
 )
 CREATE_SCHEMA_REQUEST = "org.sagebionetworks.repo.model.schema.CreateSchemaRequest"
+
+# Query Table as a CSV
+# https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html
+QUERY_TABLE_CSV_REQUEST = (
+    "org.sagebionetworks.repo.model.table.DownloadFromTableRequest"
+)
+
+# Query Table Bundle Request
+# https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+QUERY_BUNDLE_REQUEST = "org.sagebionetworks.repo.model.table.QueryBundleRequest"
+
+QUERY_RESULT = "org.sagebionetworks.repo.model.table.QueryResult"
+
+QUERY_TABLE_CSV_RESULT = "org.sagebionetworks.repo.model.table.DownloadFromTableResult"

@@ -10,6 +10,11 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
+from synapseclient.core.constants.concrete_types import (
+    QUERY_BUNDLE_REQUEST,
+    QUERY_RESULT,
+    QUERY_TABLE_CSV_REQUEST,
+)
 from synapseclient.core.utils import MB
 from synapseclient.models import Activity, Column, ColumnType
 from synapseclient.models.mixins.table_components import (
@@ -26,8 +31,26 @@ from synapseclient.models.mixins.table_components import (
     ViewSnapshotMixin,
     ViewStoreMixin,
     ViewUpdateMixin,
+    _query_table_csv,
+    _query_table_next_page,
+    _query_table_row_set,
 )
-from synapseclient.table import TableQueryResult
+from synapseclient.models.table_components import (
+    ActionRequiredCount,
+    ColumnType,
+    CsvTableDescriptor,
+    Query,
+    QueryBundleRequest,
+    QueryJob,
+    QueryNextPageToken,
+    QueryResult,
+    QueryResultBundle,
+    QueryResultOutput,
+    Row,
+    RowSet,
+    SelectColumn,
+    SumFileSizes,
+)
 
 POST_COLUMNS_PATCH = "synapseclient.models.mixins.table_components.post_columns"
 GET_ID_PATCH = "synapseclient.models.mixins.table_components.get_id"
@@ -927,6 +950,264 @@ class TestTableUpsertMixin:
             )
 
 
+class TestQuery:
+    """Test suite for the Query.to_synapse_request method."""
+
+    def test_to_synapse_request_with_minimal_data(self):
+        """Test to_synapse_request with only required SQL parameter."""
+        # GIVEN a Query with minimal parameters
+        query = Query(sql="SELECT * FROM syn123456")
+
+        # WHEN calling to_synapse_request
+        result = query.to_synapse_request()
+
+        # THEN verify only sql and includeEntityEtag are included (None values are deleted)
+        expected = {"sql": "SELECT * FROM syn123456", "includeEntityEtag": False}
+        assert result == expected
+
+    def test_to_synapse_request_with_all_parameters(self):
+        """Test to_synapse_request with all parameters specified."""
+        # GIVEN a Query with all parameters
+        additional_filters = [
+            {
+                "concreteType": "org.example.Filter1",
+                "column": "col1",
+                "operator": "EQUALS",
+                "values": ["value1"],
+            },
+            {
+                "concreteType": "org.example.Filter2",
+                "column": "col2",
+                "operator": "GREATER_THAN",
+                "values": [10],
+            },
+        ]
+        selected_facets = [
+            {
+                "concreteType": "org.example.FacetColumnRangeRequest",
+                "columnName": "age",
+                "min": "18",
+                "max": "65",
+            },
+            {
+                "concreteType": "org.example.FacetColumnValuesRequest",
+                "columnName": "category",
+                "facetValues": ["A", "B"],
+            },
+        ]
+        sort_items = [
+            {"column": "name", "direction": "ASC"},
+            {"column": "date_created", "direction": "DESC"},
+        ]
+
+        query = Query(
+            sql="SELECT col1, col2, col3 FROM syn123456",
+            additional_filters=additional_filters,
+            selected_facets=selected_facets,
+            include_entity_etag=True,
+            select_file_column=123,
+            select_file_version_column=456,
+            offset=50,
+            limit=100,
+            sort=sort_items,
+        )
+
+        # WHEN calling to_synapse_request
+        result = query.to_synapse_request()
+
+        # THEN verify all parameters are included
+        expected = {
+            "sql": "SELECT col1, col2, col3 FROM syn123456",
+            "additionalFilters": additional_filters,
+            "selectedFacets": selected_facets,
+            "includeEntityEtag": True,
+            "selectFileColumn": 123,
+            "selectFileVersionColumn": 456,
+            "offset": 50,
+            "limit": 100,
+            "sort": sort_items,
+        }
+        assert result == expected
+
+    def test_to_synapse_request_with_partial_parameters(self):
+        """Test to_synapse_request with some parameters specified."""
+        # GIVEN a Query with partial parameters
+        query = Query(
+            sql="SELECT COUNT(*) FROM syn123456",
+            include_entity_etag=False,
+            offset=0,
+            limit=50,
+        )
+
+        # WHEN calling to_synapse_request
+        result = query.to_synapse_request()
+
+        # THEN verify only specified parameters are included
+        expected = {
+            "sql": "SELECT COUNT(*) FROM syn123456",
+            "includeEntityEtag": False,
+            "offset": 0,
+            "limit": 50,
+        }
+        assert result == expected
+
+
+class TestQueryBundleRequest:
+    """Test suite for the QueryBundleRequest.to_synapse_request and fill_from_dict methods."""
+
+    @pytest.fixture
+    def sample_query(self):
+        """Sample Query object for testing."""
+        return Query(
+            sql="SELECT * FROM syn123456", include_entity_etag=True, offset=0, limit=100
+        )
+
+    @pytest.fixture
+    def sample_query_result_bundle_data(self):
+        """Sample QueryResultBundle response data for testing."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResultBundle",
+            "queryResult": {
+                "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+                "queryResults": {
+                    "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+                    "tableId": "syn123456",
+                    "etag": "rowset-etag",
+                    "headers": [{"name": "col1", "columnType": "STRING", "id": "123"}],
+                    "rows": [
+                        {"rowId": 1, "versionNumber": 1, "values": ["test_value"]}
+                    ],
+                },
+            },
+            "queryCount": 250,
+            "selectColumns": [
+                {"name": "col1", "columnType": "STRING", "id": "123"},
+                {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            ],
+            "maxRowsPerPage": 100,
+            "columnModels": [
+                {"name": "col1", "columnType": "STRING", "id": "123"},
+                {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            ],
+            "facets": [
+                {
+                    "concreteType": "org.sagebionetworks.repo.model.table.FacetColumnResultValues",
+                    "columnName": "status",
+                    "facetType": "enumeration",
+                    "facetValues": [
+                        {"value": "active", "count": 100, "isSelected": False}
+                    ],
+                }
+            ],
+            "sumFileSizes": {"sumFileSizesBytes": 2048576, "greaterThan": True},
+            "lastUpdatedOn": "2025-08-27T12:30:45.678Z",
+            "combinedSql": "SELECT * FROM syn123456 WHERE status = 'active' LIMIT 100 OFFSET 0",
+            "actionsRequired": [
+                {
+                    "action": {
+                        "concreteType": "org.sagebionetworks.repo.model.download.MeetAccessRequirement",
+                        "accessRequirementId": 12345,
+                    },
+                    "count": 5,
+                }
+            ],
+        }
+
+    def test_to_synapse_request_with_minimal_parameters(self, sample_query):
+        """Test to_synapse_request with minimal parameters."""
+        # GIVEN a QueryBundleRequest with minimal parameters
+        request = QueryBundleRequest(entity_id="syn123456", query=sample_query)
+
+        # WHEN calling to_synapse_request
+        result = request.to_synapse_request()
+
+        # THEN verify the correct request structure
+        expected = {
+            "concreteType": QUERY_BUNDLE_REQUEST,
+            "entityId": "syn123456",
+            "query": sample_query,
+        }
+        assert result == expected
+
+    def test_to_synapse_request_with_part_mask(self, sample_query):
+        """Test to_synapse_request with part_mask specified."""
+        # GIVEN a QueryBundleRequest with part_mask
+        part_mask = 0x1 | 0x2 | 0x4
+        request = QueryBundleRequest(
+            entity_id="syn789012", query=sample_query, part_mask=part_mask
+        )
+
+        # WHEN calling to_synapse_request
+        result = request.to_synapse_request()
+
+        # THEN verify part_mask is included
+        expected = {
+            "concreteType": QUERY_BUNDLE_REQUEST,
+            "entityId": "syn789012",
+            "query": sample_query,
+            "partMask": part_mask,
+        }
+        assert result == expected
+
+    def test_fill_from_dict_with_complete_bundle(
+        self, sample_query, sample_query_result_bundle_data
+    ):
+        """Test fill_from_dict with complete QueryResultBundle response."""
+        # GIVEN a QueryBundleRequest and complete response data
+        request = QueryBundleRequest(
+            entity_id="syn123456", query=sample_query, part_mask=0x3FF
+        )
+
+        # WHEN calling fill_from_dict
+        result = request.fill_from_dict(sample_query_result_bundle_data)
+
+        # THEN verify all response attributes are set
+        assert result is request  # Should return self
+
+        # Verify nested QueryResult
+        assert isinstance(request.query_result, QueryResult)
+        assert (
+            request.query_result.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryResult"
+        )
+        assert isinstance(request.query_result.query_results, RowSet)
+        assert request.query_result.query_results.table_id == "syn123456"
+
+        # Verify scalar fields
+        assert request.query_count == 250
+        assert request.max_rows_per_page == 100
+        assert request.last_updated_on == "2025-08-27T12:30:45.678Z"
+        assert (
+            request.combined_sql
+            == "SELECT * FROM syn123456 WHERE status = 'active' LIMIT 100 OFFSET 0"
+        )
+
+        # Verify SelectColumns
+        assert len(request.select_columns) == 2
+        assert isinstance(request.select_columns[0], SelectColumn)
+        assert request.select_columns[0].name == "col1"
+        assert request.select_columns[0].column_type == ColumnType.STRING
+
+        # Verify ColumnModels
+        assert len(request.column_models) == 2
+        assert isinstance(request.column_models[0], Column)
+        assert request.column_models[0].name == "col1"
+
+        # Verify Facets (stored as raw data)
+        assert len(request.facets) == 1
+        assert request.facets[0]["columnName"] == "status"
+
+        # Verify SumFileSizes
+        assert isinstance(request.sum_file_sizes, SumFileSizes)
+        assert request.sum_file_sizes.sum_file_size_bytes == 2048576
+        assert request.sum_file_sizes.greater_than == True
+
+        # Verify ActionsRequired
+        assert len(request.actions_required) == 1
+        assert isinstance(request.actions_required[0], ActionRequiredCount)
+        assert request.actions_required[0].count == 5
+
+
 class TestViewUpdateMixin:
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:
@@ -967,6 +1248,136 @@ class TestViewUpdateMixin:
             )
 
 
+class TestQueryResultBundle:
+    """Test suite for the QueryResultBundle.fill_from_dict method."""
+
+    @pytest.fixture
+    def sample_query_result_data(self):
+        """Sample QueryResult data for testing."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+            "queryResults": {
+                "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+                "tableId": "syn123456",
+                "etag": "rowset-etag",
+                "headers": [
+                    {"name": "col1", "columnType": "STRING", "id": "123"},
+                    {"name": "col2", "columnType": "INTEGER", "id": "124"},
+                ],
+                "rows": [
+                    {"rowId": 1, "versionNumber": 1, "values": ["test1", "100"]},
+                    {"rowId": 2, "versionNumber": 1, "values": ["test2", "200"]},
+                ],
+            },
+            "nextPageToken": {
+                "concreteType": "org.sagebionetworks.repo.model.table.QueryNextPageToken",
+                "entityId": "syn123456",
+                "token": "next-page-token-abc",
+            },
+        }
+
+    @pytest.fixture
+    def sample_select_columns_data(self):
+        """Sample SelectColumn data for testing."""
+        return [
+            {"name": "col1", "columnType": "STRING", "id": "123"},
+            {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            {"name": "col3", "columnType": "BOOLEAN", "id": "125"},
+        ]
+
+    @pytest.fixture
+    def sample_sum_file_sizes_data(self):
+        """Sample SumFileSizes data for testing."""
+        return {"sumFileSizesBytes": 1048576, "greaterThan": False}
+
+    def test_fill_from_dict_with_complete_data(
+        self,
+        sample_query_result_data,
+        sample_select_columns_data,
+        sample_sum_file_sizes_data,
+    ):
+        """Test fill_from_dict with complete QueryResultBundle data."""
+        # GIVEN complete QueryResultBundle data
+        data = {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResultBundle",
+            "queryResult": sample_query_result_data,
+            "queryCount": 150,
+            "selectColumns": sample_select_columns_data,
+            "maxRowsPerPage": 100,
+            "columnModels": [
+                {"name": "col1", "columnType": "STRING", "id": "123"},
+                {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            ],
+            "facets": [
+                {
+                    "concreteType": "org.sagebionetworks.repo.model.table.FacetColumnResultValues",
+                    "columnName": "status",
+                    "facetType": "enumeration",
+                    "facetValues": [
+                        {"value": "active", "count": 50, "isSelected": False},
+                        {"value": "inactive", "count": 25, "isSelected": True},
+                    ],
+                }
+            ],
+            "sumFileSizes": sample_sum_file_sizes_data,
+            "lastUpdatedOn": "2025-08-20T15:30:45.123Z",
+            "combinedSql": "SELECT col1, col2 FROM syn123456 WHERE status = 'active'",
+        }
+
+        # WHEN calling fill_from_dict
+        result = QueryResultBundle.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert (
+            result.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryResultBundle"
+        )
+
+        # Verify nested QueryResult
+        assert isinstance(result.query_result, QueryResult)
+        assert (
+            result.query_result.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryResult"
+        )
+        assert isinstance(result.query_result.query_results, RowSet)
+        assert result.query_result.query_results.table_id == "syn123456"
+
+        # Verify scalar fields
+        assert result.query_count == 150
+        assert result.max_rows_per_page == 100
+        assert result.last_updated_on == "2025-08-20T15:30:45.123Z"
+        assert (
+            result.combined_sql
+            == "SELECT col1, col2 FROM syn123456 WHERE status = 'active'"
+        )
+
+        # Verify SelectColumns
+        assert len(result.select_columns) == 3
+        assert isinstance(result.select_columns[0], SelectColumn)
+        assert result.select_columns[0].name == "col1"
+        assert result.select_columns[0].column_type == ColumnType.STRING
+        assert result.select_columns[1].name == "col2"
+        assert result.select_columns[1].column_type == ColumnType.INTEGER
+        assert result.select_columns[2].name == "col3"
+        assert result.select_columns[2].column_type == ColumnType.BOOLEAN
+
+        # Verify ColumnModels
+        assert len(result.column_models) == 2
+        assert result.column_models[0].name == "col1"
+        assert result.column_models[1].column_type == "INTEGER"
+
+        # Verify Facets (stored as raw data)
+        assert len(result.facets) == 1
+        assert result.facets[0]["columnName"] == "status"
+        assert result.facets[0]["facetType"] == "enumeration"
+        assert len(result.facets[0]["facetValues"]) == 2
+
+        # Verify SumFileSizes
+        assert isinstance(result.sum_file_sizes, SumFileSizes)
+        assert result.sum_file_sizes.sum_file_size_bytes == 1048576
+        assert result.sum_file_sizes.greater_than == False
+
+
 class TestQueryMixin:
     fake_query = "SELECT * FROM syn123"
 
@@ -984,16 +1395,39 @@ class TestQueryMixin:
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
 
-        # Create a mock TableQueryResult without calling __init__
-        mock_query_result = MagicMock(spec=TableQueryResult)
-        mock_query_result.asDataFrame.return_value = pd.DataFrame(
-            {"col1": ["A", "B"], "col2": [1, 2]}
+        mock_query_job = QueryJob(
+            entity_id="syn1234",
+            sql="SELECT * FROM syn1234",
+            # Response attributes populated after job completion
+            job_id="1234",
+            results_file_handle_id="5678",
+            table_id="syn1234",
+            etag="test_etag",
+            headers=[
+                SelectColumn(name="col1", column_type=ColumnType.STRING, id="111"),
+                SelectColumn(name="col2", column_type=ColumnType.INTEGER, id="222"),
+            ],
+            response_concrete_type="org.sagebionetworks.repo.model.table.DownloadFromTableResult",
         )
 
+        # CREATE a mock table query result
+        mock_df = pd.DataFrame(
+            {"test_col": ["random string1"], "test_col2": ["random string2"]}
+        )
+        mock_query_result = mock_query_job, "dummy.csv"
+
         # WHEN I call query_async
-        with patch.object(
-            self.syn, "tableQuery", return_value=mock_query_result
-        ) as mock_table_query:
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components._table_query",
+                return_value=mock_query_result,
+            ) as mock_table_query,
+            patch(
+                "synapseclient.models.mixins.table_components.csv_to_pandas_df",
+                return_value=mock_df,
+            ) as mock_csv_to_pandas_df,
+            patch.object(os, "linesep", str(os.linesep)),
+        ):
             result = await test_instance.query_async(
                 query=self.fake_query, synapse_client=self.syn
             )
@@ -1001,39 +1435,159 @@ class TestQueryMixin:
             # THEN mock_table_query should be called with correct args
             mock_table_query.assert_called_once_with(
                 query=self.fake_query,
-                includeRowIdAndRowVersion=True,
-                quoteCharacter='"',
-                escapeCharacter="\\",
-                lineEnd=str(os.linesep),
+                include_row_id_and_row_version=True,
+                quote_char='"',
+                escape_char="\\",
+                line_end=str(os.linesep),
                 separator=",",
                 header=True,
-                downloadLocation=None,
+                download_location=None,
             )
 
-            # AND mock_as_data_frame should be called with correct args
-            mock_query_result.asDataFrame.assert_called_once_with(
-                rowIdAndVersionInIndex=False,
-                convert_to_datetime=False,
+            # AND csv_to_pandas_df should be called with correct args
+            mock_csv_to_pandas_df.assert_called_once_with(
+                filepath="dummy.csv",
+                separator=",",
+                quote_char='"',
+                escape_char="\\",
+                row_id_and_version_in_index=False,
+                date_columns=None,
+                list_columns=None,
             )
 
             # AND the result should match expected DataFrame
-            assert result.equals(pd.DataFrame({"col1": ["A", "B"], "col2": [1, 2]}))
+            assert result.equals(mock_df)
+
+    async def test_query_async_with_date_and_list_columns(self):
+        # GIVEN a TestClass instance
+        test_instance = self.ClassForTest()
+
+        # CREATE a mock table query result with headers containing date and list columns
+        mock_df = pd.DataFrame(
+            {
+                "date_col": ["2024-01-01", "2024-01-02"],
+                "list_col": [["item1", "item2"], ["item3", "item4"]],
+                "string_col": ["A", "B"],
+            }
+        )
+
+        csv_table_descriptor = CsvTableDescriptor(
+            quote_character='"',
+            escape_character="\\",
+            line_end=os.linesep,
+            separator=",",
+            is_first_line_header=True,
+        )
+
+        # Mock query result with headers that include date and list column types
+        mock_query_job_response = QueryJob(
+            entity_id="syn123",
+            sql="SELECT * FROM syn123",
+            csv_table_descriptor=csv_table_descriptor,
+            include_row_id_and_row_version=True,
+            job_id="test-job-12345",
+            response_concrete_type="org.sagebionetworks.repo.model.table.DownloadFromTableResult",
+            results_file_handle_id="file-handle-67890",
+            table_id="syn123",
+            etag="test-etag-abc123",
+            headers=[
+                SelectColumn(name="date_col", column_type=ColumnType.DATE),
+                SelectColumn(name="list_col", column_type=ColumnType.STRING_LIST),
+                SelectColumn(name="string_col", column_type=ColumnType.STRING),
+            ],
+        )
+
+        mock_query_result_with_headers = (
+            mock_query_job_response,
+            "dummy.csv",
+        )
+
+        # WHEN I call query_async with convert_to_datetime=True
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components._table_query",
+                return_value=mock_query_result_with_headers,
+            ) as mock_table_query,
+            patch(
+                "synapseclient.models.mixins.table_components.csv_to_pandas_df",
+                return_value=mock_df,
+            ) as mock_csv_to_pandas_df,
+            patch.object(os, "linesep", str(os.linesep)),
+        ):
+            result = await test_instance.query_async(
+                query=self.fake_query, convert_to_datetime=True, synapse_client=self.syn
+            )
+
+            # THEN mock_table_query should be called with correct args
+            mock_table_query.assert_called_once_with(
+                query=self.fake_query,
+                include_row_id_and_row_version=True,
+                quote_char='"',
+                escape_char="\\",
+                line_end=str(os.linesep),
+                separator=",",
+                header=True,
+                download_location=None,
+            )
+
+            # AND csv_to_pandas_df should be called with date_columns and list_columns populated
+            mock_csv_to_pandas_df.assert_called_once_with(
+                filepath="dummy.csv",
+                separator=",",
+                quote_char='"',
+                escape_char="\\",
+                row_id_and_version_in_index=False,
+                date_columns=["date_col"],  # Should contain the DATE column
+                list_columns=["list_col"],  # Should contain the STRING_LIST column
+            )
+
+            # AND the result should match expected DataFrame
+            assert result.equals(mock_df)
 
     async def test_query_part_mask_async(self):
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
 
-        # Create mock query result with all possible part mask returns
-        mock_query_result = MagicMock(spec=TableQueryResult)
-        mock_query_result.asDataFrame.return_value = pd.DataFrame(
-            {"col1": ["A", "B"], "col2": [1, 2]}
+        # Create mock QueryResultBundle
+        mock_query_result_bundle = QueryResultBundle(
+            concrete_type="org.sagebionetworks.repo.model.table.QueryResultBundle",
+            query_result=QueryResult(
+                concrete_type="org.sagebionetworks.repo.model.table.QueryResult",
+                query_results=RowSet(
+                    concrete_type="org.sagebionetworks.repo.model.table.RowSet",
+                    table_id="syn123",
+                    etag="test etag",
+                    headers=[
+                        SelectColumn(
+                            name="test_col", column_type=ColumnType.STRING, id="242777"
+                        ),
+                        SelectColumn(
+                            name="test_col2", column_type=ColumnType.STRING, id="242778"
+                        ),
+                    ],
+                    rows=[
+                        Row(
+                            row_id=1,
+                            version_number=1,
+                            values=["random string1", "random string2"],
+                        ),
+                        Row(
+                            row_id=2,
+                            version_number=1,
+                            values=["random string3", "random string4"],
+                        ),
+                    ],
+                ),
+                next_page_token=None,
+            ),
+            query_count=2,
+            last_updated_on="2025-08-17T09:50:35.248Z",
         )
-        mock_query_result.count = 2
-        mock_query_result.sumFileSizes = {
-            "sumFileSizesBytes": 1000,
-            "greaterThan": False,
-        }
-        mock_query_result.lastUpdatedOn = "2024-02-21"
+
+        # Create expected DataFrame result
+        expected_df = pd.DataFrame(
+            {"test_col": ["random string1"], "test_col2": ["random string2"]}
+        )
 
         # Set up part mask combining all options
         QUERY_RESULTS = 0x1
@@ -1043,9 +1597,16 @@ class TestQueryMixin:
         part_mask = QUERY_RESULTS | QUERY_COUNT | SUM_FILE_SIZES | LAST_UPDATED_ON
 
         # WHEN I call query_part_mask_async
-        with patch.object(
-            self.syn, "tableQuery", return_value=mock_query_result
-        ) as mock_table_query:
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components._table_query",
+                return_value=mock_query_result_bundle,
+            ) as mock_table_query,
+            patch(
+                "synapseclient.models.mixins.table_components._rowset_to_pandas_df",
+                return_value=expected_df,
+            ) as mock_rowset_to_pandas_df,
+        ):
             result = await test_instance.query_part_mask_async(
                 query=self.fake_query, part_mask=part_mask, synapse_client=self.syn
             )
@@ -1053,44 +1614,89 @@ class TestQueryMixin:
             # THEN mock_table_query should be called with correct args
             mock_table_query.assert_called_once_with(
                 query=self.fake_query,
-                resultsAs="rowset",
-                partMask=part_mask,
+                results_as="rowset",
+                part_mask=part_mask,
+                limit=None,
+                offset=None,
             )
-
-            # AND mock_as_data_frame should be called
-            mock_query_result.asDataFrame.assert_called_once_with(
-                rowIdAndVersionInIndex=False
+            # AND mock_rowset_to_pandas_df should be called with correct args
+            mock_rowset_to_pandas_df.assert_called_once_with(
+                query_result_bundle=mock_query_result_bundle,
+                synapse=self.syn,
+                row_id_and_version_in_index=False,
             )
-
-            # AND the result should contain all requested parts
-            assert result.result.equals(
-                pd.DataFrame({"col1": ["A", "B"], "col2": [1, 2]})
+            # THEN mock_table_query should be called with correct args
+            mock_table_query.assert_called_once_with(
+                query=self.fake_query,
+                results_as="rowset",
+                part_mask=part_mask,
+                limit=None,
+                offset=None,
             )
-            assert result.count == 2
-            assert result.sum_file_sizes.sum_file_size_bytes == 1000
-            assert result.sum_file_sizes.greater_than is False
-            assert result.last_updated_on == "2024-02-21"
+            # AND the result should be a QueryResultOutput with expected values
+            assert isinstance(result, QueryResultOutput)
+            assert result.result.equals(expected_df)
+            assert result.count == mock_query_result_bundle.query_count
+            assert result.last_updated_on == mock_query_result_bundle.last_updated_on
+            assert result.sum_file_sizes is None  # Not set in mock, should be None
 
     async def test_query_part_mask_async_minimal(self):
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
 
-        # Create mock with just query results
-        mock_query_result = MagicMock(spec=TableQueryResult)
-        mock_query_result.asDataFrame.return_value = pd.DataFrame(
-            {"col1": ["A", "B"], "col2": [1, 2]}
+        mock_query_result = QueryResult(
+            concrete_type="org.sagebionetworks.repo.model.table.QueryResult",
+            query_results=RowSet(
+                concrete_type="org.sagebionetworks.repo.model.table.RowSet",
+                table_id="syn456",
+                etag="etag",
+                headers=[
+                    SelectColumn(
+                        name="test_col", column_type=ColumnType.STRING, id="242777"
+                    ),
+                    SelectColumn(
+                        name="test_col2", column_type=ColumnType.STRING, id="242778"
+                    ),
+                ],
+                rows=[
+                    Row(
+                        row_id=1,
+                        version_number=1,
+                        values=["random string1", "random string2"],
+                    ),
+                    Row(
+                        row_id=2,
+                        version_number=1,
+                        values=["random string3", "random string4"],
+                    ),
+                ],
+            ),
+            next_page_token=None,
         )
-        mock_query_result.count = None
-        mock_query_result.sumFileSizes = None
-        mock_query_result.lastUpdatedOn = None
+        mock_query_result_bundle = QueryResultBundle(
+            concrete_type="org.sagebionetworks.repo.model.table.QueryResult",
+            query_result=mock_query_result,
+        )
+
+        # Create expected DataFrame result
+        expected_df = pd.DataFrame(
+            {"test_col": ["random string1"], "test_col2": ["random string2"]}
+        )
 
         # Use just QUERY_RESULTS mask
         part_mask = 0x1  # QUERY_RESULTS only
 
         # WHEN I call query_part_mask_async
-        with patch.object(
-            self.syn, "tableQuery", return_value=mock_query_result
-        ) as mock_table_query:
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components._table_query",
+                return_value=mock_query_result_bundle,
+            ) as mock_table_query,
+            patch(
+                "synapseclient.models.mixins.table_components._rowset_to_pandas_df",
+                return_value=expected_df,
+            ) as mock_rowset_to_pandas_df,
+        ):
             result = await test_instance.query_part_mask_async(
                 query=self.fake_query, part_mask=part_mask, synapse_client=self.syn
             )
@@ -1098,22 +1704,24 @@ class TestQueryMixin:
             # THEN mock_table_query should be called with correct args
             mock_table_query.assert_called_once_with(
                 query=self.fake_query,
-                resultsAs="rowset",
-                partMask=part_mask,
+                results_as="rowset",
+                part_mask=part_mask,
+                limit=None,
+                offset=None,
             )
 
-            # AND mock_as_data_frame should be called
-            mock_query_result.asDataFrame.assert_called_once_with(
-                rowIdAndVersionInIndex=False
+            mock_rowset_to_pandas_df.assert_called_once_with(
+                query_result_bundle=mock_query_result_bundle,
+                synapse=self.syn,
+                row_id_and_version_in_index=False,
             )
 
-            # AND the result should contain only the query results
-            assert result.result.equals(
-                pd.DataFrame({"col1": ["A", "B"], "col2": [1, 2]})
-            )
+            # AND the result should be a QueryResultOutput with expected values
+            assert isinstance(result, QueryResultOutput)
+            assert result.result.equals(expected_df)
             assert result.count is None
-            assert result.sum_file_sizes is None
             assert result.last_updated_on is None
+            assert result.sum_file_sizes is None
 
 
 class TestViewSnapshotMixin:
@@ -1225,3 +1833,938 @@ class TestTableDeleteRowMixin:
             assert result.equals(
                 pd.DataFrame({"ROW_ID": ["A", "B"], "ROW_VERSION": [1, 2]})
             )
+
+
+class TestQueryTableCsv:
+    """Test suite for the _query_table_csv function."""
+
+    @pytest.fixture
+    def mock_synapse(self):
+        """Create a mock Synapse client."""
+        synapse = MagicMock(spec=Synapse)
+        synapse._waitForAsync = MagicMock()
+        synapse.cache = MagicMock()
+        synapse.cache.get = MagicMock()
+        synapse.cache.get_cache_dir = MagicMock()
+        return synapse
+
+    @pytest.fixture
+    def sample_query(self):
+        """Sample SQL query for testing."""
+        return "SELECT * FROM syn1234"
+
+    @pytest.fixture
+    def mock_query_job_response(self, sample_query):
+        """Sample query job response."""
+        # Create a mock query job response after calling send_job_and_wait_async
+        return QueryJob(
+            entity_id="syn1234",
+            sql=sample_query,
+            # Response attributes populated after job completion
+            job_id="1234",
+            results_file_handle_id="5678",
+            table_id="syn1234",
+            etag="test_etag",
+            headers=[
+                SelectColumn(name="col1", column_type=ColumnType.STRING, id="111"),
+                SelectColumn(name="col2", column_type=ColumnType.INTEGER, id="222"),
+            ],
+            response_concrete_type="org.sagebionetworks.repo.model.table.DownloadFromTableResult",
+        )
+
+    @pytest.fixture
+    def sample_file_path(self):
+        """Sample file path for downloaded CSV."""
+        return "/path/to/downloaded/file.csv"
+
+    @pytest.mark.asyncio
+    async def test_query_table_csv_request_generation(self, sample_query):
+        """Test that QueryJob generates the correct synapse request."""
+        # GIVEN custom parameters for CSV formatting
+        custom_params = {
+            "quote_character": "'",
+            "escape_character": "/",
+            "line_end": "\n",
+            "separator": ";",
+            "is_first_line_header": False,
+        }
+        csv_table_descriptor = CsvTableDescriptor(**custom_params)
+
+        # WHEN creating a QueryJob with these parameters
+        query_job = QueryJob(
+            entity_id="syn1234",
+            sql=sample_query,
+            include_row_id_and_row_version=False,
+            write_header=False,
+            csv_table_descriptor=csv_table_descriptor,
+        )
+
+        # THEN verify the to_synapse_request() method generates the correct request
+        synapse_request = query_job.to_synapse_request()
+
+        assert (
+            synapse_request["concreteType"]
+            == "org.sagebionetworks.repo.model.table.DownloadFromTableRequest"
+        )
+        assert synapse_request["entityId"] == "syn1234"
+        assert synapse_request["sql"] == sample_query
+        assert synapse_request["writeHeader"] == False
+        assert synapse_request["includeRowIdAndRowVersion"] == False
+        assert synapse_request["csvTableDescriptor"]["isFirstLineHeader"] == False
+        assert synapse_request["csvTableDescriptor"]["quoteCharacter"] == "'"
+        assert synapse_request["csvTableDescriptor"]["escapeCharacter"] == "/"
+        assert synapse_request["csvTableDescriptor"]["lineEnd"] == "\n"
+        assert synapse_request["csvTableDescriptor"]["separator"] == ";"
+
+    @pytest.mark.asyncio
+    async def test_query_table_csv_basic_functionality(
+        self, mock_synapse, sample_query, sample_file_path, mock_query_job_response
+    ):
+        """Test basic functionality of _query_table_csv."""
+        # GIVEN
+        mock_synapse.cache.get.return_value = None
+        mock_synapse.cache.get_cache_dir.return_value = "/cache/dir"
+
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.extract_synapse_id_from_query"
+            ) as mock_extract_id,
+            patch(
+                "synapseclient.models.mixins.table_components.ensure_download_location_is_directory"
+            ) as mock_ensure_dir,
+            patch(
+                "synapseclient.models.mixins.table_components.download_by_file_handle"
+            ) as mock_download,
+            patch("os.makedirs") as mock_makedirs,
+            patch(
+                "synapseclient.models.table_components.QueryJob.send_job_and_wait_async"
+            ) as mock_send_job_and_wait_async,
+        ):
+            mock_extract_id.return_value = "syn1234"
+            mock_download.return_value = sample_file_path
+
+            mock_send_job_and_wait_async.return_value = mock_query_job_response
+
+            # WHEN calling the function
+            completed_query_job, file_path = await _query_table_csv(
+                query=sample_query, synapse=mock_synapse
+            )
+
+            # THEN ensure download file is correct
+            assert file_path == sample_file_path
+            assert completed_query_job.entity_id == "syn1234"
+
+            # Verify API call was made correctly
+            mock_send_job_and_wait_async.assert_called_once()
+
+            # Verify the completed job has the expected response data
+            assert completed_query_job.results_file_handle_id == "5678"
+            assert completed_query_job.job_id == "1234"
+            assert completed_query_job.table_id == "syn1234"
+            assert len(completed_query_job.headers) == 2
+
+    @pytest.mark.asyncio
+    async def test_query_table_csv_with_download_location(
+        self, mock_synapse, sample_query, sample_file_path, mock_query_job_response
+    ):
+        """Test _query_table_csv with specified download location."""
+        # GIVEN a custom download location
+        download_location = "/custom/download/path"
+        mock_synapse.cache.get.return_value = None
+
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.extract_synapse_id_from_query"
+            ) as mock_extract_id,
+            patch(
+                "synapseclient.models.mixins.table_components.ensure_download_location_is_directory"
+            ) as mock_ensure_dir,
+            patch(
+                "synapseclient.models.mixins.table_components.download_by_file_handle"
+            ) as mock_download,
+            patch("os.makedirs") as mock_makedirs,
+            patch(
+                "synapseclient.models.table_components.QueryJob.send_job_and_wait_async"
+            ) as mock_send_job_and_wait_async,
+        ):
+            mock_extract_id.return_value = "syn1234"
+            mock_ensure_dir.return_value = download_location
+            mock_download.return_value = sample_file_path
+            mock_send_job_and_wait_async.return_value = mock_query_job_response
+
+            # WHEN calling the function with a download location
+            result = await _query_table_csv(
+                query=sample_query,
+                synapse=mock_synapse,
+                download_location=download_location,
+            )
+
+            # THEN verify ensure_download_location_is_directory is called with the correct location
+            mock_ensure_dir.assert_called_once_with(download_location=download_location)
+            mock_makedirs.assert_called_once_with(download_location, exist_ok=True)
+            assert result == (mock_query_job_response, sample_file_path)
+
+
+class TestQueryResultOutput:
+    """Test suite for the QueryResultOutput.fill_from_dict method."""
+
+    @pytest.fixture
+    def sample_dataframe(self):
+        """Sample pandas DataFrame for testing."""
+        import pandas as pd
+
+        return pd.DataFrame(
+            {"col1": ["A", "B", "C"], "col2": [1, 2, 3], "col3": ["X", "Y", "Z"]}
+        )
+
+    def test_fill_from_dict_with_full_data(self, sample_dataframe):
+        """Test fill_from_dict with complete data including sum_file_sizes."""
+        # GIVEN a complete data dictionary
+        data = {
+            "count": 100,
+            "last_updated_on": "2025-08-20T10:00:00.000Z",
+            "sum_file_sizes": SumFileSizes(
+                sum_file_size_bytes=1024000, greater_than=False
+            ),
+        }
+        # WHEN calling fill_from_dict
+        result = QueryResultOutput.fill_from_dict(result=sample_dataframe, data=data)
+
+        # THEN verify all attributes are set correctly
+        assert result.result.equals(sample_dataframe)
+        assert result.count == 100
+        assert result.last_updated_on == "2025-08-20T10:00:00.000Z"
+        assert result.sum_file_sizes.sum_file_size_bytes == 1024000
+        assert result.sum_file_sizes.greater_than == False
+
+
+class TestRow:
+    """Test suite for the Row class."""
+
+    @pytest.fixture
+    def sample_row_data(self):
+        """Sample row data for testing."""
+        return {
+            "rowId": 12345,
+            "versionNumber": 1,
+            "etag": "test-etag-123",
+            "values": ["A", "1", "true", "160000000"],
+        }
+
+    @pytest.fixture
+    def sample_headers(self):
+        """Sample headers for testing cast_values method."""
+        return [
+            {"columnType": "STRING", "name": "string_col"},
+            {"columnType": "INTEGER", "name": "int_col"},
+            {"columnType": "BOOLEAN", "name": "bool_col"},
+            {"columnType": "DATE", "name": "date_col"},
+        ]
+
+    def test_fill_from_dict_complete_data(self, sample_row_data):
+        """Test fill_from_dict with complete row data."""
+        # WHEN creating Row from dictionary
+        row = Row.fill_from_dict(sample_row_data)
+
+        # THEN verify all fields are populated correctly
+        assert row.row_id == 12345
+        assert row.version_number == 1
+        assert row.etag == "test-etag-123"
+        assert row.values == ["A", "1", "true", "160000000"]
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (True, True),
+            (False, False),
+            ("true", True),
+            ("True", True),
+            ("TRUE", True),
+            ("t", True),
+            ("T", True),
+            ("1", True),
+            ("false", False),
+            ("False", False),
+            ("FALSE", False),
+            ("f", False),
+            ("F", False),
+            ("0", False),
+        ],
+    )
+    def test_to_boolean_valid_values(self, value, expected):
+        """Test to_boolean method with valid boolean values."""
+        # WHEN calling to_boolean with valid values
+        result = Row.to_boolean(value)
+
+        # THEN verify correct boolean conversion
+        assert result == expected
+        assert isinstance(result, bool)
+
+    @pytest.mark.parametrize(
+        "invalid_value",
+        [
+            "invalid",
+            "yes",
+            "no",
+            "2",
+            "",
+            None,
+        ],
+    )
+    def test_to_boolean_invalid_values(self, invalid_value):
+        """Test to_boolean method with invalid values."""
+        # WHEN calling to_boolean with invalid values
+        # THEN verify ValueError is raised
+        with pytest.raises(
+            ValueError, match=f"Can't convert {invalid_value} to boolean"
+        ):
+            Row.to_boolean(invalid_value)
+
+    def test_cast_values_string_column(self):
+        """Test cast_values with STRING column type."""
+        # GIVEN string values and headers
+        values = ["hello", "world", "test"]
+        headers = [
+            {"columnType": "STRING"},
+            {"columnType": "STRING"},
+            {"columnType": "STRING"},
+        ]
+
+        # WHEN casting values
+        result = Row.cast_values(values, headers)
+
+        # THEN verify strings are preserved
+        assert result == ["hello", "world", "test"]
+
+    def test_cast_values_integer_column(self):
+        """Test cast_values with INTEGER column type."""
+        # GIVEN integer values and headers
+        values = ["123", "456", "789"]
+        headers = [
+            {"columnType": "INTEGER"},
+            {"columnType": "INTEGER"},
+            {"columnType": "INTEGER"},
+        ]
+
+        # WHEN casting values
+        result = Row.cast_values(values, headers)
+
+        # THEN verify integers are converted
+        assert result == [123, 456, 789]
+        assert all(isinstance(val, int) for val in result)
+
+
+class TestActionRequiredCount:
+    """Test suite for the ActionRequiredCount.fill_from_dict method."""
+
+    def test_fill_from_dict_with_complete_data(self):
+        """Test fill_from_dict with complete action data."""
+        # GIVEN complete action data
+        data = {
+            "action": {
+                "concreteType": "org.sagebionetworks.repo.model.download.MeetAccessRequirement",
+                "accessRequirementId": 12345,
+            },
+            "count": 42,
+        }
+
+        # WHEN calling fill_from_dict
+        result = ActionRequiredCount.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert result.action == data["action"]
+        assert result.count == 42
+
+
+class TestSelectColumn:
+    """Test suite for the SelectColumn.fill_from_dict method."""
+
+    def test_fill_from_dict_with_complete_data(self):
+        """Test fill_from_dict with complete column data."""
+        # GIVEN complete column data
+        data = {"name": "test_column", "columnType": "STRING", "id": "123456"}
+
+        # WHEN calling fill_from_dict
+        result = SelectColumn.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert result.name == "test_column"
+        assert result.column_type == ColumnType.STRING
+        assert result.id == "123456"
+
+    def test_fill_from_dict_with_valid_column_types(self):
+        """Test fill_from_dict with all valid column types."""
+        valid_column_types = [
+            "STRING",
+            "DOUBLE",
+            "INTEGER",
+            "BOOLEAN",
+            "DATE",
+            "FILEHANDLEID",
+            "ENTITYID",
+            "LINK",
+            "MEDIUMTEXT",
+            "LARGETEXT",
+            "USERID",
+            "STRING_LIST",
+            "INTEGER_LIST",
+            "USERID_LIST",
+            "JSON",
+        ]
+
+        for column_type_str in valid_column_types:
+            # GIVEN data with valid column type
+            data = {
+                "name": f"test_{column_type_str.lower()}",
+                "columnType": column_type_str,
+                "id": "123",
+            }
+
+            # WHEN calling fill_from_dict
+            result = SelectColumn.fill_from_dict(data)
+
+            # THEN verify column type is converted correctly
+            assert result.column_type == ColumnType(column_type_str)
+            assert result.name == f"test_{column_type_str.lower()}"
+            assert result.id == "123"
+
+
+class TestQueryResult:
+    """Test suite for the QueryResult.fill_from_dict method."""
+
+    @pytest.fixture
+    def sample_rowset_data(self):
+        """Sample RowSet data for testing."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+            "tableId": "syn123456",
+            "etag": "rowset-etag",
+            "headers": [{"name": "col1", "columnType": "STRING", "id": "123"}],
+            "rows": [{"rowId": 1, "versionNumber": 1, "values": ["test_value"]}],
+        }
+
+    @pytest.fixture
+    def sample_next_page_token_data(self):
+        """Sample QueryNextPageToken data for testing."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryNextPageToken",
+            "entityId": "syn123456",
+            "token": "next-page-token-xyz",
+        }
+
+    def test_fill_from_dict_with_complete_data(
+        self, sample_rowset_data, sample_next_page_token_data
+    ):
+        """Test fill_from_dict with complete QueryResult data."""
+        # GIVEN complete QueryResult data
+        data = {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+            "queryResults": sample_rowset_data,
+            "nextPageToken": sample_next_page_token_data,
+        }
+
+        # WHEN calling fill_from_dict
+        result = QueryResult.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert (
+            result.concrete_type == "org.sagebionetworks.repo.model.table.QueryResult"
+        )
+
+        # Verify nested RowSet
+        assert isinstance(result.query_results, RowSet)
+        assert (
+            result.query_results.concrete_type
+            == "org.sagebionetworks.repo.model.table.RowSet"
+        )
+        assert result.query_results.table_id == "syn123456"
+        assert result.query_results.etag == "rowset-etag"
+
+        # Verify nested QueryNextPageToken
+        assert isinstance(result.next_page_token, QueryNextPageToken)
+        assert (
+            result.next_page_token.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryNextPageToken"
+        )
+        assert result.next_page_token.entity_id == "syn123456"
+        assert result.next_page_token.token == "next-page-token-xyz"
+
+
+class TestRowSet:
+    """Test suite for the RowSet.fill_from_dict method."""
+
+    @pytest.fixture
+    def sample_row_data(self):
+        """Sample row data for testing."""
+        return [
+            {
+                "rowId": 1,
+                "versionNumber": 1,
+                "etag": "etag-1",
+                "values": ["A", "1", "true"],
+            },
+            {
+                "rowId": 2,
+                "versionNumber": 2,
+                "etag": "etag-2",
+                "values": ["B", "2", "false"],
+            },
+        ]
+
+    @pytest.fixture
+    def sample_header_data(self):
+        """Sample header data for testing."""
+        return [
+            {"name": "col1", "columnType": "STRING", "id": "123"},
+            {"name": "col2", "columnType": "INTEGER", "id": "124"},
+            {"name": "col3", "columnType": "BOOLEAN", "id": "125"},
+        ]
+
+    def test_fill_from_dict_with_complete_data(
+        self, sample_row_data, sample_header_data
+    ):
+        """Test fill_from_dict with complete RowSet data."""
+        # GIVEN complete RowSet data
+        data = {
+            "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+            "tableId": "syn123456",
+            "etag": "table-etag-123",
+            "headers": sample_header_data,
+            "rows": sample_row_data,
+        }
+
+        # WHEN calling fill_from_dict
+        result = RowSet.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert result.concrete_type == "org.sagebionetworks.repo.model.table.RowSet"
+        assert result.table_id == "syn123456"
+        assert result.etag == "table-etag-123"
+
+        # Verify headers
+        assert len(result.headers) == 3
+        assert result.headers[0].name == "col1"
+        assert result.headers[0].column_type == ColumnType.STRING
+        assert result.headers[0].id == "123"
+        assert result.headers[1].name == "col2"
+        assert result.headers[1].column_type == ColumnType.INTEGER
+        assert result.headers[1].id == "124"
+
+        # Verify rows
+        assert len(result.rows) == 2
+        assert result.rows[0].row_id == 1
+        assert result.rows[0].version_number == 1
+        assert result.rows[0].etag == "etag-1"
+        assert result.rows[0].values == ["A", 1, True]
+        assert result.rows[1].row_id == 2
+        assert result.rows[1].version_number == 2
+        assert result.rows[1].etag == "etag-2"
+        assert result.rows[1].values == ["B", 2, False]
+
+
+class TestQueryNextPageToken:
+    """Test suite for the QueryNextPageToken.fill_from_dict method."""
+
+    def test_fill_from_dict_with_complete_data(self):
+        """Test fill_from_dict with complete token data."""
+        # GIVEN complete token data
+        data = {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryNextPageToken",
+            "entityId": "syn123456",
+            "token": "next-page-token-12345",
+        }
+
+        # WHEN calling fill_from_dict
+        result = QueryNextPageToken.fill_from_dict(data)
+
+        # THEN verify all attributes are set correctly
+        assert (
+            result.concrete_type
+            == "org.sagebionetworks.repo.model.table.QueryNextPageToken"
+        )
+        assert result.entity_id == "syn123456"
+        assert result.token == "next-page-token-12345"
+
+
+class TestQueryJob:
+    """Test suite for the QueryJob.to_synapse_request and fill_from_dict methods."""
+
+    @pytest.fixture
+    def sample_csv_descriptor(self):
+        """Sample CsvTableDescriptor for testing."""
+        return CsvTableDescriptor(
+            quote_character="'",
+            escape_character="/",
+            line_end="\n",
+            separator=";",
+        )
+
+    def test_to_synapse_request_with_defaults(self):
+        """Test to_synapse_request with default parameters."""
+        # GIVEN a QueryJob with minimal parameters (using defaults)
+        job = QueryJob(entity_id="syn123456", sql="SELECT * FROM syn123456")
+
+        # WHEN calling to_synapse_request
+        result = job.to_synapse_request()
+
+        # THEN verify default values are set correctly
+        expected = {
+            "concreteType": QUERY_TABLE_CSV_REQUEST,
+            "entityId": "syn123456",
+            "sql": "SELECT * FROM syn123456",
+            "writeHeader": True,  # Default value
+            "includeRowIdAndRowVersion": True,  # Default value
+            "includeEntityEtag": False,  # Default value
+        }
+        assert result == expected
+
+    def test_to_synapse_request_with_none_values(self):
+        """Test that None values are properly excluded from request."""
+        # GIVEN a QueryJob with some None values
+        job = QueryJob(
+            entity_id="syn123456",
+            sql="SELECT * FROM syn123456",
+            csv_table_descriptor=None,  # Should be excluded
+            include_entity_etag=None,  # Should be excluded
+        )
+
+        # WHEN calling to_synapse_request
+        result = job.to_synapse_request()
+
+        # THEN verify None values are not included
+        assert "csvTableDescriptor" not in result
+        assert "includeEntityEtag" not in result
+
+    def test_to_synapse_request_csv_descriptor_integration(self, sample_csv_descriptor):
+        """Test that CsvTableDescriptor is properly integrated in request."""
+        # GIVEN a QueryJob with CsvTableDescriptor
+        job = QueryJob(
+            entity_id="syn123456",
+            sql="SELECT * FROM syn123456",
+            csv_table_descriptor=sample_csv_descriptor,
+        )
+
+        # WHEN calling to_synapse_request
+        result = job.to_synapse_request()
+
+        # THEN verify CsvTableDescriptor is included correctly
+        assert "csvTableDescriptor" in result
+        csv_desc = result["csvTableDescriptor"]
+        assert csv_desc["quoteCharacter"] == "'"
+        assert csv_desc["escapeCharacter"] == "/"
+        assert csv_desc["lineEnd"] == "\n"
+        assert csv_desc["separator"] == ";"
+
+    def test_fill_from_dict_with_complete_response(self):
+        """Test fill_from_dict with complete DownloadFromTableResult response."""
+        # GIVEN a QueryJob and complete response data
+        job = QueryJob(entity_id="syn123456", sql="SELECT * FROM syn123456")
+        response_data = {
+            "jobId": "async-job-12345",
+            "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableResult",
+            "resultsFileHandleId": "file-handle-67890",
+            "tableId": "syn123456",
+            "etag": "table-etag-abc123",
+            "headers": [
+                {"name": "col1", "columnType": "STRING", "id": "111"},
+                {"name": "col2", "columnType": "INTEGER", "id": "222"},
+            ],
+        }
+
+        # WHEN calling fill_from_dict
+        result = job.fill_from_dict(response_data)
+
+        # THEN verify all response attributes are set
+        assert result is job  # Should return self
+        assert job.job_id == "async-job-12345"
+        assert (
+            job.response_concrete_type
+            == "org.sagebionetworks.repo.model.table.DownloadFromTableResult"
+        )
+        assert job.results_file_handle_id == "file-handle-67890"
+        assert job.table_id == "syn123456"
+        assert job.etag == "table-etag-abc123"
+
+        # Verify the nested SelectColumns
+        assert isinstance(result.headers, list)
+        assert len(result.headers) == 2
+        assert isinstance(result.headers[0], SelectColumn)
+        assert isinstance(result.headers[1], SelectColumn)
+        assert result.headers[0].name == "col1"
+        assert result.headers[0].column_type == "STRING"
+        assert result.headers[0].id == "111"
+        assert result.headers[1].name == "col2"
+        assert result.headers[1].column_type == "INTEGER"
+        assert result.headers[1].id == "222"
+
+
+class TestQueryTableRowSet:
+    """Test suite for the _query_table_row_set function."""
+
+    @pytest.fixture
+    def mock_synapse_client(self):
+        """Mock Synapse client for testing."""
+        mock_client = MagicMock()
+        return mock_client
+
+    @pytest.fixture
+    def sample_query_result_bundle(self):
+        """Sample QueryResultBundle response."""
+        return QueryResultBundle(
+            query_result=QueryResult(
+                concrete_type=QUERY_RESULT,
+                query_results=RowSet(
+                    table_id="syn123456",
+                    etag="test-etag",
+                    headers=[
+                        SelectColumn(
+                            name="test_col", column_type=ColumnType.STRING, id="242777"
+                        ),
+                        SelectColumn(
+                            name="test_col2", column_type=ColumnType.STRING, id="242778"
+                        ),
+                    ],
+                    rows=[
+                        Row(
+                            row_id=1,
+                            version_number=1,
+                            etag=None,
+                            values=["random string1", "random string2"],
+                        )
+                    ],
+                ),
+                next_page_token=None,
+            ),
+            query_count=1,
+            select_columns=[
+                SelectColumn(name="col1", column_type=ColumnType.STRING, id="111"),
+                SelectColumn(name="col2", column_type=ColumnType.INTEGER, id="222"),
+            ],
+            max_rows_per_page=1000,
+            column_models=[
+                Column(
+                    id="242777",
+                    name="test_col",
+                    column_type=ColumnType.STRING,
+                    facet_type=None,
+                    default_value=None,
+                    maximum_size=50,
+                    maximum_list_length=None,
+                    enum_values=None,
+                    json_sub_columns=None,
+                ),
+                Column(
+                    id="242778",
+                    name="test_col2",
+                    column_type=ColumnType.STRING,
+                    facet_type=None,
+                    default_value=None,
+                    maximum_size=50,
+                    maximum_list_length=None,
+                    enum_values=None,
+                    json_sub_columns=None,
+                ),
+            ],
+            facets=[],
+            sum_file_sizes=SumFileSizes(sum_file_size_bytes=1024, greater_than=False),
+            last_updated_on="2025-08-26T21:38:31.677Z",
+            combined_sql="SELECT col1, col2 FROM syn123456",
+            actions_required=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_query_table_row_set_basic(
+        self, mock_synapse_client, sample_query_result_bundle
+    ):
+        """Test basic query_table_row_set functionality."""
+        # GIVEN a query and mock response
+        query = "SELECT col1, col2 FROM syn123456"
+
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.extract_synapse_id_from_query",
+                return_value="syn123456",
+            ) as mock_extract_id,
+            patch.object(
+                QueryBundleRequest,
+                "send_job_and_wait_async",
+                return_value=sample_query_result_bundle,
+            ) as mock_send_job,
+        ):
+            # WHEN calling _query_table_row_set
+            result = await _query_table_row_set(
+                query=query,
+                synapse=mock_synapse_client,
+            )
+
+            # THEN verify the result
+            assert isinstance(result, QueryResultBundle)
+            assert result.query_count == 1
+            assert result.query_result == sample_query_result_bundle.query_result
+            assert result.select_columns == sample_query_result_bundle.select_columns
+            assert result.sum_file_sizes == sample_query_result_bundle.sum_file_sizes
+            assert result.last_updated_on == sample_query_result_bundle.last_updated_on
+            assert result.combined_sql == sample_query_result_bundle.combined_sql
+            assert result.column_models == sample_query_result_bundle.column_models
+            assert result.facets == sample_query_result_bundle.facets
+            assert (
+                result.actions_required == sample_query_result_bundle.actions_required
+            )
+
+            # Verify extract_synapse_id_from_query was called correctly
+            mock_extract_id.assert_called_once_with(query)
+
+            # Verify send_job_and_wait_async was called correctly
+            mock_send_job.assert_called_once_with(synapse_client=mock_synapse_client)
+
+    @pytest.mark.asyncio
+    async def test_query_table_row_set_with_parameters(
+        self, mock_synapse_client, sample_query_result_bundle
+    ):
+        """Test _query_table_row_set with all optional parameters."""
+        # GIVEN a query with all parameters
+        query = "SELECT col1, col2 FROM syn123456"
+        limit = 100
+        offset = 50
+        part_mask = 0x1 | 0x2 | 0x4  # Query results + count + select columns
+
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.extract_synapse_id_from_query",
+                return_value="syn123456",
+            ) as mock_extract_id,
+            patch(
+                "synapseclient.models.mixins.table_components.Query"
+            ) as mock_query_class,
+            patch.object(
+                QueryBundleRequest,
+                "send_job_and_wait_async",
+                return_value=sample_query_result_bundle,
+            ) as mock_send_job,
+        ):
+            # Create mock instances
+            mock_query_instance = MagicMock()
+            mock_query_class.return_value = mock_query_instance
+
+            # WHEN calling _query_table_row_set with parameters
+            result = await _query_table_row_set(
+                query=query,
+                synapse=mock_synapse_client,
+                limit=limit,
+                offset=offset,
+                part_mask=part_mask,
+            )
+            # THEN verify the Query was created with correct parameters
+            mock_query_class.assert_called_once_with(
+                sql=query,
+                include_entity_etag=True,
+                limit=limit,
+                offset=offset,
+            )
+
+            # THEN verify the result structure
+            assert isinstance(result, QueryResultBundle)
+            assert result.query_count == 1
+            assert result.query_result == sample_query_result_bundle.query_result
+
+            # Verify the QueryBundleRequest was created with correct parameters
+            mock_send_job.assert_called_once_with(synapse_client=mock_synapse_client)
+
+
+class TestQueryTableNextPage:
+    """Test suite for the _query_table_next_page function."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init_syn(self, syn: Synapse) -> None:
+        self.syn = syn
+
+    @pytest.fixture
+    def sample_table_id(self):
+        """Sample table ID for testing."""
+        return "syn123456"
+
+    @pytest.fixture
+    def sample_next_page_token(self):
+        """Sample QueryNextPageToken for testing."""
+        token = MagicMock(spec=QueryNextPageToken)
+        token.token = "sample_token_string"
+        return token
+
+    @pytest.fixture
+    def sample_synapse_response(self):
+        """Sample response from Synapse API."""
+        return {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryResultBundle",
+            "queryResult": {
+                "concreteType": "org.sagebionetworks.repo.model.table.QueryResult",
+                "queryResults": {
+                    "concreteType": "org.sagebionetworks.repo.model.table.RowSet",
+                    "tableId": "syn123456",
+                    "etag": "test-etag",
+                    "headers": [
+                        {"name": "col1", "columnType": "STRING", "id": "12345"},
+                        {"name": "col2", "columnType": "INTEGER", "id": "12346"},
+                    ],
+                    "rows": [
+                        {"rowId": 1, "versionNumber": 1, "values": ["test1", "100"]},
+                        {"rowId": 2, "versionNumber": 1, "values": ["test2", "200"]},
+                    ],
+                },
+                "nextPageToken": None,
+            },
+            "queryCount": 100,
+            "lastUpdatedOn": "2025-08-20T10:00:00.000Z",
+            "selectColumns": [
+                {"name": "column1", "columnType": "STRING", "id": "12345"}
+            ],
+        }
+
+    async def test_query_table_next_page_basic_functionality(
+        self, sample_table_id, sample_next_page_token, sample_synapse_response
+    ):
+        """Test basic functionality of _query_table_next_page. Next page token is None"""
+        with patch(
+            "synapseclient.client.Synapse._waitForAsync",
+            return_value=sample_synapse_response,
+        ) as mock_wait_for_async:
+            # WHEN calling _query_table_next_page function
+            result = _query_table_next_page(
+                next_page_token=sample_next_page_token,
+                table_id=sample_table_id,
+                synapse=self.syn,
+            )
+            # Verify API call was made correctly
+            mock_wait_for_async.assert_called_once_with(
+                uri="/entity/syn123456/table/query/nextPage/async",
+                request="sample_token_string",
+            )
+
+            # Verify the QueryResultBundle was populated correctly from the response
+            assert (
+                result.concrete_type
+                == "org.sagebionetworks.repo.model.table.QueryResultBundle"
+            )
+            assert result.query_count == 100
+            assert result.last_updated_on == "2025-08-20T10:00:00.000Z"
+
+            # Verify the nested QueryResult
+            assert isinstance(result.query_result, QueryResult)
+            assert (
+                result.query_result.concrete_type
+                == "org.sagebionetworks.repo.model.table.QueryResult"
+            )
+            assert result.query_result.next_page_token is None
+
+            # Verify the nested RowSet
+            assert isinstance(result.query_result.query_results, RowSet)
+            assert result.query_result.query_results.table_id == sample_table_id
+            assert result.query_result.query_results.etag == "test-etag"
+            assert len(result.query_result.query_results.headers) == 2
+            assert len(result.query_result.query_results.rows) == 2
+
+            # Verify the nested SelectColumns
+            assert isinstance(result.select_columns, list)
+            assert len(result.select_columns) == 1
+            assert result.select_columns[0].name == "column1"
+            assert result.select_columns[0].column_type == "STRING"
+            assert result.select_columns[0].id == "12345"
