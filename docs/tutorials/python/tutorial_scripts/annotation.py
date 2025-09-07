@@ -6,7 +6,7 @@ Here is where you'll find the code for the Annotation tutorial.
 import os
 
 import synapseclient
-from synapseclient import File
+from synapseclient.models import File
 
 syn = synapseclient.login()
 
@@ -58,22 +58,22 @@ batch_1_scrnaseq_new_file_1 = File(
     path=os.path.expanduser(
         "~/my_ad_project/single_cell_RNAseq_batch_1/SRR92345678_R1.fastq.gz"
     ),
-    parent=batch_1_folder_id,
+    parent_id=batch_1_folder_id,
     annotations=annotation_values,
 )
 batch_1_scrnaseq_new_file_2 = File(
     path=os.path.expanduser(
         "~/my_ad_project/single_cell_RNAseq_batch_1/SRR92345678_R2.fastq.gz"
     ),
-    parent=batch_1_folder_id,
+    parent_id=batch_1_folder_id,
     annotations=annotation_values,
 )
-batch_1_scrnaseq_new_file_1 = syn.store(obj=batch_1_scrnaseq_new_file_1)
-batch_1_scrnaseq_new_file_2 = syn.store(obj=batch_1_scrnaseq_new_file_2)
+batch_1_scrnaseq_new_file_1.store()
+batch_1_scrnaseq_new_file_2.store()
 
 print(
-    f"Stored file: {batch_1_scrnaseq_new_file_1['name']}, ID: {batch_1_scrnaseq_new_file_1['id']}, Annotations: {batch_1_scrnaseq_new_file_1['annotations']}"
+    f"Stored file: {batch_1_scrnaseq_new_file_1.name}, ID: {batch_1_scrnaseq_new_file_1.id}, Annotations: {batch_1_scrnaseq_new_file_1.annotations}"
 )
 print(
-    f"Stored file: {batch_1_scrnaseq_new_file_2['name']}, ID: {batch_1_scrnaseq_new_file_2['id']}, Annotations: {batch_1_scrnaseq_new_file_2['annotations']}"
+    f"Stored file: {batch_1_scrnaseq_new_file_2.name}, ID: {batch_1_scrnaseq_new_file_2.id}, Annotations: {batch_1_scrnaseq_new_file_2.annotations}"
 )
