@@ -21,13 +21,13 @@ In this tutorial you will:
 
 ```python
 import synapseclient
-from synapseclient import Project
+from synapseclient.models import Project
 
 syn = synapseclient.login()
 
 # Project names must be globally unique
 project = Project(name="My uniquely named project about Alzheimer's Disease")
-project = syn.store(obj=project)
+project = project.store()
 ```
 
 Now that you have created your project you are able to inspect the project in the [synapse web UI](https://www.synapse.org/#!Profile:v/projects/created_by_me).
@@ -39,13 +39,13 @@ Now that you have created your project you are able to inspect the project in th
 my_synapse_project_id = project.id
 print(f"My project ID is: {my_synapse_project_id}")
 
-project_creation_date = project.createdOn
-print(f"I created my project on: {project.createdOn}")
+project_creation_date = project.created_on
+print(f"I created my project on: {project_creation_date}")
 
-user_id_who_created_project = project.createdBy
+user_id_who_created_project = project.created_by
 print(f"The ID of the user that created my project is: {user_id_who_created_project}")
 
-project_modified_on_date = project.modifiedOn
+project_modified_on_date = project.modified_on
 print(f"My project was last modified on: {project_modified_on_date}")
 ```
 <details class="example">
@@ -72,6 +72,7 @@ the existing project object.
 my_project_id = syn.findEntityId(
     name="My uniquely named project about Alzheimer's Disease"
 )
+
 my_project_object = syn.get(entity=my_project_id)
 print(f"I just got my project: {my_project_object.name}, id: {my_project_id}")
 ```
