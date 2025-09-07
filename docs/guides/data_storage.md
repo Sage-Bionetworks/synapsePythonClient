@@ -24,8 +24,9 @@ If you are changing the storage location of an existing folder to a user specifi
 2. Create a folder and configure it to use external S3 storage:
 
 ```python
+from synapseclient.models import Folder
 # create a new folder to use with external S3 storage
-folder = syn.store(Folder(name=folder_name, parent=parent))
+folder = Folder(name=folder_name, parent_id=parent).store()
 # You may also use an existing folder like:
 # folder = syn.get("syn123")
 folder, storage_location, project_setting = syn.create_s3_storage_location(
@@ -48,8 +49,9 @@ If you are changing the storage location of an existing project to a user specif
 2. Create a project and configure it to use external S3 storage:
 
 ```python
+from synapseclient.models import Project
 # create a new, or retrieve an existing project to use with external S3 storage
-project = syn.store(Project(name="my_project_name"))
+project = Project(name="my_project_name").store()
 project_storage, storage_location, project_setting = syn.create_s3_storage_location(
     # Despite the KW argument name, this can be a project or folder
     folder=project,
@@ -64,6 +66,8 @@ storage_location_id = storage_location['storageLocationId']
 Once an external S3 storage folder exists, you can interact with it as you would any other folder using Synapse tools. If you wish to add an object that is stored within the bucket to Synapse you can do that by adding a file handle for that object using the Python client and then storing the file to that handle.
 
 ```python
+from synapseclient.models import File
+
 parent_synapse_folder_id = 'syn123'
 local_file_path = '/path/to/local/file'
 bucket = 'my-external-synapse-bucket'
@@ -84,8 +88,8 @@ file_handle = syn.create_external_s3_file_handle(
     local_file_path,
     parent=parent_synapse_folder_id,
 )
-file = File(parentId=folder['id'], dataFileHandleId=file_handle['id'])
-file_entity = syn.store(file)
+file_entity = File(parent_id=folder['id'], data_file_handle_id=file_handle['id'])
+file_entity.store()
 ```
 
 ## Storage location migration
