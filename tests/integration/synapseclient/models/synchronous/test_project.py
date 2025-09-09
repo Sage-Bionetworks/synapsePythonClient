@@ -587,3 +587,134 @@ class TestProjectCopySync:
 
         # Verify that submission views are empty (since we didn't create any evaluation queues)
         assert len(synced_project.submissionviews) == 0
+
+
+class TestProjectWalk:
+    """Tests for the synapseclient.models.Project.walk methods."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(
+        self, syn_with_logger: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
+        self.syn = syn_with_logger
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    def create_file_instance(self, schedule_for_cleanup: Callable[..., None]) -> File:
+        filename = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(filename)
+        return File(
+            path=filename,
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
+        )
+
+    def create_test_hierarchy(self, project: Project) -> dict:
+        """Create a test hierarchy for walk testing."""
+        # Create root level folder and file
+        root_folder = Folder(
+            name=f"root_folder_{str(uuid.uuid4())[:8]}", parent_id=project.id
+        )
+        root_folder = root_folder.store()
+        self.schedule_for_cleanup(root_folder.id)
+
+        root_file = self.create_file_instance(self.schedule_for_cleanup)
+        root_file.parent_id = project.id
+        root_file = root_file.store()
+        self.schedule_for_cleanup(root_file.id)
+
+        # Create nested folder and file
+        nested_folder = Folder(
+            name=f"nested_folder_{str(uuid.uuid4())[:8]}", parent_id=root_folder.id
+        )
+        nested_folder = nested_folder.store()
+        self.schedule_for_cleanup(nested_folder.id)
+
+        nested_file = self.create_file_instance(self.schedule_for_cleanup)
+        nested_file.parent_id = nested_folder.id
+        nested_file = nested_file.store()
+        self.schedule_for_cleanup(nested_file.id)
+
+        return {
+            "project": project,
+            "root_folder": root_folder,
+            "root_file": root_file,
+            "nested_folder": nested_folder,
+            "nested_file": nested_file,
+        }
+
+    async def test_walk_recursive_true(self) -> None:
+        """Test walk method with recursive=True."""
+        # GIVEN: A unique project with a hierarchical structure
+        project_model = Project(
+            name=f"integration_test_project{str(uuid.uuid4())}",
+            description=DESCRIPTION_PROJECT,
+        )
+        project_model = project_model.store()
+        self.schedule_for_cleanup(project_model.id)
+        hierarchy = self.create_test_hierarchy(project_model)
+
+        # WHEN: Walking through the project with recursive=True
+        results = list(project_model.walk(recursive=True))
+
+        # THEN: Should get 3 results (project root, root_folder, nested_folder)
+        assert len(results) == 3
+
+        # AND: Project root result should contain correct structure
+        project_result = results[0]
+        dirpath, dirs, nondirs = project_result
+        assert dirpath[0] == hierarchy["project"].name
+        assert dirpath[1] == hierarchy["project"].id
+        assert len(dirs) == 1  # root_folder
+        assert len(nondirs) == 1  # root_file
+
+        # AND: All returned objects should be EntityHeader instances
+        assert hasattr(dirs[0], "name")
+        assert hasattr(dirs[0], "id")
+        assert hasattr(dirs[0], "type")
+        assert hasattr(nondirs[0], "name")
+        assert hasattr(nondirs[0], "id")
+        assert hasattr(nondirs[0], "type")
+
+        # AND: Should be able to find nested content
+        nested_results = [r for r in results if "nested_folder" in r[0][0]]
+        assert len(nested_results) == 1
+        _, nested_dirs, nested_nondirs = nested_results[0]
+        assert len(nested_dirs) == 0
+        assert len(nested_nondirs) == 1  # nested_file
+
+        # AND: Nested objects should also be EntityHeader instances
+        assert hasattr(nested_nondirs[0], "name")
+        assert hasattr(nested_nondirs[0], "id")
+        assert hasattr(nested_nondirs[0], "type")
+
+    async def test_walk_recursive_false(self) -> None:
+        """Test walk method with recursive=False."""
+        # GIVEN: A unique project with a hierarchical structure
+        project_model = Project(
+            name=f"integration_test_project{str(uuid.uuid4())}",
+            description=DESCRIPTION_PROJECT,
+        )
+        project_model = project_model.store()
+        self.schedule_for_cleanup(project_model.id)
+        hierarchy = self.create_test_hierarchy(project_model)
+
+        # WHEN: Walking through the project with recursive=False
+        results = list(project_model.walk(recursive=False))
+
+        # THEN: Should get only 1 result (project root only)
+        assert len(results) == 1
+
+        # AND: Project root should contain direct children only
+        dirpath, dirs, nondirs = results[0]
+        assert dirpath[0] == hierarchy["project"].name
+        assert dirpath[1] == hierarchy["project"].id
+        assert len(dirs) == 1  # root_folder
+        assert len(nondirs) == 1  # root_file
+
+        # AND: All returned objects should be EntityHeader instances
+        assert hasattr(dirs[0], "name")
+        assert hasattr(dirs[0], "id")
+        assert hasattr(dirs[0], "type")
+        assert hasattr(nondirs[0], "name")
+        assert hasattr(nondirs[0], "id")
+        assert hasattr(nondirs[0], "type")

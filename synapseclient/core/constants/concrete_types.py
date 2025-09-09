@@ -73,10 +73,6 @@ MATERIALIZED_VIEW = "org.sagebionetworks.repo.model.table.MaterializedView"
 SUBMISSION_VIEW = "org.sagebionetworks.repo.model.table.SubmissionView"
 VIRTUAL_TABLE = "org.sagebionetworks.repo.model.table.VirtualTable"
 
-# Type headers
-PROJECT_HEADER = "synapseclient.models.project.Project"
-FOLDER_HEADER = "synapseclient.models.folder.Folder"
-
 # upload requests
 MULTIPART_UPLOAD_REQUEST = "org.sagebionetworks.repo.model.file.MultipartUploadRequest"
 MULTIPART_UPLOAD_COPY_REQUEST = (

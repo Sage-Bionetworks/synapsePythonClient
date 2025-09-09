@@ -18,7 +18,7 @@ from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api import get_entity_id_bundle2
-from synapseclient.api.entity_services import get_children
+from synapseclient.api.entity_services import EntityHeader, get_children
 from synapseclient.core.async_utils import (
     async_to_sync,
     otel_trace_method,
@@ -31,11 +31,9 @@ from synapseclient.core.constants.concrete_types import (
     ENTITY_VIEW,
     FILE_ENTITY,
     FOLDER_ENTITY,
-    FOLDER_HEADER,
     LINK_ENTITY,
     MATERIALIZED_VIEW,
     PROJECT_ENTITY,
-    PROJECT_HEADER,
     SUBMISSION_VIEW,
     TABLE_ENTITY,
     VIRTUAL_TABLE,
@@ -590,10 +588,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         _tree_prefix: str = "",
         _is_last_in_parent: bool = True,
         _tree_depth: int = 0,
-    ) -> AsyncGenerator[Tuple[Tuple[str, str], List[Dict], List[Dict]], None]:
+    ) -> AsyncGenerator[
+        Tuple[Tuple[str, str], List[EntityHeader], List[EntityHeader]], None
+    ]:
         """
         Traverse through the hierarchy of entities stored under this container.
-        Mimics os.walk() behavior but yields full entity dictionaries, with optional
+        Mimics os.walk() behavior but yields EntityHeader objects, with optional
         ASCII tree display that continues printing as the walk progresses.
 
         Arguments:
@@ -621,9 +621,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         Yields:
             Tuple of (dirpath, dirs, nondirs) where:
-            - dirpath: Tuple (directory_name, synapse_id) representing current directory
-            - dirs: List of entity dictionaries for subdirectories (folders)
-            - nondirs: List of entity dictionaries for non-directory entities (files, tables, etc.)
+
+                - dirpath: Tuple (directory_name, synapse_id) representing current directory
+                - dirs: List of EntityHeader objects for subdirectories (folders)
+                - nondirs: List of EntityHeader objects for non-directory entities (files, tables, etc.)
 
         Example: Traverse all entities in a container
             Basic usage - traverse all entities in a container
@@ -645,14 +646,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             ```python
             # Display tree structure progressively as walk proceeds
             async for dirpath, dirs, nondirs in container.walk_async(
-                display_ascii_tree=True,
-                show_size=True,
-                show_modified=True
+                display_ascii_tree=True
             ):
                 # Process each directory as usual
                 print(f"Processing: {dirpath[0]}")
                 for file_entity in nondirs:
-                    print(f"  Found file: {file_entity['name']}")
+                    print(f"  Found file: {file_entity.name}")
             ```
 
             Example output:
@@ -674,22 +673,21 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                         ├── 📄 file1.txt (syn68884959) [File]
                         └── 📄 file2.txt (syn68884999) [File]
 
-            Directory: my-container-name/sub-folder (syn12345678)
-            Folder: {'name': 'subdir1', 'id': 'syn12345678',
-                    'type': 'org.sagebionetworks.repo.model.Folder', 'versionNumber': 1,
-                    'versionLabel': '1', 'isLatestVersion': True, 'benefactorId': 22222222,
-                    'createdOn': '2025-01-01T01:01:01.001Z', 'modifiedOn': '2025-01-01T01:01:01.001Z',
-                    'createdBy': '12345678', 'modifiedBy': '12345678'}
-
-            File: {'name': 'file_in_a_sub_folder.txt', 'id': 'syn12345678',
-                    'type': 'org.sagebionetworks.repo.model.FileEntity', 'versionNumber': 1,
-                    'versionLabel': '1', 'isLatestVersion': True, 'benefactorId': 22222222,
-                    'createdOn': '2025-01-01T01:01:01.001Z', 'modifiedOn': '2025-01-01T01:01:01.001Z',
-                    'createdBy': '12345678', 'modifiedBy': '12345678'}
+            Directory: My uniquely named project about Alzheimer's Disease (syn53185532)
+              File: EntityHeader(name='Gene Expression Data', id='syn66227753',
+                type='org.sagebionetworks.repo.model.table.TableEntity', version_number=1,
+                version_label='in progress', is_latest_version=True, benefactor_id=53185532,
+                created_on='2025-04-11T21:24:28.913Z', modified_on='2025-04-11T21:24:34.996Z',
+                created_by='3481671', modified_by='3481671')
+              Folder: EntityHeader(name='Research Data', id='syn68327923',
+                type='org.sagebionetworks.repo.model.Folder', version_number=1,
+                version_label='1', is_latest_version=True, benefactor_id=68327923,
+                created_on='2025-06-16T21:51:50.460Z', modified_on='2025-06-16T22:19:41.481Z',
+                created_by='3481671', modified_by='3481671')
             ```
 
         Note:
-            Each entity dictionary contains complete metadata including id, name, type,
+            Each EntityHeader contains complete metadata including id, name, type,
             creation/modification dates, version information, and other Synapse properties.
             The directory path is built using os.path.join() to create hierarchical paths.
 
@@ -728,13 +726,14 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         else:
             dirpath = (_newpath, self.id)
 
-        all_children = []
+        all_children: List[EntityHeader] = []
         async for child in get_children(
             parent=self.id,
             include_types=include_types,
             synapse_client=synapse_client,
         ):
-            all_children.append(child)
+            converted_child = EntityHeader().fill_from_dict(synapse_response=child)
+            all_children.append(converted_child)
 
         if display_ascii_tree and _newpath is None and _tree_depth == 0:
             client = Synapse.get_client(synapse_client=synapse_client)
@@ -743,11 +742,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         if display_ascii_tree:
             client = Synapse.get_client(synapse_client=synapse_client)
 
-            current_entity = {
-                "id": self.id,
-                "name": self.name,
-                "type": self.__class__.__module__ + "." + self.__class__.__name__,
-            }
+            from synapseclient.models import Project
+
+            current_entity = EntityHeader(
+                id=self.id,
+                name=self.name,
+                type=PROJECT_ENTITY if isinstance(self, Project) else FOLDER_ENTITY,
+            )
 
             if _tree_depth == 0:
                 tree_line = self._format_entity_info_for_tree(entity=current_entity)
@@ -763,11 +764,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         dir_entities = []
 
         for child in all_children:
-            if child["type"] in [
+            if child.type in [
                 FOLDER_ENTITY,
                 PROJECT_ENTITY,
-                PROJECT_HEADER,
-                FOLDER_HEADER,
             ]:
                 dirs.append(child)
                 dir_entities.append(child)
@@ -782,7 +781,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             else:
                 child_prefix = _tree_prefix + ("    " if _is_last_in_parent else "│   ")
 
-            sorted_nondirs = sorted(nondirs, key=lambda x: x.get("name", ""))
+            sorted_nondirs = sorted(nondirs, key=lambda x: x.name)
 
             for i, child in enumerate(sorted_nondirs):
                 is_last_child = (i == len(sorted_nondirs) - 1) and (
@@ -797,7 +796,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         yield dirpath, dirs, nondirs
 
         if recursive and dir_entities:
-            sorted_dir_entities = sorted(dir_entities, key=lambda x: x.get("name", ""))
+            sorted_dir_entities: List[EntityHeader] = sorted(
+                dir_entities, key=lambda x: x.name
+            )
 
             if _tree_depth == 0:
                 subdir_prefix = ""
@@ -810,19 +811,17 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             for i, child_entity in enumerate(sorted_dir_entities):
                 is_last_subdir = i == len(sorted_dir_entities) - 1
 
-                new_dir_path = os.path.join(dirpath[0], child_entity["name"])
+                new_dir_path = os.path.join(dirpath[0], child_entity.name)
 
-                if child_entity["type"] == FOLDER_ENTITY:
+                if child_entity.type == FOLDER_ENTITY:
                     from synapseclient.models import Folder
 
-                    child_container = Folder(
-                        id=child_entity["id"], name=child_entity["name"]
-                    )
-                elif child_entity["type"] == PROJECT_ENTITY:
+                    child_container = Folder(id=child_entity.id, name=child_entity.name)
+                elif child_entity.type == PROJECT_ENTITY:
                     from synapseclient.models import Project
 
                     child_container = Project(
-                        id=child_entity["id"], name=child_entity["name"]
+                        id=child_entity.id, name=child_entity.name
                     )
                 else:
                     continue  # Skip non-container types
@@ -852,10 +851,12 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         _tree_prefix: str = "",
         _is_last_in_parent: bool = True,
         _tree_depth: int = 0,
-    ) -> Generator[Tuple[Tuple[str, str], List[Dict], List[Dict]], None, None]:
+    ) -> Generator[
+        Tuple[Tuple[str, str], List[EntityHeader], List[EntityHeader]], None, None
+    ]:
         """
         Traverse through the hierarchy of entities stored under this container.
-        Mimics os.walk() behavior but yields full entity dictionaries, with optional
+        Mimics os.walk() behavior but yields EntityHeader objects, with optional
         ASCII tree display that continues printing as the walk progresses.
 
         Arguments:
@@ -879,9 +880,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         Yields:
             Tuple of (dirpath, dirs, nondirs) where:
-            - dirpath: Tuple (directory_name, synapse_id) representing current directory
-            - dirs: List of entity dictionaries for subdirectories (folders)
-            - nondirs: List of entity dictionaries for non-directory entities (files, tables, etc.)
+
+                - dirpath: Tuple (directory_name, synapse_id) representing current directory
+                - dirs: List of EntityHeader objects for subdirectories (folders)
+                - nondirs: List of EntityHeader objects for non-directory entities (files, tables, etc.)
 
         Example: Traverse all entities in a container
             Basic usage - traverse all entities in a container
@@ -908,7 +910,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 # Process each directory as usual
                 print(f"Processing: {dirpath[0]}")
                 for file_entity in nondirs:
-                    print(f"  Found file: {file_entity['name']}")
+                    print(f"  Found file: {file_entity.name}")
             ```
 
             Example output:
@@ -930,22 +932,21 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                         ├── 📄 file1.txt (syn68884959) [File]
                         └── 📄 file2.txt (syn68884999) [File]
 
-            Directory: my-container-name/sub-folder (syn12345678)
-            Folder: {'name': 'subdir1', 'id': 'syn12345678',
-                    'type': 'org.sagebionetworks.repo.model.Folder', 'versionNumber': 1,
-                    'versionLabel': '1', 'isLatestVersion': True, 'benefactorId': 22222222,
-                    'createdOn': '2025-01-01T01:01:01.001Z', 'modifiedOn': '2025-01-01T01:01:01.001Z',
-                    'createdBy': '12345678', 'modifiedBy': '12345678'}
-
-            File: {'name': 'file_in_a_sub_folder.txt', 'id': 'syn12345678',
-                    'type': 'org.sagebionetworks.repo.model.FileEntity', 'versionNumber': 1,
-                    'versionLabel': '1', 'isLatestVersion': True, 'benefactorId': 22222222,
-                    'createdOn': '2025-01-01T01:01:01.001Z', 'modifiedOn': '2025-01-01T01:01:01.001Z',
-                    'createdBy': '12345678', 'modifiedBy': '12345678'}
+            Directory: My uniquely named project about Alzheimer's Disease (syn53185532)
+              File: EntityHeader(name='Gene Expression Data', id='syn66227753',
+                type='org.sagebionetworks.repo.model.table.TableEntity', version_number=1,
+                version_label='in progress', is_latest_version=True, benefactor_id=53185532,
+                created_on='2025-04-11T21:24:28.913Z', modified_on='2025-04-11T21:24:34.996Z',
+                created_by='3481671', modified_by='3481671')
+              Folder: EntityHeader(name='Research Data', id='syn68327923',
+                type='org.sagebionetworks.repo.model.Folder', version_number=1,
+                version_label='1', is_latest_version=True, benefactor_id=68327923,
+                created_on='2025-06-16T21:51:50.460Z', modified_on='2025-06-16T22:19:41.481Z',
+                created_by='3481671', modified_by='3481671')
             ```
 
         Note:
-            Each entity dictionary contains complete metadata including id, name, type,
+            Each EntityHeader contains complete metadata including id, name, type,
             creation/modification dates, version information, and other Synapse properties.
             The directory path is built using os.path.join() to create hierarchical paths.
 
@@ -957,10 +958,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             When display_ascii_tree=True, the tree is printed progressively as each
             container is visited during the walk, making it suitable for very large
             and deeply nested structures.
-
-            This method internally uses `walk_async()` and wraps it to provide a
-            synchronous generator interface that can be used in regular for loops
-            without requiring async/await syntax.
         """
         yield from wrap_async_generator_to_sync_generator(
             self.walk_async,
@@ -1434,7 +1431,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
     def _format_entity_info_for_tree(
         self,
-        entity: Dict,
+        entity: EntityHeader,
     ) -> str:
         """
         Format entity information for display in progressive tree output.
@@ -1447,9 +1444,9 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         Returns:
             String representation of the entity for tree display.
         """
-        name = entity.get("name", "Unknown")
-        entity_id = entity.get("id", "Unknown")
-        entity_type = entity.get("type", "Unknown")
+        name = entity.name or "Unknown"
+        entity_id = entity.id or "Unknown"
+        entity_type = entity.type or "Unknown"
 
         type_name = entity_type
         icon = ""
@@ -1457,10 +1454,10 @@ class StorableContainer(StorableContainerSynchronousProtocol):
         if entity_type == FILE_ENTITY:
             type_name = "File"
             icon = "📄"
-        elif entity_type == FOLDER_HEADER or entity_type == FOLDER_ENTITY:
+        elif entity_type == FOLDER_ENTITY:
             type_name = "Folder"
             icon = "📁 "
-        elif entity_type == PROJECT_HEADER or entity_type == PROJECT_ENTITY:
+        elif entity_type == PROJECT_ENTITY:
             type_name = "Project"
             icon = "📂 "
         elif entity_type == TABLE_ENTITY:
