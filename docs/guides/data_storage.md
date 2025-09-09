@@ -30,7 +30,7 @@ folder = Folder(name=folder_name, parent_id=parent).store()
 # You may also use an existing folder like:
 # folder = syn.get("syn123")
 folder, storage_location, project_setting = syn.create_s3_storage_location(
-    folder=folder,
+    folder=folder.id,
     bucket_name='my-external-synapse-bucket',
     base_key='path/within/bucket',
  )
@@ -54,7 +54,7 @@ from synapseclient.models import Project
 project = Project(name="my_project_name").store()
 project_storage, storage_location, project_setting = syn.create_s3_storage_location(
     # Despite the KW argument name, this can be a project or folder
-    folder=project,
+    folder=project.id,
     bucket_name='my-external-synapse-bucket',
     base_key='path/within/bucket',
 )
