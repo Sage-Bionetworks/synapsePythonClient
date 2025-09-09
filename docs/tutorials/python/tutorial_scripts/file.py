@@ -7,27 +7,27 @@ import os
 
 import synapseclient
 import synapseutils
-from synapseclient.models import File
+from synapseclient.models import File, Folder, Project
 
 syn = synapseclient.login()
 
 # Retrieve the project ID
-my_project_id = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease"
+my_project_id = (
+    Project(name="My uniquely named project about Alzheimer's Disease").get().id
 )
 
 # Retrieve the IDs of the folders I want to upload to
-batch_1_folder = syn.findEntityId(
-    parent=my_project_id, name="single_cell_RNAseq_batch_1"
+batch_1_folder = (
+    Folder(parent_id=my_project_id, name="single_cell_RNAseq_batch_1").get().id
 )
-batch_2_folder = syn.findEntityId(
-    parent=my_project_id, name="single_cell_RNAseq_batch_2"
+batch_2_folder = (
+    Folder(parent_id=my_project_id, name="single_cell_RNAseq_batch_2").get().id
 )
-biospecimen_experiment_1_folder = syn.findEntityId(
-    parent=my_project_id, name="biospecimen_experiment_1"
+biospecimen_experiment_1_folder = (
+    Folder(parent_id=my_project_id, name="biospecimen_experiment_1").get().id
 )
-biospecimen_experiment_2_folder = syn.findEntityId(
-    parent=my_project_id, name="biospecimen_experiment_2"
+biospecimen_experiment_2_folder = (
+    Folder(parent_id=my_project_id, name="biospecimen_experiment_2").get().id
 )
 
 # Create a File object for each file I want to upload
