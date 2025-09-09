@@ -4,33 +4,31 @@ Here is where you'll find the code for the Folder tutorial.
 
 # Step 1: Create a new folder
 import synapseclient
-from synapseclient.models import Folder
+from synapseclient.models import Folder, Project
 
 syn = synapseclient.login()
 
 # Retrieve the project ID
-my_project_id = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease"
-)
+my_project = Project(name="My uniquely named project about Alzheimer's Disease")
 
 # Create a Folder object and store it
 my_scrnaseq_batch_1_folder = Folder(
-    name="single_cell_RNAseq_batch_1", parent_id=my_project_id
+    name="single_cell_RNAseq_batch_1", parent_id=my_project.id
 )
 my_scrnaseq_batch_1_folder.store()
 
 my_scrnaseq_batch_2_folder = Folder(
-    name="single_cell_RNAseq_batch_2", parent_id=my_project_id
+    name="single_cell_RNAseq_batch_2", parent_id=my_project.id
 )
 my_scrnaseq_batch_2_folder.store()
 
 biospecimen_experiment_1_folder = Folder(
-    name="biospecimen_experiment_1", parent_id=my_project_id
+    name="biospecimen_experiment_1", parent_id=my_project.id
 )
 biospecimen_experiment_1_folder.store()
 
 biospecimen_experiment_2_folder = Folder(
-    name="biospecimen_experiment_2", parent_id=my_project_id
+    name="biospecimen_experiment_2", parent_id=my_project.id
 )
 biospecimen_experiment_2_folder.store()
 
@@ -49,7 +47,7 @@ print(
 print(f"My folder was last modified on: {my_scrnaseq_batch_1_folder.modified_on}")
 
 # Step 3: Create 2 sub-folders
-hierarchical_root_folder = Folder(name="experiment_notes", parent_id=my_project_id)
+hierarchical_root_folder = Folder(name="experiment_notes", parent_id=my_project.id)
 hierarchical_root_folder.store()
 
 folder_notes_2023 = Folder(name="notes_2023", parent_id=hierarchical_root_folder.id)
