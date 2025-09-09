@@ -22,7 +22,6 @@ batch_1_folder = Folder(
 
 print(f"Batch 1 Folder ID: {batch_1_folder.id}")
 
-
 # Define the annotations I want to set
 annotation_values = {
     "species": "Homo sapiens",
