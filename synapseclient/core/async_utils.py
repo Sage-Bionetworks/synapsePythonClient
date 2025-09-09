@@ -93,6 +93,68 @@ def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any], syn: "Synapse") -> A
         return asyncio.run(coroutine)
 
 
+def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kwargs):
+    """
+    Wrap an async generator function to be called in a sync context, returning a sync generator.
+
+    This function takes an async generator function and its arguments, then yields items
+    synchronously by running the async generator in the appropriate event loop.
+
+    Arguments:
+        async_gen_func: The async generator function to wrap
+        *args: Positional arguments to pass to the async generator function
+        **kwargs: Keyword arguments to pass to the async generator function
+
+    Yields:
+        Items from the async generator, yielded synchronously
+    """
+    loop = None
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+
+    if loop:
+        nest_asyncio.apply(loop=loop)
+
+        # Create the async generator
+        async_gen = async_gen_func(*args, **kwargs)
+
+        # Yield items from the async generator synchronously
+        try:
+            while True:
+                try:
+                    item = loop.run_until_complete(async_gen.__anext__())
+                    yield item
+                except StopAsyncIteration:
+                    break
+        finally:
+            # Ensure the generator is properly closed
+            try:
+                loop.run_until_complete(async_gen.aclose())
+            except (RuntimeError, StopAsyncIteration):
+                pass
+    else:
+        # No running loop, create a new one
+        async def run_generator():
+            async_gen = async_gen_func(*args, **kwargs)
+            items = []
+            try:
+                async for item in async_gen:
+                    items.append(item)
+            finally:
+                try:
+                    await async_gen.aclose()
+                except (RuntimeError, StopAsyncIteration):
+                    pass
+            return items
+
+        items = asyncio.run(run_generator())
+        for item in items:
+            yield item
+
+
 # Adapted from
 # https://github.com/keflavich/astroquery/blob/30deafc3aa057916bcdca70733cba748f1b36b64/astroquery/utils/process_asyncs.py#L11
 def async_to_sync(cls):

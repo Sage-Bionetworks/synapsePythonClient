@@ -2,22 +2,40 @@
 
 import asyncio
 import os
-from typing import TYPE_CHECKING, Dict, List, NoReturn, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    AsyncGenerator,
+    Dict,
+    Generator,
+    List,
+    NoReturn,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api import get_entity_id_bundle2
 from synapseclient.api.entity_services import get_children
-from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    otel_trace_method,
+    skip_async_to_sync,
+    wrap_async_generator_to_sync_generator,
+)
 from synapseclient.core.constants.concrete_types import (
     DATASET_COLLECTION_ENTITY,
     DATASET_ENTITY,
     ENTITY_VIEW,
     FILE_ENTITY,
     FOLDER_ENTITY,
+    FOLDER_HEADER,
     LINK_ENTITY,
     MATERIALIZED_VIEW,
+    PROJECT_ENTITY,
+    PROJECT_HEADER,
     SUBMISSION_VIEW,
     TABLE_ENTITY,
     VIRTUAL_TABLE,
@@ -559,6 +577,404 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         return directory_map
 
+    @skip_async_to_sync
+    async def walk_async(
+        self,
+        follow_link: bool = False,
+        include_types: Optional[List[str]] = None,
+        recursive: bool = True,
+        display_ascii_tree: bool = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+        _newpath: Optional[str] = None,
+        _tree_prefix: str = "",
+        _is_last_in_parent: bool = True,
+        _tree_depth: int = 0,
+    ) -> AsyncGenerator[Tuple[Tuple[str, str], List[Dict], List[Dict]], None]:
+        """
+        Traverse through the hierarchy of entities stored under this container.
+        Mimics os.walk() behavior but yields full entity dictionaries, with optional
+        ASCII tree display that continues printing as the walk progresses.
+
+        Arguments:
+            follow_link: Whether to follow a link entity or not. Links can be used to
+                point at other Synapse entities.
+            include_types: Must be a list of entity types (ie. ["folder","file"]) which
+                can be found
+                [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html).
+                Defaults to
+                `["folder", "file", "table", "entityview", "dockerrepo",
+                "submissionview", "dataset", "datasetcollection", "materializedview",
+                "virtualtable"]`. The "folder" type is always included so the hierarchy
+                can be traversed.
+            recursive: Whether to recursively traverse subdirectories. Defaults to True.
+            display_ascii_tree: If True, display an ASCII tree representation as the
+                container structure is traversed. Tree lines are printed incrementally
+                as each container is visited. Defaults to False.
+            show_size: When display_ascii_tree=True, include file size information in
+                the tree output (where available). Defaults to False.
+            show_modified: When display_ascii_tree=True, include last modified date in
+                the tree output. Defaults to False.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            Tuple of (dirpath, dirs, nondirs) where:
+            - dirpath: Tuple (directory_name, synapse_id) representing current directory
+            - dirs: List of entity dictionaries for subdirectories (folders)
+            - nondirs: List of entity dictionaries for non-directory entities (files, tables, etc.)
+
+        Example: Traverse all entities in a container
+            Basic usage - traverse all entities in a container
+
+            ```python
+            async for dirpath, dirs, nondirs in container.walk_async():
+                print(f"Directory: {dirpath[0]} ({dirpath[1]})")
+
+                # Print folders
+                for folder_entity in dirs:
+                    print(f"  Folder: {folder_entity}")
+
+                # Print files and other entities
+                for entity in nondirs:
+                    print(f"  File: {entity}")
+            ```
+
+        Example: Display progressive ASCII tree as walk proceeds
+            ```python
+            # Display tree structure progressively as walk proceeds
+            async for dirpath, dirs, nondirs in container.walk_async(
+                display_ascii_tree=True,
+                show_size=True,
+                show_modified=True
+            ):
+                # Process each directory as usual
+                print(f"Processing: {dirpath[0]}")
+                for file_entity in nondirs:
+                    print(f"  Found file: {file_entity['name']}")
+            ```
+
+            Example output:
+
+            ```
+            === Container Structure ===
+            📂  my-container-name (syn52948289) [Project]
+            ├── 📁  bulk-upload (syn68884548) [Folder]
+            │   └── 📁  file_script_folder (syn68884547) [Folder]
+            │       └── 📁  file_script_sub_folder (syn68884549) [Folder]
+            │           └── 📄 file_in_a_sub_folder.txt (syn68884556) [File]
+            ├── 📁  root (syn67590143) [Folder]
+            │   └── 📁  subdir1 (syn67590144) [Folder]
+            │       ├── 📄 file1.txt (syn67590261) [File]
+            │       └── 📄 file2.txt (syn67590287) [File]
+            └── 📁  temp-files (syn68884954) [Folder]
+                └── 📁  root (syn68884955) [Folder]
+                    └── 📁  subdir1 (syn68884956) [Folder]
+                        ├── 📄 file1.txt (syn68884959) [File]
+                        └── 📄 file2.txt (syn68884999) [File]
+
+            Directory: my-container-name/sub-folder (syn12345678)
+            Folder: {'name': 'subdir1', 'id': 'syn12345678',
+                    'type': 'org.sagebionetworks.repo.model.Folder', 'versionNumber': 1,
+                    'versionLabel': '1', 'isLatestVersion': True, 'benefactorId': 22222222,
+                    'createdOn': '2025-01-01T01:01:01.001Z', 'modifiedOn': '2025-01-01T01:01:01.001Z',
+                    'createdBy': '12345678', 'modifiedBy': '12345678'}
+
+            File: {'name': 'file_in_a_sub_folder.txt', 'id': 'syn12345678',
+                    'type': 'org.sagebionetworks.repo.model.FileEntity', 'versionNumber': 1,
+                    'versionLabel': '1', 'isLatestVersion': True, 'benefactorId': 22222222,
+                    'createdOn': '2025-01-01T01:01:01.001Z', 'modifiedOn': '2025-01-01T01:01:01.001Z',
+                    'createdBy': '12345678', 'modifiedBy': '12345678'}
+            ```
+
+        Note:
+            Each entity dictionary contains complete metadata including id, name, type,
+            creation/modification dates, version information, and other Synapse properties.
+            The directory path is built using os.path.join() to create hierarchical paths.
+
+            When display_ascii_tree=True, the ASCII tree structure is displayed in proper
+            hierarchical order as the entire structure is traversed sequentially. The tree
+            will be printed in the correct parent-child relationships, but results will still
+            be yielded as expected during the traversal process.
+            like "my-container-name/bulk-upload/file_script_folder/file_script_sub_folder".
+            When display_ascii_tree=True, the tree is printed progressively as each
+            container is visited during the walk, making it suitable for very large
+            and deeply nested structures.
+        """
+        if not self.id or not self.name:
+            await self.get_async(synapse_client=synapse_client)
+        if not include_types:
+            include_types = [
+                "folder",
+                "file",
+                "table",
+                "entityview",
+                "dockerrepo",
+                "submissionview",
+                "dataset",
+                "datasetcollection",
+                "materializedview",
+                "virtualtable",
+            ]
+            if follow_link:
+                include_types.append("link")
+        else:
+            if follow_link and "link" not in include_types:
+                include_types.append("link")
+
+        if _newpath is None:
+            dirpath = (self.name, self.id)
+        else:
+            dirpath = (_newpath, self.id)
+
+        all_children = []
+        async for child in get_children(
+            parent=self.id,
+            include_types=include_types,
+            synapse_client=synapse_client,
+        ):
+            all_children.append(child)
+
+        if display_ascii_tree and _newpath is None and _tree_depth == 0:
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.info("=== Container Structure ===")
+
+        if display_ascii_tree:
+            client = Synapse.get_client(synapse_client=synapse_client)
+
+            current_entity = {
+                "id": self.id,
+                "name": self.name,
+                "type": self.__class__.__module__ + "." + self.__class__.__name__,
+            }
+
+            if _tree_depth == 0:
+                tree_line = self._format_entity_info_for_tree(entity=current_entity)
+            else:
+                connector = "└── " if _is_last_in_parent else "├── "
+                entity_info = self._format_entity_info_for_tree(entity=current_entity)
+                tree_line = f"{_tree_prefix}{connector}{entity_info}"
+
+            client.logger.info(tree_line)
+
+        dirs = []
+        nondirs = []
+        dir_entities = []
+
+        for child in all_children:
+            if child["type"] in [
+                FOLDER_ENTITY,
+                PROJECT_ENTITY,
+                PROJECT_HEADER,
+                FOLDER_HEADER,
+            ]:
+                dirs.append(child)
+                dir_entities.append(child)
+            else:
+                nondirs.append(child)
+
+        if display_ascii_tree and nondirs:
+            client = Synapse.get_client(synapse_client=synapse_client)
+
+            if _tree_depth == 0:
+                child_prefix = ""
+            else:
+                child_prefix = _tree_prefix + ("    " if _is_last_in_parent else "│   ")
+
+            sorted_nondirs = sorted(nondirs, key=lambda x: x.get("name", ""))
+
+            for i, child in enumerate(sorted_nondirs):
+                is_last_child = (i == len(sorted_nondirs) - 1) and (
+                    len(dir_entities) == 0
+                )
+                connector = "└── " if is_last_child else "├── "
+                entity_info = self._format_entity_info_for_tree(child)
+                tree_line = f"{child_prefix}{connector}{entity_info}"
+                client.logger.info(tree_line)
+
+        # Yield the current directory's contents
+        yield dirpath, dirs, nondirs
+
+        if recursive and dir_entities:
+            sorted_dir_entities = sorted(dir_entities, key=lambda x: x.get("name", ""))
+
+            if _tree_depth == 0:
+                subdir_prefix = ""
+            else:
+                subdir_prefix = _tree_prefix + (
+                    "    " if _is_last_in_parent else "│   "
+                )
+
+            # Process subdirectories SEQUENTIALLY to maintain tree structure
+            for i, child_entity in enumerate(sorted_dir_entities):
+                is_last_subdir = i == len(sorted_dir_entities) - 1
+
+                new_dir_path = os.path.join(dirpath[0], child_entity["name"])
+
+                if child_entity["type"] == FOLDER_ENTITY:
+                    from synapseclient.models import Folder
+
+                    child_container = Folder(
+                        id=child_entity["id"], name=child_entity["name"]
+                    )
+                elif child_entity["type"] == PROJECT_ENTITY:
+                    from synapseclient.models import Project
+
+                    child_container = Project(
+                        id=child_entity["id"], name=child_entity["name"]
+                    )
+                else:
+                    continue  # Skip non-container types
+
+                async for result in child_container.walk_async(
+                    follow_link=follow_link,
+                    include_types=include_types,
+                    recursive=recursive,
+                    display_ascii_tree=display_ascii_tree,
+                    _newpath=new_dir_path,
+                    synapse_client=synapse_client,
+                    _tree_prefix=subdir_prefix,
+                    _is_last_in_parent=is_last_subdir,
+                    _tree_depth=_tree_depth + 1,
+                ):
+                    yield result
+
+    def walk(
+        self,
+        follow_link: bool = False,
+        include_types: Optional[List[str]] = None,
+        recursive: bool = True,
+        display_ascii_tree: bool = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+        _newpath: Optional[str] = None,
+        _tree_prefix: str = "",
+        _is_last_in_parent: bool = True,
+        _tree_depth: int = 0,
+    ) -> Generator[Tuple[Tuple[str, str], List[Dict], List[Dict]], None, None]:
+        """
+        Traverse through the hierarchy of entities stored under this container.
+        Mimics os.walk() behavior but yields full entity dictionaries, with optional
+        ASCII tree display that continues printing as the walk progresses.
+
+        Arguments:
+            follow_link: Whether to follow a link entity or not. Links can be used to
+                point at other Synapse entities.
+            include_types: Must be a list of entity types (ie. ["folder","file"]) which
+                can be found
+                [here](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html).
+                Defaults to
+                `["folder", "file", "table", "entityview", "dockerrepo",
+                "submissionview", "dataset", "datasetcollection", "materializedview",
+                "virtualtable"]`. The "folder" type is always included so the hierarchy
+                can be traversed.
+            recursive: Whether to recursively traverse subdirectories. Defaults to True.
+            display_ascii_tree: If True, display an ASCII tree representation as the
+                container structure is traversed. Tree lines are printed incrementally
+                as each container is visited. Defaults to False.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            Tuple of (dirpath, dirs, nondirs) where:
+            - dirpath: Tuple (directory_name, synapse_id) representing current directory
+            - dirs: List of entity dictionaries for subdirectories (folders)
+            - nondirs: List of entity dictionaries for non-directory entities (files, tables, etc.)
+
+        Example: Traverse all entities in a container
+            Basic usage - traverse all entities in a container
+
+            ```python
+            for dirpath, dirs, nondirs in container.walk():
+                print(f"Directory: {dirpath[0]} ({dirpath[1]})")
+
+                # Print folders
+                for folder_entity in dirs:
+                    print(f"  Folder: {folder_entity}")
+
+                # Print files and other entities
+                for entity in nondirs:
+                    print(f"  File: {entity}")
+            ```
+
+        Example: Display progressive ASCII tree as walk proceeds
+            ```python
+            # Display tree structure progressively as walk proceeds
+            for dirpath, dirs, nondirs in container.walk(
+                display_ascii_tree=True
+            ):
+                # Process each directory as usual
+                print(f"Processing: {dirpath[0]}")
+                for file_entity in nondirs:
+                    print(f"  Found file: {file_entity['name']}")
+            ```
+
+            Example output:
+
+            ```
+            === Container Structure ===
+            📂  my-container-name (syn52948289) [Project]
+            ├── 📁  bulk-upload (syn68884548) [Folder]
+            │   └── 📁  file_script_folder (syn68884547) [Folder]
+            │       └── 📁  file_script_sub_folder (syn68884549) [Folder]
+            │           └── 📄 file_in_a_sub_folder.txt (syn68884556) [File]
+            ├── 📁  root (syn67590143) [Folder]
+            │   └── 📁  subdir1 (syn67590144) [Folder]
+            │       ├── 📄 file1.txt (syn67590261) [File]
+            │       └── 📄 file2.txt (syn67590287) [File]
+            └── 📁  temp-files (syn68884954) [Folder]
+                └── 📁  root (syn68884955) [Folder]
+                    └── 📁  subdir1 (syn68884956) [Folder]
+                        ├── 📄 file1.txt (syn68884959) [File]
+                        └── 📄 file2.txt (syn68884999) [File]
+
+            Directory: my-container-name/sub-folder (syn12345678)
+            Folder: {'name': 'subdir1', 'id': 'syn12345678',
+                    'type': 'org.sagebionetworks.repo.model.Folder', 'versionNumber': 1,
+                    'versionLabel': '1', 'isLatestVersion': True, 'benefactorId': 22222222,
+                    'createdOn': '2025-01-01T01:01:01.001Z', 'modifiedOn': '2025-01-01T01:01:01.001Z',
+                    'createdBy': '12345678', 'modifiedBy': '12345678'}
+
+            File: {'name': 'file_in_a_sub_folder.txt', 'id': 'syn12345678',
+                    'type': 'org.sagebionetworks.repo.model.FileEntity', 'versionNumber': 1,
+                    'versionLabel': '1', 'isLatestVersion': True, 'benefactorId': 22222222,
+                    'createdOn': '2025-01-01T01:01:01.001Z', 'modifiedOn': '2025-01-01T01:01:01.001Z',
+                    'createdBy': '12345678', 'modifiedBy': '12345678'}
+            ```
+
+        Note:
+            Each entity dictionary contains complete metadata including id, name, type,
+            creation/modification dates, version information, and other Synapse properties.
+            The directory path is built using os.path.join() to create hierarchical paths.
+
+            When display_ascii_tree=True, the ASCII tree structure is displayed in proper
+            hierarchical order as the entire structure is traversed sequentially. The tree
+            will be printed in the correct parent-child relationships, but results will still
+            be yielded as expected during the traversal process.
+            like "my-container-name/bulk-upload/file_script_folder/file_script_sub_folder".
+            When display_ascii_tree=True, the tree is printed progressively as each
+            container is visited during the walk, making it suitable for very large
+            and deeply nested structures.
+
+            This method internally uses `walk_async()` and wraps it to provide a
+            synchronous generator interface that can be used in regular for loops
+            without requiring async/await syntax.
+        """
+        yield from wrap_async_generator_to_sync_generator(
+            self.walk_async,
+            follow_link=follow_link,
+            include_types=include_types,
+            recursive=recursive,
+            display_ascii_tree=display_ascii_tree,
+            synapse_client=synapse_client,
+            _newpath=_newpath,
+            _tree_prefix=_tree_prefix,
+            _is_last_in_parent=_is_last_in_parent,
+            _tree_depth=_tree_depth,
+        )
+
     async def _retrieve_children(
         self,
         follow_link: bool,
@@ -1015,3 +1431,65 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 )
                 if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
                     raise exception
+
+    def _format_entity_info_for_tree(
+        self,
+        entity: Dict,
+    ) -> str:
+        """
+        Format entity information for display in progressive tree output.
+
+        Arguments:
+            entity: Dictionary containing entity information.
+            show_size: Whether to include size information.
+            show_modified: Whether to include modification date.
+
+        Returns:
+            String representation of the entity for tree display.
+        """
+        name = entity.get("name", "Unknown")
+        entity_id = entity.get("id", "Unknown")
+        entity_type = entity.get("type", "Unknown")
+
+        type_name = entity_type
+        icon = ""
+
+        if entity_type == FILE_ENTITY:
+            type_name = "File"
+            icon = "📄"
+        elif entity_type == FOLDER_HEADER or entity_type == FOLDER_ENTITY:
+            type_name = "Folder"
+            icon = "📁 "
+        elif entity_type == PROJECT_HEADER or entity_type == PROJECT_ENTITY:
+            type_name = "Project"
+            icon = "📂 "
+        elif entity_type == TABLE_ENTITY:
+            type_name = "Table"
+            icon = "📊"
+        elif entity_type == ENTITY_VIEW:
+            type_name = "EntityView"
+            icon = "📊"
+        elif entity_type == MATERIALIZED_VIEW:
+            type_name = "MaterializedView"
+            icon = "📊"
+        elif entity_type == VIRTUAL_TABLE:
+            type_name = "VirtualTable"
+            icon = "📊"
+        elif entity_type == DATASET_ENTITY:
+            type_name = "Dataset"
+            icon = "📊"
+        elif entity_type == DATASET_COLLECTION_ENTITY:
+            type_name = "DatasetCollection"
+            icon = "🗂️ "
+        elif entity_type == SUBMISSION_VIEW:
+            type_name = "SubmissionView"
+            icon = "📊"
+        elif "." in entity_type:
+            type_name = entity_type.split(".")[-1]
+
+        if not icon:
+            icon = "❓"
+
+        base_info = f"{icon} {name} ({entity_id}) [{type_name}]"
+
+        return base_info
