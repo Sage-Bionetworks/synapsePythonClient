@@ -7,6 +7,7 @@ Tables in Synapse allow you to upload a CSV and/or TSV into a querable interface
 In this tutorial you will:
 
 1. Create a Table and load it with data
+1. Query your data
 1. Update your table
 1. Change table structure
 1. Delete rows and tables
@@ -66,7 +67,7 @@ columns = [
 ]
 ```
 
-### Storing the table in Synapse
+### Storing the table in Synapse using a CSV
 
 ```python
 table = Table(
@@ -78,20 +79,8 @@ table = table.store()
 table.store_rows(values="/path/to/genes.csv")
 ```
 
+### Storing the table in Synapse using pandas
 
-### Querying for data
-
-With a bit of luck, we now have a table populated with data. Let's try to query:
-
-```python
-results = query(
-    f"SELECT * FROM {table.id} WHERE Chromosome = '1' AND Start < 41000 AND \"End\" > 20000"
-)
-for _, row_info in results.iterrows():
-    print(row_info)
-```
-
-## Using Pandas to accomplish setup and querying
 
 [Pandas](http://pandas.pydata.org/) is a popular library for working with tabular data. If you have Pandas installed, the goal is that Synapse Tables will play nice with it.
 
@@ -101,26 +90,29 @@ Create a Synapse Table from a [DataFrame](http://pandas.pydata.org/pandas-docs/s
 import pandas as pd
 
 df = pd.read_csv("/path/to/genes.csv", index_col=False)
-table = build_table('My Favorite Genes', project, df)
-table = syn.store(table)
+table = Table(
+    name="My Favorite Genes",
+    columns=columns,
+    parent_id=project.id,
+)
+table = table.store()
+table.store_rows(values=df)
 ```
 
-`build_table` uses pandas DataFrame dtype to set the Table `Schema`.
-To create a table with a custom `Schema`, first create the `Schema`:
+## 2. Querying for data
+
+The query language is quite similar to SQL select statements, except that joins are not supported. The documentation for the Synapse API has lots of [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html). With a bit of luck, we now have a table populated with data. Let's try to query:
 
 ```python
-schema = Schema(name='My Favorite Genes', columns=as_table_columns(df), parent=project)
-table = syn.store(Table(schema, df))
+results = query(
+    f"SELECT * FROM {table.id} WHERE Chromosome = '1' AND Start < 41000 AND \"End\" > 20000"
+)
+for _, row_info in results.iterrows():
+    print(row_info)
 ```
 
-Get query results as a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe):
 
-```python
-results = syn.tableQuery("select * from %s where Chromosome='2'" % table.schema.id)
-df = results.asDataFrame()
-```
-
-## Changing Data
+## 3. Changing Data
 
 Once the schema is settled, changes come in two flavors: appending new rows and updating existing ones.
 
@@ -156,7 +148,7 @@ table = syn.store(Table(schema, df, etag=results.etag))
 
 The etag is used by the server to prevent concurrent users from making conflicting changes, a technique called optimistic concurrency. In case of a conflict, your update may be rejected. You then have to do another query and try your update again.
 
-## Changing Table Structure
+## 4. Changing Table Structure
 
 Adding columns can be done using the methods `Schema.addColumn` or `addColumns` on the `Schema` object:
 
@@ -225,7 +217,7 @@ results = syn.tableQuery(f"select artist, album, cover from {schema.id} where ar
 test_files = syn.downloadTableColumns(results, ['cover'])
 ```
 
-## Deleting rows
+## 5. Deleting rows
 
 Query for the rows you want to delete and call syn.delete on the results:
 
@@ -234,17 +226,13 @@ results = syn.tableQuery("select * from %s where Chromosome='2'" % table.schema.
 a = syn.delete(results)
 ```
 
-## Deleting the whole table
+## 6. Deleting the whole table
 
 Deleting the schema deletes the whole table and all rows:
 
 ```python
 syn.delete(schema)
 ```
-
-## Queries
-
-The query language is quite similar to SQL select statements, except that joins are not supported. The documentation for the Synapse API has lots of [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html).
 
 ## References used in this tutorial
 
