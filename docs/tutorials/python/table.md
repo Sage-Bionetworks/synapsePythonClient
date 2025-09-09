@@ -23,8 +23,7 @@ In this tutorial you will:
 
 ```python
 import synapseclient
-from synapseclient import build_table
-from synapseclient.models import Project, File, Folder, Column, Table, query
+from synapseclient.models import Project, File, Folder, Column, Table, query, SchemaStorageStrategy
 
 syn = synapseclient.Synapse()
 syn.login()
@@ -46,15 +45,18 @@ bnk,1,51234,54567,+,True
 xyz,1,61234,68686,+,False
 ```
 
-### Creating a table with columns
+### Creating a table without specifying the columns
 
 ```python
-table = build_table('My Favorite Genes', project.id, "/path/to/genes.csv")
-syn.store(table)
+table = Table(
+    name="My Favorite Genes",
+    parent_id=project.id,
+)
+table = table.store()
+table.store_rows(values="/path/to/genes.csv", schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA)
 ```
 
-[build_table][synapseclient.table.build_table] will set the Table [Schema][synapseclient.table.Schema] which defines the columns of the table.
-To create a table with a custom [Schema][synapseclient.table.Schema], first create the [Schema][synapseclient.table.Schema]:
+### Creating a table with specified columns
 
 ```python
 columns = [
@@ -65,11 +67,6 @@ columns = [
     Column(name='Strand', column_type='STRING', enum_values=['+', '-'], maximum_size=1),
     Column(name='TranscriptionFactor', column_type='BOOLEAN')
 ]
-```
-
-### Storing the table in Synapse using a CSV
-
-```python
 table = Table(
     name="My Favorite Genes",
     columns=columns,
@@ -82,9 +79,7 @@ table.store_rows(values="/path/to/genes.csv")
 ### Storing the table in Synapse using pandas
 
 
-[Pandas](http://pandas.pydata.org/) is a popular library for working with tabular data. If you have Pandas installed, the goal is that Synapse Tables will play nice with it.
-
-Create a Synapse Table from a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe):
+[Pandas](http://pandas.pydata.org/) is a popular library for working with tabular data. If you have Pandas installed, the goal is that Synapse Tables will play nice with it. Create a Synapse Table from a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe):
 
 ```python
 import pandas as pd
