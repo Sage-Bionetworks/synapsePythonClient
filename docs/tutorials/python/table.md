@@ -111,62 +111,113 @@ for _, row_info in results.iterrows():
 
 Once the schema is settled, changes come in two flavors: appending new rows and updating existing ones.
 
-**Appending** new rows is fairly straightforward. To continue the previous example, we might add some new genes from another file:
+### Appending new rows
 
-```python
-table = syn.store(Table(table.schema.id, "/path/to/more_genes.csv"))
+**Appending** new rows is fairly straightforward. To continue the previous example, we might add some new genes from another file.
+Lets take this new data in `more_genes.csv`
+
+```csv
+Name,Chromosome,Start,End,Strand,TranscriptionFactor
+Qux1,4,201001,202001,+,False
+Qux2,4,203001,204001,+,False
 ```
 
-To quickly add a few rows, use a list of row data:
+To add it via a filepath
 
 ```python
-new_rows = [["Qux1", "4", 201001, 202001, "+", False],
-            ["Qux2", "4", 203001, 204001, "+", False]]
-table = syn.store(Table(schema, new_rows))
+table = Table(
+    name="My Favorite Genes",
+    parent_id=project.id,
+).get()
+table = table.store_rows(values="/path/to/more_genes.csv")
 ```
+
+Using pandas:
+
+```python
+new_rows_df = pd.DataFrame({
+    "Name": ["Qux3", "Qux4"],
+    "Chromosome": ["4", "4"],
+    "Start": [201001, 203001],
+    "End": [202001, 204001],
+    "Strand": ["+", "+"],
+    "TranscriptionFactor": [False, False]
+})
+table.store_rows(values=new_rows_df)
+```
+
+### Updating existing rows
 
 **Updating** rows requires an etag, which identifies the most recent change set plus row IDs and version numbers for each row to be modified. We get those by querying before updating. Minimizing changesets to contain only rows that actually change will make processing faster.
 
 For example, let's update the names of some of our favorite genes:
 
 ```python
-results = syn.tableQuery("select * from %s where Chromosome='1'" % table.schema.id)
-df = results.asDataFrame()
-df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3']
+results_df = query(f"select * from {table.id} where Chromosome='1'")
+results_df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3']
+table.store_rows(values=results_df)
 ```
 
-Note that we're propagating the etag from the query results. Without it, we'd get an error saying something about an "Invalid etag":
+### Upserting values
+
+If your table has a primary key, you can use the upsert functionality to update existing rows or insert new rows based on whether the primary key value already exists in the table. Here is an example.
 
 ```python
-table = syn.store(Table(schema, df, etag=results.etag))
+to_upsert_df = pd.DataFrame({
+    "Name": ["Qux3", "Qux5"],
+    "Chromosome": ["4", "4"],
+    "Start": [201001, 203001],
+    "End": [202001, 204001],
+    "Strand": ["-", "+"],
+    "TranscriptionFactor": [True, False]
+})
+# Qux3 will be updated, Qux5 will be inserted
+table.upsert_rows(values=to_upsert_df,  primary_keys=['Name'])
 ```
-
-The etag is used by the server to prevent concurrent users from making conflicting changes, a technique called optimistic concurrency. In case of a conflict, your update may be rejected. You then have to do another query and try your update again.
 
 ## 4. Changing Table Structure
 
-Adding columns can be done using the methods `Schema.addColumn` or `addColumns` on the `Schema` object:
+Adding columns can be done using the methods `table.add_column`.
 
 ```python
-schema = syn.get("syn000000")
-bday_column = syn.store(Column(name='birthday', columnType='DATE'))
-schema.addColumn(bday_column)
-schema = syn.store(schema)
+table.add_column(
+    Column(name="Expression", column_type="STRING")
+)
+table.store()
 ```
 
-Renaming or otherwise modifying a column involves removing the column and adding a new column:
+Renaming or modifying a column:
 
 ```python
-cols = syn.getTableColumns(schema)
-for col in cols:
-    if col.name == "birthday":
-        schema.removeColumn(col)
-bday_column2 = syn.store(Column(name='birthday2', columnType='DATE'))
-schema.addColumn(bday_column2)
-schema = syn.store(schema)
+table.columns['Expression'].name = 'Expression2'
+table.columns['Expression'].column_type = 'INTEGER'
+table.store()
 ```
 
-## Table attached files
+Removing a column
+
+```python
+table.delete_column(name="Expression2")
+table.store()
+```
+
+## 5. Deleting rows
+
+Query for the rows you want to delete and call syn.delete on the results:
+
+```python
+table.delete_rows(query=f"SELECT * FROM {table.id} WHERE Strand = '+'")
+```
+
+## 6. Deleting the whole table
+Deleting the schema deletes the whole table and all rows:
+
+```python
+table.delete()
+```
+
+
+## Table attached files (Don't recommend)
 
 Synapse tables support a special column type called 'File' which contain a file handle, an identifier of a file stored in Synapse. Here's an example of how to upload files into Synapse, associate them with a table and read them back later:
 
@@ -210,23 +261,6 @@ row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data])
 # Later, we'll want to query the table and download our album covers
 results = syn.tableQuery(f"select artist, album, cover from {schema.id} where artist = 'Sonny Rollins'")
 test_files = syn.downloadTableColumns(results, ['cover'])
-```
-
-## 5. Deleting rows
-
-Query for the rows you want to delete and call syn.delete on the results:
-
-```python
-results = syn.tableQuery("select * from %s where Chromosome='2'" % table.schema.id)
-a = syn.delete(results)
-```
-
-## 6. Deleting the whole table
-
-Deleting the schema deletes the whole table and all rows:
-
-```python
-syn.delete(schema)
 ```
 
 ## References used in this tutorial
