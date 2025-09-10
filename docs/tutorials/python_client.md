@@ -186,7 +186,7 @@ print(version_entity.version_number)
 
 Downloading a specific version. By default, Synapse downloads the latest version unless a version is specified:
 ```python
-version_1 = syn.get(version_entity, version=1)
+version_1 = File(id=version_entity.id, version_number=1).get()
 ```
 
 
@@ -196,11 +196,14 @@ Synapse provides tools for tracking 'provenance', or the transformation of raw d
 
 ```python
 # pass the provenance to the store function
-provenance_ent = syn.store(
-    version_entity,
+from synapseclient.models import Activity
+activity = Activity(
+    name="Created a new version of a file",
+    description="This activity was created in the tutorial",
     used=[version_1.id],
-    executed=["https://github.com/Sage-Bionetworks/synapsePythonClient/tree/v2.7.2"]
+    executed=["https://github.com/Sage-Bionetworks/synapsePythonClient/tree/v4.9.0"]
 )
+activity.store(parent=version_entity)
 ```
 
 See:
