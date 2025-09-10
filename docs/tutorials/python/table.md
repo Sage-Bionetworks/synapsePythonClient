@@ -215,4 +215,4 @@ table.delete()
 
 - [Project][project-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
-- [query][synapseclient.query]
+- [Table][table-reference-sync]
