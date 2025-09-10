@@ -23,7 +23,7 @@ In this tutorial you will:
 
 ```python
 import synapseclient
-from synapseclient.models import Project, File, Folder, Column, Table, query, SchemaStorageStrategy
+from synapseclient.models import Column, Project, query, SchemaStorageStrategy, Table
 
 syn = synapseclient.Synapse()
 syn.login()
@@ -216,56 +216,8 @@ Deleting the schema deletes the whole table and all rows:
 table.delete()
 ```
 
-
-## Table attached files (Don't recommend)
-
-Synapse tables support a special column type called 'File' which contain a file handle, an identifier of a file stored in Synapse. Here's an example of how to upload files into Synapse, associate them with a table and read them back later:
-
-```python
-# your synapse project
-import tempfile
-project = syn.get(...)
-
-# Create temporary files to store
-temp = tempfile.NamedTemporaryFile()
-with open(temp.name, "w+") as temp_d:
-    temp_d.write("this is a test")
-
-temp2 = tempfile.NamedTemporaryFile()
-with open(temp2.name, "w+") as temp_d:
-    temp_d.write("this is a test 2")
-
-# store the table's schema
-cols = [
-    Column(name='artist', columnType='STRING', maximumSize=50),
-    Column(name='album', columnType='STRING', maximumSize=50),
-    Column(name='year', columnType='INTEGER'),
-    Column(name='catalog', columnType='STRING', maximumSize=50),
-    Column(name='cover', columnType='FILEHANDLEID')]
-schema = syn.store(Schema(name='Jazz Albums', columns=cols, parent=project))
-
-# the actual data
-data = [["John Coltrane",  "Blue Train",   1957, "BLP 1577", temp.name],
-        ["Sonny Rollins",  "Vol. 2",       1957, "BLP 1558", temp.name],
-        ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", temp2.name],
-        ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", temp2.name]]
-
-# upload album covers
-for row in data:
-    file_handle = syn.uploadFileHandle(row[4], parent=project)
-    row[4] = file_handle['id']
-
-# store the table data
-row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
-
-# Later, we'll want to query the table and download our album covers
-results = syn.tableQuery(f"select artist, album, cover from {schema.id} where artist = 'Sonny Rollins'")
-test_files = syn.downloadTableColumns(results, ['cover'])
-```
-
 ## References used in this tutorial
 
 - [Project][project-reference-sync]
 - [syn.login][synapseclient.Synapse.login]
-- [syn.store][synapseclient.Synapse.store]
-- [syn.get][synapseclient.Synapse.get]
+- [query][synapseclient.query]
