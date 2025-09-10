@@ -7,10 +7,10 @@ Tables in Synapse allow you to upload a CSV and/or TSV into a querable interface
 In this tutorial you will:
 
 1. Create a Table and load it with data
-1. Query your data
-1. Update your table
-1. Change table structure
-1. Delete rows and tables
+1. Query your Table
+1. Update your Table
+1. Change Table structure
+1. Deleting Table rows and Tables
 
 
 ## Prerequisites
@@ -196,20 +196,19 @@ Qux2,4,203001,204001,+,False
     table.store()
     ```
 
-## 5. Deleting rows
+## 5. Deleting Table rows & Tables
 
-Query for the rows you want to delete and call syn.delete on the results:
+* Deleting specific rows - Query for the rows you want to delete and call syn.delete on the results
 
-```python
-table.delete_rows(query=f"SELECT * FROM {table.id} WHERE Strand = '+'")
-```
+    ```python
+    table.delete_rows(query=f"SELECT * FROM {table.id} WHERE Strand = '+'")
+    ```
 
-## 6. Deleting the whole table
-Deleting the schema deletes the whole table and all rows:
+* Deleting the whole table will deletes the whole table and all rows
 
-```python
-table.delete()
-```
+    ```python
+    table.delete()
+    ```
 
 ## References used in this tutorial
 
