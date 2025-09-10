@@ -84,7 +84,6 @@ View the entity in the browser:
 syn.onweb('syn1899498')
 ```
 
-- [synapseclient.entity.Entity][]
 - [synapseclient.Synapse.get][]
 - [synapseclient.Synapse.onweb][]
 
@@ -95,19 +94,19 @@ in a hierarchical or tree structure. Projects are at the top level and must be u
 
 ```python
 import synapseclient
-from synapseclient import Project, Folder, File
+from synapseclient.models import Project, Folder, File
 
 syn = synapseclient.login()
 # Project names must be globally unique
-project = Project('My uniquely named project')
-project = syn.store(project)
+project = Project(name='My uniquely named project tyu')
+project.store()
 ```
 
 Creating a folder:
 
 ```python
-data_folder = Folder('Data', parent=project)
-data_folder = syn.store(data_folder)
+data_folder = Folder(name='Data', parent_id=project.id)
+data_folder.store()
 ```
 
 Adding files to the project. You will get an error if you try to store an empty file in Synapse. Here we create temporary files, but you can specify your own file path:
@@ -119,16 +118,16 @@ temp = tempfile.NamedTemporaryFile(prefix='your_file', suffix='.txt')
 with open(temp.name, "w") as temp_f:
     temp_f.write("Example text")
 filepath = temp.name
-test_entity = File(filepath, description='Fancy new data', parent=data_folder)
-test_entity = syn.store(test_entity)
+test_entity = File(path=filepath, description='Fancy new data', parent_id=data_folder.id)
+test_entity.store()
 print(test_entity)
 ```
 
 You may notice that there is "downloadAs" name and "entity name". By default, the client will use the file's name as the entity name, but you can configure the file to display a different name on Synapse:
 
 ```python
-test_second_entity = File(filepath, name="second file", parent=data_folder)
-test_second_entity = syn.store(test_second_entity)
+test_second_entity = File(path=filepath, name="second file", parent_id=data_folder.id)
+test_second_entity.store()
 print(test_second_entity)
 ```
 
@@ -136,11 +135,9 @@ In addition to simple data storage, Synapse entities can be [annotated](#annotat
 
 See also:
 
-- [synapseclient.entity.Entity][]
-- [synapseclient.entity.Project][]
-- [synapseclient.entity.Folder][]
-- [synapseclient.entity.File][]
-- [synapseclient.Synapse.store][]
+- [synapseclient.models.Project][]
+- [synapseclient.models.Folder][]
+- [synapseclient.models.File][]
 
 ## Annotating Synapse Entities
 
@@ -177,15 +174,15 @@ temp = tempfile.NamedTemporaryFile(prefix='second', suffix='.txt')
 with open(temp.name, "w") as temp_f:
     temp_f.write("First text")
 
-version_entity = File(temp.name, parent=data_folder)
-version_entity = syn.store(version_entity)
-print(version_entity.versionNumber)
+version_entity = File(path=temp.name, parent_id=data_folder.id)
+version_entity.store()
+print(version_entity.version_number)
 
 with open(temp.name, "w") as temp_f:
     temp_f.write("Second text")
-version_entity = File(temp.name, parent=data_folder)
-version_entity = syn.store(version_entity)
-print(version_entity.versionNumber)
+version_entity = File(path=temp.name, parent_id=data_folder.id)
+version_entity.store()
+print(version_entity.version_number)
 ```
 
 Downloading a specific version. By default, Synapse downloads the latest version unless a version is specified:
@@ -211,39 +208,41 @@ See:
 
 - [synapseclient.activity.Activity][]
 
-## File Views
+## Entity Views
 
-Views display rows and columns of information, and they can be shared and queried with SQL. Views are queries of other data already in Synapse. They allow you to see groups of files, tables, projects, or submissions and any associated annotations about those items.
+Entity Views display rows and columns of information, and they can be shared and queried with SQL. Views are queries of other data already in Synapse. They allow you to see groups of files, tables, projects, or submissions and any associated annotations about those items.
 
 Annotations are an essential component to building a view. Annotations are labels that you apply to your data, stored as key-value pairs in Synapse.
 
-We will create a file view from the project above:
+We will create a entity view from the project above:
 
 ```python
 import synapseclient
+from synapseclient.models import EntityView, ViewTypeMask, query
+
 syn = synapseclient.login()
 # Here we are using project.id from the earlier sections from this tutorial
 project_id = project.id
-fileview = EntityViewSchema(
+entity_view = EntityView(
     name='MyTable',
-    parent=project_id,
-    scopes=[project_id]
+    parent_id=project_id,
+    scope_ids=[project_id],
+    view_type_mask=ViewTypeMask.FILE,
 )
-fileview_ent = syn.store(fileview)
+entity_view.store()
 ```
 
 You can now query it to see all the files within the project. Note: it is highly recommended to install `pandas`:
 
 ```python
-query = syn.tableQuery(f"select * from {fileview_ent.id}")
-query_results = query.asDataFrame()
-print(query_results)
+query_results_df = query(f"select * from {entity_view.id}")
+print(query_results_df)
 ```
 
 See:
 
-- [synapseclient.table.EntityViewSchema][]
-- [Using Entity Views](../guides/views.md)
+- [synapseclient.models.EntityView][]
+- [Using Entity Views](./python/entityview.md)
 
 ## More Information
 
