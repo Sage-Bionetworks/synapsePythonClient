@@ -145,16 +145,15 @@ Annotations are arbitrary metadata attached to Synapse entities. There are diffe
 
 ```python
 # First method
-test_ent = syn.get(test_entity.id)
-test_ent.foo = "foo"
-test_ent.bar = "bar"
-syn.store(test_ent)
+test_entity = File(id=test_entity.id).get()
+test_entity.annotations['foo'] = "foo"
+test_entity.annotations['bar'] = "bar"
+test_entity.store()
 
 # Second method
-test_ent = syn.get(test_entity.id)
 annotations = {"foo": "foo", "bar": "bar"}
-test_ent.annotations = annotations
-syn.store(test_ent)
+test_entity.annotations = annotations
+test_entity.store()
 ```
 
 See:
