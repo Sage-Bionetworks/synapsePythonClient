@@ -375,7 +375,6 @@ class Link:
             root_resource=self, synapse_client=synapse_client
         )
         if re_read_required:
-            self.download_file = False
             await self.get_async(
                 synapse_client=synapse_client,
             )
