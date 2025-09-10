@@ -17,7 +17,7 @@ In this tutorial you will:
 * Make sure that you have completed the [Project](./project.md) tutorial.
 * The tutorial assumes you have data in a dataframe and/or CSV you want to query in a SQL like interface in Synapse
 
-## 1. Creating a table and loading it with data
+## 1. Creating a table
 
 ### Initial setup
 
@@ -45,54 +45,53 @@ bnk,1,51234,54567,+,True
 xyz,1,61234,68686,+,False
 ```
 
-### Creating a table without specifying the columns
+### Loading Data
 
-```python
-table = Table(
-    name="My Favorite Genes",
-    parent_id=project.id,
-)
-table = table.store()
-table.store_rows(values="/path/to/genes.csv", schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA)
-```
+* Creating a table from a CSV without specifying initial columns
 
-### Creating a table with specified columns
+    ```python
+    table = Table(
+        name="My Favorite Genes",
+        parent_id=project.id,
+    )
+    table = table.store()
+    table.store_rows(values="/path/to/genes.csv", schema_storage_strategy=SchemaStorageStrategy.INFER_FROM_DATA)
+    ```
 
-```python
-columns = [
-    Column(name='Name', column_type='STRING', maximum_size=20),
-    Column(name='Chromosome', column_type='STRING', maximum_size=20),
-    Column(name='Start', column_type='INTEGER'),
-    Column(name='End', column_type='INTEGER'),
-    Column(name='Strand', column_type='STRING', enum_values=['+', '-'], maximum_size=1),
-    Column(name='TranscriptionFactor', column_type='BOOLEAN')
-]
-table = Table(
-    name="My Favorite Genes",
-    columns=columns,
-    parent_id=project.id,
-)
-table = table.store()
-table.store_rows(values="/path/to/genes.csv")
-```
+* Creating a table from a CSV with specified columns
 
-### Storing the table in Synapse using pandas
+    ```python
+    columns = [
+        Column(name='Name', column_type='STRING', maximum_size=20),
+        Column(name='Chromosome', column_type='STRING', maximum_size=20),
+        Column(name='Start', column_type='INTEGER'),
+        Column(name='End', column_type='INTEGER'),
+        Column(name='Strand', column_type='STRING', enum_values=['+', '-'], maximum_size=1),
+        Column(name='TranscriptionFactor', column_type='BOOLEAN')
+    ]
+    table = Table(
+        name="My Favorite Genes",
+        columns=columns,
+        parent_id=project.id,
+    )
+    table = table.store()
+    table.store_rows(values="/path/to/genes.csv")
+    ```
 
+* Creating a table from a Pandas [DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe) - [Pandas](http://pandas.pydata.org/) is a popular library for working with tabular data.
 
-[Pandas](http://pandas.pydata.org/) is a popular library for working with tabular data. Create a Synapse Table from a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
+    ```python
+    import pandas as pd
 
-```python
-import pandas as pd
-
-df = pd.read_csv("/path/to/genes.csv", index_col=False)
-table = Table(
-    name="My Favorite Genes",
-    columns=columns,
-    parent_id=project.id,
-)
-table = table.store()
-table.store_rows(values=df)
-```
+    df = pd.read_csv("/path/to/genes.csv", index_col=False)
+    table = Table(
+        name="My Favorite Genes",
+        columns=columns,
+        parent_id=project.id,
+    )
+    table = table.store()
+    table.store_rows(values=df)
+    ```
 
 ## 2. Querying for data
 
@@ -122,56 +121,54 @@ Qux1,4,201001,202001,+,False
 Qux2,4,203001,204001,+,False
 ```
 
-To add it via a filepath
+* Using a CSV
 
-```python
-table = Table(
-    name="My Favorite Genes",
-    parent_id=project.id,
-).get()
-table = table.store_rows(values="/path/to/more_genes.csv")
-```
+    ```python
+    table = Table(
+        name="My Favorite Genes",
+        parent_id=project.id,
+    ).get()
+    table = table.store_rows(values="/path/to/more_genes.csv")
+    ```
 
-Using pandas:
+* Using Pandas
 
-```python
-new_rows_df = pd.DataFrame({
-    "Name": ["Qux3", "Qux4"],
-    "Chromosome": ["4", "4"],
-    "Start": [201001, 203001],
-    "End": [202001, 204001],
-    "Strand": ["+", "+"],
-    "TranscriptionFactor": [False, False]
-})
-table.store_rows(values=new_rows_df)
-```
+    ```python
+    new_rows_df = pd.DataFrame({
+        "Name": ["Qux3", "Qux4"],
+        "Chromosome": ["4", "4"],
+        "Start": [201001, 203001],
+        "End": [202001, 204001],
+        "Strand": ["+", "+"],
+        "TranscriptionFactor": [False, False]
+    })
+    table.store_rows(values=new_rows_df)
+    ```
 
 ### Updating existing rows
 
-Updating rows requires an etag, which identifies the most recent change set plus row IDs and version numbers for each row to be modified. We get those by querying before updating. Minimizing changesets to contain only rows that actually change will make processing faster.
+* Updating the existing table - query the existing table and update the data. Minimizing changesets to contain only rows that actually change will make processing faster.
 
-For example, let's update the names of some of our favorite genes:
+    ```python
+    results_df = query(f"select * from {table.id} where Chromosome='1'")
+    results_df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3']
+    table.store_rows(values=results_df)
+    ```
 
-```python
-results_df = query(f"select * from {table.id} where Chromosome='1'")
-results_df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3']
-table.store_rows(values=results_df)
-```
+* Upserting rows (update or insert) - If your data has a primary key, you can use the upsert functionality to update existing rows or insert new rows based on this primary key.  This way you won't have to query for the existing data to update your table. This function does not do deletions.
 
-If your table has a primary key, you can use the upsert functionality to update existing rows or insert new rows based on whether the primary key value already exists in the table. This function does not do deletions. Here is an example.
-
-```python
-to_upsert_df = pd.DataFrame({
-    "Name": ["Qux3", "Qux5"],
-    "Chromosome": ["4", "4"],
-    "Start": [201001, 203001],
-    "End": [202001, 204001],
-    "Strand": ["-", "+"],
-    "TranscriptionFactor": [True, False]
-})
-# Qux3 will be updated, Qux5 will be inserted
-table.upsert_rows(values=to_upsert_df,  primary_keys=['Name'])
-```
+    ```python
+    to_upsert_df = pd.DataFrame({
+        "Name": ["Qux3", "Qux5"],
+        "Chromosome": ["4", "4"],
+        "Start": [201001, 203001],
+        "End": [202001, 204001],
+        "Strand": ["-", "+"],
+        "TranscriptionFactor": [True, False]
+    })
+    # Qux3 will be updated, Qux5 will be inserted
+    table.upsert_rows(values=to_upsert_df,  primary_keys=['Name'])
+    ```
 
 ## 4. Changing Table Structure
 
