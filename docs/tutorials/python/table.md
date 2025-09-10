@@ -1,4 +1,4 @@
-# Tables
+# Table
 
 Tables in Synapse allow you to upload a CSV and/or TSV into a querable interface that follow a user-defined schema and queried using a SQL-like syntax.
 
