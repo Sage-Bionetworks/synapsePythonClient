@@ -13,11 +13,11 @@ from synapseclient.api import (
 from synapseclient.core.utils import get_properties
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import File, Folder, Link, Project
 
 
 async def store_entity(
-    resource: Union["File", "Folder", "Project"],
+    resource: Union["File", "Folder", "Project", "Link"],
     entity: Dict[str, Union[str, bool, int, float]],
     *,
     synapse_client: Optional[Synapse] = None,

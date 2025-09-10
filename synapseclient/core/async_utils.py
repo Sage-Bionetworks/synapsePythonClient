@@ -2,13 +2,10 @@
 
 import asyncio
 import functools
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Union
+from typing import Any, Callable, Coroutine, Union
 
 import nest_asyncio
 from opentelemetry import trace
-
-if TYPE_CHECKING:
-    from synapseclient import Synapse
 
 tracer = trace.get_tracer("synapseclient")
 
@@ -77,7 +74,7 @@ class ClassOrInstance:
         return f
 
 
-def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any], syn: "Synapse") -> Any:
+def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any]) -> Any:
     """Wrap an async function to be called in a sync context."""
     loop = None
 

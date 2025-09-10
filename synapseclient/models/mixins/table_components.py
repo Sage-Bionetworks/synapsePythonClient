@@ -363,7 +363,7 @@ async def _table_query(
 
     - For `csv`, you can specify:
         - `quote_character`: Character used for quoting fields. Default is double quote (").
-        - `escape_character`: Character used for escaping special characters. Default is backslash (\).
+        - `escape_character`: Character used for escaping special characters. Default is backslash.
         - `line_end`: Character(s) used to terminate lines. Default is system line separator.
         - `separator`: Character used to separate fields. Default is comma (,).
         - `header`: Whether to include a header row. Default is True.

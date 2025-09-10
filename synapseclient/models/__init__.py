@@ -9,8 +9,17 @@ from synapseclient.models.agent import (
 from synapseclient.models.annotations import Annotations
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.entityview import EntityView, ViewTypeMask
+from synapseclient.models.factory_operations import (
+    ActivityOptions,
+    FileOptions,
+    LinkOptions,
+    TableOptions,
+    get,
+    get_async,
+)
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
+from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
@@ -57,6 +66,7 @@ __all__ = [
     "File",
     "FileHandle",
     "Folder",
+    "Link",
     "Project",
     "Annotations",
     "Team",
@@ -112,6 +122,13 @@ __all__ = [
     "DatasetCollection",
     # Submission models
     "SubmissionView",
+    # Entity factory operations
+    "get",
+    "get_async",
+    "ActivityOptions",
+    "FileOptions",
+    "TableOptions",
+    "LinkOptions",
 ]
 
 # Static methods to expose as functions

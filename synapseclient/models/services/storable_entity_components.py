@@ -11,6 +11,7 @@ if TYPE_CHECKING:
         EntityView,
         File,
         Folder,
+        Link,
         Project,
         SubmissionView,
         Table,
@@ -50,7 +51,9 @@ async def wrap_coroutine(
 
 
 async def store_entity_components(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
+    root_resource: Union[
+        "File", "Folder", "Project", "Table", "Dataset", "EntityView", "Link"
+    ],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
     *,
     synapse_client: Optional[Synapse] = None,
