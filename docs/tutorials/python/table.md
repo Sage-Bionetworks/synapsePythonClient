@@ -19,7 +19,7 @@ In this tutorial you will:
 
 ## 1. Creating a table and loading it with data
 
-### Initial setup:
+### Initial setup
 
 ```python
 import synapseclient
@@ -79,7 +79,7 @@ table.store_rows(values="/path/to/genes.csv")
 ### Storing the table in Synapse using pandas
 
 
-[Pandas](http://pandas.pydata.org/) is a popular library for working with tabular data. If you have Pandas installed, the goal is that Synapse Tables will play nice with it. Create a Synapse Table from a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe):
+[Pandas](http://pandas.pydata.org/) is a popular library for working with tabular data. Create a Synapse Table from a [DataFrame](http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe)
 
 ```python
 import pandas as pd
@@ -96,7 +96,7 @@ table.store_rows(values=df)
 
 ## 2. Querying for data
 
-The query language is quite similar to SQL select statements, except that joins are not supported. The documentation for the Synapse API has lots of [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html). With a bit of luck, we now have a table populated with data. Let's try to query:
+The query language is quite similar to SQL select statements, except that joins are not supported. The documentation for the Synapse API has lots of [query examples](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html). Let's try to query:
 
 ```python
 results = query(
@@ -113,7 +113,7 @@ Once the schema is settled, changes come in two flavors: appending new rows and 
 
 ### Appending new rows
 
-**Appending** new rows is fairly straightforward. To continue the previous example, we might add some new genes from another file.
+Appending new rows is fairly straightforward. To continue the previous example, we might add some new genes from another file.
 Lets take this new data in `more_genes.csv`
 
 ```csv
@@ -148,7 +148,7 @@ table.store_rows(values=new_rows_df)
 
 ### Updating existing rows
 
-**Updating** rows requires an etag, which identifies the most recent change set plus row IDs and version numbers for each row to be modified. We get those by querying before updating. Minimizing changesets to contain only rows that actually change will make processing faster.
+Updating rows requires an etag, which identifies the most recent change set plus row IDs and version numbers for each row to be modified. We get those by querying before updating. Minimizing changesets to contain only rows that actually change will make processing faster.
 
 For example, let's update the names of some of our favorite genes:
 
@@ -158,9 +158,7 @@ results_df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3']
 table.store_rows(values=results_df)
 ```
 
-### Upserting values
-
-If your table has a primary key, you can use the upsert functionality to update existing rows or insert new rows based on whether the primary key value already exists in the table. Here is an example.
+If your table has a primary key, you can use the upsert functionality to update existing rows or insert new rows based on whether the primary key value already exists in the table. This function does not do deletions. Here is an example.
 
 ```python
 to_upsert_df = pd.DataFrame({
