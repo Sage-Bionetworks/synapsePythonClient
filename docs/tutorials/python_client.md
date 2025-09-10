@@ -43,11 +43,12 @@ Most operations in Synapse require you to be logged in. Please follow instructio
 
 ```python
 import synapseclient
+from synapseclient import UserProfile
 syn = synapseclient.login()
 
 # If you aren't logged in, this following command will
 # show that you are an "anonymous" user.
-syn.getUserProfile()
+UserProfile().get()
 ```
 
 ## Accessing Data
