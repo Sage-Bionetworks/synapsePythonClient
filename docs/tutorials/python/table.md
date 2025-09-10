@@ -175,29 +175,29 @@ table.upsert_rows(values=to_upsert_df,  primary_keys=['Name'])
 
 ## 4. Changing Table Structure
 
-Adding columns can be done using the methods `table.add_column`.
+* Adding columns
 
-```python
-table.add_column(
-    Column(name="Expression", column_type="STRING")
-)
-table.store()
-```
+    ```python
+    table.add_column(
+        Column(name="Expression", column_type="STRING")
+    )
+    table.store()
+    ```
 
-Renaming or modifying a column:
+* Renaming or modifying a column:
 
-```python
-table.columns['Expression'].name = 'Expression2'
-table.columns['Expression'].column_type = 'INTEGER'
-table.store()
-```
+    ```python
+    table.columns['Expression'].name = 'Expression2'
+    table.columns['Expression'].column_type = 'INTEGER'
+    table.store()
+    ```
 
-Removing a column
+* Removing a column
 
-```python
-table.delete_column(name="Expression2")
-table.store()
-```
+    ```python
+    table.delete_column(name="Expression2")
+    table.store()
+    ```
 
 ## 5. Deleting rows
 
