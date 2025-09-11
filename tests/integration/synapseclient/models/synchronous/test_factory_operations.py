@@ -194,7 +194,9 @@ class TestFactoryOperationsGetAsync:
             assert retrieved_file.id == stored_file.id
             assert retrieved_file.download_file is True
             assert retrieved_file.if_collision == "overwrite.local"
-            assert temp_dir in retrieved_file.path
+            assert utils.normalize_path(temp_dir) in utils.normalize_path(
+                retrieved_file.path
+            )
 
     async def test_get_file_by_id_metadata_only(self, project_model: Project) -> None:
         """Test retrieving a File entity metadata without downloading."""
