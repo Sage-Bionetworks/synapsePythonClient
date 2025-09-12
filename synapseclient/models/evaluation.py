@@ -1,3 +1,13 @@
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, List, Optional, Union
+
+from synapseclient.core.async_utils import async_to_sync
+from synapseclient.models.access_control import AccessControlList
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
+
+
 class EvaluationSynchronousProtocol(Protocol):
     """
     This is the protocol for methods that are asynchronous
@@ -61,26 +71,373 @@ class Evaluation(EvaluationSynchronousProtocol):
     submission_receipt_message: Optional[str] = None
     """Message to display to users upon successful submission to this Evaluation."""
 
-    def fill_from_dict(self, entity: dict) -> "Evaluation":
+    def fill_from_dict(self, evaluation: dict) -> "Evaluation":
         """
         Converts the data coming from the Synapse Evaluation API into this datamodel.
 
         Arguments:
-            entity: The data coming from the Synapse Evaluation API
+            evaluation: The data coming from the Synapse Evaluation API
 
         Returns:
             The Evaluation object instance.
         """
-        self.id = entity.get("id", None)
-        self.etag = entity.get("etag", None)
-        self.name = entity.get("name", None)
-        self.description = entity.get("description", None)
-        self.owner_id = entity.get("ownerId", None)
-        self.created_on = entity.get("createdOn", None)
-        self.content_source = entity.get("contentSource", None)
-        self.submission_instructions_message = entity.get(
+        self.id = evaluation.get("id", None)
+        self.etag = evaluation.get("etag", None)
+        self.name = evaluation.get("name", None)
+        self.description = evaluation.get("description", None)
+        self.owner_id = evaluation.get("ownerId", None)
+        self.created_on = evaluation.get("createdOn", None)
+        self.content_source = evaluation.get("contentSource", None)
+        self.submission_instructions_message = evaluation.get(
             "submissionInstructionsMessage", None
         )
-        self.submission_receipt_message = entity.get("submissionReceiptMessage", None)
+        self.submission_receipt_message = evaluation.get("submissionReceiptMessage", None)
 
         return self
+
+    # ===== ASYNC METHODS =====
+
+    async def store_async(self, *, synapse_client: Optional["Synapse"] = None) -> "Evaluation":
+        """
+        Create a new Evaluation in Synapse.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            The created Evaluation object.
+
+        Raises:
+            ValueError: If required fields are missing.
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import create_evaluation_async
+
+        if not self.name:
+            raise ValueError("name is required to create an evaluation")
+        if not self.description:
+            raise ValueError("description is required to create an evaluation")
+        if not self.content_source:
+            raise ValueError("content_source is required to create an evaluation")
+        if not self.submission_instructions_message:
+            raise ValueError("submission_instructions_message is required to create an evaluation")
+        if not self.submission_receipt_message:
+            raise ValueError("submission_receipt_message is required to create an evaluation")
+
+        created_evaluation = await create_evaluation_async(
+            name=self.name,
+            description=self.description,
+            content_source=self.content_source,
+            submission_instructions_message=self.submission_instructions_message,
+            submission_receipt_message=self.submission_receipt_message,
+            synapse_client=synapse_client,
+        )
+
+        # Update this instance with the created evaluation data
+        self.fill_from_dict(created_evaluation.__dict__)
+        return self
+
+    async def get_async(self, *, synapse_client: Optional["Synapse"] = None) -> "Evaluation":
+        """
+        Get this Evaluation from Synapse by its ID or name.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            The retrieved Evaluation object.
+
+        Raises:
+            ValueError: If neither id nor name is set.
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import get_evaluation_async
+
+        if not self.id and not self.name:
+            raise ValueError("Either id or name must be set to get an evaluation")
+
+        retrieved_evaluation = await get_evaluation_async(
+            id=self.id,
+            name=self.name,
+            synapse_client=synapse_client,
+        )
+
+        # Update this instance with the retrieved evaluation data
+        self.fill_from_dict(retrieved_evaluation.__dict__)
+        return self
+
+    async def update_async(
+        self,
+        *,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        content_source: Optional[str] = None,
+        submission_instructions_message: Optional[str] = None,
+        submission_receipt_message: Optional[str] = None,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> "Evaluation":
+        """
+        Update this Evaluation in Synapse.
+
+        Arguments:
+            name: The human-readable name of the Evaluation.
+            description: A short description of the Evaluation's purpose.
+            content_source: The ID of the Project or Entity this Evaluation belongs to (e.g., "syn123").
+            submission_instructions_message: Instructions presented to submitters when creating a submission.
+            submission_receipt_message: A confirmation message shown after a successful submission.
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            The updated Evaluation object.
+
+        Raises:
+            ValueError: If evaluation_id is not set.
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs (including PRECONDITION_FAILED 412).
+        """
+        from synapseclient.api.evaluation_services import update_evaluation_async
+
+        if not self.id:
+            raise ValueError("id must be set to update an evaluation")
+
+        updated_evaluation = await update_evaluation_async(
+            evaluation_id=self.id,
+            name=name,
+            description=description,
+            content_source=content_source,
+            submission_instructions_message=submission_instructions_message,
+            submission_receipt_message=submission_receipt_message,
+            synapse_client=synapse_client,
+        )
+
+        # Update this instance with the updated evaluation data
+        self.fill_from_dict(updated_evaluation.__dict__)
+        return self
+
+    async def delete_async(self, *, synapse_client: Optional["Synapse"] = None) -> None:
+        """
+        Delete this Evaluation from Synapse.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Raises:
+            ValueError: If evaluation_id is not set.
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import delete_evaluation_async
+
+        if not self.id:
+            raise ValueError("id must be set to delete an evaluation")
+
+        await delete_evaluation_async(
+            evaluation_id=self.id,
+            synapse_client=synapse_client,
+        )
+
+    async def get_acl_async(self, *, synapse_client: Optional["Synapse"] = None) -> AccessControlList:
+        """
+        Get the access control list (ACL) governing this evaluation.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            AccessControlList: The ACL for this Evaluation.
+
+        Raises:
+            ValueError: If evaluation_id is not set.
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import get_evaluation_acl_async
+
+        if not self.id:
+            raise ValueError("id must be set to get evaluation ACL")
+
+        return await get_evaluation_acl_async(
+            evaluation_id=self.id,
+            synapse_client=synapse_client,
+        )
+
+    async def update_acl_async(
+        self,
+        acl: Union[AccessControlList, dict],
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> AccessControlList:
+        """
+        Update the access control list (ACL) for this evaluation.
+
+        Arguments:
+            acl: An AccessControlList object or dictionary containing the ACL data to update.
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            AccessControlList: The updated ACL.
+
+        Raises:
+            ValueError: If the ACL object is invalid or missing required fields.
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import update_evaluation_acl_async
+
+        return await update_evaluation_acl_async(
+            acl=acl,
+            synapse_client=synapse_client,
+        )
+
+    async def get_permissions_async(
+        self,
+        principal_id: Optional[str] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> dict:
+        """
+        Get the user permissions for this evaluation.
+
+        Arguments:
+            principal_id: The principal ID to get permissions for. Defaults to the current user.
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            dict: The permissions for the specified user.
+
+        Raises:
+            ValueError: If evaluation_id is not set.
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import get_evaluation_permissions_async
+
+        if not self.id:
+            raise ValueError("id must be set to get evaluation permissions")
+
+        return await get_evaluation_permissions_async(
+            evaluation_id=self.id,
+            principal_id=principal_id,
+            synapse_client=synapse_client,
+        )
+
+    @staticmethod
+    async def get_all_evaluations_async(
+        access_type: Optional[str] = None,
+        active_only: Optional[bool] = None,
+        evaluation_ids: Optional[List[str]] = None,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> List["Evaluation"]:
+        """
+        Get a list of all Evaluations, within a given range.
+
+        Arguments:
+            access_type: The type of access for the user to filter for, optional and defaults to ACCESS_TYPE.READ.
+            active_only: If True then return only those evaluations with rounds defined and for which the current time is in one of the rounds.
+            evaluation_ids: An optional list of evaluation IDs to which the response is limited.
+            offset: The offset index determines where this page will start from. An index of 0 is the first entity. When null it will default to 0.
+            limit: Limits the number of entities that will be fetched for this page. When null it will default to 10.
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            List[Evaluation]: A list of all evaluations.
+
+        Raises:
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import get_all_evaluations_async
+
+        return await get_all_evaluations_async(
+            access_type=access_type,
+            active_only=active_only,
+            evaluation_ids=evaluation_ids,
+            offset=offset,
+            limit=limit,
+            synapse_client=synapse_client,
+        )
+
+    @staticmethod
+    async def get_available_evaluations_async(
+        active_only: Optional[bool] = None,
+        evaluation_ids: Optional[List[str]] = None,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> List["Evaluation"]:
+        """
+        Get a list of Evaluations to which the user has SUBMIT permission, within a given range.
+
+        Arguments:
+            active_only: If True then return only those evaluations with rounds defined and for which the current time is in one of the rounds.
+            evaluation_ids: An optional list of evaluation IDs to which the response is limited.
+            offset: The offset index determines where this page will start from. An index of 0 is the first entity. When null it will default to 0.
+            limit: Limits the number of entities that will be fetched for this page. When null it will default to 10.
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            List[Evaluation]: A list of available evaluations.
+
+        Raises:
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import get_available_evaluations_async
+
+        return await get_available_evaluations_async(
+            active_only=active_only,
+            evaluation_ids=evaluation_ids,
+            offset=offset,
+            limit=limit,
+            synapse_client=synapse_client,
+        )
+
+    @staticmethod
+    async def get_evaluations_by_project_async(
+        project_id: str,
+        access_type: Optional[str] = None,
+        active_only: Optional[bool] = None,
+        evaluation_ids: Optional[List[str]] = None,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> List["Evaluation"]:
+        """
+        Get Evaluations tied to a project.
+
+        Arguments:
+            project_id: The ID of the project (e.g., "syn123456").
+            access_type: The type of access for the user to filter for, optional and defaults to ACCESS_TYPE.READ.
+            active_only: If True then return only those evaluations with rounds defined and for which the current time is in one of the rounds.
+            evaluation_ids: An optional list of evaluation IDs to which the response is limited.
+            offset: The offset index determines where this page will start from. An index of 0 is the first entity. When null it will default to 0.
+            limit: Limits the number of entities that will be fetched for this page. When null it will default to 10.
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
+
+        Returns:
+            List[Evaluation]: A list of Evaluations tied to the project.
+
+        Raises:
+            SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+        """
+        from synapseclient.api.evaluation_services import get_evaluations_by_project_async
+
+        return await get_evaluations_by_project_async(
+            project_id=project_id,
+            access_type=access_type,
+            active_only=active_only,
+            evaluation_ids=evaluation_ids,
+            offset=offset,
+            limit=limit,
+            synapse_client=synapse_client,
+        ) 
+
+    
