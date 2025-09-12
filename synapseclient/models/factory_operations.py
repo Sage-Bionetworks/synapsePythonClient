@@ -270,7 +270,7 @@ async def _handle_simple_entity(
     Handle simple entities that only need basic setup (Project, Folder, DatasetCollection).
     """
     entity = entity_class(id=synapse_id)
-    if version_number:
+    if version_number and hasattr(entity, "version_number"):
         entity.version_number = version_number
     return await entity.get_async(synapse_client=synapse_client)
 
