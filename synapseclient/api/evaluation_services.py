@@ -4,11 +4,14 @@ This module is responsible for exposing the services defined at:
 """
 
 import json
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from synapseclient.core import utils
 from synapseclient.models.access_control import AccessControlList
 from synapseclient.models.evaluation import Evaluation
+
+if TYPE_CHECKING:
+    from synapseclient import Synapse
 
 
 async def create_evaluation_async(

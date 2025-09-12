@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Protocol, Union
 
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.models.access_control import AccessControlList
@@ -91,13 +91,17 @@ class Evaluation(EvaluationSynchronousProtocol):
         self.submission_instructions_message = evaluation.get(
             "submissionInstructionsMessage", None
         )
-        self.submission_receipt_message = evaluation.get("submissionReceiptMessage", None)
+        self.submission_receipt_message = evaluation.get(
+            "submissionReceiptMessage", None
+        )
 
         return self
 
     # ===== ASYNC METHODS =====
 
-    async def store_async(self, *, synapse_client: Optional["Synapse"] = None) -> "Evaluation":
+    async def store_async(
+        self, *, synapse_client: Optional["Synapse"] = None
+    ) -> "Evaluation":
         """
         Create a new Evaluation in Synapse.
 
@@ -121,9 +125,13 @@ class Evaluation(EvaluationSynchronousProtocol):
         if not self.content_source:
             raise ValueError("content_source is required to create an evaluation")
         if not self.submission_instructions_message:
-            raise ValueError("submission_instructions_message is required to create an evaluation")
+            raise ValueError(
+                "submission_instructions_message is required to create an evaluation"
+            )
         if not self.submission_receipt_message:
-            raise ValueError("submission_receipt_message is required to create an evaluation")
+            raise ValueError(
+                "submission_receipt_message is required to create an evaluation"
+            )
 
         created_evaluation = await create_evaluation_async(
             name=self.name,
@@ -138,7 +146,9 @@ class Evaluation(EvaluationSynchronousProtocol):
         self.fill_from_dict(created_evaluation.__dict__)
         return self
 
-    async def get_async(self, *, synapse_client: Optional["Synapse"] = None) -> "Evaluation":
+    async def get_async(
+        self, *, synapse_client: Optional["Synapse"] = None
+    ) -> "Evaluation":
         """
         Get this Evaluation from Synapse by its ID or name.
 
@@ -238,7 +248,9 @@ class Evaluation(EvaluationSynchronousProtocol):
             synapse_client=synapse_client,
         )
 
-    async def get_acl_async(self, *, synapse_client: Optional["Synapse"] = None) -> AccessControlList:
+    async def get_acl_async(
+        self, *, synapse_client: Optional["Synapse"] = None
+    ) -> AccessControlList:
         """
         Get the access control list (ACL) governing this evaluation.
 
@@ -312,7 +324,9 @@ class Evaluation(EvaluationSynchronousProtocol):
             ValueError: If evaluation_id is not set.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
         """
-        from synapseclient.api.evaluation_services import get_evaluation_permissions_async
+        from synapseclient.api.evaluation_services import (
+            get_evaluation_permissions_async,
+        )
 
         if not self.id:
             raise ValueError("id must be set to get evaluation permissions")
@@ -388,7 +402,9 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
         """
-        from synapseclient.api.evaluation_services import get_available_evaluations_async
+        from synapseclient.api.evaluation_services import (
+            get_available_evaluations_async,
+        )
 
         return await get_available_evaluations_async(
             active_only=active_only,
@@ -428,7 +444,9 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
         """
-        from synapseclient.api.evaluation_services import get_evaluations_by_project_async
+        from synapseclient.api.evaluation_services import (
+            get_evaluations_by_project_async,
+        )
 
         return await get_evaluations_by_project_async(
             project_id=project_id,
@@ -438,6 +456,4 @@ class Evaluation(EvaluationSynchronousProtocol):
             offset=offset,
             limit=limit,
             synapse_client=synapse_client,
-        ) 
-
-    
+        )
