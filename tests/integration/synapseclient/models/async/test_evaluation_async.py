@@ -17,11 +17,15 @@ class TestEvaluationCreation:
 
     async def test_create_evaluation(self):
         # GIVEN a project to work with
-        project = await Project(id=self.syn.store(Project(name="test_project")).id).get_async(synapse_client=self.syn)
+        project = await Project(
+            id=self.syn.store(Project(name="test_project")).id
+        ).get_async(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # WHEN I create an evaluation
-        evaluation = await Evaluation(name="test_evaluation", parent_id=project.id).store_async(synapse_client=self.syn)
+        evaluation = await Evaluation(
+            name="test_evaluation", parent_id=project.id
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(evaluation.id)
 
         # THEN the evaluation should be created
@@ -35,30 +39,42 @@ class TestGetEvaluation:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> Project:
+    async def test_project(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id).get_async(synapse_client=syn)
+        project = await Project(
+            id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id
+        ).get_async(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> Evaluation:
+    async def test_evaluation(
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Evaluation:
         """Create a test evaluation for get tests."""
         evaluation = await Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}", 
-            parent_id=test_project.id
+            name=f"test_evaluation_{uuid.uuid4()}", parent_id=test_project.id
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(evaluation.id)
         return evaluation
 
     @pytest.fixture(scope="function")
-    async def multiple_evaluations(self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> list[Evaluation]:
+    async def multiple_evaluations(
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> list[Evaluation]:
         """Create multiple test evaluations for bulk tests."""
         evaluations = []
         for i in range(3):
             evaluation = await Evaluation(
-                name=f"test_evaluation_{i}_{uuid.uuid4()}", 
-                parent_id=test_project.id
+                name=f"test_evaluation_{i}_{uuid.uuid4()}", parent_id=test_project.id
             ).store_async(synapse_client=syn)
             schedule_for_cleanup(evaluation.id)
             evaluations.append(evaluation)
@@ -66,24 +82,34 @@ class TestGetEvaluation:
 
     async def test_get_evaluation_by_id(self, test_evaluation: Evaluation):
         # WHEN I get an evaluation by id
-        retrieved_evaluation = await Evaluation(id=test_evaluation.id).get_async(synapse_client=self.syn)
+        retrieved_evaluation = await Evaluation(id=test_evaluation.id).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN the evaluation should be retrieved
         assert retrieved_evaluation.id == test_evaluation.id
         assert retrieved_evaluation.name == test_evaluation.name
 
-    async def test_get_evaluation_by_entity(self, test_evaluation: Evaluation, test_project: Project):
+    async def test_get_evaluation_by_entity(
+        self, test_evaluation: Evaluation, test_project: Project
+    ):
         # WHEN I get an evaluation by a project
-        retrieved_evaluation = await Evaluation(project_id=test_project.id).get_async(synapse_client=self.syn)
+        retrieved_evaluation = await Evaluation(project_id=test_project.id).get_async(
+            synapse_client=self.syn
+        )
 
         # THEN the evaluation should be retrieved
         assert retrieved_evaluation.id == test_evaluation.id
         assert retrieved_evaluation.parent_id == test_project.id
 
-    async def test_get_all_evaluations(self, multiple_evaluations: list[Evaluation], limit: int = 1):
+    async def test_get_all_evaluations(
+        self, multiple_evaluations: list[Evaluation], limit: int = 1
+    ):
         # Test 1: Grab evaluations that the user has access to
         # WHEN a call is made to get all evaluations
-        evaluations = await Evaluation.get_all_evaluations_async(synapse_client=self.syn)
+        evaluations = await Evaluation.get_all_evaluations_async(
+            synapse_client=self.syn
+        )
 
         # THEN the evaluations should be retrieved
         assert evaluations is not None
@@ -91,21 +117,29 @@ class TestGetEvaluation:
 
         # Test 2: Grab evaluations that the user has access to and are active
         # WHEN the active_only parameter is True
-        active_evaluations = await Evaluation.get_all_evaluations_async(synapse_client=self.syn, active_only=True)
+        active_evaluations = await Evaluation.get_all_evaluations_async(
+            synapse_client=self.syn, active_only=True
+        )
 
         # THEN the active evaluations should be retrieved
         assert active_evaluations is not None
 
         # Test 3: Grab evaluations based on a limit
         # WHEN the limit parameter is set
-        limited_evaluations = await Evaluation.get_all_evaluations_async(synapse_client=self.syn, limit=limit)
+        limited_evaluations = await Evaluation.get_all_evaluations_async(
+            synapse_client=self.syn, limit=limit
+        )
 
         # THEN the evaluations retrieved should match said limit
         assert len(limited_evaluations) == limit
 
-    async def test_get_available_evaluations(self, multiple_evaluations: list[Evaluation]):
+    async def test_get_available_evaluations(
+        self, multiple_evaluations: list[Evaluation]
+    ):
         # WHEN a call is made to get available evaluations for a given user
-        evaluations = await Evaluation.get_available_evaluations_async(synapse_client=self.syn)
+        evaluations = await Evaluation.get_available_evaluations_async(
+            synapse_client=self.syn
+        )
 
         # THEN the evaluations should be retrieved
         assert evaluations is not None
@@ -114,8 +148,7 @@ class TestGetEvaluation:
     async def test_get_evaluation_by_name(self, test_evaluation: Evaluation):
         # WHEN a call is made to get an evaluation by name
         retrieved_evaluation = await Evaluation.get_evaluation_by_name_async(
-            synapse_client=self.syn, 
-            name=test_evaluation.name
+            synapse_client=self.syn, name=test_evaluation.name
         )
 
         # THEN the evaluation should be retrieved
@@ -130,18 +163,26 @@ class TestUpdateEvaluation:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> Project:
+    async def test_project(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id).get_async(synapse_client=syn)
+        project = await Project(
+            id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id
+        ).get_async(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> Evaluation:
+    async def test_evaluation(
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Evaluation:
         """Create a test evaluation for update tests."""
         evaluation = await Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}", 
-            parent_id=test_project.id
+            name=f"test_evaluation_{uuid.uuid4()}", parent_id=test_project.id
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(evaluation.id)
         return evaluation
@@ -164,18 +205,26 @@ class TestDeleteEvaluation:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> Project:
+    async def test_project(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id).get_async(synapse_client=syn)
+        project = await Project(
+            id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id
+        ).get_async(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> Evaluation:
+    async def test_evaluation(
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Evaluation:
         """Create a test evaluation for delete tests."""
         evaluation = await Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}", 
-            parent_id=test_project.id
+            name=f"test_evaluation_{uuid.uuid4()}", parent_id=test_project.id
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(evaluation.id)
         return evaluation
@@ -196,18 +245,26 @@ class TestEvaluationAccess:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def test_project(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> Project:
+    async def test_project(
+        self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id).get_async(synapse_client=syn)
+        project = await Project(
+            id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id
+        ).get_async(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
     @pytest.fixture(scope="function")
-    async def test_evaluation(self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> Evaluation:
+    async def test_evaluation(
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Evaluation:
         """Create a test evaluation for access tests."""
         evaluation = await Evaluation(
-            name=f"test_evaluation_{uuid.uuid4()}", 
-            parent_id=test_project.id
+            name=f"test_evaluation_{uuid.uuid4()}", parent_id=test_project.id
         ).store_async(synapse_client=syn)
         schedule_for_cleanup(evaluation.id)
         return evaluation
