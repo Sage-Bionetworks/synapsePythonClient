@@ -31,7 +31,7 @@ nav:
           # - Versions: tutorials/python/versions.md
           # - Activity/Provenance: tutorials/python/activity.md
           - Entity View: tutorials/python/entityview.md
-          # - Table: tutorials/python/table.md
+          - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
           - VirtualTable: tutorials/python/virtualtable.md
           - Dataset: tutorials/python/dataset.md
@@ -47,16 +47,16 @@ nav:
         # - Move Files and Folders: tutorials/python/move_files_and_folders.md
         # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
       - Working with the Command Line Client: tutorials/command_line_client.md
-      - Working with file versioning: tutorials/file_versioning.md
-      - Working with tables: tutorials/tables.md
+      # - Working with file versioning: tutorials/file_versioning.md
+      # - Working with tables: tutorials/tables.md
       - Synapseclient with R through reticulate: tutorials/reticulate.md
   - How-To Guides:
       - Home: guides/home.md
-      - Using Entity Views: guides/views.md
+      # - Using Entity Views: guides/views.md
       - Data Storage: guides/data_storage.md
       - Access the REST API: guides/accessing_the_rest_api.md
-      - Expermental Features:
-          - Validating Annotations: guides/validate_annotations.md
+      # - Expermental Features:
+      #     - Validating Annotations: guides/validate_annotations.md
   - API Reference:
       - Client: reference/client.md
       - Synapse Utils: reference/synapse_utils.md
