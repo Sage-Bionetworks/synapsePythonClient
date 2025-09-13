@@ -24,7 +24,6 @@ By the end of these tutorials you'll have:
 - A File that has an [Activity/Provenance](./python/activity.md) added to it
 - A [Entity View/File View](./python/entityview.md) created for your Project
 - A [Table](./python/table.md) created for your Project
-- [Create, Read, Update, Delete operations](./python/table_crud.md) for your table
 - A [Dataset](./python/dataset.md) created for your project
 - A File with updated [sharing settings](./python/sharing_settings.md)
 - A [Wiki](./python/wiki.md) for your Project
