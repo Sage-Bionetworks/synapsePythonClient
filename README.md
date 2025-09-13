@@ -3,8 +3,8 @@ Python Synapse Client
 
 Branch  | Build Status
 --------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-develop | [![Build Status develop branch](https://github.com/Sage-Bionetworks/synapsePythonClient/workflows/build/badge.svg?branch=develop)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Adevelop)
-master  | [![Build Status master branch](https://github.com/Sage-Bionetworks/synapsePythonClient/workflows/build/badge.svg?branch=master)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Amaster)
+develop | [![Build Status develop branch](https://github.com/Sage-Bionetworks/synapsePythonClient/actions/workflows/build.yml/badge.svg?branch=develop)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Adevelop)
+master  | [![Build Status master branch](https://github.com/Sage-Bionetworks/synapsePythonClient/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/Sage-Bionetworks/synapsePythonClient/actions?query=branch%3Amaster)
 
 [![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/)
 
