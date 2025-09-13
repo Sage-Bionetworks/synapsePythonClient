@@ -156,7 +156,7 @@ synapseutils.syncToSynapse(
 #### Store a Project to Synapse
 ```
 import synapseclient
-from synapseclient.entity import Project
+from synapseclient.models import Project
 
 syn = synapseclient.Synapse()
 
@@ -164,7 +164,7 @@ syn = synapseclient.Synapse()
 syn.login(authToken='auth_token')
 
 project = Project('My uniquely named project')
-project = syn.store(project)
+project.store()
 
 print(project.id)
 print(project)
@@ -173,14 +173,15 @@ print(project)
 #### Store a Folder to Synapse (Does not upload files within the folder)
 ```
 import synapseclient
+from synapseclient.models import Folder
 
 syn = synapseclient.Synapse()
 
 ## log in using auth token
 syn.login(authToken='auth_token')
 
-folder = Folder(name='my_folder', parent="syn123")
-folder = syn.store(folder)
+folder = Folder(name='my_folder', parent_id="syn123")
+folder.store()
 
 print(folder.id)
 print(folder)
@@ -190,6 +191,7 @@ print(folder)
 #### Store a File to Synapse
 ```
 import synapseclient
+from synapseclient.models import File
 
 syn = synapseclient.Synapse()
 
@@ -197,10 +199,10 @@ syn = synapseclient.Synapse()
 syn.login(authToken='auth_token')
 
 file = File(
-    path=filepath,
-    parent="syn123",
+    path="path/to/file.txt",
+    parent_id="syn123",
 )
-file = syn.store(file)
+file.store()
 
 print(file.id)
 print(file)
@@ -209,6 +211,7 @@ print(file)
 #### Get a data matrix
 ```
 import synapseclient
+from synapseclient.models import File
 
 syn = synapseclient.Synapse()
 
@@ -216,7 +219,7 @@ syn = synapseclient.Synapse()
 syn.login(authToken='auth_token')
 
 ## retrieve a 100 by 4 matrix
-matrix = syn.get('syn1901033')
+matrix = File(id='syn1901033').get()
 
 ## inspect its properties
 print(matrix.name)
