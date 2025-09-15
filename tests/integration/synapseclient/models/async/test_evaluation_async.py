@@ -17,14 +17,12 @@ class TestEvaluationCreation:
 
     async def test_create_evaluation(self):
         # GIVEN a project to work with
-        project = await Project(
-            id=self.syn.store(Project(name="test_project")).id
-        ).get_async(synapse_client=self.syn)
+        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # WHEN I create an evaluation using the dataclass method
         evaluation = Evaluation(
-            name="test_evaluation",
+            name=f"test_evaluation_{uuid.uuid4()}",
             description="A test evaluation for testing purposes",
             content_source=project.id,
             submission_instructions_message="Please submit your results in CSV format",
@@ -35,7 +33,7 @@ class TestEvaluationCreation:
 
         # THEN the evaluation should be created
         assert created_evaluation.id is not None
-        assert created_evaluation.name == "test_evaluation"
+        assert created_evaluation.name == evaluation.name
         assert (
             created_evaluation.description == "A test evaluation for testing purposes"
         )
@@ -53,9 +51,7 @@ class TestGetEvaluation:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(
-            id=Project(name=f"test_project_{uuid.uuid4()}").store().id
-        ).get_async(synapse_client=syn)
+        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(synapse_client=self.syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -199,9 +195,7 @@ class TestUpdateEvaluation:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(
-            id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id
-        ).get_async(synapse_client=syn)
+        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(synapse_client=self.syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -279,9 +273,7 @@ class TestDeleteEvaluation:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(
-            id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id
-        ).get_async(synapse_client=syn)
+        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(synapse_client=self.syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -324,9 +316,7 @@ class TestEvaluationAccess:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(
-            id=syn.store(Project(name=f"test_project_{uuid.uuid4()}")).id
-        ).get_async(synapse_client=syn)
+        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(synapse_client=self.syn)
         schedule_for_cleanup(project.id)
         return project
 

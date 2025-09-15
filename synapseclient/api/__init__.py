@@ -121,6 +121,18 @@ from .user_services import (
     get_user_profile_by_username,
     is_user_certified,
 )
+from .evaluation_services import (
+    create_evaluation_async,
+    get_evaluation_async,
+    get_evaluations_by_project_async,
+    get_all_evaluations_async,
+    get_available_evaluations_async,
+    update_evaluation_async,
+    delete_evaluation_async,
+    get_evaluation_acl_async,
+    update_evaluation_acl_async,
+    get_evaluation_permissions_async,
+)
 
 __all__ = [
     # annotations
@@ -242,4 +254,15 @@ __all__ = [
     "is_user_certified",
     # table_services
     "create_table_snapshot",
+    # evaluation_services
+    "create_evaluation_async",
+    "get_evaluation_async",
+    "get_evaluations_by_project_async",
+    "get_all_evaluations_async",
+    "get_available_evaluations_async",
+    "update_evaluation_async",
+    "delete_evaluation_async",
+    "get_evaluation_acl_async",
+    "update_evaluation_acl_async",
+    "get_evaluation_permissions_async",
 ]

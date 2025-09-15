@@ -141,8 +141,8 @@ class Evaluation(EvaluationSynchronousProtocol):
             synapse_client=synapse_client,
         )
 
-        # Update this instance with the created evaluation data
-        self.fill_from_dict(created_evaluation.__dict__)
+        self.fill_from_dict(created_evaluation)
+
         return self
 
     async def get_async(
@@ -168,13 +168,13 @@ class Evaluation(EvaluationSynchronousProtocol):
             raise ValueError("Either id or name must be set to get an evaluation")
 
         retrieved_evaluation = await get_evaluation_async(
-            id=self.id,
+            evaluation_id=self.id,
             name=self.name,
             synapse_client=synapse_client,
         )
 
-        # Update this instance with the retrieved evaluation data
-        self.fill_from_dict(retrieved_evaluation.__dict__)
+        self.fill_from_dict(retrieved_evaluation)
+
         return self
 
     async def update_async(
@@ -221,8 +221,8 @@ class Evaluation(EvaluationSynchronousProtocol):
             synapse_client=synapse_client,
         )
 
-        # Update this instance with the updated evaluation data
-        self.fill_from_dict(updated_evaluation.__dict__)
+        self.fill_from_dict(updated_evaluation)
+
         return self
 
     async def delete_async(self, *, synapse_client: Optional["Synapse"] = None) -> None:
@@ -366,7 +366,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         """
         from synapseclient.api.evaluation_services import get_all_evaluations_async
 
-        return await get_all_evaluations_async(
+        result_dict = await get_all_evaluations_async(
             access_type=access_type,
             active_only=active_only,
             evaluation_ids=evaluation_ids,
@@ -374,6 +374,11 @@ class Evaluation(EvaluationSynchronousProtocol):
             limit=limit,
             synapse_client=synapse_client,
         )
+        items = result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        evaluations: List[Evaluation] = []
+        for item in items: evaluations.append(Evaluation().fill_from_dict(item))
+
+        return evaluations
 
     @staticmethod
     async def get_available_evaluations_async(
@@ -405,13 +410,18 @@ class Evaluation(EvaluationSynchronousProtocol):
             get_available_evaluations_async,
         )
 
-        return await get_available_evaluations_async(
+        result_dict = await get_available_evaluations_async(
             active_only=active_only,
             evaluation_ids=evaluation_ids,
             offset=offset,
             limit=limit,
             synapse_client=synapse_client,
         )
+        items = result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        evaluations: List[Evaluation] = []
+        for item in items: evaluations.append(Evaluation().fill_from_dict(item))
+
+        return evaluations
 
     @staticmethod
     async def get_evaluations_by_project_async(
@@ -447,7 +457,7 @@ class Evaluation(EvaluationSynchronousProtocol):
             get_evaluations_by_project_async,
         )
 
-        return await get_evaluations_by_project_async(
+        result_dict = await get_evaluations_by_project_async(
             project_id=project_id,
             access_type=access_type,
             active_only=active_only,
@@ -456,3 +466,8 @@ class Evaluation(EvaluationSynchronousProtocol):
             limit=limit,
             synapse_client=synapse_client,
         )
+        items = result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        evaluations: List[Evaluation] = []
+        for item in items: evaluations.append(Evaluation().fill_from_dict(item))
+
+        return evaluations

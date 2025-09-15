@@ -6,8 +6,6 @@ This module is responsible for exposing the services defined at:
 import json
 from typing import TYPE_CHECKING, List, Optional
 
-from synapseclient.models.evaluation import Evaluation
-
 if TYPE_CHECKING:
     from synapseclient import Synapse
 
@@ -20,7 +18,7 @@ async def create_evaluation_async(
     submission_receipt_message: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Evaluation:
+) -> dict:
     """
     Create a new Evaluation.
 
@@ -53,7 +51,7 @@ async def create_evaluation_async(
     uri = "/evaluation"
     response = await client.rest_post_async(uri, body=json.dumps(request_body))
 
-    return Evaluation(**response)
+    return response
 
 
 async def get_evaluation_async(
@@ -61,7 +59,7 @@ async def get_evaluation_async(
     name: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Evaluation:
+) -> dict:
     """
     Get an Evaluation by its ID or name.
 
@@ -75,7 +73,7 @@ async def get_evaluation_async(
                         instance from the Synapse class constructor.
 
     Returns:
-        The requested Evaluation.
+        The requested Evaluation as a raw JSON dict.
 
     Raises:
         ValueError: If neither `id` nor `name` is provided.
@@ -94,7 +92,7 @@ async def get_evaluation_async(
 
     response = await client.rest_get_async(uri)
 
-    return Evaluation(**response)
+    return response
 
 
 async def get_evaluations_by_project_async(
@@ -106,7 +104,7 @@ async def get_evaluations_by_project_async(
     limit: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> List[Evaluation]:
+) -> List[dict]:
     """
     Gets Evaluations tied to a project.
     Note: The response will contain only those Evaluations on which the caller is granted the ACCESS_TYPE.READ permission, unless specified otherwise with the accessType parameter.
@@ -124,7 +122,7 @@ async def get_evaluations_by_project_async(
                         instance from the Synapse class constructor.
 
     Returns:
-        List[Evaluation]: A list of Evaluations tied to the project.
+        List[dict]: A list of Evaluation objects as raw JSON dicts tied to the project.
 
     Raises:
         SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
@@ -153,7 +151,7 @@ async def get_evaluations_by_project_async(
 
     evaluation_list = await client.rest_get_async(uri)
 
-    return [Evaluation(**evaluation) for evaluation in evaluation_list]
+    return evaluation_list
 
 
 async def get_all_evaluations_async(
@@ -164,7 +162,7 @@ async def get_all_evaluations_async(
     limit: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> List[Evaluation]:
+) -> List[dict]:
     """
     Get a list of all Evaluations, within a given range.
     Note: The response will contain only those Evaluations on which the caller is granted the ACCESS_TYPE.READ permission, unless specified otherwise with the accessType parameter.
@@ -181,7 +179,7 @@ async def get_all_evaluations_async(
                         instance from the Synapse class constructor.
 
     Returns:
-        List[Evaluation]: A list of all evaluations.
+        List[dict]: A list of Evaluation objects as raw JSON dicts.
 
     Raises:
         SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
@@ -210,7 +208,7 @@ async def get_all_evaluations_async(
 
     evaluation_list = await client.rest_get_async(uri)
 
-    return [Evaluation(**evaluation) for evaluation in evaluation_list]
+    return evaluation_list
 
 
 async def get_available_evaluations_async(
@@ -220,7 +218,7 @@ async def get_available_evaluations_async(
     limit: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> List[Evaluation]:
+) -> List[dict]:
     """
     Get a list of Evaluations to which the user has SUBMIT permission, within a given range.
     Note: The response will contain only those Evaluations on which the caller is granted the ACCESS_TYPE.SUBMIT permission.
@@ -236,7 +234,7 @@ async def get_available_evaluations_async(
                         instance from the Synapse class constructor.
 
     Returns:
-        List[Evaluation]: A list of available evaluations.
+        List[dict]: A list of available evaluations as raw JSON dicts.
 
     Raises:
         SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
@@ -263,7 +261,7 @@ async def get_available_evaluations_async(
 
     evaluation_list = await client.rest_get_async(uri)
 
-    return [Evaluation(**evaluation) for evaluation in evaluation_list]
+    return evaluation_list
 
 
 async def update_evaluation_async(
@@ -275,7 +273,7 @@ async def update_evaluation_async(
     submission_receipt_message: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> Evaluation:
+) -> dict:
     """
     Update an Evaluation.
 
@@ -296,7 +294,7 @@ async def update_evaluation_async(
                         instance from the Synapse class constructor.
 
     Returns:
-        The updated Evaluation object.
+        dict: The updated Evaluation object as a raw JSON dict.
 
     Raises:
         ValueError: If evaluation_id is not provided.
@@ -324,7 +322,7 @@ async def update_evaluation_async(
     uri = f"/evaluation/{evaluation_id}"
     response = await client.rest_put_async(uri, body=json.dumps(request_body))
 
-    return Evaluation(**response)
+    return response
 
 
 async def delete_evaluation_async(
