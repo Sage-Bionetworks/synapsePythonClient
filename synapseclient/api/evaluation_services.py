@@ -7,7 +7,6 @@ import json
 from typing import TYPE_CHECKING, List, Optional, Union
 
 from synapseclient.core import utils
-from synapseclient.models.access_control import AccessControlList
 from synapseclient.models.evaluation import Evaluation
 
 if TYPE_CHECKING:
@@ -59,7 +58,7 @@ async def create_evaluation_async(
 
 
 async def get_evaluation_async(
-    id: Optional[str] = None,
+    evaluation_id: Optional[str] = None,
     name: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -87,14 +86,14 @@ async def get_evaluation_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    if id:
-        uri = f"/evaluation/{id}"
+    if evaluation_id:
+        uri = f"/evaluation/{evaluation_id}"
     elif name:
         uri = f"/evaluation/name/{name}"
     else:
-        raise ValueError("Either 'id' or 'name' must be provided")
+        raise ValueError("Either 'evaluation_id' or 'name' must be provided")
 
-    response = await client._async_get_json(uri)
+    response = await client.rest_get_async(uri)
 
     return Evaluation(**response)
 
@@ -153,7 +152,7 @@ async def get_evaluations_by_project_async(
     if params:
         uri += "?" + "&".join(params)
 
-    evaluation_list = await client._async_get_json(uri)
+    evaluation_list = await client.rest_get_async(uri)
 
     return [Evaluation(**evaluation) for evaluation in evaluation_list]
 
@@ -210,7 +209,7 @@ async def get_all_evaluations_async(
     if params:
         uri += "?" + "&".join(params)
 
-    evaluation_list = await client._async_get_json(uri)
+    evaluation_list = await client.rest_get_async(uri)
 
     return [Evaluation(**evaluation) for evaluation in evaluation_list]
 
@@ -263,13 +262,13 @@ async def get_available_evaluations_async(
     if params:
         uri += "?" + "&".join(params)
 
-    evaluation_list = await client._async_get_json(uri)
+    evaluation_list = await client.rest_get_async(uri)
 
     return [Evaluation(**evaluation) for evaluation in evaluation_list]
 
 
 async def update_evaluation_async(
-    id: str,
+    evaluation_id: str,
     name: Optional[str] = None,
     description: Optional[str] = None,
     content_source: Optional[str] = None,
@@ -288,7 +287,7 @@ async def update_evaluation_async(
     <https://rest-docs.synapse.org/rest/PUT/evaluation/evalId.html>
 
     Arguments:
-        id: The ID of the Evaluation being updated.
+        evaluation_id: The ID of the Evaluation being updated.
         name: The human-readable name of the Evaluation.
         description: A short description of the Evaluation's purpose.
         content_source: The ID of the Project or Entity this Evaluation belongs to (e.g., "syn123").
@@ -323,14 +322,14 @@ async def update_evaluation_async(
     if submission_receipt_message is not None:
         request_body["submissionReceiptMessage"] = submission_receipt_message
 
-    uri = f"/evaluation/{id}"
+    uri = f"/evaluation/{evaluation_id}"
     response = await client.rest_put_async(uri, body=json.dumps(request_body))
 
     return Evaluation(**response)
 
 
 async def delete_evaluation_async(
-    id: str,
+    evaluation_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> None:
@@ -340,7 +339,7 @@ async def delete_evaluation_async(
     <https://rest-docs.synapse.org/rest/DELETE/evaluation/evalId.html>
 
     Arguments:
-        id: The ID of the Evaluation to delete.
+        evaluation_id: The ID of the Evaluation to delete.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                         instance from the Synapse class constructor.
 
@@ -354,15 +353,15 @@ async def delete_evaluation_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    uri = f"/evaluation/{id}"
+    uri = f"/evaluation/{evaluation_id}"
     await client.rest_delete_async(uri)
 
 
 async def get_evaluation_acl_async(
-    id: str,
+    evaluation_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> AccessControlList:
+) -> dict:
     """
     Get the access control list (ACL) governing the given evaluation.
     The user should have the proper permissions to read the ACL.
@@ -371,7 +370,7 @@ async def get_evaluation_acl_async(
     TODO: SHould this already be a mixin?
 
     Arguments:
-        id: The ID of the evaluation whose ACL is being retrieved.
+        evaluation_id: The ID of the evaluation whose ACL is being retrieved.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                         instance from the Synapse class constructor.
 
@@ -385,17 +384,17 @@ async def get_evaluation_acl_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    uri = f"/evaluation/{id}/acl"
-    acl_json = await client._async_get_json(uri)
+    uri = f"/evaluation/{evaluation_id}/acl"
+    acl_json = await client.rest_get_async(uri)
 
-    return AccessControlList(**acl_json)
+    return acl_json
 
 
 async def update_evaluation_acl_async(
-    acl: Union[AccessControlList, dict],
+    acl: dict,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> AccessControlList:
+) -> dict:
     """
     Update the supplied access control list (ACL) for an evaluation.
     The ACL to be updated should have the ID of the evaluation.
@@ -426,20 +425,14 @@ async def update_evaluation_acl_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    if not isinstance(acl, (AccessControlList, dict)):
-        raise ValueError("Expected AccessControlList or dict")
-
-    acl_json = utils._getRawJSON(acl)
-    acl_json = utils._clean_json_for_request(acl_json)
-
     uri = "/evaluation/acl"
-    response = await client.rest_put_async(uri, body=json.dumps(acl_json))
+    response = await client.rest_put_async(uri, body=json.dumps(acl))
 
-    return AccessControlList(**response)
+    return response
 
 
 async def get_evaluation_permissions_async(
-    id: str,
+    evaluation_id: str,
     principal_id: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -465,8 +458,8 @@ async def get_evaluation_permissions_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    uri = f"/evaluation/{id}/permissions"
+    uri = f"/evaluation/{evaluation_id}/permissions"
     if principal_id:
         uri += f"?principalId={principal_id}"
 
-    return await client._async_get_json(uri)
+    return await client.rest_get_async(uri)

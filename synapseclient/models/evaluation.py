@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Optional, Protocol, Union
 
 from synapseclient.core.async_utils import async_to_sync
-from synapseclient.models.access_control import AccessControlList
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -250,7 +249,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
     async def get_acl_async(
         self, *, synapse_client: Optional["Synapse"] = None
-    ) -> AccessControlList:
+    ) -> dict:
         """
         Get the access control list (ACL) governing this evaluation.
 
@@ -277,10 +276,10 @@ class Evaluation(EvaluationSynchronousProtocol):
 
     async def update_acl_async(
         self,
-        acl: Union[AccessControlList, dict],
+        acl: dict,
         *,
         synapse_client: Optional["Synapse"] = None,
-    ) -> AccessControlList:
+    ) -> dict:
         """
         Update the access control list (ACL) for this evaluation.
 
