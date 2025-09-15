@@ -4,9 +4,8 @@ This module is responsible for exposing the services defined at:
 """
 
 import json
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional
 
-from synapseclient.core import utils
 from synapseclient.models.evaluation import Evaluation
 
 if TYPE_CHECKING:

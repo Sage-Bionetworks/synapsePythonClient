@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, List, Optional, Protocol
 
 from synapseclient.core.async_utils import async_to_sync
 
