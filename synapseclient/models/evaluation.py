@@ -96,8 +96,6 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         return self
 
-    # ===== ASYNC METHODS =====
-
     async def store_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> "Evaluation":
@@ -188,7 +186,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> "Evaluation":
         """
-        Update this Evaluation in Synapse.
+        Update the latest state of this Evaluation in Synapse.
 
         Arguments:
             name: The human-readable name of the Evaluation.
@@ -213,6 +211,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         updated_evaluation = await update_evaluation_async(
             evaluation_id=self.id,
+            etag=self.etag,
             name=name,
             description=description,
             content_source=content_source,

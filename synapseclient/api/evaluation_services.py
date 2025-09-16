@@ -266,6 +266,7 @@ async def get_available_evaluations_async(
 
 async def update_evaluation_async(
     evaluation_id: str,
+    etag: Optional[str] = None,
     name: Optional[str] = None,
     description: Optional[str] = None,
     content_source: Optional[str] = None,
@@ -306,8 +307,10 @@ async def update_evaluation_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    # Build request body with only provided fields
-    request_body = {}
+    # Build request body with required fields
+    request_body = {"id": evaluation_id, "etag": etag}
+
+    # Update request body with only provided fields
     if name is not None:
         request_body["name"] = name
     if description is not None:
