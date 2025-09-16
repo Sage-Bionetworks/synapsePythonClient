@@ -11,11 +11,7 @@ if TYPE_CHECKING:
 
 
 async def create_evaluation_async(
-    name: str,
-    description: str,
-    content_source: str,
-    submission_instructions_message: str,
-    submission_receipt_message: str,
+    request_body: dict,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> dict:
@@ -40,15 +36,8 @@ async def create_evaluation_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    request_body = {
-        "name": name,
-        "description": description,
-        "contentSource": content_source,
-        "submissionInstructionsMessage": submission_instructions_message,
-        "submissionReceiptMessage": submission_receipt_message,
-    }
-
     uri = "/evaluation"
+
     response = await client.rest_post_async(uri, body=json.dumps(request_body))
 
     return response
@@ -265,13 +254,7 @@ async def get_available_evaluations_async(
 
 
 async def update_evaluation_async(
-    evaluation_id: str,
-    etag: Optional[str] = None,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    content_source: Optional[str] = None,
-    submission_instructions_message: Optional[str] = None,
-    submission_receipt_message: Optional[str] = None,
+    request_body: dict,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> dict:
@@ -307,22 +290,9 @@ async def update_evaluation_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    # Build request body with required fields
-    request_body = {"id": evaluation_id, "etag": etag}
-
-    # Update request body with only provided fields
-    if name is not None:
-        request_body["name"] = name
-    if description is not None:
-        request_body["description"] = description
-    if content_source is not None:
-        request_body["contentSource"] = content_source
-    if submission_instructions_message is not None:
-        request_body["submissionInstructionsMessage"] = submission_instructions_message
-    if submission_receipt_message is not None:
-        request_body["submissionReceiptMessage"] = submission_receipt_message
-
+    evaluation_id = request_body.get("id")
     uri = f"/evaluation/{evaluation_id}"
+
     response = await client.rest_put_async(uri, body=json.dumps(request_body))
 
     return response

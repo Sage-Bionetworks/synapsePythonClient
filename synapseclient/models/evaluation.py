@@ -96,11 +96,51 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         return self
 
+    def to_synapse_request(self, request_type: str):
+        """Creates a request body expected of the Synapse REST API for the Evaluation model."""
+
+        # These attributes are required in our PUT requests for creating or updating an evaluation
+        if not self.name:
+            raise ValueError("Your evaluation object is missing the 'name' attribute. A name is required to create/update an evaluation")
+        if not self.description:
+            raise ValueError("Your evaluation object is missing the 'description' attribute. A description is required to create/update an evaluation")
+        if not self.content_source:
+            raise ValueError("Your evaluation object is missing the 'content_source' attribute. A content_source is required to create/update an evaluation")
+        if not self.submission_instructions_message:
+            raise ValueError(
+                "Your evaluation object is missing the 'submission_instructions_message' attribute. A submission_instructions_message is required to create/update an evaluation"
+            )
+        if not self.submission_receipt_message:
+            raise ValueError(
+                "Your evaluation object is missing the 'submission_receipt_message' attribute. A submission_receipt_message is required to create/update an evaluation"
+            )
+
+        # Build a request body for storing a brand new evaluation
+        request_body = {
+            "name": self.name,
+            "description": self.description,
+            "contentSource": self.content_source,
+            "submissionInstructionsMessage": self.submission_instructions_message,
+            "submissionReceiptMessage": self.submission_receipt_message,
+        }
+
+        # For 'update' request types, add id and etag
+        if request_type.lower() == 'update':
+            if not self.id:
+                raise ValueError("Your evaluation object is missing the 'id' attribute. An id is required to update an evaluation")
+            if not self.etag:
+                raise ValueError("Your evaluation object is missing the 'etag' attribute. An etag is required to update an evaluation")
+
+            request_body["id"] = self.id
+            request_body["etag"] = self.etag
+
+        return request_body
+
     async def store_async(
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> "Evaluation":
         """
-        Create a new Evaluation in Synapse.
+        Create a new Evaluation in Synapse. Required fields are `name`, `description`, `content_source`, `submission_instructions_message` and `submission_receipt_message`.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
@@ -115,27 +155,10 @@ class Evaluation(EvaluationSynchronousProtocol):
         """
         from synapseclient.api.evaluation_services import create_evaluation_async
 
-        if not self.name:
-            raise ValueError("name is required to create an evaluation")
-        if not self.description:
-            raise ValueError("description is required to create an evaluation")
-        if not self.content_source:
-            raise ValueError("content_source is required to create an evaluation")
-        if not self.submission_instructions_message:
-            raise ValueError(
-                "submission_instructions_message is required to create an evaluation"
-            )
-        if not self.submission_receipt_message:
-            raise ValueError(
-                "submission_receipt_message is required to create an evaluation"
-            )
+        request_body = self.to_synapse_request(request_type='create')
 
         created_evaluation = await create_evaluation_async(
-            name=self.name,
-            description=self.description,
-            content_source=self.content_source,
-            submission_instructions_message=self.submission_instructions_message,
-            submission_receipt_message=self.submission_receipt_message,
+            request_body=request_body,
             synapse_client=synapse_client,
         )
 
@@ -178,11 +201,6 @@ class Evaluation(EvaluationSynchronousProtocol):
     async def update_async(
         self,
         *,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        content_source: Optional[str] = None,
-        submission_instructions_message: Optional[str] = None,
-        submission_receipt_message: Optional[str] = None,
         synapse_client: Optional["Synapse"] = None,
     ) -> "Evaluation":
         """
@@ -206,17 +224,10 @@ class Evaluation(EvaluationSynchronousProtocol):
         """
         from synapseclient.api.evaluation_services import update_evaluation_async
 
-        if not self.id:
-            raise ValueError("id must be set to update an evaluation")
+        request_body = self.to_synapse_request('update')
 
         updated_evaluation = await update_evaluation_async(
-            evaluation_id=self.id,
-            etag=self.etag,
-            name=name,
-            description=description,
-            content_source=content_source,
-            submission_instructions_message=submission_instructions_message,
-            submission_receipt_message=submission_receipt_message,
+            request_body=request_body,
             synapse_client=synapse_client,
         )
 

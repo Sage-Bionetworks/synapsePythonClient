@@ -1,5 +1,6 @@
 """Integration tests for the synapseclient.models.Evaluation class."""
 
+from cgi import test
 import uuid
 from typing import Callable
 
@@ -225,11 +226,11 @@ class TestUpdateEvaluation:
         return created_evaluation
 
     async def test_update_evaluation_name(self, test_evaluation: Evaluation):
-        # WHEN I update the evaluation name using the dataclass method
+        # WHEN I update the evaluation name in my evaluation object
         new_name = f"updated_evaluation_{uuid.uuid4()}"
-        updated_evaluation = await test_evaluation.update_async(
-            name=new_name, synapse_client=self.syn
-        )
+        test_evaluation.name = new_name
+
+        updated_evaluation = await test_evaluation.update_async(synapse_client=self.syn)
 
         # THEN the evaluation should be updated
         assert updated_evaluation.name == new_name
@@ -239,9 +240,9 @@ class TestUpdateEvaluation:
     async def test_update_evaluation_description(self, test_evaluation: Evaluation):
         # WHEN I update the evaluation description
         new_description = f"Updated description {uuid.uuid4()}"
-        updated_evaluation = await test_evaluation.update_async(
-            description=new_description, synapse_client=self.syn
-        )
+        test_evaluation.description = new_description
+        
+        updated_evaluation = await test_evaluation.update_async(synapse_client=self.syn)
 
         # THEN the evaluation should be updated
         assert updated_evaluation.description == new_description
@@ -254,10 +255,11 @@ class TestUpdateEvaluation:
         new_description = f"Multi-updated description {uuid.uuid4()}"
         new_instructions = "Updated submission instructions"
 
+        test_evaluation.name = new_name
+        test_evaluation.description = new_description
+        test_evaluation.submission_instructions_message = new_instructions
+
         updated_evaluation = await test_evaluation.update_async(
-            name=new_name,
-            description=new_description,
-            submission_instructions_message=new_instructions,
             synapse_client=self.syn,
         )
 
