@@ -7,24 +7,24 @@ at your own risk.
 ## API Reference
 
 [](){ #factory-get-sync }
-::: synapseclient.models.get
+::: synapseclient.operations.get
 
 [](){ #factory-file-options-sync }
-::: synapseclient.models.FileOptions
+::: synapseclient.operations.FileOptions
     options:
       inherited_members: true
 
 [](){ #factory-activity-options-sync }
-::: synapseclient.models.ActivityOptions
+::: synapseclient.operations.ActivityOptions
     options:
       inherited_members: true
 
 [](){ #factory-table-options-sync }
-::: synapseclient.models.TableOptions
+::: synapseclient.operations.TableOptions
     options:
       inherited_members: true
 
 [](){ #factory-link-options-sync }
-::: synapseclient.models.LinkOptions
+::: synapseclient.operations.LinkOptions
     options:
       inherited_members: true
