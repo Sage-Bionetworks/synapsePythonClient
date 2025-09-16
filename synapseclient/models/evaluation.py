@@ -373,9 +373,12 @@ class Evaluation(EvaluationSynchronousProtocol):
             limit=limit,
             synapse_client=synapse_client,
         )
-        items = result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        items = (
+            result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        )
         evaluations: List[Evaluation] = []
-        for item in items: evaluations.append(Evaluation().fill_from_dict(item))
+        for item in items:
+            evaluations.append(Evaluation().fill_from_dict(item))
 
         return evaluations
 
@@ -416,9 +419,12 @@ class Evaluation(EvaluationSynchronousProtocol):
             limit=limit,
             synapse_client=synapse_client,
         )
-        items = result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        items = (
+            result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        )
         evaluations: List[Evaluation] = []
-        for item in items: evaluations.append(Evaluation().fill_from_dict(item))
+        for item in items:
+            evaluations.append(Evaluation().fill_from_dict(item))
 
         return evaluations
 
@@ -465,8 +471,11 @@ class Evaluation(EvaluationSynchronousProtocol):
             limit=limit,
             synapse_client=synapse_client,
         )
-        items = result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        items = (
+            result_dict.get("results") if isinstance(result_dict, dict) else result_dict
+        )
         evaluations: List[Evaluation] = []
-        for item in items: evaluations.append(Evaluation().fill_from_dict(item))
+        for item in items:
+            evaluations.append(Evaluation().fill_from_dict(item))
 
         return evaluations

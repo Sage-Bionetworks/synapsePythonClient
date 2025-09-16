@@ -53,6 +53,18 @@ from .entity_services import (
     update_activity,
     update_entity_acl,
 )
+from .evaluation_services import (
+    create_evaluation_async,
+    delete_evaluation_async,
+    get_all_evaluations_async,
+    get_available_evaluations_async,
+    get_evaluation_acl_async,
+    get_evaluation_async,
+    get_evaluation_permissions_async,
+    get_evaluations_by_project_async,
+    update_evaluation_acl_async,
+    update_evaluation_async,
+)
 from .file_services import (
     AddPartResponse,
     get_file_handle,
@@ -120,18 +132,6 @@ from .user_services import (
     get_user_profile_by_id,
     get_user_profile_by_username,
     is_user_certified,
-)
-from .evaluation_services import (
-    create_evaluation_async,
-    get_evaluation_async,
-    get_evaluations_by_project_async,
-    get_all_evaluations_async,
-    get_available_evaluations_async,
-    update_evaluation_async,
-    delete_evaluation_async,
-    get_evaluation_acl_async,
-    update_evaluation_acl_async,
-    get_evaluation_permissions_async,
 )
 
 __all__ = [
