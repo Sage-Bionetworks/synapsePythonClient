@@ -51,7 +51,7 @@ class FileOptions:
         Configure file download options:
 
         ```python
-        from synapseclient.models import FileOptions
+        from synapseclient.operations import FileOptions
 
         # Download file to specific location with overwrite
         file_options = FileOptions(
@@ -91,7 +91,7 @@ class ActivityOptions:
         Configure activity inclusion:
 
         ```python
-        from synapseclient.models import ActivityOptions
+        from synapseclient.operations import ActivityOptions
 
         # Include activity information
         with_activity = ActivityOptions(include_activity=True)
@@ -131,7 +131,7 @@ class TableOptions:
         Configure table column inclusion:
 
         ```python
-        from synapseclient.models import TableOptions
+        from synapseclient.operations import TableOptions
 
         # Include column schema information
         with_columns = TableOptions(include_columns=True)
@@ -165,7 +165,7 @@ class LinkOptions:
         Configure link following behavior:
 
         ```python
-        from synapseclient.models import LinkOptions
+        from synapseclient.operations import LinkOptions
 
         # Follow the link and return the target entity
         follow_target = LinkOptions(follow_link=True)
@@ -457,7 +457,8 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get
+        from synapseclient.models import File, Project
+        from synapseclient.operations import get
 
         syn = Synapse()
         syn.login()
@@ -477,7 +478,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get
+        from synapseclient.operations import get
 
         syn = Synapse()
         syn.login()
@@ -500,7 +501,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get
+        from synapseclient.operations import get
 
         syn = Synapse()
         syn.login()
@@ -513,7 +514,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get, FileOptions, ActivityOptions
+        from synapseclient.operations import get, FileOptions, ActivityOptions
 
         syn = Synapse()
         syn.login()
@@ -532,7 +533,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get, ActivityOptions, TableOptions
+        from synapseclient.operations import get, ActivityOptions, TableOptions
 
         syn = Synapse()
         syn.login()
@@ -549,7 +550,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get, LinkOptions
+        from synapseclient.operations import get, LinkOptions
 
         syn = Synapse()
         syn.login()
@@ -565,7 +566,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get, LinkOptions
+        from synapseclient.operations import get, LinkOptions
 
         syn = Synapse()
         syn.login()
@@ -590,7 +591,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get, FileOptions
+        from synapseclient.operations import get, FileOptions
 
         syn = Synapse()
         syn.login()
@@ -611,7 +612,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get, TableOptions
+        from synapseclient.operations import get, TableOptions
 
         syn = Synapse()
         syn.login()
@@ -630,7 +631,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get, FileOptions, ActivityOptions
+        from synapseclient.operations import get, FileOptions, ActivityOptions
 
         syn = Synapse()
         syn.login()
@@ -650,7 +651,7 @@ def get(
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import get, FileOptions
+        from synapseclient.operations import get, FileOptions
 
         syn = Synapse()
         syn.login()
@@ -756,7 +757,8 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async
+        from synapseclient.models import File, Project
+        from synapseclient.operations import get_async
 
         async def main():
             syn = Synapse()
@@ -780,7 +782,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async
+        from synapseclient.operations import get_async
 
         async def main():
             syn = Synapse()
@@ -807,7 +809,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async
+        from synapseclient.operations import get_async
 
         async def main():
             syn = Synapse()
@@ -824,7 +826,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async, FileOptions, ActivityOptions
+        from synapseclient.operations import get_async, FileOptions, ActivityOptions
 
         async def main():
             syn = Synapse()
@@ -847,7 +849,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async, ActivityOptions, TableOptions
+        from synapseclient.operations import get_async, ActivityOptions, TableOptions
 
         async def main():
             syn = Synapse()
@@ -868,7 +870,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async, LinkOptions
+        from synapseclient.operations import get_async, LinkOptions
 
         async def main():
             syn = Synapse()
@@ -888,7 +890,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async, LinkOptions
+        from synapseclient.operations import get_async, LinkOptions
 
         async def main():
             syn = Synapse()
@@ -917,7 +919,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async, FileOptions
+        from synapseclient.operations import get_async, FileOptions
 
         async def main():
             syn = Synapse()
@@ -942,7 +944,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async, TableOptions
+        from synapseclient.operations import get_async, TableOptions
 
         async def main():
             syn = Synapse()
@@ -965,7 +967,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async, FileOptions, ActivityOptions
+        from synapseclient.operations import get_async, FileOptions, ActivityOptions
 
         async def main():
             syn = Synapse()
@@ -989,7 +991,7 @@ async def get_async(
         ```python
         import asyncio
         from synapseclient import Synapse
-        from synapseclient.models import get_async, FileOptions
+        from synapseclient.operations import get_async, FileOptions
 
         async def main():
             syn = Synapse()

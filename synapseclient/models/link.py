@@ -31,7 +31,7 @@ if TYPE_CHECKING:
         Table,
         VirtualTable,
     )
-    from synapseclient.models.factory_operations import FileOptions
+    from synapseclient.operations.factory_operations import FileOptions
 
 
 class LinkSynchronousProtocol(Protocol):
@@ -496,7 +496,7 @@ class Link(LinkSynchronousProtocol):
         self._set_last_persistent_instance()
 
         if follow_link:
-            from synapseclient.models.factory_operations import (
+            from synapseclient.operations.factory_operations import (
                 get_async as factory_get_async,
             )
 

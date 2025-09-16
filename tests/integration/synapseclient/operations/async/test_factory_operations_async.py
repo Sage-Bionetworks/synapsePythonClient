@@ -11,25 +11,27 @@ from synapseclient.api.table_services import ViewTypeMask
 from synapseclient.core import utils
 from synapseclient.models import (
     Activity,
-    ActivityOptions,
     Column,
     ColumnType,
     Dataset,
     DatasetCollection,
     EntityView,
     File,
-    FileOptions,
     Folder,
     Link,
-    LinkOptions,
     MaterializedView,
     Project,
     SubmissionView,
     Table,
-    TableOptions,
     UsedEntity,
     UsedURL,
     VirtualTable,
+)
+from synapseclient.operations import (
+    ActivityOptions,
+    FileOptions,
+    LinkOptions,
+    TableOptions,
     get_async,
 )
 
