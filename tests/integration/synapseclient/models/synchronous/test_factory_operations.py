@@ -576,8 +576,68 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_link.name == stored_link.name
         assert retrieved_link.target_id == stored_file.id
 
+    async def test_get_link_by_id_default_follows_link(
+        self, project_model: Project
+    ) -> None:
+        """Test that getting a Link by ID follows the link by default (no LinkOptions provided)."""
+        # GIVEN a file and a link to that file
+        file = self.create_file_instance()
+        file.parent_id = project_model.id
+        stored_file = file.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(stored_file.id)
+
+        link = Link(
+            name=f"test_link_{str(uuid.uuid4())[:8]}",
+            description="Test link for factory operations",
+            parent_id=project_model.id,
+            target_id=stored_file.id,
+        )
+        stored_link = link.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(stored_link.id)
+
+        # WHEN I retrieve the link without any options (should use defaults)
+        retrieved_entity = get(
+            synapse_id=stored_link.id,
+            synapse_client=self.syn,
+        )
+
+        # THEN the target File entity is returned (default follow_link=True behavior)
+        assert isinstance(retrieved_entity, File)
+        assert retrieved_entity.id == stored_file.id
+        assert retrieved_entity.name == stored_file.name
+
     async def test_get_link_by_id_with_following(self, project_model: Project) -> None:
-        """Test retrieving a Link entity by Synapse ID and following to the target."""
+        """Test retrieving a Link entity by Synapse ID and following to the target (default behavior)."""
+        # GIVEN a file and a link to that file
+        file = self.create_file_instance()
+        file.parent_id = project_model.id
+        stored_file = file.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(stored_file.id)
+
+        link = Link(
+            name=f"test_link_{str(uuid.uuid4())[:8]}",
+            description="Test link for factory operations",
+            parent_id=project_model.id,
+            target_id=stored_file.id,
+        )
+        stored_link = link.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(stored_link.id)
+
+        # WHEN I retrieve the link using get with default behavior (follow_link=True)
+        retrieved_entity = get(
+            synapse_id=stored_link.id,
+            synapse_client=self.syn,
+        )
+
+        # THEN the target File entity is returned instead of the Link (default behavior is now follow_link=True)
+        assert isinstance(retrieved_entity, File)
+        assert retrieved_entity.id == stored_file.id
+        assert retrieved_entity.name == stored_file.name
+
+    async def test_get_link_by_id_with_following_explicit(
+        self, project_model: Project
+    ) -> None:
+        """Test retrieving a Link entity by Synapse ID with explicit follow_link=True."""
         # GIVEN a file and a link to that file
         file = self.create_file_instance()
         file.parent_id = project_model.id
@@ -607,6 +667,51 @@ class TestFactoryOperationsGetAsync:
         assert isinstance(retrieved_entity, File)
         assert retrieved_entity.id == stored_file.id
         assert retrieved_entity.name == stored_file.name
+
+    async def test_get_link_by_id_with_file_options(
+        self, project_model: Project
+    ) -> None:
+        """Test retrieving a Link entity that points to a File with custom file options."""
+        # GIVEN a file and a link to that file
+        file = self.create_file_instance()
+        file.parent_id = project_model.id
+        stored_file = file.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(stored_file.id)
+
+        link = Link(
+            name=f"test_link_{str(uuid.uuid4())[:8]}",
+            description="Test link for factory operations",
+            parent_id=project_model.id,
+            target_id=stored_file.id,
+        )
+        stored_link = link.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(stored_link.id)
+
+        # AND custom file download options and link options
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_options = FileOptions(
+                download_file=True,
+                download_location=temp_dir,
+                if_collision="overwrite.local",
+            )
+            link_options = LinkOptions(follow_link=True)
+
+            # WHEN I retrieve the link using get with both link and file options
+            retrieved_entity = get(
+                synapse_id=stored_link.id,
+                link_options=link_options,
+                file_options=file_options,
+                synapse_client=self.syn,
+            )
+
+            # THEN the target File entity is returned with the custom options applied
+            assert isinstance(retrieved_entity, File)
+            assert retrieved_entity.id == stored_file.id
+            assert retrieved_entity.name == stored_file.name
+            assert utils.normalize_path(temp_dir) in utils.normalize_path(
+                retrieved_entity.path
+            )
+            assert retrieved_entity.download_file is True
 
     async def test_get_with_entity_instance(self, project_model: Project) -> None:
         """Test get when passing an entity instance directly."""

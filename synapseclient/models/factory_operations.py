@@ -159,7 +159,7 @@ class LinkOptions:
             return the entity that the Link points to (e.g., if a Link points
             to a File, a File object will be returned). If False, the Link
             entity itself will be returned, allowing you to inspect the link's
-            properties such as target_id, target_version, etc. Default is False.
+            properties such as target_id, target_version, etc. Default is True.
 
     Example:
         Configure link following behavior:
@@ -180,7 +180,7 @@ class LinkOptions:
         - When follow_link=False, a Link entity is always returned
     """
 
-    follow_link: bool = False
+    follow_link: bool = True
 
 
 async def _handle_entity_instance(
@@ -344,6 +344,7 @@ async def _handle_file_entity(
 async def _handle_link_entity(
     synapse_id: str,
     link_options: Optional[LinkOptions] = None,
+    file_options: Optional[FileOptions] = None,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[
     "Dataset",
@@ -371,6 +372,9 @@ async def _handle_link_entity(
 
     if link_options:
         kwargs["follow_link"] = link_options.follow_link
+
+    if file_options:
+        kwargs["file_options"] = file_options
 
     return await entity.get_async(**kwargs)
 
@@ -1025,6 +1029,11 @@ async def get_async(
         VirtualTable,
     )
 
+    activity_options = activity_options or ActivityOptions()
+    file_options = file_options or FileOptions()
+    table_options = table_options or TableOptions()
+    link_options = link_options or LinkOptions()
+
     # Handle case where an entity instance is passed directly
     entity_types = (
         Dataset,
@@ -1087,6 +1096,7 @@ async def get_async(
         return await _handle_link_entity(
             synapse_id=synapse_id,
             link_options=link_options,
+            file_options=file_options,
             synapse_client=synapse_client,
         )
 

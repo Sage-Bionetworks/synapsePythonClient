@@ -4,7 +4,7 @@ import dataclasses
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union
 
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
@@ -31,11 +31,145 @@ if TYPE_CHECKING:
         Table,
         VirtualTable,
     )
+    from synapseclient.models.factory_operations import FileOptions
+
+
+class LinkSynchronousProtocol(Protocol):
+    """Protocol defining the synchronous interface for Link operations."""
+
+    def get(
+        self,
+        parent: Optional[Union["Folder", "Project"]] = None,
+        follow_link: bool = True,
+        file_options: Optional["FileOptions"] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Union[
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "MaterializedView",
+        "Project",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+        "Link",
+    ]:
+        """Get the link metadata from Synapse. You are able to find a link by
+        either the id or the name and parent_id.
+
+        Arguments:
+            parent: The parent folder or project this link exists under.
+            follow_link: If True then the entity this link points to will be fetched
+                and returned instead of the Link entity itself.
+            file_options: Options that modify file retrieval. Only used if `follow_link`
+                is True and the link points to a File entity.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The link object.
+
+        Raises:
+            ValueError: If the link does not have an id or a
+                (name and (`parent_id` or parent with an id)) set.
+
+        Example: Using this function
+            Retrieve a link and follow it to get the target entity:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Link
+
+            syn = Synapse()
+            syn.login()
+
+            # Get the target entity that the link points to
+            target_entity = Link(id="syn123").get()
+            ```
+
+            Retrieve only the link metadata without following the link:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Link
+
+            syn = Synapse()
+            syn.login()
+
+            # Get just the link entity itself
+            link_entity = Link(id="syn123").get(follow_link=False)
+            ```
+
+            When the link points to a File, you can specify file download options:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Link, FileOptions
+
+            syn = Synapse()
+            syn.login()
+
+            # Follow link to file with custom download options
+            file_entity = Link(id="syn123").get(
+                file_options=FileOptions(
+                    download_file=True,
+                    download_location="/path/to/downloads/",
+                    if_collision="overwrite.local"
+                )
+            )
+            ```
+        """
+        return self
+
+    def store(
+        self,
+        parent: Optional[Union["Folder", "Project"]] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Link":
+        """Store the link in Synapse.
+
+        Arguments:
+            parent: The parent folder or project to store the link in. May also be
+                specified in the Link object. If both are provided the parent passed
+                into `store` will take precedence.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The link object.
+
+        Raises:
+            ValueError: If the link does not have a name and parent_id, or target_id.
+
+        Example: Using this function
+            Link with the name `my_link` referencing entity `syn123` and parent folder `syn456`:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Link
+
+            syn = Synapse()
+            await syn.login()
+
+            link_instance = Link(
+                name="my_link",
+                parent_id="syn456",
+                target_id="syn123"
+            ).store()
+            ```
+        """
+        return self
 
 
 @dataclass()
 @async_to_sync
-class Link:
+class Link(LinkSynchronousProtocol):
     """A Link entity within Synapse that references another entity.
 
     Represents a [Synapse Link](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Link.html).
@@ -187,7 +321,6 @@ class Link:
         self.created_by = synapse_entity.get("createdBy", None)
         self.modified_by = synapse_entity.get("modifiedBy", None)
         self.parent_id = synapse_entity.get("parentId", None)
-        self.concrete_type = synapse_entity.get("concreteType", None)
 
         # Handle nested Reference object
         links_to_data = synapse_entity.get("linksTo", None)
@@ -244,7 +377,8 @@ class Link:
     async def get_async(
         self,
         parent: Optional[Union["Folder", "Project"]] = None,
-        follow_link: bool = False,
+        follow_link: bool = True,
+        file_options: Optional["FileOptions"] = None,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> Union[
@@ -267,6 +401,8 @@ class Link:
             parent: The parent folder or project this link exists under.
             follow_link: If True then the entity this link points to will be fetched
                 and returned instead of the Link entity itself.
+            file_options: Options that modify file retrieval. Only used if `follow_link`
+                is True and the link points to a File entity.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -277,6 +413,70 @@ class Link:
         Raises:
             ValueError: If the link does not have an id or a
                 (name and (`parent_id` or parent with an id)) set.
+
+        Example: Using this function
+            Retrieve a link and follow it to get the target entity:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Link
+
+            async def get_link_target():
+                syn = Synapse()
+                await syn.login()
+
+                # Get the target entity that the link points to
+                target_entity = await Link(id="syn123").get_async()
+                return target_entity
+
+            # Run the async function
+            target_entity = asyncio.run(get_link_target())
+            ```
+
+            Retrieve only the link metadata without following the link:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Link
+
+            async def get_link_metadata():
+                syn = Synapse()
+                await syn.login()
+
+                # Get just the link entity itself
+                link_entity = await Link(id="syn123").get_async(follow_link=False)
+                return link_entity
+
+            # Run the async function
+            link_entity = asyncio.run(get_link_metadata())
+            ```
+
+            When the link points to a File, you can specify file download options:
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Link, FileOptions
+
+            async def get_link_with_file_options():
+                syn = Synapse()
+                await syn.login()
+
+                # Follow link to file with custom download options
+                file_entity = await Link(id="syn123").get_async(
+                    file_options=FileOptions(
+                        download_file=True,
+                        download_location="/path/to/downloads/",
+                        if_collision="overwrite.local"
+                    )
+                )
+                return file_entity
+
+            # Run the async function
+            file_entity = asyncio.run(get_link_with_file_options())
+            ```
         """
         parent_id = parent.id if parent else self.parent_id
         if not (self.id or (self.name and parent_id)):
@@ -296,7 +496,6 @@ class Link:
         self._set_last_persistent_instance()
 
         if follow_link:
-            from synapseclient.models import FileOptions
             from synapseclient.models.factory_operations import (
                 get_async as factory_get_async,
             )
@@ -304,7 +503,7 @@ class Link:
             return await factory_get_async(
                 synapse_id=self.target_id,
                 version_number=self.target_version_number,
-                file_options=FileOptions(download_file=False),
+                file_options=file_options,
                 synapse_client=synapse_client,
             )
         else:
@@ -338,11 +537,25 @@ class Link:
         Example: Using this function
             Link with the name `my_link` referencing entity `syn123` and parent folder `syn456`:
 
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Link
+
+            async def store_link():
+                syn = Synapse()
+                await syn.login()
+
                 link_instance = await Link(
                     name="my_link",
                     parent_id="syn456",
                     target_id="syn123"
                 ).store_async()
+                return link_instance
+
+            # Run the async function
+            link_instance = asyncio.run(store_link())
+            ```
         """
         if parent:
             self.parent_id = parent.id
