@@ -1,8 +1,8 @@
 """Integration tests for the synapseclient.models.Evaluation class."""
 
-from math import perm
 import uuid
 from cgi import test
+from math import perm
 from typing import Callable
 
 import pytest
@@ -121,7 +121,9 @@ class TestGetEvaluation:
         assert retrieved_evaluation.description == test_evaluation.description
         assert retrieved_evaluation.content_source == test_project.id
         assert retrieved_evaluation.owner_id is not None  # Check that owner_id is set
-        assert retrieved_evaluation.created_on is not None  # Check that created_on is set
+        assert (
+            retrieved_evaluation.created_on is not None
+        )  # Check that created_on is set
 
     async def test_get_evaluation_by_name(
         self, test_evaluation: Evaluation, test_project: Project
@@ -138,7 +140,9 @@ class TestGetEvaluation:
         assert retrieved_evaluation.description == test_evaluation.description
         assert retrieved_evaluation.content_source == test_project.id
         assert retrieved_evaluation.owner_id is not None  # Check that owner_id is set
-        assert retrieved_evaluation.created_on is not None  # Check that created_on is set
+        assert (
+            retrieved_evaluation.created_on is not None
+        )  # Check that created_on is set
 
     async def test_get_all_evaluations(
         self, multiple_evaluations: list[Evaluation], limit: int = 1
@@ -374,11 +378,10 @@ class TestEvaluationAccess:
         return created_evaluation
 
     async def test_get_evaluation_acl(self, test_evaluation: Evaluation):
-        
         # GIVEN the current user's ID
         user_profile = self.syn.getUserProfile()
         current_user_id = int(user_profile.get("ownerId"))
-        
+
         # WHEN we get the evaluation ACL using the dataclass method
         acl = await test_evaluation.get_acl_async(synapse_client=self.syn)
 
@@ -389,11 +392,15 @@ class TestEvaluationAccess:
 
         # AND the ACL ID matches the evaluation ID
         assert acl["id"] == test_evaluation.id
-        
+
         # AND one of the principalIds in the resourceAccess key matches the ID of the user currently accessing Synapse
         assert "resourceAccess" in acl and len(acl["resourceAccess"]) > 0
-        principal_ids = [int(access.get("principalId")) for access in acl["resourceAccess"]]
-        assert current_user_id in principal_ids, f"Current user {current_user_id} not found in resourceAccess principal IDs: {principal_ids}"
+        principal_ids = [
+            int(access.get("principalId")) for access in acl["resourceAccess"]
+        ]
+        assert (
+            current_user_id in principal_ids
+        ), f"Current user {current_user_id} not found in resourceAccess principal IDs: {principal_ids}"
 
     async def test_get_evaluation_permissions(self, test_evaluation: Evaluation):
         # WHEN I get evaluation permissions using the dataclass method
@@ -440,7 +447,7 @@ class TestEvaluationValidation:
             description="Test description",
             content_source="syn123456",
             submission_instructions_message="Instructions",
-            submission_receipt_message="Receipt"
+            submission_receipt_message="Receipt",
         )
 
         # THEN it should raise a ValueError
@@ -469,7 +476,7 @@ class TestEvaluationValidation:
             synapse_client=self.syn
         )
         self.schedule_for_cleanup(project.id)
-        
+
         # WHEN we create an evaluation object without an etag
         evaluation = Evaluation(
             id="9999999",
@@ -479,11 +486,11 @@ class TestEvaluationValidation:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        
+
         # THEN it should raise a ValueError when trying to update
         with pytest.raises(ValueError, match="missing the 'etag' attribute"):
             await evaluation.update_async(synapse_client=self.syn)
-            
+
     async def test_get_permissions_missing_id(self):
         # WHEN I try to get permissions for an evaluation without an id
         evaluation = Evaluation(name="test_evaluation")
