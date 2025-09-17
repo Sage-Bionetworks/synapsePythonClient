@@ -403,7 +403,6 @@ async def update_evaluation_acl_async(
 
 async def get_evaluation_permissions_async(
     evaluation_id: str,
-    principal_id: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> dict:
@@ -414,12 +413,11 @@ async def get_evaluation_permissions_async(
 
     Arguments:
         evaluation_id: The ID of the evaluation over which the user permissions are being retrieved.
-        principal_id: The principal ID to get permissions for. Defaults to the current user.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                         instance from the Synapse class constructor.
 
     Returns:
-        dict: The permissions for the specified user.
+        dict: The permissions for the current user.
 
     Raises:
         SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
@@ -429,7 +427,5 @@ async def get_evaluation_permissions_async(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/permissions"
-    if principal_id:
-        uri += f"?principalId={principal_id}"
 
     return await client.rest_get_async(uri)

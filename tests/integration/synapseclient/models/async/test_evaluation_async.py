@@ -1,7 +1,7 @@
 """Integration tests for the synapseclient.models.Evaluation class."""
 
-from cgi import test
 import uuid
+from cgi import test
 from typing import Callable
 
 import pytest
@@ -241,7 +241,7 @@ class TestUpdateEvaluation:
         # WHEN I update the evaluation description
         new_description = f"Updated description {uuid.uuid4()}"
         test_evaluation.description = new_description
-        
+
         updated_evaluation = await test_evaluation.update_async(synapse_client=self.syn)
 
         # THEN the evaluation should be updated

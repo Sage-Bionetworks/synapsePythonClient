@@ -101,11 +101,17 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         # These attributes are required in our PUT requests for creating or updating an evaluation
         if not self.name:
-            raise ValueError("Your evaluation object is missing the 'name' attribute. A name is required to create/update an evaluation")
+            raise ValueError(
+                "Your evaluation object is missing the 'name' attribute. A name is required to create/update an evaluation"
+            )
         if not self.description:
-            raise ValueError("Your evaluation object is missing the 'description' attribute. A description is required to create/update an evaluation")
+            raise ValueError(
+                "Your evaluation object is missing the 'description' attribute. A description is required to create/update an evaluation"
+            )
         if not self.content_source:
-            raise ValueError("Your evaluation object is missing the 'content_source' attribute. A content_source is required to create/update an evaluation")
+            raise ValueError(
+                "Your evaluation object is missing the 'content_source' attribute. A content_source is required to create/update an evaluation"
+            )
         if not self.submission_instructions_message:
             raise ValueError(
                 "Your evaluation object is missing the 'submission_instructions_message' attribute. A submission_instructions_message is required to create/update an evaluation"
@@ -125,11 +131,15 @@ class Evaluation(EvaluationSynchronousProtocol):
         }
 
         # For 'update' request types, add id and etag
-        if request_type.lower() == 'update':
+        if request_type.lower() == "update":
             if not self.id:
-                raise ValueError("Your evaluation object is missing the 'id' attribute. An id is required to update an evaluation")
+                raise ValueError(
+                    "Your evaluation object is missing the 'id' attribute. An id is required to update an evaluation"
+                )
             if not self.etag:
-                raise ValueError("Your evaluation object is missing the 'etag' attribute. An etag is required to update an evaluation")
+                raise ValueError(
+                    "Your evaluation object is missing the 'etag' attribute. An etag is required to update an evaluation"
+                )
 
             request_body["id"] = self.id
             request_body["etag"] = self.etag
@@ -152,10 +162,21 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             ValueError: If required fields are missing.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Create a new evaluation in a project with ID "syn123456":
+
+                evaluation = await Evaluation(
+                    name="My Challenge Evaluation",
+                    description="Evaluation for my data challenge",
+                    content_source="syn123456",
+                    submission_instructions_message="Submit CSV files only",
+                    submission_receipt_message="Thank you for your submission!"
+                ).store_async()
         """
         from synapseclient.api.evaluation_services import create_evaluation_async
 
-        request_body = self.to_synapse_request(request_type='create')
+        request_body = self.to_synapse_request(request_type="create")
 
         created_evaluation = await create_evaluation_async(
             request_body=request_body,
@@ -182,6 +203,15 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             ValueError: If neither id nor name is set.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Get an evaluation by ID:
+
+                evaluation = await Evaluation(id="9999999").get_async()
+
+            Get an evaluation by name:
+
+                evaluation = await Evaluation(name="My Challenge Evaluation").get_async()
         """
         from synapseclient.api.evaluation_services import get_evaluation_async
 
@@ -221,10 +251,18 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             ValueError: If evaluation_id is not set.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs (including PRECONDITION_FAILED 412).
+
+        Example: Using this function
+            Get and update an evaluation:
+
+                evaluation = await Evaluation(id="9999999").get_async()
+                evaluation.description = "Updated description for my evaluation"
+                evaluation.submission_instructions_message = "New submission instructions"
+                updated_evaluation = await evaluation.update_async()
         """
         from synapseclient.api.evaluation_services import update_evaluation_async
 
-        request_body = self.to_synapse_request('update')
+        request_body = self.to_synapse_request("update")
 
         updated_evaluation = await update_evaluation_async(
             request_body=request_body,
@@ -237,7 +275,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
     async def delete_async(self, *, synapse_client: Optional["Synapse"] = None) -> None:
         """
-        Delete this Evaluation from Synapse.
+        Delete this Evaluation from Synapse. ID must be set in order to delete the Evaluation.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
@@ -246,6 +284,18 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             ValueError: If evaluation_id is not set.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Delete an evaluation by ID:
+
+                await Evaluation(id="9614112").delete_async()
+
+            Get and then delete an evaluation:
+
+                # First get the evaluation by name, so the ID attribute is set in your
+                # Evaluation object, then delete it.
+                evaluation = await Evaluation(name="My Challenge Evaluation").get_async()
+                await evaluation.delete_async()
         """
         from synapseclient.api.evaluation_services import delete_evaluation_async
 
@@ -273,6 +323,12 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             ValueError: If evaluation_id is not set.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Get the ACL for an evaluation:
+
+                evaluation = await Evaluation(id="9999999").get_async()
+                acl = await evaluation.get_acl_async()
         """
         from synapseclient.api.evaluation_services import get_evaluation_acl_async
 
@@ -304,6 +360,20 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             ValueError: If the ACL object is invalid or missing required fields.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Update the ACL for an evaluation:
+
+                evaluation = await Evaluation(id="9999999").get_async()
+                acl = await evaluation.get_acl_async()
+
+                # Modify the ACL - this is just an example, actual structure may vary
+                acl["resourceAccess"].append({
+                    "principalId": "12345",
+                    "accessType": ["READ", "SUBMIT"]
+                })
+
+                updated_acl = await evaluation.update_acl_async(acl)
         """
         from synapseclient.api.evaluation_services import update_evaluation_acl_async
 
@@ -314,7 +384,6 @@ class Evaluation(EvaluationSynchronousProtocol):
 
     async def get_permissions_async(
         self,
-        principal_id: Optional[str] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> dict:
@@ -322,7 +391,6 @@ class Evaluation(EvaluationSynchronousProtocol):
         Get the user permissions for this evaluation.
 
         Arguments:
-            principal_id: The principal ID to get permissions for. Defaults to the current user.
             synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                             instance from the Synapse class constructor.
 
@@ -332,6 +400,12 @@ class Evaluation(EvaluationSynchronousProtocol):
         Raises:
             ValueError: If evaluation_id is not set.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Get permissions for the current user:
+
+                evaluation = await Evaluation(id="9999999").get_async()
+                my_permissions = await evaluation.get_permissions_async()
         """
         from synapseclient.api.evaluation_services import (
             get_evaluation_permissions_async,
@@ -342,7 +416,6 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         return await get_evaluation_permissions_async(
             evaluation_id=self.id,
-            principal_id=principal_id,
             synapse_client=synapse_client,
         )
 
@@ -373,6 +446,24 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         Raises:
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Get all evaluations the user has at least READ access to:
+
+                all_evaluations = await Evaluation.get_all_evaluations_async()
+
+            Get only active evaluations with a limit:
+
+                active_evaluations = await Evaluation.get_all_evaluations_async(
+                    active_only=True,
+                    limit=20
+                )
+
+            Get specific evaluations by ID:
+
+                specific_evaluations = await Evaluation.get_all_evaluations_async(
+                    evaluation_ids=["9999991", "9999992"]
+                )
         """
         from synapseclient.api.evaluation_services import get_all_evaluations_async
 
@@ -418,6 +509,23 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         Raises:
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Get all evaluations where the current user has SUBMIT permission:
+
+                available_evaluations = await Evaluation.get_available_evaluations_async()
+
+            Get only active evaluations where the current user has SUBMIT permission:
+
+                active_available_evaluations = await Evaluation.get_available_evaluations_async(
+                    active_only=True
+                )
+
+            Get the first 5 evaluations where the current user has SUBMIT permission:
+
+                limited_evaluations = await Evaluation.get_available_evaluations_async(
+                    limit=5
+                )
         """
         from synapseclient.api.evaluation_services import (
             get_available_evaluations_async,
@@ -468,6 +576,27 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         Raises:
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
+
+        Example: Using this function
+            Get all evaluations for a project:
+
+                project_evaluations = await Evaluation.get_evaluations_by_project_async(
+                    project_id="syn123456"
+                )
+
+            Get only active evaluations for a project:
+
+                active_project_evaluations = await Evaluation.get_evaluations_by_project_async(
+                    project_id="syn123456",
+                    active_only=True
+                )
+
+            Get a limited set of evaluations for a project:
+
+                limited_project_evaluations = await Evaluation.get_evaluations_by_project_async(
+                    project_id="syn123456",
+                    limit=5
+                )
         """
         from synapseclient.api.evaluation_services import (
             get_evaluations_by_project_async,
