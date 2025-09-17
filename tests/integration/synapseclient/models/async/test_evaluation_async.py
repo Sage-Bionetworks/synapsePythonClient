@@ -1,5 +1,6 @@
 """Integration tests for the synapseclient.models.Evaluation class."""
 
+from math import perm
 import uuid
 from cgi import test
 from typing import Callable
@@ -7,6 +8,7 @@ from typing import Callable
 import pytest
 
 from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Evaluation, Project
 
 
@@ -36,11 +38,14 @@ class TestEvaluationCreation:
 
         # THEN the evaluation should be created
         assert created_evaluation.id is not None
+        assert created_evaluation.etag is not None  # Check that etag is set
         assert created_evaluation.name == evaluation.name
         assert (
             created_evaluation.description == "A test evaluation for testing purposes"
         )
         assert created_evaluation.content_source == project.id
+        assert created_evaluation.owner_id is not None  # Check that owner_id is set
+        assert created_evaluation.created_on is not None  # Check that created_on is set
 
 
 class TestGetEvaluation:
@@ -111,9 +116,12 @@ class TestGetEvaluation:
 
         # THEN the evaluation should be retrieved
         assert retrieved_evaluation.id == test_evaluation.id
+        assert retrieved_evaluation.etag is not None  # Check that etag is set
         assert retrieved_evaluation.name == test_evaluation.name
         assert retrieved_evaluation.description == test_evaluation.description
         assert retrieved_evaluation.content_source == test_project.id
+        assert retrieved_evaluation.owner_id is not None  # Check that owner_id is set
+        assert retrieved_evaluation.created_on is not None  # Check that created_on is set
 
     async def test_get_evaluation_by_name(
         self, test_evaluation: Evaluation, test_project: Project
@@ -125,9 +133,12 @@ class TestGetEvaluation:
 
         # THEN the evaluation should be retrieved
         assert retrieved_evaluation.id == test_evaluation.id
+        assert retrieved_evaluation.etag is not None  # Check that etag is set
         assert retrieved_evaluation.name == test_evaluation.name
         assert retrieved_evaluation.description == test_evaluation.description
         assert retrieved_evaluation.content_source == test_project.id
+        assert retrieved_evaluation.owner_id is not None  # Check that owner_id is set
+        assert retrieved_evaluation.created_on is not None  # Check that created_on is set
 
     async def test_get_all_evaluations(
         self, multiple_evaluations: list[Evaluation], limit: int = 1
@@ -184,7 +195,7 @@ class TestGetEvaluation:
         assert evaluations is not None
         assert len(evaluations) >= len(multiple_evaluations)
 
-        # Verify all returned evaluations belong to the test project
+        # AND all returned evaluations belong to the test project
         for evaluation in evaluations:
             assert evaluation.content_source == test_project.id
 
@@ -236,10 +247,12 @@ class TestUpdateEvaluation:
         assert updated_evaluation.name == new_name
         assert updated_evaluation.id == test_evaluation.id
         assert updated_evaluation.description == test_evaluation.description
+        assert updated_evaluation.etag == test_evaluation.etag
 
     async def test_update_evaluation_description(self, test_evaluation: Evaluation):
         # WHEN I update the evaluation description
         new_description = f"Updated description {uuid.uuid4()}"
+        old_etag = test_evaluation.etag
         test_evaluation.description = new_description
 
         updated_evaluation = await test_evaluation.update_async(synapse_client=self.syn)
@@ -249,11 +262,16 @@ class TestUpdateEvaluation:
         assert updated_evaluation.id == test_evaluation.id
         assert updated_evaluation.name == test_evaluation.name
 
+        # AND the etag is updated after an update operation
+        assert updated_evaluation.etag is not None
+        assert updated_evaluation.etag != old_etag
+
     async def test_update_multiple_fields(self, test_evaluation: Evaluation):
         # WHEN I update multiple fields at once
         new_name = f"multi_update_{uuid.uuid4()}"
         new_description = f"Multi-updated description {uuid.uuid4()}"
         new_instructions = "Updated submission instructions"
+        old_etag = test_evaluation.etag
 
         test_evaluation.name = new_name
         test_evaluation.description = new_description
@@ -268,6 +286,10 @@ class TestUpdateEvaluation:
         assert updated_evaluation.description == new_description
         assert updated_evaluation.submission_instructions_message == new_instructions
         assert updated_evaluation.id == test_evaluation.id
+
+        # AND the etag is updated after an update operation
+        assert updated_evaluation.etag is not None
+        assert updated_evaluation.etag != old_etag
 
 
 class TestDeleteEvaluation:
@@ -311,8 +333,8 @@ class TestDeleteEvaluation:
         await test_evaluation.delete_async(synapse_client=self.syn)
 
         # THEN the evaluation should be deleted (attempting to get it should raise an exception)
-        # TODO: This test might need adjustment based on how deletion is handled in the API
-        pass
+        with pytest.raises(SynapseHTTPError):
+            await Evaluation(id=test_evaluation.id).get_async(synapse_client=self.syn)
 
 
 class TestEvaluationAccess:
@@ -352,12 +374,26 @@ class TestEvaluationAccess:
         return created_evaluation
 
     async def test_get_evaluation_acl(self, test_evaluation: Evaluation):
-        # WHEN I get the evaluation ACL using the dataclass method
+        
+        # GIVEN the current user's ID
+        user_profile = self.syn.getUserProfile()
+        current_user_id = int(user_profile.get("ownerId"))
+        
+        # WHEN we get the evaluation ACL using the dataclass method
         acl = await test_evaluation.get_acl_async(synapse_client=self.syn)
 
         # THEN the ACL should be retrieved
         assert acl is not None
-        # TODO: Add more specific ACL assertions based on AccessControlList structure
+        assert "id" in acl
+        assert "resourceAccess" in acl
+
+        # AND the ACL ID matches the evaluation ID
+        assert acl["id"] == test_evaluation.id
+        
+        # AND one of the principalIds in the resourceAccess key matches the ID of the user currently accessing Synapse
+        assert "resourceAccess" in acl and len(acl["resourceAccess"]) > 0
+        principal_ids = [int(access.get("principalId")) for access in acl["resourceAccess"]]
+        assert current_user_id in principal_ids, f"Current user {current_user_id} not found in resourceAccess principal IDs: {principal_ids}"
 
     async def test_get_evaluation_permissions(self, test_evaluation: Evaluation):
         # WHEN I get evaluation permissions using the dataclass method
@@ -367,19 +403,10 @@ class TestEvaluationAccess:
 
         # THEN the permissions should be retrieved
         assert permissions is not None
-        # TODO: Add more specific permission assertions based on your permissions structure
 
-    async def test_get_evaluation_permissions_for_specific_user(
-        self, test_evaluation: Evaluation
-    ):
-        # WHEN I get evaluation permissions for a specific user
-        # TODO: You'll need to provide a valid principal_id for this test
-        permissions = await test_evaluation.get_permissions_async(
-            principal_id=None, synapse_client=self.syn  # This will use the current user
-        )
-
-        # THEN the permissions should be retrieved
-        assert permissions is not None
+        # AND the permissions variable should be assigned to a non-empty dictionary
+        assert isinstance(permissions, dict)
+        assert len(permissions) > 0
 
 
 class TestEvaluationValidation:
@@ -393,7 +420,7 @@ class TestEvaluationValidation:
         evaluation = Evaluation(name="test_evaluation")
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="description is required"):
+        with pytest.raises(ValueError, match="missing the 'description' attribute"):
             await evaluation.store_async(synapse_client=self.syn)
 
     async def test_get_evaluation_missing_id_and_name(self):
@@ -408,18 +435,24 @@ class TestEvaluationValidation:
 
     async def test_update_evaluation_missing_id(self):
         # WHEN I try to update an evaluation without an id
-        evaluation = Evaluation(name="test_evaluation")
+        evaluation = Evaluation(
+            name="test_evaluation",
+            description="Test description",
+            content_source="syn123456",
+            submission_instructions_message="Instructions",
+            submission_receipt_message="Receipt"
+        )
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="id must be set to update"):
-            await evaluation.update_async(name="new_name", synapse_client=self.syn)
+        with pytest.raises(ValueError, match="missing the 'id' attribute"):
+            await evaluation.update_async(synapse_client=self.syn)
 
     async def test_delete_evaluation_missing_id(self):
         # WHEN I try to delete an evaluation without an id
         evaluation = Evaluation(name="test_evaluation")
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="id must be set to delete"):
+        with pytest.raises(ValueError, match="id must be set to delete an evaluation"):
             await evaluation.delete_async(synapse_client=self.syn)
 
     async def test_get_acl_missing_id(self):
@@ -430,6 +463,27 @@ class TestEvaluationValidation:
         with pytest.raises(ValueError, match="id must be set to get evaluation ACL"):
             await evaluation.get_acl_async(synapse_client=self.syn)
 
+    async def test_update_evaluation_missing_etag(self):
+        # GIVEN a project to work under
+        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(project.id)
+        
+        # WHEN we create an evaluation object without an etag
+        evaluation = Evaluation(
+            id="9999999",
+            name=f"test_evaluation_{uuid.uuid4()}",
+            description="A test evaluation",
+            content_source=project.id,
+            submission_instructions_message="Please submit your results",
+            submission_receipt_message="Thank you!",
+        )
+        
+        # THEN it should raise a ValueError when trying to update
+        with pytest.raises(ValueError, match="missing the 'etag' attribute"):
+            await evaluation.update_async(synapse_client=self.syn)
+            
     async def test_get_permissions_missing_id(self):
         # WHEN I try to get permissions for an evaluation without an id
         evaluation = Evaluation(name="test_evaluation")
