@@ -1,8 +1,6 @@
 """Integration tests for the synapseclient.models.Evaluation class."""
 
 import uuid
-from cgi import test
-from math import perm
 from typing import Callable
 
 import pytest
