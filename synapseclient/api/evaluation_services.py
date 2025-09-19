@@ -10,35 +10,58 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
-async def create_evaluation_async(
+async def store_evaluation_async(
     request_body: dict,
+    request_type: str,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> dict:
     """
-    Create a new Evaluation.
+    Create or update an Evaluation on Synapse.
 
     <https://rest-docs.synapse.org/rest/POST/evaluation.html>
 
     Arguments:
-        name: The name of this Evaluation.
-        description: A text description of this Evaluation.
-        content_source: The Synapse ID of the Entity to which this Evaluation belongs, e.g. a reference to a Synapse project.
-        submission_instructions_message: Message to display to users detailing acceptable formatting for Submissions to this Evaluation.
-        submission_receipt_message: Message to display to users upon successful submission to this Evaluation.
+        request_body: A dictionary containing the evaluation data
+        request_type: Determines which endpoint to use ("create" or "update")
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                         instance from the Synapse class constructor.
 
     Returns:
         The created Evaluation object.
+
+    Raises:
+        ValueError: If request_type is not "create" or "update".
+        SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
     """
+    import logging
+
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
+    logger = client.logger if client else logging.getLogger(__name__)
 
-    uri = "/evaluation"
+    if request_type.lower() == "create":
+        uri = "/evaluation"
+        response = await client.rest_post_async(uri, body=json.dumps(request_body))
 
-    response = await client.rest_post_async(uri, body=json.dumps(request_body))
+        logger.info(
+            f"Evaluation '{request_body.get('name')}' has been created with ID: {response.get('id')}"
+        )
+
+    elif request_type.lower() == "update":
+        evaluation_id = request_body.get("id")
+        uri = f"/evaluation/{evaluation_id}"
+        response = await client.rest_put_async(uri, body=json.dumps(request_body))
+
+        logger.info(
+            f"Evaluation '{request_body.get('name')}' (ID: {evaluation_id}) has been updated"
+        )
+
+    else:
+        raise ValueError(
+            f"Invalid request_type: {request_type}. Must be 'create' or 'update'"
+        )
 
     return response
 
@@ -251,51 +274,6 @@ async def get_available_evaluations_async(
     evaluation_list = await client.rest_get_async(uri)
 
     return evaluation_list
-
-
-async def update_evaluation_async(
-    request_body: dict,
-    *,
-    synapse_client: Optional["Synapse"] = None,
-) -> dict:
-    """
-    Update an Evaluation.
-
-    Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates. Each time an Evaluation is updated a new etag will be issued to the Evaluation. When an update is requested, Synapse will compare the etag of the passed Evaluation with the current etag of the Evaluation. If the etags do not match, then the update will be rejected with a PRECONDITION_FAILED (412) response. When this occurs, the caller should fetch the latest copy of the Evaluation and re-apply any changes, then re-attempt the Evaluation update.
-
-    Note: The caller must be granted the ACCESS_TYPE.UPDATE on the specified Evaluation.
-
-    <https://rest-docs.synapse.org/rest/PUT/evaluation/evalId.html>
-
-    Arguments:
-        evaluation_id: The ID of the Evaluation being updated.
-        name: The human-readable name of the Evaluation.
-        description: A short description of the Evaluation's purpose.
-        content_source: The ID of the Project or Entity this Evaluation belongs to (e.g., "syn123").
-        submission_instructions_message: Instructions presented to submitters when creating a submission.
-        submission_receipt_message: A confirmation message shown after a successful submission.
-        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
-                        instance from the Synapse class constructor.
-
-    Returns:
-        dict: The updated Evaluation object as a raw JSON dict.
-
-    Raises:
-        ValueError: If evaluation_id is not provided.
-        SynapseHTTPError: If the service rejects the request or an HTTP error occurs (including PRECONDITION_FAILED 412).
-
-
-    """
-    from synapseclient import Synapse
-
-    client = Synapse.get_client(synapse_client=synapse_client)
-
-    evaluation_id = request_body.get("id")
-    uri = f"/evaluation/{evaluation_id}"
-
-    response = await client.rest_put_async(uri, body=json.dumps(request_body))
-
-    return response
 
 
 async def delete_evaluation_async(

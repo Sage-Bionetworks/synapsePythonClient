@@ -1,5 +1,6 @@
 """Integration tests for the synapseclient.models.Evaluation class."""
 
+import logging
 import uuid
 from typing import Callable
 
@@ -202,7 +203,7 @@ class TestGetEvaluation:
             assert evaluation.content_source == test_project.id
 
 
-class TestUpdateEvaluation:
+class TestStoreEvaluation:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
@@ -243,7 +244,7 @@ class TestUpdateEvaluation:
         new_name = f"updated_evaluation_{uuid.uuid4()}"
         test_evaluation.name = new_name
 
-        updated_evaluation = await test_evaluation.update_async(synapse_client=self.syn)
+        updated_evaluation = await test_evaluation.store_async(synapse_client=self.syn)
 
         # THEN the evaluation should be updated
         assert updated_evaluation.name == new_name
@@ -257,7 +258,7 @@ class TestUpdateEvaluation:
         old_etag = test_evaluation.etag
         test_evaluation.description = new_description
 
-        updated_evaluation = await test_evaluation.update_async(synapse_client=self.syn)
+        updated_evaluation = await test_evaluation.store_async(synapse_client=self.syn)
 
         # THEN the evaluation should be updated
         assert updated_evaluation.description == new_description
@@ -279,7 +280,7 @@ class TestUpdateEvaluation:
         test_evaluation.description = new_description
         test_evaluation.submission_instructions_message = new_instructions
 
-        updated_evaluation = await test_evaluation.update_async(
+        updated_evaluation = await test_evaluation.store_async(
             synapse_client=self.syn,
         )
 
@@ -292,6 +293,45 @@ class TestUpdateEvaluation:
         # AND the etag is updated after an update operation
         assert updated_evaluation.etag is not None
         assert updated_evaluation.etag != old_etag
+
+    async def test_store_unchanged_evaluation(
+        self, test_evaluation: Evaluation, monkeypatch
+    ):
+        warning_messages = []
+
+        def mock_warning(self, msg, *args, **kwargs):
+            """
+            Using the method interception pattern to mock the implementation of logging.Logger.warning
+            to create a mock logger that captures warning messages.
+
+            When the Evaluation.store_async method detects no changes, it logs a warning
+            using logger.warning(). This mock replaces the actual logging function to
+            capture those warning messages in our warning_messages list instead of sending
+            them to the logging system. This allows us to assert that the expected warning
+            was generated without depending on the logging configuration.
+            """
+            warning_messages.append(msg)
+
+        monkeypatch.setattr(logging.Logger, "warning", mock_warning)
+
+        # GIVEN an evaluation that has not been changed
+        retrieved_evaluation = await Evaluation(id=test_evaluation.id).get_async(
+            synapse_client=self.syn
+        )
+
+        # WHEN trying to store the unchanged evaluation
+        result = await retrieved_evaluation.store_async(synapse_client=self.syn)
+
+        # THEN it should not be updated and return the same instance
+        assert result is retrieved_evaluation
+
+        # AND a warning should be logged indicating no changes were detected
+        warning_text = "has not changed since last 'store' or 'get' event"
+
+        # Check if any captured warning contains our expected text
+        assert any(
+            warning_text in msg for msg in warning_messages
+        ), f"Warning message not found in captured warnings: {warning_messages}"
 
 
 class TestDeleteEvaluation:
@@ -438,20 +478,6 @@ class TestEvaluationValidation:
         ):
             await evaluation.get_async(synapse_client=self.syn)
 
-    async def test_update_evaluation_missing_id(self):
-        # WHEN I try to update an evaluation without an id
-        evaluation = Evaluation(
-            name="test_evaluation",
-            description="Test description",
-            content_source="syn123456",
-            submission_instructions_message="Instructions",
-            submission_receipt_message="Receipt",
-        )
-
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="missing the 'id' attribute"):
-            await evaluation.update_async(synapse_client=self.syn)
-
     async def test_delete_evaluation_missing_id(self):
         # WHEN I try to delete an evaluation without an id
         evaluation = Evaluation(name="test_evaluation")
@@ -468,27 +494,6 @@ class TestEvaluationValidation:
         with pytest.raises(ValueError, match="id must be set to get evaluation ACL"):
             await evaluation.get_acl_async(synapse_client=self.syn)
 
-    async def test_update_evaluation_missing_etag(self):
-        # GIVEN a project to work under
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
-            synapse_client=self.syn
-        )
-        self.schedule_for_cleanup(project.id)
-
-        # WHEN we create an evaluation object without an etag
-        evaluation = Evaluation(
-            id="9999999",
-            name=f"test_evaluation_{uuid.uuid4()}",
-            description="A test evaluation",
-            content_source=project.id,
-            submission_instructions_message="Please submit your results",
-            submission_receipt_message="Thank you!",
-        )
-
-        # THEN it should raise a ValueError when trying to update
-        with pytest.raises(ValueError, match="missing the 'etag' attribute"):
-            await evaluation.update_async(synapse_client=self.syn)
-
     async def test_get_permissions_missing_id(self):
         # WHEN I try to get permissions for an evaluation without an id
         evaluation = Evaluation(name="test_evaluation")
@@ -498,3 +503,21 @@ class TestEvaluationValidation:
             ValueError, match="id must be set to get evaluation permissions"
         ):
             await evaluation.get_permissions_async(synapse_client=self.syn)
+
+    async def test_store_with_nonexistent_id(self):
+        # WHEN I try to store an evaluation with an ID that doesn't exist in Synapse
+        evaluation = Evaluation(
+            id="syn999999999",
+            name="test_evaluation",
+            description="Test description",
+            content_source="syn123456",
+            submission_instructions_message="Instructions",
+            submission_receipt_message="Receipt",
+        )
+
+        # THEN it should raise a SynapseHTTPError with a clear message
+        with pytest.raises(
+            SynapseHTTPError,
+            match="Evaluation with ID syn999999999 was not found in Synapse",
+        ):
+            await evaluation.store_async(synapse_client=self.syn)

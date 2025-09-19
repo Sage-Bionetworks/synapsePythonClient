@@ -1,10 +1,11 @@
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional, Protocol
+from dataclasses import dataclass, field, replace
+from typing import List, Optional, Protocol
 
+from opentelemetry import trace
+
+from synapseclient import Synapse
 from synapseclient.core.async_utils import async_to_sync
-
-if TYPE_CHECKING:
-    from synapseclient import Synapse
+from synapseclient.core.utils import merge_dataclass_entities
 
 
 class EvaluationSynchronousProtocol(Protocol):
@@ -70,6 +71,12 @@ class Evaluation(EvaluationSynchronousProtocol):
     submission_receipt_message: Optional[str] = None
     """Message to display to users upon successful submission to this Evaluation."""
 
+    _last_persistent_instance: Optional["Evaluation"] = field(
+        default=None, repr=False, compare=False
+    )
+    """The last persistent instance of this object. This is used to determine if the
+    object has been changed and needs to be updated in Synapse."""
+
     def fill_from_dict(self, evaluation: dict) -> "Evaluation":
         """
         Converts the data coming from the Synapse Evaluation API into this datamodel.
@@ -95,6 +102,18 @@ class Evaluation(EvaluationSynchronousProtocol):
         )
 
         return self
+
+    @property
+    def has_changed(self) -> bool:
+        """Determines if the object has been newly created OR changed since last retrieval, and needs to be updated in Synapse."""
+        return (
+            not self._last_persistent_instance or self._last_persistent_instance != self
+        )
+
+    def _set_last_persistent_instance(self) -> None:
+        """Stash the last time this object interacted with Synapse. This is used to
+        determine if the object has been changed and needs to be updated in Synapse."""
+        self._last_persistent_instance = replace(self)
 
     def to_synapse_request(self, request_type: str):
         """Creates a request body expected of the Synapse REST API for the Evaluation model."""
@@ -150,20 +169,23 @@ class Evaluation(EvaluationSynchronousProtocol):
         self, *, synapse_client: Optional["Synapse"] = None
     ) -> "Evaluation":
         """
-        Create a new Evaluation in Synapse. Required fields are `name`, `description`, `content_source`, `submission_instructions_message` and `submission_receipt_message`.
+        Create a new Evaluation or update an existing one in Synapse.
+
+        If the Evaluation object has an ID and etag, it will be updated.
+        Otherwise, a new Evaluation will be created.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                             instance from the Synapse class constructor.
 
         Returns:
-            The created Evaluation object.
+            The created or updated Evaluation object.
 
         Raises:
             ValueError: If required fields are missing.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
-        Example: Using this function
+        Example: Creating a new evaluation
             Create a new evaluation in a project with ID "syn123456":
 
                 evaluation = await Evaluation(
@@ -173,17 +195,105 @@ class Evaluation(EvaluationSynchronousProtocol):
                     submission_instructions_message="Submit CSV files only",
                     submission_receipt_message="Thank you for your submission!"
                 ).store_async()
+
+        Example: Updating an existing evaluation
+            Update an evaluation that was retrieved from Synapse:
+
+                evaluation = await Evaluation(id="9999999").get_async()
+                evaluation.description = "Updated description for my evaluation"
+                evaluation.submission_instructions_message = "New submission instructions"
+                updated_evaluation = await evaluation.store_async()
         """
-        from synapseclient.api.evaluation_services import create_evaluation_async
+        import logging
 
-        request_body = self.to_synapse_request(request_type="create")
+        from synapseclient.api.evaluation_services import store_evaluation_async
+        from synapseclient.core.exceptions import SynapseHTTPError
 
-        created_evaluation = await create_evaluation_async(
-            request_body=request_body,
-            synapse_client=synapse_client,
+        # Get the client for logging
+        client = Synapse.get_client(synapse_client=synapse_client)
+        logger = client.logger if client else logging.getLogger(__name__)
+
+        # Set up OpenTelemetry tracing
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.name": self.name or "",
+                "synapse.id": self.id or "",
+            }
         )
 
-        self.fill_from_dict(created_evaluation)
+        # CASE 1: No ID - creating a new evaluation
+        if not self.id:
+            request_body = self.to_synapse_request(request_type="create")
+            result = await store_evaluation_async(
+                request_body=request_body,
+                request_type="create",
+                synapse_client=synapse_client,
+            )
+
+        # CASE 2: We have an ID but no previous interaction with Synapse (the user set ID it manually)
+        elif self.id and not self._last_persistent_instance:
+            # Try to fetch the existing evaluation from Synapse
+            try:
+                existing_evaluation = await Evaluation(id=self.id).get_async(
+                    synapse_client=synapse_client
+                )
+
+                merge_dataclass_entities(source=existing_evaluation, destination=self)
+
+                request_body = self.to_synapse_request(request_type="update")
+                result = await store_evaluation_async(
+                    request_body=request_body,
+                    request_type="update",
+                    synapse_client=synapse_client,
+                )
+
+            # If it doesn't exist, raise a clear error message
+            except SynapseHTTPError as e:
+                if "Evaluation could not be found" in str(e):
+                    raise SynapseHTTPError(
+                        f"Evaluation with ID {self.id} was not found in Synapse. "
+                        f"If you are creating a new evaluation on Synapse, please store an evaluation object "
+                        f"with a name attribute and without an ID attribute. "
+                        f"Synapse will automatically assign an ID upon creation.",
+                        response=e.response,
+                    ) from e
+                else:
+                    raise
+            except Exception:
+                raise
+
+        # CASE 3: We have an ID from previous Synapse interaction
+        elif self.id and self._last_persistent_instance:
+            if self.has_changed:
+                merge_dataclass_entities(
+                    source=self._last_persistent_instance,
+                    destination=self,
+                    fields_to_preserve_from_source=[
+                        "id",
+                        "etag",
+                        "owner_id",
+                        "created_on",
+                    ],
+                )
+
+                request_body = self.to_synapse_request(request_type="update")
+                result = await store_evaluation_async(
+                    request_body=request_body,
+                    request_type="update",
+                    synapse_client=synapse_client,
+                )
+            else:
+                logger.warning(
+                    f"Evaluation {self.name} (ID: {self.id}) has not changed since last 'store' or 'get' event, so it will not be updated in Synapse. Please get the evaluation again if you want to refresh its state."
+                )
+                return self
+
+        self.fill_from_dict(result)
+
+        # Save the current state to track future changes
+        self._set_last_persistent_instance()
+
+        logger.debug(f"Saved Evaluation {self.name}, id: {self.id}")
 
         return self
 
@@ -226,50 +336,8 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         self.fill_from_dict(retrieved_evaluation)
 
-        return self
-
-    async def update_async(
-        self,
-        *,
-        synapse_client: Optional["Synapse"] = None,
-    ) -> "Evaluation":
-        """
-        Update the latest state of this Evaluation in Synapse.
-
-        Arguments:
-            name: The human-readable name of the Evaluation.
-            description: A short description of the Evaluation's purpose.
-            content_source: The ID of the Project or Entity this Evaluation belongs to (e.g., "syn123").
-            submission_instructions_message: Instructions presented to submitters when creating a submission.
-            submission_receipt_message: A confirmation message shown after a successful submission.
-            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
-                            instance from the Synapse class constructor.
-
-        Returns:
-            The updated Evaluation object.
-
-        Raises:
-            ValueError: If evaluation_id is not set.
-            SynapseHTTPError: If the service rejects the request or an HTTP error occurs (including PRECONDITION_FAILED 412).
-
-        Example: Using this function
-            Get and update an evaluation:
-
-                evaluation = await Evaluation(id="9999999").get_async()
-                evaluation.description = "Updated description for my evaluation"
-                evaluation.submission_instructions_message = "New submission instructions"
-                updated_evaluation = await evaluation.update_async()
-        """
-        from synapseclient.api.evaluation_services import update_evaluation_async
-
-        request_body = self.to_synapse_request("update")
-
-        updated_evaluation = await update_evaluation_async(
-            request_body=request_body,
-            synapse_client=synapse_client,
-        )
-
-        self.fill_from_dict(updated_evaluation)
+        # Save the current state to track future changes
+        self._set_last_persistent_instance()
 
         return self
 
@@ -306,6 +374,9 @@ class Evaluation(EvaluationSynchronousProtocol):
             evaluation_id=self.id,
             synapse_client=synapse_client,
         )
+
+        # Clear the persistent instance since this object has been deleted
+        self._last_persistent_instance = None
 
     async def get_acl_async(
         self, *, synapse_client: Optional["Synapse"] = None

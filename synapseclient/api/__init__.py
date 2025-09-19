@@ -54,7 +54,6 @@ from .entity_services import (
     update_entity_acl,
 )
 from .evaluation_services import (
-    create_evaluation_async,
     delete_evaluation_async,
     get_all_evaluations_async,
     get_available_evaluations_async,
@@ -62,8 +61,8 @@ from .evaluation_services import (
     get_evaluation_async,
     get_evaluation_permissions_async,
     get_evaluations_by_project_async,
+    store_evaluation_async,
     update_evaluation_acl_async,
-    update_evaluation_async,
 )
 from .file_services import (
     AddPartResponse,
@@ -255,12 +254,11 @@ __all__ = [
     # table_services
     "create_table_snapshot",
     # evaluation_services
-    "create_evaluation_async",
+    "store_evaluation_async",
     "get_evaluation_async",
     "get_evaluations_by_project_async",
     "get_all_evaluations_async",
     "get_available_evaluations_async",
-    "update_evaluation_async",
     "delete_evaluation_async",
     "get_evaluation_acl_async",
     "update_evaluation_acl_async",

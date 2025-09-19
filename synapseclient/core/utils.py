@@ -36,7 +36,7 @@ from tqdm import tqdm
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 if TYPE_CHECKING:
-    from synapseclient.models import Column, File, Folder, Project, Table
+    from synapseclient.models import Column, Evaluation, File, Folder, Project, Table
     from synapseclient.models.dataset import EntityRef
 
 R = TypeVar("R")
@@ -1427,10 +1427,13 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 
 def merge_dataclass_entities(
-    source: typing.Union["Project", "Folder", "File", "Table", "Column"],
-    destination: typing.Union["Project", "Folder", "File", "Table", "Column"],
+    source: typing.Union["Project", "Folder", "File", "Table", "Column", "Evaluation"],
+    destination: typing.Union[
+        "Project", "Folder", "File", "Table", "Column", "Evaluation"
+    ],
     fields_to_ignore: typing.List[str] = None,
-) -> typing.Union["Project", "Folder", "File", "Table"]:
+    fields_to_preserve_from_source: typing.List[str] = None,
+) -> typing.Union["Project", "Folder", "File", "Table", "Column", "Evaluation"]:
     """
     Utility function to merge two dataclass entities together. This is used when we are
     upserting an entity from the Synapse service with the requested changes.
@@ -1438,9 +1441,10 @@ def merge_dataclass_entities(
     Arguments:
         source: The source entity to merge from.
         destination: The destination entity to merge into.
-        fields_to_ignore: A list of fields to ignore when merging.
-        fields_to_persist_to_last_instance: A list of fields to persist to the last
-            instance attribute of the destination entity if it exists.
+        fields_to_ignore: A list of fields to ignore when merging. These fields will automatically
+            take the value from the destination entity.
+        fields_to_preserve_from_source: A list of fields from the source that should be
+            preserved in the destination, overriding any changes made in the destination.
 
     Returns:
         The destination entity with the merged values.
@@ -1459,7 +1463,10 @@ def merge_dataclass_entities(
                 setattr(destination, key, getattr(source, key))
             else:
                 modified_items[key] = merge_dataclass_entities(
-                    getattr(source, key), destination=getattr(destination, key)
+                    getattr(source, key),
+                    destination=getattr(destination, key),
+                    fields_to_ignore=fields_to_ignore,
+                    fields_to_preserve_from_source=fields_to_preserve_from_source,
                 )
         elif key not in destination_dict or destination_dict[key] is None:
             modified_items[key] = value
@@ -1480,6 +1487,7 @@ def merge_dataclass_entities(
                         source=source_column_value,
                         destination=destination_columns[source_column_key],
                         fields_to_ignore=["id"],
+                        fields_to_preserve_from_source=fields_to_preserve_from_source,
                     )
         elif key == "items":
             source_items: List["EntityRef"] = getattr(source, key)
@@ -1493,6 +1501,21 @@ def merge_dataclass_entities(
     # Update destination's fields with the merged dictionary
     for key, value in modified_items.items():
         setattr(destination, key, value)
+
+    # Override any specified fields in destination with values from source
+    if fields_to_preserve_from_source:
+        for field_name in fields_to_preserve_from_source:
+            if hasattr(source, field_name) and hasattr(destination, field_name):
+                source_value = getattr(source, field_name)
+                destination_value = getattr(destination, field_name)
+                if destination_value != source_value:
+                    import logging
+
+                    logger = logging.getLogger(LOGGER_NAME)
+                    logger.warning(
+                        f"Field '{field_name}' cannot be modified. Changes will be ignored."
+                    )
+                setattr(destination, field_name, source_value)
 
     return destination
 
