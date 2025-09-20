@@ -134,6 +134,17 @@ class CsvTableDescriptor:
         delete_none_keys(request)
         return request
 
+    def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
+        """Converts a response from the REST API into this dataclass."""
+        self.separator = data.get("separator", self.separator)
+        self.quote_character = data.get("quoteCharacter", self.quote_character)
+        self.escape_character = data.get("escapeCharacter", self.escape_character)
+        self.line_end = data.get("lineEnd", self.line_end)
+        self.is_first_line_header = data.get(
+            "isFirstLineHeader", self.is_first_line_header
+        )
+        return self
+
 
 @dataclass
 class PartialRow:

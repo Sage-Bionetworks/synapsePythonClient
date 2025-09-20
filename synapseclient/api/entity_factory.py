@@ -342,6 +342,7 @@ async def _cast_into_class_type(
         Folder,
         MaterializedView,
         Project,
+        RecordSet,
         SubmissionView,
         Table,
         VirtualTable,
@@ -375,6 +376,7 @@ async def _cast_into_class_type(
         concrete_types.DATASET_COLLECTION_ENTITY: DatasetCollection,
         concrete_types.ENTITY_VIEW: EntityView,
         concrete_types.MATERIALIZED_VIEW: MaterializedView,
+        concrete_types.RECORD_SET_ENTITY: RecordSet,
         concrete_types.SUBMISSION_VIEW: SubmissionView,
         concrete_types.VIRTUAL_TABLE: VirtualTable,
     }
@@ -389,7 +391,10 @@ async def _cast_into_class_type(
     entity_instance = entity_to_update or entity_class()
 
     # Handle special case for File entities
-    if entity["concreteType"] == concrete_types.FILE_ENTITY:
+    if (
+        entity["concreteType"] == concrete_types.FILE_ENTITY
+        or entity["concreteType"] == concrete_types.RECORD_SET_ENTITY
+    ):
         entity_instance = await _handle_file_entity(
             entity_instance=entity_instance,
             entity_bundle=entity_bundle,

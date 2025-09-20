@@ -7,6 +7,11 @@ from synapseclient.models.agent import (
     AgentSessionAccessLevel,
 )
 from synapseclient.models.annotations import Annotations
+from synapseclient.models.curation import (
+    CurationTask,
+    FileBasedMetadataTaskProperties,
+    RecordBasedMetadataTaskProperties,
+)
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.file import File, FileHandle
@@ -14,6 +19,7 @@ from synapseclient.models.folder import Folder
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
+from synapseclient.models.recordset import RecordSet
 from synapseclient.models.services import FailureStrategy
 from synapseclient.models.submissionview import SubmissionView
 from synapseclient.models.table import Table
@@ -58,10 +64,14 @@ __all__ = [
     "FileHandle",
     "Folder",
     "Project",
+    "RecordSet",
     "Annotations",
     "Team",
     "TeamMember",
     "TeamMembershipStatus",
+    "CurationTask",
+    "FileBasedMetadataTaskProperties",
+    "RecordBasedMetadataTaskProperties",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",
