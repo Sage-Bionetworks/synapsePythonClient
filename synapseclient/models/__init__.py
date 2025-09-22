@@ -10,6 +10,7 @@ from synapseclient.models.annotations import Annotations
 from synapseclient.models.curation import (
     CurationTask,
     FileBasedMetadataTaskProperties,
+    Grid,
     RecordBasedMetadataTaskProperties,
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
@@ -72,6 +73,7 @@ __all__ = [
     "CurationTask",
     "FileBasedMetadataTaskProperties",
     "RecordBasedMetadataTaskProperties",
+    "Grid",
     "UserProfile",
     "UserPreference",
     "UserGroupHeader",

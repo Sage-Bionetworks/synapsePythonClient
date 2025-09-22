@@ -1348,7 +1348,7 @@ async def _upload_file(
     """
     syn = Synapse.get_client(synapse_client=synapse_client)
 
-    needs_upload = await _needs_upload(entity_to_upload, syn=syn)
+    needs_upload = await _needs_upload(entity_to_upload=entity_to_upload, syn=syn)
 
     if needs_upload:
         parent_id_for_upload = entity_to_upload.parent_id

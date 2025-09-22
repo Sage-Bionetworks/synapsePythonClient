@@ -6,7 +6,7 @@ data or metadata in Synapse.
 """
 
 from dataclasses import dataclass, field, replace
-from typing import Any, AsyncGenerator, Dict, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Protocol, Union
 
 from opentelemetry import trace
 
@@ -18,7 +18,11 @@ from synapseclient.api import (
     list_curation_tasks,
     update_curation_task,
 )
-from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    skip_async_to_sync,
+    wrap_async_generator_to_sync_generator,
+)
 from synapseclient.core.constants.concrete_types import (
     CREATE_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
@@ -172,11 +176,89 @@ async def _get_existing_curation_task_id(
     return None
 
 
-# TODO: Create Sync Protocol for all methods
+# TODO: Double check all docstrings to include explict examples
+class CurationTaskSynchronousProtocol(Protocol):
+    def get(self, *, synapse_client: Optional[Synapse] = None) -> "CurationTask":
+        """
+        Gets a CurationTask from Synapse by ID.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            CurationTask: The CurationTask object.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+        """
+        return self
+
+    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
+        """
+        Deletes a CurationTask from Synapse.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Raises:
+            ValueError: If the CurationTask object does not have a task_id.
+        """
+        return None
+
+    def store(self, *, synapse_client: Optional[Synapse] = None) -> "CurationTask":
+        """
+        Creates a new CurationTask or updates an existing one on Synapse.
+
+        This method implements non-destructive updates. If a CurationTask with the same
+        project_id and data_type exists and this instance hasn't been retrieved from
+        Synapse before, it will merge the existing task data with the current instance
+        before updating.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            CurationTask: The CurationTask object.
+
+        """
+        return self
+
+    @classmethod
+    def list(
+        cls,
+        project_id: str,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Generator["CurationTask", None, None]:
+        """
+        Generator that yields CurationTasks for a project as they become available.
+
+        Arguments:
+            project_id: The synId of the project.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            CurationTask objects as they are retrieved from the API.
+        """
+        yield from wrap_async_generator_to_sync_generator(
+            async_gen_func=cls.list_async,
+            project_id=project_id,
+            synapse_client=synapse_client,
+        )
+
+
 # TODO: Double check all docstrings to include explict examples
 @dataclass
 @async_to_sync
-class CurationTask:
+class CurationTask(CurationTaskSynchronousProtocol):
     """
     The CurationTask provides instructions for a Data Contributor on how data or metadata
     of a specific type should be both added to a project and curated.
@@ -443,6 +525,7 @@ class CurationTask:
             self._set_last_persistent_instance()
             return self
 
+    @skip_async_to_sync
     @classmethod
     async def list_async(
         cls,
@@ -662,9 +745,53 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
         return request_dict
 
 
+class GridSynchronousProtocol(Protocol):
+    """
+    The protocol for methods that are asynchronous but also
+    have a synchronous counterpart that may also be called.
+    """
+
+    def create(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
+        """
+        Creates a new grid session from a record set.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            GridSession: The GridSession object with populated session_id.
+
+        Raises:
+            ValueError: If record_set_id is not provided.
+        """
+        return self
+
+    def export_to_record_set(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> "Grid":
+        """
+        Exports the grid session data back to a record set. This will create a new version
+        of the original record set with the modified data from the grid session.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            GridSession: The GridSession object with export information populated.
+
+        Raises:
+            ValueError: If session_id is not provided.
+        """
+        return self
+
+
 @dataclass
 @async_to_sync
-class Grid:
+class Grid(GridSynchronousProtocol):
     """
     A GridSession provides functionality to create and manage grid sessions in Synapse.
     Grid sessions are used for curation workflows where data can be edited in a grid format

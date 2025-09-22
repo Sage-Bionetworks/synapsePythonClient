@@ -6,7 +6,7 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union
 
 from opentelemetry import trace
 
@@ -72,10 +72,271 @@ class ValidationSummary:
     """The date-time when the statistics were calculated."""
 
 
-# TODO: Create Sync Protocol for all methods
+class RecordSetSynchronousProtocol(Protocol):
+    """
+    The protocol for methods that are asynchronous but also
+    have a synchronous counterpart that may also be called.
+    """
+
+    def store(
+        self,
+        parent: Optional[Union["Folder", "Project"]] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "RecordSet":
+        """
+        Store the RecordSet in Synapse.
+
+        This method uploads or updates a RecordSet in Synapse. It can handle both
+        creating new RecordSets and updating existing ones based on the
+        `create_or_update` flag. The method supports file uploads, metadata updates,
+        and merging with existing entities when appropriate.
+
+        Arguments:
+            parent: The parent Folder or Project for this RecordSet. If provided,
+                this will override the `parent_id` attribute.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)`, this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The RecordSet object with updated metadata from Synapse after the
+            store operation.
+
+        Raises:
+            ValueError: If the RecordSet does not have the required information
+                for storing. Must have either: (ID with path or data_file_handle_id),
+                or (path with parent_id), or (data_file_handle_id with parent_id).
+
+        Example: Storing a new RecordSet
+            Creating and storing a new RecordSet in Synapse:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet
+
+            syn = Synapse()
+            syn.login()
+
+            record_set = RecordSet(
+                name="My RecordSet",
+                description="A dataset for analysis",
+                parent_id="syn123456",
+                path="/path/to/data.csv"
+            )
+            stored_record_set = record_set.store()
+            print(f"Stored RecordSet with ID: {stored_record_set.id}")
+            ```
+
+            Updating an existing RecordSet:
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet
+
+            syn = Synapse()
+            syn.login()
+
+            record_set = RecordSet(id="syn789012").get()
+            record_set.description = "Updated description"
+            updated_record_set = record_set.store()
+
+            ```
+        """
+        return self
+
+    def change_metadata(
+        self,
+        name: Optional[str] = None,
+        download_as: Optional[str] = None,
+        content_type: Optional[str] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "RecordSet":
+        """
+        Change RecordSet Entity metadata for properties that are immutable after creation.
+
+        This method allows modification of certain RecordSet properties that cannot
+        be changed through the normal store method after the initial creation. This
+        includes the entity name, file download name, and content type.
+
+        Arguments:
+            name: Specify to change the name of the RecordSet as seen on Synapse.
+            download_as: Specify filename to change the filename of the associated
+                filehandle when downloaded.
+            content_type: Specify content type to change the content type of the
+                associated filehandle.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)`, this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The RecordSet object with updated metadata.
+
+        Raises:
+            ValueError: If the RecordSet does not have an ID to change metadata.
+
+        Example: Changing RecordSet metadata
+            Update various metadata properties without re-uploading:
+
+            ```python
+            import os
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet
+
+            syn = Synapse()
+            syn.login()
+
+            record_set = RecordSet(id="syn123", download_file=False).get()
+            print(os.path.basename(record_set.path))  # prints original filename
+
+            record_set = record_set.change_metadata(
+                name="my_new_name_recordset.csv",
+                download_as="my_new_download_name.csv",
+                content_type="text/csv"
+            )
+            print(os.path.basename(record_set.path))  # prints "my_new_download_name.csv"
+            print(record_set.name)  # prints "my_new_name_recordset.csv"
+            ```
+        """
+        return self
+
+    def get(
+        self,
+        include_activity: bool = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "RecordSet":
+        """
+        Get the RecordSet from Synapse.
+
+        This method retrieves a RecordSet entity from Synapse. You may retrieve
+        a RecordSet by either its ID or path. If you specify both, the ID will
+        take precedence.
+
+        If you specify the path and the RecordSet is stored in multiple locations
+        in Synapse, only the first one found will be returned. The other matching
+        RecordSets will be printed to the console.
+
+        You may also specify a `version_number` to get a specific version of the
+        RecordSet.
+
+        Arguments:
+            include_activity: If True, the activity will be included in the RecordSet
+                if it exists.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)`, this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The RecordSet object with data populated from Synapse.
+
+        Raises:
+            ValueError: If the RecordSet does not have an ID or path to retrieve.
+
+        Example: Retrieving a RecordSet by ID
+            Get an existing RecordSet from Synapse:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet
+
+            syn = Synapse()
+            syn.login()
+
+            record_set = RecordSet(id="syn123").get()
+            print(f"RecordSet name: {record_set.name}")
+            ```
+
+            Downloading a RecordSet to a specific directory:
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet
+
+            syn = Synapse()
+            syn.login()
+
+            record_set = RecordSet(
+                id="syn123",
+                path="/path/to/download/directory"
+            ).get()
+            ```
+
+            Including activity information:
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet
+
+            syn = Synapse()
+            syn.login()
+
+            record_set = RecordSet(id="syn123").get(include_activity=True)
+            if record_set.activity:
+                print(f"Activity: {record_set.activity.name}")
+            ```
+        """
+        return self
+
+    def delete(
+        self,
+        version_only: Optional[bool] = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        Delete the RecordSet from Synapse using its ID.
+
+        This method removes a RecordSet entity from Synapse. You can choose to
+        delete either a specific version or the entire RecordSet including all
+        its versions.
+
+        Arguments:
+            version_only: If True, only the version specified in the `version_number`
+                attribute of the RecordSet will be deleted. If False, the entire
+                RecordSet including all versions will be deleted.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)`, this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the RecordSet does not have an ID to delete.
+            ValueError: If the RecordSet does not have a version number to delete a
+                specific version, and `version_only` is True.
+
+        Example: Deleting a RecordSet
+            Delete an entire RecordSet and all its versions:
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet
+
+            syn = Synapse()
+            syn.login()
+
+            RecordSet(id="syn123").delete()
+
+            ```
+
+            Delete only a specific version:
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import RecordSet
+
+            syn = Synapse()
+            syn.login()
+
+            record_set = RecordSet(id="syn123", version_number=2)
+            record_set.delete(version_only=True)
+            ```
+        """
+        return None
+
+
 @dataclass()
 @async_to_sync
-class RecordSet(AccessControllable, BaseJSONSchema):
+class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema):
     """A RecordSet within Synapse.
 
     Attributes:

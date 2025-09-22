@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from models.entityview import EntityView
 
     from synapseclient import Synapse
-    from synapseclient.models import Dataset, File, Folder, Project, Table
+    from synapseclient.models import Dataset, File, Folder, Project, RecordSet, Table
 
 
 async def get_from_entity_factory(
@@ -233,7 +233,7 @@ async def _search_for_file_by_md5(
 
 
 async def _handle_file_entity(
-    entity_instance: "File",
+    entity_instance: Union["File", "RecordSet"],
     entity_bundle: Dict[str, Any],
     download_file: bool,
     download_location: str,
@@ -244,9 +244,7 @@ async def _handle_file_entity(
     """Helper function to handle File entity specific logic."""
     from synapseclient.models import FileHandle
 
-    entity_instance.fill_from_dict(
-        synapse_file=entity_bundle["entity"], set_annotations=False
-    )
+    entity_instance.fill_from_dict(entity_bundle["entity"], set_annotations=False)
 
     # Update entity with FileHandle metadata
     file_handle = next(
