@@ -148,9 +148,7 @@ class TestGetEvaluation:
     ):
         # Test 1: Grab evaluations that the user has access to
         # WHEN a call is made to get all evaluations
-        evaluations = Evaluation.get_all_evaluations(
-            synapse_client=self.syn
-        )
+        evaluations = Evaluation.get_all_evaluations(synapse_client=self.syn)
 
         # THEN the evaluations should be retrieved
         assert evaluations is not None
@@ -174,13 +172,9 @@ class TestGetEvaluation:
         # THEN the evaluations retrieved should match said limit
         assert len(limited_evaluations) == limit
 
-    def test_get_available_evaluations(
-        self, multiple_evaluations: list[Evaluation]
-    ):
+    def test_get_available_evaluations(self, multiple_evaluations: list[Evaluation]):
         # WHEN a call is made to get available evaluations for a given user
-        evaluations = Evaluation.get_available_evaluations(
-            synapse_client=self.syn
-        )
+        evaluations = Evaluation.get_available_evaluations(synapse_client=self.syn)
 
         # THEN the evaluations should be retrieved
         assert evaluations is not None
@@ -239,6 +233,31 @@ class TestStoreEvaluation:
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
+    def test_store_evaluation_with_same_name(
+        self, test_project: Project, test_evaluation: Evaluation
+    ):
+        # GIVEN an existing evaluation
+        existing_name = test_evaluation.name
+
+        # WHEN I try to create a new evaluation with the same name
+        duplicate_evaluation = Evaluation(
+            name=existing_name,  # Use the same name as the existing evaluation
+            description="This is a duplicate evaluation name test",
+            content_source=test_project.id,
+            submission_instructions_message="Submit your results here",
+            submission_receipt_message="Thank you for submitting!",
+        )
+
+        # THEN it should raise a SynapseHTTPError with an appropriate message about name conflict
+        with pytest.raises(SynapseHTTPError) as excinfo:
+            duplicate_evaluation.store(synapse_client=self.syn)
+
+        # AND the error message contains information about the duplicate name
+        error_message = str(excinfo.value).lower()
+        assert (
+            "already exists with the name" in error_message
+        ), f"Unexpected error message: {error_message}"
+
     def test_update_evaluation_name(self, test_evaluation: Evaluation):
         # WHEN I update the evaluation name in my evaluation object
         new_name = f"updated_evaluation_{uuid.uuid4()}"
@@ -294,9 +313,53 @@ class TestStoreEvaluation:
         assert updated_evaluation.etag is not None
         assert updated_evaluation.etag != old_etag
 
-    def test_store_unchanged_evaluation(
-        self, test_evaluation: Evaluation, monkeypatch
+    def test_update_evaluation_with_id_and_no_prior_call(
+        self, test_evaluation: Evaluation
     ):
+        # GIVEN an existing evaluation and its attributes
+        existing_id = test_evaluation.id
+        original_description = test_evaluation.description
+        original_content_source = test_evaluation.content_source
+
+        new_name = f"updated_evaluation_no_prior_call_{uuid.uuid4()}"
+
+        # WHEN I create a new Evaluation instance with the existing ID and update the name
+        # without first retrieving the evaluation from Synapse
+        evaluation_to_update = Evaluation(id=existing_id, name=new_name)
+        updated_evaluation = evaluation_to_update.store(synapse_client=self.syn)
+
+        # THEN the evaluation should be updated with the new value
+        assert updated_evaluation.name == new_name
+
+        # AND the original attributes should remain the same
+        assert updated_evaluation.id == existing_id
+        assert updated_evaluation.description == original_description
+        assert updated_evaluation.content_source == original_content_source
+
+    def test_certain_fields_unchanged_once_retrieved_from_synapse(
+        self, test_evaluation: Evaluation
+    ):
+        # GIVEN an existing evaluation
+        retrieved_evaluation = Evaluation(id=test_evaluation.id).get(
+            synapse_client=self.syn
+        )
+
+        # WHEN I attempt to change immutable fields
+        original_id = retrieved_evaluation.id
+        original_content_source = retrieved_evaluation.content_source
+
+        retrieved_evaluation.id = "syn999999999"  # Attempt to change ID
+        retrieved_evaluation.content_source = (
+            "syn888888888"  # Attempt to change content_source
+        )
+
+        updated_evaluation = retrieved_evaluation.store(synapse_client=self.syn)
+
+        # THEN those fields should remain unchanged after the store operation
+        assert updated_evaluation.id == original_id
+        assert updated_evaluation.content_source == original_content_source
+
+    def test_store_unchanged_evaluation(self, test_evaluation: Evaluation, monkeypatch):
         warning_messages = []
 
         def mock_warning(self, msg, *args, **kwargs):
@@ -442,9 +505,7 @@ class TestEvaluationAccess:
 
     def test_get_evaluation_permissions(self, test_evaluation: Evaluation):
         # WHEN I get evaluation permissions using the dataclass method
-        permissions = test_evaluation.get_permissions(
-            synapse_client=self.syn
-        )
+        permissions = test_evaluation.get_permissions(synapse_client=self.syn)
 
         # THEN the permissions should be retrieved
         assert permissions is not None

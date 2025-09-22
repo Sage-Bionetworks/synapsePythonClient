@@ -22,7 +22,7 @@ class EvaluationSynchronousProtocol(Protocol):
     ) -> "Evaluation":
         """
         Create a new Evaluation or update an existing one in Synapse.
-        
+
         If the Evaluation object has an ID and etag, it will be updated.
         Otherwise, a new Evaluation will be created.
 
@@ -51,7 +51,7 @@ class EvaluationSynchronousProtocol(Protocol):
                 evaluation = Evaluation(id="9999999").get()
                 evaluation.description = "Updated description for my evaluation"
                 updated_evaluation = evaluation.store()
-        
+
         Raises:
             ValueError: If required fields are missing.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
@@ -150,7 +150,7 @@ class EvaluationSynchronousProtocol(Protocol):
                 acl = evaluation.get_acl()
         """
         return {}
-        
+
     def update_acl(
         self,
         acl: Dict,
@@ -188,7 +188,7 @@ class EvaluationSynchronousProtocol(Protocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
         """
         return {}
-        
+
     def get_permissions(
         self,
         *,
@@ -216,7 +216,7 @@ class EvaluationSynchronousProtocol(Protocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
         """
         return {}
-        
+
     @staticmethod
     def get_all_evaluations(
         access_type: Optional[str] = None,
@@ -259,7 +259,7 @@ class EvaluationSynchronousProtocol(Protocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
         """
         return []
-        
+
     @staticmethod
     def get_available_evaluations(
         active_only: Optional[bool] = None,
@@ -299,7 +299,7 @@ class EvaluationSynchronousProtocol(Protocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
         """
         return []
-        
+
     @staticmethod
     def get_evaluations_by_project(
         project_id: str,

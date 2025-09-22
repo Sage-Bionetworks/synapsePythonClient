@@ -4,11 +4,11 @@ from typing import List, Optional
 from opentelemetry import trace
 
 from synapseclient import Synapse
+from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.utils import merge_dataclass_entities
 from synapseclient.models.protocols.evaluation_protocol import (
     EvaluationSynchronousProtocol,
 )
-from synapseclient.core.async_utils import async_to_sync
-from synapseclient.core.utils import merge_dataclass_entities
 
 
 @dataclass
@@ -264,7 +264,6 @@ class Evaluation(EvaluationSynchronousProtocol):
                     synapse_client=synapse_client,
                 )
 
-            # If it doesn't exist, raise a clear error message
             except SynapseHTTPError as e:
                 if "Evaluation could not be found" in str(e):
                     raise SynapseHTTPError(
@@ -288,6 +287,7 @@ class Evaluation(EvaluationSynchronousProtocol):
                     fields_to_preserve_from_source=[
                         "id",
                         "etag",
+                        "content_source",
                         "owner_id",
                         "created_on",
                     ],
