@@ -753,7 +753,7 @@ class GridSynchronousProtocol(Protocol):
 
     def create(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
         """
-        Creates a new grid session from a record set.
+        Creates a new grid session from a `record_set_id` or `initial_query`.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -764,7 +764,7 @@ class GridSynchronousProtocol(Protocol):
             GridSession: The GridSession object with populated session_id.
 
         Raises:
-            ValueError: If record_set_id is not provided.
+            ValueError: If `record_set_id` or `initial_query` is not provided.
         """
         return self
 
@@ -856,7 +856,7 @@ class Grid(GridSynchronousProtocol):
 
     async def create_async(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
         """
-        Creates a new grid session from a record set.
+        Creates a new grid session from a `record_set_id` or `initial_query`.
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -867,7 +867,7 @@ class Grid(GridSynchronousProtocol):
             GridSession: The GridSession object with populated session_id.
 
         Raises:
-            ValueError: If record_set_id is not provided.
+            ValueError: If `record_set_id` or `initial_query` is not provided.
         """
         if not self.record_set_id and not self.initial_query:
             raise ValueError(

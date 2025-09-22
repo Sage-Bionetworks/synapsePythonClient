@@ -190,6 +190,8 @@ plugins:
             docstring_section_style: spacy
             filters:
               - "!^_"
+              - "!to_synapse_request"
+              - "!fill_from_dict"
             separate_signature: True
             show_signature_annotations: True
             signature_crossrefs: True

@@ -9,6 +9,7 @@ at your own risk.
 [](){ #curation-task-reference-async }
 ::: synapseclient.models.CurationTask
     options:
+        inherited_members: true
         members:
             - get_async
             - delete_async
@@ -19,6 +20,7 @@ at your own risk.
 [](){ #RecordSet-reference-async }
 ::: synapseclient.models.RecordSet
     options:
+        inherited_members: true
         members:
             - get_async
             - store_async
@@ -28,16 +30,19 @@ at your own risk.
 [](){ #RecordBasedMetadataTaskProperties-reference-async }
 ::: synapseclient.models.RecordBasedMetadataTaskProperties
     options:
+        inherited_members: true
         members:
 ---
 [](){ #FileBasedMetadataTaskProperties-reference-async }
 ::: synapseclient.models.FileBasedMetadataTaskProperties
     options:
+        inherited_members: true
         members:
 ---
 [](){ #grid-reference-async }
 ::: synapseclient.models.Grid
     options:
+        inherited_members: true
         members:
             - create_async
             - export_to_record_set_async
@@ -45,5 +50,6 @@ at your own risk.
 [](){ #query-reference-async }
 ::: synapseclient.models.Query
     options:
+        inherited_members: true
         members:
 ---
