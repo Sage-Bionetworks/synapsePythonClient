@@ -1,18 +1,14 @@
 from dataclasses import dataclass, field, replace
-from typing import List, Optional, Protocol
+from typing import List, Optional
 
 from opentelemetry import trace
 
 from synapseclient import Synapse
+from synapseclient.models.protocols.evaluation_protocol import (
+    EvaluationSynchronousProtocol,
+)
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.utils import merge_dataclass_entities
-
-
-class EvaluationSynchronousProtocol(Protocol):
-    """
-    This is the protocol for methods that are asynchronous
-    but also have a synchronous counterpart that may also be called.
-    """
 
 
 @dataclass
