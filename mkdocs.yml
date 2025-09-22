@@ -94,7 +94,7 @@ nav:
           - Activity: reference/experimental/sync/activity.md
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
-          - Curator: docs/reference/experimental/sync/curator.md
+          - Curator: reference/experimental/sync/curator.md
           - Functional Interfaces: reference/experimental/functional_interfaces.md
           - Asynchronous:
               - Agent: reference/experimental/async/agent.md
@@ -111,7 +111,7 @@ nav:
               - Activity: reference/experimental/async/activity.md
               - Team: reference/experimental/async/team.md
               - UserProfile: reference/experimental/async/user_profile.md
-              - Curator: docs/reference/experimental/async/curator.md
+              - Curator: reference/experimental/async/curator.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md
