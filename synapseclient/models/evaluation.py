@@ -38,7 +38,28 @@ class Evaluation(EvaluationSynchronousProtocol):
         submission_instructions_message: Message to display to users detailing acceptable formatting for Submissions to this Evaluation.
         submission_receipt_message: Message to display to users upon successful submission to this Evaluation.
 
-    Example:
+    Example: Create a new evaluation in a project
+
+            from synapseclient.models import Evaluation
+            from synapseclient import Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            evaluation = Evaluation(
+                name="My Challenge Evaluation",
+                description="Evaluation for my data challenge",
+                content_source="syn123456",
+                submission_instructions_message="Submit CSV files only",
+                submission_receipt_message="Thank you for your submission!",
+            )
+            created = evaluation.store()
+
+    Example: Update an existing evaluation retrieved from Synapse by ID
+
+            evaluation = Evaluation(id="9999999").get()
+            evaluation.description = "Updated description for my evaluation"
+            updated = evaluation.store()
     """
 
     id: Optional[str] = None
