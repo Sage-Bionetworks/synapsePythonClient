@@ -435,7 +435,17 @@ class Evaluation(EvaluationSynchronousProtocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> dict:
         """
-        Update the access control list (ACL) for this evaluation.
+        Update the access control list (ACL) for this evaluation. The available access types are:
+
+        - 'CREATE'
+        - 'SUBMIT',
+        - 'READ_PRIVATE_SUBMISSION',
+        - 'DELETE_SUBMISSION',
+        - 'UPDATE_SUBMISSION',
+        - 'CHANGE_PERMISSIONS',
+        - 'READ',
+        - 'DELETE',
+        - 'UPDATE'
 
         Arguments:
             acl: An AccessControlList object or dictionary containing the ACL data to update.
