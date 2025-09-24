@@ -4,7 +4,7 @@ from typing import Set
 from synapseclient import Synapse
 
 syn = Synapse()
-syn.login()
+syn.login(profile=None)
 
 # Maximum number of concurrent deletion operations
 MAX_CONCURRENT_DELETIONS = 5

@@ -135,6 +135,29 @@ jobs:
         # keep versions consistent with the first and last from the strategy matrix
         if: ${{ (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
         run: |
+          # Set SYNAPSE_PROFILE based on OS and Python version
+          if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
+            if [ "${{ matrix.python }}" == "3.9" ]; then
+              export SYNAPSE_PROFILE="TestUbuntuMinimumPython"
+            elif [ "${{ matrix.python }}" == "3.13" ]; then
+              export SYNAPSE_PROFILE="TestUbuntuMaximumPython"
+            fi
+          elif [ "${{ startsWith(matrix.os, 'windows') }}" == "true" ]; then
+            if [ "${{ matrix.python }}" == "3.9" ]; then
+              export SYNAPSE_PROFILE="TestWindowsMinimumPython"
+            elif [ "${{ matrix.python }}" == "3.13" ]; then
+              export SYNAPSE_PROFILE="TestWindowsMaximumPython"
+            fi
+          elif [ "${{ startsWith(matrix.os, 'macos') }}" == "true" ]; then
+            if [ "${{ matrix.python }}" == "3.9" ]; then
+              export SYNAPSE_PROFILE="TestMacosMinimumPython"
+            elif [ "${{ matrix.python }}" == "3.13" ]; then
+              export SYNAPSE_PROFILE="TestMacosMaximumPython"
+            fi
+          fi
+
+          echo "Using SYNAPSE_PROFILE: $SYNAPSE_PROFILE"
+
           # decrypt the encrypted test synapse configuration
           openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
           mv test.synapseConfig ~/.synapseConfig
@@ -222,7 +245,7 @@ jobs:
         if: steps.check_coverage_xml.outputs.files_exists == 'true'
         run: sed -i "s/<source>\/home\/runner\/work\/synapsePythonClient<\/source>/<source>\/github\/workspace<\/source>/g" coverage.xml
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v5.3.1
         if: ${{ always() }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

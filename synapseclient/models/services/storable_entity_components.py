@@ -8,12 +8,16 @@ from synapseclient.core.exceptions import SynapseError
 if TYPE_CHECKING:
     from synapseclient.models import (
         Dataset,
+        DatasetCollection,
         EntityView,
         File,
         Folder,
+        MaterializedView,
         Project,
+        RecordSet,
         SubmissionView,
         Table,
+        VirtualTable,
     )
 
 
@@ -50,7 +54,19 @@ async def wrap_coroutine(
 
 
 async def store_entity_components(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
+    root_resource: Union[
+        "File",
+        "Folder",
+        "Project",
+        "Table",
+        "Dataset",
+        "EntityView",
+        "RecordSet",
+        "SubmissionView",
+        "MaterializedView",
+        "VirtualTable",
+        "DatasetCollection",
+    ],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
     *,
     synapse_client: Optional[Synapse] = None,

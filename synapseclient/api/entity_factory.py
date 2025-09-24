@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from models.entityview import EntityView
 
     from synapseclient import Synapse
-    from synapseclient.models import Dataset, File, Folder, Project, Table
+    from synapseclient.models import Dataset, File, Folder, Project, RecordSet, Table
 
 
 async def get_from_entity_factory(
@@ -233,7 +233,7 @@ async def _search_for_file_by_md5(
 
 
 async def _handle_file_entity(
-    entity_instance: "File",
+    entity_instance: Union["File", "RecordSet"],
     entity_bundle: Dict[str, Any],
     download_file: bool,
     download_location: str,
@@ -244,9 +244,7 @@ async def _handle_file_entity(
     """Helper function to handle File entity specific logic."""
     from synapseclient.models import FileHandle
 
-    entity_instance.fill_from_dict(
-        synapse_file=entity_bundle["entity"], set_annotations=False
-    )
+    entity_instance.fill_from_dict(entity_bundle["entity"], set_annotations=False)
 
     # Update entity with FileHandle metadata
     file_handle = next(
@@ -342,6 +340,7 @@ async def _cast_into_class_type(
         Folder,
         MaterializedView,
         Project,
+        RecordSet,
         SubmissionView,
         Table,
         VirtualTable,
@@ -375,6 +374,7 @@ async def _cast_into_class_type(
         concrete_types.DATASET_COLLECTION_ENTITY: DatasetCollection,
         concrete_types.ENTITY_VIEW: EntityView,
         concrete_types.MATERIALIZED_VIEW: MaterializedView,
+        concrete_types.RECORD_SET_ENTITY: RecordSet,
         concrete_types.SUBMISSION_VIEW: SubmissionView,
         concrete_types.VIRTUAL_TABLE: VirtualTable,
     }
@@ -389,7 +389,10 @@ async def _cast_into_class_type(
     entity_instance = entity_to_update or entity_class()
 
     # Handle special case for File entities
-    if entity["concreteType"] == concrete_types.FILE_ENTITY:
+    if (
+        entity["concreteType"] == concrete_types.FILE_ENTITY
+        or entity["concreteType"] == concrete_types.RECORD_SET_ENTITY
+    ):
         entity_instance = await _handle_file_entity(
             entity_instance=entity_instance,
             entity_bundle=entity_bundle,

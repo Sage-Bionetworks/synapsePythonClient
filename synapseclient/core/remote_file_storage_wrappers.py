@@ -194,6 +194,7 @@ class S3ClientWrapper:
 
         S3ClientWrapper._attempt_import_boto3()
         import boto3.s3.transfer
+        from boto3.exceptions import S3UploadFailedError
 
         transfer_config = boto3.s3.transfer.TransferConfig(
             **(transfer_config_kwargs or {})
@@ -222,13 +223,27 @@ class S3ClientWrapper:
             )
 
         # automatically determines whether to perform multi-part upload
-        s3.Bucket(bucket).upload_file(
-            upload_file_path,
-            remote_file_key,
-            Callback=progress_callback,
-            Config=transfer_config,
-            ExtraArgs={"ACL": "bucket-owner-full-control"},
-        )
+        try:
+            s3.Bucket(bucket).upload_file(
+                upload_file_path,
+                remote_file_key,
+                Callback=progress_callback,
+                Config=transfer_config,
+                ExtraArgs={"ACL": "bucket-owner-full-control"},
+            )
+        except S3UploadFailedError as upload_error:
+            if "Invalid canned ACL" in str(upload_error):
+                s3.Bucket(bucket).upload_file(
+                    upload_file_path,
+                    remote_file_key,
+                    Callback=progress_callback,
+                    Config=transfer_config,
+                    # https://sagebionetworks.jira.com/browse/SYNPY-1198
+                    # IBM Based buckets enforce this by default, and does not support this additional setting
+                    # ExtraArgs={"ACL": "bucket-owner-full-control"},
+                )
+            else:
+                raise upload_error
         if progress_bar is not None:
             progress_bar.close()
         return upload_file_path
