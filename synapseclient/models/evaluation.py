@@ -56,10 +56,19 @@ class Evaluation(EvaluationSynchronousProtocol):
 
 
     Example: Update an existing evaluation retrieved from Synapse by ID
+    &nbsp;
 
-            evaluation = Evaluation(id="9999999").get()
-            evaluation.description = "Updated description for my evaluation"
-            updated = evaluation.store()
+    ```python
+    from synapseclient.models import Evaluation
+    from synapseclient import Synapse
+
+    syn = Synapse()
+    syn.login()
+
+    evaluation = Evaluation(id="9999999").get()
+    evaluation.description = "Updated description for my evaluation"
+    updated = evaluation.store()
+    ```
     """
 
     id: Optional[str] = None
@@ -207,23 +216,50 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Creating a new evaluation
-            Create a new evaluation in a project with ID "syn123456":
+        &nbsp;
 
-                evaluation = await Evaluation(
-                    name="My Challenge Evaluation",
-                    description="Evaluation for my data challenge",
-                    content_source="syn123456",
-                    submission_instructions_message="Submit CSV files only",
-                    submission_receipt_message="Thank you for your submission!"
-                ).store_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
+
+        syn = Synapse()
+        syn.login()
+
+        async def create_evaluation():
+            evaluation = await Evaluation(
+                name="My Challenge Evaluation",
+                description="Evaluation for my data challenge",
+                content_source="syn123456",
+                submission_instructions_message="Submit CSV files only",
+                submission_receipt_message="Thank you for your submission!"
+            ).store_async()
+
+            return evaluation
+
+        created_evaluation = asyncio.run(create_evaluation())
+        ```
 
         Example: Updating an existing evaluation
-            Update an evaluation that was retrieved from Synapse:
+        &nbsp;
 
-                evaluation = await Evaluation(id="9999999").get_async()
-                evaluation.description = "Updated description for my evaluation"
-                evaluation.submission_instructions_message = "New submission instructions"
-                updated_evaluation = await evaluation.store_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
+
+        syn = Synapse()
+        syn.login()
+
+        async def update_evaluation():
+            evaluation = await Evaluation(id="9999999").get_async()
+            evaluation.description = "Updated description for my evaluation"
+            evaluation.submission_instructions_message = "New submission instructions"
+            updated_evaluation = await evaluation.store_async()
+            return updated_evaluation
+
+        updated_evaluation = asyncio.run(update_evaluation())
+        ```
         """
 
         from synapseclient.api.evaluation_services import store_evaluation_async
@@ -300,13 +336,27 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Using this function
-            Get an evaluation by ID:
+        &nbsp;
 
-                evaluation = await Evaluation(id="9999999").get_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
 
-            Get an evaluation by name:
+        syn = Synapse()
+        syn.login()
 
-                evaluation = await Evaluation(name="My Challenge Evaluation").get_async()
+        async def get_evaluations():
+            # Get an evaluation by ID
+            evaluation_by_id = await Evaluation(id="9999999").get_async()
+
+            # Get an evaluation by name
+            evaluation_by_name = await Evaluation(name="My Challenge Evaluation").get_async()
+
+            return evaluation_by_id, evaluation_by_name
+
+        evaluation_by_id, evaluation_by_name = asyncio.run(get_evaluations())
+        ```
         """
         from synapseclient.api.evaluation_services import get_evaluation_async
 
@@ -339,16 +389,28 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Using this function
-            Delete an evaluation by ID:
+        &nbsp;
 
-                await Evaluation(id="9614112").delete_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
 
-            Get and then delete an evaluation:
+        syn = Synapse()
+        syn.login()
 
-                # First get the evaluation by name, so the ID attribute is set in your
-                # Evaluation object, then delete it.
-                evaluation = await Evaluation(name="My Challenge Evaluation").get_async()
-                await evaluation.delete_async()
+        async def delete_evaluations():
+            # Delete an evaluation by ID
+            await Evaluation(id="9614112").delete_async()
+
+            # Get and then delete an evaluation
+            # First get the evaluation by name, so the ID attribute is set in your
+            # Evaluation object, then delete it.
+            evaluation = await Evaluation(name="My Challenge Evaluation").get_async()
+            await evaluation.delete_async()
+
+        asyncio.run(delete_evaluations())
+        ```
         """
         from synapseclient.api.evaluation_services import delete_evaluation_async
 
@@ -381,10 +443,26 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Using this function
-            Get the ACL for an evaluation:
+        &nbsp;
 
-                evaluation = await Evaluation(id="9999999").get_async()
-                acl = await evaluation.get_acl_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
+
+        syn = Synapse()
+        syn.login()
+
+        async def get_evaluation_acl():
+            # Get the evaluation first
+            evaluation = await Evaluation(id="9999999").get_async()
+
+            # Get the ACL for the evaluation
+            acl = await evaluation.get_acl_async()
+            return acl
+
+        acl = asyncio.run(get_evaluation_acl())
+        ```
         """
         from synapseclient.api.evaluation_services import get_evaluation_acl_async
 
@@ -428,18 +506,35 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Using this function
-            Update the ACL for an evaluation:
+        &nbsp;
 
-                evaluation = await Evaluation(id="9999999").get_async()
-                acl = await evaluation.get_acl_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
 
-                # Modify the ACL - this is just an example, actual structure may vary
-                acl["resourceAccess"].append({
-                    "principalId": "12345",
-                    "accessType": ["READ", "SUBMIT"]
-                })
+        syn = Synapse()
+        syn.login()
 
-                updated_acl = await evaluation.update_acl_async(acl)
+        async def update_evaluation_acl():
+            # Get the evaluation first
+            evaluation = await Evaluation(id="9999999").get_async()
+
+            # Get the current ACL
+            acl = await evaluation.get_acl_async()
+
+            # Modify the ACL - this is just an example, actual structure may vary
+            acl["resourceAccess"].append({
+                "principalId": "12345",
+                "accessType": ["READ", "SUBMIT"]
+            })
+
+            # Update the ACL
+            updated_acl = await evaluation.update_acl_async(acl)
+            return updated_acl
+
+        updated_acl = asyncio.run(update_evaluation_acl())
+        ```
         """
         from synapseclient.api.evaluation_services import update_evaluation_acl_async
 
@@ -468,10 +563,26 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Using this function
-            Get permissions for the current user:
+        &nbsp;
 
-                evaluation = await Evaluation(id="9999999").get_async()
-                my_permissions = await evaluation.get_permissions_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
+
+        syn = Synapse()
+        syn.login()
+
+        async def get_evaluation_permissions():
+            # Get the evaluation first
+            evaluation = await Evaluation(id="9999999").get_async()
+
+            # Get the permissions for the current user
+            my_permissions = await evaluation.get_permissions_async()
+            return my_permissions
+
+        my_permissions = asyncio.run(get_evaluation_permissions())
+        ```
         """
         from synapseclient.api.evaluation_services import (
             get_evaluation_permissions_async,
@@ -514,22 +625,35 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Using this function
-            Get all evaluations the user has at least READ access to:
+        &nbsp;
 
-                all_evaluations = await Evaluation.get_all_evaluations_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
 
-            Get only active evaluations with a limit:
+        syn = Synapse()
+        syn.login()
 
-                active_evaluations = await Evaluation.get_all_evaluations_async(
-                    active_only=True,
-                    limit=20
-                )
+        async def get_evaluations():
+            # Get all evaluations the user has at least READ access to
+            all_evaluations = await Evaluation.get_all_evaluations_async()
 
-            Get specific evaluations by ID:
+            # Get only active evaluations with a limit
+            active_evaluations = await Evaluation.get_all_evaluations_async(
+                active_only=True,
+                limit=20
+            )
 
-                specific_evaluations = await Evaluation.get_all_evaluations_async(
-                    evaluation_ids=["9999991", "9999992"]
-                )
+            # Get specific evaluations by ID
+            specific_evaluations = await Evaluation.get_all_evaluations_async(
+                evaluation_ids=["9999991", "9999992"]
+            )
+
+            return all_evaluations, active_evaluations, specific_evaluations
+
+        all_evaluations, active_evaluations, specific_evaluations = asyncio.run(get_evaluations())
+        ```
         """
         from synapseclient.api.evaluation_services import get_all_evaluations_async
 
@@ -577,21 +701,34 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Using this function
-            Get all evaluations where the current user has SUBMIT permission:
+        &nbsp;
 
-                available_evaluations = await Evaluation.get_available_evaluations_async()
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
 
-            Get only active evaluations where the current user has SUBMIT permission:
+        syn = Synapse()
+        syn.login()
 
-                active_available_evaluations = await Evaluation.get_available_evaluations_async(
-                    active_only=True
-                )
+        async def get_available_evaluations():
+            # Get all evaluations where the current user has SUBMIT permission
+            available_evaluations = await Evaluation.get_available_evaluations_async()
 
-            Get the first 5 evaluations where the current user has SUBMIT permission:
+            # Get only active evaluations where the current user has SUBMIT permission
+            active_available_evaluations = await Evaluation.get_available_evaluations_async(
+                active_only=True
+            )
 
-                limited_evaluations = await Evaluation.get_available_evaluations_async(
-                    limit=5
-                )
+            # Get the first 5 evaluations where the current user has SUBMIT permission
+            limited_evaluations = await Evaluation.get_available_evaluations_async(
+                limit=5
+            )
+
+            return available_evaluations, active_available_evaluations, limited_evaluations
+
+        available_evaluations, active_available_evaluations, limited_evaluations = asyncio.run(get_available_evaluations())
+        ```
         """
         from synapseclient.api.evaluation_services import (
             get_available_evaluations_async,
@@ -644,25 +781,38 @@ class Evaluation(EvaluationSynchronousProtocol):
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
         Example: Using this function
-            Get all evaluations for a project:
+        &nbsp;
 
-                project_evaluations = await Evaluation.get_evaluations_by_project_async(
-                    project_id="syn123456"
-                )
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
 
-            Get only active evaluations for a project:
+        syn = Synapse()
+        syn.login()
 
-                active_project_evaluations = await Evaluation.get_evaluations_by_project_async(
-                    project_id="syn123456",
-                    active_only=True
-                )
+        async def get_project_evaluations():
+            # Get all evaluations for a project
+            project_evaluations = await Evaluation.get_evaluations_by_project_async(
+                project_id="syn123456"
+            )
 
-            Get a limited set of evaluations for a project:
+            # Get only active evaluations for a project
+            active_project_evaluations = await Evaluation.get_evaluations_by_project_async(
+                project_id="syn123456",
+                active_only=True
+            )
 
-                limited_project_evaluations = await Evaluation.get_evaluations_by_project_async(
-                    project_id="syn123456",
-                    limit=5
-                )
+            # Get a limited set of evaluations for a project
+            limited_project_evaluations = await Evaluation.get_evaluations_by_project_async(
+                project_id="syn123456",
+                limit=5
+            )
+
+            return project_evaluations, active_project_evaluations, limited_project_evaluations
+
+        project_evaluations, active_project_evaluations, limited_project_evaluations = asyncio.run(get_project_evaluations())
+        ```
         """
         from synapseclient.api.evaluation_services import (
             get_evaluations_by_project_async,
