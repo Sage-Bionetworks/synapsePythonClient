@@ -228,7 +228,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         # Get the client for logging
         client = Synapse.get_client(synapse_client=synapse_client)
-        logger = client.logger if client else logging.getLogger(__name__)
+        logger = client.logger
 
         # Set up OpenTelemetry tracing
         trace.get_current_span().set_attributes(
