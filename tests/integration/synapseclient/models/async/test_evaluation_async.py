@@ -503,21 +503,3 @@ class TestEvaluationValidation:
             ValueError, match="id must be set to get evaluation permissions"
         ):
             await evaluation.get_permissions_async(synapse_client=self.syn)
-
-    async def test_store_with_nonexistent_id(self):
-        # WHEN I try to store an evaluation with an ID that doesn't exist in Synapse
-        evaluation = Evaluation(
-            id="syn999999999",
-            name="test_evaluation",
-            description="Test description",
-            content_source="syn123456",
-            submission_instructions_message="Instructions",
-            submission_receipt_message="Receipt",
-        )
-
-        # THEN it should raise a SynapseHTTPError with a clear message
-        with pytest.raises(
-            SynapseHTTPError,
-            match="Evaluation with ID syn999999999 was not found in Synapse",
-        ):
-            await evaluation.store_async(synapse_client=self.syn)

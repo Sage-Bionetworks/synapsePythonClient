@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 async def store_evaluation_async(
     request_body: dict,
-    request_type: str,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> dict:
@@ -23,7 +22,6 @@ async def store_evaluation_async(
 
     Arguments:
         request_body: A dictionary containing the evaluation data
-        request_type: Determines which endpoint to use ("create" or "update")
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                         instance from the Synapse class constructor.
 
@@ -31,7 +29,6 @@ async def store_evaluation_async(
         The created Evaluation object.
 
     Raises:
-        ValueError: If request_type is not "create" or "update".
         SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
     """
     import logging
@@ -41,7 +38,7 @@ async def store_evaluation_async(
     client = Synapse.get_client(synapse_client=synapse_client)
     logger = client.logger if client else logging.getLogger(__name__)
 
-    if request_type.lower() == "create":
+    if not request_body.get("id"):
         uri = "/evaluation"
         response = await client.rest_post_async(uri, body=json.dumps(request_body))
 
@@ -49,18 +46,13 @@ async def store_evaluation_async(
             f"Evaluation '{request_body.get('name')}' has been created with ID: {response.get('id')}"
         )
 
-    elif request_type.lower() == "update":
+    elif request_body.get("id"):
         evaluation_id = request_body.get("id")
         uri = f"/evaluation/{evaluation_id}"
         response = await client.rest_put_async(uri, body=json.dumps(request_body))
 
         logger.info(
             f"Evaluation '{request_body.get('name')}' (ID: {evaluation_id}) has been updated"
-        )
-
-    else:
-        raise ValueError(
-            f"Invalid request_type: {request_type}. Must be 'create' or 'update'"
         )
 
     return response

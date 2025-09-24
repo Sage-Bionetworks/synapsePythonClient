@@ -221,10 +221,8 @@ class Evaluation(EvaluationSynchronousProtocol):
                 evaluation.submission_instructions_message = "New submission instructions"
                 updated_evaluation = await evaluation.store_async()
         """
-        import logging
 
         from synapseclient.api.evaluation_services import store_evaluation_async
-        from synapseclient.core.exceptions import SynapseHTTPError
 
         # Get the client for logging
         client = Synapse.get_client(synapse_client=synapse_client)
@@ -238,48 +236,16 @@ class Evaluation(EvaluationSynchronousProtocol):
             }
         )
 
-        # CASE 1: No ID - creating a new evaluation
-        if not self.id:
+        # CASE 1: No previous interaction with Synapse, so attempt to make a new evaluation
+        if not self._last_persistent_instance:
             request_body = self.to_synapse_request(request_type="create")
             result = await store_evaluation_async(
                 request_body=request_body,
-                request_type="create",
                 synapse_client=synapse_client,
             )
 
-        # CASE 2: We have an ID but no previous interaction with Synapse (the user set ID it manually)
-        elif self.id and not self._last_persistent_instance:
-            # Try to fetch the existing evaluation from Synapse
-            try:
-                existing_evaluation = await Evaluation(id=self.id).get_async(
-                    synapse_client=synapse_client
-                )
-
-                merge_dataclass_entities(source=existing_evaluation, destination=self)
-
-                request_body = self.to_synapse_request(request_type="update")
-                result = await store_evaluation_async(
-                    request_body=request_body,
-                    request_type="update",
-                    synapse_client=synapse_client,
-                )
-
-            except SynapseHTTPError as e:
-                if "Evaluation could not be found" in str(e):
-                    raise SynapseHTTPError(
-                        f"Evaluation with ID {self.id} was not found in Synapse. "
-                        f"If you are creating a new evaluation on Synapse, please store an evaluation object "
-                        f"with a name attribute and without an ID attribute. "
-                        f"Synapse will automatically assign an ID upon creation.",
-                        response=e.response,
-                    ) from e
-                else:
-                    raise
-            except Exception:
-                raise
-
-        # CASE 3: We have an ID from previous Synapse interaction
-        elif self.id and self._last_persistent_instance:
+        # CASE 2: Previous interaction with Synapse, so attempt to update an existing evaluation
+        elif self._last_persistent_instance:
             if self.has_changed:
                 merge_dataclass_entities(
                     source=self._last_persistent_instance,
@@ -292,11 +258,9 @@ class Evaluation(EvaluationSynchronousProtocol):
                         "created_on",
                     ],
                 )
-
                 request_body = self.to_synapse_request(request_type="update")
                 result = await store_evaluation_async(
                     request_body=request_body,
-                    request_type="update",
                     synapse_client=synapse_client,
                 )
             else:
