@@ -118,6 +118,10 @@
                             <i class="fas fa-cloud-upload-alt"></i>
                             Bulk Upload
                         </button>
+                        <button class="tab-btn" data-tab="curator">
+                            <i class="fas fa-tasks"></i>
+                            Curator
+                        </button>
                     </div>
 
                     <div class="tab-content">
@@ -345,6 +349,269 @@
                                     <div id="bulk-upload-progress-text" class="progress-text"></div>
                                     <div class="progress-bar">
                                         <div id="bulk-upload-progress" class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Curator Tab -->
+                        <div id="curator-tab" class="tab-panel">
+                            <div class="form-section">
+                                <h3>
+                                    <i class="fas fa-tasks"></i>
+                                    Data Curation Management
+                                </h3>
+
+                                <div class="curator-sections">
+                                    <!-- Project Selection -->
+                                    <div class="curator-project-section">
+                                        <div class="form-group">
+                                            <label for="curator-project-id">
+                                                <i class="fas fa-folder"></i>
+                                                Project ID:
+                                            </label>
+                                            <input type="text" id="curator-project-id"
+                                                   placeholder="syn12345678"
+                                                   class="form-control">
+                                            <button id="load-project-btn" class="btn btn-secondary">
+                                                <i class="fas fa-sync"></i>
+                                                Load Project Data
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Curation Tasks Section -->
+                                    <div class="curator-subsection">
+                                        <h4>
+                                            <i class="fas fa-list-check"></i>
+                                            Curation Tasks
+                                            <button id="create-task-btn" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-plus"></i>
+                                                Create New Task
+                                            </button>
+                                        </h4>
+
+                                        <!-- Curation Tasks List -->
+                                        <div id="curation-tasks-container" class="data-container">
+                                            <div id="curation-tasks-list" class="data-list">
+                                                <!-- Tasks will be populated here -->
+                                            </div>
+                                        </div>
+
+                                        <!-- Create/Edit Task Form -->
+                                        <div id="task-form-section" class="form-section hidden">
+                                            <h5>
+                                                <i class="fas fa-edit"></i>
+                                                <span id="task-form-title">Create Curation Task</span>
+                                            </h5>
+                                            <form id="curation-task-form">
+                                                <input type="hidden" id="task-id" value="">
+
+                                                <div class="form-group">
+                                                    <label for="task-data-type">Data Type:</label>
+                                                    <input type="text" id="task-data-type"
+                                                           class="form-control" required
+                                                           placeholder="e.g., BiospecimenMetadataTemplate">
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="task-instructions">Instructions:</label>
+                                                    <textarea id="task-instructions"
+                                                              class="form-control" rows="3" required
+                                                              placeholder="Instructions for contributors"></textarea>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="task-type">Task Type:</label>
+                                                    <select id="task-type" class="form-control" required>
+                                                        <option value="">Select task type</option>
+                                                        <option value="file-based">File-based</option>
+                                                        <option value="record-based">Record-based</option>
+                                                    </select>
+                                                </div>
+
+                                                <!-- File-based specific fields -->
+                                                <div id="file-based-fields" class="task-type-fields hidden">
+                                                    <div class="form-group">
+                                                        <label for="upload-folder-id">Upload Folder ID:</label>
+                                                        <input type="text" id="upload-folder-id"
+                                                               class="form-control" placeholder="syn12345678">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="file-view-id">File View ID:</label>
+                                                        <input type="text" id="file-view-id"
+                                                               class="form-control" placeholder="syn12345678">
+                                                    </div>
+                                                </div>
+
+                                                <!-- Record-based specific fields -->
+                                                <div id="record-based-fields" class="task-type-fields hidden">
+                                                    <div class="form-group">
+                                                        <label for="record-set-id">Record Set ID:</label>
+                                                        <input type="text" id="record-set-id"
+                                                               class="form-control" placeholder="syn12345678">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-actions">
+                                                    <button type="submit" class="btn btn-primary">
+                                                        <i class="fas fa-save"></i>
+                                                        Save Task
+                                                    </button>
+                                                    <button type="button" id="cancel-task-form" class="btn btn-secondary">
+                                                        <i class="fas fa-times"></i>
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <!-- Record Sets Section -->
+                                    <div class="curator-subsection">
+                                        <h4>
+                                            <i class="fas fa-database"></i>
+                                            Record Sets
+                                            <div class="section-controls">
+                                                <button id="enumerate-recordsets-btn" class="btn btn-secondary btn-sm">
+                                                    <i class="fas fa-search"></i>
+                                                    Enumerate
+                                                </button>
+                                                <button id="create-recordset-btn" class="btn btn-primary btn-sm">
+                                                    <i class="fas fa-plus"></i>
+                                                    Create New
+                                                </button>
+                                            </div>
+                                        </h4>
+
+                                        <!-- Container Selection for Enumeration -->
+                                        <div id="enumerate-form" class="form-group hidden">
+                                            <label for="recordset-container-id">Container ID (Project/Folder):</label>
+                                            <div class="input-group">
+                                                <input type="text" id="recordset-container-id"
+                                                       class="form-control" placeholder="syn12345678">
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="recordset-recursive" checked>
+                                                    Recursive
+                                                </label>
+                                                <button id="start-enumerate-btn" class="btn btn-secondary">
+                                                    <i class="fas fa-play"></i>
+                                                    Start
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Record Sets List -->
+                                        <div id="record-sets-container" class="data-container">
+                                            <div id="record-sets-list" class="data-list">
+                                                <!-- Record sets will be populated here -->
+                                            </div>
+                                        </div>
+
+                                        <!-- Create/Edit Record Set Form -->
+                                        <div id="recordset-form-section" class="form-section hidden">
+                                            <h5>
+                                                <i class="fas fa-edit"></i>
+                                                <span id="recordset-form-title">Create Record Set</span>
+                                            </h5>
+                                            <form id="record-set-form">
+                                                <input type="hidden" id="recordset-id" value="">
+
+                                                <div class="form-group">
+                                                    <label for="recordset-name">Name:</label>
+                                                    <input type="text" id="recordset-name"
+                                                           class="form-control" required
+                                                           placeholder="Record set name">
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="recordset-parent-id">Parent Container ID:</label>
+                                                    <input type="text" id="recordset-parent-id"
+                                                           class="form-control" required
+                                                           placeholder="syn12345678">
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="recordset-description">Description:</label>
+                                                    <textarea id="recordset-description"
+                                                              class="form-control" rows="3"
+                                                              placeholder="Description (optional)"></textarea>
+                                                </div>
+
+                                                <div class="form-actions">
+                                                    <button type="submit" class="btn btn-primary">
+                                                        <i class="fas fa-save"></i>
+                                                        Save Record Set
+                                                    </button>
+                                                    <button type="button" id="cancel-recordset-form" class="btn btn-secondary">
+                                                        <i class="fas fa-times"></i>
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <!-- CSV Template Generation Section -->
+                                    <div class="curator-subsection">
+                                        <h4>
+                                            <i class="fas fa-file-csv"></i>
+                                            CSV Template Generator
+                                        </h4>
+
+                                        <div class="form-section">
+                                            <div class="form-group">
+                                                <label for="jsonld-file-path">JSON-LD Data Model File Path:</label>
+                                                <div class="input-group">
+                                                    <input type="text" id="jsonld-file-path"
+                                                           class="form-control" required
+                                                           placeholder="Path to JSON-LD file">
+                                                    <button id="browse-jsonld-btn" class="btn btn-secondary">
+                                                        <i class="fas fa-folder-open"></i>
+                                                        Browse
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="schema-uri">Schema URI (optional):</label>
+                                                <input type="text" id="schema-uri"
+                                                       class="form-control"
+                                                       placeholder="JSON schema URI">
+                                            </div>
+
+                                            <button id="generate-csv-template-btn" class="btn btn-primary">
+                                                <i class="fas fa-magic"></i>
+                                                Generate CSV Template
+                                            </button>
+
+                                            <!-- CSV Template Preview -->
+                                            <div id="csv-template-preview" class="preview-section hidden">
+                                                <h5>
+                                                    <i class="fas fa-eye"></i>
+                                                    CSV Template Preview
+                                                </h5>
+                                                <div id="csv-headers-container" class="headers-preview">
+                                                    <!-- CSV headers will be displayed here -->
+                                                </div>
+                                                <div class="preview-actions">
+                                                    <button id="use-csv-template-btn" class="btn btn-success">
+                                                        <i class="fas fa-check"></i>
+                                                        Use This Template for Record Set
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Curator Operations Status -->
+                                <div class="operation-status" id="curator-status">
+                                    <div class="status-message" id="curator-status-message">Ready</div>
+                                    <div class="progress-container hidden" id="curator-progress">
+                                        <div class="progress-bar">
+                                            <div id="curator-progress-fill" class="progress-fill"></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

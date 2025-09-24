@@ -27,17 +27,31 @@ parent_dir = current_dir.parent.parent
 sys.path.insert(0, str(parent_dir))
 
 try:
-    from models import (  # API Models; Domain Models
+    from models import (  # API Models; Domain Models; Curator models; End curator models
         BulkDownloadRequest,
         BulkItemModel,
         BulkUploadRequest,
+        CsvTemplateResponse,
+        CurationTaskRequest,
+        CurationTaskResponse,
+        CurationTasksResponse,
+        DeleteCurationTaskRequest,
+        DeleteRecordSetRequest,
         DownloadRequest,
+        EnumerateRecordSetsRequest,
         EnumerateRequest,
+        GenerateCsvTemplateRequest,
+        ListCurationTasksRequest,
         LoginRequest,
+        RecordSetRequest,
+        RecordSetResponse,
+        RecordSetsResponse,
         ScanDirectoryRequest,
+        UpdateCurationTaskRequest,
+        UpdateRecordSetRequest,
         UploadRequest,
     )
-    from services import ConfigManager, SynapseClientManager
+    from services import ConfigManager, CuratorManager, SynapseClientManager
     from utils import (
         broadcast_message,
         get_home_and_downloads_directories,
@@ -62,6 +76,7 @@ logger = logging.getLogger(__name__)
 
 # Global instances
 synapse_client: Optional[SynapseClientManager] = None
+curator_manager: Optional[CuratorManager] = None
 config_manager: Optional[ConfigManager] = None
 
 
@@ -71,7 +86,7 @@ async def lifespan(app: FastAPI) -> Any:
     Manage application lifespan events.
 
     Handles startup and shutdown logic for the FastAPI application,
-    including logging initialization and cleanup.
+    including logging initialization and service manager setup.
 
     Arguments:
         app: The FastAPI application instance.
@@ -83,8 +98,10 @@ async def lifespan(app: FastAPI) -> Any:
         Exception: If logging initialization fails during startup.
     """
     # Startup
+    global curator_manager
     setup_logging()
     await initialize_logging()
+    curator_manager = CuratorManager()
     yield
     # Shutdown - add any cleanup here if needed
 
@@ -1159,6 +1176,411 @@ def _process_upload_results(
         "total_items": total_items,
         "summary": f"Uploaded {successful_uploads} items, {failed_uploads} failed",
     }
+
+
+# API Routes - Curator Operations
+
+
+@app.post("/curator/curation-tasks/list")
+async def list_curation_tasks(
+    request: ListCurationTasksRequest,
+) -> CurationTasksResponse:
+    """
+    List all curation tasks for a project.
+
+    Arguments:
+        request: Request containing project_id
+
+    Returns:
+        CurationTasksResponse: List of curation tasks
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        # Set the synapse client for curator manager
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.list_curation_tasks(request.project_id)
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return CurationTasksResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("List curation tasks endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/curator/curation-tasks/create")
+async def create_curation_task(request: CurationTaskRequest) -> CurationTaskResponse:
+    """
+    Create a new curation task.
+
+    Arguments:
+        request: Curation task creation request
+
+    Returns:
+        CurationTaskResponse: Created curation task information
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.create_curation_task(
+            project_id=request.project_id,
+            data_type=request.data_type,
+            instructions=request.instructions,
+            task_type=request.task_type,
+            upload_folder_id=request.upload_folder_id,
+            file_view_id=request.file_view_id,
+            record_set_id=request.record_set_id,
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return CurationTaskResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Create curation task endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/curator/curation-tasks/update")
+async def update_curation_task(
+    request: UpdateCurationTaskRequest,
+) -> CurationTaskResponse:
+    """
+    Update an existing curation task.
+
+    Arguments:
+        request: Curation task update request
+
+    Returns:
+        CurationTaskResponse: Updated curation task information
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.update_curation_task(
+            task_id=request.task_id,
+            project_id=request.project_id,
+            data_type=request.data_type,
+            instructions=request.instructions,
+            task_type=request.task_type,
+            upload_folder_id=request.upload_folder_id,
+            file_view_id=request.file_view_id,
+            record_set_id=request.record_set_id,
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return CurationTaskResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Update curation task endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/curator/curation-tasks/delete")
+async def delete_curation_task(request: DeleteCurationTaskRequest) -> Dict[str, Any]:
+    """
+    Delete a curation task.
+
+    Arguments:
+        request: Curation task deletion request
+
+    Returns:
+        Dict with success status
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.delete_curation_task(request.task_id)
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Delete curation task endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/curator/record-sets/enumerate")
+async def enumerate_record_sets(
+    request: EnumerateRecordSetsRequest,
+) -> RecordSetsResponse:
+    """
+    Enumerate record sets in a container.
+
+    Arguments:
+        request: Record sets enumeration request
+
+    Returns:
+        RecordSetsResponse: List of record sets
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.enumerate_record_sets(
+            request.container_id, request.recursive
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return RecordSetsResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Enumerate record sets endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/curator/record-sets/create")
+async def create_record_set(request: RecordSetRequest) -> RecordSetResponse:
+    """
+    Create a new record set.
+
+    Arguments:
+        request: Record set creation request
+
+    Returns:
+        RecordSetResponse: Created record set information
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.create_record_set(
+            name=request.name,
+            parent_id=request.parent_id,
+            description=request.description,
+            csv_table_descriptor_id=request.csv_table_descriptor_id,
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return RecordSetResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Create record set endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/curator/record-sets/update")
+async def update_record_set(request: UpdateRecordSetRequest) -> RecordSetResponse:
+    """
+    Update an existing record set.
+
+    Arguments:
+        request: Record set update request
+
+    Returns:
+        RecordSetResponse: Updated record set information
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.update_record_set(
+            record_set_id=request.record_set_id,
+            name=request.name,
+            description=request.description,
+            csv_table_descriptor_id=request.csv_table_descriptor_id,
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return RecordSetResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Update record set endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/curator/record-sets/delete")
+async def delete_record_set(request: DeleteRecordSetRequest) -> Dict[str, Any]:
+    """
+    Delete a record set.
+
+    Arguments:
+        request: Record set deletion request
+
+    Returns:
+        Dict with success status
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.delete_record_set(
+            request.record_set_id, request.version_only
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Delete record set endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/curator/csv-template/generate")
+async def generate_csv_template(
+    request: GenerateCsvTemplateRequest,
+) -> CsvTemplateResponse:
+    """
+    Generate CSV template from JSON-LD data model.
+
+    Arguments:
+        request: CSV template generation request
+
+    Returns:
+        CsvTemplateResponse: Generated CSV headers and preview
+
+    Raises:
+        HTTPException: If user is not authenticated or operation fails
+    """
+    try:
+        global synapse_client, curator_manager
+        if not synapse_client or not synapse_client.is_logged_in:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        if not curator_manager:
+            raise HTTPException(
+                status_code=500, detail="Curator manager not initialized"
+            )
+
+        curator_manager.set_synapse_client(synapse_client.client)
+
+        result = await curator_manager.generate_csv_template(
+            request.data_model_jsonld_path, request.schema_uri
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return CsvTemplateResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Generate CSV template endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def main() -> None:

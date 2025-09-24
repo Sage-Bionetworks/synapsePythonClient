@@ -289,8 +289,185 @@ class ConnectionStatusMessage(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    """Generic error response model."""
+    """Response model for API errors."""
 
+    success: bool = Field(False, description="Operation success status")
     error: str = Field(..., description="Error message")
-    detail: Optional[str] = Field(None, description="Additional error details")
-    status_code: Optional[int] = Field(None, description="HTTP status code")
+    details: Optional[str] = Field(None, description="Detailed error information")
+
+
+# Curator-specific models
+class ListCurationTasksRequest(BaseModel):
+    """Request model for listing curation tasks."""
+
+    project_id: str = Field(..., description="Synapse project ID to list tasks from")
+
+
+class CurationTaskRequest(BaseModel):
+    """Request model for creating/updating curation tasks."""
+
+    project_id: str = Field(..., description="Synapse project ID")
+    data_type: str = Field(..., description="Data type name")
+    instructions: str = Field(..., description="Instructions for the task")
+    task_type: str = Field(
+        ..., description="Type of task: 'file-based' or 'record-based'"
+    )
+    upload_folder_id: Optional[str] = Field(
+        None, description="Upload folder ID for file-based tasks"
+    )
+    file_view_id: Optional[str] = Field(
+        None, description="File view ID for file-based tasks"
+    )
+    record_set_id: Optional[str] = Field(
+        None, description="Record set ID for record-based tasks"
+    )
+
+
+class UpdateCurationTaskRequest(BaseModel):
+    """Request model for updating curation tasks."""
+
+    task_id: int = Field(..., description="Task ID to update")
+    project_id: Optional[str] = Field(None, description="Synapse project ID")
+    data_type: Optional[str] = Field(None, description="Data type name")
+    instructions: Optional[str] = Field(None, description="Instructions for the task")
+    task_type: Optional[str] = Field(
+        None, description="Type of task: 'file-based' or 'record-based'"
+    )
+    upload_folder_id: Optional[str] = Field(
+        None, description="Upload folder ID for file-based tasks"
+    )
+    file_view_id: Optional[str] = Field(
+        None, description="File view ID for file-based tasks"
+    )
+    record_set_id: Optional[str] = Field(
+        None, description="Record set ID for record-based tasks"
+    )
+
+
+class DeleteCurationTaskRequest(BaseModel):
+    """Request model for deleting curation tasks."""
+
+    task_id: int = Field(..., description="Task ID to delete")
+
+
+class EnumerateRecordSetsRequest(BaseModel):
+    """Request model for enumerating record sets."""
+
+    container_id: str = Field(
+        ..., description="Container ID (Project or Folder) to enumerate"
+    )
+    recursive: bool = Field(True, description="Whether to enumerate recursively")
+
+
+class RecordSetRequest(BaseModel):
+    """Request model for creating/updating record sets."""
+
+    name: str = Field(..., description="Name of the record set")
+    description: Optional[str] = Field(
+        None, description="Description of the record set"
+    )
+    parent_id: str = Field(..., description="Parent container ID")
+    csv_table_descriptor_id: Optional[str] = Field(
+        None, description="CSV table descriptor ID"
+    )
+
+
+class UpdateRecordSetRequest(BaseModel):
+    """Request model for updating record sets."""
+
+    record_set_id: str = Field(..., description="Record set ID to update")
+    name: Optional[str] = Field(None, description="Name of the record set")
+    description: Optional[str] = Field(
+        None, description="Description of the record set"
+    )
+    csv_table_descriptor_id: Optional[str] = Field(
+        None, description="CSV table descriptor ID"
+    )
+
+
+class DeleteRecordSetRequest(BaseModel):
+    """Request model for deleting record sets."""
+
+    record_set_id: str = Field(..., description="Record set ID to delete")
+    version_only: bool = Field(
+        False, description="Whether to delete only the current version"
+    )
+
+
+class GenerateCsvTemplateRequest(BaseModel):
+    """Request model for generating CSV templates."""
+
+    data_model_jsonld_path: str = Field(
+        ..., description="Path to the JSON-LD data model file"
+    )
+    schema_uri: Optional[str] = Field(None, description="JSON schema URI")
+
+
+# Response models
+class CurationTaskInfo(BaseModel):
+    """Information about a curation task."""
+
+    task_id: int = Field(..., description="Task ID")
+    project_id: str = Field(..., description="Project ID")
+    data_type: str = Field(..., description="Data type")
+    instructions: str = Field(..., description="Task instructions")
+    task_type: str = Field(..., description="Task type")
+    upload_folder_id: Optional[str] = Field(None, description="Upload folder ID")
+    file_view_id: Optional[str] = Field(None, description="File view ID")
+    record_set_id: Optional[str] = Field(None, description="Record set ID")
+    created_on: Optional[str] = Field(None, description="Creation date")
+    created_by: Optional[str] = Field(None, description="Creator user ID")
+    modified_on: Optional[str] = Field(None, description="Modification date")
+    modified_by: Optional[str] = Field(None, description="Modifier user ID")
+
+
+class CurationTasksResponse(BaseModel):
+    """Response model for curation tasks listing."""
+
+    success: bool = Field(True, description="Operation success status")
+    tasks: List[CurationTaskInfo] = Field(..., description="List of curation tasks")
+
+
+class CurationTaskResponse(BaseModel):
+    """Response model for single curation task operations."""
+
+    success: bool = Field(True, description="Operation success status")
+    task: CurationTaskInfo = Field(..., description="Curation task information")
+
+
+class RecordSetInfo(BaseModel):
+    """Information about a record set."""
+
+    id: str = Field(..., description="Record set ID")
+    name: str = Field(..., description="Record set name")
+    description: Optional[str] = Field(None, description="Description")
+    parent_id: str = Field(..., description="Parent container ID")
+    path: str = Field(..., description="Full hierarchical path")
+    created_on: Optional[str] = Field(None, description="Creation date")
+    created_by: Optional[str] = Field(None, description="Creator user ID")
+    modified_on: Optional[str] = Field(None, description="Modification date")
+    modified_by: Optional[str] = Field(None, description="Modifier user ID")
+
+
+class RecordSetsResponse(BaseModel):
+    """Response model for record sets listing."""
+
+    success: bool = Field(True, description="Operation success status")
+    record_sets: List[RecordSetInfo] = Field(..., description="List of record sets")
+
+
+class RecordSetResponse(BaseModel):
+    """Response model for single record set operations."""
+
+    success: bool = Field(True, description="Operation success status")
+    record_set: RecordSetInfo = Field(..., description="Record set information")
+
+
+class CsvTemplateResponse(BaseModel):
+    """Response model for CSV template generation."""
+
+    success: bool = Field(True, description="Operation success status")
+    headers: List[str] = Field(..., description="CSV column headers")
+    preview_data: Optional[List[Dict[str, Any]]] = Field(
+        None, description="Preview data rows"
+    )

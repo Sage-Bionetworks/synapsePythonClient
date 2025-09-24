@@ -1307,3 +1307,378 @@ input[type="checkbox"]:focus {
         margin-bottom: 1rem;
     }
 }
+
+/* Curator Panel Styles */
+.curator-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.curator-project-section {
+    background: var(--background-color);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+}
+
+.curator-project-section .form-group {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    margin-bottom: 0;
+}
+
+.curator-project-section .form-group label {
+    flex-shrink: 0;
+    width: auto;
+    margin-bottom: 0.5rem;
+}
+
+.curator-project-section .form-group input {
+    flex: 1;
+}
+
+.curator-subsection {
+    background: var(--background-color);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+}
+
+.curator-subsection h4 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+.curator-subsection h4 i {
+    margin-right: 0.5rem;
+}
+
+.section-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Data Container Styles */
+.data-container {
+    margin: 1rem 0;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.data-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.data-item {
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    transition: var(--transition);
+}
+
+.data-item:last-child {
+    border-bottom: none;
+}
+
+.data-item:hover {
+    background-color: var(--light-color);
+}
+
+.data-item.task-item {
+    border-left: 4px solid var(--info-color);
+}
+
+.data-item.recordset-item {
+    border-left: 4px solid var(--success-color);
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.item-info {
+    flex: 1;
+}
+
+.item-info strong {
+    display: block;
+    font-size: 1.1em;
+    color: var(--text-color);
+    margin-bottom: 0.25rem;
+}
+
+.item-id {
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    background: var(--light-color);
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--border-radius-sm);
+    margin-right: 0.5rem;
+}
+
+.item-path {
+    display: block;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.task-type.badge {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius-sm);
+    color: white;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.task-type.badge {
+    background: var(--info-color);
+}
+
+.item-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.item-details {
+    color: var(--text-color);
+    line-height: 1.4;
+}
+
+.item-details p {
+    margin-bottom: 0.5rem;
+}
+
+.item-details p:last-child {
+    margin-bottom: 0;
+}
+
+.item-metadata {
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.item-metadata small {
+    color: var(--text-muted);
+    font-size: 0.8em;
+}
+
+.no-data {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Task and Record Set Forms */
+.task-type-fields {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--light-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.task-type-fields.hidden {
+    display: none;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* CSV Template Styles */
+.preview-section {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: var(--light-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.preview-section.hidden {
+    display: none;
+}
+
+.preview-section h5 {
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+
+.headers-preview {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.csv-headers-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.5rem;
+}
+
+.csv-header {
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9em;
+    color: var(--text-color);
+    transition: var(--transition);
+}
+
+.csv-header:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.preview-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Curator Status Styles */
+#curator-status {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+#curator-status .status-message {
+    text-align: center;
+    font-weight: 500;
+}
+
+#curator-progress {
+    margin-top: 1rem;
+}
+
+/* Input Group for Browse Buttons */
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.input-group input[type="text"] {
+    flex: 1;
+}
+
+.input-group .checkbox-label {
+    margin: 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.9em;
+}
+
+.input-group .checkbox-label input[type="checkbox"] {
+    margin: 0;
+}
+
+/* Responsive Design for Curator */
+@media (max-width: 768px) {
+    .curator-project-section .form-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .curator-subsection h4 {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+
+    .section-controls {
+        align-self: stretch;
+        justify-content: stretch;
+    }
+
+    .item-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .item-actions {
+        align-self: flex-start;
+    }
+
+    .csv-headers-list {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .input-group .checkbox-label {
+        justify-content: center;
+        margin: 0.5rem 0;
+    }
+}
+
+/* Hide/Show Animation */
+.hidden {
+    display: none !important;
+}
+
+.form-section.hidden {
+    display: none !important;
+}
+
+/* Smooth transitions for show/hide */
+.curator-subsection,
+.preview-section,
+.form-section {
+    transition: all 0.3s ease;
+}
+
+/* Enhanced button styles for curator */
+.btn.btn-sm {
+    font-size: 0.8em;
+    padding: 0.375rem 0.75rem;
+}
+
+.curator-subsection .btn-primary {
+    background: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.curator-subsection .btn-primary:hover {
+    background: #218838;
+    border-color: #1e7e34;
+}

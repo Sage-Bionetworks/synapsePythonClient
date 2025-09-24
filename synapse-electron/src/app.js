@@ -261,6 +261,69 @@ class SynapseDesktopClient {
         document.getElementById('bulk-download-location').addEventListener('change', () => {
             this.updateBulkDownloadButtonState();
         });
+
+        // Curator event listeners
+        this.setupCuratorEventListeners();
+    }
+
+    setupCuratorEventListeners() {
+        // Project data loading
+        document.getElementById('load-project-btn').addEventListener('click', () => {
+            this.handleLoadProjectData();
+        });
+
+        // Curation Tasks
+        document.getElementById('create-task-btn').addEventListener('click', () => {
+            this.showTaskForm();
+        });
+
+        document.getElementById('curation-task-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleCurationTaskSubmit();
+        });
+
+        document.getElementById('cancel-task-form').addEventListener('click', () => {
+            this.hideTaskForm();
+        });
+
+        document.getElementById('task-type').addEventListener('change', (e) => {
+            this.toggleTaskTypeFields(e.target.value);
+        });
+
+        // Record Sets
+        document.getElementById('enumerate-recordsets-btn').addEventListener('click', () => {
+            this.toggleEnumerateForm();
+        });
+
+        document.getElementById('start-enumerate-btn').addEventListener('click', () => {
+            this.handleEnumerateRecordSets();
+        });
+
+        document.getElementById('create-recordset-btn').addEventListener('click', () => {
+            this.showRecordSetForm();
+        });
+
+        document.getElementById('record-set-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleRecordSetSubmit();
+        });
+
+        document.getElementById('cancel-recordset-form').addEventListener('click', () => {
+            this.hideRecordSetForm();
+        });
+
+        // CSV Template Generation
+        document.getElementById('browse-jsonld-btn').addEventListener('click', () => {
+            this.browseJsonLdFile();
+        });
+
+        document.getElementById('generate-csv-template-btn').addEventListener('click', () => {
+            this.handleGenerateCsvTemplate();
+        });
+
+        document.getElementById('use-csv-template-btn').addEventListener('click', () => {
+            this.handleUseCsvTemplate();
+        });
     }
 
     setupWebSocketListener() {
@@ -2096,6 +2159,664 @@ Parent ID: ${item.parent_id || 'N/A'}
         setTimeout(() => {
             element.style.display = 'none';
         }, 5000);
+    }
+
+    // Curator Methods
+
+    async handleLoadProjectData() {
+        const projectId = document.getElementById('curator-project-id').value.trim();
+        if (!projectId) {
+            this.showStatus('curator-status-message', 'Please enter a Project ID', 'error');
+            return;
+        }
+
+        try {
+            this.setOperationInProgress('curator', 'Loading project data...');
+
+            // Load curation tasks
+            await this.loadCurationTasks(projectId);
+
+            this.setOperationComplete('curator', true);
+            this.showStatus('curator-status-message', 'Project data loaded successfully', 'success');
+        } catch (error) {
+            this.setOperationComplete('curator', false);
+            this.showStatus('curator-status-message', `Error loading project data: ${error.message}`, 'error');
+        }
+    }
+
+    async loadCurationTasks(projectId) {
+        try {
+            const response = await fetch('http://localhost:8000/curator/curation-tasks/list', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    project_id: projectId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to load curation tasks');
+            }
+
+            this.displayCurationTasks(result.tasks);
+        } catch (error) {
+            console.error('Error loading curation tasks:', error);
+            throw error;
+        }
+    }
+
+    displayCurationTasks(tasks) {
+        const container = document.getElementById('curation-tasks-list');
+        container.innerHTML = '';
+
+        if (tasks.length === 0) {
+            container.innerHTML = '<div class="no-data">No curation tasks found for this project.</div>';
+            return;
+        }
+
+        tasks.forEach(task => {
+            const taskElement = this.createTaskElement(task);
+            container.appendChild(taskElement);
+        });
+    }
+
+    createTaskElement(task) {
+        const taskDiv = document.createElement('div');
+        taskDiv.className = 'data-item task-item';
+        taskDiv.innerHTML = `
+            <div class="item-header">
+                <div class="item-info">
+                    <strong>${this.escapeHtml(task.data_type)}</strong>
+                    <span class="item-id">Task ID: ${task.task_id}</span>
+                    <span class="task-type badge">${task.task_type}</span>
+                </div>
+                <div class="item-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="window.synapseApp.editTask(${task.task_id})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="window.synapseApp.deleteTask(${task.task_id})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+            <div class="item-details">
+                <p><strong>Instructions:</strong> ${this.escapeHtml(task.instructions)}</p>
+                ${task.upload_folder_id ? `<p><strong>Upload Folder:</strong> ${task.upload_folder_id}</p>` : ''}
+                ${task.file_view_id ? `<p><strong>File View:</strong> ${task.file_view_id}</p>` : ''}
+                ${task.record_set_id ? `<p><strong>Record Set:</strong> ${task.record_set_id}</p>` : ''}
+                <div class="item-metadata">
+                    <small>Created: ${task.created_on ? new Date(task.created_on).toLocaleDateString() : 'Unknown'}</small>
+                </div>
+            </div>
+        `;
+        return taskDiv;
+    }
+
+    showTaskForm(taskData = null) {
+        const formSection = document.getElementById('task-form-section');
+        const formTitle = document.getElementById('task-form-title');
+        const form = document.getElementById('curation-task-form');
+
+        formSection.classList.remove('hidden');
+
+        if (taskData) {
+            formTitle.textContent = 'Edit Curation Task';
+            this.populateTaskForm(taskData);
+        } else {
+            formTitle.textContent = 'Create Curation Task';
+            form.reset();
+            document.getElementById('task-id').value = '';
+        }
+
+        // Set project ID from current selection
+        const projectId = document.getElementById('curator-project-id').value;
+        if (!document.getElementById('task-project-id')) {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.id = 'task-project-id';
+            hiddenInput.value = projectId;
+            form.appendChild(hiddenInput);
+        } else {
+            document.getElementById('task-project-id').value = projectId;
+        }
+
+        // Scroll to form
+        formSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    populateTaskForm(taskData) {
+        document.getElementById('task-id').value = taskData.task_id || '';
+        document.getElementById('task-data-type').value = taskData.data_type || '';
+        document.getElementById('task-instructions').value = taskData.instructions || '';
+        document.getElementById('task-type').value = taskData.task_type || '';
+
+        // Set task-type specific fields
+        this.toggleTaskTypeFields(taskData.task_type);
+
+        if (taskData.task_type === 'file-based') {
+            document.getElementById('upload-folder-id').value = taskData.upload_folder_id || '';
+            document.getElementById('file-view-id').value = taskData.file_view_id || '';
+        } else if (taskData.task_type === 'record-based') {
+            document.getElementById('record-set-id').value = taskData.record_set_id || '';
+        }
+    }
+
+    hideTaskForm() {
+        document.getElementById('task-form-section').classList.add('hidden');
+        document.getElementById('curation-task-form').reset();
+    }
+
+    toggleTaskTypeFields(taskType) {
+        const fileBasedFields = document.getElementById('file-based-fields');
+        const recordBasedFields = document.getElementById('record-based-fields');
+
+        fileBasedFields.classList.add('hidden');
+        recordBasedFields.classList.add('hidden');
+
+        if (taskType === 'file-based') {
+            fileBasedFields.classList.remove('hidden');
+        } else if (taskType === 'record-based') {
+            recordBasedFields.classList.remove('hidden');
+        }
+    }
+
+    async handleCurationTaskSubmit() {
+        const form = document.getElementById('curation-task-form');
+        const formData = new FormData(form);
+        const taskId = document.getElementById('task-id').value;
+
+        const taskData = {
+            project_id: document.getElementById('curator-project-id').value,
+            data_type: formData.get('data_type') || document.getElementById('task-data-type').value,
+            instructions: formData.get('instructions') || document.getElementById('task-instructions').value,
+            task_type: formData.get('task_type') || document.getElementById('task-type').value,
+        };
+
+        // Add task-type specific fields
+        if (taskData.task_type === 'file-based') {
+            taskData.upload_folder_id = document.getElementById('upload-folder-id').value || null;
+            taskData.file_view_id = document.getElementById('file-view-id').value || null;
+        } else if (taskData.task_type === 'record-based') {
+            taskData.record_set_id = document.getElementById('record-set-id').value || null;
+        }
+
+        try {
+            this.setOperationInProgress('curator', taskId ? 'Updating task...' : 'Creating task...');
+
+            const endpoint = taskId ?
+                'http://localhost:8000/curator/curation-tasks/update' :
+                'http://localhost:8000/curator/curation-tasks/create';
+
+            const requestData = taskId ? { task_id: parseInt(taskId), ...taskData } : taskData;
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to save task');
+            }
+
+            this.setOperationComplete('curator', true);
+            this.hideTaskForm();
+            await this.loadCurationTasks(taskData.project_id);
+            this.showStatus('curator-status-message', `Task ${taskId ? 'updated' : 'created'} successfully`, 'success');
+        } catch (error) {
+            this.setOperationComplete('curator', false);
+            this.showStatus('curator-status-message', `Error saving task: ${error.message}`, 'error');
+        }
+    }
+
+    async editTask(taskId) {
+        try {
+            // Find the task data from the displayed tasks
+            const tasks = document.querySelectorAll('.task-item');
+            let taskData = null;
+
+            tasks.forEach(taskElement => {
+                const idSpan = taskElement.querySelector('.item-id');
+                if (idSpan && idSpan.textContent.includes(taskId)) {
+                    // Extract data from the displayed element
+                    const dataType = taskElement.querySelector('.item-info strong').textContent;
+                    const instructions = taskElement.querySelector('.item-details p').textContent.replace('Instructions: ', '');
+                    const typeSpan = taskElement.querySelector('.task-type');
+                    const taskType = typeSpan ? typeSpan.textContent : '';
+
+                    taskData = {
+                        task_id: taskId,
+                        data_type: dataType,
+                        instructions: instructions,
+                        task_type: taskType
+                    };
+                }
+            });
+
+            if (taskData) {
+                this.showTaskForm(taskData);
+            }
+        } catch (error) {
+            this.showStatus('curator-status-message', `Error editing task: ${error.message}`, 'error');
+        }
+    }
+
+    async deleteTask(taskId) {
+        if (!confirm('Are you sure you want to delete this curation task?')) {
+            return;
+        }
+
+        try {
+            this.setOperationInProgress('curator', 'Deleting task...');
+
+            const response = await fetch('http://localhost:8000/curator/curation-tasks/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    task_id: parseInt(taskId)
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to delete task');
+            }
+
+            this.setOperationComplete('curator', true);
+            const projectId = document.getElementById('curator-project-id').value;
+            await this.loadCurationTasks(projectId);
+            this.showStatus('curator-status-message', 'Task deleted successfully', 'success');
+        } catch (error) {
+            this.setOperationComplete('curator', false);
+            this.showStatus('curator-status-message', `Error deleting task: ${error.message}`, 'error');
+        }
+    }
+
+    // Record Set Methods
+    toggleEnumerateForm() {
+        const form = document.getElementById('enumerate-form');
+        form.classList.toggle('hidden');
+
+        if (!form.classList.contains('hidden')) {
+            // Pre-fill with current project ID if available
+            const projectId = document.getElementById('curator-project-id').value;
+            if (projectId) {
+                document.getElementById('recordset-container-id').value = projectId;
+            }
+        }
+    }
+
+    async handleEnumerateRecordSets() {
+        const containerId = document.getElementById('recordset-container-id').value.trim();
+        const recursive = document.getElementById('recordset-recursive').checked;
+
+        if (!containerId) {
+            this.showStatus('curator-status-message', 'Please enter a Container ID', 'error');
+            return;
+        }
+
+        try {
+            this.setOperationInProgress('curator', 'Enumerating record sets...');
+
+            const response = await fetch('http://localhost:8000/curator/record-sets/enumerate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    container_id: containerId,
+                    recursive: recursive
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to enumerate record sets');
+            }
+
+            this.displayRecordSets(result.record_sets);
+            this.setOperationComplete('curator', true);
+            this.showStatus('curator-status-message', `Found ${result.record_sets.length} record sets`, 'success');
+
+            // Hide the enumerate form
+            document.getElementById('enumerate-form').classList.add('hidden');
+        } catch (error) {
+            this.setOperationComplete('curator', false);
+            this.showStatus('curator-status-message', `Error enumerating record sets: ${error.message}`, 'error');
+        }
+    }
+
+    displayRecordSets(recordSets) {
+        const container = document.getElementById('record-sets-list');
+        container.innerHTML = '';
+
+        if (recordSets.length === 0) {
+            container.innerHTML = '<div class="no-data">No record sets found in the specified container.</div>';
+            return;
+        }
+
+        recordSets.forEach(recordSet => {
+            const recordSetElement = this.createRecordSetElement(recordSet);
+            container.appendChild(recordSetElement);
+        });
+    }
+
+    createRecordSetElement(recordSet) {
+        const recordSetDiv = document.createElement('div');
+        recordSetDiv.className = 'data-item recordset-item';
+        recordSetDiv.innerHTML = `
+            <div class="item-header">
+                <div class="item-info">
+                    <strong>${this.escapeHtml(recordSet.name)}</strong>
+                    <span class="item-id">${recordSet.id}</span>
+                    <span class="item-path">${this.escapeHtml(recordSet.path || '')}</span>
+                </div>
+                <div class="item-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="window.synapseApp.editRecordSet('${recordSet.id}')">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="window.synapseApp.deleteRecordSet('${recordSet.id}')">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+            <div class="item-details">
+                ${recordSet.description ? `<p><strong>Description:</strong> ${this.escapeHtml(recordSet.description)}</p>` : ''}
+                <p><strong>Parent:</strong> ${recordSet.parent_id}</p>
+                <div class="item-metadata">
+                    <small>Created: ${recordSet.created_on ? new Date(recordSet.created_on).toLocaleDateString() : 'Unknown'}</small>
+                </div>
+            </div>
+        `;
+        return recordSetDiv;
+    }
+
+    showRecordSetForm(recordSetData = null) {
+        const formSection = document.getElementById('recordset-form-section');
+        const formTitle = document.getElementById('recordset-form-title');
+        const form = document.getElementById('record-set-form');
+
+        formSection.classList.remove('hidden');
+
+        if (recordSetData) {
+            formTitle.textContent = 'Edit Record Set';
+            this.populateRecordSetForm(recordSetData);
+        } else {
+            formTitle.textContent = 'Create Record Set';
+            form.reset();
+            document.getElementById('recordset-id').value = '';
+
+            // Pre-fill parent ID if available
+            const projectId = document.getElementById('curator-project-id').value;
+            if (projectId) {
+                document.getElementById('recordset-parent-id').value = projectId;
+            }
+        }
+
+        // Scroll to form
+        formSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    populateRecordSetForm(recordSetData) {
+        document.getElementById('recordset-id').value = recordSetData.id || '';
+        document.getElementById('recordset-name').value = recordSetData.name || '';
+        document.getElementById('recordset-parent-id').value = recordSetData.parent_id || '';
+        document.getElementById('recordset-description').value = recordSetData.description || '';
+    }
+
+    hideRecordSetForm() {
+        document.getElementById('recordset-form-section').classList.add('hidden');
+        document.getElementById('record-set-form').reset();
+    }
+
+    async handleRecordSetSubmit() {
+        const form = document.getElementById('record-set-form');
+        const recordSetId = document.getElementById('recordset-id').value;
+
+        const recordSetData = {
+            name: document.getElementById('recordset-name').value,
+            parent_id: document.getElementById('recordset-parent-id').value,
+            description: document.getElementById('recordset-description').value || null,
+        };
+
+        try {
+            this.setOperationInProgress('curator', recordSetId ? 'Updating record set...' : 'Creating record set...');
+
+            const endpoint = recordSetId ?
+                'http://localhost:8000/curator/record-sets/update' :
+                'http://localhost:8000/curator/record-sets/create';
+
+            const requestData = recordSetId ? { record_set_id: recordSetId, ...recordSetData } : recordSetData;
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to save record set');
+            }
+
+            this.setOperationComplete('curator', true);
+            this.hideRecordSetForm();
+            this.showStatus('curator-status-message', `Record set ${recordSetId ? 'updated' : 'created'} successfully`, 'success');
+        } catch (error) {
+            this.setOperationComplete('curator', false);
+            this.showStatus('curator-status-message', `Error saving record set: ${error.message}`, 'error');
+        }
+    }
+
+    async editRecordSet(recordSetId) {
+        try {
+            // Find the record set data from the displayed record sets
+            const recordSets = document.querySelectorAll('.recordset-item');
+            let recordSetData = null;
+
+            recordSets.forEach(recordSetElement => {
+                const idSpan = recordSetElement.querySelector('.item-id');
+                if (idSpan && idSpan.textContent === recordSetId) {
+                    // Extract data from the displayed element
+                    const name = recordSetElement.querySelector('.item-info strong').textContent;
+                    const parentId = recordSetElement.querySelector('.item-details p:last-of-type').textContent.replace('Parent: ', '');
+                    const descriptionP = recordSetElement.querySelector('.item-details p:first-of-type');
+                    const description = descriptionP && descriptionP.textContent.startsWith('Description:') ?
+                        descriptionP.textContent.replace('Description: ', '') : '';
+
+                    recordSetData = {
+                        id: recordSetId,
+                        name: name,
+                        parent_id: parentId,
+                        description: description
+                    };
+                }
+            });
+
+            if (recordSetData) {
+                this.showRecordSetForm(recordSetData);
+            }
+        } catch (error) {
+            this.showStatus('curator-status-message', `Error editing record set: ${error.message}`, 'error');
+        }
+    }
+
+    async deleteRecordSet(recordSetId) {
+        if (!confirm('Are you sure you want to delete this record set?')) {
+            return;
+        }
+
+        try {
+            this.setOperationInProgress('curator', 'Deleting record set...');
+
+            const response = await fetch('http://localhost:8000/curator/record-sets/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    record_set_id: recordSetId,
+                    version_only: false
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to delete record set');
+            }
+
+            this.setOperationComplete('curator', true);
+
+            // Remove the record set from display
+            const recordSets = document.querySelectorAll('.recordset-item');
+            recordSets.forEach(recordSetElement => {
+                const idSpan = recordSetElement.querySelector('.item-id');
+                if (idSpan && idSpan.textContent === recordSetId) {
+                    recordSetElement.remove();
+                }
+            });
+
+            this.showStatus('curator-status-message', 'Record set deleted successfully', 'success');
+        } catch (error) {
+            this.setOperationComplete('curator', false);
+            this.showStatus('curator-status-message', `Error deleting record set: ${error.message}`, 'error');
+        }
+    }
+
+    // CSV Template Methods
+    async browseJsonLdFile() {
+        try {
+            const result = await window.electronAPI.browseFile({
+                filters: [
+                    { name: 'JSON-LD Files', extensions: ['json', 'jsonld'] },
+                    { name: 'All Files', extensions: ['*'] }
+                ],
+                title: 'Select JSON-LD Data Model File'
+            });
+
+            if (result.success && result.filePath) {
+                document.getElementById('jsonld-file-path').value = result.filePath;
+            }
+        } catch (error) {
+            this.showStatus('curator-status-message', `Error browsing file: ${error.message}`, 'error');
+        }
+    }
+
+    async handleGenerateCsvTemplate() {
+        const filePath = document.getElementById('jsonld-file-path').value.trim();
+        const schemaUri = document.getElementById('schema-uri').value.trim() || null;
+
+        if (!filePath) {
+            this.showStatus('curator-status-message', 'Please select a JSON-LD file', 'error');
+            return;
+        }
+
+        try {
+            this.setOperationInProgress('curator', 'Generating CSV template...');
+
+            const response = await fetch('http://localhost:8000/curator/csv-template/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    data_model_jsonld_path: filePath,
+                    schema_uri: schemaUri
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to generate CSV template');
+            }
+
+            this.displayCsvTemplatePreview(result.headers);
+            this.setOperationComplete('curator', true);
+            this.showStatus('curator-status-message', `Generated template with ${result.headers.length} columns`, 'success');
+        } catch (error) {
+            this.setOperationComplete('curator', false);
+            this.showStatus('curator-status-message', `Error generating CSV template: ${error.message}`, 'error');
+        }
+    }
+
+    displayCsvTemplatePreview(headers) {
+        const previewSection = document.getElementById('csv-template-preview');
+        const headersContainer = document.getElementById('csv-headers-container');
+
+        previewSection.classList.remove('hidden');
+
+        headersContainer.innerHTML = '';
+
+        if (headers.length === 0) {
+            headersContainer.innerHTML = '<div class="no-data">No headers found in the template.</div>';
+            return;
+        }
+
+        const headersList = document.createElement('div');
+        headersList.className = 'csv-headers-list';
+
+        headers.forEach(header => {
+            const headerElement = document.createElement('div');
+            headerElement.className = 'csv-header';
+            headerElement.textContent = header;
+            headersList.appendChild(headerElement);
+        });
+
+        headersContainer.appendChild(headersList);
+
+        // Store headers for later use
+        this.csvTemplateHeaders = headers;
+    }
+
+    async handleUseCsvTemplate() {
+        if (!this.csvTemplateHeaders || this.csvTemplateHeaders.length === 0) {
+            this.showStatus('curator-status-message', 'No CSV template available to use', 'error');
+            return;
+        }
+
+        // Show the record set form with template integration
+        this.showRecordSetForm();
+
+        // You could potentially pre-populate fields or show the template info
+        this.showStatus('curator-status-message', `Template with ${this.csvTemplateHeaders.length} columns ready for Record Set creation`, 'success');
     }
 }
 
