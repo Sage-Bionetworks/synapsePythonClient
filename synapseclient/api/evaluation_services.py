@@ -315,7 +315,6 @@ async def get_evaluation_acl_async(
     The user should have the proper permissions to read the ACL.
 
     <https://rest-docs.synapse.org/rest/GET/evaluation/evalId/acl.html>
-    TODO: SHould this already be a mixin?
 
     Arguments:
         evaluation_id: The ID of the evaluation whose ACL is being retrieved.
