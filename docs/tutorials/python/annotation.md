@@ -25,7 +25,7 @@ In this tutorial you will:
 
 #### First let's retrieve all of the Synapse IDs we are going to use
 ```python
-{!docs/tutorials/python/tutorial_scripts/annotation.py!lines=5-22}
+{!docs/tutorials/python/tutorial_scripts/annotation.py!lines=5-23}
 ```
 
 #### Next let's define the annotations I want to set
