@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from opentelemetry import trace
 
+from synapseclient import File as SynapseFile
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
 from synapseclient.core import utils
@@ -1236,6 +1237,36 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
             f"Copied from file {self.id} to {parent_id} with new id of {file_copy.id}"
         )
         return file_copy
+
+    def _convert_into_legacy_file(self) -> SynapseFile:
+        """Convert the file object into a SynapseFile object."""
+        return_data = SynapseFile(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            etag=self.etag,
+            createdOn=self.created_on,
+            modifiedOn=self.modified_on,
+            createdBy=self.created_by,
+            modifiedBy=self.modified_by,
+            parentId=self.parent_id,
+            versionNumber=self.version_number,
+            versionLabel=self.version_label,
+            versionComment=self.version_comment,
+            dataFileHandleId=self.data_file_handle_id,
+            path=self.path,
+            properties={
+                "isLatestVersion": self.is_latest_version,
+            },
+            _file_handle=(
+                self.file_handle._convert_into_legacy_file_handle()
+                if self.file_handle
+                else None
+            ),
+            annotations=self.annotations,
+        )
+        delete_none_keys(return_data)
+        return return_data
 
 
 async def _needs_upload(
