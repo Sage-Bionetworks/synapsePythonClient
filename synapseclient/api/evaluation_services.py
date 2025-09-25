@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
-async def store_evaluation_async(
+async def store_evaluation(
     request_body: dict,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -58,7 +58,7 @@ async def store_evaluation_async(
     return response
 
 
-async def get_evaluation_async(
+async def get_evaluation(
     evaluation_id: Optional[str] = None,
     name: Optional[str] = None,
     *,
@@ -99,7 +99,7 @@ async def get_evaluation_async(
     return response
 
 
-async def get_evaluations_by_project_async(
+async def get_evaluations_by_project(
     project_id: str,
     access_type: Optional[str] = None,
     active_only: Optional[bool] = None,
@@ -158,7 +158,7 @@ async def get_evaluations_by_project_async(
     return evaluation_list
 
 
-async def get_all_evaluations_async(
+async def get_all_evaluations(
     access_type: Optional[str] = None,
     active_only: Optional[bool] = None,
     evaluation_ids: Optional[List[str]] = None,
@@ -215,7 +215,7 @@ async def get_all_evaluations_async(
     return evaluation_list
 
 
-async def get_available_evaluations_async(
+async def get_available_evaluations(
     active_only: Optional[bool] = None,
     evaluation_ids: Optional[List[str]] = None,
     offset: Optional[int] = None,
@@ -268,7 +268,7 @@ async def get_available_evaluations_async(
     return evaluation_list
 
 
-async def delete_evaluation_async(
+async def delete_evaluation(
     evaluation_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -297,7 +297,7 @@ async def delete_evaluation_async(
     await client.rest_delete_async(uri)
 
 
-async def get_evaluation_acl_async(
+async def get_evaluation_acl(
     evaluation_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -329,7 +329,7 @@ async def get_evaluation_acl_async(
     return acl_json
 
 
-async def update_evaluation_acl_async(
+async def update_evaluation_acl(
     acl: dict,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -356,9 +356,9 @@ async def update_evaluation_acl_async(
     Example:
         Update the ACL for an evaluation:
 
-            acl = await get_evaluation_acl_async("9614112")
+            acl = await get_evaluation_acl("9614112")
             # Modify ACL
-            updated_acl = await update_evaluation_acl_async(acl)
+            updated_acl = await update_evaluation_acl(acl)
     """
     from synapseclient import Synapse
 
@@ -370,7 +370,7 @@ async def update_evaluation_acl_async(
     return response
 
 
-async def get_evaluation_permissions_async(
+async def get_evaluation_permissions(
     evaluation_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,

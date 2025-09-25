@@ -262,7 +262,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         ```
         """
 
-        from synapseclient.api.evaluation_services import store_evaluation_async
+        from synapseclient.api.evaluation_services import store_evaluation
 
         # Get the client for logging
         client = Synapse.get_client(synapse_client=synapse_client)
@@ -279,7 +279,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         # CASE 1: No previous interaction with Synapse, so attempt to make a new evaluation
         if not self._last_persistent_instance:
             request_body = self.to_synapse_request(request_type="create")
-            result = await store_evaluation_async(
+            result = await store_evaluation(
                 request_body=request_body,
                 synapse_client=synapse_client,
             )
@@ -300,7 +300,7 @@ class Evaluation(EvaluationSynchronousProtocol):
                     logger=logger,
                 )
                 request_body = self.to_synapse_request(request_type="update")
-                result = await store_evaluation_async(
+                result = await store_evaluation(
                     request_body=request_body,
                     synapse_client=synapse_client,
                 )
@@ -359,12 +359,12 @@ class Evaluation(EvaluationSynchronousProtocol):
         evaluation_by_id, evaluation_by_name = asyncio.run(get_evaluations())
         ```
         """
-        from synapseclient.api.evaluation_services import get_evaluation_async
+        from synapseclient.api.evaluation_services import get_evaluation
 
         if not self.id and not self.name:
             raise ValueError("Either id or name must be set to get an evaluation")
 
-        retrieved_evaluation = await get_evaluation_async(
+        retrieved_evaluation = await get_evaluation(
             evaluation_id=self.id,
             name=self.name,
             synapse_client=synapse_client,
@@ -413,12 +413,12 @@ class Evaluation(EvaluationSynchronousProtocol):
         asyncio.run(delete_evaluations())
         ```
         """
-        from synapseclient.api.evaluation_services import delete_evaluation_async
+        from synapseclient.api.evaluation_services import delete_evaluation
 
         if not self.id:
             raise ValueError("id must be set to delete an evaluation")
 
-        await delete_evaluation_async(
+        await delete_evaluation(
             evaluation_id=self.id,
             synapse_client=synapse_client,
         )
@@ -465,12 +465,12 @@ class Evaluation(EvaluationSynchronousProtocol):
         acl = asyncio.run(get_evaluation_acl())
         ```
         """
-        from synapseclient.api.evaluation_services import get_evaluation_acl_async
+        from synapseclient.api.evaluation_services import get_evaluation_acl
 
         if not self.id:
             raise ValueError("id must be set to get evaluation ACL")
 
-        return await get_evaluation_acl_async(
+        return await get_evaluation_acl(
             evaluation_id=self.id,
             synapse_client=synapse_client,
         )
@@ -537,9 +537,9 @@ class Evaluation(EvaluationSynchronousProtocol):
         updated_acl = asyncio.run(update_evaluation_acl())
         ```
         """
-        from synapseclient.api.evaluation_services import update_evaluation_acl_async
+        from synapseclient.api.evaluation_services import update_evaluation_acl
 
-        return await update_evaluation_acl_async(
+        return await update_evaluation_acl(
             acl=acl,
             synapse_client=synapse_client,
         )
@@ -586,13 +586,13 @@ class Evaluation(EvaluationSynchronousProtocol):
         ```
         """
         from synapseclient.api.evaluation_services import (
-            get_evaluation_permissions_async,
+            get_evaluation_permissions,
         )
 
         if not self.id:
             raise ValueError("id must be set to get evaluation permissions")
 
-        return await get_evaluation_permissions_async(
+        return await get_evaluation_permissions(
             evaluation_id=self.id,
             synapse_client=synapse_client,
         )
@@ -656,9 +656,9 @@ class Evaluation(EvaluationSynchronousProtocol):
         all_evaluations, active_evaluations, specific_evaluations = asyncio.run(get_evaluations())
         ```
         """
-        from synapseclient.api.evaluation_services import get_all_evaluations_async
+        from synapseclient.api.evaluation_services import get_all_evaluations
 
-        result_dict = await get_all_evaluations_async(
+        result_dict = await get_all_evaluations(
             access_type=access_type,
             active_only=active_only,
             evaluation_ids=evaluation_ids,
@@ -732,10 +732,10 @@ class Evaluation(EvaluationSynchronousProtocol):
         ```
         """
         from synapseclient.api.evaluation_services import (
-            get_available_evaluations_async,
+            get_available_evaluations,
         )
 
-        result_dict = await get_available_evaluations_async(
+        result_dict = await get_available_evaluations(
             active_only=active_only,
             evaluation_ids=evaluation_ids,
             offset=offset,
@@ -816,10 +816,10 @@ class Evaluation(EvaluationSynchronousProtocol):
         ```
         """
         from synapseclient.api.evaluation_services import (
-            get_evaluations_by_project_async,
+            get_evaluations_by_project,
         )
 
-        result_dict = await get_evaluations_by_project_async(
+        result_dict = await get_evaluations_by_project(
             project_id=project_id,
             access_type=access_type,
             active_only=active_only,
