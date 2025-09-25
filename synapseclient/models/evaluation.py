@@ -585,9 +585,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         my_permissions = asyncio.run(get_evaluation_permissions())
         ```
         """
-        from synapseclient.api.evaluation_services import (
-            get_evaluation_permissions,
-        )
+        from synapseclient.api.evaluation_services import get_evaluation_permissions
 
         if not self.id:
             raise ValueError("id must be set to get evaluation permissions")
@@ -731,9 +729,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         available_evaluations, active_available_evaluations, limited_evaluations = asyncio.run(get_available_evaluations())
         ```
         """
-        from synapseclient.api.evaluation_services import (
-            get_available_evaluations,
-        )
+        from synapseclient.api.evaluation_services import get_available_evaluations
 
         result_dict = await get_available_evaluations(
             active_only=active_only,
@@ -815,9 +811,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         project_evaluations, active_project_evaluations, limited_project_evaluations = asyncio.run(get_project_evaluations())
         ```
         """
-        from synapseclient.api.evaluation_services import (
-            get_evaluations_by_project,
-        )
+        from synapseclient.api.evaluation_services import get_evaluations_by_project
 
         result_dict = await get_evaluations_by_project(
             project_id=project_id,

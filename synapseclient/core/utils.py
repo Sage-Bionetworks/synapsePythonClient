@@ -1517,6 +1517,7 @@ def merge_dataclass_entities(
                     log = logger
                     if not log:
                         import logging
+
                         log = logging.getLogger(LOGGER_NAME)
                     log.warning(
                         f"Field '{field_name}' cannot be modified. Changes will be ignored."

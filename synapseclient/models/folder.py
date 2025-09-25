@@ -315,7 +315,9 @@ class Folder(
         ):
             # Get logger from client
             client = Synapse.get_client(synapse_client=synapse_client)
-            merge_dataclass_entities(source=existing_folder, destination=self, logger=client.logger)
+            merge_dataclass_entities(
+                source=existing_folder, destination=self, logger=client.logger
+            )
         trace.get_current_span().set_attributes(
             {
                 "synapse.name": self.name or "",
