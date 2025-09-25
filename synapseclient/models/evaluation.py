@@ -297,6 +297,7 @@ class Evaluation(EvaluationSynchronousProtocol):
                         "owner_id",
                         "created_on",
                     ],
+                    logger=logger,
                 )
                 request_body = self.to_synapse_request(request_type="update")
                 result = await store_evaluation_async(

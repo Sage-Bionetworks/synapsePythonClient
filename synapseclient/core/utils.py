@@ -1433,6 +1433,7 @@ def merge_dataclass_entities(
     ],
     fields_to_ignore: typing.List[str] = None,
     fields_to_preserve_from_source: typing.List[str] = None,
+    logger: logging.Logger = None,
 ) -> typing.Union["Project", "Folder", "File", "Table", "Column", "Evaluation"]:
     """
     Utility function to merge two dataclass entities together. This is used when we are
@@ -1445,6 +1446,7 @@ def merge_dataclass_entities(
             take the value from the destination entity.
         fields_to_preserve_from_source: A list of fields from the source that should be
             preserved in the destination, overriding any changes made in the destination.
+        logger: An optional logger instance. If not provided, a default logger will be used.
 
     Returns:
         The destination entity with the merged values.
@@ -1467,6 +1469,7 @@ def merge_dataclass_entities(
                     destination=getattr(destination, key),
                     fields_to_ignore=fields_to_ignore,
                     fields_to_preserve_from_source=fields_to_preserve_from_source,
+                    logger=logger,
                 )
         elif key not in destination_dict or destination_dict[key] is None:
             modified_items[key] = value
@@ -1488,6 +1491,7 @@ def merge_dataclass_entities(
                         destination=destination_columns[source_column_key],
                         fields_to_ignore=["id"],
                         fields_to_preserve_from_source=fields_to_preserve_from_source,
+                        logger=logger,
                     )
         elif key == "items":
             source_items: List["EntityRef"] = getattr(source, key)
@@ -1509,10 +1513,12 @@ def merge_dataclass_entities(
                 source_value = getattr(source, field_name)
                 destination_value = getattr(destination, field_name)
                 if destination_value != source_value:
-                    import logging
-
-                    logger = logging.getLogger(LOGGER_NAME)
-                    logger.warning(
+                    # Use provided logger or fall back to default
+                    log = logger
+                    if not log:
+                        import logging
+                        log = logging.getLogger(LOGGER_NAME)
+                    log.warning(
                         f"Field '{field_name}' cannot be modified. Changes will be ignored."
                     )
                 setattr(destination, field_name, source_value)

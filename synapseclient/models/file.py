@@ -837,6 +837,7 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
                 source=existing_file,
                 destination=self,
                 fields_to_ignore=self._determine_fields_to_ignore_in_merge(),
+                logger=client.logger,
             )
 
         if self.id:
