@@ -19,11 +19,11 @@ from synapseclient.api import get_file_handle_for_download_async
 from synapseclient.core import utils
 from synapseclient.core.download import (
     DownloadRequest,
+    PresignedUrlInfo,
     download_by_file_handle,
+    download_file,
     download_from_url,
     download_from_url_multi_threaded,
-    PresignedUrlInfo,
-    download_file,
 )
 from synapseclient.core.exceptions import (
     SynapseError,

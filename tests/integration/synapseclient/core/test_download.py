@@ -5,7 +5,7 @@ import os
 import random
 import shutil
 import tempfile
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -19,10 +19,10 @@ import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.api.file_services import get_file_handle_for_download
 from synapseclient.core.download import (
-    download_from_url,
-    download_functions,
     PresignedUrlInfo,
+    download_from_url,
     download_from_url_multi_threaded,
+    download_functions,
 )
 from synapseclient.core.exceptions import SynapseError, SynapseMd5MismatchError
 from synapseclient.models import File, Project
