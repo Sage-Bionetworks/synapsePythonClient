@@ -481,12 +481,12 @@ async def download_by_file_handle(
         try:
             file_handle_result: Dict[
                 str, str
-                ] = await get_file_handle_for_download_async(
-                    file_handle_id=file_handle_id,
-                    synapse_id=synapse_id,
-                    entity_type=entity_type,
-                    synapse_client=syn,
-                )
+            ] = await get_file_handle_for_download_async(
+                file_handle_id=file_handle_id,
+                synapse_id=synapse_id,
+                entity_type=entity_type,
+                synapse_client=syn,
+            )
             file_handle = file_handle_result["fileHandle"]
             concrete_type = file_handle["concreteType"]
             storage_location_id = file_handle.get("storageLocationId")
