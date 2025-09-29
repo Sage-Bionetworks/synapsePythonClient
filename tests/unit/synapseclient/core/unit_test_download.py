@@ -18,9 +18,12 @@ from synapseclient import Synapse
 from synapseclient.api import get_file_handle_for_download_async
 from synapseclient.core import utils
 from synapseclient.core.download import (
+    DownloadRequest,
     download_by_file_handle,
     download_from_url,
     download_from_url_multi_threaded,
+    PresignedUrlInfo,
+    download_file,
 )
 from synapseclient.core.exceptions import (
     SynapseError,
@@ -643,6 +646,220 @@ class TestDownloadFromUrlMultiThreaded:
                 utils.temp_download_filename(path, 123), path
             )
 
+    async def test_download_with_presigned_url_with_match_md5(self) -> None:
+        """Test downloading a file when presigned_url is provided."""
+        with (
+            patch(
+                "synapseclient.core.download.download_functions.download_file"
+            ) as mock_download_file,
+            patch.object(utils, "temp_download_filename", return_value="/temp/path"),
+            patch.object(utils, "md5_for_file_hex", return_value="expectedMd5"),
+            patch.object(os, "remove") as mock_os_remove,
+            patch.object(shutil, "move") as mock_move,
+        ):
+            path = os.path.abspath("/myfakepath")
+
+            # Create a presigned URL info
+            presigned_url_info = PresignedUrlInfo(
+                file_name="test_file.txt",
+                url="https://synapse.org/test_file.txt",
+                expiration_utc=datetime.datetime.now(tz=datetime.timezone.utc)
+                + datetime.timedelta(hours=1),
+            )
+            request = DownloadRequest(
+                path=utils.temp_download_filename(
+                    destination=path, file_handle_id=None
+                ),
+                debug=self.syn.debug,
+                presigned_url=presigned_url_info,
+            )
+            await download_from_url_multi_threaded(
+                destination=path,
+                expected_md5="expectedMd5",
+                synapse_client=self.syn,
+                presigned_url=presigned_url_info,
+            )
+
+            # Verify download_file was called with the correct request
+            mock_download_file.assert_called_once_with(
+                client=self.syn, download_request=request
+            )
+            mock_os_remove.assert_not_called()
+            mock_move.assert_called_once_with("/temp/path", "/myfakepath")
+
+    async def test_download_with_presigned_url_with_mismatch_md5(self) -> None:
+        """Test downloading a file when presigned_url is provided."""
+        with (
+            patch(
+                "synapseclient.core.download.download_functions.download_file"
+            ) as mock_download_file,
+            patch.object(utils, "temp_download_filename", return_value="/temp/path"),
+            patch.object(utils, "md5_for_file_hex", return_value="anotherMd5"),
+            patch.object(os, "remove") as mock_os_remove,
+            patch.object(shutil, "move") as mock_move,
+        ):
+            path = os.path.abspath("/myfakepath")
+
+            # Create a presigned URL info
+            presigned_url_info = PresignedUrlInfo(
+                file_name="test_file.txt",
+                url="https://synapse.org/test_file.txt",
+                expiration_utc=datetime.datetime.now(tz=datetime.timezone.utc)
+                + datetime.timedelta(hours=1),
+            )
+            request = DownloadRequest(
+                path=utils.temp_download_filename(
+                    destination=path, file_handle_id=None
+                ),
+                debug=self.syn.debug,
+                presigned_url=presigned_url_info,
+            )
+            with pytest.raises(SynapseMd5MismatchError):
+                await download_from_url_multi_threaded(
+                    destination=path,
+                    expected_md5="expectedMd5",
+                    synapse_client=self.syn,
+                    presigned_url=presigned_url_info,
+                )
+
+            # Verify download_file was called with the correct request
+            mock_download_file.assert_called_once_with(
+                client=self.syn, download_request=request
+            )
+            mock_os_remove.assert_called_once_with(utils.temp_download_filename(path))
+            mock_move.assert_not_called()
+
+    async def test_download_with_presigned_url_no_md5(self) -> None:
+        """Test downloading a file when presigned_url is provided without MD5 check."""
+        with (
+            patch(
+                "synapseclient.core.download.download_functions.download_file"
+            ) as mock_download_file,
+            patch.object(utils, "temp_download_filename", return_value="/temp/path"),
+            patch.object(os, "remove") as mock_os_remove,
+            patch.object(shutil, "move") as mock_move,
+        ):
+            path = os.path.abspath("/myfakepath")
+
+            # Create a presigned URL info
+            presigned_url_info = PresignedUrlInfo(
+                file_name="test_file.txt",
+                url="https://synapse.org/test_file.txt",
+                expiration_utc=datetime.datetime.now(tz=datetime.timezone.utc)
+                + datetime.timedelta(hours=1),
+            )
+            request = DownloadRequest(
+                path=utils.temp_download_filename(
+                    destination=path, file_handle_id=None
+                ),
+                debug=self.syn.debug,
+                presigned_url=presigned_url_info,
+            )
+
+            await download_from_url_multi_threaded(
+                destination=path,
+                synapse_client=self.syn,
+                presigned_url=presigned_url_info,
+            )
+
+            # Verify download_file was called
+            mock_download_file.assert_called_once_with(
+                client=self.syn, download_request=request
+            )
+
+            # Verify no MD5-related operations
+            mock_os_remove.assert_not_called()
+            mock_move.assert_called_once_with(utils.temp_download_filename(path), path)
+
+    async def test_download_with_presigned_url_empty_filename(self) -> None:
+        """Test downloading a file when presigned_url has empty file name."""
+        with (
+            patch(
+                "synapseclient.core.download.download_functions.download_file"
+            ) as mock_download_file,
+            patch.object(utils, "temp_download_filename", return_value="/myfakepath"),
+            patch.object(os, "remove") as mock_os_remove,
+            patch.object(shutil, "move") as mock_move,
+        ):
+            path = os.path.abspath("/myfakepath")
+
+            # Create a presigned URL info with empty file name
+            presigned_url_info = PresignedUrlInfo(
+                file_name="",
+                url="https://synapse.org/test_file.txt",
+                expiration_utc=datetime.datetime.now(tz=datetime.timezone.utc)
+                + datetime.timedelta(hours=1),
+            )
+            request = DownloadRequest(
+                path=utils.temp_download_filename(
+                    destination=path, file_handle_id=None
+                ),
+                debug=self.syn.debug,
+                presigned_url=presigned_url_info,
+            )
+            with pytest.raises(
+                SynapseError,
+                match="The provided pre-signed URL is missing the file name.",
+            ):
+                await download_from_url_multi_threaded(
+                    file_handle_id=None,
+                    destination=path,
+                    object_id=None,
+                    object_type=None,
+                    expected_md5=None,
+                    synapse_client=self.syn,
+                    presigned_url=presigned_url_info,
+                )
+
+            # Verify download_file was called with the correct request
+            mock_download_file.assert_not_called()
+
+    async def test_download_without_presigned_url_uses_temp_file(self) -> None:
+        """Test that downloading without presigned_url uses temp file and proper file_handle_id."""
+        with (
+            patch("synapseclient.core.download.download_functions.download_file"),
+            patch.object(utils, "md5_for_file_hex", return_value="expectedMd5"),
+            patch.object(
+                utils, "temp_download_filename", return_value="/temp/path"
+            ) as mock_temp_filename,
+            patch.object(os, "remove") as mock_os_remove,
+            patch.object(shutil, "move") as mock_move,
+        ):
+            path = os.path.abspath("/myfakepath")
+            file_handle_id = "12345"
+
+            await download_from_url_multi_threaded(
+                file_handle_id=file_handle_id,
+                destination=path,
+                object_id="syn123",
+                object_type="FileEntity",
+                expected_md5="expectedMd5",
+                synapse_client=self.syn,
+                presigned_url=None,  # No presigned URL
+            )
+
+            # Verify temp filename was created with file_handle_id
+            mock_temp_filename.assert_called_once_with(
+                destination=path, file_handle_id=file_handle_id
+            )
+
+            # Verify download_file was called
+            from synapseclient.core.download.download_functions import download_file
+
+            download_file.assert_called_once()
+
+            # Get the call arguments
+            call_args = download_file.call_args
+            request_arg = call_args[1]["download_request"]
+
+            # Verify the request was created correctly without presigned_url
+            assert request_arg.presigned_url is None
+            assert request_arg.file_handle_id == int(file_handle_id)
+            assert request_arg.path == "/temp/path"  # Uses temp path
+
+            # Verify move operation from temp to final destination
+            mock_move.assert_called_once_with("/temp/path", path)
+
 
 class TestDownloadFromUrl:
     @pytest.fixture(autouse=True, scope="function")
@@ -1071,6 +1288,237 @@ class TestDownloadFromUrl:
                 allow_redirects=False,
                 auth=None,
             )
+
+    async def test_download_expired_presigned_url(self, syn: Synapse) -> None:
+        """
+        Test that when url_is_presigned=True and the URL is expired,
+        a SynapseError is raised instead of trying to refresh the URL.
+        """
+        url = (
+            "http://www.ayy.lmao/filerino.txt?Expires=0"
+            "&X-Amz-Date=20240509T180000Z"
+            "&X-Amz-Expires=1000"
+        )
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+
+        with (
+            patch(
+                "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
+                return_value=datetime.datetime(
+                    1900, 1, 1, tzinfo=datetime.timezone.utc
+                ),
+            ) as mocked_pre_signed_url_expiration_time,
+            patch(
+                "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            ) as mocked_get_file_handle_for_download,
+            patch.object(syn.logger, "debug") as mocked_logger_debug,
+        ):
+            # WHEN I call download_from_url with an expired presigned URL
+            with pytest.raises(
+                SynapseError,
+                match="The provided pre-signed URL has expired. Please provide a new pre-signed URL.",
+            ):
+                download_from_url(
+                    url=url,
+                    destination=destination,
+                    entity_id=None,
+                    file_handle_associate_type=None,
+                    url_is_presigned=True,
+                )
+            # I expect a debug log about the download
+            assert mocked_logger_debug.call_count == 1
+            assert (
+                mocked_logger_debug.call_args[0][0]
+                == f"Downloading from {url} to {destination}"
+            )
+
+            # I expect the expired url to be identified
+            mocked_pre_signed_url_expiration_time.assert_called_once_with(url)
+            # AND I expect the URL refresh to NOT be attempted since it's a presigned URL
+            mocked_get_file_handle_for_download.assert_not_called()
+
+    async def test_download_valid_presigned_url(self, syn: Synapse) -> None:
+        """
+        Test that when url_is_presigned=True and the URL is valid,
+        the download proceeds normally without URL refresh attempts.
+        """
+        url = (
+            "http://www.ayy.lmao/filerino.txt?Expires=1715000000"
+            "&X-Amz-Date=20240509T180000Z"
+            "&X-Amz-Expires=1000"
+        )
+        contents = "\n".join(str(i) for i in range(1000))
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+        temp_destination = os.path.normpath(
+            os.path.expanduser("~/fake/path/filerino.txt.temp")
+        )
+
+        mock_requests_get = MockRequestGetFunction(
+            [
+                create_mock_response(
+                    url,
+                    "stream",
+                    contents=contents,
+                    buffer_size=1024,
+                    partial_end=len(contents),
+                    status_code=200,
+                ),
+            ]
+        )
+
+        with (
+            patch.object(
+                syn._requests_session, "get", side_effect=mock_requests_get
+            ) as mocked_get,
+            patch(
+                "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
+                return_value=datetime.datetime(
+                    2100, 1, 1, tzinfo=datetime.timezone.utc
+                ),
+            ) as mocked_pre_signed_url_expiration_time,
+            patch(
+                "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            ) as mocked_get_file_handle_for_download,
+            patch.object(
+                Synapse, "_generate_headers", side_effect=mock_generate_headers
+            ),
+            patch.object(
+                utils, "temp_download_filename", return_value=temp_destination
+            ),
+            patch(
+                "synapseclient.core.download.download_functions.open",
+                new_callable=mock_open(),
+                create=True,
+            ) as mocked_open,
+            patch.object(hashlib, "new") as mocked_hashlib_new,
+            patch.object(shutil, "move") as mocked_move,
+            patch.object(os, "remove") as mocked_remove,
+            patch.object(os.path, "exists", return_value=False),
+            patch.object(syn.logger, "debug") as mocked_logger_debug,
+        ):
+            mocked_hashlib_new.return_value.hexdigest.return_value = "fake md5 is fake"
+
+            # WHEN I call download_from_url with a valid presigned URL
+            result = download_from_url(
+                url=url,
+                destination=destination,
+                entity_id=None,
+                file_handle_associate_type=None,
+                url_is_presigned=True,
+            )
+            # I expect a debug log about the download
+            assert mocked_logger_debug.call_count == 1
+            assert (
+                mocked_logger_debug.call_args[0][0]
+                == f"Downloading from {url} to {destination}"
+            )
+            # I expect the download to succeed
+            assert result == destination
+            # AND I expect the URL expiration check to be performed
+            mocked_pre_signed_url_expiration_time.assert_called_once_with(url)
+            # AND I expect the URL refresh to NOT be attempted since it's a presigned URL
+            mocked_get_file_handle_for_download.assert_not_called()
+            # AND I expect the download request to be made
+            mocked_get.assert_called_once_with(
+                url=url,
+                headers=mock_generate_headers(self),
+                stream=True,
+                allow_redirects=False,
+                auth=None,
+            )
+            # assert open() called once
+            mocked_open.assert_called_once_with(temp_destination, "wb")
+
+            # assert shutil.move() called once
+            mocked_move.assert_called_once_with(temp_destination, destination)
+
+            # assert file was removed since there was no md5 given
+            mocked_remove.assert_not_called
+
+    async def test_download_valid_presigned_url_403_error(self, syn: Synapse) -> None:
+        """
+        Test that when url_is_presigned=True and the URL is valid,
+        the download proceeds normally without URL refresh attempts.
+        """
+        url = (
+            "http://www.ayy.lmao/filerino.txt?Expires=1715000000"
+            "&X-Amz-Date=20240509T180000Z"
+            "&X-Amz-Expires=1000"
+        )
+        destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+        temp_destination = os.path.normpath(
+            os.path.expanduser("~/fake/path/filerino.txt.temp")
+        )
+
+        mock_requests_get = MockRequestGetFunction(
+            [
+                create_mock_response(
+                    url,
+                    "error",
+                    status_code=403,
+                    reason="Fake Reason",
+                ),
+            ]
+        )
+
+        with (
+            patch.object(
+                syn._requests_session, "get", side_effect=mock_requests_get
+            ) as mocked_get,
+            patch(
+                "synapseclient.core.download.download_functions._pre_signed_url_expiration_time",
+                return_value=datetime.datetime(
+                    2100, 1, 1, tzinfo=datetime.timezone.utc
+                ),
+            ) as mocked_pre_signed_url_expiration_time,
+            patch(
+                "synapseclient.core.download.download_functions.get_file_handle_for_download",
+            ) as mocked_get_file_handle_for_download,
+            patch.object(
+                Synapse, "_generate_headers", side_effect=mock_generate_headers
+            ),
+            patch.object(
+                utils, "temp_download_filename", return_value=temp_destination
+            ),
+            patch(
+                "synapseclient.core.download.download_functions.open",
+                new_callable=mock_open(),
+                create=True,
+            ),
+            patch.object(hashlib, "new") as mocked_hashlib_new,
+            patch.object(os.path, "exists", return_value=False),
+            patch.object(syn.logger, "debug") as mocked_logger_debug,
+        ):
+            mocked_hashlib_new.return_value.hexdigest.return_value = "fake md5 is fake"
+
+            with pytest.raises(SynapseError, match="403 Client Error: Fake Reason"):
+                download_from_url(
+                    url=url,
+                    destination=destination,
+                    entity_id=None,
+                    file_handle_associate_type=None,
+                    url_is_presigned=True,
+                )
+            # I expect a debug log about the download
+            assert mocked_logger_debug.call_count == 1
+            assert (
+                mocked_logger_debug.call_args[0][0]
+                == f"Downloading from {url} to {destination}"
+            )
+
+            # I expect the URL expiration check to be performed
+            mocked_pre_signed_url_expiration_time.assert_called_with(url)
+            # AND I expect the URL refresh to NOT be attempted since it's a presigned URL
+            mocked_get_file_handle_for_download.assert_not_called()
+            # AND I expect the download request to be made
+            mocked_get.assert_called_once_with(
+                url=url,
+                headers=mock_generate_headers(self),
+                stream=True,
+                allow_redirects=False,
+                auth=None,
+            )
+            mocked_hashlib_new.assert_not_called()
 
 
 async def test_get_file_handle_download__error_unauthorized(syn: Synapse) -> None:

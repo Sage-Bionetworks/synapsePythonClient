@@ -31,6 +31,7 @@ from synapseclient.core.constants.method_flags import (
 from synapseclient.core.download import (
     SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE,
     DownloadRequest,
+    PresignedUrlInfo,
     PresignedUrlProvider,
     _pre_signed_url_expiration_time,
     download_file,
@@ -478,13 +479,13 @@ async def download_by_file_handle(
 
     while retries > 0:
         try:
-            file_handle_result: Dict[
-                str, str
-            ] = await get_file_handle_for_download_async(
-                file_handle_id=file_handle_id,
-                synapse_id=synapse_id,
-                entity_type=entity_type,
-                synapse_client=syn,
+            file_handle_result: Dict[str, str] = (
+                await get_file_handle_for_download_async(
+                    file_handle_id=file_handle_id,
+                    synapse_id=synapse_id,
+                    entity_type=entity_type,
+                    synapse_client=syn,
+                )
             )
             file_handle = file_handle_result["fileHandle"]
             concrete_type = file_handle["concreteType"]
@@ -681,30 +682,31 @@ async def download_by_file_handle(
 
 
 async def download_from_url_multi_threaded(
-    file_handle_id: str,
-    object_id: str,
-    object_type: str,
     destination: str,
+    file_handle_id: Optional[str] = None,
+    object_id: Optional[str] = None,
+    object_type: Optional[str] = None,
     *,
     expected_md5: str = None,
     synapse_client: Optional["Synapse"] = None,
+    presigned_url: Optional[PresignedUrlInfo] = None,
 ) -> str:
     """
     Download a file from the given URL using multiple threads.
 
     Arguments:
-        file_handle_id: The id of the FileHandle to download
-        object_id:      The id of the Synapse object that uses the FileHandle
+        destination:    The destination on local file system
+        file_handle_id: Optional. The id of the FileHandle to download
+        object_id:      Optional. The id of the Synapse object that uses the FileHandle
             e.g. "syn123"
-        object_type:    The type of the Synapse object that uses the
+        object_type:    Optional. The type of the Synapse object that uses the
             FileHandle e.g. "FileEntity". Any of
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
-        destination:    The destination on local file system
         expected_md5:   The expected MD5
-        content_size:   The size of the content
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+        presigned_url:  Optional. PresignedUrlInfo object if given, the URL is already a pre-signed URL.
     Raises:
         SynapseMd5MismatchError: If the actual MD5 does not match expected MD5.
 
@@ -718,19 +720,38 @@ async def download_from_url_multi_threaded(
     temp_destination = utils.temp_download_filename(
         destination=destination, file_handle_id=file_handle_id
     )
+    # check if the presigned url is expired
+    if presigned_url is not None:
+        if (
+            presigned_url.expiration_utc
+            < datetime.datetime.now(tz=datetime.timezone.utc)
+            + PresignedUrlProvider._TIME_BUFFER
+        ):
+            raise SynapseError(
+                "The provided pre-signed URL has expired. Please provide a new pre-signed URL."
+            )
 
-    request = DownloadRequest(
-        file_handle_id=int(file_handle_id),
-        object_id=object_id,
-        object_type=object_type,
-        path=temp_destination,
-        debug=client.debug,
-    )
+        if not presigned_url.file_name:
+            raise SynapseError("The provided pre-signed URL is missing the file name.")
 
-    await download_file(
-        client=client,
-        download_request=request,
-    )
+        if os.path.isdir(destination):
+            # If the destination is a directory, then the file name should be the same as the file name in the presigned url
+            # This is added to ensure the temp file can be copied to the desired destination without changing the file name
+            destination = os.path.join(destination, presigned_url.file_name)
+        request = DownloadRequest(
+            path=temp_destination,
+            debug=client.debug,
+            presigned_url=presigned_url,
+        )
+    else:
+        request = DownloadRequest(
+            file_handle_id=int(file_handle_id),
+            object_id=object_id,
+            object_type=object_type,
+            path=temp_destination,
+            debug=client.debug,
+        )
+    await download_file(client=client, download_request=request)
 
     if expected_md5:  # if md5 not set (should be the case for all except http download)
         actual_md5 = utils.md5_for_file_hex(filename=temp_destination)
@@ -753,11 +774,12 @@ async def download_from_url_multi_threaded(
 def download_from_url(
     url: str,
     destination: str,
-    entity_id: Optional[str],
-    file_handle_associate_type: Optional[str],
+    entity_id: Optional[str] = None,
+    file_handle_associate_type: Optional[str] = None,
     file_handle_id: Optional[str] = None,
     expected_md5: Optional[str] = None,
     progress_bar: Optional[tqdm] = None,
+    url_is_presigned: Optional[bool] = False,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Union[str, None]:
@@ -767,15 +789,17 @@ def download_from_url(
     Arguments:
         url:           The source of download
         destination:   The destination on local file system
-        entity_id:      The id of the Synapse object that uses the FileHandle
+        entity_id:     Optional. The id of the Synapse object that uses the FileHandle
             e.g. "syn123"
-        file_handle_associate_type:    The type of the Synapse object that uses the
+        file_handle_associate_type:    Optional. The type of the Synapse object that uses the
             FileHandle e.g. "FileEntity". Any of
             <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
         file_handle_id:  Optional. If given, the file will be given a temporary name that includes the file
                                 handle id which allows resuming partial downloads of the same file from previous
                                 sessions
         expected_md5:  Optional. If given, check that the MD5 of the downloaded file matches the expected MD5
+        progress_bar: Optional progress bar to update during download
+        url_is_presigned: If True, the URL is already a pre-signed URL.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -797,7 +821,10 @@ def download_from_url(
     actual_md5 = None
     redirect_count = 0
     delete_on_md5_mismatch = True
-    client.logger.debug(f"[{entity_id}]: Downloading from {url} to {destination}")
+    if entity_id:
+        client.logger.debug(f"[{entity_id}]: Downloading from {url} to {destination}")
+    else:
+        client.logger.debug(f"Downloading from {url} to {destination}")
     span = trace.get_current_span()
 
     if file_handle_id:
@@ -904,13 +931,18 @@ def download_from_url(
                         url
                     )
                 if url_is_expired:
-                    response = get_file_handle_for_download(
-                        file_handle_id=file_handle_id,
-                        synapse_id=entity_id,
-                        entity_type=file_handle_associate_type,
-                        synapse_client=client,
-                    )
-                    url = response["preSignedURL"]
+                    if url_is_presigned:
+                        raise SynapseError(
+                            "The provided pre-signed URL has expired. Please provide a new pre-signed URL."
+                        )
+                    else:
+                        response = get_file_handle_for_download(
+                            file_handle_id=file_handle_id,
+                            synapse_id=entity_id,
+                            entity_type=file_handle_associate_type,
+                            synapse_client=client,
+                        )
+                        url = response["preSignedURL"]
                 response = with_retry(
                     lambda url=url, range_header=range_header, auth=auth: client._requests_session.get(
                         url=url,
