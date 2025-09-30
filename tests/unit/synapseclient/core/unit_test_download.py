@@ -685,7 +685,7 @@ class TestDownloadFromUrlMultiThreaded:
                 client=self.syn, download_request=request
             )
             mock_os_remove.assert_not_called()
-            mock_move.assert_called_once_with("/temp/path", "/myfakepath")
+            mock_move.assert_called_once_with("/temp/path", path)
 
     async def test_download_with_presigned_url_with_mismatch_md5(self) -> None:
         """Test downloading a file when presigned_url is provided."""
