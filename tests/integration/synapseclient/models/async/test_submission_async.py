@@ -10,8 +10,9 @@ def test_create_submission_async():
         name="Test Submission",
         entity_id=file.id,
         evaluation_id=evaluation.id,
-        version_number=1
+        version_number=1,
     ).store()
+
 
 def test_get_submission_async():
     # GIVEN a submission has been created
@@ -19,7 +20,7 @@ def test_get_submission_async():
         name="Test Submission",
         entity_id=file.id,
         evaluation_id=evaluation.id,
-        version_number=1
+        version_number=1,
     ).store()
 
     # WHEN the submission is retrieved by ID
@@ -32,6 +33,7 @@ def test_get_submission_async():
     # AND the user_id matches the current user
     current_user = syn.getUserProfile()().id
     assert retrieved_submission.user_id == current_user
+
 
 def test_get_evaluation_submissions_async():
     # GIVEN an evaluation has submissions
@@ -47,6 +49,7 @@ def test_get_evaluation_submissions_async():
     for submission in submissions:
         assert submission.evaluation_id == evaluation.id
 
+
 def test_get_user_submissions_async():
     # GIVEN a user has made submissions
     current_user = syn.getUserProfile()().id
@@ -61,6 +64,7 @@ def test_get_user_submissions_async():
     for submission in submissions:
         assert submission.user_id == current_user
 
+
 def test_get_submission_count_async():
     # GIVEN an evaluation has submissions
     evaluation = Evaluation(id=evaluation_id).get()
@@ -71,13 +75,14 @@ def test_get_submission_count_async():
     # THEN the count is greater than zero
     assert count > 0
 
+
 def test_delete_submission_async():
     # GIVEN a submission has been created
     submission = Submission(
         name="Test Submission",
         entity_id=file.id,
         evaluation_id=evaluation.id,
-        version_number=1
+        version_number=1,
     ).store()
 
     # WHEN the submission is deleted
@@ -90,13 +95,14 @@ def test_delete_submission_async():
     except SynapseError as e:
         assert e.response.status_code == 404
 
+
 def test_cancel_submission_async():
     # GIVEN a submission has been created
     submission = Submission(
         name="Test Submission",
         entity_id=file.id,
         evaluation_id=evaluation.id,
-        version_number=1
+        version_number=1,
     ).store()
 
     # WHEN the submission is canceled
@@ -104,7 +110,8 @@ def test_cancel_submission_async():
 
     # THEN the submission status should be 'CANCELED'
     updated_submission = Submission(id=submission.id).get()
-    assert updated_submission.status == 'CANCELED'
+    assert updated_submission.status == "CANCELED"
+
 
 def test_get_submission_status_async():
     # GIVEN a submission has been created
@@ -112,14 +119,15 @@ def test_get_submission_status_async():
         name="Test Submission",
         entity_id=file.id,
         evaluation_id=evaluation.id,
-        version_number=1
+        version_number=1,
     ).store()
 
     # WHEN the submission status is retrieved
     status = submission.get_status()
 
     # THEN the status should be 'RECEIVED'
-    assert status == 'RECEIVED'
+    assert status == "RECEIVED"
+
 
 def test_update_submission_status_async():
     # GIVEN a submission has been created
@@ -127,19 +135,20 @@ def test_update_submission_status_async():
         name="Test Submission",
         entity_id=file.id,
         evaluation_id=evaluation.id,
-        version_number=1
+        version_number=1,
     ).store()
 
     # WHEN the submission status is retrieved
     status = submission.get_status()
-    assert status != 'SCORED'
+    assert status != "SCORED"
 
     # AND the submission status is updated to 'SCORED'
-    submission.update_status('SCORED')
+    submission.update_status("SCORED")
 
     # THEN the submission status should be 'SCORED'
     updated_submission = Submission(id=submission.id).get()
-    assert updated_submission.status == 'SCORED'
+    assert updated_submission.status == "SCORED"
+
 
 def test_get_evaluation_submission_statuses_async():
     # GIVEN an evaluation has submissions
@@ -151,32 +160,31 @@ def test_get_evaluation_submission_statuses_async():
     # THEN the statuses list is not empty
     assert len(statuses) > 0
 
+
 def test_batch_update_statuses_async():
     # GIVEN multiple submissions have been created
     submission1 = Submission(
         name="Test Submission 1",
         entity_id=file.id,
         evaluation_id=evaluation.id,
-        version_number=1
+        version_number=1,
     ).store()
     submission2 = Submission(
         name="Test Submission 2",
         entity_id=file.id,
         evaluation_id=evaluation.id,
-        version_number=1
+        version_number=1,
     ).store()
 
     # WHEN the statuses of the submissions are batch updated to 'SCORED'
-    Submission.batch_update_statuses(
-        [submission1.id, submission2.id],
-        'SCORED'
-    )
+    Submission.batch_update_statuses([submission1.id, submission2.id], "SCORED")
 
     # THEN each submission status should be 'SCORED'
     updated_submission1 = Submission(id=submission1.id).get()
     updated_submission2 = Submission(id=submission2.id).get()
-    assert updated_submission1.status == 'SCORED'
-    assert updated_submission2.status == 'SCORED'
+    assert updated_submission1.status == "SCORED"
+    assert updated_submission2.status == "SCORED"
+
 
 def test_get_evaluation_submission_bundles_async():
     # GIVEN an evaluation has submissions
@@ -187,6 +195,7 @@ def test_get_evaluation_submission_bundles_async():
 
     # THEN the bundles list is not empty
     assert len(bundles) > 0
+
 
 def test_get_user_submission_bundles_async():
     # GIVEN a user has made submissions
