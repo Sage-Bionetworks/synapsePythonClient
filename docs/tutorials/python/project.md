@@ -72,7 +72,7 @@ the existing project object.
 from synapseclient.models import Project
 
 my_project_object = Project(name="My uniquely named project about Alzheimer's Disease").get()
-print(f"I just got my project: {my_project_object.name}, id: {my_project_id}")
+print(f"I just got my project: {my_project_object.name}, id: {my_project_object.id}")
 ```
 
 <details class="example">
