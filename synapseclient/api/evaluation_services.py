@@ -19,6 +19,7 @@ async def store_evaluation(
     Create or update an Evaluation on Synapse.
 
     <https://rest-docs.synapse.org/rest/POST/evaluation.html>
+    <https://rest-docs.synapse.org/rest/PUT/evaluation/evalId.html>
 
     Arguments:
         request_body: A dictionary containing the evaluation data
@@ -26,7 +27,7 @@ async def store_evaluation(
                         instance from the Synapse class constructor.
 
     Returns:
-        The created Evaluation object.
+        The Evaluation response object as a raw JSON dict.
 
     Raises:
         SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
@@ -314,7 +315,7 @@ async def get_evaluation_acl(
                         instance from the Synapse class constructor.
 
     Returns:
-        AccessControlList: The ACL for the Evaluation.
+        The AccessControlList response object as a raw JSON dict.
 
     Raises:
         SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
@@ -347,7 +348,7 @@ async def update_evaluation_acl(
                         instance from the Synapse class constructor.
 
     Returns:
-        AccessControlList: The updated ACL.
+        The AccessControlList response object as a raw JSON dict.
 
     Raises:
         ValueError: If the ACL object is invalid or missing required fields.

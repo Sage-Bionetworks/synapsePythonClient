@@ -437,7 +437,7 @@ class Evaluation(EvaluationSynchronousProtocol):
                             instance from the Synapse class constructor.
 
         Returns:
-            AccessControlList: The ACL for this Evaluation.
+            The AccessControlList response object as a raw JSON dict.
 
         Raises:
             ValueError: If evaluation_id is not set.
@@ -500,7 +500,7 @@ class Evaluation(EvaluationSynchronousProtocol):
                             instance from the Synapse class constructor.
 
         Returns:
-            AccessControlList: The updated ACL.
+            The AccessControlList response object as a raw JSON dict.
 
         Raises:
             ValueError: If the ACL object is invalid or missing required fields.
