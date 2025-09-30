@@ -14,6 +14,7 @@ from synapseclient.models.folder import Folder
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
+from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
 from synapseclient.models.services import FailureStrategy
 from synapseclient.models.submissionview import SubmissionView
 from synapseclient.models.table import Table
@@ -112,6 +113,9 @@ __all__ = [
     "DatasetCollection",
     # Submission models
     "SubmissionView",
+    # JSON Schema models
+    "SchemaOrganization",
+    "JSONSchema",
 ]
 
 # Static methods to expose as functions
