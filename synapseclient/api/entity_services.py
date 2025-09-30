@@ -1275,6 +1275,8 @@ async def get_child(
 
     This service can also be used to lookup projectId by setting the parentId to None.
 
+    This calls to the REST API found here: <https://rest-docs.synapse.org/rest/POST/entity/child.html>
+
     Arguments:
         entity_name: The name of the entity to find
         parent_id: The parent ID. Set to None when looking up a project by name.

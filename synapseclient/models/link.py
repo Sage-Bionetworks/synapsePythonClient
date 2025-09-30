@@ -155,7 +155,7 @@ class LinkSynchronousProtocol(Protocol):
             from synapseclient.models import Link
 
             syn = Synapse()
-            await syn.login()
+            syn.login()
 
             link_instance = Link(
                 name="my_link",
@@ -424,7 +424,7 @@ class Link(LinkSynchronousProtocol):
 
             async def get_link_target():
                 syn = Synapse()
-                await syn.login()
+                syn.login()
 
                 # Get the target entity that the link points to
                 target_entity = await Link(id="syn123").get_async()
@@ -443,7 +443,7 @@ class Link(LinkSynchronousProtocol):
 
             async def get_link_metadata():
                 syn = Synapse()
-                await syn.login()
+                syn.login()
 
                 # Get just the link entity itself
                 link_entity = await Link(id="syn123").get_async(follow_link=False)
@@ -462,7 +462,7 @@ class Link(LinkSynchronousProtocol):
 
             async def get_link_with_file_options():
                 syn = Synapse()
-                await syn.login()
+                syn.login()
 
                 # Follow link to file with custom download options
                 file_entity = await Link(id="syn123").get_async(
@@ -544,7 +544,7 @@ class Link(LinkSynchronousProtocol):
 
             async def store_link():
                 syn = Synapse()
-                await syn.login()
+                syn.login()
 
                 link_instance = await Link(
                     name="my_link",
@@ -598,9 +598,9 @@ class Link(LinkSynchronousProtocol):
     async def _find_existing_entity(
         self, *, synapse_client: Optional[Synapse] = None
     ) -> Union["File", None]:
-        """Determines if the file already exists in Synapse. If it does it will return
-        the file object, otherwise it will return None. This is used to determine if the
-        file should be updated or created."""
+        """Determines if the entity already exists in Synapse. If it does it will return
+        the entity object, otherwise it will return None. This is used to determine if the
+        entity should be updated or created."""
 
         async def get_link(existing_id: str) -> "Link":
             """Small wrapper to retrieve a link instance without raising an error if it
@@ -618,6 +618,7 @@ class Link(LinkSynchronousProtocol):
             )
             return await link_copy.get_async(
                 synapse_client=synapse_client,
+                follow_link=False,
             )
 
         if (
