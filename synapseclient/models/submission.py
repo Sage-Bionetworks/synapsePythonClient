@@ -11,10 +11,7 @@ from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
-from synapseclient.models.mixins.table_components import (
-    DeleteMixin, 
-    GetMixin,
-)
+from synapseclient.models.mixins.table_components import DeleteMixin, GetMixin
 
 
 class SubmissionSynchronousProtocol(Protocol):
@@ -112,7 +109,7 @@ class Submission(
         docker_repository_name: For Docker repositories, the repository name.
         docker_digest: For Docker repositories, the digest of the submitted Docker image.
         activity: The Activity model represents the main record of Provenance in Synapse.
-        
+
     Example: Retrieve a Submission.
         ```python
         from synapseclient import Synapse

@@ -7,7 +7,9 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
-async def create_submission(request_body: dict, synapse_client: Optional["Synapse"] = None) -> dict:
+async def create_submission(
+    request_body: dict, synapse_client: Optional["Synapse"] = None
+) -> dict:
     """
     Creates a Submission and sends a submission notification email to the submitter's team members.
 
@@ -23,13 +25,15 @@ async def create_submission(request_body: dict, synapse_client: Optional["Synaps
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = "/evaluation/submission"
-    
+
     response = await client.rest_post_async(uri, body=json.dumps(request_body))
 
     return response
 
 
-async def get_submission(submission_id: str, synapse_client: Optional["Synapse"] = None) -> dict:
+async def get_submission(
+    submission_id: str, synapse_client: Optional["Synapse"] = None
+) -> dict:
     """
     Retrieves a Submission by its ID.
 
@@ -39,7 +43,7 @@ async def get_submission(submission_id: str, synapse_client: Optional["Synapse"]
         submission_id: The ID of the submission to fetch.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                         instance from the Synapse class constructor.
-                        
+
     Returns:
         The requested Submission.
     """
@@ -48,18 +52,18 @@ async def get_submission(submission_id: str, synapse_client: Optional["Synapse"]
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/submission/{submission_id}"
-    
+
     response = await client.rest_get_async(uri)
 
     return response
 
 
 async def get_evaluation_submissions(
-    evaluation_id: str, 
+    evaluation_id: str,
     status: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
-    synapse_client: Optional["Synapse"] = None
+    synapse_client: Optional["Synapse"] = None,
 ) -> dict:
     """
     Retrieves all Submissions for a specified Evaluation queue.
@@ -68,14 +72,14 @@ async def get_evaluation_submissions(
 
     Arguments:
         evaluation_id: The ID of the evaluation queue.
-        status: Optionally filter submissions by a submission status, such as SCORED, VALID, 
+        status: Optionally filter submissions by a submission status, such as SCORED, VALID,
                 INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
         limit: Limits the number of submissions in a single response. Default to 20.
-        offset: The offset index determines where this page will start from. 
+        offset: The offset index determines where this page will start from.
                 An index of 0 is the first submission. Default to 0.
-        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` 
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
-                        
+
     Returns:
         # TODO: Support pagination in the return type.
         A response JSON containing a paginated list of submissions for the evaluation queue.
@@ -85,14 +89,11 @@ async def get_evaluation_submissions(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/all"
-    query_params = {
-        "limit": limit,
-        "offset": offset
-    }
-    
+    query_params = {"limit": limit, "offset": offset}
+
     if status:
         query_params["status"] = status
-    
+
     response = await client.rest_get_async(uri, **query_params)
 
     return response
@@ -103,7 +104,7 @@ async def get_user_submissions(
     user_id: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
-    synapse_client: Optional["Synapse"] = None
+    synapse_client: Optional["Synapse"] = None,
 ) -> dict:
     """
     Retrieves Submissions for a specified Evaluation queue and user.
@@ -113,14 +114,14 @@ async def get_user_submissions(
 
     Arguments:
         evaluation_id: The ID of the evaluation queue.
-        user_id: Optionally specify the ID of the user whose submissions will be returned. 
+        user_id: Optionally specify the ID of the user whose submissions will be returned.
                 If omitted, this returns the submissions of the caller.
         limit: Limits the number of submissions in a single response. Default to 20.
-        offset: The offset index determines where this page will start from. 
+        offset: The offset index determines where this page will start from.
                 An index of 0 is the first submission. Default to 0.
-        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` 
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
-                        
+
     Returns:
         A response JSON containing a paginated list of user submissions for the evaluation queue.
     """
@@ -129,14 +130,11 @@ async def get_user_submissions(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission"
-    query_params = {
-        "limit": limit,
-        "offset": offset
-    }
-    
+    query_params = {"limit": limit, "offset": offset}
+
     if user_id:
         query_params["userId"] = user_id
-    
+
     response = await client.rest_get_async(uri, **query_params)
 
     return response
@@ -145,7 +143,7 @@ async def get_user_submissions(
 async def get_submission_count(
     evaluation_id: str,
     status: Optional[str] = None,
-    synapse_client: Optional["Synapse"] = None
+    synapse_client: Optional["Synapse"] = None,
 ) -> dict:
     """
     Gets the number of Submissions for a specified Evaluation queue, optionally filtered by submission status.
@@ -154,11 +152,11 @@ async def get_submission_count(
 
     Arguments:
         evaluation_id: The ID of the evaluation queue.
-        status: Optionally filter submissions by a submission status, such as SCORED, VALID, 
+        status: Optionally filter submissions by a submission status, such as SCORED, VALID,
                 INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
-        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` 
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
-                        
+
     Returns:
         A response JSON containing the submission count.
     """
@@ -168,18 +166,17 @@ async def get_submission_count(
 
     uri = f"/evaluation/{evaluation_id}/submission/count"
     query_params = {}
-    
+
     if status:
         query_params["status"] = status
-    
+
     response = await client.rest_get_async(uri, **query_params)
 
     return response
 
 
 async def delete_submission(
-    submission_id: str,
-    synapse_client: Optional["Synapse"] = None
+    submission_id: str, synapse_client: Optional["Synapse"] = None
 ) -> None:
     """
     Deletes a Submission and its SubmissionStatus.
@@ -188,7 +185,7 @@ async def delete_submission(
 
     Arguments:
         submission_id: The ID of the submission to delete.
-        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` 
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
     """
     from synapseclient import Synapse
@@ -196,13 +193,12 @@ async def delete_submission(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/submission/{submission_id}"
-    
+
     await client.rest_delete_async(uri)
 
 
 async def cancel_submission(
-    submission_id: str,
-    synapse_client: Optional["Synapse"] = None
+    submission_id: str, synapse_client: Optional["Synapse"] = None
 ) -> dict:
     """
     Cancels a Submission. Only the user who created the Submission may cancel it.
@@ -211,18 +207,18 @@ async def cancel_submission(
 
     Arguments:
         submission_id: The ID of the submission to cancel.
-        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` 
+        synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
-                        
+
     Returns:
-        The canceled Submission.
+        The Submission response object for the canceled submission as a JSON dict.
     """
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/submission/{submission_id}/cancellation"
-    
+
     response = await client.rest_put_async(uri)
 
     return response
