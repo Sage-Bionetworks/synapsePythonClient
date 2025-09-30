@@ -314,7 +314,7 @@ class TestDownloadFromUrl:
     ) -> None:
         """Tests that a file download is retried when URL is expired."""
         # GIVEN a file stored in synapse
-        original_file = utils.make_bogus_data_file(40000)
+        original_file = utils.make_bogus_data_file()
         file = await File(path=original_file, parent_id=project_model.id).store_async(
             synapse_client=syn
         )
