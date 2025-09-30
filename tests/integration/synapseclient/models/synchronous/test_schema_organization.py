@@ -35,7 +35,7 @@ def fixture_module_organization(request) -> SchemaOrganization:
     Returns a created organization at the module scope. Used to hold JSON Schemas created by tests.
     """
 
-    name = "".join(i for i in str(uuid.uuid4()) if i.isalpha())
+    name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
     org = SchemaOrganization(name)
     org.create()
 
@@ -55,7 +55,7 @@ def fixture_json_schema(module_organization: SchemaOrganization) -> JSONSchema:
     Returns a JSON Schema
     """
 
-    name = "".join(i for i in str(uuid.uuid4()) if i.isalpha())
+    name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
     js = JSONSchema(name, module_organization.name)
     return js
 
@@ -66,7 +66,7 @@ def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
     Returns a Synapse organization.
     """
 
-    name = "".join(i for i in str(uuid.uuid4()) if i.isalpha())
+    name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
     org = SchemaOrganization(name)
 
     def delete_org():
@@ -84,7 +84,7 @@ def fixture_organization_with_schema(request) -> SchemaOrganization:
     Returns a Synapse organization.
     As Cleanup it checks for JSON Schemas and deletes them"""
 
-    name = "".join(i for i in str(uuid.uuid4()) if i.isalpha())
+    name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
     org = SchemaOrganization(name)
     org.create()
     js1 = JSONSchema("schema1", name)
@@ -235,13 +235,18 @@ class TestJSONSchema:
         # WHEN get_body has no version argument
         body0 = json_schema.get_body(synapse_client=self.syn)
         # THEN the body should be the latest version
-        del body0["$id"]
-        assert body0 == {"description": ""}
+        assert body0 == {
+            "description": "",
+            "$id": f"https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/{json_schema.organization_name}-{json_schema.name}",
+        }
         # WHEN get_body has a version argument
         body1 = json_schema.get_body(version="0.0.1", synapse_client=self.syn)
         body2 = json_schema.get_body(version="0.0.2", synapse_client=self.syn)
         # THEN the appropriate body should be returned
-        del body1["$id"]
-        del body2["$id"]
-        assert body1 == {}
-        assert body2 == {"description": ""}
+        assert body1 == {
+            "$id": f"https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/{json_schema.organization_name}-{json_schema.name}-0.0.1",
+        }
+        assert body2 == {
+            "description": "",
+            "$id": f"https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/{json_schema.organization_name}-{json_schema.name}-0.0.2",
+        }
