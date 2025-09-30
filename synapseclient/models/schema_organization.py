@@ -248,11 +248,11 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             syn.login()
 
             org = SchemaOrganization("my.org.name")
-            resource_access = [{
-                'principalId': 1,
-                'accessType': ['DELETE', 'READ', 'UPDATE', 'CREATE', 'CHANGE_PERMISSIONS']
-            }]
-            asyncio.run(org.update_acl_async(resource_access=resource_access))
+            current acl = asyncio.run(org.get_acl_async())
+            resource_access = current_acl["resourceAccess"]
+            resource_access.append({"principalId": 1, "accessType": ["READ"]})
+            etag = current_acl["etag"]
+            asyncio.run(org.update_acl_async(resource_access, etag))
 
         """
         if not self.id:

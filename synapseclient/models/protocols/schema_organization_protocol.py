@@ -163,11 +163,11 @@ class SchemaOrganizationProtocol(Protocol):
             syn.login()
 
             org = SchemaOrganization("my.org.name")
-            resource_access = [{
-                'principalId': 1,
-                'accessType': ['DELETE', 'READ', 'UPDATE', 'CREATE', 'CHANGE_PERMISSIONS']
-            }]
-            org.update_acl_async(resource_access=resource_access)
+            current acl = org.get_acl()
+            resource_access = current_acl["resourceAccess"]
+            resource_access.append({"principalId": 1, "accessType": ["READ"]})
+            etag = current_acl["etag"]
+            org.update_acl(resource_access, etag)
 
         """
         return None
