@@ -1075,7 +1075,7 @@ async def get_async(
         )
 
     # If looking up by name, get the synapse_id first
-    if entity_name is not None:
+    if entity_name is not None and synapse_id is None:
         synapse_id = await get_child(
             entity_name=entity_name, parent_id=parent_id, synapse_client=synapse_client
         )
