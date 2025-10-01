@@ -270,3 +270,195 @@ class TestEvaluation:
         evaluation.etag = "def-456-uvw"
         # THEN has_changed should be True
         assert evaluation.has_changed is True
+
+    def test_update_acl_permissions_update_existing(self):
+        """Test updating permissions for an existing principal."""
+        # GIVEN an evaluation instance
+        evaluation = Evaluation()
+
+        # AND an ACL dictionary with existing permissions
+        acl = {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 12345, "accessType": ["READ", "CREATE"]},
+                {"principalId": 67890, "accessType": ["READ"]},
+            ],
+        }
+
+        # WHEN we update permissions for an existing principal
+        result = evaluation._update_acl_permissions(
+            principal_id="12345",  # Test string conversion
+            access_type=["READ", "SUBMIT"],
+            acl=acl,
+        )
+
+        # THEN the ACL should be updated for that principal
+        assert result == {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 12345, "accessType": ["READ", "SUBMIT"]},
+                {"principalId": 67890, "accessType": ["READ"]},
+            ],
+        }
+
+    def test_update_acl_permissions_add_new(self):
+        """Test adding permissions for a new principal."""
+        # GIVEN an evaluation instance
+        evaluation = Evaluation()
+
+        # AND an ACL dictionary without the principal
+        acl = {
+            "id": "9614112",
+            "resourceAccess": [{"principalId": 67890, "accessType": ["READ"]}],
+        }
+
+        # WHEN we update permissions for a new principal
+        result = evaluation._update_acl_permissions(
+            principal_id=12345,  # Test integer input
+            access_type=["READ", "SUBMIT"],
+            acl=acl,
+        )
+
+        # THEN the principal should be added to the ACL
+        assert result == {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 67890, "accessType": ["READ"]},
+                {"principalId": 12345, "accessType": ["READ", "SUBMIT"]},
+            ],
+        }
+
+    def test_update_acl_permissions_empty_acl(self):
+        """Test updating permissions for an empty ACL."""
+        # GIVEN an evaluation instance
+        evaluation = Evaluation()
+
+        # AND an empty ACL dictionary
+        acl = {"id": "9614112", "resourceAccess": []}
+
+        # WHEN we update permissions for a principal
+        result = evaluation._update_acl_permissions(
+            principal_id="12345", access_type=["READ", "SUBMIT"], acl=acl
+        )
+
+        # THEN the principal should be added to the ACL
+        assert result == {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 12345, "accessType": ["READ", "SUBMIT"]}
+            ],
+        }
+
+    @patch("synapseclient.api.evaluation_services.update_evaluation_acl")
+    @patch("synapseclient.models.Evaluation.get_acl_async")
+    async def test_update_acl_async_with_principal_id(
+        self, mock_get_acl_async, mock_update_evaluation_acl
+    ):
+        """Test updating ACL permissions with principal_id and access_types."""
+        # GIVEN an evaluation with an ID
+        evaluation = Evaluation(id="9614112")
+
+        # AND mocked ACL response
+        mock_acl = {
+            "id": "9614112",
+            "resourceAccess": [{"principalId": 67890, "accessType": ["READ"]}],
+        }
+        mock_get_acl_async.return_value = mock_acl
+
+        # AND a mocked update response
+        updated_acl = {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 67890, "accessType": ["READ"]},
+                {"principalId": 12345, "accessType": ["READ", "SUBMIT"]},
+            ],
+        }
+        mock_update_evaluation_acl.return_value = updated_acl
+
+        # WHEN we update permissions for a principal
+        result = await evaluation.update_acl_async(
+            principal_id=12345, access_types=["READ", "SUBMIT"]
+        )
+
+        # THEN get_acl_async should be called
+        mock_get_acl_async.assert_called_once_with(synapse_client=None)
+
+        # AND the ACL should be updated with the principal's permissions
+        expected_acl = {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 67890, "accessType": ["READ"]},
+                {"principalId": 12345, "accessType": ["READ", "SUBMIT"]},
+            ],
+        }
+        mock_update_evaluation_acl.assert_called_once_with(
+            acl=expected_acl, synapse_client=None
+        )
+
+        # AND the result should be the updated ACL
+        assert result == updated_acl
+
+    @patch("synapseclient.api.evaluation_services.update_evaluation_acl")
+    async def test_update_acl_async_with_full_acl(self, mock_update_evaluation_acl):
+        """Test updating ACL permissions with a complete ACL dictionary."""
+        # GIVEN an evaluation with an ID
+        evaluation = Evaluation(id="9614112")
+
+        # AND a complete ACL dictionary
+        acl = {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 12345, "accessType": ["READ", "SUBMIT"]}
+            ],
+        }
+
+        # AND a mocked update response
+        mock_update_evaluation_acl.return_value = acl
+
+        # WHEN we update the ACL with the complete dictionary
+        result = await evaluation.update_acl_async(acl=acl)
+
+        # THEN update_evaluation_acl should be called with the ACL
+        mock_update_evaluation_acl.assert_called_once_with(acl=acl, synapse_client=None)
+
+        # AND the result should be the updated ACL
+        assert result == acl
+
+    async def test_update_acl_async_missing_id(self):
+        """Test that update_acl_async raises ValueError when ID is missing."""
+        # GIVEN an evaluation without an ID
+        evaluation = Evaluation()
+
+        # WHEN we try to update the ACL
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="id must be set to update evaluation ACL"):
+            await evaluation.update_acl_async(
+                principal_id=12345, access_types=["READ", "SUBMIT"]
+            )
+
+        # WHEN we try to update with a complete ACL
+        # THEN it should still raise a ValueError
+        with pytest.raises(ValueError, match="id must be set to update evaluation ACL"):
+            await evaluation.update_acl_async(
+                acl={
+                    "id": "9614112",
+                    "resourceAccess": [
+                        {"principalId": 12345, "accessType": ["READ", "SUBMIT"]}
+                    ],
+                }
+            )
+
+    async def test_update_acl_async_missing_parameters(self):
+        """Test that update_acl_async raises ValueError when parameters are missing."""
+        # GIVEN an evaluation with an ID
+        evaluation = Evaluation(id="9614112")
+
+        # WHEN we call update_acl_async without required parameters
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="Either .* or acl must be provided"):
+            await evaluation.update_acl_async()
+
+        # WHEN we provide only principal_id but no access_types
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="Either .* or acl must be provided"):
+            await evaluation.update_acl_async(principal_id=12345)

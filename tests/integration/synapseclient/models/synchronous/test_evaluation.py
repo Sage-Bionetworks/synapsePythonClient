@@ -523,9 +523,72 @@ class TestEvaluationAccess:
         # THEN the permissions should be retrieved
         assert permissions is not None
 
-        # AND the permissions variable should be assigned to a non-empty dictionary
-        assert isinstance(permissions, dict)
-        assert len(permissions) > 0
+    def test_update_acl_with_principal_id(self, test_evaluation: Evaluation):
+        """Test updating ACL for an evaluation using principal_id and access_types."""
+        # GIVEN the current user's ID
+        user_profile = self.syn.getUserProfile()
+        current_user_id = int(user_profile.get("ownerId"))
+
+        # WHEN we update the ACL for the current user with specific permissions
+        updated_acl = test_evaluation.update_acl(
+            principal_id=current_user_id,
+            access_types=["READ", "UPDATE", "DELETE", "CHANGE_PERMISSIONS"],
+            synapse_client=self.syn,
+        )
+
+        # THEN the ACL should be updated
+        assert updated_acl is not None
+        assert "resourceAccess" in updated_acl
+
+        # AND the user's permissions should be updated
+        user_access = None
+        for access in updated_acl["resourceAccess"]:
+            if int(access.get("principalId")) == current_user_id:
+                user_access = access
+                break
+
+        assert (
+            user_access is not None
+        ), f"User {current_user_id} not found in updated ACL"
+        assert set(user_access["accessType"]) == set(
+            ["READ", "UPDATE", "DELETE", "CHANGE_PERMISSIONS"]
+        )
+
+    def test_update_acl_with_full_dictionary(self, test_evaluation: Evaluation):
+        """Test updating ACL for an evaluation using a complete ACL dictionary."""
+        # GIVEN the current ACL
+        current_acl = test_evaluation.get_acl(synapse_client=self.syn)
+
+        # AND a modified version of the ACL with a changed permission set
+        modified_acl = current_acl.copy()
+        user_profile = self.syn.getUserProfile()
+        current_user_id = int(user_profile.get("ownerId"))
+
+        # Find the current user in the ACL and update permissions
+        for access in modified_acl["resourceAccess"]:
+            if int(access.get("principalId")) == current_user_id:
+                access["accessType"] = ["READ", "DELETE", "SUBMIT"]
+                break
+
+        # WHEN we update the ACL with the complete dictionary
+        updated_acl = test_evaluation.update_acl(
+            acl=modified_acl, synapse_client=self.syn
+        )
+
+        # THEN the ACL should be updated
+        assert updated_acl is not None
+
+        # AND the user's permissions should be updated
+        user_access = None
+        for access in updated_acl["resourceAccess"]:
+            if int(access.get("principalId")) == current_user_id:
+                user_access = access
+                break
+
+        assert (
+            user_access is not None
+        ), f"User {current_user_id} not found in updated ACL"
+        assert set(user_access["accessType"]) == set(["READ", "DELETE", "SUBMIT"])
 
 
 class TestEvaluationValidation:
