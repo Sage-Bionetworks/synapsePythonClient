@@ -116,15 +116,15 @@ class TestSchemaOrganization:
         self.syn = syn
 
     def test_create_and_get(self, organization: SchemaOrganization) -> None:
-        # GIVEN an initialized organization object that hasn't been created in Synapse
+        # GIVEN an initialized organization object that hasn't been stored in Synapse
         # THEN it shouldn't have any metadata besides it's name
         assert organization.name is not None
         assert organization.id is None
         assert organization.created_by is None
         assert organization.created_on is None
-        # AND it shouldn't exists in Synapse
+        # AND it shouldn't exist in Synapse
         assert not org_exists(organization.name, synapse_client=self.syn)
-        # WHEN I create the organization the metadata will be saved
+        # WHEN I store the organization the metadata will be saved
         organization.store(synapse_client=self.syn)
         assert organization.name is not None
         assert organization.id is not None
@@ -139,6 +139,10 @@ class TestSchemaOrganization:
         assert organization.id is not None
         assert organization.created_by is not None
         assert organization.created_on is not None
+        # WHEN I try to store an organization that exists in Synapse
+        # THEN I should get an exception
+        with pytest.raises(SynapseHTTPError):
+            org2.store()
 
     def test_get_json_schema_list(
         self,

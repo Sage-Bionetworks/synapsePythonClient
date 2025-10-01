@@ -103,7 +103,6 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         self._fill_from_dict(response)
         return self
 
-    # Should this be named 'store_async'?
     async def store_async(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
         Stores this organization in Synapse
@@ -125,8 +124,6 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             asyncio.run(org.store_async())
 
         """
-        if self.id:
-            await self.get_async(synapse_client=synapse_client)
         response = await create_organization(self.name, synapse_client=synapse_client)
         self._fill_from_dict(response)
         return self
