@@ -76,9 +76,6 @@ class SchemaOrganization(SchemaOrganizationProtocol):
     def __post_init__(self) -> None:
         self._check_name(self.name)
 
-    def __repr__(self):
-        return f"SchemaOrganization(name={self.name!r})"
-
     async def get_async(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
         Gets the metadata from Synapse for this organization
@@ -374,11 +371,6 @@ class JSONSchema(JSONSchemaProtocol):
     def __post_init__(self) -> None:
         self.uri = f"{self.organization_name}-{self.name}"
         self._check_name(self.name)
-
-    def __repr__(self):
-        return (
-            f"JSONSchema(name={self.name!r}, organization={self.organization_name!r})"
-        )
 
     async def get_async(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
