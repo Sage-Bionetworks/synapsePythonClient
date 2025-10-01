@@ -700,7 +700,6 @@ class JSONSchema(JSONSchemaProtocol):
             )
 
 
-# TODO: Move to a utils module
 def list_json_schema_organizations(
     synapse_client: Optional["Synapse"] = None,
 ) -> list[SchemaOrganization]:
