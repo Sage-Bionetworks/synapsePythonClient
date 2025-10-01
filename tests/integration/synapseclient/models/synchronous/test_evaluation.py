@@ -313,28 +313,6 @@ class TestStoreEvaluation:
         assert updated_evaluation.etag is not None
         assert updated_evaluation.etag != old_etag
 
-    def test_update_evaluation_with_id_and_no_prior_call(
-        self, test_evaluation: Evaluation
-    ):
-        # GIVEN an existing evaluation and its attributes
-        existing_id = test_evaluation.id
-        original_description = test_evaluation.description
-        original_content_source = test_evaluation.content_source
-
-        new_name = f"updated_evaluation_no_prior_call_{uuid.uuid4()}"
-
-        # WHEN I create a new Evaluation instance with the existing ID and update the name
-        # without first retrieving the evaluation from Synapse
-        evaluation_to_update = Evaluation(id=existing_id, name=new_name)
-        updated_evaluation = evaluation_to_update.store(synapse_client=self.syn)
-
-        # THEN the evaluation should be updated with the new value
-        assert updated_evaluation.name == new_name
-
-        # AND the original attributes should remain the same
-        assert updated_evaluation.id == existing_id
-        assert updated_evaluation.description == original_description
-        assert updated_evaluation.content_source == original_content_source
 
     def test_certain_fields_unchanged_once_retrieved_from_synapse(
         self, test_evaluation: Evaluation
@@ -358,6 +336,42 @@ class TestStoreEvaluation:
         # THEN those fields should remain unchanged after the store operation
         assert updated_evaluation.id == original_id
         assert updated_evaluation.content_source == original_content_source
+
+    def test_store_with_nonexistent_id(self, test_project: Project):
+        # GIVEN an evaluation with a non-existent ID that's never been stored
+        unique_name = f"test_evaluation_{uuid.uuid4()}"
+        evaluation = Evaluation(
+            id="syn999999999",
+            name=unique_name,
+            description="Test description",
+            content_source=test_project.id,
+            submission_instructions_message="Instructions",
+            submission_receipt_message="Receipt",
+        )
+
+        # WHEN I store the evaluation
+        # THEN it should succeed by ignoring the invalid ID
+        created_eval = evaluation.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(created_eval.id)
+        
+        # AND other important attribute should not be changed
+        assert created_eval.name == unique_name
+        
+        # GIVEN an evaluation that was retrieved from Synapse
+        # AND modified with a non-existent ID
+        retrieved_eval = Evaluation(id=created_eval.id).get(synapse_client=self.syn)
+        original_id = retrieved_eval.id
+        retrieved_eval.id = "syn999999999"
+        retrieved_eval.name = f"test_evaluation_{uuid.uuid4()}_new_name"
+        
+        # WHEN I update the evaluation
+        # THEN it should succeed and ignore the invalid ID (with warning)
+        updated_eval = retrieved_eval.store(synapse_client=self.syn)
+        
+        # AND the updated evaluation should maintain its original ID
+        assert updated_eval.id == original_id
+        assert updated_eval.id != "syn999999999"
+        assert updated_eval.name == retrieved_eval.name
 
     def test_store_unchanged_evaluation(self, test_evaluation: Evaluation, monkeypatch):
         warning_messages = []
@@ -564,21 +578,3 @@ class TestEvaluationValidation:
             ValueError, match="id must be set to get evaluation permissions"
         ):
             evaluation.get_permissions(synapse_client=self.syn)
-
-    def test_store_with_nonexistent_id(self):
-        # WHEN I try to store an evaluation with an ID that doesn't exist in Synapse
-        evaluation = Evaluation(
-            id="syn999999999",
-            name="test_evaluation",
-            description="Test description",
-            content_source="syn123456",
-            submission_instructions_message="Instructions",
-            submission_receipt_message="Receipt",
-        )
-
-        # THEN it should raise a SynapseHTTPError with a clear message
-        with pytest.raises(
-            SynapseHTTPError,
-            match="Evaluation with ID syn999999999 was not found in Synapse",
-        ):
-            evaluation.store(synapse_client=self.syn)

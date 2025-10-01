@@ -61,7 +61,7 @@ from .evaluation_services import (
     get_evaluation_acl,
     get_evaluation_permissions,
     get_evaluations_by_project,
-    store_evaluation,
+    create_or_update_evaluation,
     update_evaluation_acl,
 )
 from .file_services import (
@@ -254,7 +254,7 @@ __all__ = [
     # table_services
     "create_table_snapshot",
     # evaluation_services
-    "store_evaluation",
+    "create_or_update_evaluation",
     "get_evaluation",
     "get_evaluations_by_project",
     "get_all_evaluations",

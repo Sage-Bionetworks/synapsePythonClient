@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from synapseclient import Synapse
 
 
-async def store_evaluation(
+async def create_or_update_evaluation(
     request_body: dict,
     *,
     synapse_client: Optional["Synapse"] = None,

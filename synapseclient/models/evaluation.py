@@ -262,7 +262,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         ```
         """
 
-        from synapseclient.api.evaluation_services import store_evaluation
+        from synapseclient.api.evaluation_services import create_or_update_evaluation
 
         # Get the client for logging
         client = Synapse.get_client(synapse_client=synapse_client)
@@ -279,7 +279,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         # CASE 1: No previous interaction with Synapse, so attempt to make a new evaluation
         if not self._last_persistent_instance:
             request_body = self.to_synapse_request(request_type="create")
-            result = await store_evaluation(
+            result = await create_or_update_evaluation(
                 request_body=request_body,
                 synapse_client=synapse_client,
             )
@@ -300,7 +300,7 @@ class Evaluation(EvaluationSynchronousProtocol):
                     logger=logger,
                 )
                 request_body = self.to_synapse_request(request_type="update")
-                result = await store_evaluation(
+                result = await create_or_update_evaluation(
                     request_body=request_body,
                     synapse_client=synapse_client,
                 )
