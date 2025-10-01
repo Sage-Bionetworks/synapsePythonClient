@@ -10,6 +10,16 @@ from synapseclient.models import JSONSchema, SchemaOrganization
 from synapseclient.models.schema_organization import list_json_schema_organizations
 
 
+def create_test_entity_name():
+    """Creates a random string for naming orgs and schemas in Synapse for testing
+
+    Returns:
+        A legal Synapse org/schema name
+    """
+    random_string = "".join(i for i in str(uuid.uuid4()) if i.isalpha())
+    return f"SYNPY.TEST.{random_string}"
+
+
 def org_exists(name: str, synapse_client: Optional[Synapse] = None) -> bool:
     """
     Checks if any organizations exists with the given name
@@ -34,9 +44,7 @@ def fixture_module_organization(request) -> SchemaOrganization:
     """
     Returns a created organization at the module scope. Used to hold JSON Schemas created by tests.
     """
-
-    name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
-    org = SchemaOrganization(name)
+    org = SchemaOrganization(create_test_entity_name())
     org.store()
 
     def delete_org():
@@ -54,9 +62,7 @@ def fixture_json_schema(module_organization: SchemaOrganization) -> JSONSchema:
     """
     Returns a JSON Schema
     """
-
-    name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
-    js = JSONSchema(name, module_organization.name)
+    js = JSONSchema(create_test_entity_name(), module_organization.name)
     return js
 
 
@@ -65,8 +71,7 @@ def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
     """
     Returns a Synapse organization.
     """
-
-    name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
+    name = create_test_entity_name()
     org = SchemaOrganization(name)
 
     def delete_org():
@@ -83,8 +88,7 @@ def fixture_organization_with_schema(request) -> SchemaOrganization:
     """
     Returns a Synapse organization.
     As Cleanup it checks for JSON Schemas and deletes them"""
-
-    name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
+    name = create_test_entity_name()
     org = SchemaOrganization(name)
     org.store()
     js1 = JSONSchema("schema1", name)
