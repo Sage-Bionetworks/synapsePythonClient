@@ -349,12 +349,43 @@ class TestEvaluation:
             ],
         }
 
+    def test_update_acl_permissions_remove_principal(self):
+        """Test removing a principal from the ACL by providing an empty access_type list."""
+        # GIVEN an evaluation instance
+        evaluation = Evaluation()
+
+        # AND an ACL dictionary with existing permissions
+        acl = {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 12345, "accessType": ["READ", "CREATE"]},
+                {"principalId": 67890, "accessType": ["READ"]},
+            ],
+        }
+
+        # AND a mocked Synapse client
+        mock_client = MagicMock()
+        mock_logger = MagicMock()
+        mock_client.logger = mock_logger
+
+        # WHEN we update permissions for a principal with an empty access_type list
+        with patch.object(Synapse, "get_client", return_value=mock_client):
+            result = evaluation._update_acl_permissions(
+                principal_id="12345", access_type=[], acl=acl
+            )
+
+        # THEN the principal should be removed from the ACL
+        assert result == {
+            "id": "9614112",
+            "resourceAccess": [{"principalId": 67890, "accessType": ["READ"]}],
+        }
+
     @patch("synapseclient.api.evaluation_services.update_evaluation_acl")
     @patch("synapseclient.models.Evaluation.get_acl_async")
     async def test_update_acl_async_with_principal_id(
         self, mock_get_acl_async, mock_update_evaluation_acl
     ):
-        """Test updating ACL permissions with principal_id and access_types."""
+        """Test updating ACL permissions with principal_id and access_type."""
         # GIVEN an evaluation with an ID
         evaluation = Evaluation(id="9614112")
 
@@ -377,7 +408,7 @@ class TestEvaluation:
 
         # WHEN we update permissions for a principal
         result = await evaluation.update_acl_async(
-            principal_id=12345, access_types=["READ", "SUBMIT"]
+            principal_id=12345, access_type=["READ", "SUBMIT"]
         )
 
         # THEN get_acl_async should be called
@@ -433,7 +464,7 @@ class TestEvaluation:
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="id must be set to update evaluation ACL"):
             await evaluation.update_acl_async(
-                principal_id=12345, access_types=["READ", "SUBMIT"]
+                principal_id=12345, access_type=["READ", "SUBMIT"]
             )
 
         # WHEN we try to update with a complete ACL
@@ -458,7 +489,90 @@ class TestEvaluation:
         with pytest.raises(ValueError, match="Either .* or acl must be provided"):
             await evaluation.update_acl_async()
 
-        # WHEN we provide only principal_id but no access_types
+        # WHEN we provide only principal_id but no access_type
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="Either .* or acl must be provided"):
             await evaluation.update_acl_async(principal_id=12345)
+
+    @patch("synapseclient.api.evaluation_services.update_evaluation_acl")
+    @patch("synapseclient.models.Evaluation.get_acl_async")
+    async def test_update_acl_async_remove_principal(
+        self, mock_get_acl_async, mock_update_evaluation_acl
+    ):
+        """Test removing a principal from ACL by providing an empty access_type list."""
+        # GIVEN an evaluation with an ID
+        evaluation = Evaluation(id="9614112")
+
+        # AND mocked ACL response with two principals
+        mock_acl = {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 67890, "accessType": ["READ"]},
+                {"principalId": 12345, "accessType": ["READ", "SUBMIT"]},
+            ],
+        }
+        mock_get_acl_async.return_value = mock_acl
+
+        # AND a mocked update response with one principal removed
+        updated_acl = {
+            "id": "9614112",
+            "resourceAccess": [{"principalId": 67890, "accessType": ["READ"]}],
+        }
+        mock_update_evaluation_acl.return_value = updated_acl
+
+        # AND a mocked Synapse client
+        mock_client = MagicMock()
+        mock_logger = MagicMock()
+        mock_client.logger = mock_logger
+
+        # WHEN we update permissions for a principal with an empty access_type list
+        with patch.object(Synapse, "get_client", return_value=mock_client):
+            result = await evaluation.update_acl_async(
+                principal_id=12345, access_type=[]
+            )
+
+        # THEN get_acl_async should be called
+        mock_get_acl_async.assert_called_once_with(synapse_client=None)
+
+        # AND the ACL should be updated with the principal removed
+        expected_acl = {
+            "id": "9614112",
+            "resourceAccess": [{"principalId": 67890, "accessType": ["READ"]}],
+        }
+        mock_update_evaluation_acl.assert_called_once_with(
+            acl=expected_acl, synapse_client=None
+        )
+
+        # AND the result should be the updated ACL
+        assert result == updated_acl
+
+    def test_log_message_when_removing_principal(self):
+        """Test that a log message is generated when removing a principal from ACL."""
+        # GIVEN an evaluation instance
+        evaluation = Evaluation()
+
+        # AND an ACL dictionary with existing permissions
+        acl = {
+            "id": "9614112",
+            "resourceAccess": [
+                {"principalId": 12345, "accessType": ["READ", "CREATE"]},
+                {"principalId": 67890, "accessType": ["READ"]},
+            ],
+        }
+
+        # AND a mocked Synapse client
+        mock_client = MagicMock()
+        mock_logger = MagicMock()
+        mock_client.logger = mock_logger
+
+        # AND a patched Synapse.get_client that returns our mock
+        with patch.object(Synapse, "get_client", return_value=mock_client):
+            # WHEN we update permissions for a principal with an empty access_type list
+            evaluation._update_acl_permissions(
+                principal_id="12345", access_type=[], acl=acl
+            )
+
+            # THEN the logger should have been called with the correct message
+            mock_logger.info.assert_called_once_with(
+                "Principal ID 12345 will be removed from ACL due to empty access_type"
+            )

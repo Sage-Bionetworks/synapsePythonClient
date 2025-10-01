@@ -452,7 +452,7 @@ class TestEvaluationAccess:
     async def test_update_acl_async_with_principal_id(
         self, test_evaluation: Evaluation
     ):
-        """Test updating ACL for an evaluation using principal_id and access_types."""
+        """Test updating ACL for an evaluation using principal_id and access_type."""
         # GIVEN the current user's ID
         user_profile = self.syn.getUserProfile()
         current_user_id = int(user_profile.get("ownerId"))
@@ -460,7 +460,7 @@ class TestEvaluationAccess:
         # WHEN we update the ACL for the current user with specific permissions
         updated_acl = await test_evaluation.update_acl_async(
             principal_id=current_user_id,
-            access_types=["READ", "UPDATE", "DELETE", "CHANGE_PERMISSIONS"],
+            access_type=["READ", "UPDATE", "DELETE", "CHANGE_PERMISSIONS"],
             synapse_client=self.syn,
         )
 

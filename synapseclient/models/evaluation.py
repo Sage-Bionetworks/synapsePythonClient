@@ -146,26 +146,48 @@ class Evaluation(EvaluationSynchronousProtocol):
         self._last_persistent_instance = replace(self)
 
     def _update_acl_permissions(
-        self, principal_id: Union[str, int], access_type: List[str], acl: dict
+        self,
+        principal_id: Union[str, int],
+        access_type: List[str],
+        acl: dict,
+        synapse_client: Optional["Synapse"] = None,
     ) -> dict:
         """
         Updates the ACL permissions of this object for the given principal.
 
         Arguments:
             principal_id: The Synapse user or team ID to update permissions for
-            access_type: List of permission strings to grant
+            access_type: List of permission strings to grant. If empty, the principal will be removed from the ACL.
             acl: The current ACL dictionary
+            synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
+                            instance from the Synapse class constructor.
 
         Returns:
             The updated ACL dictionary
         """
         principal_id_int = int(principal_id)
 
+        # If the access_type list is empty, remove the principal from the ACL
+        if len(access_type) == 0:
+            client = Synapse.get_client(synapse_client=synapse_client)
+            client.logger.info(
+                f"Principal ID {principal_id_int} will be removed from ACL due to empty access_type"
+            )
+
+            acl["resourceAccess"] = [
+                permissions
+                for permissions in acl["resourceAccess"]
+                if int(permissions["principalId"]) != principal_id_int
+            ]
+            return acl
+
+        # Update existing principal
         for permissions in acl["resourceAccess"]:
             if int(permissions["principalId"]) == principal_id_int:
                 permissions["accessType"] = access_type
                 return acl
 
+        # Add new principal
         acl["resourceAccess"].append(
             {"principalId": principal_id_int, "accessType": access_type}
         )
@@ -505,7 +527,7 @@ class Evaluation(EvaluationSynchronousProtocol):
     async def update_acl_async(
         self,
         principal_id: Optional[Union[str, int]] = None,
-        access_types: Optional[List[str]] = None,
+        access_type: Optional[List[str]] = None,
         acl: Optional[dict] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
@@ -516,6 +538,8 @@ class Evaluation(EvaluationSynchronousProtocol):
         You can either:
         1. Provide a principal_id and access_types to update permissions for a specific user/team
         2. Provide a complete ACL dictionary to update all permissions at once
+
+        To remove a principal from the ACL completely, provide an empty list for access_type.
 
         The available access types are:
 
@@ -531,9 +555,9 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         Arguments:
             principal_id: The Synapse user or team ID to update permissions for.
-            access_types: List of permission strings to grant to the principal.
-            acl: An AccessControlList object or dictionary containing the complete ACL data to update.
-                If provided, principal_id and access_types are ignored.
+            access_type: List of permission strings to grant to the principal. If empty, the principal will be removed from the ACL.
+            acl: A dictionary containing the complete ACL data to update. You can retrieve the current ACL using `get_acl_async()`.
+                 If provided, principal_id and access_type are ignored.
             synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                 this will use the last created instance from the Synapse class constructor.
 
@@ -541,10 +565,10 @@ class Evaluation(EvaluationSynchronousProtocol):
             The updated AccessControlList response object as a raw JSON dict.
 
         Raises:
-            ValueError: If neither (principal_id and access_types) nor acl is provided, or if the ACL object is invalid.
+            ValueError: If neither (principal_id and access_type) nor acl is provided, or if the ACL object is invalid.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
-        Example: Update permissions for a specific user
+        Example: Update permissions for a specific principal (user/team)
         &nbsp;
 
         ```python
@@ -562,11 +586,36 @@ class Evaluation(EvaluationSynchronousProtocol):
             # Update permissions for user with ID 12345
             updated_acl = await evaluation.update_acl_async(
                 principal_id="12345",
-                access_types=["READ", "SUBMIT"]
+                access_type=["READ", "SUBMIT"]
             )
             return updated_acl
 
         updated_acl = asyncio.run(update_evaluation_permissions())
+        ```
+
+        Example: Remove a principal (user/team) from the ACL
+        &nbsp;
+
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+        import asyncio
+
+        syn = Synapse()
+        syn.login()
+
+        async def remove_user_from_acl():
+            # Get the evaluation first
+            evaluation = await Evaluation(id="9999999").get_async()
+
+            # Remove user with ID 12345 from the ACL by providing an empty list
+            updated_acl = await evaluation.update_acl_async(
+                principal_id="12345",
+                access_type=[]
+            )
+            return updated_acl
+
+        updated_acl = asyncio.run(remove_user_from_acl())
         ```
 
         Example: Update the entire ACL manually
@@ -606,11 +655,14 @@ class Evaluation(EvaluationSynchronousProtocol):
             raise ValueError("id must be set to update evaluation ACL")
 
         # Case 1: Update permissions for specific principal
-        if principal_id is not None and access_types is not None:
+        if principal_id is not None and access_type is not None:
             current_acl = await self.get_acl_async(synapse_client=synapse_client)
 
             updated_acl = self._update_acl_permissions(
-                principal_id=principal_id, access_type=access_types, acl=current_acl
+                principal_id=principal_id,
+                access_type=access_type,
+                acl=current_acl,
+                synapse_client=synapse_client,
             )
 
             return await update_evaluation_acl(
@@ -627,7 +679,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         else:
             raise ValueError(
-                "Either (principal_id and access_types) or acl must be provided"
+                "Either (principal_id and access_type) or acl must be provided"
             )
 
     async def get_permissions_async(
