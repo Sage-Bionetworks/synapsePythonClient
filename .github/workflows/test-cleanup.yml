@@ -13,6 +13,17 @@ jobs:
     permissions:
       contents: read
 
+    strategy:
+      matrix:
+        synapse_profile:
+          - "TestUbuntuMinimumPython"
+          - "TestUbuntuMaximumPython"
+          - "TestWindowsMinimumPython"
+          - "TestWindowsMaximumPython"
+          - "TestMacosMinimumPython"
+          - "TestMacosMaximumPython"
+          - "" # Empty string for default profile (no SYNAPSE_PROFILE set)
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -67,17 +78,33 @@ jobs:
         mv test.synapseConfig ~/.synapseConfig
 
     - name: Run evaluation deletion script
+      shell: bash
       run: |
+        if [ -n "${{ matrix.synapse_profile }}" ]; then
+          export SYNAPSE_PROFILE="${{ matrix.synapse_profile }}"
+        fi
         python .github/scripts/delete_evaluations.py
 
     - name: Run project deletion script
+      shell: bash
       run: |
+        if [ -n "${{ matrix.synapse_profile }}" ]; then
+          export SYNAPSE_PROFILE="${{ matrix.synapse_profile }}"
+        fi
         python .github/scripts/delete_projects.py
 
     - name: Run team deletion script
+      shell: bash
       run: |
+        if [ -n "${{ matrix.synapse_profile }}" ]; then
+          export SYNAPSE_PROFILE="${{ matrix.synapse_profile }}"
+        fi
         python .github/scripts/delete_teams.py
 
     - name: Run empty trash script
+      shell: bash
       run: |
+        if [ -n "${{ matrix.synapse_profile }}" ]; then
+          export SYNAPSE_PROFILE="${{ matrix.synapse_profile }}"
+        fi
         python .github/scripts/empty_trash.py
