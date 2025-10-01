@@ -597,7 +597,7 @@ class Link(LinkSynchronousProtocol):
 
     async def _find_existing_entity(
         self, *, synapse_client: Optional[Synapse] = None
-    ) -> Union["File", None]:
+    ) -> Union["Link", None]:
         """Determines if the entity already exists in Synapse. If it does it will return
         the entity object, otherwise it will return None. This is used to determine if the
         entity should be updated or created."""
