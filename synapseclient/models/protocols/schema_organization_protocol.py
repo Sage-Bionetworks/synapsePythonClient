@@ -37,9 +37,9 @@ class SchemaOrganizationProtocol(Protocol):
         """
         return self
 
-    def create(self, synapse_client: Optional["Synapse"] = None) -> None:
+    def store(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
-        Creates this organization in Synapse
+        Stores this organization in Synapse
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -54,7 +54,7 @@ class SchemaOrganizationProtocol(Protocol):
             syn.login()
 
             org = SchemaOrganization("my.org.name")
-            org.create()
+            org.store()
 
         """
         return self
@@ -203,7 +203,7 @@ class JSONSchemaProtocol(Protocol):
         """
         return self
 
-    def create(
+    def store(
         self,
         body: dict[str, Any],
         version: Optional[str] = None,

@@ -104,9 +104,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         return self
 
     # Should this be named 'store_async'?
-    async def create_async(self, synapse_client: Optional["Synapse"] = None) -> None:
+    async def store_async(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
-        Creates this organization in Synapse
+        Stores this organization in Synapse
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -122,7 +122,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             syn.login()
 
             org = SchemaOrganization("my.org.name")
-            asyncio.run(org.create())
+            asyncio.run(org.store_async())
 
         """
         if self.id:
@@ -419,9 +419,8 @@ class JSONSchema(JSONSchemaProtocol):
             )
         )
 
-    # Should this ba named store?
-    # TODO: crate api function, and async version of method, write docstring
-    def create(
+    # TODO: create api function, and async version of method, write docstring
+    def store(
         self,
         body: dict[str, Any],
         version: Optional[str] = None,

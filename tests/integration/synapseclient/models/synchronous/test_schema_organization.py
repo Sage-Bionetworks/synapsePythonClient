@@ -37,7 +37,7 @@ def fixture_module_organization(request) -> SchemaOrganization:
 
     name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
     org = SchemaOrganization(name)
-    org.create()
+    org.store()
 
     def delete_org():
         for schema in org.get_json_schema_list():
@@ -86,13 +86,13 @@ def fixture_organization_with_schema(request) -> SchemaOrganization:
 
     name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
     org = SchemaOrganization(name)
-    org.create()
+    org.store()
     js1 = JSONSchema("schema1", name)
     js2 = JSONSchema("schema2", name)
     js3 = JSONSchema("schema3", name)
-    js1.create({})
-    js2.create({})
-    js3.create({})
+    js1.store({})
+    js2.store({})
+    js3.store({})
 
     def delete_org():
         for schema in org.get_json_schema_list():
@@ -121,7 +121,7 @@ class TestSchemaOrganization:
         # AND it shouldn't exists in Synapse
         assert not org_exists(organization.name, synapse_client=self.syn)
         # WHEN I create the organization the metadata will be saved
-        organization.create(synapse_client=self.syn)
+        organization.store(synapse_client=self.syn)
         assert organization.name is not None
         assert organization.id is not None
         assert organization.created_by is not None
@@ -142,7 +142,7 @@ class TestSchemaOrganization:
         organization_with_schema: SchemaOrganization,
     ) -> None:
         # GIVEN an organization with no schemas and one with 3 schemas
-        organization.create(synapse_client=self.syn)
+        organization.store(synapse_client=self.syn)
         # THEN get_json_schema_list should return the correct list of schemas
         assert not organization.get_json_schema_list(synapse_client=self.syn)
         assert (
@@ -158,7 +158,7 @@ class TestSchemaOrganization:
         ):
             organization.get_acl(synapse_client=self.syn)
         # GIVEN an organization that has been created
-        organization.create(synapse_client=self.syn)
+        organization.store(synapse_client=self.syn)
         acl = organization.get_acl(synapse_client=self.syn)
         resource_access: list[dict[str, Any]] = acl["resourceAccess"]
         # THEN the resource access should be have one principal
@@ -191,7 +191,7 @@ class TestJSONSchema:
         assert not json_schema.created_by
         assert not json_schema.created_on
         # WHEN the object is created
-        json_schema.create({}, synapse_client=self.syn)
+        json_schema.store({}, synapse_client=self.syn)
         assert json_schema.name
         assert json_schema.organization_name
         assert json_schema.uri
@@ -215,11 +215,11 @@ class TestJSONSchema:
         # THEN get_versions should return an empty list
         assert not json_schema.get_versions(synapse_client=self.syn)
         # WHEN creating a schema with no version
-        json_schema.create(body={}, synapse_client=self.syn)
+        json_schema.store(body={}, synapse_client=self.syn)
         # THEN get_versions should return an empty list
         assert json_schema.get_versions(synapse_client=self.syn) == []
         # WHEN creating a schema with a version
-        json_schema.create(body={}, version="0.0.1", synapse_client=self.syn)
+        json_schema.store(body={}, version="0.0.1", synapse_client=self.syn)
         # THEN get_versions should return that version
         schemas = json_schema.get_versions(synapse_client=self.syn)
         assert len(schemas) == 1
@@ -230,8 +230,8 @@ class TestJSONSchema:
         # WHEN creating a schema with 2 version
         first_body = {}
         latest_body = {"description": ""}
-        json_schema.create(body=first_body, version="0.0.1", synapse_client=self.syn)
-        json_schema.create(body=latest_body, version="0.0.2", synapse_client=self.syn)
+        json_schema.store(body=first_body, version="0.0.1", synapse_client=self.syn)
+        json_schema.store(body=latest_body, version="0.0.2", synapse_client=self.syn)
         # WHEN get_body has no version argument
         body0 = json_schema.get_body(synapse_client=self.syn)
         # THEN the body should be the latest version

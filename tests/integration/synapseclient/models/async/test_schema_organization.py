@@ -37,12 +37,12 @@ async def fixture_module_organization(request) -> SchemaOrganization:
 
     name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
     org = SchemaOrganization(name)
-    org.create()
+    await org.store_async()
 
     async def delete_org():
         for schema in org.get_json_schema_list():
             await schema.delete_async()
-        org.delete()
+        await org.delete_async()
 
     request.addfinalizer(delete_org)
 
@@ -85,19 +85,19 @@ async def fixture_organization_with_schema(request) -> SchemaOrganization:
 
     name = f"SYNPY.TEST.{" ".join(i for i in str(uuid.uuid4()) if i.isalpha())}"
     org = SchemaOrganization(name)
-    await org.create_async()
+    await org.store_async()
     js1 = JSONSchema("schema1", name)
     js2 = JSONSchema("schema2", name)
     js3 = JSONSchema("schema3", name)
     # TODO: Change to create_async when method is working
-    js1.create({})
-    js2.create({})
-    js3.create({})
+    js1.store({})
+    js2.store({})
+    js3.store({})
 
     async def delete_org():
         for schema in org.get_json_schema_list_async():
             await schema.delete_async()
-        org.delete()
+        await org.delete_async()
 
     request.addfinalizer(delete_org)
 
@@ -122,7 +122,7 @@ class TestSchemaOrganization:
         # AND it shouldn't exists in Synapse
         assert not org_exists(organization.name, synapse_client=self.syn)
         # WHEN I create the organization the metadata will be saved
-        await organization.create_async(synapse_client=self.syn)
+        await organization.store_async(synapse_client=self.syn)
         assert organization.name is not None
         assert organization.id is not None
         assert organization.created_by is not None
@@ -144,7 +144,7 @@ class TestSchemaOrganization:
         organization_with_schema: SchemaOrganization,
     ) -> None:
         # GIVEN an organization with no schemas and one with 3 schemas
-        await organization.create_async(synapse_client=self.syn)
+        await organization.store_async(synapse_client=self.syn)
         # THEN get_json_schema_list should return the correct list of schemas
         schema_list = await organization.get_json_schema_list_async(
             synapse_client=self.syn
@@ -166,7 +166,7 @@ class TestSchemaOrganization:
         ):
             await organization.get_acl_async(synapse_client=self.syn)
         # GIVEN an organization that has been created
-        await organization.create_async(synapse_client=self.syn)
+        await organization.store_async(synapse_client=self.syn)
         acl = await organization.get_acl_async(synapse_client=self.syn)
         resource_access: list[dict[str, Any]] = acl["resourceAccess"]
         # THEN the resource access should be have one principal
