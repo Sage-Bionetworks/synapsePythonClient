@@ -313,7 +313,6 @@ class TestStoreEvaluation:
         assert updated_evaluation.etag is not None
         assert updated_evaluation.etag != old_etag
 
-
     def test_certain_fields_unchanged_once_retrieved_from_synapse(
         self, test_evaluation: Evaluation
     ):
@@ -353,21 +352,21 @@ class TestStoreEvaluation:
         # THEN it should succeed by ignoring the invalid ID
         created_eval = evaluation.store(synapse_client=self.syn)
         self.schedule_for_cleanup(created_eval.id)
-        
+
         # AND other important attribute should not be changed
         assert created_eval.name == unique_name
-        
+
         # GIVEN an evaluation that was retrieved from Synapse
         # AND modified with a non-existent ID
         retrieved_eval = Evaluation(id=created_eval.id).get(synapse_client=self.syn)
         original_id = retrieved_eval.id
         retrieved_eval.id = "syn999999999"
         retrieved_eval.name = f"test_evaluation_{uuid.uuid4()}_new_name"
-        
+
         # WHEN I update the evaluation
         # THEN it should succeed and ignore the invalid ID (with warning)
         updated_eval = retrieved_eval.store(synapse_client=self.syn)
-        
+
         # AND the updated evaluation should maintain its original ID
         assert updated_eval.id == original_id
         assert updated_eval.id != "syn999999999"

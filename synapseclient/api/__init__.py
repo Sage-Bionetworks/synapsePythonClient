@@ -54,6 +54,7 @@ from .entity_services import (
     update_entity_acl,
 )
 from .evaluation_services import (
+    create_or_update_evaluation,
     delete_evaluation,
     get_all_evaluations,
     get_available_evaluations,
@@ -61,7 +62,6 @@ from .evaluation_services import (
     get_evaluation_acl,
     get_evaluation_permissions,
     get_evaluations_by_project,
-    create_or_update_evaluation,
     update_evaluation_acl,
 )
 from .file_services import (
