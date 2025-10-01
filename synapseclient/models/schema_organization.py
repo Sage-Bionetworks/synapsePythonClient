@@ -101,6 +101,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             return
         response = await get_organization(self.name, synapse_client=synapse_client)
         self._fill_from_dict(response)
+        return self
 
     # Should this be named 'store_async'?
     async def create_async(self, synapse_client: Optional["Synapse"] = None) -> None:
@@ -128,6 +129,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             await self.get_async(synapse_client=synapse_client)
         response = await create_organization(self.name, synapse_client=synapse_client)
         self._fill_from_dict(response)
+        return self
 
     async def delete_async(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
@@ -409,7 +411,7 @@ class JSONSchema(JSONSchemaProtocol):
         async for schema in org_schemas:
             if schema["schemaName"] == self.name:
                 self._fill_from_dict(schema)
-                return
+                return self
         raise ValueError(
             (
                 f"Organization: '{self.organization_name}' does not contain a schema with "
@@ -447,6 +449,7 @@ class JSONSchema(JSONSchemaProtocol):
             "/schema/type/create/async", request_body
         )
         self._fill_from_dict(response["newVersionInfo"])
+        return self
 
     async def delete_async(self, synapse_client: Optional["Synapse"] = None) -> None:
         """

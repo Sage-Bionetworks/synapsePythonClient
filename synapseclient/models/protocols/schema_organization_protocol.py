@@ -35,7 +35,7 @@ class SchemaOrganizationProtocol(Protocol):
             org.get()
 
         """
-        return None
+        return self
 
     def create(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
@@ -57,7 +57,7 @@ class SchemaOrganizationProtocol(Protocol):
             org.create()
 
         """
-        return None
+        return self
 
     def delete(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
@@ -201,7 +201,7 @@ class JSONSchemaProtocol(Protocol):
             js = JSONSchema("my.schema.name", "my.org.name")
             js.get()
         """
-        return None
+        return self
 
     def create(
         self,
@@ -210,7 +210,7 @@ class JSONSchemaProtocol(Protocol):
         dry_run: bool = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
-        return None
+        return self
 
     def delete(self) -> None:
         """
