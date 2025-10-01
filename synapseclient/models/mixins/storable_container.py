@@ -611,13 +611,14 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             display_ascii_tree: If True, display an ASCII tree representation as the
                 container structure is traversed. Tree lines are printed incrementally
                 as each container is visited. Defaults to False.
-            show_size: When display_ascii_tree=True, include file size information in
-                the tree output (where available). Defaults to False.
-            show_modified: When display_ascii_tree=True, include last modified date in
-                the tree output. Defaults to False.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+            _newpath: Used internally to track the current path during recursion.
+            _tree_prefix: Used internally to format the ASCII tree structure.
+            _is_last_in_parent: Used internally to determine if the current entity is
+                the last child in its parent.
+            _tree_depth: Used internally to track the current depth in the tree.
 
         Yields:
             Tuple of (dirpath, dirs, nondirs) where:
@@ -630,28 +631,50 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             Basic usage - traverse all entities in a container
 
             ```python
-            async for dirpath, dirs, nondirs in container.walk_async():
-                print(f"Directory: {dirpath[0]} ({dirpath[1]})")
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
 
-                # Print folders
-                for folder_entity in dirs:
-                    print(f"  Folder: {folder_entity}")
+            async def my_function():
+                syn = Synapse()
+                syn.login()
 
-                # Print files and other entities
-                for entity in nondirs:
-                    print(f"  File: {entity}")
+                container = Folder(id="syn12345")
+                async for dirpath, dirs, nondirs in container.walk_async():
+                    print(f"Directory: {dirpath[0]} ({dirpath[1]})")
+
+                    # Print folders
+                    for folder_entity in dirs:
+                        print(f"  Folder: {folder_entity}")
+
+                    # Print files and other entities
+                    for entity in nondirs:
+                        print(f"  File: {entity}")
+
+            asyncio.run(my_function())
             ```
 
         Example: Display progressive ASCII tree as walk proceeds
             ```python
-            # Display tree structure progressively as walk proceeds
-            async for dirpath, dirs, nondirs in container.walk_async(
-                display_ascii_tree=True
-            ):
-                # Process each directory as usual
-                print(f"Processing: {dirpath[0]}")
-                for file_entity in nondirs:
-                    print(f"  Found file: {file_entity.name}")
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
+
+            async def my_function():
+                syn = Synapse()
+                syn.login()
+
+                container = Folder(id="syn12345")
+                # Display tree structure progressively as walk proceeds
+                async for dirpath, dirs, nondirs in container.walk_async(
+                    display_ascii_tree=True
+                ):
+                    # Process each directory as usual
+                    print(f"Processing: {dirpath[0]}")
+                    for file_entity in nondirs:
+                        print(f"  Found file: {file_entity.name}")
+
+            asyncio.run(my_function())
             ```
 
             Example output:
@@ -759,7 +782,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
             client.logger.info(tree_line)
 
-        dirs = []
         nondirs = []
         dir_entities = []
 
@@ -768,7 +790,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 FOLDER_ENTITY,
                 PROJECT_ENTITY,
             ]:
-                dirs.append(child)
                 dir_entities.append(child)
             else:
                 nondirs.append(child)
@@ -793,7 +814,7 @@ class StorableContainer(StorableContainerSynchronousProtocol):
                 client.logger.info(tree_line)
 
         # Yield the current directory's contents
-        yield dirpath, dirs, nondirs
+        yield dirpath, dir_entities, nondirs
 
         if recursive and dir_entities:
             sorted_dir_entities: List[EntityHeader] = sorted(
@@ -877,6 +898,11 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
+            _newpath: Used internally to track the current path during recursion.
+            _tree_prefix: Used internally to format the ASCII tree structure.
+            _is_last_in_parent: Used internally to determine if the current entity is
+                the last child in its parent.
+            _tree_depth: Used internally to track the current depth in the tree.
 
         Yields:
             Tuple of (dirpath, dirs, nondirs) where:
@@ -889,6 +915,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
             Basic usage - traverse all entities in a container
 
             ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
+
+            syn = Synapse()
+            syn.login()
+
+            container = Folder(id="syn12345")
             for dirpath, dirs, nondirs in container.walk():
                 print(f"Directory: {dirpath[0]} ({dirpath[1]})")
 
@@ -903,6 +936,13 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         Example: Display progressive ASCII tree as walk proceeds
             ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Folder
+
+            syn = Synapse()
+            syn.login()
+
+            container = Folder(id="syn12345")
             # Display tree structure progressively as walk proceeds
             for dirpath, dirs, nondirs in container.walk(
                 display_ascii_tree=True
@@ -1438,8 +1478,6 @@ class StorableContainer(StorableContainerSynchronousProtocol):
 
         Arguments:
             entity: Dictionary containing entity information.
-            show_size: Whether to include size information.
-            show_modified: Whether to include modification date.
 
         Returns:
             String representation of the entity for tree display.
