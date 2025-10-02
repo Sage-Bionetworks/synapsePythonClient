@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Protocol, Sequence
 if TYPE_CHECKING:
     from synapseclient import Synapse
     from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
-    from synapseclient.models.schema_organization import JSONSchema
+    from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
 
 
 class SchemaOrganizationProtocol(Protocol):
@@ -15,7 +15,7 @@ class SchemaOrganizationProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def get(self, synapse_client: Optional["Synapse"] = None) -> None:
+    def get(self, synapse_client: Optional["Synapse"] = None) -> "SchemaOrganization":
         """
         Gets the metadata from Synapse for this organization
 
@@ -23,6 +23,9 @@ class SchemaOrganizationProtocol(Protocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
+
+        Returns:
+            Itself
 
         Example: Get an existing SchemaOrganization
             &nbsp;
@@ -41,7 +44,7 @@ class SchemaOrganizationProtocol(Protocol):
         """
         return self
 
-    def store(self, synapse_client: Optional["Synapse"] = None) -> None:
+    def store(self, synapse_client: Optional["Synapse"] = None) -> "SchemaOrganization":
         """
         Stores this organization in Synapse
 
@@ -49,6 +52,9 @@ class SchemaOrganizationProtocol(Protocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
+
+        Returns:
+            Itself
 
         Example: Store the SchemaOrganization in Synapse
             &nbsp;
@@ -200,7 +206,7 @@ class JSONSchemaProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def get(self, synapse_client: Optional["Synapse"] = None) -> None:
+    def get(self, synapse_client: Optional["Synapse"] = None) -> "JSONSchema":
         """
         Gets this JSON Schemas metadata
 
@@ -208,6 +214,9 @@ class JSONSchemaProtocol(Protocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
+
+        Returns:
+            Itself
 
         Raises:
             ValueError: This JSONSchema doesn't exist in its organization
@@ -234,16 +243,22 @@ class JSONSchemaProtocol(Protocol):
         version: Optional[str] = None,
         dry_run: bool = False,
         synapse_client: Optional["Synapse"] = None,
-    ) -> None:
+    ) -> "JSONSchema":
         """
-        Stores this organization in Synapse
+        Stores this JSONSchema in Synapse
 
         Arguments:
+            schema_body: The body of the JSONSchema to store
+            version: The version of the JSONSchema body to store
+            dry_run: Whether or not to do a dry-run
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Store a new SchemaOrganization
+        Returns:
+            Itself
+
+        Example: Store a JSON Schema in Synapse
             &nbsp;
 
             ```python

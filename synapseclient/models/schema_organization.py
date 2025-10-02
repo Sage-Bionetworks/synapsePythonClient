@@ -58,7 +58,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
     def __post_init__(self) -> None:
         self._check_name(self.name)
 
-    async def get_async(self, synapse_client: Optional["Synapse"] = None) -> None:
+    async def get_async(
+        self, synapse_client: Optional["Synapse"] = None
+    ) -> "SchemaOrganization":
         """
         Gets the metadata from Synapse for this organization
 
@@ -66,6 +68,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
+
+        Returns:
+            Itself
 
         Example: Get an existing SchemaOrganization
             &nbsp;
@@ -83,12 +88,14 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             ```
         """
         if self.id:
-            return
+            return self
         response = await get_organization(self.name, synapse_client=synapse_client)
         self._fill_from_dict(response)
         return self
 
-    async def store_async(self, synapse_client: Optional["Synapse"] = None) -> None:
+    async def store_async(
+        self, synapse_client: Optional["Synapse"] = None
+    ) -> "SchemaOrganization":
         """
         Stores this organization in Synapse
 
@@ -96,6 +103,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
+
+        Returns:
+            Itself
 
         Example: Store a new SchemaOrganization
             &nbsp;
@@ -376,7 +386,9 @@ class JSONSchema(JSONSchemaProtocol):
         self.uri = f"{self.organization_name}-{self.name}"
         self._check_name(self.name)
 
-    async def get_async(self, synapse_client: Optional["Synapse"] = None) -> None:
+    async def get_async(
+        self, synapse_client: Optional["Synapse"] = None
+    ) -> "JSONSchema":
         """
         Gets this JSON Schemas metadata
 
@@ -387,6 +399,9 @@ class JSONSchema(JSONSchemaProtocol):
 
         Raises:
             ValueError: This JSONSchema doesn't exist in its organization
+
+        Returns:
+            Itself
 
         Example: Get an existing JSONSchema
             &nbsp;
@@ -404,7 +419,7 @@ class JSONSchema(JSONSchemaProtocol):
             ```
         """
         if self.id:
-            return
+            return self
 
         # Check that the org exists,
         #  if it doesn't list_json_schemas will unhelpfully return an empty generator.
@@ -431,18 +446,20 @@ class JSONSchema(JSONSchemaProtocol):
         version: Optional[str] = None,
         dry_run: bool = False,
         synapse_client: Optional["Synapse"] = None,
-    ) -> None:
+    ) -> "JSONSchema":
         """
         Stores this JSONSchema in Synapse
 
         Arguments:
-            schema_body: _description_
-            version: _description_. Defaults to None.
-            dry_run: _description_. Defaults to False.
-            synapse_client: _description_. Defaults to None.
+            schema_body: The body of the JSONSchema to store
+            version: The version of the JSONSchema body to store
+            dry_run: Whether or not to do a dry-run
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
 
         Returns:
-            _description_
+            Itself
 
         Example: Store a JSON Schema in Synapse
             &nbsp;
