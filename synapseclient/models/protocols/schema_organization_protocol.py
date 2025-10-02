@@ -205,7 +205,7 @@ class JSONSchemaProtocol(Protocol):
 
     def store(
         self,
-        body: dict[str, Any],
+        schema_body: dict[str, Any],
         version: Optional[str] = None,
         dry_run: bool = False,
         synapse_client: Optional["Synapse"] = None,

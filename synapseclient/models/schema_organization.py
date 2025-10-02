@@ -20,6 +20,8 @@ from synapseclient.api import (
     update_organization_acl,
 )
 from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.constants.concrete_types import CREATE_SCHEMA_REQUEST
+from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 from synapseclient.models.protocols.schema_organization_protocol import (
     JSONSchemaProtocol,
@@ -28,6 +30,10 @@ from synapseclient.models.protocols.schema_organization_protocol import (
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
+
+SYNAPSE_SCHEMA_URL = (
+    "https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/"
+)
 
 
 @dataclass()
@@ -416,35 +422,28 @@ class JSONSchema(JSONSchemaProtocol):
             )
         )
 
-    # TODO: create api function, and async version of method, write docstring
-    def store(
+    async def store_async(
         self,
-        body: dict[str, Any],
+        schema_body: dict[str, Any],
         version: Optional[str] = None,
         dry_run: bool = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
-        uri = self.uri
-        if version:
-            self._check_semantic_version(version)
-            uri = f"{uri}-{version}"
-        body["$id"] = uri
-
-        request_body = {
-            "concreteType": "org.sagebionetworks.repo.model.schema.CreateSchemaRequest",
-            "schema": body,
-            "dryRun": dry_run,
-        }
-        if not synapse_client:
-            from synapseclient import Synapse
-
-            synapse_client = Synapse()
-            synapse_client.login()
-
-        response = synapse_client._waitForAsync(
-            "/schema/type/create/async", request_body
+        request = CreateSchemaRequest(
+            schema=schema_body,
+            name=self.name,
+            organization_name=self.organization_name,
+            version=version,
+            dry_run=dry_run,
         )
-        self._fill_from_dict(response["newVersionInfo"])
+        completed_request: CreateSchemaRequest = await request.send_job_and_wait_async(
+            synapse_client=synapse_client
+        )
+        new_version_info = completed_request.new_version_info
+        self.organization_id = new_version_info.organization_id
+        self.id = new_version_info.id
+        self.created_by = new_version_info.created_by
+        self.created_on = new_version_info.created_on
         return self
 
     async def delete_async(self, synapse_client: Optional["Synapse"] = None) -> None:
@@ -698,6 +697,144 @@ class JSONSchema(JSONSchemaProtocol):
                     f"only letters numbers and periods: {name}"
                 )
             )
+
+
+@dataclass
+class CreateSchemaRequest(AsynchronousCommunicator):
+    """
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
+    """
+
+    schema: dict[str, Any]
+    """The JSON Schema to be stored"""
+
+    name: str
+    """The name of the schema being stored"""
+
+    organization_name: str
+    """The name of the organization the schema to store the schema in"""
+
+    version: Optional[str] = None
+    """The version to store the schema as if given"""
+
+    dry_run: bool = False
+    """Whether or not to do the request as a dry-run"""
+
+    concrete_type: str = field(init=False)
+    """The concrete type of the request"""
+
+    uri: str = field(init=False)
+    """The URI of this schema"""
+
+    id: str = field(init=False)
+    """The ID/URL of this schema"""
+
+    new_version_info: JSONSchemaVersionInfo = None
+    """Info from the API response"""
+
+    def __post_init__(self) -> None:
+        self.concrete_type = CREATE_SCHEMA_REQUEST
+        self._check_name(self.name)
+        self._check_name(self.organization_name)
+        uri = f"{self.organization_name}-{self.name}"
+        if self.version:
+            self._check_semantic_version(self.version)
+            uri = f"{uri}-{self.version}"
+        self.uri = uri
+        self.id = f"{SYNAPSE_SCHEMA_URL}{uri}"
+        self.schema["$id"] = self.id
+
+    def to_synapse_request(self) -> dict[str, Any]:
+        """
+        Create a CreateSchemaRequest from attributes
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/CreateSchemaRequest.html
+        """
+
+        result = {
+            "concreteType": self.concrete_type,
+            "schema": self.schema,
+            "dryRun": self.dry_run,
+        }
+
+        return result
+
+    def fill_from_dict(self, synapse_response: dict[str, Any]) -> "CreateSchemaRequest":
+        """
+        Set attributes from CreateSchemaResponse
+        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/CreateSchemaResponse.html
+        """
+        self.new_version_info = self._create_json_schema_version_from_response(
+            synapse_response.get("newVersionInfo")
+        )
+        self.schema = synapse_response.get("validationSchema")
+
+        return self
+
+    def _check_semantic_version(self, version: str) -> None:
+        """
+        Checks that the semantic version is correctly formatted
+
+        Args:
+            version: A semantic version(ie. `1.0.0`) to be checked
+
+        Raises:
+            ValueError: If the string is not a correct semantic version
+        """
+        if not re.match("^(\d+)\.(\d+)\.(\d*)$", version) or version == "0.0.0":
+            raise ValueError(
+                (
+                    "Schema version must be a semantic version starting at 0.0.1 with no letters "
+                    "and a major, minor and patch version "
+                    f"{version}"
+                )
+            )
+
+    def _check_name(self, name: str) -> None:
+        """
+        Checks that the input name is a valid Synapse JSONSchema or Organization name
+        - Must start with a letter
+        - Must contains only letters, numbers and periods.
+
+        Arguments:
+            name: The name of the organization/schema to be checked
+
+        Raises:
+            ValueError: When the name isn't valid
+        """
+        if not re.match("^([A-Za-z])([A-Za-z]|\d|\.)*$", name):
+            raise ValueError(
+                (
+                    "Schema name must start with a letter and contain "
+                    f"only letters numbers and periods: {name}"
+                )
+            )
+
+    @staticmethod
+    def _create_json_schema_version_from_response(
+        response: dict[str, Any]
+    ) -> JSONSchemaVersionInfo:
+        """
+        Creates a JSONSchemaVersionInfo object from a Synapse API response
+
+        Arguments:
+            response: This Synapse API object:
+                [JsonSchemaVersionInfo]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaVersionInfo.html
+
+        Returns:
+            A JSONSchemaVersionInfo object
+        """
+        return JSONSchemaVersionInfo(
+            organization_id=response.get("organizationId"),
+            organization_name=response.get("organizationName"),
+            schema_id=response.get("schemaId"),
+            id=response.get("$id"),
+            schema_name=response.get("schemaName"),
+            version_id=response.get("versionId"),
+            semantic_version=response.get("semanticVersion"),
+            json_sha256_hex=response.get("jsonSHA256Hex"),
+            created_on=response.get("createdOn"),
+            created_by=response.get("createdBy"),
+        )
 
 
 def list_json_schema_organizations(

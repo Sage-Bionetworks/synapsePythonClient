@@ -188,8 +188,8 @@ class TestJSONSchema:
     def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def test_create_and_get(self, json_schema: JSONSchema) -> None:
-        # GIVEN an initialized schema object that hasn't been created in Synapse
+    def test_store_and_get(self, json_schema: JSONSchema) -> None:
+        # GIVEN an initialized schema object that hasn't been stored in Synapse
         # THEN it shouldn't have any metadata besides it's name and organization name, and uri
         assert json_schema.name
         assert json_schema.organization_name
@@ -223,11 +223,11 @@ class TestJSONSchema:
         # THEN get_versions should return an empty list
         assert not json_schema.get_versions(synapse_client=self.syn)
         # WHEN creating a schema with no version
-        json_schema.store(body={}, synapse_client=self.syn)
+        json_schema.store(schema_body={}, synapse_client=self.syn)
         # THEN get_versions should return an empty list
         assert json_schema.get_versions(synapse_client=self.syn) == []
         # WHEN creating a schema with a version
-        json_schema.store(body={}, version="0.0.1", synapse_client=self.syn)
+        json_schema.store(schema_body={}, version="0.0.1", synapse_client=self.syn)
         # THEN get_versions should return that version
         schemas = json_schema.get_versions(synapse_client=self.syn)
         assert len(schemas) == 1
@@ -238,8 +238,12 @@ class TestJSONSchema:
         # WHEN creating a schema with 2 version
         first_body = {}
         latest_body = {"description": ""}
-        json_schema.store(body=first_body, version="0.0.1", synapse_client=self.syn)
-        json_schema.store(body=latest_body, version="0.0.2", synapse_client=self.syn)
+        json_schema.store(
+            schema_body=first_body, version="0.0.1", synapse_client=self.syn
+        )
+        json_schema.store(
+            schema_body=latest_body, version="0.0.2", synapse_client=self.syn
+        )
         # WHEN get_body has no version argument
         body0 = json_schema.get_body(synapse_client=self.syn)
         # THEN the body should be the latest version

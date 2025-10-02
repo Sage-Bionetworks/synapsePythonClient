@@ -4,6 +4,10 @@ from typing import Any
 import pytest
 
 from synapseclient.models import JSONSchema, SchemaOrganization
+from synapseclient.models.schema_organization import (
+    CreateSchemaRequest,
+    list_json_schema_organizations,
+)
 
 
 class TestSchemaOrganization:
@@ -135,3 +139,72 @@ class TestJSONSchema:
         "Tests that illegal Synapse API responses cause exceptions"
         with pytest.raises(TypeError):
             JSONSchema.from_response(response)
+
+
+class TestCreateSchemaRequest:
+    @pytest.mark.parametrize(
+        "name",
+        ["AAAAAAA", "A12345", "A....."],
+        ids=["Just letters", "Numbers", "Periods"],
+    )
+    def test_init_name(self, name: str) -> None:
+        "Tests that legal names don't raise a ValueError on init"
+        assert CreateSchemaRequest(schema={}, name=name, organization_name="org.name")
+
+    @pytest.mark.parametrize(
+        "name",
+        ["1AAAAAA", ".AAAAAA", "AAAAAA!"],
+        ids=["Starts with a number", "Starts with a period", "Special character"],
+    )
+    def test_init_name_exceptions(self, name: str) -> None:
+        "Tests that illegal names raise a ValueError on init"
+        with pytest.raises(ValueError, match="Schema name must start with"):
+            CreateSchemaRequest(schema={}, name=name, organization_name="org.name")
+
+    @pytest.mark.parametrize(
+        "name",
+        ["AAAAAAA", "A12345", "A....."],
+        ids=["Just letters", "Numbers", "Periods"],
+    )
+    def test_init_org_name(self, name: str) -> None:
+        "Tests that legal org names don't raise a ValueError on init"
+        assert CreateSchemaRequest(
+            schema={}, name="schema.name", organization_name=name
+        )
+
+    @pytest.mark.parametrize(
+        "name",
+        ["1AAAAAA", ".AAAAAA", "AAAAAA!"],
+        ids=["Starts with a number", "Starts with a period", "Special character"],
+    )
+    def test_init_org_name_exceptions(self, name: str) -> None:
+        "Tests that illegal org names raise a ValueError on init"
+        with pytest.raises(ValueError, match="Schema name must start with"):
+            CreateSchemaRequest(schema={}, name="schema.name", organization_name=name)
+
+    @pytest.mark.parametrize(
+        "version",
+        ["0.0.1", "1.0.0"],
+    )
+    def test_init_version(self, version: str) -> None:
+        "Tests that legal versions don't raise a ValueError on init"
+        assert CreateSchemaRequest(
+            schema={}, name="schema.name", organization_name="org.name", version=version
+        )
+
+    @pytest.mark.parametrize(
+        "version",
+        ["1", "1.0", "0.0.0.1", "0.0.0"],
+    )
+    def test_init_version_exceptions(self, version: str) -> None:
+        "Tests that illegal versions raise a ValueError on init"
+        with pytest.raises(
+            ValueError,
+            match="Schema version must be a semantic version starting at 0.0.1",
+        ):
+            CreateSchemaRequest(
+                schema={},
+                name="schema.name",
+                organization_name="org.name",
+                version=version,
+            )
