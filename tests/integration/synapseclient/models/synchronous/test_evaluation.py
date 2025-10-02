@@ -172,7 +172,9 @@ class TestGetEvaluation:
         # THEN the evaluations retrieved should match said limit
         assert len(limited_evaluations) == limit
 
-    async def test_get_available_evaluations(self, multiple_evaluations: list[Evaluation]):
+    async def test_get_available_evaluations(
+        self, multiple_evaluations: list[Evaluation]
+    ):
         # WHEN a call is made to get available evaluations for a given user
         evaluations = Evaluation.get_available_evaluations(synapse_client=self.syn)
 
@@ -372,7 +374,9 @@ class TestStoreEvaluation:
         assert updated_eval.id != "syn999999999"
         assert updated_eval.name == retrieved_eval.name
 
-    async def test_store_unchanged_evaluation(self, test_evaluation: Evaluation, monkeypatch):
+    async def test_store_unchanged_evaluation(
+        self, test_evaluation: Evaluation, monkeypatch
+    ):
         warning_messages = []
 
         def mock_warning(self, msg, *args, **kwargs):
