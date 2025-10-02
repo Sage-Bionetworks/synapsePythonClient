@@ -692,7 +692,7 @@ class JSONSchema(JSONSchemaProtocol):
 
         Arguments:
             response: This Synapse API object:
-                [JsonSchemaVersionInfo]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaVersionInfo.html
+                [JsonSchemaVersionInfo](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaVersionInfo.html)
 
         Returns:
             A JSONSchemaVersionInfo object
@@ -716,7 +716,7 @@ class JSONSchema(JSONSchemaProtocol):
 
         Arguments:
             response: This Synapse API object:
-              [JsonSchema]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html
+              [JsonSchema](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html)
         """
         self.organization_id = response.get("organizationId")
         self.organization_name = response.get("organizationName")
