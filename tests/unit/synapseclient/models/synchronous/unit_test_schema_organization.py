@@ -120,7 +120,13 @@ class TestJSONSchema:
     )
     def test_from_response(self, response: dict[str, Any]):
         "Tests that legal Synapse API responses result in created objects."
-        assert JSONSchema.from_response(response)
+        js = JSONSchema.from_response(response)
+        assert js.created_on == "9-30-25"
+        assert js.created_by == "123"
+        assert js.organization_id == "123"
+        assert js.organization_name == "org.name"
+        assert js.id == "123"
+        assert js.name == "schema.name"
 
     @pytest.mark.parametrize(
         "response",
