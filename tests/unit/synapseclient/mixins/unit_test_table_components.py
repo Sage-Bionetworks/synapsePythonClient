@@ -108,9 +108,11 @@ class TestTableStoreMixin:
                 },
             }
 
-        def fill_from_dict(self, entity: Any, set_annotations: bool = True) -> None:
+        def fill_from_dict(self, entity: Any, annotations: Dict = {}) -> None:
             """Placeholder for fill_from_dict method"""
             self.__dict__.update(entity)
+            if annotations is not None:
+                self.__dict__.update(annotations)  # TODO: Is this right?
 
     @pytest.fixture(autouse=True, scope="function")
     def init_syn(self, syn: Synapse) -> None:

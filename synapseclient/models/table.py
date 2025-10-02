@@ -1350,7 +1350,7 @@ class Table(
         )
 
     def fill_from_dict(
-        self, entity: Synapse_Table, set_annotations: bool = True
+        self, entity: Synapse_Table, annotations: Dict = None
     ) -> "Table":
         """
         Converts the data coming from the Synapse API into this datamodel.
@@ -1376,8 +1376,8 @@ class Table(
         self.is_latest_version = entity.get("isLatestVersion", None)
         self.is_search_enabled = entity.get("isSearchEnabled", False)
 
-        if set_annotations:
-            self.annotations = Annotations.from_dict(entity.get("annotations", {}))
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
         return self
 
     def to_synapse_request(self):

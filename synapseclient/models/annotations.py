@@ -1,13 +1,16 @@
 """The required data for working with annotations in Synapse"""
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from typing import Dict, List, Optional, Union
 
+from typing_extensions import Any
+
 from synapseclient import Synapse
-from synapseclient.annotations import ANNO_TYPE_TO_FUNC
+from synapseclient.annotations import ANNO_TYPE_TO_FUNC, _convert_to_annotations_list
 from synapseclient.api import set_annotations_async
 from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.utils import delete_none_keys
 from synapseclient.models.protocols.annotations_protocol import (
     AnnotationsSynchronousProtocol,
 )
@@ -136,3 +139,23 @@ class Annotations(AnnotationsSynchronousProtocol):
                 annotations[key] = dict_to_convert[key]
 
         return annotations
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """Convert the annotations to the format the synapse rest API works in.
+
+        Returns:
+            The annotations in the format the synapse rest API works in.
+        """
+        annotations_dict = asdict(self)
+
+        synapse_annotations = _convert_to_annotations_list(
+            annotations_dict["annotations"] or {}
+        )
+
+        result = {
+            "annotations": synapse_annotations,
+            "id": self.id,
+            "etag": self.etag,
+        }
+        delete_none_keys(result)
+        return result

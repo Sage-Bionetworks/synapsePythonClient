@@ -847,7 +847,7 @@ class SubmissionView(
             deepcopy(self.scope_ids) if self.scope_ids else []
         )
 
-    def fill_from_dict(self, entity, set_annotations: bool = True) -> "Self":
+    def fill_from_dict(self, entity, annotations: Dict = None) -> "Self":
         """
         Converts the data coming from the Synapse API into this datamodel.
 
@@ -873,8 +873,8 @@ class SubmissionView(
         self.is_search_enabled = entity.get("isSearchEnabled", False)
         self.scope_ids = [item for item in entity.get("scopeIds", [])]
 
-        if set_annotations:
-            self.annotations = Annotations.from_dict(entity.get("annotations", {}))
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
 
         return self
 

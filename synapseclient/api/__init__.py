@@ -21,6 +21,7 @@ from .entity_bundle_services_v2 import (
     get_entity_id_version_bundle2,
     post_entity_bundle2_create,
     put_entity_id_bundle2,
+    store_entity_with_bundle2,
 )
 from .entity_factory import get_from_entity_factory
 from .entity_services import (
@@ -130,6 +131,7 @@ __all__ = [
     "get_entity_id_version_bundle2",
     "post_entity_bundle2_create",
     "put_entity_id_bundle2",
+    "store_entity_with_bundle2",
     # file_services
     "post_file_multipart",
     "put_file_multipart_add",

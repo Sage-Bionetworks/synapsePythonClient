@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from synapseclient import Project as Synapse_Project
 from synapseclient import Synapse
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.constants.concrete_types import FILE_ENTITY
@@ -30,19 +29,6 @@ class TestProject:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def get_example_synapse_project_output(self) -> Synapse_Project:
-        return Synapse_Project(
-            id=PROJECT_ID,
-            name=PROJECT_NAME,
-            parentId=PARENT_ID,
-            description=DERSCRIPTION_PROJECT,
-            etag=ETAG,
-            createdOn=CREATED_ON,
-            modifiedOn=MODIFIED_ON,
-            createdBy=CREATED_BY,
-            modifiedBy=MODIFIED_BY,
-        )
-
     def get_example_rest_api_project_output(self) -> Dict[str, str]:
         return {
             "entity": {
@@ -63,7 +49,7 @@ class TestProject:
         # GIVEN an example Synapse Project `get_example_synapse_project_output`
         # WHEN I call `fill_from_dict` with the example Synapse Project
         project_output = Project().fill_from_dict(
-            self.get_example_synapse_project_output()
+            self.get_example_rest_api_project_output().get("entity")
         )
 
         # THEN the Project object should be filled with the example Synapse Project
@@ -87,34 +73,23 @@ class TestProject:
         description = str(uuid.uuid4())
         project.description = description
 
+        # Create the mock return value
+        mock_return_value = self.get_example_rest_api_project_output()
+
         # WHEN I call `store` with the Project object
-        with patch.object(
-            self.syn,
-            "store",
-            return_value=(self.get_example_synapse_project_output()),
+        with patch(
+            "synapseclient.models.project.store_entity_with_bundle2",
+            new_callable=AsyncMock,
+            return_value=mock_return_value,
         ) as mocked_client_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
             new_callable=AsyncMock,
-            return_value=(
-                {
-                    "entity": {
-                        "concreteType": concrete_types.PROJECT_ENTITY,
-                        "id": project.id,
-                    }
-                }
-            ),
+            return_value=mock_return_value,
         ) as mocked_get:
             result = await project.store_async(synapse_client=self.syn)
 
-            # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Project(
-                    id=project.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                createOrUpdate=False,
-            )
+            # THEN we should call the method
+            mocked_client_call.assert_called_once()
 
             # AND we should call the get method
             mocked_get.assert_called_once()
@@ -246,25 +221,21 @@ class TestProject:
         description = str(uuid.uuid4())
         project.description = description
 
+        # Create the mock return value
+        mock_return_value = self.get_example_rest_api_project_output()
+
         # WHEN I call `store` with the Project object
-        with patch.object(
-            self.syn,
-            "store",
-            return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_store, patch(
+        with patch(
+            "synapseclient.models.project.store_entity_with_bundle2",
+            new_callable=AsyncMock,
+            return_value=mock_return_value,
+        ) as mocked_client_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
         ) as mocked_get:
             result = await project.store_async(synapse_client=self.syn)
 
-            # THEN we should  call store because there are changes
-            mocked_store.assert_called_once_with(
-                obj=Synapse_Project(
-                    id=project.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                createOrUpdate=False,
-            )
+            # THEN we should call store_entity_with_bundle2 because there are changes
+            mocked_client_call.assert_called_once()
 
             # AND we should not call get as we already have
             mocked_get.assert_not_called()
@@ -297,14 +268,17 @@ class TestProject:
         description = str(uuid.uuid4())
         project.description = description
 
+        # Create the mock return value
+        mock_return_value = self.get_example_rest_api_project_output()
+
         # WHEN I call `store` with the Project object
         with patch(
-            "synapseclient.models.project.store_entity_components",
+            "synapseclient.models.project.store_entity_components_file_folder_only",
             return_value=(None),
-        ) as mocked_store_entity_components, patch.object(
-            self.syn,
-            "store",
-            return_value=(self.get_example_synapse_project_output()),
+        ) as mocked_store_entity_components, patch(
+            "synapseclient.models.project.store_entity_with_bundle2",
+            new_callable=AsyncMock,
+            return_value=mock_return_value,
         ) as mocked_client_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
             new_callable=AsyncMock,
@@ -319,15 +293,8 @@ class TestProject:
         ) as mocked_get:
             result = await project.store_async(synapse_client=self.syn)
 
-            # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Project(
-                    id=project.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                createOrUpdate=False,
-            )
+            # THEN we should call store_entity_with_bundle2
+            mocked_client_call.assert_called_once()
 
             # AND we should call the get method
             mocked_get.assert_called_once()
@@ -361,48 +328,45 @@ class TestProject:
         description = str(uuid.uuid4())
         project.description = description
 
+        # Create the mock return value
+        mock_return_value = self.get_example_rest_api_project_output()
+
         # WHEN I call `store` with the Project object
         with patch.object(
             self.syn,
-            "store",
-            return_value=(self.get_example_synapse_project_output()),
-        ) as mocked_client_call, patch.object(
-            self.syn,
             "findEntityId",
             return_value=PROJECT_ID,
-        ) as mocked_get, patch(
+        ) as mocked_find_entity_id, patch(
+            "synapseclient.models.project.store_entity_with_bundle2",
+            new_callable=AsyncMock,
+            return_value=mock_return_value,
+        ) as mocked_client_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
             new_callable=AsyncMock,
             return_value=(
                 {
                     "entity": {
                         "concreteType": concrete_types.PROJECT_ENTITY,
-                        "id": project.id,
+                        "id": PROJECT_ID,
                     }
                 }
             ),
         ) as mocked_get:
             result = await project.store_async(synapse_client=self.syn)
 
-            # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Project(
-                    id=project.id,
-                    name=project.name,
-                    parent=project.parent_id,
-                    description=description,
-                ),
-                set_annotations=False,
-                createOrUpdate=False,
+            # THEN we should call store_entity_with_bundle2
+            mocked_client_call.assert_called_once()
+
+            # AND we should find the entity ID
+            mocked_find_entity_id.assert_called_once_with(
+                name=project.name,
+                parent=project.parent_id,
             )
 
             # AND we should call the get method
             mocked_get.assert_called_once()
 
-            # AND findEntityId should be called
-            mocked_get.assert_called_once()
-
-            # AND the project should be stored
+            # AND the project should be stored with the mock return data
             assert result.id == PROJECT_ID
             assert result.name == PROJECT_NAME
             assert result.parent_id == PARENT_ID

@@ -855,12 +855,12 @@ class Dataset(
             [dataclasses.replace(item) for item in self.items] if self.items else []
         )
 
-    def fill_from_dict(self, entity, set_annotations: bool = True) -> "Self":
+    def fill_from_dict(self, entity, annotations: Dict = None) -> "Self":
         """
         Converts the data coming from the Synapse API into this datamodel.
 
         Arguments:
-            synapse_table: The data coming from the Synapse API
+            entity: The data coming from the Synapse API
 
         Returns:
             The Dataset object instance.
@@ -887,8 +887,8 @@ class Dataset(
             for item in entity.get("items", [])
         ]
 
-        if set_annotations:
-            self.annotations = Annotations.from_dict(entity.get("annotations", {}))
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
         return self
 
     def to_synapse_request(self):
@@ -2259,12 +2259,12 @@ class DatasetCollection(
             [dataclasses.replace(item) for item in self.items] if self.items else []
         )
 
-    def fill_from_dict(self, entity, set_annotations: bool = True) -> "Self":
+    def fill_from_dict(self, entity, annotations: Dict = None) -> "Self":
         """
         Converts the data coming from the Synapse API into this datamodel.
 
         Arguments:
-            synapse_table: The data coming from the Synapse API
+            entity: The data coming from the Synapse API
 
         Returns:
             The DatasetCollection object instance.
@@ -2287,8 +2287,8 @@ class DatasetCollection(
             EntityRef(id=item["entityId"], version=item["versionNumber"])
             for item in entity.get("items", [])
         ]
-        if set_annotations:
-            self.annotations = Annotations.from_dict(entity.get("annotations", {}))
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
         return self
 
     def to_synapse_request(self):

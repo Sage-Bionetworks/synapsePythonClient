@@ -2,13 +2,14 @@ import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from opentelemetry import trace
 
 from synapseclient import Synapse
 from synapseclient.api import get_from_entity_factory
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.entity import Folder as Synapse_Folder
@@ -20,9 +21,10 @@ from synapseclient.models.mixins import (
 )
 from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
 from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity import store_entity
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
-    store_entity_components,
+    store_entity_components_file_folder_only,
 )
 from synapseutils import copy
 
@@ -229,32 +231,53 @@ class Folder(
         )
 
     def fill_from_dict(
-        self, synapse_folder: Synapse_Folder, set_annotations: bool = True
+        self, entity: Synapse_Folder, annotations: Dict = None
     ) -> "Folder":
         """
         Converts a response from the REST API into this dataclass.
 
         Arguments:
-            synapse_file: The response from the REST API.
-            set_annotations: Whether to set the annotations from the response.
+            entity: The response from the REST API.
+            annotations: Optional dictionary containing annotations data.
 
         Returns:
             The Folder object.
         """
-        self.id = synapse_folder.get("id", None)
-        self.name = synapse_folder.get("name", None)
-        self.parent_id = synapse_folder.get("parentId", None)
-        self.description = synapse_folder.get("description", None)
-        self.etag = synapse_folder.get("etag", None)
-        self.created_on = synapse_folder.get("createdOn", None)
-        self.modified_on = synapse_folder.get("modifiedOn", None)
-        self.created_by = synapse_folder.get("createdBy", None)
-        self.modified_by = synapse_folder.get("modifiedBy", None)
-        if set_annotations:
-            self.annotations = Annotations.from_dict(
-                synapse_folder.get("annotations", None)
-            )
+        self.id = entity.get("id", None)
+        self.name = entity.get("name", None)
+        self.parent_id = entity.get("parentId", None)
+        self.description = entity.get("description", None)
+        self.etag = entity.get("etag", None)
+        self.created_on = entity.get("createdOn", None)
+        self.modified_on = entity.get("modifiedOn", None)
+        self.created_by = entity.get("createdBy", None)
+        self.modified_by = entity.get("modifiedBy", None)
+        if annotations:
+            self.annotations = Annotations.from_dict(annotations.get("annotations", {}))
         return self
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass into a request that can be sent to the Synapse API.
+
+        Returns:
+            A dictionary that can be used in a request to the Synapse API.
+        """
+        entity = {
+            "name": self.name,
+            "description": self.description,
+            "id": self.id,
+            "etag": self.etag,
+            "createdOn": self.created_on,
+            "modifiedOn": self.modified_on,
+            "createdBy": self.created_by,
+            "modifiedBy": self.modified_by,
+            "parentId": self.parent_id,
+            "concreteType": concrete_types.FOLDER_ENTITY,
+        }
+        delete_none_keys(entity)
+
+        return entity
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Folder_Store: {self.name}"
@@ -321,28 +344,19 @@ class Folder(
             }
         )
         if self.has_changed:
-            loop = asyncio.get_event_loop()
-            synapse_folder = Synapse_Folder(
-                id=self.id,
-                name=self.name,
-                parent=parent_id,
-                etag=self.etag,
-                description=self.description,
+            entity = await store_entity(
+                entity=self.to_synapse_request(),
+                parent_id=self.parent_id,
+                annotations=Annotations(self.annotations).to_synapse_request()
+                if self.annotations
+                else None,
+                synapse_client=synapse_client,
             )
-            delete_none_keys(synapse_folder)
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_folder,
-                    set_annotations=False,
-                    isRestricted=self.is_restricted,
-                    createOrUpdate=False,
-                ),
+            self.fill_from_dict(
+                entity=entity["entity"], annotations=entity.get("annotations", None)
             )
 
-            self.fill_from_dict(synapse_folder=entity, set_annotations=False)
-
-        await store_entity_components(
+        await store_entity_components_file_folder_only(
             root_resource=self,
             failure_strategy=failure_strategy,
             synapse_client=synapse_client,

@@ -853,15 +853,15 @@ class TableStoreMixin:
 
         if dry_run:
             client.logger.info(
-                f"[{self.id}:{self.name}]: Dry run enabled. No changes will be made."
+                f"[{self.id or ''}:{self.name}]: Dry run enabled. No changes will be made."
             )
 
         if self.has_changed:
-            if self.id:
-                if dry_run:
-                    client.logger.info(
-                        f"[{self.id}:{self.name}]: Dry run {self.__class__} update, expected changes:"
-                    )
+            if dry_run:
+                client.logger.info(
+                    f"[{self.id or ''}:{self.name}]: Dry run {self.__class__} {('update' if self.id else 'create')}, expected changes:"
+                )
+                if self.id:
                     log_dataclass_diff(
                         logger=client.logger,
                         prefix=f"[{self.id}:{self.name}]: ",
@@ -870,17 +870,6 @@ class TableStoreMixin:
                         fields_to_ignore=["columns", "_last_persistent_instance"],
                     )
                 else:
-                    entity = await put_entity_id_bundle2(
-                        entity_id=self.id,
-                        request=self.to_synapse_request(),
-                        synapse_client=synapse_client,
-                    )
-                    self.fill_from_dict(entity=entity["entity"], set_annotations=False)
-            else:
-                if dry_run:
-                    client.logger.info(
-                        f"[{self.id}:{self.name}]: Dry run {self.__class__} update, expected changes:"
-                    )
                     log_dataclass_diff(
                         logger=client.logger,
                         prefix=f"[{self.name}]: ",
@@ -888,11 +877,24 @@ class TableStoreMixin:
                         obj2=self,
                         fields_to_ignore=["columns", "_last_persistent_instance"],
                     )
-                else:
-                    entity = await post_entity_bundle2_create(
-                        request=self.to_synapse_request(), synapse_client=synapse_client
-                    )
-                    self.fill_from_dict(entity=entity["entity"], set_annotations=False)
+            else:
+                # Use store_entity_with_bundle2 for both creation and update operations
+                from synapseclient.api.entity_bundle_services_v2 import (
+                    store_entity_with_bundle2,
+                )
+                from synapseclient.models import Annotations
+
+                entity = await store_entity_with_bundle2(
+                    entity=self.to_synapse_request(),
+                    parent_id=self.parent_id if not self.id else None,
+                    annotations=Annotations(self.annotations).to_synapse_request()
+                    if self.annotations
+                    else None,
+                    synapse_client=synapse_client,
+                )
+                self.fill_from_dict(
+                    entity=entity["entity"], annotations=entity.get("annotations", None)
+                )
 
         schema_change_request = await self._generate_schema_change_request(
             dry_run=dry_run, synapse_client=synapse_client
