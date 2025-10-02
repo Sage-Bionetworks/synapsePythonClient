@@ -41,30 +41,6 @@ SYNAPSE_SCHEMA_URL = (
 class SchemaOrganization(SchemaOrganizationProtocol):
     """
     Represents an [Organization](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html).
-
-    Attributes:
-        id: The ID of the organization
-        name: The name of the organization
-        created_on: The date this organization was created
-        created_by: The ID of the user that created this organization
-
-    Example:
-        from synapseclient.models import SchemaOrganization
-        from synapseclient import Synapse
-
-        syn = Synapse()
-        syn.login()
-
-        # Create a new org
-        org = SchemaOrganization("my.new.org.name")
-        org.create()
-
-        # Get the metadata and JSON Schemas for an existing org
-        org = SchemaOrganization("my.org.name")
-        org.get_async()
-        print(org)
-        schemas = org.get_json_schema_list()
-        print(schemas)
     """
 
     name: str
@@ -91,7 +67,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Get an existing SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
             import asyncio
@@ -99,9 +78,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
+            org = SchemaOrganization("dpetest")
             asyncio.run(org.get_async())
-
+            ```
         """
         if self.id:
             return
@@ -118,7 +97,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Store a new SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
             import asyncio
@@ -128,7 +110,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
             org = SchemaOrganization("my.org.name")
             asyncio.run(org.store_async())
-
+            ```
         """
         response = await create_organization(self.name, synapse_client=synapse_client)
         self._fill_from_dict(response)
@@ -143,7 +125,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Delete a SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
             import asyncio
@@ -152,8 +137,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             syn.login()
 
             org = SchemaOrganization("my.org.name")
-            asyncio.run(org.delete())
-
+            asyncio.run(org.delete_async())
+            ```
         """
         if not self.id:
             await self.get_async(synapse_client=synapse_client)
@@ -172,7 +157,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Get a list of JSONSchemas that belong to the SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
             import asyncio
@@ -180,8 +168,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
-            asyncio.run(org.get_json_schema_list_async())
+            org = SchemaOrganization("dpetest")
+            schemas = asyncio.run(org.get_json_schema_list_async())
+            ```
 
         """
         response = list_json_schemas(self.name, synapse_client=synapse_client)
@@ -205,7 +194,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             A dictionary in the form of this response:
               https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
-        Example:
+        Example: Get the ACL for a SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
             import asyncio
@@ -213,8 +205,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
-            asyncio.run(org.get_acl_async())
+            org = SchemaOrganization("dpetest")
+            acl = asyncio.run(org.get_acl_async())
+            ```
         """
         if not self.id:
             await self.get_async()
@@ -241,7 +234,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Update the ACL or a SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
             import asyncio
@@ -249,12 +245,19 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             syn = Synapse()
             syn.login()
 
+            # Store a new org
             org = SchemaOrganization("my.org.name")
+            asyncio.run(org.store_async())
+
+            # Get and modify the ACL
             current acl = asyncio.run(org.get_acl_async())
             resource_access = current_acl["resourceAccess"]
             resource_access.append({"principalId": 1, "accessType": ["READ"]})
             etag = current_acl["etag"]
+
+            # Update the ACL
             asyncio.run(org.update_acl_async(resource_access, etag))
+            ```
 
         """
         if not self.id:
@@ -309,7 +312,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         Returns:
             A SchemaOrganization object using the input response
 
-        Example:
+        Example: Create a SchemaOrganization form an API response
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
             import asyncio
@@ -320,6 +326,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
             response = asyncio.run(get_organization("my.org.name"))
             org = SchemaOrganization.from_response(response)
+            ```
 
         """
         org = SchemaOrganization(response.get("name"))
@@ -342,14 +349,6 @@ class JSONSchema(JSONSchemaProtocol):
         created_on: The date this schema was created
         created_by: The ID of the user that created this schema
         uri: The uri of this schema
-
-    Example:
-        from synapseclient.models import JSON Schema
-        from synapseclient import Synapse
-
-        syn = Synapse()
-        syn.login()
-
     """
 
     name: str
@@ -389,7 +388,10 @@ class JSONSchema(JSONSchemaProtocol):
         Raises:
             ValueError: This JSONSchema doesn't exist in its organization
 
-        Example:
+        Example: Get an existing JSONSchema
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
             import asyncio
@@ -399,6 +401,7 @@ class JSONSchema(JSONSchemaProtocol):
 
             js = JSONSchema("my.schema.name", "my.org.name")
             asyncio.run(js.get_async())
+            ```
         """
         if self.id:
             return
@@ -429,6 +432,33 @@ class JSONSchema(JSONSchemaProtocol):
         dry_run: bool = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
+        """
+        Stores this JSONSchema in Synapse
+
+        Arguments:
+            schema_body: _description_
+            version: _description_. Defaults to None.
+            dry_run: _description_. Defaults to False.
+            synapse_client: _description_. Defaults to None.
+
+        Returns:
+            _description_
+
+        Example: Store a JSON Schema in Synapse
+            &nbsp;
+
+            ```python
+            from synapseclient.models import JSONSchema
+            from synapseclient import Synapse
+            import asyncio
+
+            syn = Synapse()
+            syn.login()
+
+            js = JSONSchema("my.schema.name", "my.org.name")
+            asyncio.run(js.store_async())
+            ```
+        """
         request = CreateSchemaRequest(
             schema=schema_body,
             name=self.name,
@@ -455,7 +485,10 @@ class JSONSchema(JSONSchemaProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Delete an existing JSONSchema
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
             import asyncio
@@ -465,6 +498,7 @@ class JSONSchema(JSONSchemaProtocol):
 
             js = JSONSchema("my.schema.name", "my.org.name")
             asyncio.run(js.delete_async())
+            ```
         """
         await delete_json_schema(self.uri, synapse_client=synapse_client)
 
@@ -482,7 +516,10 @@ class JSONSchema(JSONSchemaProtocol):
         Returns:
             A JSONSchemaVersionInfo for each version of this schema
 
-        Example:
+        Example: Get all the versions of the JSONSchema
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
             import asyncio
@@ -492,6 +529,7 @@ class JSONSchema(JSONSchemaProtocol):
 
             js = JSONSchema("my.schema.name", "my.org.name")
             versions = asyncio.run(get_versions_async())
+            ```
         """
         all_schemas = list_json_schema_versions(
             self.organization_name, self.name, synapse_client=synapse_client
@@ -522,7 +560,10 @@ class JSONSchema(JSONSchemaProtocol):
         Returns:
             The JSON Schema body
 
-        Example:
+        Example: Get the body of the JSONSchema
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
             import asyncio
@@ -535,6 +576,7 @@ class JSONSchema(JSONSchemaProtocol):
             latest = asyncio.run(js.get_body_async())
             # Get specific version
             first = asyncio.run(js.get_body_async("0.0.1"))
+            ```
         """
         uri = self.uri
         if version:
@@ -560,7 +602,10 @@ class JSONSchema(JSONSchemaProtocol):
         Returns:
             A JSONSchema object
 
-        Example:
+        Example: Create a JSONSchema from a URI
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
 
             # Non-semantic URI
@@ -568,6 +613,7 @@ class JSONSchema(JSONSchemaProtocol):
 
             # Semantic URI
             js2 = JSONSchema.from_uri("my.org-my.schema-0.0.1")
+            ```
 
         """
         uri_parts = uri.split("-")
@@ -592,7 +638,10 @@ class JSONSchema(JSONSchemaProtocol):
         Returns:
             A JSONSchema object from the API response
 
-        Example:
+        Example: Create a JSONSchema from an API response
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
             from synapseclient.api import list_json_schemas
@@ -610,6 +659,7 @@ class JSONSchema(JSONSchemaProtocol):
 
             response = asyncio.run(get_first_response())
             JSONSchema.from_response(response)
+            ```
 
         """
         js = JSONSchema(response.get("schemaName"), response.get("organizationName"))
@@ -663,7 +713,7 @@ class JSONSchema(JSONSchemaProtocol):
         """
         Checks that the semantic version is correctly formatted
 
-        Args:
+        Arguments:
             version: A semantic version(ie. `1.0.0`) to be checked
 
         Raises:

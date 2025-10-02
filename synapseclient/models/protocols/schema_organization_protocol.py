@@ -24,7 +24,10 @@ class SchemaOrganizationProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Get an existing SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
 
@@ -33,6 +36,7 @@ class SchemaOrganizationProtocol(Protocol):
 
             org = SchemaOrganization("my.org.name")
             org.get()
+            ```
 
         """
         return self
@@ -46,7 +50,10 @@ class SchemaOrganizationProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Store the SchemaOrganization in Synapse
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
 
@@ -55,6 +62,7 @@ class SchemaOrganizationProtocol(Protocol):
 
             org = SchemaOrganization("my.org.name")
             org.store()
+            ```
 
         """
         return self
@@ -68,7 +76,10 @@ class SchemaOrganizationProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Delete the SchemaOrganization from Synapse
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
 
@@ -77,7 +88,7 @@ class SchemaOrganizationProtocol(Protocol):
 
             org = SchemaOrganization("my.org.name")
             org.delete()
-
+            ```
         """
         return None
 
@@ -94,7 +105,10 @@ class SchemaOrganizationProtocol(Protocol):
 
         Returns: A list of JSONSchema objects
 
-        Example:
+        Example: Get the JSONSchemas that are part of this SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
 
@@ -103,7 +117,7 @@ class SchemaOrganizationProtocol(Protocol):
 
             org = SchemaOrganization("my.org.name")
             org.get_json_schema_list()
-
+            ```
         """
         return []
 
@@ -123,7 +137,10 @@ class SchemaOrganizationProtocol(Protocol):
             A dictionary in the form of this response:
               https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
-        Example:
+        Example: Get the ACL for the SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
 
@@ -132,6 +149,7 @@ class SchemaOrganizationProtocol(Protocol):
 
             org = SchemaOrganization("my.org.name")
             org.get_acl()
+            ```
         """
         return {}
 
@@ -155,7 +173,10 @@ class SchemaOrganizationProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Update the ACL for the SchemaOrganization
+            &nbsp;
+
+            ```python
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
 
@@ -168,7 +189,7 @@ class SchemaOrganizationProtocol(Protocol):
             resource_access.append({"principalId": 1, "accessType": ["READ"]})
             etag = current_acl["etag"]
             org.update_acl(resource_access, etag)
-
+            ```
         """
         return None
 
@@ -191,7 +212,10 @@ class JSONSchemaProtocol(Protocol):
         Raises:
             ValueError: This JSONSchema doesn't exist in its organization
 
-        Example:
+        Example: Get an Existing JSONSchema
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
 
@@ -200,6 +224,7 @@ class JSONSchemaProtocol(Protocol):
 
             js = JSONSchema("my.schema.name", "my.org.name")
             js.get()
+            ```
         """
         return self
 
@@ -210,6 +235,28 @@ class JSONSchemaProtocol(Protocol):
         dry_run: bool = False,
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
+        """
+        Stores this organization in Synapse
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor
+
+        Example: Store a new SchemaOrganization
+            &nbsp;
+
+            ```python
+            from synapseclient.models import SchemaOrganization
+            from synapseclient import Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            org = SchemaOrganization("my.org.name")
+            org.store()
+            ```
+        """
         return self
 
     def delete(self) -> None:
@@ -221,7 +268,10 @@ class JSONSchemaProtocol(Protocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example:
+        Example: Delete this JSONSchema from Synapse
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
 
@@ -230,6 +280,7 @@ class JSONSchemaProtocol(Protocol):
 
             js = JSONSchema("my.schema.name", "my.org.name")
             js.delete()
+            ```
         """
         return None
 
@@ -247,7 +298,10 @@ class JSONSchemaProtocol(Protocol):
         Returns:
             A JSONSchemaVersionInfo for each version of this schema
 
-        Example:
+        Example: Get all versions of the JSONSchema
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
 
@@ -276,7 +330,10 @@ class JSONSchemaProtocol(Protocol):
         Returns:
             The JSON Schema body
 
-        Example:
+        Example: Get the JSONSchema body from Synapse
+            &nbsp;
+
+            ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
 
@@ -287,6 +344,7 @@ class JSONSchemaProtocol(Protocol):
             # Get latest version
             latest = js.get_body()
             # Get specific version
-            first = ajs.get_body("0.0.1")
+            first = js.get_body("0.0.1")
+            ```
         """
         return {}
