@@ -49,21 +49,23 @@ class DownloadRequest(NamedTuple):
     A request to download a file from Synapse
 
     Attributes:
-        file_handle_id : The file handle ID to download.
-        object_id : The Synapse object this file associated to.
+        file_handle_id : The file handle ID to download. Defaults to None.
+        object_id : The Synapse object this file associated to. Defaults to None.
         object_type : The type of the associated Synapse object. Any of
-            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>
+            <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandleAssociateType.html>. Defaults to None.
         path : The local path to download the file to.
             This path can be either an absolute path or
-            a relative path from where the code is executed to the download location.
-        debug: A boolean to specify if debug mode is on.
+            a relative path from where the code is executed to the download location. Defaults to None.
+        debug: A boolean to specify if debug mode is on. Defaults to False.
+        presigned_url: Optional information about a presigned url to download the file. Defaults to None.
     """
 
-    file_handle_id: int
-    object_id: str
-    object_type: str
-    path: str
+    file_handle_id: int = None
+    object_id: str = None
+    object_type: str = None
+    path: str = None
     debug: bool = False
+    presigned_url: Optional["PresignedUrlInfo"] = None
 
 
 async def download_file(
@@ -295,7 +297,16 @@ class _MultithreadedDownloader:
         """
         Splits up and downloads a file in chunks from a URL.
         """
-        url_provider = PresignedUrlProvider(self._syn, request=self._download_request)
+        if self._download_request.presigned_url is not None:
+            url_provider = PresignedUrlProvider(
+                self._syn,
+                request=self._download_request,
+                _cached_info=self._download_request.presigned_url,
+            )
+        else:
+            url_provider = PresignedUrlProvider(
+                self._syn, request=self._download_request
+            )
 
         file_size = await with_retry_time_based_async(
             function=lambda: _get_file_size_wrapper(
@@ -307,9 +318,14 @@ class _MultithreadedDownloader:
             retry_max_wait_before_failure=30,
             read_response_content=False,
         )
+        # set postfix to object_id if not presigned url, otherwise set to file_name
+        if self._download_request.presigned_url is None:
+            postfix = self._download_request.object_id
+        else:
+            postfix = self._download_request.presigned_url.file_name
         self._progress_bar = get_or_create_download_progress_bar(
             file_size=file_size,
-            postfix=self._download_request.object_id,
+            postfix=postfix,
             synapse_client=self._syn,
         )
         self._prep_file()
