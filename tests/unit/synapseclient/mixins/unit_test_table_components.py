@@ -751,6 +751,7 @@ class TestDeleteMixin:
     async def test_delete_with_no_id_or_name_and_parent_id(self):
         # GIVEN a TestClass instance with no id or name and parent_id
         test_instance = self.ClassForTest()
+        test_instance.__name__ = ""
 
         with pytest.raises(
             ValueError,
@@ -1811,12 +1812,17 @@ class TestTableDeleteRowMixin:
                     entity_id=test_instance.id, changes=[]
                 ),
             ) as mock_send_job_and_wait_async,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
         ):
             # WHEN I call delete_rows_async
             result = await test_instance.delete_rows_async(
                 query=self.fake_query, synapse_client=self.syn
             )
 
+            # THEN mock_logger_info should be called
+            mock_logger_info.assert_called_once_with(
+                f"Found 2 rows to delete for given query: {self.fake_query}"
+            )
             # THEN mock_query_async should be called
             mock_query_async.assert_awaited_once_with(
                 query=self.fake_query, synapse_client=self.syn
@@ -1849,12 +1855,17 @@ class TestTableDeleteRowMixin:
                     entity_id=test_instance.id, changes=[]
                 ),
             ) as mock_send_job_and_wait_async,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
         ):
             # WHEN I call delete_rows_async
             result = await test_instance.delete_rows_async(
                 df=df, synapse_client=self.syn
             )
 
+            # THEN mock_logger_info should be called
+            mock_logger_info.assert_called_once_with(
+                f"Found 2 rows to delete for given dataframe."
+            )
             # AND mock_multipart_upload_file_async should be called
             mock_multipart_upload_file_async.assert_awaited_once()
             # AND mock_send_job_and_wait_async should be called
@@ -1866,6 +1877,70 @@ class TestTableDeleteRowMixin:
             # AND the result should be the expected dataframe object
             assert result.equals(
                 pd.DataFrame({"ROW_ID": ["A", "B"], "ROW_VERSION": [1, 2]})
+            )
+
+    @pytest.mark.parametrize(
+        "df, error_msg",
+        [
+            (
+                pd.DataFrame(columns=["ROW_ID"]),  # Missing ROW_VERSION column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(columns=["ROW_VERSION"]),  # Missing ROW_ID column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(columns=["INVALID_COL", "ROW_VERSION"]),  # Invalid column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(columns=["ROW_ID", "INVALID_COL"]),  # Invalid column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(columns=["INVALID_COL1", "INVALID_COL2"]),  # Both invalid
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+        ],
+    )
+    async def test_delete_rows_via_dataframe_missing_required_column_table_entity(
+        self, df, error_msg
+    ):
+        # GIVEN a TestClass instance
+        test_instance = self.ClassForTest()
+        # WHEN I call delete_rows_async
+        with pytest.raises(ValueError, match=error_msg):
+            result = await test_instance.delete_rows_async(
+                df=df, synapse_client=self.syn
+            )
+
+    @pytest.mark.parametrize(
+        "df, error_msg",
+        [
+            (
+                pd.DataFrame(columns=["ROW_ID"]),  # Missing ROW_VERSION column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(
+                    columns=["ROW_ID", "ROW_VERSION"]
+                ),  # Missing ROW_ETAG column
+                "The dataframe must contain the 'ROW_ETAG' column when deleting rows from a Dataset.",
+            ),
+        ],
+    )
+    async def test_delete_rows_via_dataframe_missing_required_column_dataset_entity(
+        self, df, error_msg
+    ):
+        # GIVEN a Dataset instance
+        from synapseclient.models import Dataset
+
+        test_instance = Dataset()
+        # WHEN I call delete_rows_async
+        with pytest.raises(ValueError, match=error_msg):
+            result = await test_instance.delete_rows_async(
+                df=df, synapse_client=self.syn
             )
 
 
