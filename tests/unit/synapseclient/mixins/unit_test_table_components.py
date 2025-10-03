@@ -1791,7 +1791,7 @@ class TestTableDeleteRowMixin:
         name: Optional[str] = "test_table"
         columns: Dict[str, Column] = field(default_factory=dict)
 
-    async def test_delete_rows_async(self):
+    async def test_delete_rows_async_via_query(self):
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
         with (
@@ -1821,6 +1821,40 @@ class TestTableDeleteRowMixin:
             mock_query_async.assert_awaited_once_with(
                 query=self.fake_query, synapse_client=self.syn
             )
+            # AND mock_multipart_upload_file_async should be called
+            mock_multipart_upload_file_async.assert_awaited_once()
+            # AND mock_send_job_and_wait_async should be called
+            mock_send_job_and_wait_async.assert_awaited_once_with(
+                synapse_client=self.syn,
+                timeout=600,
+            )
+
+            # AND the result should be the expected dataframe object
+            assert result.equals(
+                pd.DataFrame({"ROW_ID": ["A", "B"], "ROW_VERSION": [1, 2]})
+            )
+
+    async def test_delete_rows_async_via_dataframe(self):
+        # GIVEN a TestClass instance
+        test_instance = self.ClassForTest()
+        df = pd.DataFrame({"ROW_ID": ["A", "B"], "ROW_VERSION": [1, 2]})
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.multipart_upload_file_async",
+                return_value="fake_file_handle_id",
+            ) as mock_multipart_upload_file_async,
+            patch(
+                SEND_JOB_AND_WAIT_ASYNC_PATCH,
+                return_value=TableUpdateTransaction(
+                    entity_id=test_instance.id, changes=[]
+                ),
+            ) as mock_send_job_and_wait_async,
+        ):
+            # WHEN I call delete_rows_async
+            result = await test_instance.delete_rows_async(
+                df=df, synapse_client=self.syn
+            )
+
             # AND mock_multipart_upload_file_async should be called
             mock_multipart_upload_file_async.assert_awaited_once()
             # AND mock_send_job_and_wait_async should be called

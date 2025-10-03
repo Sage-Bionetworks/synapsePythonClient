@@ -4049,23 +4049,27 @@ class TableDeleteRowMixin:
 
     async def delete_rows_async(
         self,
-        query: str,
+        query: Optional[str] = None,
+        df: Optional[DATA_FRAME_TYPE] = None,
         *,
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> DATA_FRAME_TYPE:
         """
-        Delete rows from a table given a query to select rows. The query at a
-        minimum must select the `ROW_ID` and `ROW_VERSION` columns. If you want to
+        Delete rows from a table given a query or a pandas dataframe to select rows.
+        The query at a minimum must select the `ROW_ID` and `ROW_VERSION` columns. If you want to
         inspect the data that will be deleted ahead of time you may use the
         `.query` method to get the data.
-
+        The dataframe must at least contain the `ROW_ID` and `ROW_VERSION` columns. And `ROW_ETAG` column is also required
+        if the entity is one of the following: `EntityView`, `Dataset`, `DatasetCollection`, or `SubmissionView`.
 
         Arguments:
             query: The query to select the rows to delete. The query at a minimum
                 must select the `ROW_ID` and `ROW_VERSION` columns. See this document
                 that describes the expected syntax of the query:
                 <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            df: A pandas dataframe that contains the rows to delete. The dataframe must at least contain the `ROW_ID` and `ROW_VERSION` columns.
+                if the entity is one of the following: `EntityView`, `Dataset`, `DatasetCollection`, or `SubmissionView` then the dataframe must also contain the `ROW_ETAG` column.
             job_timeout: The amount of time to wait for table updates to complete
                 before a `SynapseTimeoutError` is thrown. The default is 600 seconds.
             synapse_client: If not passed in and caching was not disabled by
@@ -4073,7 +4077,7 @@ class TableDeleteRowMixin:
                 instance from the Synapse class constructor.
 
         Returns:
-            The results of your query for the rows that were deleted from the table.
+            The results of your query or dataframe for the rows that were deleted from the table.
 
         Example: Selecting a row to delete
             This example shows how you may select a row to delete from a table.
@@ -4109,9 +4113,31 @@ class TableDeleteRowMixin:
 
             asyncio.run(main())
             ```
+
+        Example: Selecting rows to delete using a dataframe
+            This example shows how you may select a row to delete from a table based on a dataframe.
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                await Table(id="syn1234").delete_rows_async(df)
+
+            asyncio.run(main())
+            ```
         """
         client = Synapse.get_client(synapse_client=synapse_client)
-        results_from_query = await self.query_async(query=query, synapse_client=client)
+        if query is not None:
+            results_from_query = await self.query_async(
+                query=query, synapse_client=client
+            )
+        elif df is not None:
+            results_from_query = df
         client.logger.info(
             f"Found {len(results_from_query)} rows to delete for given query: {query}"
         )

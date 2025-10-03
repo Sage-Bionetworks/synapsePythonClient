@@ -204,6 +204,11 @@ Qux2,4,203001,204001,+,False
     table.delete_rows(query=f"SELECT * FROM {table.id} WHERE Strand = '+'")
     ```
 
+* Or deleting rows based on a filtered dataframe, where the ROW_ID and ROW_VERSION columns specify the rows to be deleted from the table. In this example, rows 2 and 3 are deleted.
+    ```python
+    table.delete_rows(df = pd.DataFrame({"ROW_ID": [2, 3], "ROW_VERSION": [1, 1]}))
+    ```
+
 * Deleting the whole table will deletes the whole table and all rows
 
     ```python
