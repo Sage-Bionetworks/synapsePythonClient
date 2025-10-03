@@ -96,12 +96,15 @@ def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any], syn: "Synapse") -> A
 def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kwargs):
     """
     Wrap an async generator function to be called in a sync context, returning a sync generator.
+
     This function takes an async generator function and its arguments, then yields items
     synchronously by running the async generator in the appropriate event loop.
+
     Arguments:
         async_gen_func: The async generator function to wrap
         *args: Positional arguments to pass to the async generator function
         **kwargs: Keyword arguments to pass to the async generator function
+
     Yields:
         Items from the async generator, yielded synchronously
     """
