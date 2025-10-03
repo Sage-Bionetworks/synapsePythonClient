@@ -260,7 +260,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             asyncio.run(org.store_async())
 
             # Get and modify the ACL
-            current acl = asyncio.run(org.get_acl_async())
+            current_acl = asyncio.run(org.get_acl_async())
             resource_access = current_acl["resourceAccess"]
             resource_access.append({"principalId": 1, "accessType": ["READ"]})
             etag = current_acl["etag"]
