@@ -198,26 +198,23 @@ class Evaluation(EvaluationSynchronousProtocol):
         """Creates a request body expected of the Synapse REST API for the Evaluation model."""
 
         # These attributes are required in our PUT requests for creating or updating an evaluation
-        if not self.name:
-            raise ValueError(
-                "Your evaluation object is missing the 'name' attribute. A name is required to create/update an evaluation"
-            )
-        if not self.description:
-            raise ValueError(
-                "Your evaluation object is missing the 'description' attribute. A description is required to create/update an evaluation"
-            )
-        if not self.content_source:
-            raise ValueError(
-                "Your evaluation object is missing the 'content_source' attribute. A content_source is required to create/update an evaluation"
-            )
-        if not self.submission_instructions_message:
-            raise ValueError(
-                "Your evaluation object is missing the 'submission_instructions_message' attribute. A submission_instructions_message is required to create/update an evaluation"
-            )
-        if not self.submission_receipt_message:
-            raise ValueError(
-                "Your evaluation object is missing the 'submission_receipt_message' attribute. A submission_receipt_message is required to create/update an evaluation"
-            )
+        required_attributes = [
+            "name",
+            "description",
+            "content_source",
+            "submission_instructions_message",
+            "submission_receipt_message",
+        ]
+
+        # For 'update' request types, add id and etag
+        if request_type.lower() == "update":
+            required_attributes.extend(["id", "etag"])
+
+        for attribute in required_attributes:
+            if not getattr(self, attribute):
+                raise ValueError(
+                    f"Your evaluation object is missing the '{attribute}' attribute. This attribute is required to {request_type} an evaluation"
+                )
 
         # Build a request body for storing a brand new evaluation
         request_body = {
@@ -230,15 +227,6 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         # For 'update' request types, add id and etag
         if request_type.lower() == "update":
-            if not self.id:
-                raise ValueError(
-                    "Your evaluation object is missing the 'id' attribute. An id is required to update an evaluation"
-                )
-            if not self.etag:
-                raise ValueError(
-                    "Your evaluation object is missing the 'etag' attribute. An etag is required to update an evaluation"
-                )
-
             request_body["id"] = self.id
             request_body["etag"] = self.etag
 
