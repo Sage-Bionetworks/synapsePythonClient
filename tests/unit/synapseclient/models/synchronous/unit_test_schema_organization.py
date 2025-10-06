@@ -4,10 +4,7 @@ from typing import Any
 import pytest
 
 from synapseclient.models import JSONSchema, SchemaOrganization
-from synapseclient.models.schema_organization import (
-    CreateSchemaRequest,
-    list_json_schema_organizations,
-)
+from synapseclient.models.schema_organization import CreateSchemaRequest
 
 
 class TestSchemaOrganization:
@@ -31,37 +28,6 @@ class TestSchemaOrganization:
         "Tests that illegal names raise a ValueError on init"
         with pytest.raises(ValueError, match="Organization name must start with"):
             SchemaOrganization(name)
-
-    @pytest.mark.parametrize(
-        "response",
-        [
-            {
-                "name": "AAAAAAA",
-                "id": "abc",
-                "createdOn": "9-30-25",
-                "createdBy": "123",
-            }
-        ],
-    )
-    def test_from_response(self, response: dict[str, Any]):
-        "Tests that legal Synapse API responses result in created objects."
-        assert SchemaOrganization.from_response(response)
-
-    @pytest.mark.parametrize(
-        "response",
-        [
-            {
-                "name": None,
-                "id": None,
-                "createdOn": None,
-                "createdBy": None,
-            }
-        ],
-    )
-    def test_from_response_with_exception(self, response: dict[str, Any]):
-        "Tests that illegal Synapse API responses cause exceptions"
-        with pytest.raises(TypeError):
-            SchemaOrganization.from_response(response)
 
 
 class TestJSONSchema:

@@ -43,7 +43,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
     Represents an [Organization](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html).
     """
 
-    name: str
+    name: Optional[str] = None
     """The name of the organization"""
 
     id: Optional[str] = None
@@ -56,7 +56,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
     """The ID of the user that created this organization"""
 
     def __post_init__(self) -> None:
-        self._check_name(self.name)
+        if self.name:
+            self._check_name(self.name)
 
     async def get_async(
         self, synapse_client: Optional["Synapse"] = None
@@ -90,7 +91,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         if self.id:
             return self
         response = await get_organization(self.name, synapse_client=synapse_client)
-        self._fill_from_dict(response)
+        self.fill_from_dict(response)
         return self
 
     async def store_async(
@@ -107,6 +108,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         Returns:
             Itself
 
+        Raises:
+            ValueError: If the name has not been set
+
         Example: Store a new SchemaOrganization
             &nbsp;
 
@@ -122,8 +126,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             asyncio.run(org.store_async())
             ```
         """
+        if not self.name:
+            raise ValueError("SchemaOrganization must have a name")
         response = await create_organization(self.name, synapse_client=synapse_client)
-        self._fill_from_dict(response)
+        self.fill_from_dict(response)
         return self
 
     async def delete_async(self, synapse_client: Optional["Synapse"] = None) -> None:
@@ -162,6 +168,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
         Returns: A list of JSONSchema objects
 
+        Raises:
+            ValueError: If the name has not been set
+
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -183,6 +192,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             ```
 
         """
+        if not self.name:
+            raise ValueError("SchemaOrganization must have a name")
         response = list_json_schemas(self.name, synapse_client=synapse_client)
         schemas = []
         async for item in response:
@@ -279,6 +290,23 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             synapse_client=synapse_client,
         )
 
+    def fill_from_dict(self, response: dict[str, Any]) -> "SchemaOrganization":
+        """
+        Fills in this classes attributes using a Synapse API response
+
+        Args:
+            response: A response from this endpoint:
+              https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html
+
+        Returns:
+            Itself
+        """
+        self.name = response.get("name")
+        self.id = response.get("id")
+        self.created_on = response.get("createdOn")
+        self.created_by = response.get("createdBy")
+        return self
+
     def _check_name(self, name) -> None:
         """
         Checks that the input name is a valid Synapse organization name
@@ -296,52 +324,6 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 "Organization name must start with a letter and contain "
                 f"only letters numbers, and periods: {name}"
             )
-
-    def _fill_from_dict(self, response: dict[str, Any]) -> None:
-        """
-        Fills in this classes attributes using a Synapse API response
-
-        Args:
-            response: A response from this endpoint:
-              https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html
-        """
-        self.name = response.get("name")
-        self.id = response.get("id")
-        self.created_on = response.get("createdOn")
-        self.created_by = response.get("createdBy")
-
-    @classmethod
-    def from_response(cls, response: dict[str, Any]) -> "SchemaOrganization":
-        """
-        Creates an SchemaOrganization object using a Synapse API response
-
-        Arguments:
-            response: A response from this endpoint:
-              https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html
-
-        Returns:
-            A SchemaOrganization object using the input response
-
-        Example: Create a SchemaOrganization form an API response
-            &nbsp;
-
-            ```python
-            from synapseclient.models import SchemaOrganization
-            from synapseclient import Synapse
-            import asyncio
-            from synapseclient.api  import get_organization
-
-            syn = Synapse()
-            syn.login()
-
-            response = asyncio.run(get_organization("my.org.name"))
-            org = SchemaOrganization.from_response(response)
-            ```
-
-        """
-        org = SchemaOrganization(response.get("name"))
-        org._fill_from_dict(response)
-        return org
 
 
 @dataclass()
@@ -919,7 +901,7 @@ def list_json_schema_organizations(
         A list of SchemaOrganizations
     """
     all_orgs = [
-        SchemaOrganization.from_response(org)
+        SchemaOrganization().fill_from_dict(org)
         for org in list_organizations_sync(synapse_client=synapse_client)
     ]
     return all_orgs
