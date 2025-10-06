@@ -9,6 +9,7 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Evaluation
+from synapseclient.models.evaluation import RequestType
 
 
 class TestEvaluation:
@@ -52,7 +53,7 @@ class TestEvaluation:
         )
 
         # WHEN we generate a request body for create
-        request_body = evaluation.to_synapse_request("create")
+        request_body = evaluation.to_synapse_request(RequestType.CREATE)
 
         # THEN it should have the correct structure
         assert request_body == {
@@ -77,7 +78,7 @@ class TestEvaluation:
         )
 
         # WHEN we generate a request body for update
-        request_body = evaluation.to_synapse_request("update")
+        request_body = evaluation.to_synapse_request(RequestType.UPDATE)
 
         # THEN it should have the correct structure including id and etag
         assert request_body == {
@@ -146,7 +147,7 @@ class TestEvaluation:
             with pytest.raises(
                 ValueError, match=f"missing the '{missing_field}' attribute"
             ):
-                evaluation.to_synapse_request("create")
+                evaluation.to_synapse_request(RequestType.CREATE)
 
     def test_set_last_persistent_instance(self):
         """Test setting the last persistent instance of an evaluation."""

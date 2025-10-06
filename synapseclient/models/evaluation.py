@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field, replace
+from enum import Enum
 from typing import List, Optional, Union
 
 from opentelemetry import trace
@@ -9,6 +10,13 @@ from synapseclient.core.utils import merge_dataclass_entities
 from synapseclient.models.protocols.evaluation_protocol import (
     EvaluationSynchronousProtocol,
 )
+
+
+class RequestType(Enum):
+    """Enum defining the type of request to be made to the Synapse API."""
+
+    CREATE = "create"
+    UPDATE = "update"
 
 
 @dataclass
@@ -194,8 +202,18 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         return acl
 
-    def to_synapse_request(self, request_type: str):
-        """Creates a request body expected of the Synapse REST API for the Evaluation model."""
+    def to_synapse_request(self, request_type: RequestType):
+        """Creates a request body expected of the Synapse REST API for the Evaluation model.
+
+        Arguments:
+            request_type: The type of request to be made, either RequestType.CREATE or RequestType.UPDATE.
+
+        Returns:
+            A dictionary containing the request body for the specified request type.
+
+        Raises:
+            ValueError: If any required attributes are missing.
+        """
 
         # These attributes are required in our PUT requests for creating or updating an evaluation
         required_attributes = [
@@ -206,14 +224,14 @@ class Evaluation(EvaluationSynchronousProtocol):
             "submission_receipt_message",
         ]
 
-        # For 'update' request types, add id and etag
-        if request_type.lower() == "update":
+        # For "update" requests, add id and etag
+        if request_type == RequestType.UPDATE:
             required_attributes.extend(["id", "etag"])
 
         for attribute in required_attributes:
             if not getattr(self, attribute):
                 raise ValueError(
-                    f"Your evaluation object is missing the '{attribute}' attribute. This attribute is required to {request_type} an evaluation"
+                    f"Your evaluation object is missing the '{attribute}' attribute. This attribute is required to {request_type.value} an evaluation"
                 )
 
         # Build a request body for storing a brand new evaluation
@@ -225,8 +243,8 @@ class Evaluation(EvaluationSynchronousProtocol):
             "submissionReceiptMessage": self.submission_receipt_message,
         }
 
-        # For 'update' request types, add id and etag
-        if request_type.lower() == "update":
+        # For UPDATE request types, add id and etag
+        if request_type == RequestType.UPDATE:
             request_body["id"] = self.id
             request_body["etag"] = self.etag
 
@@ -315,7 +333,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         # CASE 1: No previous interaction with Synapse, so attempt to make a new evaluation
         if not self._last_persistent_instance:
-            request_body = self.to_synapse_request(request_type="create")
+            request_body = self.to_synapse_request(request_type=RequestType.CREATE)
             result = await create_or_update_evaluation(
                 request_body=request_body,
                 synapse_client=synapse_client,
@@ -336,7 +354,7 @@ class Evaluation(EvaluationSynchronousProtocol):
                     ],
                     logger=logger,
                 )
-                request_body = self.to_synapse_request(request_type="update")
+                request_body = self.to_synapse_request(request_type=RequestType.UPDATE)
                 result = await create_or_update_evaluation(
                     request_body=request_body,
                     synapse_client=synapse_client,
