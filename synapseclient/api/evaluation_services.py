@@ -39,21 +39,21 @@ async def create_or_update_evaluation(
     client = Synapse.get_client(synapse_client=synapse_client)
     logger = client.logger if client else logging.getLogger(__name__)
 
-    if not request_body.get("id"):
-        uri = "/evaluation"
-        response = await client.rest_post_async(uri, body=json.dumps(request_body))
-
-        logger.info(
-            f"Evaluation '{request_body.get('name')}' has been created with ID: {response.get('id')}"
-        )
-
-    elif request_body.get("id"):
+    if request_body.get("id"):
         evaluation_id = request_body.get("id")
         uri = f"/evaluation/{evaluation_id}"
         response = await client.rest_put_async(uri, body=json.dumps(request_body))
 
         logger.info(
             f"Evaluation '{request_body.get('name')}' (ID: {evaluation_id}) has been updated"
+        )
+
+    else:
+        uri = "/evaluation"
+        response = await client.rest_post_async(uri, body=json.dumps(request_body))
+
+        logger.info(
+            f"Evaluation '{request_body.get('name')}' has been created with ID: {response.get('id')}"
         )
 
     return response
