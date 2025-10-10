@@ -1,7 +1,7 @@
 # TODO: The functions here should be moved into the `evaluation_services.py` file, once this branch is rebased onto those changes.
 
 import json
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -220,5 +220,261 @@ async def cancel_submission(
     uri = f"/evaluation/submission/{submission_id}/cancellation"
 
     response = await client.rest_put_async(uri)
+
+    return response
+
+
+async def get_submission_status(
+    submission_id: str, synapse_client: Optional["Synapse"] = None
+) -> dict:
+    """
+    Gets the SubmissionStatus object associated with a specified Submission.
+
+    <https://rest-docs.synapse.org/rest/GET/evaluation/submission/subId/status.html>
+
+    Arguments:
+        submission_id: The ID of the submission to get the status for.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        The SubmissionStatus object as a JSON dict.
+
+    Note:
+        The caller must be granted the ACCESS_TYPE.READ on the specified Evaluation.
+        Furthermore, the caller must be granted the ACCESS_TYPE.READ_PRIVATE_SUBMISSION
+        to see all data marked as "private" in the SubmissionStatus.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    uri = f"/evaluation/submission/{submission_id}/status"
+
+    response = await client.rest_get_async(uri)
+
+    return response
+
+
+async def update_submission_status(
+    submission_id: str, request_body: dict, synapse_client: Optional["Synapse"] = None
+) -> dict:
+    """
+    Updates a SubmissionStatus object.
+
+    <https://rest-docs.synapse.org/rest/PUT/evaluation/submission/subId/status.html>
+
+    Arguments:
+        submission_id: The ID of the SubmissionStatus being updated.
+        request_body: The SubmissionStatus object to update as a dictionary.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        The updated SubmissionStatus object as a JSON dict.
+
+    Note:
+        Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle
+        concurrent updates. Each time a SubmissionStatus is updated a new etag will be
+        issued to the SubmissionStatus. When an update is requested, Synapse will compare
+        the etag of the passed SubmissionStatus with the current etag of the SubmissionStatus.
+        If the etags do not match, then the update will be rejected with a PRECONDITION_FAILED
+        (412) response. When this occurs, the caller should fetch the latest copy of the
+        SubmissionStatus and re-apply any changes, then re-attempt the SubmissionStatus update.
+
+        The caller must be granted the ACCESS_TYPE.UPDATE_SUBMISSION on the specified Evaluation.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    uri = f"/evaluation/submission/{submission_id}/status"
+
+    response = await client.rest_put_async(uri, body=json.dumps(request_body))
+
+    return response
+
+
+async def get_all_submission_statuses(
+    evaluation_id: str,
+    status: Optional[str] = None,
+    limit: int = 10,
+    offset: int = 0,
+    synapse_client: Optional["Synapse"] = None,
+) -> dict:
+    """
+    Gets a collection of SubmissionStatuses to a specified Evaluation.
+
+    <https://rest-docs.synapse.org/rest/GET/evaluation/evalId/submission/status/all.html>
+
+    Arguments:
+        evaluation_id: The ID of the specified Evaluation.
+        status: Optionally filter submission statuses by status.
+        limit: Limits the number of entities that will be fetched for this page.
+               When null it will default to 10, max value 100. Default to 10.
+        offset: The offset index determines where this page will start from.
+                An index of 0 is the first entity. Default to 0.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A PaginatedResults<SubmissionStatus> object as a JSON dict containing
+        a paginated list of submission statuses for the evaluation queue.
+
+    Note:
+        The caller must be granted the ACCESS_TYPE.READ on the specified Evaluation.
+        Furthermore, the caller must be granted the ACCESS_TYPE.READ_PRIVATE_SUBMISSION
+        to see all data marked as "private" in the SubmissionStatuses.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    uri = f"/evaluation/{evaluation_id}/submission/status/all"
+    query_params = {"limit": limit, "offset": offset}
+
+    if status:
+        query_params["status"] = status
+
+    response = await client.rest_get_async(uri, **query_params)
+
+    return response
+
+
+async def batch_update_submission_statuses(
+    evaluation_id: str, request_body: dict, synapse_client: Optional["Synapse"] = None
+) -> dict:
+    """
+    Update multiple SubmissionStatuses. The maximum batch size is 500.
+
+    <https://rest-docs.synapse.org/rest/PUT/evaluation/evalId/statusBatch.html>
+
+    Arguments:
+        evaluation_id: The ID of the Evaluation to which the SubmissionStatus objects belong.
+        request_body: The SubmissionStatusBatch object as a dictionary containing:
+            - statuses: List of SubmissionStatus objects to update
+            - isFirstBatch: Boolean indicating if this is the first batch in the series
+            - isLastBatch: Boolean indicating if this is the last batch in the series
+            - batchToken: Token from previous batch response (required for all but first batch)
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A BatchUploadResponse object as a JSON dict containing the batch token
+        and other response information.
+
+    Note:
+        To allow upload of more than the maximum batch size (500), the system supports
+        uploading a series of batches. Synapse employs optimistic concurrency on the
+        series in the form of a batch token. Each request (except the first) must include
+        the 'batch token' returned in the response to the previous batch. If another client
+        begins batch upload simultaneously, a PRECONDITION_FAILED (412) response will be
+        generated and upload must restart from the first batch.
+
+        After the final batch is uploaded, the data for the Evaluation queue will be
+        mirrored to the tables which support querying. Therefore uploaded data will not
+        appear in Evaluation queries until after the final batch is successfully uploaded.
+
+        It is the client's responsibility to note in each batch request:
+        1. Whether it is the first batch in the series (isFirstBatch)
+        2. Whether it is the last batch (isLastBatch)
+
+        For a single batch both flags are set to 'true'.
+
+        The caller must be granted the ACCESS_TYPE.UPDATE_SUBMISSION on the specified Evaluation.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    uri = f"/evaluation/{evaluation_id}/statusBatch"
+
+    response = await client.rest_put_async(uri, body=json.dumps(request_body))
+
+    return response
+
+
+async def get_evaluation_submission_bundles(
+    evaluation_id: str,
+    status: Optional[str] = None,
+    limit: int = 10,
+    offset: int = 0,
+    synapse_client: Optional["Synapse"] = None,
+) -> dict:
+    """
+    Gets a collection of bundled Submissions and SubmissionStatuses to a given Evaluation.
+
+    <https://rest-docs.synapse.org/rest/GET/evaluation/evalId/submission/bundle/all.html>
+
+    Arguments:
+        evaluation_id: The ID of the specified Evaluation.
+        status: Optionally filter submission bundles by status.
+        limit: Limits the number of entities that will be fetched for this page.
+               When null it will default to 10, max value 100. Default to 10.
+        offset: The offset index determines where this page will start from.
+                An index of 0 is the first entity. Default to 0.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A PaginatedResults<SubmissionBundle> object as a JSON dict containing
+        a paginated list of submission bundles for the evaluation queue.
+
+    Note:
+        The caller must be granted the ACCESS_TYPE.READ_PRIVATE_SUBMISSION on the specified Evaluation.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    uri = f"/evaluation/{evaluation_id}/submission/bundle/all"
+    query_params = {"limit": limit, "offset": offset}
+
+    if status:
+        query_params["status"] = status
+
+    response = await client.rest_get_async(uri, **query_params)
+
+    return response
+
+
+async def get_user_submission_bundles(
+    evaluation_id: str,
+    limit: int = 10,
+    offset: int = 0,
+    synapse_client: Optional["Synapse"] = None,
+) -> dict:
+    """
+    Gets the requesting user's bundled Submissions and SubmissionStatuses to a specified Evaluation.
+
+    <https://rest-docs.synapse.org/rest/GET/evaluation/evalId/submission/bundle.html>
+
+    Arguments:
+        evaluation_id: The ID of the specified Evaluation.
+        limit: Limits the number of entities that will be fetched for this page.
+               When null it will default to 10. Default to 10.
+        offset: The offset index determines where this page will start from.
+                An index of 0 is the first entity. Default to 0.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        A PaginatedResults<SubmissionBundle> object as a JSON dict containing
+        a paginated list of the requesting user's submission bundles for the evaluation queue.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    uri = f"/evaluation/{evaluation_id}/submission/bundle"
+    query_params = {"limit": limit, "offset": offset}
+
+    response = await client.rest_get_async(uri, **query_params)
 
     return response

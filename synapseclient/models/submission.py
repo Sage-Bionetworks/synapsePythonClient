@@ -1,15 +1,12 @@
-from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Dict, List, Optional, Protocol, TypeVar, Union
+from typing import Dict, List, Optional, Protocol, Union
 
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.core.async_utils import async_to_sync
-from synapseclient.core.constants import concrete_types
+from synapseclient.api import submission_services
+from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import delete_none_keys
-from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import DeleteMixin, GetMixin
 
@@ -194,7 +191,8 @@ class Submission(
     For Docker repositories, the digest of the submitted Docker image.
     """
 
-    activity: Optional[Activity] = field(default=None, compare=False)
+    # TODO
+    activity: Optional[Dict] = field(default=None, compare=False)
     """The Activity model represents the main record of Provenance in Synapse. It is
     analogous to the Activity defined in the
     [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance."""
@@ -204,3 +202,388 @@ class Submission(
     )
     """The last persistent instance of this object. This is used to determine if the
     object has been changed and needs to be updated in Synapse."""
+
+    def fill_from_dict(
+        self, synapse_submission: Dict[str, Union[bool, str, int, List]]
+    ) -> "Submission":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_submission: The response from the REST API.
+
+        Returns:
+            The Submission object.
+        """
+        self.id = synapse_submission.get("id", None)
+        self.user_id = synapse_submission.get("userId", None)
+        self.submitter_alias = synapse_submission.get("submitterAlias", None)
+        self.entity_id = synapse_submission.get("entityId", None)
+        self.version_number = synapse_submission.get("versionNumber", None)
+        self.evaluation_id = synapse_submission.get("evaluationId", None)
+        self.name = synapse_submission.get("name", None)
+        self.created_on = synapse_submission.get("createdOn", None)
+        self.team_id = synapse_submission.get("teamId", None)
+        self.contributors = synapse_submission.get("contributors", [])
+        self.submission_status = synapse_submission.get("submissionStatus", None)
+        self.entity_bundle_json = synapse_submission.get("entityBundleJSON", None)
+        self.docker_repository_name = synapse_submission.get(
+            "dockerRepositoryName", None
+        )
+        self.docker_digest = synapse_submission.get("dockerDigest", None)
+
+        activity_dict = synapse_submission.get("activity", None)
+        if activity_dict:
+            # TODO: Implement Activity class and its fill_from_dict method
+            self.activity = {}
+
+        return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Submission_Store: {self.id if self.id else 'new_submission'}"
+    )
+    async def store_async(
+        self,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Submission":
+        """
+        Store the submission in Synapse. This creates a new submission in an evaluation queue.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Submission object with the ID set.
+
+        Raises:
+            ValueError: If the submission is missing required fields.
+
+        Example: Creating a submission
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = Submission(
+                entity_id="syn123456",
+                evaluation_id="9614543",
+                name="My Submission"
+            )
+            submission = await submission.store_async()
+            print(submission.id)
+            ```
+        """
+        if not self.entity_id:
+            raise ValueError("The submission must have an entity_id to store.")
+        if not self.evaluation_id:
+            raise ValueError("The submission must have an evaluation_id to store.")
+
+        # Prepare request body
+        request_body = delete_none_keys(
+            {
+                "entityId": self.entity_id,
+                "evaluationId": self.evaluation_id,
+                "name": self.name,
+                "teamId": self.team_id,
+                "contributors": self.contributors if self.contributors else None,
+                "dockerRepositoryName": self.docker_repository_name,
+                "dockerDigest": self.docker_digest,
+            }
+        )
+
+        # Create the submission using the service
+        response = await submission_services.create_submission(
+            request_body=request_body, synapse_client=synapse_client
+        )
+
+        # Update this object with the response
+        self.fill_from_dict(response)
+        return self
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Submission_Get: {self.id}"
+    )
+    async def get_async(
+        self,
+        include_activity: bool = False,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Submission":
+        """
+        Retrieve a Submission from Synapse.
+
+        Arguments:
+            include_activity: Whether to include the activity in the returned submission.
+                Defaults to False. Setting this to True will include the activity
+                record associated with this submission.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The Submission instance retrieved from Synapse.
+
+        Raises:
+            ValueError: If the submission does not have an ID to get.
+
+        Example: Retrieving a submission by ID
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = await Submission(id="syn1234").get_async()
+            print(submission)
+            ```
+        """
+        if not self.id:
+            raise ValueError("The submission must have an ID to get.")
+
+        # Get the submission using the service
+        response = await submission_services.get_submission(
+            submission_id=self.id, synapse_client=synapse_client
+        )
+
+        # Update this object with the response
+        self.fill_from_dict(response)
+
+        # Handle activity if requested
+        if include_activity and self.activity:
+            # The activity should be included in the response by default
+            # but if we need to fetch it separately, we would do it here
+            pass
+
+        return self
+
+    @staticmethod
+    async def get_evaluation_submissions_async(
+        evaluation_id: str,
+        status: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Dict:
+        """
+        Retrieves all Submissions for a specified Evaluation queue.
+
+        Arguments:
+            evaluation_id: The ID of the evaluation queue.
+            status: Optionally filter submissions by a submission status, such as SCORED, VALID,
+                    INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
+            limit: Limits the number of submissions in a single response. Default to 20.
+            offset: The offset index determines where this page will start from.
+                    An index of 0 is the first submission. Default to 0.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A response JSON containing a paginated list of submissions for the evaluation queue.
+
+        Example: Getting submissions for an evaluation
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            response = await Submission.get_evaluation_submissions_async(
+                evaluation_id="9614543",
+                status="SCORED",
+                limit=10
+            )
+            print(f"Found {len(response['results'])} submissions")
+            ```
+        """
+        return await submission_services.get_evaluation_submissions(
+            evaluation_id=evaluation_id,
+            status=status,
+            limit=limit,
+            offset=offset,
+            synapse_client=synapse_client,
+        )
+
+    @staticmethod
+    async def get_user_submissions_async(
+        evaluation_id: str,
+        user_id: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Dict:
+        """
+        Retrieves Submissions for a specified Evaluation queue and user.
+        If user_id is omitted, this returns the submissions of the caller.
+
+        Arguments:
+            evaluation_id: The ID of the evaluation queue.
+            user_id: Optionally specify the ID of the user whose submissions will be returned.
+                    If omitted, this returns the submissions of the caller.
+            limit: Limits the number of submissions in a single response. Default to 20.
+            offset: The offset index determines where this page will start from.
+                    An index of 0 is the first submission. Default to 0.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A response JSON containing a paginated list of user submissions for the evaluation queue.
+
+        Example: Getting user submissions
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            response = await Submission.get_user_submissions_async(
+                evaluation_id="9614543",
+                user_id="123456",
+                limit=10
+            )
+            print(f"Found {len(response['results'])} user submissions")
+            ```
+        """
+        return await submission_services.get_user_submissions(
+            evaluation_id=evaluation_id,
+            user_id=user_id,
+            limit=limit,
+            offset=offset,
+            synapse_client=synapse_client,
+        )
+
+    @staticmethod
+    async def get_submission_count_async(
+        evaluation_id: str,
+        status: Optional[str] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Dict:
+        """
+        Gets the number of Submissions for a specified Evaluation queue, optionally filtered by submission status.
+
+        Arguments:
+            evaluation_id: The ID of the evaluation queue.
+            status: Optionally filter submissions by a submission status, such as SCORED, VALID,
+                    INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            A response JSON containing the submission count.
+
+        Example: Getting submission count
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            response = await Submission.get_submission_count_async(
+                evaluation_id="9614543",
+                status="SCORED"
+            )
+            print(f"Found {response['count']} submissions")
+            ```
+        """
+        return await submission_services.get_submission_count(
+            evaluation_id=evaluation_id, status=status, synapse_client=synapse_client
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Submission_Delete: {self.id}"
+    )
+    async def delete_submission_async(
+        self,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> None:
+        """
+        Delete a Submission from Synapse.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Raises:
+            ValueError: If the submission does not have an ID to delete.
+
+        Example: Delete a submission
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = Submission(id="syn1234")
+            await submission.delete_submission_async()
+            print("Deleted Submission.")
+            ```
+        """
+        if not self.id:
+            raise ValueError("The submission must have an ID to delete.")
+
+        await submission_services.delete_submission(
+            submission_id=self.id, synapse_client=synapse_client
+        )
+
+    @otel_trace_method(
+        method_to_trace_name=lambda self, **kwargs: f"Submission_Cancel: {self.id}"
+    )
+    async def cancel_submission_async(
+        self,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Submission":
+        """
+        Cancel a Submission. Only the user who created the Submission may cancel it.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            The updated Submission object.
+
+        Raises:
+            ValueError: If the submission does not have an ID to cancel.
+
+        Example: Cancel a submission
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Submission
+
+            syn = Synapse()
+            syn.login()
+
+            submission = Submission(id="syn1234")
+            canceled_submission = await submission.cancel_submission_async()
+            print(f"Canceled submission: {canceled_submission.id}")
+            ```
+        """
+        if not self.id:
+            raise ValueError("The submission must have an ID to cancel.")
+
+        response = await submission_services.cancel_submission(
+            submission_id=self.id, synapse_client=synapse_client
+        )
+
+        # Update this object with the response
+        self.fill_from_dict(response)
+        return self
