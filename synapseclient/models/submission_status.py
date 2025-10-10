@@ -214,7 +214,7 @@ class SubmissionStatus(
 
         # Get a submission status
         status = SubmissionStatus(id="syn123456").get()
-        
+
         # Update the status
         status.status = "SCORED"
         status.submission_annotations = {"score": [85.5], "feedback": ["Good work!"]}
@@ -328,6 +328,7 @@ class SubmissionStatus(
         """Stash the last time this object interacted with Synapse. This is used to
         determine if the object has been changed and needs to be updated in Synapse."""
         import dataclasses
+
         del self._last_persistent_instance
         self._last_persistent_instance = dataclasses.replace(self)
 
@@ -361,9 +362,13 @@ class SubmissionStatus(
             self.annotations = Annotations.from_dict(annotations_dict)
 
         # Handle submission annotations
-        submission_annotations_dict = synapse_submission_status.get("submissionAnnotations", {})
+        submission_annotations_dict = synapse_submission_status.get(
+            "submissionAnnotations", {}
+        )
         if submission_annotations_dict:
-            self.submission_annotations = Annotations.from_dict(submission_annotations_dict)
+            self.submission_annotations = Annotations.from_dict(
+                submission_annotations_dict
+            )
 
         return self
 
@@ -405,8 +410,7 @@ class SubmissionStatus(
             raise ValueError("The submission status must have an ID to get.")
 
         response = await submission_services.get_submission_status(
-            submission_id=self.id,
-            synapse_client=synapse_client
+            submission_id=self.id, synapse_client=synapse_client
         )
 
         self.fill_from_dict(response)
@@ -445,11 +449,11 @@ class SubmissionStatus(
 
             # Get existing status
             status = await SubmissionStatus(id="syn1234").get_async()
-            
+
             # Update fields
             status.status = "SCORED"
             status.submission_annotations = {"score": [85.5]}
-            
+
             # Store the update
             status = await status.store_async()
             print(f"Updated status: {status.status}")
@@ -459,17 +463,19 @@ class SubmissionStatus(
             raise ValueError("The submission status must have an ID to update.")
 
         # Prepare request body
-        request_body = delete_none_keys({
-            "id": self.id,
-            "etag": self.etag,
-            "status": self.status,
-            "score": self.score,
-            "report": self.report,
-            "entityId": self.entity_id,
-            "versionNumber": self.version_number,
-            "canCancel": self.can_cancel,
-            "cancelRequested": self.cancel_requested,
-        })
+        request_body = delete_none_keys(
+            {
+                "id": self.id,
+                "etag": self.etag,
+                "status": self.status,
+                "score": self.score,
+                "report": self.report,
+                "entityId": self.entity_id,
+                "versionNumber": self.version_number,
+                "canCancel": self.can_cancel,
+                "cancelRequested": self.cancel_requested,
+            }
+        )
 
         # Add annotations if present
         if self.annotations:
@@ -485,7 +491,7 @@ class SubmissionStatus(
         response = await submission_services.update_submission_status(
             submission_id=self.id,
             request_body=request_body,
-            synapse_client=synapse_client
+            synapse_client=synapse_client,
         )
 
         # Update this object with the response
@@ -541,7 +547,7 @@ class SubmissionStatus(
             status=status,
             limit=limit,
             offset=offset,
-            synapse_client=synapse_client
+            synapse_client=synapse_client,
         )
 
     @staticmethod
@@ -597,17 +603,19 @@ class SubmissionStatus(
         # Convert SubmissionStatus objects to dictionaries
         status_dicts = []
         for status in statuses:
-            status_dict = delete_none_keys({
-                "id": status.id,
-                "etag": status.etag,
-                "status": status.status,
-                "score": status.score,
-                "report": status.report,
-                "entityId": status.entity_id,
-                "versionNumber": status.version_number,
-                "canCancel": status.can_cancel,
-                "cancelRequested": status.cancel_requested,
-            })
+            status_dict = delete_none_keys(
+                {
+                    "id": status.id,
+                    "etag": status.etag,
+                    "status": status.status,
+                    "score": status.score,
+                    "report": status.report,
+                    "entityId": status.entity_id,
+                    "versionNumber": status.version_number,
+                    "canCancel": status.can_cancel,
+                    "cancelRequested": status.cancel_requested,
+                }
+            )
 
             # Add annotations if present
             if status.annotations:
@@ -633,5 +641,5 @@ class SubmissionStatus(
         return await submission_services.batch_update_submission_statuses(
             evaluation_id=evaluation_id,
             request_body=request_body,
-            synapse_client=synapse_client
+            synapse_client=synapse_client,
         )
