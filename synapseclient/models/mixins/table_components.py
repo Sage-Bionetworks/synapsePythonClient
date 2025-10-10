@@ -348,7 +348,7 @@ async def _query_table_row_set(
     )
 
 
-async def c(
+async def _table_query(
     query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
 ) -> Union["QueryResultBundle", Tuple["QueryJob", str]]:
     """
