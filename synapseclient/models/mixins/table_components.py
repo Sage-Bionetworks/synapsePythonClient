@@ -348,7 +348,7 @@ async def _query_table_row_set(
     )
 
 
-async def _table_query(
+async def c(
     query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
 ) -> Union["QueryResultBundle", Tuple["QueryJob", str]]:
     """
@@ -4135,7 +4135,7 @@ class TableDeleteRowMixin:
 
             df = pd.DataFrame({"ROW_ID": [1, 2], "ROW_VERSION": [1, 1]})
             async def main():
-                await Table(id="syn1234").delete_rows_async(df)
+                await Table(id="syn1234").delete_rows_async(df=df)
 
             asyncio.run(main())
             ```
@@ -4151,9 +4151,6 @@ class TableDeleteRowMixin:
             )
         elif df is not None:
             rows_to_delete = df
-            client.logger.info(
-                f"Found {len(rows_to_delete)} rows to delete for given dataframe."
-            )
             if (
                 "ROW_ID" not in rows_to_delete.columns
                 or "ROW_VERSION" not in rows_to_delete.columns
@@ -4161,7 +4158,23 @@ class TableDeleteRowMixin:
                 raise ValueError(
                     "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns."
                 )
-
+            # check the validity of the ROW_ID and ROW_VERSION columns
+            existing_rows = await self.query_async(
+                query=f"SELECT ROW_ID, ROW_VERSION FROM {self.id}",
+                synapse_client=client,
+            )
+            # check if all ROW_ID and ROW_VERSION pair in the dataframe exist in the table
+            merged = df.merge(
+                existing_rows, on=["ROW_ID", "ROW_VERSION"], how="left", indicator=True
+            )
+            if not all(merged["_merge"] == "both"):
+                discrepant_idx = merged.loc[merged["_merge"] != "both"].index
+                raise ValueError(
+                    f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {self.id}: {', '.join(map(str, discrepant_idx))}."
+                )
+            client.logger.info(
+                f"Received {len(rows_to_delete)} rows to delete for given dataframe."
+            )
         if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
             if "ROW_ETAG" not in rows_to_delete.columns:
                 raise ValueError(
