@@ -198,7 +198,7 @@ Qux2,4,203001,204001,+,False
 
 ## 5. Deleting Table rows & Tables
 
-* Deleting specific rows - Query for the rows you want to delete and call syn.delete on the results
+* Deleting specific rows - Query for the rows you want to delete and call delete_rows on the results
 
     ```python
     table.delete_rows(query=f"SELECT * FROM {table.id} WHERE Strand = '+'")
