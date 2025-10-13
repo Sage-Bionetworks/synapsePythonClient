@@ -240,7 +240,7 @@ async def get_available_evaluations(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    # Build query parameters  
+    # Build query parameters
     query_params = {}
     if active_only is not None:
         query_params["activeOnly"] = "true" if active_only else "false"
