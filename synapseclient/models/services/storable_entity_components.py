@@ -8,12 +8,16 @@ from synapseclient.core.exceptions import SynapseError
 if TYPE_CHECKING:
     from synapseclient.models import (
         Dataset,
+        DatasetCollection,
         EntityView,
         File,
         Folder,
+        Link,
+        MaterializedView,
         Project,
         SubmissionView,
         Table,
+        VirtualTable,
     )
 
 
@@ -50,7 +54,19 @@ async def wrap_coroutine(
 
 
 async def store_entity_components(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
+    root_resource: Union[
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "Project",
+        "MaterializedView",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
     *,
     synapse_client: Optional[Synapse] = None,
@@ -116,7 +132,6 @@ async def store_entity_components(
         if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
             raise ex
 
-    # TODO: Double check this logic. This might not be getting set properly from _resolve_store_task
     return re_read_required
 
 
@@ -219,7 +234,19 @@ def _pull_activity_forward_to_new_version(
 
 
 async def _store_activity_and_annotations(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
+    root_resource: Union[
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "Project",
+        "MaterializedView",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> bool:

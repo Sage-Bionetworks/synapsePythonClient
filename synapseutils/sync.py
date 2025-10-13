@@ -191,8 +191,7 @@ def syncFromSynapse(
                 follow_link=followLink,
                 download_file=downloadFile,
                 manifest=manifest,
-            ),
-            syn=syn,
+            )
         )
 
     files = []
@@ -1171,8 +1170,7 @@ def syncToSynapse(
                     df,
                     merge_existing_annotations,
                     associate_activity_to_new_version,
-                ),
-                syn,
+                )
             )
         else:
             wrap_async_to_sync(
@@ -1181,8 +1179,7 @@ def syncToSynapse(
                     df,
                     merge_existing_annotations,
                     associate_activity_to_new_version,
-                ),
-                syn,
+                )
             )
         progress_bar.update(total_upload_size - progress_bar.n)
         progress_bar.close()

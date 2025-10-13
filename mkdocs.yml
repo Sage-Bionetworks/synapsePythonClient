@@ -80,6 +80,7 @@ nav:
       - Core: reference/core.md
       - REST Apis: reference/rest_apis.md
       - Experimental:
+          - Factory Operations: reference/experimental/sync/factory_operations.md
           - Agent: reference/experimental/sync/agent.md
           - Project: reference/experimental/sync/project.md
           - Folder: reference/experimental/sync/folder.md
@@ -94,8 +95,10 @@ nav:
           - Activity: reference/experimental/sync/activity.md
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
+          - Link: reference/experimental/sync/link_entity.md
           - Functional Interfaces: reference/experimental/functional_interfaces.md
           - Asynchronous:
+              - Factory Operations: reference/experimental/async/factory_operations.md
               - Agent: reference/experimental/async/agent.md
               - Project: reference/experimental/async/project.md
               - Folder: reference/experimental/async/folder.md
@@ -110,6 +113,7 @@ nav:
               - Activity: reference/experimental/async/activity.md
               - Team: reference/experimental/async/team.md
               - UserProfile: reference/experimental/async/user_profile.md
+              - Link: reference/experimental/async/link_entity.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md

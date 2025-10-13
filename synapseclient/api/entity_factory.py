@@ -340,6 +340,7 @@ async def _cast_into_class_type(
         EntityView,
         File,
         Folder,
+        Link,
         MaterializedView,
         Project,
         SubmissionView,
@@ -377,6 +378,7 @@ async def _cast_into_class_type(
         concrete_types.MATERIALIZED_VIEW: MaterializedView,
         concrete_types.SUBMISSION_VIEW: SubmissionView,
         concrete_types.VIRTUAL_TABLE: VirtualTable,
+        concrete_types.LINK_ENTITY: Link,
     }
 
     entity_class = ENTITY_TYPE_MAP.get(entity["concreteType"], None)
