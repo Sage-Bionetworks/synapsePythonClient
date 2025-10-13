@@ -137,24 +137,20 @@ async def get_evaluations_by_project(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     # Build query parameters
-    params = []
+    query_params = {}
     if access_type is not None:
-        params.append(f"accessType={access_type}")
+        query_params["accessType"] = access_type
     if active_only is not None:
-        params.append(f"activeOnly={'true' if active_only else 'false'}")
+        query_params["activeOnly"] = "true" if active_only else "false"
     if evaluation_ids is not None:
-        params.append(f"evaluationIds={','.join(evaluation_ids)}")
+        query_params["evaluationIds"] = ",".join(evaluation_ids)
     if offset is not None:
-        params.append(f"offset={offset}")
+        query_params["offset"] = offset
     if limit is not None:
-        params.append(f"limit={limit}")
+        query_params["limit"] = limit
 
-    # Build URI with query parameters
     uri = f"/entity/{project_id}/evaluation"
-    if params:
-        uri += "?" + "&".join(params)
-
-    evaluation_list = await client.rest_get_async(uri)
+    evaluation_list = await client.rest_get_async(uri, params=query_params)
 
     return evaluation_list
 
@@ -194,24 +190,20 @@ async def get_all_evaluations(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     # Build query parameters
-    params = []
+    query_params = {}
     if access_type is not None:
-        params.append(f"accessType={access_type}")
+        query_params["accessType"] = access_type
     if active_only is not None:
-        params.append(f"activeOnly={'true' if active_only else 'false'}")
+        query_params["activeOnly"] = "true" if active_only else "false"
     if evaluation_ids is not None:
-        params.append(f"evaluationIds={','.join(evaluation_ids)}")
+        query_params["evaluationIds"] = ",".join(evaluation_ids)
     if offset is not None:
-        params.append(f"offset={offset}")
+        query_params["offset"] = offset
     if limit is not None:
-        params.append(f"limit={limit}")
+        query_params["limit"] = limit
 
-    # Build URI with query parameters
     uri = "/evaluation"
-    if params:
-        uri += "?" + "&".join(params)
-
-    evaluation_list = await client.rest_get_async(uri)
+    evaluation_list = await client.rest_get_async(uri, params=query_params)
 
     return evaluation_list
 
@@ -248,23 +240,19 @@ async def get_available_evaluations(
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
-    # Build query parameters
-    params = []
+    # Build query parameters  
+    query_params = {}
     if active_only is not None:
-        params.append(f"activeOnly={'true' if active_only else 'false'}")
+        query_params["activeOnly"] = "true" if active_only else "false"
     if evaluation_ids is not None:
-        params.append(f"evaluationIds={','.join(evaluation_ids)}")
+        query_params["evaluationIds"] = ",".join(evaluation_ids)
     if offset is not None:
-        params.append(f"offset={offset}")
+        query_params["offset"] = offset
     if limit is not None:
-        params.append(f"limit={limit}")
+        query_params["limit"] = limit
 
-    # Build URI with query parameters
     uri = "/evaluation/available"
-    if params:
-        uri += "?" + "&".join(params)
-
-    evaluation_list = await client.rest_get_async(uri)
+    evaluation_list = await client.rest_get_async(uri, params=query_params)
 
     return evaluation_list
 
