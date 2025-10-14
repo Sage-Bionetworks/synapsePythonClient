@@ -751,6 +751,7 @@ class TestDeleteMixin:
     async def test_delete_with_no_id_or_name_and_parent_id(self):
         # GIVEN a TestClass instance with no id or name and parent_id
         test_instance = self.ClassForTest()
+        test_instance.__name__ = ""
 
         with pytest.raises(
             ValueError,
@@ -1791,7 +1792,7 @@ class TestTableDeleteRowMixin:
         name: Optional[str] = "test_table"
         columns: Dict[str, Column] = field(default_factory=dict)
 
-    async def test_delete_rows_async(self):
+    async def test_delete_rows_async_via_query(self):
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
         with (
@@ -1811,12 +1812,17 @@ class TestTableDeleteRowMixin:
                     entity_id=test_instance.id, changes=[]
                 ),
             ) as mock_send_job_and_wait_async,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
         ):
             # WHEN I call delete_rows_async
             result = await test_instance.delete_rows_async(
                 query=self.fake_query, synapse_client=self.syn
             )
 
+            # THEN mock_logger_info should be called
+            mock_logger_info.assert_called_once_with(
+                f"Found 2 rows to delete for given query: {self.fake_query}"
+            )
             # THEN mock_query_async should be called
             mock_query_async.assert_awaited_once_with(
                 query=self.fake_query, synapse_client=self.syn
@@ -1833,6 +1839,102 @@ class TestTableDeleteRowMixin:
             assert result.equals(
                 pd.DataFrame({"ROW_ID": ["A", "B"], "ROW_VERSION": [1, 2]})
             )
+
+    async def test_delete_rows_async_via_dataframe_pass(self):
+        # GIVEN a TestClass instance
+        test_instance = self.ClassForTest()
+        df = pd.DataFrame({"ROW_ID": ["A"], "ROW_VERSION": [1]})
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.QueryMixin.query_async",
+                return_value=pd.DataFrame(
+                    {"ROW_ID": ["A", "B"], "ROW_VERSION": [1, 2]}
+                ),
+            ) as mock_query_async,
+            patch(
+                "synapseclient.models.mixins.table_components.multipart_upload_file_async",
+                return_value="fake_file_handle_id",
+            ) as mock_multipart_upload_file_async,
+            patch(
+                SEND_JOB_AND_WAIT_ASYNC_PATCH,
+                return_value=TableUpdateTransaction(
+                    entity_id=test_instance.id, changes=[]
+                ),
+            ) as mock_send_job_and_wait_async,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
+            # WHEN I call delete_rows_async
+            result = await test_instance.delete_rows_async(
+                df=df, synapse_client=self.syn
+            )
+
+            # THEN mock_logger_info should be called
+            mock_logger_info.assert_called_once_with(
+                f"Received 1 rows to delete for given dataframe."
+            )
+            # AND mock_multipart_upload_file_async should be called
+            mock_multipart_upload_file_async.assert_awaited_once()
+            # AND mock_send_job_and_wait_async should be called
+            mock_send_job_and_wait_async.assert_awaited_once_with(
+                synapse_client=self.syn,
+                timeout=600,
+            )
+
+            # AND the result should be the expected dataframe object
+            assert result.equals(pd.DataFrame({"ROW_ID": ["A"], "ROW_VERSION": [1]}))
+
+    @pytest.mark.parametrize(
+        "df, error_msg",
+        [
+            (
+                pd.DataFrame(columns=["ROW_ID"]),  # Missing ROW_VERSION column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(columns=["ROW_VERSION"]),  # Missing ROW_ID column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(columns=["INVALID_COL", "ROW_VERSION"]),  # Invalid column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(columns=["ROW_ID", "INVALID_COL"]),  # Invalid column
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(columns=["INVALID_COL1", "INVALID_COL2"]),  # Both invalid
+                "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
+            ),
+            (
+                pd.DataFrame(
+                    {"ROW_ID": ["C", "D"], "ROW_VERSION": [2, 2]}
+                ),  # Both invalid
+                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: 0, 1.",
+            ),
+        ],
+    )
+    async def test_delete_rows_via_dataframe_fail(self, df, error_msg):
+        # GIVEN a TestClass instance
+        test_instance = self.ClassForTest()
+
+        # WHEN I call delete_rows_async
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.QueryMixin.query_async",
+                return_value=pd.DataFrame(
+                    {"ROW_ID": ["A", "B"], "ROW_VERSION": [1, 2]}
+                ),
+            ) as mock_query_async,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
+            with pytest.raises(ValueError, match=error_msg):
+                result = await test_instance.delete_rows_async(
+                    df=df, synapse_client=self.syn
+                )
+
+                # THEN mock_logger_info should not be called
+                mock_logger_info.assert_not_called()
 
 
 class TestQueryTableCsv:
