@@ -144,62 +144,6 @@ class RecordSetSynchronousProtocol(Protocol):
         """
         return self
 
-    def change_metadata(
-        self,
-        name: Optional[str] = None,
-        download_as: Optional[str] = None,
-        content_type: Optional[str] = None,
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> "RecordSet":
-        """
-        Change RecordSet Entity metadata for properties that are immutable after creation.
-
-        This method allows modification of certain RecordSet properties that cannot
-        be changed through the normal store method after the initial creation. This
-        includes the entity name, file download name, and content type.
-
-        Arguments:
-            name: Specify to change the name of the RecordSet as seen on Synapse.
-            download_as: Specify filename to change the filename of the associated
-                filehandle when downloaded.
-            content_type: Specify content type to change the content type of the
-                associated filehandle.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)`, this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The RecordSet object with updated metadata.
-
-        Raises:
-            ValueError: If the RecordSet does not have an ID to change metadata.
-
-        Example: Changing RecordSet metadata
-            Update various metadata properties without re-uploading:
-
-            ```python
-            import os
-            from synapseclient import Synapse
-            from synapseclient.models import RecordSet
-
-            syn = Synapse()
-            syn.login()
-
-            record_set = RecordSet(id="syn123", download_file=False).get()
-            print(os.path.basename(record_set.path))  # prints original filename
-
-            record_set = record_set.change_metadata(
-                name="my_new_name_recordset.csv",
-                download_as="my_new_download_name.csv",
-                content_type="text/csv"
-            )
-            print(os.path.basename(record_set.path))  # prints "my_new_download_name.csv"
-            print(record_set.name)  # prints "my_new_name_recordset.csv"
-            ```
-        """
-        return self
-
     def get(
         self,
         include_activity: bool = False,
@@ -365,10 +309,6 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
             may define an existing data_file_handle_id to use the existing
             data_file_handle_id. The creator of the file must also be the owner of
             the data_file_handle_id to have permission to store the file.
-        external_url: The external URL of this file. If this is set AND
-            `synapse_store` is False, only a reference to this URL and the file
-            metadata will be stored in Synapse. The file itself will not be uploaded.
-            If this attribute is set it will override the `path`.
         activity: The Activity model represents the main record of Provenance in
             Synapse.  It is analygous to the Activity defined in the
             [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance.
@@ -516,13 +456,6 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
     data_file_handle_id to use the existing data_file_handle_id. The creator of the
     file must also be the owner of the data_file_handle_id to have permission to
     store the file.
-    """
-
-    external_url: Optional[str] = field(default=None, compare=False)
-    """
-    The external URL of this file. If this is set AND `synapse_store` is False, only
-    a reference to this URL and the file metadata will be stored in Synapse. The file
-    itself will not be uploaded. If this attribute is set it will override the `path`.
     """
 
     activity: Optional[Activity] = field(default=None, compare=False)
@@ -762,7 +695,6 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
             self.data_file_handle_id = self.file_handle.id
             self.content_type = self.file_handle.content_type
             self.content_size = self.file_handle.content_size
-            self.external_url = self.file_handle.external_url
 
     def fill_from_dict(
         self,
@@ -1149,90 +1081,6 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
         client.logger.debug(f"Stored File {self.name}, id: {self.id}: {self.path}")
         # Clear the content_md5 so that it is recalculated if the file is updated
         self.content_md5 = None
-        return self
-
-    async def change_metadata_async(
-        self,
-        name: Optional[str] = None,
-        download_as: Optional[str] = None,
-        content_type: Optional[str] = None,
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> "RecordSet":
-        """
-        Change RecordSet Entity metadata for properties that are immutable after creation.
-
-        This method allows modification of certain RecordSet properties that cannot
-        be changed through the normal store method after the initial creation. This
-        includes the entity name, file download name, and content type.
-
-        Arguments:
-            name: Specify to change the name of the RecordSet as seen on Synapse.
-            download_as: Specify filename to change the filename of the associated
-                filehandle when downloaded.
-            content_type: Specify content type to change the content type of the
-                associated filehandle.
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)`, this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The RecordSet object with updated metadata.
-
-        Raises:
-            ValueError: If the RecordSet does not have an ID to change metadata.
-
-        Example: Changing RecordSet metadata
-            Update various metadata properties without re-uploading:
-
-            ```python
-            import asyncio
-            import os
-            from synapseclient import Synapse
-            from synapseclient.models import RecordSet
-
-            async def main():
-                syn = Synapse()
-                syn.login()
-
-                record_set = await RecordSet(id="syn123", download_file=False).get_async()
-                print(os.path.basename(record_set.path))  # prints original filename
-
-                record_set = await record_set.change_metadata_async(
-                    name="my_new_name_recordset.csv",
-                    download_as="my_new_download_name.csv",
-                    content_type="text/csv"
-                )
-                print(os.path.basename(record_set.path))  # prints "my_new_download_name.csv"
-                print(record_set.name)  # prints "my_new_name_recordset.csv"
-
-            asyncio.run(main())
-            ```
-        """
-        if not self.id:
-            raise ValueError("The file must have an ID to change metadata.")
-        from synapseutils.copy_functions import changeFileMetaData
-
-        loop = asyncio.get_event_loop()
-
-        syn = Synapse.get_client(synapse_client=synapse_client)
-        entity = await loop.run_in_executor(
-            None,
-            lambda: changeFileMetaData(
-                syn=syn,
-                entity=self.id,
-                name=name,
-                downloadAs=download_as,
-                contentType=content_type,
-                forceVersion=self.force_version,
-            ),
-        )
-
-        self.fill_from_dict(entity=entity, set_annotations=True)
-        self._set_last_persistent_instance()
-        Synapse.get_client(synapse_client=synapse_client).logger.debug(
-            f"Change metadata for file {self.name}, id: {self.id}: {self.path}"
-        )
         return self
 
     async def get_async(

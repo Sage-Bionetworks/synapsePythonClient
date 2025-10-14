@@ -73,6 +73,10 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
     "SSLZeroReturnError",
 ]
 
+NON_RETRYABLE_EXCEPTIONS = [
+    "is not a table or view",
+]
+
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
 
 
@@ -280,6 +284,7 @@ async def with_retry_time_based_async(
     retry_max_back_off: float = DEFAULT_MAX_BACK_OFF_ASYNC,
     retry_max_wait_before_failure: float = DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC,
     read_response_content: bool = True,
+    non_retryable_errors: List[str] = None,
 ) -> Union[Exception, httpx.Response, Any, None]:
     """
     Retries the given function under certain conditions. This is created such that it
@@ -306,6 +311,8 @@ async def with_retry_time_based_async(
         retry_max_back_off: The maximum wait time.
         retry_max_wait_before_failure: The maximum wait time before failure.
         read_response_content: Whether to read the response content for HTTP requests.
+        non_retryable_errors: List of strings that if found in the response or exception
+            message will prevent a retry from occurring.
 
     Example: Using with_retry
         Using ``with_retry_time_based_async`` to consolidate inputs into a list.
@@ -356,6 +363,7 @@ async def with_retry_time_based_async(
             retry_status_codes=retry_status_codes,
             retry_exceptions=retry_exceptions,
             retry_errors=retry_errors,
+            non_retryable_errors=non_retryable_errors,
         )
 
         # Wait then retry
@@ -408,6 +416,7 @@ def with_retry_time_based(
     retry_max_back_off: float = DEFAULT_MAX_BACK_OFF_ASYNC,
     retry_max_wait_before_failure: float = DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC,
     read_response_content: bool = True,
+    non_retryable_errors: List[str] = None,
 ) -> Union[Exception, httpx.Response, Any, None]:
     """
     Retries the given function under certain conditions. This is created such that it
@@ -434,6 +443,8 @@ def with_retry_time_based(
         retry_max_back_off: The maximum wait time.
         retry_max_wait_before_failure: The maximum wait time before failure.
         read_response_content: Whether to read the response content for HTTP requests.
+        non_retryable_errors: List of strings that if found in the response or exception
+            message will prevent a retry from occurring.
 
     Example: Using with_retry
         Using ``with_retry_time_based`` to consolidate inputs into a list.
@@ -484,6 +495,7 @@ def with_retry_time_based(
             retry_status_codes=retry_status_codes,
             retry_exceptions=retry_exceptions,
             retry_errors=retry_errors,
+            non_retryable_errors=non_retryable_errors,
         )
 
         # Wait then retry
@@ -530,6 +542,7 @@ def _is_retryable(
     retry_status_codes: List[int],
     retry_exceptions: List[Union[Exception, str]],
     retry_errors: List[str],
+    non_retryable_errors: List[str],
 ) -> bool:
     """Determines if a request should be retried based on the response and caught
     exception.
@@ -542,12 +555,25 @@ def _is_retryable(
         retry_status_codes: The status codes that should be retried.
         retry_exceptions: The exceptions that should be retried.
         retry_errors: The errors that should be retried.
+        non_retryable_errors: The errors that should not be retried.
 
     Returns:
         True if the request should be retried, False otherwise.
     """
     # Check if we got a retry-able HTTP error
     if response is not None and hasattr(response, "status_code"):
+        # First check for non-retryable error patterns even in retry status codes
+        if response.status_code in retry_status_codes:
+            response_message = _get_message(response)
+            # Check for non-retryable error patterns that should never be retried
+            if any(
+                [
+                    pattern in response_message
+                    for pattern in (non_retryable_errors or NON_RETRYABLE_EXCEPTIONS)
+                ]
+            ):
+                return False
+
         if (
             expected_status_codes and response.status_code not in expected_status_codes
         ) or (response.status_code in retry_status_codes):

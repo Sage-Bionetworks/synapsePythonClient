@@ -14,8 +14,10 @@ from synapseclient import Synapse
 from synapseclient.api import (
     create_curation_task,
     delete_curation_task,
+    delete_grid_session,
     get_curation_task,
     list_curation_tasks,
+    list_grid_sessions,
     update_curation_task,
 )
 from synapseclient.core.async_utils import (
@@ -27,6 +29,8 @@ from synapseclient.core.constants.concrete_types import (
     CREATE_GRID_REQUEST,
     FILE_BASED_METADATA_TASK_PROPERTIES,
     GRID_RECORD_SET_EXPORT_REQUEST,
+    LIST_GRID_SESSIONS_REQUEST,
+    LIST_GRID_SESSIONS_RESPONSE,
     RECORD_BASED_METADATA_TASK_PROPERTIES,
 )
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
@@ -745,6 +749,159 @@ class GridRecordSetExportRequest(AsynchronousCommunicator):
         return request_dict
 
 
+@dataclass
+class GridSession:
+    """
+    Basic information about a grid session.
+
+    Represents a [Synapse GridSession](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/GridSession.html).
+
+    Attributes:
+        session_id: The unique sessionId that identifies the grid session
+        started_by: The user that started this session
+        started_on: The date-time when the session was started
+        etag: Changes when the session changes
+        modified_on: The date-time when the session was last changed
+        last_replica_id_client: The last replica ID issued to a client
+        last_replica_id_service: The last replica ID issued to a service
+        grid_json_schema_id: The $id of the JSON schema used for model validation
+        source_entity_id: The synId of the table/view/csv that this grid was cloned from
+    """
+
+    session_id: Optional[str] = None
+    """The unique sessionId that identifies the grid session"""
+
+    started_by: Optional[str] = None
+    """The user that started this session"""
+
+    started_on: Optional[str] = None
+    """The date-time when the session was started"""
+
+    etag: Optional[str] = None
+    """Changes when the session changes"""
+
+    modified_on: Optional[str] = None
+    """The date-time when the session was last changed"""
+
+    last_replica_id_client: Optional[int] = None
+    """The last replica ID issued to a client. Client replica IDs are incremented."""
+
+    last_replica_id_service: Optional[int] = None
+    """The last replica ID issued to a service. Service replica IDs are decremented."""
+
+    grid_json_schema_id: Optional[str] = None
+    """The $id of the JSON schema that will be used for model validation in this grid session"""
+
+    source_entity_id: Optional[str] = None
+    """The synId of the table/view/csv that this grid was cloned from"""
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "GridSession":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The GridSession object.
+        """
+        self.session_id = synapse_response.get("sessionId", None)
+        self.started_by = synapse_response.get("startedBy", None)
+        self.started_on = synapse_response.get("startedOn", None)
+        self.etag = synapse_response.get("etag", None)
+        self.modified_on = synapse_response.get("modifiedOn", None)
+        self.last_replica_id_client = synapse_response.get("lastReplicaIdClient", None)
+        self.last_replica_id_service = synapse_response.get(
+            "lastReplicaIdService", None
+        )
+        self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
+        self.source_entity_id = synapse_response.get("sourceEntityId", None)
+        return self
+
+
+@dataclass
+class ListGridSessionsRequest:
+    """
+    Request to list a user's active grid sessions.
+
+    Represents a [Synapse ListGridSessionsRequest](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/ListGridSessionsRequest.html).
+
+    Attributes:
+        concrete_type: The concrete type for the request
+        source_id: Optional. When provided, only sessions with this synId will be returned
+        next_page_token: Forward the returned 'nextPageToken' to get the next page of results
+    """
+
+    concrete_type: str = LIST_GRID_SESSIONS_REQUEST
+    """The concrete type for the request"""
+
+    source_id: Optional[str] = None
+    """Optional. When provided, only sessions with this synId will be returned"""
+
+    next_page_token: Optional[str] = None
+    """Forward the returned 'nextPageToken' to get the next page of results"""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """
+        Converts this dataclass to a dictionary suitable for a Synapse REST API request.
+
+        Returns:
+            A dictionary representation of this object for API requests.
+        """
+        request_dict = {"concreteType": self.concrete_type}
+        if self.source_id is not None:
+            request_dict["sourceId"] = self.source_id
+        if self.next_page_token is not None:
+            request_dict["nextPageToken"] = self.next_page_token
+        delete_none_keys(request_dict)
+        return request_dict
+
+
+@dataclass
+class ListGridSessionsResponse:
+    """
+    Response to a request to list a user's active grid sessions.
+
+    Represents a [Synapse ListGridSessionsResponse](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/grid/ListGridSessionsResponse.html).
+
+    Attributes:
+        concrete_type: The concrete type for the response
+        page: A single page of results that match the request parameters
+        next_page_token: Forward this token to get the next page of results
+    """
+
+    concrete_type: str = LIST_GRID_SESSIONS_RESPONSE
+    """The concrete type for the response"""
+
+    page: Optional[list[GridSession]] = None
+    """A single page of results that match the request parameters"""
+
+    next_page_token: Optional[str] = None
+    """Forward this token to get the next page of results"""
+
+    def fill_from_dict(
+        self, synapse_response: Dict[str, Any]
+    ) -> "ListGridSessionsResponse":
+        """
+        Converts a response from the REST API into this dataclass.
+
+        Arguments:
+            synapse_response: The response from the REST API.
+
+        Returns:
+            The ListGridSessionsResponse object.
+        """
+        self.next_page_token = synapse_response.get("nextPageToken", None)
+        page_data = synapse_response.get("page", [])
+        if page_data:
+            self.page = []
+            for session_dict in page_data:
+                session = GridSession()
+                session.fill_from_dict(session_dict)
+                self.page.append(session)
+        return self
+
+
 class GridSynchronousProtocol(Protocol):
     """
     The protocol for methods that are asynchronous but also
@@ -787,6 +944,45 @@ class GridSynchronousProtocol(Protocol):
             ValueError: If session_id is not provided.
         """
         return self
+
+    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
+        """
+        Delete the grid session.
+
+        Note: Only the user that created a grid session may delete it.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If session_id is not provided.
+        """
+        return None
+
+    @classmethod
+    def list(
+        cls,
+        source_id: Optional[str] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Generator["Grid", None, None]:
+        """
+        Generator to get a list of active grid sessions for the user.
+
+        Arguments:
+            source_id: Optional. When provided, only sessions with this synId will be returned.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            Grid objects representing active grid sessions.
+        """
 
 
 @dataclass
@@ -858,6 +1054,10 @@ class Grid(GridSynchronousProtocol):
         """
         Creates a new grid session from a `record_set_id` or `initial_query`.
 
+        When using `record_set_id`, first checks for existing active sessions that match
+        the record set before creating a new one. When using `initial_query`, always
+        creates a new session due to the complexity of matching query parameters.
+
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
@@ -881,7 +1081,26 @@ class Grid(GridSynchronousProtocol):
             }
         )
 
-        # Create and send the grid creation request
+        # Check for existing active sessions only when using record_set_id
+        # For initial_query, always create a new session due to complexity of matching
+        if self.record_set_id:
+            # Look for existing active sessions for this record set
+            async for existing_session in self.list_async(
+                source_id=self.record_set_id, synapse_client=synapse_client
+            ):
+                # Found an existing session, populate this object with its data and return
+                self.session_id = existing_session.session_id
+                self.started_by = existing_session.started_by
+                self.started_on = existing_session.started_on
+                self.etag = existing_session.etag
+                self.modified_on = existing_session.modified_on
+                self.last_replica_id_client = existing_session.last_replica_id_client
+                self.last_replica_id_service = existing_session.last_replica_id_service
+                self.grid_json_schema_id = existing_session.grid_json_schema_id
+                self.source_entity_id = existing_session.source_entity_id
+                return self
+
+        # No existing session found, create a new one
         create_request = CreateGridRequest(
             record_set_id=self.record_set_id, initial_query=self.initial_query
         )
@@ -932,3 +1151,115 @@ class Grid(GridSynchronousProtocol):
         self.validation_summary_statistics = result.validation_summary_statistics
 
         return self
+
+    @skip_async_to_sync
+    @classmethod
+    async def list_async(
+        cls,
+        source_id: Optional[str] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> AsyncGenerator["Grid", None]:
+        """
+        Generator to get a list of active grid sessions for the user.
+
+        Arguments:
+            source_id: Optional. When provided, only sessions with this synId will be returned.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            Grid objects representing active grid sessions.
+        """
+        async for session_dict in list_grid_sessions(
+            source_id=source_id, synapse_client=synapse_client
+        ):
+            # Convert the dictionary to a Grid object
+            grid = cls()
+            grid.session_id = session_dict.get("sessionId", None)
+            grid.started_by = session_dict.get("startedBy", None)
+            grid.started_on = session_dict.get("startedOn", None)
+            grid.etag = session_dict.get("etag", None)
+            grid.modified_on = session_dict.get("modifiedOn", None)
+            grid.last_replica_id_client = session_dict.get("lastReplicaIdClient", None)
+            grid.last_replica_id_service = session_dict.get(
+                "lastReplicaIdService", None
+            )
+            grid.grid_json_schema_id = session_dict.get("gridJsonSchema$Id", None)
+            grid.source_entity_id = session_dict.get("sourceEntityId", None)
+            yield grid
+
+    @classmethod
+    def list(
+        cls,
+        source_id: Optional[str] = None,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> Generator["Grid", None, None]:
+        """
+        Generator to get a list of active grid sessions for the user.
+
+        Arguments:
+            source_id: Optional. When provided, only sessions with this synId will be returned.
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Yields:
+            Grid objects representing active grid sessions.
+        """
+        return wrap_async_generator_to_sync_generator(
+            async_gen_func=cls.list_async,
+            source_id=source_id,
+            synapse_client=synapse_client,
+        )
+
+    async def delete_async(self, *, synapse_client: Optional[Synapse] = None) -> None:
+        """
+        Delete the grid session.
+
+        Note: Only the user that created a grid session may delete it.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If session_id is not provided.
+        """
+        if not self.session_id:
+            raise ValueError("session_id is required to delete a GridSession")
+
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.session_id": self.session_id or "",
+            }
+        )
+
+        await delete_grid_session(
+            session_id=self.session_id, synapse_client=synapse_client
+        )
+
+    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
+        """
+        Delete the grid session.
+
+        Note: Only the user that created a grid session may delete it.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If session_id is not provided.
+        """
+        return None

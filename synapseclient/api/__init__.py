@@ -19,8 +19,10 @@ from .configuration_services import (
 from .curation_services import (
     create_curation_task,
     delete_curation_task,
+    delete_grid_session,
     get_curation_task,
     list_curation_tasks,
+    list_grid_sessions,
     update_curation_task,
 )
 from .entity_bundle_services_v2 import (
@@ -243,8 +245,10 @@ __all__ = [
     # curation_services
     "create_curation_task",
     "delete_curation_task",
+    "delete_grid_session",
     "get_curation_task",
     "list_curation_tasks",
+    "list_grid_sessions",
     "update_curation_task",
     # user_services
     "get_user_bundle",
