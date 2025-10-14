@@ -908,11 +908,18 @@ class GridSynchronousProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def create(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
+    def create(
+        self,
+        attach_to_previous_session=True,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
         """
         Creates a new grid session from a `record_set_id` or `initial_query`.
 
         Arguments:
+            attach_to_previous_session: If True and using `record_set_id`, will attach
+                to an existing active session if one exists. Defaults to True.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1050,7 +1057,12 @@ class Grid(GridSynchronousProtocol):
     validation_summary_statistics: Optional[ValidationSummary] = None
     """Summary statistics for validation results"""
 
-    async def create_async(self, *, synapse_client: Optional[Synapse] = None) -> "Grid":
+    async def create_async(
+        self,
+        attach_to_previous_session=True,
+        *,
+        synapse_client: Optional[Synapse] = None,
+    ) -> "Grid":
         """
         Creates a new grid session from a `record_set_id` or `initial_query`.
 
@@ -1059,6 +1071,8 @@ class Grid(GridSynchronousProtocol):
         creates a new session due to the complexity of matching query parameters.
 
         Arguments:
+            attach_to_previous_session: If True and using `record_set_id`, will attach
+                to an existing active session if one exists. Defaults to True.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1083,7 +1097,7 @@ class Grid(GridSynchronousProtocol):
 
         # Check for existing active sessions only when using record_set_id
         # For initial_query, always create a new session due to complexity of matching
-        if self.record_set_id:
+        if self.record_set_id and attach_to_previous_session:
             # Look for existing active sessions for this record set
             async for existing_session in self.list_async(
                 source_id=self.record_set_id, synapse_client=synapse_client
