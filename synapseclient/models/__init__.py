@@ -25,6 +25,9 @@ from synapseclient.models.project import Project
 from synapseclient.models.recordset import RecordSet
 from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
 from synapseclient.models.services import FailureStrategy
+from synapseclient.models.submission import Submission
+from synapseclient.models.submission_bundle import SubmissionBundle
+from synapseclient.models.submission_status import SubmissionStatus
 from synapseclient.models.submissionview import SubmissionView
 from synapseclient.models.table import Table
 from synapseclient.models.table_components import (
@@ -128,6 +131,9 @@ __all__ = [
     "EntityRef",
     "DatasetCollection",
     # Submission models
+    "Submission",
+    "SubmissionBundle",
+    "SubmissionStatus",
     "SubmissionView",
     # JSON Schema models
     "SchemaOrganization",

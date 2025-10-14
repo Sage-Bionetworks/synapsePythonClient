@@ -94,7 +94,7 @@ async def get_evaluation_submissions(
     if status:
         query_params["status"] = status
 
-    response = await client.rest_get_async(uri, **query_params)
+    response = await client.rest_get_async(uri, params=query_params)
 
     return response
 
@@ -135,7 +135,7 @@ async def get_user_submissions(
     if user_id:
         query_params["userId"] = user_id
 
-    response = await client.rest_get_async(uri, **query_params)
+    response = await client.rest_get_async(uri, params=query_params)
 
     return response
 
@@ -170,7 +170,7 @@ async def get_submission_count(
     if status:
         query_params["status"] = status
 
-    response = await client.rest_get_async(uri, **query_params)
+    response = await client.rest_get_async(uri, params=query_params)
 
     return response
 
@@ -339,7 +339,7 @@ async def get_all_submission_statuses(
     if status:
         query_params["status"] = status
 
-    response = await client.rest_get_async(uri, **query_params)
+    response = await client.rest_get_async(uri, params=query_params)
 
     return response
 
@@ -438,7 +438,7 @@ async def get_evaluation_submission_bundles(
     if status:
         query_params["status"] = status
 
-    response = await client.rest_get_async(uri, **query_params)
+    response = await client.rest_get_async(uri, params=query_params)
 
     return response
 
@@ -475,6 +475,6 @@ async def get_user_submission_bundles(
     uri = f"/evaluation/{evaluation_id}/submission/bundle"
     query_params = {"limit": limit, "offset": offset}
 
-    response = await client.rest_get_async(uri, **query_params)
+    response = await client.rest_get_async(uri, params=query_params)
 
     return response
