@@ -568,13 +568,16 @@ def _is_retryable(
     Returns:
         True if the request should be retried, False otherwise.
     """
+    response_message = None
     # Check if we got a retry-able HTTP error
     if response is not None and hasattr(response, "status_code"):
         # First check for non-retryable error patterns even in retry status codes
         if response.status_code in retry_status_codes:
-            response_message = _get_message(response)
+            response_message = response_message or _get_message(response)
             # Check for non-retryable error patterns that should never be retried
-            if any([pattern in response_message for pattern in non_retryable_errors]):
+            if response_message and any(
+                [pattern in response_message for pattern in non_retryable_errors]
+            ):
                 return False
 
         if (
@@ -584,7 +587,7 @@ def _is_retryable(
 
         elif response.status_code not in range(200, 299):
             # For all other non 200 messages look for retryable errors in the body or reason field
-            response_message = _get_message(response)
+            response_message = response_message or _get_message(response)
             if (
                 any([msg.lower() in response_message.lower() for msg in retry_errors])
                 # special case for message throttling
