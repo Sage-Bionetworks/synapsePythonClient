@@ -73,7 +73,7 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
     "SSLZeroReturnError",
 ]
 
-NON_RETRYABLE_EXCEPTIONS = [
+NON_RETRYABLE_ERRORS = [
     "is not a table or view",
 ]
 
@@ -246,6 +246,7 @@ def _assign_default_values(
     retry_errors: List[str] = None,
     retry_exceptions: List[Union[Exception, str]] = None,
     verbose: bool = False,
+    non_retryable_errors: List[str] = None,
 ) -> Tuple[List[int], List[int], List[str], List[Union[Exception, str]], Logger]:
     """Assigns default values to the retry parameters."""
     if not retry_status_codes:
@@ -256,6 +257,8 @@ def _assign_default_values(
         retry_errors = []
     if not retry_exceptions:
         retry_exceptions = []
+    if not non_retryable_errors:
+        non_retryable_errors = NON_RETRYABLE_ERRORS
 
     if verbose:
         logger = logging.getLogger(DEBUG_LOGGER_NAME)
@@ -267,6 +270,7 @@ def _assign_default_values(
         retry_errors,
         retry_exceptions,
         logger,
+        non_retryable_errors,
     )
 
 
@@ -328,12 +332,14 @@ async def with_retry_time_based_async(
         retry_errors,
         retry_exceptions,
         logger,
+        non_retry_errors,
     ) = _assign_default_values(
         retry_status_codes=retry_status_codes,
         expected_status_codes=expected_status_codes,
         retry_errors=retry_errors,
         retry_exceptions=retry_exceptions,
         verbose=verbose,
+        non_retryable_errors=non_retryable_errors,
     )
 
     # Retry until we succeed or run past the maximum wait time
@@ -363,7 +369,7 @@ async def with_retry_time_based_async(
             retry_status_codes=retry_status_codes,
             retry_exceptions=retry_exceptions,
             retry_errors=retry_errors,
-            non_retryable_errors=non_retryable_errors,
+            non_retryable_errors=non_retry_errors,
         )
 
         # Wait then retry
@@ -460,6 +466,7 @@ def with_retry_time_based(
         retry_errors,
         retry_exceptions,
         logger,
+        non_retry_errors,
     ) = _assign_default_values(
         retry_status_codes=retry_status_codes,
         expected_status_codes=expected_status_codes,
@@ -495,7 +502,7 @@ def with_retry_time_based(
             retry_status_codes=retry_status_codes,
             retry_exceptions=retry_exceptions,
             retry_errors=retry_errors,
-            non_retryable_errors=non_retryable_errors,
+            non_retryable_errors=non_retry_errors,
         )
 
         # Wait then retry
@@ -569,7 +576,7 @@ def _is_retryable(
             if any(
                 [
                     pattern in response_message
-                    for pattern in (non_retryable_errors or NON_RETRYABLE_EXCEPTIONS)
+                    for pattern in (non_retryable_errors or NON_RETRYABLE_ERRORS)
                 ]
             ):
                 return False
