@@ -473,6 +473,7 @@ def with_retry_time_based(
         retry_errors=retry_errors,
         retry_exceptions=retry_exceptions,
         verbose=verbose,
+        non_retryable_errors=non_retryable_errors,
     )
 
     # Retry until we succeed or run past the maximum wait time
@@ -573,12 +574,7 @@ def _is_retryable(
         if response.status_code in retry_status_codes:
             response_message = _get_message(response)
             # Check for non-retryable error patterns that should never be retried
-            if any(
-                [
-                    pattern in response_message
-                    for pattern in (non_retryable_errors or NON_RETRYABLE_ERRORS)
-                ]
-            ):
+            if any([pattern in response_message for pattern in non_retryable_errors]):
                 return False
 
         if (
