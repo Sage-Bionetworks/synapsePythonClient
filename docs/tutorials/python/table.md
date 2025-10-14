@@ -198,10 +198,16 @@ Qux2,4,203001,204001,+,False
 
 ## 5. Deleting Table rows & Tables
 
-* Deleting specific rows - Query for the rows you want to delete and call syn.delete on the results
+* Deleting specific rows - Query for the rows you want to delete and call delete_rows on the results
 
     ```python
     table.delete_rows(query=f"SELECT * FROM {table.id} WHERE Strand = '+'")
+    ```
+
+* Or deleting rows based on a dataframe, where the ROW_ID and ROW_VERSION columns specify the rows to be deleted from the table. In this example, rows 2 and 3 are deleted. See this document that describes the expected columns of the dataframe: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>. Note: The ROW_VERSION begins at 1 upon row creation and increases by one with every subsequent update.
+
+    ```python
+    table.delete_rows(df = pd.DataFrame({"ROW_ID": [2, 3], "ROW_VERSION": [1, 1]}))
     ```
 
 * Deleting the whole table will deletes the whole table and all rows

@@ -88,9 +88,9 @@ class TestProject:
         project.description = description
 
         # WHEN I call `store` with the Project object
-        with patch.object(
-            self.syn,
-            "store",
+        with patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
@@ -107,14 +107,18 @@ class TestProject:
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Project(
-                    id=project.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                createOrUpdate=False,
+            mocked_client_call.assert_called_once()
+            call_args = mocked_client_call.call_args
+            assert call_args.kwargs["entity_id"] == project.id
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the project properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Project"
             )
+            assert request_dict["id"] == project.id
+            assert request_dict["description"] == description
 
             # AND we should call the get method
             mocked_get.assert_called_once()
@@ -247,9 +251,9 @@ class TestProject:
         project.description = description
 
         # WHEN I call `store` with the Project object
-        with patch.object(
-            self.syn,
-            "store",
+        with patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_project_output()),
         ) as mocked_store, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
@@ -257,14 +261,18 @@ class TestProject:
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should  call store because there are changes
-            mocked_store.assert_called_once_with(
-                obj=Synapse_Project(
-                    id=project.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                createOrUpdate=False,
+            mocked_store.assert_called_once()
+            call_args = mocked_store.call_args
+            assert call_args.kwargs["entity_id"] == project.id
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the project properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Project"
             )
+            assert request_dict["id"] == project.id
+            assert request_dict["description"] == description
 
             # AND we should not call get as we already have
             mocked_get.assert_not_called()
@@ -301,9 +309,9 @@ class TestProject:
         with patch(
             "synapseclient.models.project.store_entity_components",
             return_value=(None),
-        ) as mocked_store_entity_components, patch.object(
-            self.syn,
-            "store",
+        ) as mocked_store_entity_components, patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
@@ -320,14 +328,18 @@ class TestProject:
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Project(
-                    id=project.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                createOrUpdate=False,
+            mocked_client_call.assert_called_once()
+            call_args = mocked_client_call.call_args
+            assert call_args.kwargs["entity_id"] == project.id
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the project properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Project"
             )
+            assert request_dict["id"] == project.id
+            assert request_dict["description"] == description
 
             # AND we should call the get method
             mocked_get.assert_called_once()
@@ -362,9 +374,9 @@ class TestProject:
         project.description = description
 
         # WHEN I call `store` with the Project object
-        with patch.object(
-            self.syn,
-            "store",
+        with patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_project_output()),
         ) as mocked_client_call, patch.object(
             self.syn,
@@ -385,16 +397,18 @@ class TestProject:
             result = await project.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Project(
-                    id=project.id,
-                    name=project.name,
-                    parent=project.parent_id,
-                    description=description,
-                ),
-                set_annotations=False,
-                createOrUpdate=False,
+            mocked_client_call.assert_called_once()
+            call_args = mocked_client_call.call_args
+            assert call_args.kwargs["entity_id"] == PROJECT_ID  # From findEntityId mock
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the project properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Project"
             )
+            assert request_dict["name"] == project.name
+            assert request_dict["description"] == description
 
             # AND we should call the get method
             mocked_get.assert_called_once()

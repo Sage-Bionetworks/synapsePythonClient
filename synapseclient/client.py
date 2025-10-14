@@ -2042,8 +2042,7 @@ class Synapse(object):
                             if_collision=ifcollision,
                             submission=submission,
                             synapse_client=self,
-                        ),
-                        syn=self,
+                        )
                     )
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = (
@@ -2452,8 +2451,7 @@ class Synapse(object):
                         md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
                         file_size=local_state_fh.get("contentSize"),
                         mimetype=local_state_fh.get("contentType"),
-                    ),
-                    self,
+                    )
                 )
                 properties["dataFileHandleId"] = fileHandle["id"]
                 local_state["_file_handle"] = fileHandle
@@ -2911,8 +2909,7 @@ class Synapse(object):
         return wrap_async_to_sync(
             upload_file_handle_async(
                 self, parent, path, synapseStore, md5, file_size, mimetype
-            ),
-            self,
+            )
         )
 
     ############################################################
@@ -6797,8 +6794,7 @@ class Synapse(object):
                         cache_dir, str(wiki.markdownFileHandleId) + ".md"
                     ),
                     synapse_client=self,
-                ),
-                syn=self,
+                )
             )
         try:
             import gzip
@@ -6849,9 +6845,7 @@ class Synapse(object):
         # Convert all attachments into file handles
         if wiki.get("attachments") is not None:
             for attachment in wiki["attachments"]:
-                fileHandle = wrap_async_to_sync(
-                    upload_synapse_s3(self, attachment), self
-                )
+                fileHandle = wrap_async_to_sync(upload_synapse_s3(self, attachment))
                 wiki["attachmentFileHandleIds"].append(fileHandle["id"])
             del wiki["attachments"]
 
@@ -7800,7 +7794,7 @@ class Synapse(object):
         """
 
         fileHandleId = wrap_async_to_sync(
-            multipart_upload_file_async(self, filepath, content_type="text/csv"), self
+            multipart_upload_file_async(self, filepath, content_type="text/csv")
         )
 
         uploadRequest = {
@@ -8009,8 +8003,7 @@ class Synapse(object):
                 entity_type="TableEntity",
                 destination=os.path.join(download_dir, filename),
                 synapse_client=self,
-            ),
-            syn=self,
+            )
         )
 
         return download_from_table_result, path
@@ -8310,8 +8303,7 @@ class Synapse(object):
                         synapse_id=table.tableId,
                         entity_type="TableEntity",
                         destination=zipfilepath,
-                    ),
-                    syn=self,
+                    )
                 )
                 # TODO handle case when no zip file is returned
                 # TODO test case when we give it partial or all bad file handles
@@ -8578,8 +8570,7 @@ class Synapse(object):
         """
 
         fileHandleId = wrap_async_to_sync(
-            multipart_upload_string_async(self, messageBody, content_type=contentType),
-            self,
+            multipart_upload_string_async(self, messageBody, content_type=contentType)
         )
         message = dict(
             recipients=userIds, subject=messageSubject, fileHandleId=fileHandleId
