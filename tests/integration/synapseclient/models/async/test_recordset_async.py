@@ -1,6 +1,7 @@
 """Integration tests for the synapseclient.models.RecordSet class (async)."""
 
 import os
+import tempfile
 import uuid
 from typing import Callable
 
@@ -265,7 +266,7 @@ class TestRecordSetGetAsync:
     ) -> None:
         # GIVEN an existing RecordSet
         # WHEN I get the RecordSet with download_file=True asynchronously
-        download_path = "/tmp/test_download"
+        download_path = tempfile.mkdtemp()
         retrieved_record_set = await RecordSet(
             id=stored_record_set.id, path=download_path, download_file=True
         ).get_async(synapse_client=self.syn)

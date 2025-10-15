@@ -1166,6 +1166,21 @@ class Grid(GridSynchronousProtocol):
 
         return self
 
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Grid":
+        """Converts a response from the REST API into this dataclass."""
+        self.session_id = synapse_response.get("sessionId", None)
+        self.started_by = synapse_response.get("startedBy", None)
+        self.started_on = synapse_response.get("startedOn", None)
+        self.etag = synapse_response.get("etag", None)
+        self.modified_on = synapse_response.get("modifiedOn", None)
+        self.last_replica_id_client = synapse_response.get("lastReplicaIdClient", None)
+        self.last_replica_id_service = synapse_response.get(
+            "lastReplicaIdService", None
+        )
+        self.grid_json_schema_id = synapse_response.get("gridJsonSchema$Id", None)
+        self.source_entity_id = synapse_response.get("sourceEntityId", None)
+        return self
+
     @skip_async_to_sync
     @classmethod
     async def list_async(
@@ -1191,17 +1206,7 @@ class Grid(GridSynchronousProtocol):
         ):
             # Convert the dictionary to a Grid object
             grid = cls()
-            grid.session_id = session_dict.get("sessionId", None)
-            grid.started_by = session_dict.get("startedBy", None)
-            grid.started_on = session_dict.get("startedOn", None)
-            grid.etag = session_dict.get("etag", None)
-            grid.modified_on = session_dict.get("modifiedOn", None)
-            grid.last_replica_id_client = session_dict.get("lastReplicaIdClient", None)
-            grid.last_replica_id_service = session_dict.get(
-                "lastReplicaIdService", None
-            )
-            grid.grid_json_schema_id = session_dict.get("gridJsonSchema$Id", None)
-            grid.source_entity_id = session_dict.get("sourceEntityId", None)
+            grid.fill_from_dict(session_dict)
             yield grid
 
     @classmethod
@@ -1258,22 +1263,3 @@ class Grid(GridSynchronousProtocol):
         await delete_grid_session(
             session_id=self.session_id, synapse_client=synapse_client
         )
-
-    def delete(self, *, synapse_client: Optional[Synapse] = None) -> None:
-        """
-        Delete the grid session.
-
-        Note: Only the user that created a grid session may delete it.
-
-        Arguments:
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If session_id is not provided.
-        """
-        return None
