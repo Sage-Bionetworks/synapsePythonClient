@@ -1022,9 +1022,7 @@ class Dataset(
                 entity_ref=EntityRef(id=item.id, version=item.version_number)
             )
         elif isinstance(item, Folder):
-            children = wrap_async_to_sync(
-                item._retrieve_children(follow_link=True), client
-            )
+            children = wrap_async_to_sync(item._retrieve_children(follow_link=True))
             for child in children:
                 if child["type"] == concrete_types.FILE_ENTITY:
                     self._append_entity_ref(
@@ -1129,9 +1127,7 @@ class Dataset(
                 ).get()
             self._remove_entity_ref(EntityRef(id=item.id, version=item.version_number))
         elif isinstance(item, Folder):
-            children = wrap_async_to_sync(
-                item._retrieve_children(follow_link=True), client
-            )
+            children = wrap_async_to_sync(item._retrieve_children(follow_link=True))
             for child in children:
                 if child["type"] == concrete_types.FILE_ENTITY:
                     self._remove_entity_ref(

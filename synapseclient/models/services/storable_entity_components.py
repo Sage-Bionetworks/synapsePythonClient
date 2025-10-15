@@ -12,6 +12,7 @@ if TYPE_CHECKING:
         EntityView,
         File,
         Folder,
+        Link,
         MaterializedView,
         Project,
         RecordSet,
@@ -55,17 +56,18 @@ async def wrap_coroutine(
 
 async def store_entity_components(
     root_resource: Union[
-        "File",
-        "Folder",
-        "Project",
-        "Table",
         "Dataset",
+        "DatasetCollection",
         "EntityView",
         "RecordSet",
-        "SubmissionView",
+        "File",
+        "Folder",
+        "Link",
+        "Project",
         "MaterializedView",
+        "SubmissionView",
+        "Table",
         "VirtualTable",
-        "DatasetCollection",
     ],
     failure_strategy: FailureStrategy = FailureStrategy.LOG_EXCEPTION,
     *,
@@ -132,7 +134,6 @@ async def store_entity_components(
         if failure_strategy == FailureStrategy.RAISE_EXCEPTION:
             raise ex
 
-    # TODO: Double check this logic. This might not be getting set properly from _resolve_store_task
     return re_read_required
 
 
@@ -235,7 +236,19 @@ def _pull_activity_forward_to_new_version(
 
 
 async def _store_activity_and_annotations(
-    root_resource: Union["File", "Folder", "Project", "Table", "Dataset", "EntityView"],
+    root_resource: Union[
+        "Dataset",
+        "DatasetCollection",
+        "EntityView",
+        "File",
+        "Folder",
+        "Link",
+        "Project",
+        "MaterializedView",
+        "SubmissionView",
+        "Table",
+        "VirtualTable",
+    ],
     *,
     synapse_client: Optional[Synapse] = None,
 ) -> bool:

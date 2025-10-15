@@ -106,7 +106,7 @@ async def project_model(request, syn: Synapse) -> Project_Model:
     ).store_async()
 
     def project_teardown() -> None:
-        wrap_async_to_sync(_cleanup(syn, [working_directory, proj.id]), syn)
+        wrap_async_to_sync(_cleanup(syn, [working_directory, proj.id]))
 
     request.addfinalizer(project_teardown)
 
@@ -124,7 +124,7 @@ async def project(request, syn: Synapse) -> Project:
     proj = syn.store(Project(name="integration_test_project" + str(uuid.uuid4())))
 
     def project_teardown():
-        wrap_async_to_sync(_cleanup(syn, [working_directory, proj]), syn)
+        wrap_async_to_sync(_cleanup(syn, [working_directory, proj]))
 
     request.addfinalizer(project_teardown)
 
@@ -159,7 +159,7 @@ async def schedule_for_cleanup(request, syn: Synapse):
         items.append(item)
 
     def cleanup_scheduled_items():
-        wrap_async_to_sync(_cleanup(syn, items), syn)
+        wrap_async_to_sync(_cleanup(syn, items))
 
     request.addfinalizer(cleanup_scheduled_items)
 

@@ -17,6 +17,7 @@ from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
+from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
@@ -64,6 +65,7 @@ __all__ = [
     "File",
     "FileHandle",
     "Folder",
+    "Link",
     "Project",
     "RecordSet",
     "Annotations",
