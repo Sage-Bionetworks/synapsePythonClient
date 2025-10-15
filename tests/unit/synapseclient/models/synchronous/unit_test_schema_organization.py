@@ -29,6 +29,26 @@ class TestSchemaOrganization:
         with pytest.raises(ValueError, match="Organization name must start with"):
             SchemaOrganization(name)
 
+    def test_fill_from_dict(self) -> None:
+        "Tests that fill_from_dict fills in all fields"
+        organization = SchemaOrganization()
+        assert organization.name is None
+        assert organization.id is None
+        assert organization.created_by is None
+        assert organization.created_on is None
+        organization.fill_from_dict(
+            {
+                "name": "org.name",
+                "id": "org.id",
+                "createdOn": "1",
+                "createdBy": "2",
+            }
+        )
+        assert organization.name == "org.name"
+        assert organization.id == "org.id"
+        assert organization.created_by == "1"
+        assert organization.created_on == "2"
+
 
 class TestJSONSchema:
     """Synchronous unit tests for JSONSchema."""
@@ -57,7 +77,7 @@ class TestJSONSchema:
         ["ORG.NAME-SCHEMA.NAME", "ORG.NAME-SCHEMA.NAME-0.0.1"],
         ids=["Non-semantic URI", "Semantic URI"],
     )
-    def test_from_uri(self, uri: str):
+    def test_from_uri(self, uri: str) -> None:
         "Tests that legal schema URIs result in created objects."
         assert JSONSchema.from_uri(uri)
 
@@ -66,51 +86,38 @@ class TestJSONSchema:
         ["ORG.NAME", "ORG.NAME-SCHEMA.NAME-0.0.1-extra.part"],
         ids=["No dashes", "Too many dashes"],
     )
-    def test_from_uri_with_exceptions(self, uri: str):
+    def test_from_uri_with_exceptions(self, uri: str) -> None:
         "Tests that illegal schema URIs result in an exception."
         with pytest.raises(ValueError, match="The URI must be in the form of"):
             JSONSchema.from_uri(uri)
 
-    @pytest.mark.parametrize(
-        "response",
-        [
+    def test_fill_from_dict(self) -> None:
+        "Tests that fill_from_dict fills in all fields"
+        js = JSONSchema()
+        assert js.name is None
+        assert js.organization_name is None
+        assert js.id is None
+        assert js.organization_id is None
+        assert js.created_on is None
+        assert js.created_by is None
+        assert js.uri is None
+        js.fill_from_dict(
             {
-                "createdOn": "9-30-25",
-                "createdBy": "123",
-                "organizationId": "123",
+                "organizationId": "org.id",
                 "organizationName": "org.name",
-                "schemaId": "123",
-                "schemaName": "schema.name",
+                "schemaId": "id",
+                "schemaName": "name",
+                "createdOn": "1",
+                "createdBy": "2",
             }
-        ],
-    )
-    def test_from_response(self, response: dict[str, Any]):
-        "Tests that legal Synapse API responses result in created objects."
-        js = JSONSchema.from_response(response)
-        assert js.created_on == "9-30-25"
-        assert js.created_by == "123"
-        assert js.organization_id == "123"
+        )
+        assert js.name == "name"
         assert js.organization_name == "org.name"
-        assert js.id == "123"
-        assert js.name == "schema.name"
-
-    @pytest.mark.parametrize(
-        "response",
-        [
-            {
-                "createdOn": None,
-                "createdBy": None,
-                "organizationId": None,
-                "organizationName": None,
-                "schemaId": None,
-                "schemaName": None,
-            }
-        ],
-    )
-    def test_from_response_with_exception(self, response: dict[str, Any]):
-        "Tests that illegal Synapse API responses cause exceptions"
-        with pytest.raises(TypeError):
-            JSONSchema.from_response(response)
+        assert js.id == "id"
+        assert js.organization_id == "org.id"
+        assert js.created_on == "1"
+        assert js.created_by == "2"
+        assert js.uri == "org.name-name"
 
 
 class TestCreateSchemaRequest:

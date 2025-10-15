@@ -197,7 +197,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         response = list_json_schemas(self.name, synapse_client=synapse_client)
         schemas = []
         async for item in response:
-            schemas.append(JSONSchema.from_response(item))
+            schemas.append(JSONSchema().fill_from_dict(item))
         return schemas
 
     async def get_acl_async(
@@ -343,10 +343,10 @@ class JSONSchema(JSONSchemaProtocol):
         uri: The uri of this schema
     """
 
-    name: str
+    name: Optional[str] = None
     """The name of the schema"""
 
-    organization_name: str
+    organization_name: Optional[str] = None
     """The name of the organization the schema belongs to"""
 
     organization_id: Optional[int] = None
@@ -361,12 +361,16 @@ class JSONSchema(JSONSchemaProtocol):
     created_by: Optional[str] = None
     """The ID of the user that created this schema"""
 
-    uri: str = field(init=False)
+    uri: Optional[str] = field(init=False)
     """The uri of this schema"""
 
     def __post_init__(self) -> None:
-        self.uri = f"{self.organization_name}-{self.name}"
-        self._check_name(self.name)
+        if self.name:
+            self._check_name(self.name)
+        if self.organization_name:
+            self._check_name(self.organization_name)
+        if self.name and self.organization_name:
+            self.uri = f"{self.organization_name}-{self.name}"
 
     async def get_async(
         self, synapse_client: Optional["Synapse"] = None
@@ -413,7 +417,7 @@ class JSONSchema(JSONSchemaProtocol):
         )
         async for schema in org_schemas:
             if schema["schemaName"] == self.name:
-                self._fill_from_dict(schema)
+                self.fill_from_dict(schema)
                 return self
         raise ValueError(
             (
@@ -584,6 +588,26 @@ class JSONSchema(JSONSchemaProtocol):
         response = await get_json_schema_body(uri, synapse_client=synapse_client)
         return response
 
+    def fill_from_dict(self, response: dict[str, Any]) -> "JSONSchema":
+        """
+        Fills in this classes attributes using a Synapse API response
+
+        Arguments:
+            response: This Synapse API object:
+              [JsonSchema](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html)
+
+        Returns:
+            Itself
+        """
+        self.organization_id = response.get("organizationId")
+        self.organization_name = response.get("organizationName")
+        self.id = response.get("schemaId")
+        self.name = response.get("schemaName")
+        self.created_on = response.get("createdOn")
+        self.created_by = response.get("createdBy")
+        self.uri = f"{self.organization_name}-{self.name}"
+        return self
+
     @classmethod
     def from_uri(cls, uri: str) -> "JSONSchema":
         """
@@ -625,46 +649,6 @@ class JSONSchema(JSONSchemaProtocol):
             raise ValueError(msg)
         return JSONSchema(name=uri_parts[1], organization_name=uri_parts[0])
 
-    @classmethod
-    def from_response(cls, response: dict[str, Any]) -> "JSONSchema":
-        """
-        Creates a JSONSchema object using a Synapse API response
-
-        Arguments:
-            response: A response from this endpoint:
-              [JSON Schema](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaInfo.html)
-
-        Returns:
-            A JSONSchema object from the API response
-
-        Example: Create a JSONSchema from an API response
-            &nbsp;
-
-            ```python
-            from synapseclient.models import JSONSchema
-            from synapseclient import Synapse
-            from synapseclient.api import list_json_schemas
-            import asyncio
-
-            syn = Synapse()
-            syn.login()
-
-            async def get_first_response():
-                async_gen = list_json_schemas("my.org.name")
-                responses = []
-                async for item in async_gen:
-                    responses.append(item)
-                return responses[1]
-
-            response = asyncio.run(get_first_response())
-            JSONSchema.from_response(response)
-            ```
-
-        """
-        js = JSONSchema(response.get("schemaName"), response.get("organizationName"))
-        js._fill_from_dict(response)
-        return js
-
     @staticmethod
     def _create_json_schema_version_from_response(
         response: dict[str, Any]
@@ -691,22 +675,6 @@ class JSONSchema(JSONSchemaProtocol):
             created_on=response.get("createdOn"),
             created_by=response.get("createdBy"),
         )
-
-    def _fill_from_dict(self, response: dict[str, Any]) -> None:
-        """
-        Fills in this classes attributes using a Synapse API response
-
-        Arguments:
-            response: This Synapse API object:
-              [JsonSchema](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html)
-        """
-        self.organization_id = response.get("organizationId")
-        self.organization_name = response.get("organizationName")
-        self.id = response.get("schemaId")
-        self.name = response.get("schemaName")
-        self.created_on = response.get("createdOn")
-        self.created_by = response.get("createdBy")
-        self.uri = f"{self.organization_name}-{self.name}"
 
     def _check_semantic_version(self, version: str) -> None:
         """
