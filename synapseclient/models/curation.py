@@ -180,7 +180,6 @@ async def _get_existing_curation_task_id(
     return None
 
 
-# TODO: Double check all docstrings to include explict examples
 class CurationTaskSynchronousProtocol(Protocol):
     def get(self, *, synapse_client: Optional[Synapse] = None) -> "CurationTask":
         """
@@ -196,6 +195,21 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Get a curation task by ID
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id=123).get()
+            print(task.data_type)
+            print(task.instructions)
+            ```
         """
         return self
 
@@ -210,6 +224,20 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Delete a curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            task = CurationTask(task_id=123)
+            task.delete()
+            ```
         """
         return None
 
@@ -230,6 +258,74 @@ class CurationTaskSynchronousProtocol(Protocol):
         Returns:
             CurationTask: The CurationTask object.
 
+        Example: Create a new file-based curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, FileBasedMetadataTaskProperties
+
+            syn = Synapse()
+            syn.login()
+
+            # Create file-based task properties
+            file_properties = FileBasedMetadataTaskProperties(
+                upload_folder_id="syn1234567",
+                file_view_id="syn2345678"
+            )
+
+            # Create the curation task
+            task = CurationTask(
+                project_id="syn9876543",
+                data_type="genomics_data",
+                instructions="Upload your genomics files to the specified folder",
+                task_properties=file_properties
+            )
+            task = task.store()
+            print(f"Created task with ID: {task.task_id}")
+            ```
+
+        Example: Create a new record-based curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, RecordBasedMetadataTaskProperties
+
+            syn = Synapse()
+            syn.login()
+
+            # Create record-based task properties
+            record_properties = RecordBasedMetadataTaskProperties(
+                record_set_id="syn3456789"
+            )
+
+            # Create the curation task
+            task = CurationTask(
+                project_id="syn9876543",
+                data_type="clinical_data",
+                instructions="Fill out the clinical data form",
+                task_properties=record_properties
+            )
+            task = task.store()
+            print(f"Created task with ID: {task.task_id}")
+            ```
+
+        Example: Update an existing curation task
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            # Get existing task and update
+            task = CurationTask(task_id=123).get()
+            task.instructions = "Updated instructions for data contributors"
+            task = task.store()
+            ```
         """
         return self
 
@@ -251,6 +347,24 @@ class CurationTaskSynchronousProtocol(Protocol):
 
         Yields:
             CurationTask objects as they are retrieved from the API.
+
+        Example: List all curation tasks in a project
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            # List all curation tasks in the project
+            for task in CurationTask.list(project_id="syn9876543"):
+                print(f"Task ID: {task.task_id}")
+                print(f"Data Type: {task.data_type}")
+                print(f"Instructions: {task.instructions}")
+                print("---")
+            ```
         """
         yield from wrap_async_generator_to_sync_generator(
             async_gen_func=cls.list_async,
@@ -259,7 +373,6 @@ class CurationTaskSynchronousProtocol(Protocol):
         )
 
 
-# TODO: Double check all docstrings to include explict examples
 @dataclass
 @async_to_sync
 class CurationTask(CurationTaskSynchronousProtocol):
@@ -284,6 +397,41 @@ class CurationTask(CurationTaskSynchronousProtocol):
         modified_on: (Read Only) The date this task was last modified
         created_by: (Read Only) The ID of the user that created this task
         modified_by: (Read Only) The ID of the user that last modified this task
+
+    Example: Complete curation task workflow
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import CurationTask, FileBasedMetadataTaskProperties
+
+        syn = Synapse()
+        syn.login()
+
+        # Create a new file-based curation task
+        file_properties = FileBasedMetadataTaskProperties(
+            upload_folder_id="syn1234567",
+            file_view_id="syn2345678"
+        )
+
+        task = CurationTask(
+            project_id="syn9876543",
+            data_type="genomics_data",
+            instructions="Upload your genomics files and complete metadata",
+            task_properties=file_properties
+        )
+        task = task.store()
+        print(f"Created task: {task.task_id}")
+
+        # Later, retrieve and update the task
+        existing_task = CurationTask(task_id=task.task_id).get()
+        existing_task.instructions = "Updated instructions with new requirements"
+        existing_task.store()
+
+        # List all tasks in the project
+        for project_task in CurationTask.list(project_id="syn9876543"):
+            print(f"Task: {project_task.data_type} - {project_task.task_id}")
+        ```
     """
 
     task_id: Optional[int] = None
@@ -411,6 +559,25 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Get a curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                task = await CurationTask(task_id=123).get_async()
+                print(f"Data type: {task.data_type}")
+                print(f"Instructions: {task.instructions}")
+
+            asyncio.run(main())
+            ```
         """
         if not self.task_id:
             raise ValueError("task_id is required to get a CurationTask")
@@ -439,6 +606,25 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Raises:
             ValueError: If the CurationTask object does not have a task_id.
+
+        Example: Delete a curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                task = CurationTask(task_id=123)
+                await task.delete_async()
+                print("Task deleted successfully")
+
+            asyncio.run(main())
+            ```
         """
         if not self.task_id:
             raise ValueError("task_id is required to delete a CurationTask")
@@ -470,6 +656,36 @@ class CurationTask(CurationTaskSynchronousProtocol):
         Returns:
             CurationTask: The CurationTask object.
 
+        Example: Create a new curation task asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask, FileBasedMetadataTaskProperties
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                # Create file-based task properties
+                file_properties = FileBasedMetadataTaskProperties(
+                    upload_folder_id="syn1234567",
+                    file_view_id="syn2345678"
+                )
+
+                # Create and store the curation task
+                task = CurationTask(
+                    project_id="syn9876543",
+                    data_type="genomics_data",
+                    instructions="Upload your genomics files to the specified folder",
+                    task_properties=file_properties
+                )
+                task = await task.store_async()
+                print(f"Created task with ID: {task.task_id}")
+
+            asyncio.run(main())
+            ```
         """
         if not self.project_id:
             raise ValueError("project_id is required")
@@ -548,6 +764,28 @@ class CurationTask(CurationTaskSynchronousProtocol):
 
         Yields:
             CurationTask objects as they are retrieved from the API.
+
+        Example: List all curation tasks in a project asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import CurationTask
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                # List all curation tasks in the project
+                async for task in CurationTask.list_async(project_id="syn9876543"):
+                    print(f"Task ID: {task.task_id}")
+                    print(f"Data Type: {task.data_type}")
+                    print(f"Instructions: {task.instructions}")
+                    print("---")
+
+            asyncio.run(main())
+            ```
         """
         trace.get_current_span().set_attributes(
             {
@@ -929,6 +1167,40 @@ class GridSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If `record_set_id` or `initial_query` is not provided.
+
+        Example: Create a grid session from a record set
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            # Create a grid session from a record set
+            grid = Grid(record_set_id="syn1234567")
+            grid = grid.create()
+            print(f"Created grid session: {grid.session_id}")
+            ```
+
+        Example: Create a grid session from a query
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+            from synapseclient.models.table_components import Query
+
+            syn = Synapse()
+            syn.login()
+
+            # Create a grid session from an entity view query
+            query = Query(sql="SELECT * FROM syn1234567")
+            grid = Grid(initial_query=query)
+            grid = grid.create()
+            print(f"Created grid session: {grid.session_id}")
+            ```
         """
         return self
 
@@ -949,6 +1221,25 @@ class GridSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If session_id is not provided.
+
+        Example: Export grid session data back to record set
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            # Export modified grid data back to the record set
+            grid = Grid(session_id="abc-123-def")
+            grid = grid.export_to_record_set()
+            print(f"Exported to record set: {grid.record_set_id}")
+            print(f"Version number: {grid.record_set_version_number}")
+            if grid.validation_summary_statistics:
+                print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+            ```
         """
         return self
 
@@ -968,6 +1259,21 @@ class GridSynchronousProtocol(Protocol):
 
         Raises:
             ValueError: If session_id is not provided.
+
+        Example: Delete a grid session
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            # Delete the grid session
+            grid = Grid(session_id="abc-123-def")
+            grid.delete()
+            ```
         """
         return None
 
@@ -989,6 +1295,40 @@ class GridSynchronousProtocol(Protocol):
 
         Yields:
             Grid objects representing active grid sessions.
+
+        Example: List all active grid sessions
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            # List all active grid sessions for the user
+            for grid in Grid.list():
+                print(f"Session ID: {grid.session_id}")
+                print(f"Source Entity: {grid.source_entity_id}")
+                print(f"Started: {grid.started_on}")
+                print("---")
+            ```
+
+        Example: List grid sessions for a specific source
+            &nbsp;
+
+            ```python
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            # List grid sessions for a specific record set
+            for grid in Grid.list(source_id="syn1234567"):
+                print(f"Session ID: {grid.session_id}")
+                print(f"Modified: {grid.modified_on}")
+            ```
         """
 
 
@@ -1015,6 +1355,50 @@ class Grid(GridSynchronousProtocol):
         source_entity_id: The synId of the table/view/csv that this grid was cloned from
         record_set_version_number: The version number of the exported record set
         validation_summary_statistics: Summary statistics for validation results
+
+    Example: Create and manage a grid session workflow
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Grid
+
+        syn = Synapse()
+        syn.login()
+
+        # Create a new grid session from a record set
+        grid = Grid(record_set_id="syn1234567")
+        grid = grid.create()
+        print(f"Created grid session: {grid.session_id}")
+
+        # Later, export the modified data back to the record set
+        grid = grid.export_to_record_set()
+        print(f"Exported to version: {grid.record_set_version_number}")
+
+        # Clean up by deleting the session when done
+        grid.delete()
+        ```
+
+    Example: Working with grid sessions using queries
+        &nbsp;
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Grid
+        from synapseclient.models.table_components import Query
+
+        syn = Synapse()
+        syn.login()
+
+        # Create a grid from an entity view query
+        query = Query(sql="SELECT * FROM syn1234567")
+        grid = Grid(initial_query=query)
+        grid = grid.create()
+
+        # Work with the grid session...
+        # Export when ready
+        grid = grid.export_to_record_set()
+        ```
     """
 
     record_set_id: Optional[str] = None
@@ -1082,6 +1466,26 @@ class Grid(GridSynchronousProtocol):
 
         Raises:
             ValueError: If `record_set_id` or `initial_query` is not provided.
+
+        Example: Create a grid session asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                # Create a grid session from a record set
+                grid = Grid(record_set_id="syn1234567")
+                grid = await grid.create_async()
+                print(f"Created grid session: {grid.session_id}")
+
+            asyncio.run(main())
+            ```
         """
         if not self.record_set_id and not self.initial_query:
             raise ValueError(
@@ -1144,6 +1548,29 @@ class Grid(GridSynchronousProtocol):
 
         Raises:
             ValueError: If session_id is not provided.
+
+        Example: Export grid session data back to record set asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                # Export modified grid data back to the record set
+                grid = Grid(session_id="abc-123-def")
+                grid = await grid.export_to_record_set_async()
+                print(f"Exported to record set: {grid.record_set_id}")
+                print(f"Version number: {grid.record_set_version_number}")
+                if grid.validation_summary_statistics:
+                    print(f"Valid records: {grid.validation_summary_statistics.number_of_valid_children}")
+
+            asyncio.run(main())
+            ```
         """
         if not self.session_id:
             raise ValueError("session_id is required to export a GridSession")
@@ -1200,6 +1627,33 @@ class Grid(GridSynchronousProtocol):
 
         Yields:
             Grid objects representing active grid sessions.
+
+        Example: List all active grid sessions asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                # List all active grid sessions for the user
+                async for grid in Grid.list_async():
+                    print(f"Session ID: {grid.session_id}")
+                    print(f"Source Entity: {grid.source_entity_id}")
+                    print(f"Started: {grid.started_on}")
+                    print("---")
+
+                # List grid sessions for a specific source
+                async for grid in Grid.list_async(source_id="syn1234567"):
+                    print(f"Session ID: {grid.session_id}")
+                    print(f"Modified: {grid.modified_on}")
+
+            asyncio.run(main())
+            ```
         """
         async for session_dict in list_grid_sessions(
             source_id=source_id, synapse_client=synapse_client
@@ -1250,6 +1704,26 @@ class Grid(GridSynchronousProtocol):
 
         Raises:
             ValueError: If session_id is not provided.
+
+        Example: Delete a grid session asynchronously
+            &nbsp;
+
+            ```python
+            import asyncio
+            from synapseclient import Synapse
+            from synapseclient.models import Grid
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                # Delete the grid session
+                grid = Grid(session_id="abc-123-def")
+                await grid.delete_async()
+                print("Grid session deleted successfully")
+
+            asyncio.run(main())
+            ```
         """
         if not self.session_id:
             raise ValueError("session_id is required to delete a GridSession")
