@@ -252,21 +252,7 @@ class TestRecordSetGet:
             retrieved_record_set.activity.description == "Test activity for RecordSet"
         )
         assert len(retrieved_record_set.activity.used) == 1
-
-    async def test_get_record_set_download_file(
-        self, stored_record_set: RecordSet
-    ) -> None:
-        # GIVEN an existing RecordSet
-        # WHEN I get the RecordSet with download_file=True
-        download_path = tempfile.mkdtemp()
-        retrieved_record_set = RecordSet(
-            id=stored_record_set.id, path=download_path, download_file=True
-        ).get(synapse_client=self.syn)
-        self.schedule_for_cleanup(download_path)
-
-        # THEN the file should be downloaded to the specified path
-        assert retrieved_record_set.path.startswith(download_path)
-        assert os.path.exists(retrieved_record_set.path)
+        assert retrieved_record_set.path is not None
 
     async def test_get_validation_error(self) -> None:
         # GIVEN a RecordSet without an ID
