@@ -10,6 +10,7 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.models import Grid, Project, RecordSet
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC
 
 
 class TestGridAsync:
@@ -68,7 +69,9 @@ class TestGridAsync:
         grid = Grid(record_set_id=record_set_fixture.id)
 
         # WHEN: Creating a grid session
-        created_grid = await grid.create_async(synapse_client=self.syn)
+        created_grid = await grid.create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+        )
 
         # THEN: The grid should be created successfully
         assert created_grid is grid  # Should return the same instance
@@ -106,7 +109,9 @@ class TestGridAsync:
         grid1 = Grid(record_set_id=record_set_fixture.id)
 
         # WHEN: Creating the first grid session
-        created_grid1 = await grid1.create_async(synapse_client=self.syn)
+        created_grid1 = await grid1.create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+        )
 
         # THEN: A session should be created
         assert created_grid1.session_id is not None
@@ -116,7 +121,9 @@ class TestGridAsync:
         grid2 = Grid(record_set_id=record_set_fixture.id)
 
         # WHEN: Creating a second grid session (should reuse the existing one)
-        created_grid2 = await grid2.create_async(synapse_client=self.syn)
+        created_grid2 = await grid2.create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+        )
 
         # THEN: The same session should be reused
         assert created_grid2.session_id == first_session_id
@@ -133,14 +140,18 @@ class TestGridAsync:
             ValueError,
             match="record_set_id or initial_query is required to create a GridSession",
         ):
-            await grid.create_async(synapse_client=self.syn)
+            await grid.create_async(
+                timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+            )
 
     async def test_delete_grid_session_async(
         self, record_set_fixture: RecordSet
     ) -> None:
         # GIVEN: Create a grid session first
         grid = Grid(record_set_id=record_set_fixture.id)
-        created_grid = await grid.create_async(synapse_client=self.syn)
+        created_grid = await grid.create_async(
+            timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
+        )
 
         # Ensure we have a session_id
         assert created_grid.session_id is not None

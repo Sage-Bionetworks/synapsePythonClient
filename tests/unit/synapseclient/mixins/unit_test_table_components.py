@@ -1443,6 +1443,7 @@ class TestQueryMixin:
                 separator=",",
                 header=True,
                 download_location=None,
+                timeout=250,
             )
 
             # AND csv_to_pandas_df should be called with correct args
@@ -1529,6 +1530,7 @@ class TestQueryMixin:
                 separator=",",
                 header=True,
                 download_location=None,
+                timeout=250,
             )
 
             # AND csv_to_pandas_df should be called with date_columns and list_columns populated
@@ -1619,20 +1621,13 @@ class TestQueryMixin:
                 part_mask=part_mask,
                 limit=None,
                 offset=None,
+                timeout=250,
             )
             # AND mock_rowset_to_pandas_df should be called with correct args
             mock_rowset_to_pandas_df.assert_called_once_with(
                 query_result_bundle=mock_query_result_bundle,
                 synapse=self.syn,
                 row_id_and_version_in_index=False,
-            )
-            # THEN mock_table_query should be called with correct args
-            mock_table_query.assert_called_once_with(
-                query=self.fake_query,
-                results_as="rowset",
-                part_mask=part_mask,
-                limit=None,
-                offset=None,
             )
             # AND the result should be a QueryResultOutput with expected values
             assert isinstance(result, QueryResultOutput)
@@ -1709,6 +1704,7 @@ class TestQueryMixin:
                 part_mask=part_mask,
                 limit=None,
                 offset=None,
+                timeout=250,
             )
 
             mock_rowset_to_pandas_df.assert_called_once_with(
@@ -1772,7 +1768,7 @@ class TestViewSnapshotMixin:
 
             # AND send_job_and_wait_async should be called with correct parameters
             mock_send_job_and_wait_async.assert_awaited_once_with(
-                synapse_client=self.syn
+                synapse_client=self.syn, timeout=120
             )
 
             # AND the result should match the expected result
@@ -1979,7 +1975,6 @@ class TestQueryTableCsv:
         """Sample file path for downloaded CSV."""
         return "/path/to/downloaded/file.csv"
 
-    @pytest.mark.asyncio
     async def test_query_table_csv_request_generation(self, sample_query):
         """Test that QueryJob generates the correct synapse request."""
         # GIVEN custom parameters for CSV formatting
@@ -2018,7 +2013,6 @@ class TestQueryTableCsv:
         assert synapse_request["csvTableDescriptor"]["lineEnd"] == "\n"
         assert synapse_request["csvTableDescriptor"]["separator"] == ";"
 
-    @pytest.mark.asyncio
     async def test_query_table_csv_basic_functionality(
         self, mock_synapse, sample_query, sample_file_path, mock_query_job_response
     ):
@@ -2065,7 +2059,6 @@ class TestQueryTableCsv:
             assert completed_query_job.table_id == "syn1234"
             assert len(completed_query_job.headers) == 2
 
-    @pytest.mark.asyncio
     async def test_query_table_csv_with_download_location(
         self, mock_synapse, sample_query, sample_file_path, mock_query_job_response
     ):
@@ -2674,7 +2667,6 @@ class TestQueryTableRowSet:
             actions_required=None,
         )
 
-    @pytest.mark.asyncio
     async def test_query_table_row_set_basic(
         self, mock_synapse_client, sample_query_result_bundle
     ):
@@ -2717,9 +2709,10 @@ class TestQueryTableRowSet:
             mock_extract_id.assert_called_once_with(query)
 
             # Verify send_job_and_wait_async was called correctly
-            mock_send_job.assert_called_once_with(synapse_client=mock_synapse_client)
+            mock_send_job.assert_called_once_with(
+                synapse_client=mock_synapse_client, timeout=250
+            )
 
-    @pytest.mark.asyncio
     async def test_query_table_row_set_with_parameters(
         self, mock_synapse_client, sample_query_result_bundle
     ):
@@ -2770,7 +2763,9 @@ class TestQueryTableRowSet:
             assert result.query_result == sample_query_result_bundle.query_result
 
             # Verify the QueryBundleRequest was created with correct parameters
-            mock_send_job.assert_called_once_with(synapse_client=mock_synapse_client)
+            mock_send_job.assert_called_once_with(
+                synapse_client=mock_synapse_client, timeout=250
+            )
 
 
 class TestQueryTableNextPage:

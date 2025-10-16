@@ -1150,6 +1150,7 @@ class GridSynchronousProtocol(Protocol):
         self,
         attach_to_previous_session=True,
         *,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
@@ -1158,6 +1159,8 @@ class GridSynchronousProtocol(Protocol):
         Arguments:
             attach_to_previous_session: If True and using `record_set_id`, will attach
                 to an existing active session if one exists. Defaults to True.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1205,13 +1208,15 @@ class GridSynchronousProtocol(Protocol):
         return self
 
     def export_to_record_set(
-        self, *, synapse_client: Optional[Synapse] = None
+        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
     ) -> "Grid":
         """
         Exports the grid session data back to a record set. This will create a new version
         of the original record set with the modified data from the grid session.
 
         Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1445,6 +1450,7 @@ class Grid(GridSynchronousProtocol):
         self,
         attach_to_previous_session=True,
         *,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "Grid":
         """
@@ -1457,6 +1463,8 @@ class Grid(GridSynchronousProtocol):
         Arguments:
             attach_to_previous_session: If True and using `record_set_id`, will attach
                 to an existing active session if one exists. Defaults to True.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1523,7 +1531,7 @@ class Grid(GridSynchronousProtocol):
             record_set_id=self.record_set_id, initial_query=self.initial_query
         )
         result = await create_request.send_job_and_wait_async(
-            synapse_client=synapse_client
+            timeout=timeout, synapse_client=synapse_client
         )
 
         # Fill this GridSession with the grid session data from the async job response
@@ -1532,13 +1540,15 @@ class Grid(GridSynchronousProtocol):
         return self
 
     async def export_to_record_set_async(
-        self, *, synapse_client: Optional[Synapse] = None
+        self, *, timeout: int = 120, synapse_client: Optional[Synapse] = None
     ) -> "Grid":
         """
         Exports the grid session data back to a record set. This will create a new version
         of the original record set with the modified data from the grid session.
 
         Arguments:
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1584,7 +1594,7 @@ class Grid(GridSynchronousProtocol):
         # Create and send the export request
         export_request = GridRecordSetExportRequest(session_id=self.session_id)
         result = await export_request.send_job_and_wait_async(
-            synapse_client=synapse_client
+            timeout=timeout, synapse_client=synapse_client
         )
 
         self.record_set_id = result.response_record_set_id

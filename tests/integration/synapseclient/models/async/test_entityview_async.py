@@ -24,6 +24,7 @@ from synapseclient.models import (
     query_async,
     query_part_mask_async,
 )
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC, QUERY_TIMEOUT_SEC
 
 
 class TestEntityView:
@@ -205,7 +206,9 @@ class TestEntityView:
 
         # AND I query the data in the entity view
         results = await query_async(
-            f"SELECT * FROM {entityview.id}", synapse_client=self.syn
+            f"SELECT * FROM {entityview.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the data for all files should be present in the view
@@ -353,7 +356,9 @@ class TestEntityView:
 
             # AND the data should be queryable
             query_results = await query_async(
-                f"SELECT * FROM {entityview.id}", synapse_client=self.syn
+                f"SELECT * FROM {entityview.id}",
+                synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
             )
 
             # AND the values should match what we set
@@ -510,6 +515,7 @@ class TestEntityView:
             query=f"SELECT * FROM {entityview.id} ORDER BY id ASC",
             synapse_client=self.syn,
             part_mask=full_part_mask,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN all parts should be present in the results
@@ -525,6 +531,7 @@ class TestEntityView:
             query=f"SELECT * FROM {entityview.id} ORDER BY id ASC",
             synapse_client=self.syn,
             part_mask=query_results,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN only the results should be present
@@ -588,6 +595,7 @@ class TestEntityView:
                 associate_activity_to_new_version=config[
                     "associate_activity_to_new_version"
                 ],
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
                 synapse_client=self.syn,
             )
 
@@ -643,6 +651,7 @@ class TestEntityView:
             await entityview.snapshot_async(
                 comment="My snapshot",
                 label="My snapshot label",
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
                 synapse_client=self.syn,
             )
 

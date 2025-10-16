@@ -9,9 +9,6 @@ import uuid
 from io import open
 from unittest import mock, skip
 
-import pytest
-import requests
-
 import synapseclient.core.config
 import synapseclient.core.utils as utils
 from synapseclient import File, Project, Synapse
