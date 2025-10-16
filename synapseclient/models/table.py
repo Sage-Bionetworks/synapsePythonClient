@@ -39,7 +39,11 @@ DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 class TableSynchronousProtocol(Protocol):
     def store(
-        self, dry_run: bool = False, *, synapse_client: Optional[Synapse] = None
+        self,
+        dry_run: bool = False,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
     ) -> "Self":
         """Store non-row information about a table including the columns and annotations.
 
@@ -845,6 +849,7 @@ class TableSynchronousProtocol(Protocol):
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
         *,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, Any]:
         """
@@ -866,6 +871,8 @@ class TableSynchronousProtocol(Protocol):
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the table. If False the activity will not be
                 associated with the new version of the table.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.

@@ -29,6 +29,7 @@ from synapseclient.models import (
     query_async,
     query_part_mask_async,
 )
+from tests.integration import QUERY_TIMEOUT_SEC
 
 
 class TestTableCreation:
@@ -221,7 +222,9 @@ class TestTableCreation:
 
         # THEN the table should have proper schema and data
         results = await query_async(
-            f"SELECT * FROM {table_dict.id}", synapse_client=self.syn
+            f"SELECT * FROM {table_dict.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
             results["column_string"], pd.DataFrame(dict_data)["column_string"]
@@ -244,7 +247,9 @@ class TestTableCreation:
 
         # THEN the table should have proper schema and data
         results = await query_async(
-            f"SELECT * FROM {table_df.id}", synapse_client=self.syn
+            f"SELECT * FROM {table_df.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
             results["column_string"], df_data["column_string"]
@@ -270,7 +275,9 @@ class TestTableCreation:
 
         # THEN the table should have proper schema and data
         results = await query_async(
-            f"SELECT * FROM {table_csv.id}", synapse_client=self.syn
+            f"SELECT * FROM {table_csv.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
             results["column_string"], csv_data["column_string"]
@@ -364,7 +371,9 @@ class TestRowStorage:
 
         # AND I can query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # AND the data in the columns should match
@@ -409,7 +418,9 @@ class TestRowStorage:
 
         # AND a query of the data
         query_results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # WHEN I update the rows with new data
@@ -429,7 +440,9 @@ class TestRowStorage:
 
         # THEN the data should be stored in Synapse, and match the updated data
         updated_results_from_table = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
             updated_results_from_table["column_string"], query_results["column_string"]
@@ -513,7 +526,9 @@ class TestRowStorage:
 
         # AND I can query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # AND the data in the columns should match
@@ -575,7 +590,9 @@ class TestRowStorage:
 
         # AND I can query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # AND the data in the columns should match
@@ -2007,6 +2024,7 @@ class TestQuerying:
             query=f"SELECT * FROM {table.id}",
             synapse_client=self.syn,
             part_mask=part_mask,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the data in the columns should match
@@ -2060,6 +2078,7 @@ class TestQuerying:
             query=f"SELECT * FROM {table.id}",
             synapse_client=self.syn,
             part_mask=QUERY_RESULTS,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the data in the columns should match

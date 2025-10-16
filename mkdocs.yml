@@ -95,6 +95,7 @@ nav:
           - Activity: reference/experimental/sync/activity.md
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
+          - Curator: reference/experimental/sync/curator.md
           - Link: reference/experimental/sync/link_entity.md
           - Functional Interfaces: reference/experimental/functional_interfaces.md
           - Asynchronous:
@@ -113,6 +114,7 @@ nav:
               - Activity: reference/experimental/async/activity.md
               - Team: reference/experimental/async/team.md
               - UserProfile: reference/experimental/async/user_profile.md
+              - Curator: reference/experimental/async/curator.md
               - Link: reference/experimental/async/link_entity.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
@@ -192,6 +194,8 @@ plugins:
             docstring_section_style: spacy
             filters:
               - "!^_"
+              - "!to_synapse_request"
+              - "!fill_from_dict"
             separate_signature: True
             show_signature_annotations: True
             signature_crossrefs: True

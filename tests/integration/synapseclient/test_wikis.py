@@ -1,5 +1,6 @@
 import os
 import uuid
+from unittest import skip
 
 import pytest
 
@@ -9,6 +10,7 @@ from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_wikiAttachment(
     syn: Synapse, project: Project, schedule_for_cleanup
 ) -> None:
@@ -81,6 +83,7 @@ async def test_wikiAttachment(
     pytest.raises(SynapseHTTPError, syn.getWiki, project)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
     # create wiki once
     syn.store(
@@ -104,6 +107,7 @@ async def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
     assert new_title == syn.getWiki(wiki.ownerId)["title"]
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_wiki_version(syn: Synapse, project: Project) -> None:
     # create a new project to avoid artifacts from previous tests
     project = syn.store(Project(name=str(uuid.uuid4())))
@@ -129,6 +133,7 @@ async def test_wiki_version(syn: Synapse, project: Project) -> None:
     assert "version 2" in w2.markdown
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_wiki_with_empty_string_parent_wiki_id(
     syn: Synapse, project: Project
 ) -> None:

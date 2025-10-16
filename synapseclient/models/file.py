@@ -37,7 +37,7 @@ from synapseclient.models.services.storable_entity_components import (
 )
 
 if TYPE_CHECKING:
-    from synapseclient.models import Folder, Project
+    from synapseclient.models import Folder, Project, RecordSet
 
 
 @dataclass()
@@ -851,7 +851,7 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
             async with client._get_parallel_file_transfer_semaphore(
                 asyncio_event_loop=asyncio.get_running_loop()
             ):
-                await self._upload_file(synapse_client=client)
+                await _upload_file(entity_to_upload=self, synapse_client=client)
         elif self.data_file_handle_id:
             self.path = client.cache.get(file_handle_id=self.data_file_handle_id)
 
@@ -1238,139 +1238,6 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
         )
         return file_copy
 
-    async def _needs_upload(self, syn: Synapse) -> bool:
-        """
-        Determines if a file needs to be uploaded to Synapse. The following conditions
-        apply:
-
-        - The file exists and is an ExternalFileHandle and the url has changed
-        - The file exists and is a local file and the MD5 has changed
-        - The file is not present in Synapse
-
-        If the file is already specifying a data_file_handle_id then it is assumed that
-        the file is already uploaded to Synapse. It does not need to be uploaded and
-        the only thing that will occur is the File metadata will be added to Synapse
-        outside of this upload process.
-
-        Arguments:
-            syn: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            True if the file needs to be uploaded, otherwise False.
-        """
-        needs_upload = False
-        # Check if the file should be uploaded
-        if self._last_persistent_instance is not None:
-            if (
-                self.file_handle
-                and self.file_handle.concrete_type
-                == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
-            ):
-                # switching away from ExternalFileHandle or the url was updated
-                needs_upload = self.synapse_store or (
-                    self.file_handle.external_url != self.external_url
-                )
-            else:
-                # Check if we need to upload a new version of an existing
-                # file. If the file referred to by entity['path'] has been
-                # modified, we want to upload the new version.
-                # If synapeStore is false then we must upload a ExternalFileHandle
-                needs_upload = (
-                    not self.synapse_store
-                    or not self.file_handle
-                    or not (
-                        exists_in_cache := syn.cache.contains(
-                            self.file_handle.id, self.path
-                        )
-                    )
-                )
-
-                md5_stored_in_synapse = (
-                    self.file_handle.content_md5 if self.file_handle else None
-                )
-
-                # Check if we got an MD5 checksum from Synapse and compare it to the local file
-                if (
-                    self.synapse_store
-                    and needs_upload
-                    and os.path.isfile(self.path)
-                    and md5_stored_in_synapse
-                ):
-                    await self._load_local_md5()
-                    if md5_stored_in_synapse == (
-                        local_file_md5_hex := self.content_md5
-                    ):
-                        needs_upload = False
-
-                    # If we had a cache miss, but already uploaded to Synapse we
-                    # can add the file to the cache.
-                    if (
-                        not exists_in_cache
-                        and self.file_handle
-                        and self.file_handle.id
-                        and local_file_md5_hex
-                    ):
-                        syn.cache.add(
-                            file_handle_id=self.file_handle.id,
-                            path=self.path,
-                            md5=local_file_md5_hex,
-                        )
-        elif self.data_file_handle_id is not None:
-            needs_upload = False
-        else:
-            needs_upload = True
-        return needs_upload
-
-    async def _upload_file(
-        self,
-        *,
-        synapse_client: Optional[Synapse] = None,
-    ) -> "File":
-        """The upload process for a file. This will upload the file to Synapse if it
-        needs to be uploaded. If the file does not need to be uploaded the file
-        metadata will be added to Synapse outside of this upload process.
-
-        Arguments:
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor.
-
-        Returns:
-            The file object.
-        """
-        syn = Synapse.get_client(synapse_client=synapse_client)
-
-        needs_upload = await self._needs_upload(syn=syn)
-
-        if needs_upload:
-            parent_id_for_upload = self.parent_id
-
-            if not parent_id_for_upload:
-                raise SynapseMalformedEntityError(
-                    "Entities of type File must have a parentId."
-                )
-
-            updated_file_handle = await upload_file_handle(
-                syn=syn,
-                parent_entity_id=parent_id_for_upload,
-                path=(
-                    self.path
-                    if (self.synapse_store or self.external_url is None)
-                    else self.external_url
-                ),
-                synapse_store=self.synapse_store,
-                md5=self.content_md5,
-                file_size=self.content_size,
-                mimetype=self.content_type,
-            )
-
-            self.file_handle = FileHandle().fill_from_dict(updated_file_handle)
-            self._fill_from_file_handle()
-
-        return self
-
     def _convert_into_legacy_file(self) -> SynapseFile:
         """Convert the file object into a SynapseFile object."""
         return_data = SynapseFile(
@@ -1400,3 +1267,146 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
         )
         delete_none_keys(return_data)
         return return_data
+
+
+async def _needs_upload(
+    syn: Synapse, entity_to_upload: Union["File", "RecordSet"]
+) -> bool:
+    """
+    Determines if a file needs to be uploaded to Synapse. The following conditions
+    apply:
+
+    - The file exists and is an ExternalFileHandle and the url has changed
+    - The file exists and is a local file and the MD5 has changed
+    - The file is not present in Synapse
+
+    If the file is already specifying a data_file_handle_id then it is assumed that
+    the file is already uploaded to Synapse. It does not need to be uploaded and
+    the only thing that will occur is the File metadata will be added to Synapse
+    outside of this upload process.
+
+    Arguments:
+        syn: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        True if the file needs to be uploaded, otherwise False.
+    """
+    needs_upload = False
+    # Check if the file should be uploaded
+    if entity_to_upload._last_persistent_instance is not None:
+        if (
+            entity_to_upload.file_handle
+            and entity_to_upload.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        ):
+            # switching away from ExternalFileHandle or the url was updated
+            needs_upload = entity_to_upload.synapse_store or (
+                entity_to_upload.file_handle.external_url
+                != entity_to_upload.external_url
+            )
+        else:
+            # Check if we need to upload a new version of an existing
+            # file. If the file referred to by entity['path'] has been
+            # modified, we want to upload the new version.
+            # If synapeStore is false then we must upload a ExternalFileHandle
+            needs_upload = (
+                not entity_to_upload.synapse_store
+                or not entity_to_upload.file_handle
+                or not (
+                    exists_in_cache := syn.cache.contains(
+                        entity_to_upload.file_handle.id, entity_to_upload.path
+                    )
+                )
+            )
+
+            md5_stored_in_synapse = (
+                entity_to_upload.file_handle.content_md5
+                if entity_to_upload.file_handle
+                else None
+            )
+
+            # Check if we got an MD5 checksum from Synapse and compare it to the local file
+            if (
+                entity_to_upload.synapse_store
+                and needs_upload
+                and os.path.isfile(entity_to_upload.path)
+                and md5_stored_in_synapse
+            ):
+                await entity_to_upload._load_local_md5()
+                if md5_stored_in_synapse == (
+                    local_file_md5_hex := entity_to_upload.content_md5
+                ):
+                    needs_upload = False
+
+                # If we had a cache miss, but already uploaded to Synapse we
+                # can add the file to the cache.
+                if (
+                    not exists_in_cache
+                    and entity_to_upload.file_handle
+                    and entity_to_upload.file_handle.id
+                    and local_file_md5_hex
+                ):
+                    syn.cache.add(
+                        file_handle_id=entity_to_upload.file_handle.id,
+                        path=entity_to_upload.path,
+                        md5=local_file_md5_hex,
+                    )
+    elif entity_to_upload.data_file_handle_id is not None:
+        needs_upload = False
+    else:
+        needs_upload = True
+    return needs_upload
+
+
+async def _upload_file(
+    entity_to_upload: Union["File", "RecordSet"],
+    *,
+    synapse_client: Optional[Synapse] = None,
+) -> "File":
+    """The upload process for a file. This will upload the file to Synapse if it
+    needs to be uploaded. If the file does not need to be uploaded the file
+    metadata will be added to Synapse outside of this upload process.
+
+    Arguments:
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        The file object.
+    """
+    syn = Synapse.get_client(synapse_client=synapse_client)
+
+    needs_upload = await _needs_upload(entity_to_upload=entity_to_upload, syn=syn)
+
+    if needs_upload:
+        parent_id_for_upload = entity_to_upload.parent_id
+
+        if not parent_id_for_upload:
+            raise SynapseMalformedEntityError(
+                "Entities of type File must have a parentId."
+            )
+
+        updated_file_handle = await upload_file_handle(
+            syn=syn,
+            parent_entity_id=parent_id_for_upload,
+            path=(
+                entity_to_upload.path
+                if (
+                    entity_to_upload.synapse_store
+                    or entity_to_upload.external_url is None
+                )
+                else entity_to_upload.external_url
+            ),
+            synapse_store=entity_to_upload.synapse_store,
+            md5=entity_to_upload.content_md5,
+            file_size=entity_to_upload.content_size,
+            mimetype=entity_to_upload.content_type,
+        )
+
+        entity_to_upload.file_handle = FileHandle().fill_from_dict(updated_file_handle)
+        entity_to_upload._fill_from_file_handle()
+
+    return entity_to_upload

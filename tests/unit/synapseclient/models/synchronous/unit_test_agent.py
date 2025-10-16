@@ -236,7 +236,9 @@ class TestAgentSession:
             assert self.test_prompt_trace_enabled in self.test_session.chat_history
             # AND send_job_and_wait_async should have been called once with the correct arguments
             mock_send_job_and_wait_async.assert_called_once_with(
-                synapse_client=self.syn, post_exchange_args={"newer_than": 0}
+                timeout=120,
+                synapse_client=self.syn,
+                post_exchange_args={"newer_than": 0},
             )
             # AND the trace should be printed
             mock_logger_info.assert_called_with(
@@ -266,7 +268,9 @@ class TestAgentSession:
             assert self.test_prompt_trace_disabled in self.test_session.chat_history
             # AND send_job_and_wait_async should have been called once with the correct arguments
             mock_send_job_and_wait_async.assert_called_once_with(
-                synapse_client=self.syn, post_exchange_args={"newer_than": 0}
+                timeout=120,
+                synapse_client=self.syn,
+                post_exchange_args={"newer_than": 0},
             )
             # AND print should not have been called
             mock_logger_info.assert_not_called()
@@ -485,6 +489,7 @@ class TestAgent:
                 enable_trace=True,
                 newer_than=0,
                 print_response=True,
+                timeout=120,
                 synapse_client=self.syn,
             )
 
@@ -526,6 +531,7 @@ class TestAgent:
                 enable_trace=True,
                 newer_than=0,
                 print_response=True,
+                timeout=120,
                 synapse_client=self.syn,
             )
 
@@ -564,6 +570,7 @@ class TestAgent:
                 enable_trace=True,
                 newer_than=0,
                 print_response=True,
+                timeout=120,
                 synapse_client=self.syn,
             )
 

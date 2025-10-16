@@ -698,10 +698,12 @@ class TestDownloadFromUrlMultiThreaded:
                     is_part_stream = True
                     break
             if is_part_stream and random.random() <= failure_rate:
-                # Return a mock object or value representing a bad HTTP response
-                # For example, a response with a 500 status code
-                mock_response = Mock()
+                # Return a mock object representing a bad HTTP response
+                mock_response = Mock(spec=httpx.Response)
                 mock_response.status_code = 500
+                mock_response.headers = httpx.Headers({})
+                mock_response.text = "Internal Server Error"
+                mock_response.json.return_value = {"reason": "Internal Server Error"}
                 return mock_response
             else:
                 # Call the real send function

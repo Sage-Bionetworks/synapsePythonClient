@@ -3,6 +3,7 @@ import re
 import tempfile
 import time
 import uuid
+from unittest import skip
 
 import pytest
 
@@ -10,6 +11,7 @@ from synapseclient import Evaluation, File, Project, SubmissionViewSchema, Synap
 from synapseclient.core.exceptions import SynapseHTTPError
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_evaluations(syn: Synapse, project: Project):
     # Create an Evaluation
     name = "Test Evaluation %s" % str(uuid.uuid4())
@@ -171,6 +173,7 @@ async def test_evaluations(syn: Synapse, project: Project):
     pytest.raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_teams(syn: Synapse, schedule_for_cleanup):
     name = "My Uniquely Named Team " + str(uuid.uuid4())
     team = syn.store(Team(name=name, description="A fake team for testing..."))

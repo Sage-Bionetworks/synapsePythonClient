@@ -177,6 +177,7 @@ async def _query_table_csv(
     offset: int = None,
     sort: List[Dict[str, Any]] = None,
     download_location: str = None,
+    timeout: int = 250,
 ) -> Tuple[QueryJob, str]:
     """
     Query a Synapse Table and download a CSV file containing the results.
@@ -250,7 +251,7 @@ async def _query_table_csv(
     )
 
     download_from_table_result = await query_job_request.send_job_and_wait_async(
-        synapse_client=synapse
+        synapse_client=synapse, timeout=timeout
     )
 
     file_handle_id = download_from_table_result.results_file_handle_id
@@ -305,6 +306,7 @@ async def _query_table_row_set(
     limit: int = None,
     offset: int = None,
     part_mask=None,
+    timeout: int = 250,
 ) -> "QueryResultBundle":
     """
     Executes a SQL query against a Synapse table and returns the resulting row set.
@@ -331,7 +333,7 @@ async def _query_table_row_set(
     )
 
     completed_request = await query_bundle_request.send_job_and_wait_async(
-        synapse_client=synapse
+        synapse_client=synapse, timeout=timeout
     )
 
     return QueryResultBundle(
@@ -349,7 +351,11 @@ async def _query_table_row_set(
 
 
 async def _table_query(
-    query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
+    query: str,
+    synapse: Optional[Synapse] = None,
+    results_as: str = "csv",
+    timeout: int = 250,
+    **kwargs,
 ) -> Union["QueryResultBundle", Tuple["QueryJob", str]]:
     """
     Query a Synapse Table.
@@ -386,7 +392,9 @@ async def _table_query(
     client = Synapse.get_client(synapse_client=synapse)
 
     if results_as.lower() == "rowset":
-        return await _query_table_row_set(query=query, synapse=client, **kwargs)
+        return await _query_table_row_set(
+            query=query, synapse=client, timeout=timeout, **kwargs
+        )
 
     elif results_as.lower() == "csv":
         result, csv_path = await _query_table_csv(
@@ -409,6 +417,7 @@ async def _table_query(
             offset=kwargs.get("offset", None),
             sort=kwargs.get("sort", None),
             download_location=kwargs.get("download_location", None),
+            timeout=timeout,
         )
 
         return result, csv_path
@@ -2633,6 +2642,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         separator=",",
         header=True,
         *,
+        timeout: int = 250,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> Union["DATA_FRAME_TYPE", str]:
@@ -2729,6 +2739,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             separator=separator,
             header=header,
             download_location=download_location,
+            timeout=timeout,
         )
 
         if download_location:
@@ -2765,6 +2776,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         query: str,
         part_mask: int,
         *,
+        timeout: int = 250,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> "QueryResultOutput":
@@ -2841,6 +2853,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             part_mask=part_mask,
             limit=limit,
             offset=offset,
+            timeout=timeout,
         )
 
         as_df = await loop.run_in_executor(
@@ -2872,6 +2885,7 @@ class ViewSnapshotMixin:
         label: Optional[str] = None,
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the `View`-like entity.
@@ -2897,6 +2911,8 @@ class ViewSnapshotMixin:
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the table. If False the activity will not be
                 associated with the new version of the table. Defaults to True.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -2967,7 +2983,7 @@ class ViewSnapshotMixin:
                     self.activity.id if self.activity and include_activity else None
                 ),
             ),
-        ).send_job_and_wait_async(synapse_client=client)
+        ).send_job_and_wait_async(synapse_client=client, timeout=timeout)
 
         if not self.version_number:
             # set to latest drafting version if the first snapshot was just created
