@@ -88,8 +88,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             asyncio.run(org.get_async())
             ```
         """
-        if self.id:
-            return self
+        if not self.name:
+            raise ValueError("SchemaOrganization must have a name")
         response = await get_organization(self.name, synapse_client=synapse_client)
         self.fill_from_dict(response)
         return self
@@ -231,7 +231,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             ```
         """
         if not self.id:
-            await self.get_async()
+            await self.get_async(synapse_client=synapse_client)
         response = await get_organization_acl(self.id, synapse_client=synapse_client)
         return response
 
@@ -282,7 +282,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
         """
         if not self.id:
-            await self.get_async()
+            await self.get_async(synapse_client=synapse_client)
         await update_organization_acl(
             organization_id=self.id,
             resource_access=resource_access,
