@@ -4184,9 +4184,16 @@ class TableDeleteRowMixin:
                 existing_rows, on=["ROW_ID", "ROW_VERSION"], how="left", indicator=True
             )
             if not all(merged["_merge"] == "both"):
-                discrepant_idx = merged.loc[merged["_merge"] != "both"].index
+                discrepant_idx = (
+                    merged.loc[merged["_merge"] != "both"][["ROW_ID", "ROW_VERSION"]]
+                    .astype(str)
+                    .values
+                )
+                discrepant_tuples = [
+                    f"({', '.join(tuple)})" for tuple in discrepant_idx
+                ]
                 raise ValueError(
-                    f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {self.id}: {', '.join(map(str, discrepant_idx))}."
+                    f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {self.id}: {', '.join(discrepant_tuples)}."
                 )
             client.logger.info(
                 f"Received {len(rows_to_delete)} rows to delete for given dataframe."
