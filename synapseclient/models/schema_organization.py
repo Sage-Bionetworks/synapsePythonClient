@@ -73,19 +73,30 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         Returns:
             Itself
 
+        Raises:
+            ValueError: If the name has not been set
+
         Example: Get an existing SchemaOrganization
             &nbsp;
 
             ```python
+
             from synapseclient.models import SchemaOrganization
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def get_org():
 
-            org = SchemaOrganization("dpetest")
-            asyncio.run(org.get_async())
+                syn = Synapse()
+                syn.login()
+
+                org = SchemaOrganization("dpetest")
+                await org.get_async()
+                return org
+
+            org = asyncio.run(get_org())
+            print(org.name)
+            print(org.id)
             ```
         """
         if not self.name:
@@ -119,11 +130,18 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def store_org():
 
-            org = SchemaOrganization("my.org.name")
-            asyncio.run(org.store_async())
+                syn = Synapse()
+                syn.login()
+
+                org = SchemaOrganization("my.new.org")
+                await org.store_async()
+                return org
+
+            org = asyncio.run(store_org())
+            print(org.name)
+            print(org.id)
             ```
         """
         if not self.name:
@@ -149,11 +167,15 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def delete_org():
 
-            org = SchemaOrganization("my.org.name")
-            asyncio.run(org.delete_async())
+                syn = Synapse()
+                syn.login()
+
+                org = SchemaOrganization("my.org")
+                await org.delete_async()
+
+            asyncio.run(delete_org())
             ```
         """
         if not self.id:
@@ -223,11 +245,24 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def get_acl():
 
-            org = SchemaOrganization("dpetest")
-            acl = asyncio.run(org.get_acl_async())
+                syn = Synapse()
+                syn.login()
+
+                org = SchemaOrganization("dpetest")
+                acl = await org.get_acl_async()
+                return acl
+
+            acl = asyncio.run(get_acl())
+            etag = acl["etag"]
+            print(etag)
+            resource_access = acl["resourceAccess"]
+            for item in resource_access:
+                principal_id = item["principalId"]
+                print((principal_id))
+                access_types = item["accessType"]
+                print(access_types)
             ```
         """
         if not self.id:
@@ -252,6 +287,27 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
+
+            Example: Update the ACL for a SchemaOrganization
+            &nbsp;
+
+            ```python
+            from synapseclient.models import SchemaOrganization
+            from synapseclient import Synapse
+            import asyncio
+
+            async def update_acl() -> None:
+
+                syn = Synapse()
+                syn.login()
+
+                org = SchemaOrganization("dpetest")
+                await org.update_acl_async(
+                    principal_id=1,
+                    access_type=["READ"]
+                )
+
+            asyncio.run(update_acl())
 
         """
         acl = await self.get_acl_async(synapse_client=synapse_client)
@@ -355,6 +411,8 @@ class JSONSchema(JSONSchemaProtocol):
                 instance from the Synapse class constructor
 
         Raises:
+            ValueError: This JSONSchema doesn't have a name
+            ValueError: This JSONSchema doesn't have an organization name
             ValueError: This JSONSchema doesn't exist in its organization
 
         Returns:
@@ -368,11 +426,17 @@ class JSONSchema(JSONSchemaProtocol):
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def get_schema():
 
-            js = JSONSchema("my.schema.name", "my.org.name")
-            asyncio.run(js.get_async())
+                syn = Synapse()
+                syn.login()
+
+                schema = JSONSchema(organization_name="dpetest", name="test.schematic.Biospecimen")
+                await schema.get_async()
+                return schema
+
+            schema = asyncio.run(get_schema())
+            print(schema.uri)
             ```
         """
         if not self.name:
@@ -428,11 +492,15 @@ class JSONSchema(JSONSchemaProtocol):
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def store_schema():
 
-            js = JSONSchema("my.schema.name", "my.org.name")
-            asyncio.run(js.store_async())
+                syn = Synapse()
+                syn.login()
+
+                schema = JSONSchema(organization_name="my.org", name="test.schema")
+                await schema.store_async(schema_body = {})
+
+            asyncio.run(store_schema())
             ```
         """
         if not self.name:
@@ -474,11 +542,15 @@ class JSONSchema(JSONSchemaProtocol):
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def delete_schema():
 
-            js = JSONSchema("my.schema.name", "my.org.name")
-            asyncio.run(js.delete_async())
+                syn = Synapse()
+                syn.login()
+
+                schema = JSONSchema(organization_name="my.org", name="test.schema")
+                await schema.delete_async(schema_body = {})
+
+            asyncio.run(delete_schema())
             ```
         """
         if not self.name:
@@ -547,22 +619,47 @@ class JSONSchema(JSONSchemaProtocol):
             The JSON Schema body
 
         Example: Get the body of the JSONSchema
-            &nbsp;
+
+            Get latest version
 
             ```python
             from synapseclient.models import JSONSchema
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def get_body():
 
-            js = JSONSchema("my.schema.name", "my.org.name")
-            # Get latest version
-            latest = asyncio.run(js.get_body_async())
-            # Get specific version
-            first = asyncio.run(js.get_body_async("0.0.1"))
+                syn = Synapse()
+                syn.login()
+
+                schema = JSONSchema(organization_name="dpetest", name="test.schematic.Biospecimen")
+                body = await schema.get_body_async()
+                return body
+
+            body = asyncio.run(get_body())
+            print(body)
             ```
+
+            Get specific version
+
+            ```python
+            from synapseclient.models import JSONSchema
+            from synapseclient import Synapse
+            import asyncio
+
+            async def get_body():
+
+                syn = Synapse()
+                syn.login()
+
+                schema = JSONSchema(organization_name="dpetest", name="test.schematic.Biospecimen")
+                body = await schema.get_body_async(version="0.0.1")
+                return body
+
+            body = asyncio.run(get_body())
+            print(body)
+            ```
+
         """
         if not self.name:
             raise ValueError("JSONSchema must have a name")
