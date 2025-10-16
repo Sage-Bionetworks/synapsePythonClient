@@ -46,8 +46,8 @@ class TestSchemaOrganization:
         )
         assert organization.name == "org.name"
         assert organization.id == "org.id"
-        assert organization.created_by == "1"
-        assert organization.created_on == "2"
+        assert organization.created_on == "1"
+        assert organization.created_by == "2"
 
 
 class TestJSONSchema:

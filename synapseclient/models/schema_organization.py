@@ -371,6 +371,8 @@ class JSONSchema(JSONSchemaProtocol):
             self._check_name(self.organization_name)
         if self.name and self.organization_name:
             self.uri = f"{self.organization_name}-{self.name}"
+        else:
+            self.uri = None
 
     async def get_async(
         self, synapse_client: Optional["Synapse"] = None
@@ -404,13 +406,15 @@ class JSONSchema(JSONSchemaProtocol):
             asyncio.run(js.get_async())
             ```
         """
-        if self.id:
-            return self
+        if not self.name:
+            raise ValueError("JSONSchema must have a name")
+        if not self.organization_name:
+            raise ValueError("JSONSchema must have a organization_name")
 
         # Check that the org exists,
         #  if it doesn't list_json_schemas will unhelpfully return an empty generator.
         org = SchemaOrganization(self.organization_name)
-        await org.get_async()
+        await org.get_async(synapse_client=synapse_client)
 
         org_schemas = list_json_schemas(
             self.organization_name, synapse_client=synapse_client
@@ -462,6 +466,11 @@ class JSONSchema(JSONSchemaProtocol):
             asyncio.run(js.store_async())
             ```
         """
+        if not self.name:
+            raise ValueError("JSONSchema must have a name")
+        if not self.organization_name:
+            raise ValueError("JSONSchema must have a organization_name")
+
         request = CreateSchemaRequest(
             schema=schema_body,
             name=self.name,
@@ -503,6 +512,11 @@ class JSONSchema(JSONSchemaProtocol):
             asyncio.run(js.delete_async())
             ```
         """
+        if not self.name:
+            raise ValueError("JSONSchema must have a name")
+        if not self.organization_name:
+            raise ValueError("JSONSchema must have a organization_name")
+
         await delete_json_schema(self.uri, synapse_client=synapse_client)
 
     async def get_versions_async(
@@ -581,6 +595,11 @@ class JSONSchema(JSONSchemaProtocol):
             first = asyncio.run(js.get_body_async("0.0.1"))
             ```
         """
+        if not self.name:
+            raise ValueError("JSONSchema must have a name")
+        if not self.organization_name:
+            raise ValueError("JSONSchema must have a organization_name")
+
         uri = self.uri
         if version:
             self._check_semantic_version(version)
