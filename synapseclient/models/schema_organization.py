@@ -5,8 +5,9 @@ These are used to manage Organization and JSON Schema entities in Synapse.
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Protocol
+from typing import Any, Optional, Protocol
 
+from synapseclient import Synapse
 from synapseclient.api import (
     create_organization,
     delete_json_schema,
@@ -24,12 +25,7 @@ from synapseclient.core.constants.concrete_types import CREATE_SCHEMA_REQUEST
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
-if TYPE_CHECKING:
-    from synapseclient import Synapse
-
-SYNAPSE_SCHEMA_URL = (
-    "https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/"
-)
+SYNAPSE_SCHEMA_URL = f"{Synapse().repoEndpoint}/schema/type/registered/"
 
 
 class SchemaOrganizationProtocol(Protocol):
