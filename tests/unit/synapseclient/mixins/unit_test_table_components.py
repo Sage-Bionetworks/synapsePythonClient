@@ -1906,7 +1906,7 @@ class TestTableDeleteRowMixin:
                 pd.DataFrame(
                     {"ROW_ID": ["C", "D"], "ROW_VERSION": [2, 2]}
                 ),  # Both invalid
-                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: (C, 2), (D, 2).",
+                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: //(C, 2//), //(D, 2//).",
             ),
         ],
     )
