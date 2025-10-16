@@ -346,7 +346,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 instance from the Synapse class constructor
 
         Example: Delete a SchemaOrganization
-            &nbsp;
+
+            Delete using a name
 
             ```python
             from synapseclient.models import SchemaOrganization
@@ -363,6 +364,23 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
             asyncio.run(delete_org())
             ```
+
+            Delete using an id
+
+            ```python
+            from synapseclient.models import SchemaOrganization
+            from synapseclient import Synapse
+            import asyncio
+
+            async def delete_org():
+
+                syn = Synapse()
+                syn.login()
+
+                org = SchemaOrganization(id=1075)
+                await org.delete_async()
+
+            asyncio.run(delete_org())
         """
         if not self.id:
             await self.get_async(synapse_client=synapse_client)
