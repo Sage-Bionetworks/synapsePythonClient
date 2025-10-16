@@ -1881,7 +1881,7 @@ class TestDeleteRows:
 
         # WHEN the rows that do not exist are attempted to be deleted
         # THEN a value error should be raised and the appropriate message should be displayed
-        with pytest.raises(ValueError, match=exception_message):
+        with pytest.raises(LookupError, match=exception_message):
             await table.delete_rows_async(
                 df=pd.DataFrame({"ROW_ID": row_ids, "ROW_VERSION": row_versions}),
                 synapse_client=self.syn,

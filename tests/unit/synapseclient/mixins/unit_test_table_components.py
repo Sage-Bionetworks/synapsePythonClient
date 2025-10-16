@@ -1924,7 +1924,7 @@ class TestTableDeleteRowMixin:
             ) as mock_query_async,
             patch.object(self.syn.logger, "info") as mock_logger_info,
         ):
-            with pytest.raises(ValueError, match=error_msg):
+            with pytest.raises(LookupError, match=error_msg):
                 result = await test_instance.delete_rows_async(
                     df=df, synapse_client=self.syn
                 )

@@ -4192,7 +4192,7 @@ class TableDeleteRowMixin:
                 discrepant_tuples = [
                     f"({', '.join(tuple)})" for tuple in discrepant_idx
                 ]
-                raise ValueError(
+                raise LookupError(
                     f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {self.id}: {', '.join(discrepant_tuples)}."
                 )
             client.logger.info(
