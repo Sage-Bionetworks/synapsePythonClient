@@ -8,6 +8,7 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Column, ColumnType, MaterializedView, Project, Table
+from tests.integration import QUERY_TIMEOUT_SEC
 
 
 class TestMaterializedViewBasics:
@@ -246,7 +247,9 @@ class TestMaterializedViewWithData:
 
         # WHEN querying the materialized view
         query_result = await materialized_view.query_async(
-            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {materialized_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the query results should match the table data
@@ -274,7 +277,9 @@ class TestMaterializedViewWithData:
         # AND querying the materialized view (with delay for eventual consistency)
         await asyncio.sleep(5)
         query_result = await materialized_view.query_async(
-            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {materialized_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the query results should reflect the updated SQL
@@ -316,7 +321,9 @@ class TestMaterializedViewWithData:
 
         # WHEN querying before adding data
         query_result = await materialized_view.query_async(
-            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {materialized_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN no data should be returned
@@ -329,11 +336,15 @@ class TestMaterializedViewWithData:
         # AND querying again (with delay for eventual consistency)
         await asyncio.sleep(5)
         query_result = await materialized_view.query_async(
-            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {materialized_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         await asyncio.sleep(5)
         query_result = await materialized_view.query_async(
-            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {materialized_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the query results should reflect the added data
@@ -364,10 +375,14 @@ class TestMaterializedViewWithData:
         # AND querying the materialized view (with delay for eventual consistency)
         await asyncio.sleep(5)
         query_result = await materialized_view.query_async(
-            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {materialized_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         query_result = await materialized_view.query_async(
-            f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {materialized_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the query results should reflect the removed data
@@ -396,6 +411,7 @@ class TestMaterializedViewWithData:
             query=f"SELECT * FROM {materialized_view.id}",
             part_mask=part_mask,
             synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the result should contain the specified parts
@@ -453,7 +469,9 @@ class TestMaterializedViewWithData:
 
         # AND querying the view
         result = await left_join_view.query_async(
-            f"SELECT * FROM {left_join_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {left_join_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the results should match the expected LEFT JOIN result
@@ -510,7 +528,9 @@ class TestMaterializedViewWithData:
 
         # AND querying the view
         result = await right_join_view.query_async(
-            f"SELECT * FROM {right_join_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {right_join_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the results should match the expected RIGHT JOIN result
@@ -567,7 +587,9 @@ class TestMaterializedViewWithData:
 
         # AND querying the view
         result = await inner_join_view.query_async(
-            f"SELECT * FROM {inner_join_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {inner_join_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the results should match the expected INNER JOIN result
@@ -623,7 +645,9 @@ class TestMaterializedViewWithData:
 
         # AND querying the view
         result = await union_view.query_async(
-            f"SELECT * FROM {union_view.id}", synapse_client=self.syn
+            f"SELECT * FROM {union_view.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the results should match the expected UNION result

@@ -336,6 +336,7 @@ class DatasetSynchronousProtocol(Protocol):
         label: Optional[str] = None,
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the dataset. A snapshot is a saved, read-only version of the dataset
@@ -353,6 +354,8 @@ class DatasetSynchronousProtocol(Protocol):
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the dataset. If False the activity will not be
                 associated with the new version of the dataset. Defaults to True.
+            timeout: The number of seconds to wait for the async job to complete.
+                Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1022,9 +1025,7 @@ class Dataset(
                 entity_ref=EntityRef(id=item.id, version=item.version_number)
             )
         elif isinstance(item, Folder):
-            children = wrap_async_to_sync(
-                item._retrieve_children(follow_link=True), client
-            )
+            children = wrap_async_to_sync(item._retrieve_children(follow_link=True))
             for child in children:
                 if child["type"] == concrete_types.FILE_ENTITY:
                     self._append_entity_ref(
@@ -1129,9 +1130,7 @@ class Dataset(
                 ).get()
             self._remove_entity_ref(EntityRef(id=item.id, version=item.version_number))
         elif isinstance(item, Folder):
-            children = wrap_async_to_sync(
-                item._retrieve_children(follow_link=True), client
-            )
+            children = wrap_async_to_sync(item._retrieve_children(follow_link=True))
             for child in children:
                 if child["type"] == concrete_types.FILE_ENTITY:
                     self._remove_entity_ref(
@@ -1461,6 +1460,7 @@ class Dataset(
         label: Optional[str] = None,
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the dataset. A snapshot is a saved, read-only version of the dataset
@@ -1478,6 +1478,8 @@ class Dataset(
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the dataset. If False the activity will not be
                 associated with the new version of the dataset. Defaults to True.
+            timeout: The number of seconds to wait for the async job to complete.
+                Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -1508,6 +1510,7 @@ class Dataset(
             label=label,
             include_activity=include_activity,
             associate_activity_to_new_version=associate_activity_to_new_version,
+            timeout=timeout,
             synapse_client=synapse_client,
         )
 
@@ -1787,6 +1790,7 @@ class DatasetCollectionSynchronousProtocol(Protocol):
         label: Optional[str] = None,
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the dataset collection. A snapshot is a saved, read-only version of the dataset collection
@@ -1804,6 +1808,8 @@ class DatasetCollectionSynchronousProtocol(Protocol):
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the dataset collection. If False the activity will not be
                 associated with the new version of the dataset collection. Defaults to True.
+            timeout: The number of seconds to wait for the async job to complete.
+                Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -2757,6 +2763,7 @@ class DatasetCollection(
         label: Optional[str] = None,
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the dataset collection. A snapshot is a saved, read-only version of the dataset collection
@@ -2776,6 +2783,8 @@ class DatasetCollection(
                 with the new version of the dataset collection. If False the activity will
                 not be associated with the new version of the dataset collection. Defaults
                 to True.
+            timeout: The number of seconds to wait for the async job to complete.
+                Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -2806,5 +2815,6 @@ class DatasetCollection(
             label=label,
             include_activity=include_activity,
             associate_activity_to_new_version=associate_activity_to_new_version,
+            timeout=timeout,
             synapse_client=synapse_client,
         )

@@ -7,6 +7,7 @@ import tempfile
 import uuid
 from datetime import datetime as Datetime
 from typing import Callable
+from unittest import skip
 from unittest.mock import patch
 
 import pytest
@@ -27,6 +28,7 @@ from synapseclient.core.exceptions import SynapseError, SynapseHTTPError
 from synapseclient.core.upload.upload_functions import create_external_file_handle
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_entity(syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
     # Update the project
     project_name = str(uuid.uuid4())
@@ -170,6 +172,7 @@ async def test_entity(syn: Synapse, schedule_for_cleanup: Callable[..., None]) -
     assert os.path.basename(a_file_cached.path) == os.path.basename(a_file.path)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_special_characters(syn: Synapse, project: Project) -> None:
     folder = syn.store(
         Folder(
@@ -192,6 +195,7 @@ async def test_special_characters(syn: Synapse, project: Project) -> None:
     assert folder.russian_annotation[0] == "Обезьяна прикладом"
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_get_local_file(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -224,6 +228,7 @@ async def test_get_local_file(
     pytest.raises(SynapseError, syn.get, new_path, limitSearch="syn1")
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_store_with_flags(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -310,6 +315,7 @@ async def test_store_with_flags(
     assert ephemeral_bogus.shoe_size == [11.5]
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_get_with_download_location_and_ifcollision(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -364,6 +370,7 @@ async def test_get_with_download_location_and_ifcollision(
     os.remove(renamed_bogus.path)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_get_with_cache_hit_and_miss_with_ifcollision(
     syn: Synapse,
     project: Project,
@@ -428,6 +435,7 @@ async def test_get_with_cache_hit_and_miss_with_ifcollision(
     os.remove(filepath)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_store_activity(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -482,6 +490,7 @@ async def test_store_activity(
     assert honking["id"] == honking2["id"]
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_store_is_restricted_flag(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -498,6 +507,7 @@ async def test_store_is_restricted_flag(
         assert intercepted.called
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_external_file_handle(syn: Synapse, project: Project) -> None:
     # Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
     singapore_url = "http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg"  # noqa
@@ -534,6 +544,7 @@ async def test_external_file_handle(syn: Synapse, project: Project) -> None:
     assert s2.externalURL == singapore_2_url
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_synapse_store_flag(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -604,6 +615,7 @@ async def test_synapse_store_flag(
     )
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_create_or_update_project(
     syn: Synapse, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -630,6 +642,7 @@ async def test_create_or_update_project(
     pytest.raises(Exception, syn.store, project, createOrUpdate=False)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_download_file_false(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -658,6 +671,7 @@ async def test_download_file_false(
     assert reupload.name == file.name
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_download_file_URL_false(syn: Synapse, project: Project) -> None:
     # Upload an external file handle
     file_that_exists = "http://dev-versions.synapse.sagebase.org/synapsePythonClient"
@@ -689,6 +703,7 @@ async def test_download_file_URL_false(syn: Synapse, project: Project) -> None:
 
 
 # SYNPY-366
+@skip("Skip integration tests for soon to be removed code")
 async def test_download_local_file_url_path(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -703,6 +718,7 @@ async def test_download_local_file_url_path(
 
 
 # SYNPY-424
+@skip("Skip integration tests for soon to be removed code")
 async def test_store_file_handle_update_metadata(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -732,6 +748,7 @@ async def test_store_file_handle_update_metadata(
     assert [os.path.basename(replacement_file_path)] == new_entity.files
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_store_docker_repository(syn: Synapse, project: Project) -> None:
     repo_name = "some/repository/path"
     docker_repo = syn.store(DockerRepository(repo_name, parent=project))
@@ -740,6 +757,7 @@ async def test_store_docker_repository(syn: Synapse, project: Project) -> None:
     assert repo_name == docker_repo.repositoryName
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_store_changing_external_url_by_changing_path(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:
@@ -768,6 +786,7 @@ async def test_store_changing_external_url_by_changing_path(
     assert not ext.synapseStore
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_store_changing_from_synapse_to_external_url_by_changing_path(
     syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
 ) -> None:

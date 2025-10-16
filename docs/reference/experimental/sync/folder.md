@@ -25,6 +25,7 @@ at your own risk.
         - store
         - delete
         - copy
+        - walk
         - sync_from_synapse
         - flatten_file_list
         - map_directory_to_all_contained_files

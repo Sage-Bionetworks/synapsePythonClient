@@ -177,6 +177,7 @@ async def _query_table_csv(
     offset: int = None,
     sort: List[Dict[str, Any]] = None,
     download_location: str = None,
+    timeout: int = 250,
 ) -> Tuple[QueryJob, str]:
     """
     Query a Synapse Table and download a CSV file containing the results.
@@ -250,7 +251,7 @@ async def _query_table_csv(
     )
 
     download_from_table_result = await query_job_request.send_job_and_wait_async(
-        synapse_client=synapse
+        synapse_client=synapse, timeout=timeout
     )
 
     file_handle_id = download_from_table_result.results_file_handle_id
@@ -305,6 +306,7 @@ async def _query_table_row_set(
     limit: int = None,
     offset: int = None,
     part_mask=None,
+    timeout: int = 250,
 ) -> "QueryResultBundle":
     """
     Executes a SQL query against a Synapse table and returns the resulting row set.
@@ -331,7 +333,7 @@ async def _query_table_row_set(
     )
 
     completed_request = await query_bundle_request.send_job_and_wait_async(
-        synapse_client=synapse
+        synapse_client=synapse, timeout=timeout
     )
 
     return QueryResultBundle(
@@ -349,7 +351,11 @@ async def _query_table_row_set(
 
 
 async def _table_query(
-    query: str, synapse: Optional[Synapse] = None, results_as: str = "csv", **kwargs
+    query: str,
+    synapse: Optional[Synapse] = None,
+    results_as: str = "csv",
+    timeout: int = 250,
+    **kwargs,
 ) -> Union["QueryResultBundle", Tuple["QueryJob", str]]:
     """
     Query a Synapse Table.
@@ -363,7 +369,7 @@ async def _table_query(
 
     - For `csv`, you can specify:
         - `quote_character`: Character used for quoting fields. Default is double quote (").
-        - `escape_character`: Character used for escaping special characters. Default is backslash (\).
+        - `escape_character`: Character used for escaping special characters. Default is backslash.
         - `line_end`: Character(s) used to terminate lines. Default is system line separator.
         - `separator`: Character used to separate fields. Default is comma (,).
         - `header`: Whether to include a header row. Default is True.
@@ -386,7 +392,9 @@ async def _table_query(
     client = Synapse.get_client(synapse_client=synapse)
 
     if results_as.lower() == "rowset":
-        return await _query_table_row_set(query=query, synapse=client, **kwargs)
+        return await _query_table_row_set(
+            query=query, synapse=client, timeout=timeout, **kwargs
+        )
 
     elif results_as.lower() == "csv":
         result, csv_path = await _query_table_csv(
@@ -409,6 +417,7 @@ async def _table_query(
             offset=kwargs.get("offset", None),
             sort=kwargs.get("sort", None),
             download_location=kwargs.get("download_location", None),
+            timeout=timeout,
         )
 
         return result, csv_path
@@ -2633,6 +2642,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         separator=",",
         header=True,
         *,
+        timeout: int = 250,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> Union["DATA_FRAME_TYPE", str]:
@@ -2729,6 +2739,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             separator=separator,
             header=header,
             download_location=download_location,
+            timeout=timeout,
         )
 
         if download_location:
@@ -2765,6 +2776,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
         query: str,
         part_mask: int,
         *,
+        timeout: int = 250,
         synapse_client: Optional[Synapse] = None,
         **kwargs,
     ) -> "QueryResultOutput":
@@ -2841,6 +2853,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             part_mask=part_mask,
             limit=limit,
             offset=offset,
+            timeout=timeout,
         )
 
         as_df = await loop.run_in_executor(
@@ -2872,6 +2885,7 @@ class ViewSnapshotMixin:
         label: Optional[str] = None,
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the `View`-like entity.
@@ -2897,6 +2911,8 @@ class ViewSnapshotMixin:
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the table. If False the activity will not be
                 associated with the new version of the table. Defaults to True.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -2967,7 +2983,7 @@ class ViewSnapshotMixin:
                     self.activity.id if self.activity and include_activity else None
                 ),
             ),
-        ).send_job_and_wait_async(synapse_client=client)
+        ).send_job_and_wait_async(synapse_client=client, timeout=timeout)
 
         if not self.version_number:
             # set to latest drafting version if the first snapshot was just created
@@ -4049,23 +4065,30 @@ class TableDeleteRowMixin:
 
     async def delete_rows_async(
         self,
-        query: str,
+        query: Optional[str] = None,
+        df: Optional[DATA_FRAME_TYPE] = None,
         *,
         job_timeout: int = 600,
         synapse_client: Optional[Synapse] = None,
     ) -> DATA_FRAME_TYPE:
         """
-        Delete rows from a table given a query to select rows. The query at a
-        minimum must select the `ROW_ID` and `ROW_VERSION` columns. If you want to
+        Delete rows from a table given a query or a pandas dataframe to select rows.
+        The query at a minimum must select the `ROW_ID` and `ROW_VERSION` columns. If you want to
         inspect the data that will be deleted ahead of time you may use the
         `.query` method to get the data.
-
+        The dataframe must at least contain the `ROW_ID` and `ROW_VERSION` columns. And `ROW_ETAG` column is also required
+        if the entity is one of the following: `EntityView`, `Dataset`, `DatasetCollection`, or `SubmissionView`.
+        If both query and df are provided, the query will be used.
 
         Arguments:
             query: The query to select the rows to delete. The query at a minimum
                 must select the `ROW_ID` and `ROW_VERSION` columns. See this document
                 that describes the expected syntax of the query:
                 <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>
+            df: A pandas dataframe that contains the rows to delete. The dataframe must at least contain the `ROW_ID` and `ROW_VERSION` columns.
+                If the entity is one of the following: `EntityView`, `Dataset`, `DatasetCollection`, or `SubmissionView` then the dataframe must also contain the `ROW_ETAG` column.
+                See this document that describes the expected columns of the dataframe:
+                <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>
             job_timeout: The amount of time to wait for table updates to complete
                 before a `SynapseTimeoutError` is thrown. The default is 600 seconds.
             synapse_client: If not passed in and caching was not disabled by
@@ -4073,7 +4096,7 @@ class TableDeleteRowMixin:
                 instance from the Synapse class constructor.
 
         Returns:
-            The results of your query for the rows that were deleted from the table.
+            The results of your query or dataframe for the rows that were deleted from the table.
 
         Example: Selecting a row to delete
             This example shows how you may select a row to delete from a table.
@@ -4109,17 +4132,73 @@ class TableDeleteRowMixin:
 
             asyncio.run(main())
             ```
+
+        Example: Selecting rows to delete using a dataframe
+            This example shows how you may select a row to delete from a table based on a dataframe.
+
+            ```python
+            import asyncio
+            import pandas as pd
+            from synapseclient import Synapse
+            from synapseclient.models import Table # Also works with `Dataset`
+
+            syn = Synapse()
+            syn.login()
+
+            # Creating a pandas dataframe that contains the rows to delete.
+            # In this example, we create a dataframe that specifies the first two rows of the table for deletion.
+            # Assuming no changes have been made to the table so the ROW_VERSION is 1.
+
+            df = pd.DataFrame({"ROW_ID": [1, 2], "ROW_VERSION": [1, 1]})
+            async def main():
+                await Table(id="syn1234").delete_rows_async(df=df)
+
+            asyncio.run(main())
+            ```
         """
         client = Synapse.get_client(synapse_client=synapse_client)
-        results_from_query = await self.query_async(query=query, synapse_client=client)
-        client.logger.info(
-            f"Found {len(results_from_query)} rows to delete for given query: {query}"
-        )
-
+        # check if both query and df are None
+        if query is None and df is None:
+            raise ValueError("Either query or df must be provided.")
+        if query is not None:
+            rows_to_delete = await self.query_async(query=query, synapse_client=client)
+            client.logger.info(
+                f"Found {len(rows_to_delete)} rows to delete for given query: {query}"
+            )
+        elif df is not None:
+            rows_to_delete = df
+            if (
+                "ROW_ID" not in rows_to_delete.columns
+                or "ROW_VERSION" not in rows_to_delete.columns
+            ):
+                raise ValueError(
+                    "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns."
+                )
+            # check the validity of the ROW_ID and ROW_VERSION columns
+            existing_rows = await self.query_async(
+                query=f"SELECT ROW_ID, ROW_VERSION FROM {self.id}",
+                synapse_client=client,
+            )
+            # check if all ROW_ID and ROW_VERSION pair in the dataframe exist in the table
+            merged = df.merge(
+                existing_rows, on=["ROW_ID", "ROW_VERSION"], how="left", indicator=True
+            )
+            if not all(merged["_merge"] == "both"):
+                discrepant_idx = merged.loc[merged["_merge"] != "both"].index
+                raise ValueError(
+                    f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {self.id}: {', '.join(map(str, discrepant_idx))}."
+                )
+            client.logger.info(
+                f"Received {len(rows_to_delete)} rows to delete for given dataframe."
+            )
         if self.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG:
-            filtered_columns = results_from_query[["ROW_ID", "ROW_VERSION", "ROW_ETAG"]]
+            if "ROW_ETAG" not in rows_to_delete.columns:
+                raise ValueError(
+                    f"The dataframe must contain the 'ROW_ETAG' column when deleting rows from a {self.__class__.__name__}."
+                )
+            filtered_columns = rows_to_delete[["ROW_ID", "ROW_VERSION", "ROW_ETAG"]]
         else:
-            filtered_columns = results_from_query[["ROW_ID", "ROW_VERSION"]]
+            filtered_columns = rows_to_delete[["ROW_ID", "ROW_VERSION"]]
 
         filepath = f"{tempfile.mkdtemp()}/{self.id}_upload_{uuid.uuid4()}.csv"
         try:
@@ -4138,7 +4217,7 @@ class TableDeleteRowMixin:
             entity_id=self.id, changes=[upload_request]
         ).send_job_and_wait_async(synapse_client=client, timeout=job_timeout)
 
-        return results_from_query
+        return rows_to_delete
 
 
 def infer_column_type_from_data(values: DATA_FRAME_TYPE) -> List[Column]:

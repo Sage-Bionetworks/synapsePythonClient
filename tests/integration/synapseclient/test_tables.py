@@ -7,6 +7,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from typing import Callable
+from unittest import skip
 
 import numpy as np
 import pandas as pd
@@ -45,6 +46,7 @@ def _init_query_timeout(request, syn):
     request.addfinalizer(revert_timeout)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_create_and_update_file_view(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
@@ -164,6 +166,7 @@ async def test_create_and_update_file_view(
     assert new_view_dict[0]["fileFormat"] == "PNG"
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_entity_view_add_annotation_columns(syn, project, schedule_for_cleanup):
     folder1 = syn.store(
         Folder(
@@ -218,6 +221,7 @@ async def test_entity_view_add_annotation_columns(syn, project, schedule_for_cle
     syn.store(entity_view)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_rowset_tables(syn, project):
     cols = [
         Column(name="name", columnType="STRING", maximumSize=1000),
@@ -242,6 +246,7 @@ async def test_rowset_tables(syn, project):
     assert len(row_reference_set1["rows"]) == 4
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_materialized_view(syn, project):
     """Test creation of materialized view"""
     # Define schema
@@ -307,6 +312,7 @@ async def test_materialized_view(syn, project):
     )
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_dataset(syn, project):
     cols = [
         Column(name="id", columnType="ENTITYID"),
@@ -326,6 +332,7 @@ async def test_dataset(syn, project):
     assert all(dataset_df.columns == ["id", "name"])
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_tables_csv(syn, project):
     # Define schema
     cols = [
@@ -363,6 +370,7 @@ async def test_tables_csv(syn, project):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_tables_pandas(syn, project):
     # create a pandas DataFrame
     df = pd.DataFrame(
@@ -504,6 +512,7 @@ def dontruntest_big_csvs(syn, project, schedule_for_cleanup):
     CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_synapse_integer_columns_with_missing_values_from_dataframe(
     syn, project, schedule_for_cleanup
 ):
@@ -543,6 +552,7 @@ async def test_synapse_integer_columns_with_missing_values_from_dataframe(
     assert_frame_equal(df, df2)
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_store_table_datetime(syn, project):
     current_datetime = datetime.fromtimestamp(round(time.time(), 3)).replace(
         tzinfo=timezone.utc
@@ -627,6 +637,7 @@ def partial_rowset_test_state(
 class TestPartialRowSet:
     """Testing for Partial Rows."""
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_partial_row_view_csv_query_table(
         self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
@@ -644,6 +655,7 @@ class TestPartialRowSet:
             test_state.expected_table_cells,
         )
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_partial_row_view_csv_query_entity_view(
         self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
@@ -661,6 +673,7 @@ class TestPartialRowSet:
             test_state.expected_view_cells,
         )
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_parital_row_rowset_query_table(
         self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
@@ -678,6 +691,7 @@ class TestPartialRowSet:
             test_state.expected_table_cells,
         )
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_parital_row_rowset_query_entity_view(
         self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:

@@ -20,6 +20,7 @@ from synapseclient.models.mixins import (
 )
 from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
 from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity import store_entity
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
@@ -321,7 +322,6 @@ class Folder(
             }
         )
         if self.has_changed:
-            loop = asyncio.get_event_loop()
             synapse_folder = Synapse_Folder(
                 id=self.id,
                 name=self.name,
@@ -330,14 +330,10 @@ class Folder(
                 description=self.description,
             )
             delete_none_keys(synapse_folder)
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_folder,
-                    set_annotations=False,
-                    isRestricted=self.is_restricted,
-                    createOrUpdate=False,
-                ),
+            entity = await store_entity(
+                resource=self,
+                entity=synapse_folder,
+                synapse_client=synapse_client,
             )
 
             self.fill_from_dict(synapse_folder=entity, set_annotations=False)

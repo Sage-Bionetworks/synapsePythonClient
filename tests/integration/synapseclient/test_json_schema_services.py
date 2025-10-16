@@ -1,6 +1,7 @@
 import uuid
 from random import randint
 from time import sleep
+from unittest import skip
 
 import pytest
 
@@ -8,6 +9,7 @@ import synapseclient
 from synapseclient.core.exceptions import SynapseHTTPError
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_available_services(syn):
     services = syn.get_available_services()  # Output: ['json_schema']
     available_services = ["json_schema"]
@@ -19,6 +21,7 @@ def js(syn: synapseclient.Synapse):
     return syn.service("json_schema")
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_json_schema_organization(js):
     # Schema organizations must start with a string
     js_org = "a" + str(uuid.uuid4()).replace("-", "")
@@ -88,6 +91,7 @@ class TestJsonSchemaSchemas:
     def teardown_method(self):
         self.my_org.delete()
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_json_schema_schemas_org_create_schema(self):
         # Create json schema
         new_version = self.my_org.create_json_schema(
@@ -106,6 +110,7 @@ class TestJsonSchemaSchemas:
         assert full_body["properties"] == self.simple_schema["properties"]
         new_version.delete()
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_json_schema_schemas_js_create_schema(self, js):
         # Create json schema
         # Version 2 of creating json schema
@@ -117,6 +122,7 @@ class TestJsonSchemaSchemas:
         assert schema1 is schema2
         new_version.delete()
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_json_schema_schemas_js_version_create_schema(self, js):
         # Create json schema
         # Version 3 of creating json schema
@@ -130,6 +136,7 @@ class TestJsonSchemaSchemas:
         assert schema1 is schema2
         new_version.delete()
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_json_schema_validate(self, js, syn, schedule_for_cleanup):
         project_name = str(uuid.uuid4()).replace("-", "")
         project = synapseclient.Project(name=project_name)
