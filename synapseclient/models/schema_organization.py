@@ -60,8 +60,9 @@ class SchemaOrganizationProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
+            org = SchemaOrganization("dpetest")
             org.get()
+            print(org)
             ```
 
         """
@@ -91,6 +92,7 @@ class SchemaOrganizationProtocol(Protocol):
 
             org = SchemaOrganization("my.org.name")
             org.store()
+            print(org)
             ```
 
         """
@@ -211,11 +213,10 @@ class SchemaOrganizationProtocol(Protocol):
             syn.login()
 
             org = SchemaOrganization("my.org.name")
-            current acl = org.get_acl()
-            resource_access = current_acl["resourceAccess"]
-            resource_access.append({"principalId": 1, "accessType": ["READ"]})
-            etag = current_acl["etag"]
-            org.update_acl(resource_access, etag)
+            org.update_acl_async(
+                principal_id=1,
+                access_type=["READ"]
+            )
             ```
         """
         return None
@@ -569,6 +570,7 @@ class JSONSchemaProtocol(Protocol):
 
             js = JSONSchema("my.schema.name", "my.org.name")
             js.get()
+            print(js)
             ```
         """
         return self
@@ -606,6 +608,7 @@ class JSONSchemaProtocol(Protocol):
 
             org = SchemaOrganization("my.org.name")
             org.store()
+            print(org)
             ```
         """
         return self
@@ -694,8 +697,10 @@ class JSONSchemaProtocol(Protocol):
             js = JSONSchema("my.schema.name", "my.org.name")
             # Get latest version
             latest = js.get_body()
+            print(latest)
             # Get specific version
             first = js.get_body("0.0.1")
+            print(first)
             ```
         """
         return {}
