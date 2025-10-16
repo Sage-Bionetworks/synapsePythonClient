@@ -57,7 +57,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
     def __post_init__(self) -> None:
         if self.name:
-            self._check_name(self.name)
+            _check_name(self.name)
 
     async def get_async(
         self, synapse_client: Optional["Synapse"] = None
@@ -307,24 +307,6 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         self.created_by = response.get("createdBy")
         return self
 
-    def _check_name(self, name) -> None:
-        """
-        Checks that the input name is a valid Synapse organization name
-        - Must start with a letter
-        - Must contains only letters, numbers and periods.
-
-        Arguments:
-            name: The name of the organization to be checked
-
-        Raises:
-            ValueError: When the name isn't valid
-        """
-        if not re.match("^([A-Za-z])([A-Za-z]|\d|\.)*$", name):
-            raise ValueError(
-                "Organization name must start with a letter and contain "
-                f"only letters numbers, and periods: {name}"
-            )
-
 
 @dataclass()
 @async_to_sync
@@ -366,9 +348,9 @@ class JSONSchema(JSONSchemaProtocol):
 
     def __post_init__(self) -> None:
         if self.name:
-            self._check_name(self.name)
+            _check_name(self.name)
         if self.organization_name:
-            self._check_name(self.organization_name)
+            _check_name(self.organization_name)
         if self.name and self.organization_name:
             self.uri = f"{self.organization_name}-{self.name}"
         else:
@@ -714,26 +696,6 @@ class JSONSchema(JSONSchemaProtocol):
                 )
             )
 
-    def _check_name(self, name) -> None:
-        """
-        Checks that the input name is a valid Synapse JSONSchema name
-        - Must start with a letter
-        - Must contains only letters, numbers and periods.
-
-        Arguments:
-            name: The name of the organization to be checked
-
-        Raises:
-            ValueError: When the name isn't valid
-        """
-        if not re.match("^([A-Za-z])([A-Za-z]|\d|\.)*$", name):
-            raise ValueError(
-                (
-                    "Schema name must start with a letter and contain "
-                    f"only letters numbers and periods: {name}"
-                )
-            )
-
 
 @dataclass
 class CreateSchemaRequest(AsynchronousCommunicator):
@@ -770,8 +732,8 @@ class CreateSchemaRequest(AsynchronousCommunicator):
 
     def __post_init__(self) -> None:
         self.concrete_type = CREATE_SCHEMA_REQUEST
-        self._check_name(self.name)
-        self._check_name(self.organization_name)
+        _check_name(self.name)
+        _check_name(self.organization_name)
         uri = f"{self.organization_name}-{self.name}"
         if self.version:
             self._check_semantic_version(self.version)
@@ -825,26 +787,6 @@ class CreateSchemaRequest(AsynchronousCommunicator):
                 )
             )
 
-    def _check_name(self, name: str) -> None:
-        """
-        Checks that the input name is a valid Synapse JSONSchema or Organization name
-        - Must start with a letter
-        - Must contains only letters, numbers and periods.
-
-        Arguments:
-            name: The name of the organization/schema to be checked
-
-        Raises:
-            ValueError: When the name isn't valid
-        """
-        if not re.match("^([A-Za-z])([A-Za-z]|\d|\.)*$", name):
-            raise ValueError(
-                (
-                    "Schema name must start with a letter and contain "
-                    f"only letters numbers and periods: {name}"
-                )
-            )
-
     @staticmethod
     def _create_json_schema_version_from_response(
         response: dict[str, Any]
@@ -892,3 +834,24 @@ def list_json_schema_organizations(
         for org in list_organizations_sync(synapse_client=synapse_client)
     ]
     return all_orgs
+
+
+def _check_name(name) -> None:
+    """
+    Checks that the input name is a valid Synapse Organization or JSONSchema name
+    - Must start with a letter
+    - Must contains only letters, numbers and periods.
+
+    Arguments:
+        name: The name of the organization to be checked
+
+    Raises:
+        ValueError: When the name isn't valid
+    """
+    if not re.match("^([A-Za-z])([A-Za-z]|\d|\.)*$", name):
+        raise ValueError(
+            (
+                "Name must start with a letter and contain "
+                f"only letters numbers and periods: {name}"
+            )
+        )

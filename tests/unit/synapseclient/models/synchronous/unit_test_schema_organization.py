@@ -26,7 +26,10 @@ class TestSchemaOrganization:
     )
     def test_init_name_exceptions(self, name: str) -> None:
         "Tests that illegal names raise a ValueError on init"
-        with pytest.raises(ValueError, match="Organization name must start with"):
+        with pytest.raises(
+            ValueError,
+            match="Name must start with a letter and contain only letters numbers and periods",
+        ):
             SchemaOrganization(name)
 
     def test_fill_from_dict(self) -> None:
@@ -69,7 +72,10 @@ class TestJSONSchema:
     )
     def test_init_name_exceptions(self, name: str) -> None:
         "Tests that illegal names raise a ValueError on init"
-        with pytest.raises(ValueError, match="Schema name must start with"):
+        with pytest.raises(
+            ValueError,
+            match="Name must start with a letter and contain only letters numbers and periods",
+        ):
             JSONSchema(name, "org.name")
 
     @pytest.mark.parametrize(
@@ -137,7 +143,10 @@ class TestCreateSchemaRequest:
     )
     def test_init_name_exceptions(self, name: str) -> None:
         "Tests that illegal names raise a ValueError on init"
-        with pytest.raises(ValueError, match="Schema name must start with"):
+        with pytest.raises(
+            ValueError,
+            match="Name must start with a letter and contain only letters numbers and periods",
+        ):
             CreateSchemaRequest(schema={}, name=name, organization_name="org.name")
 
     @pytest.mark.parametrize(
@@ -158,7 +167,10 @@ class TestCreateSchemaRequest:
     )
     def test_init_org_name_exceptions(self, name: str) -> None:
         "Tests that illegal org names raise a ValueError on init"
-        with pytest.raises(ValueError, match="Schema name must start with"):
+        with pytest.raises(
+            ValueError,
+            match="Name must start with a letter and contain only letters numbers and periods",
+        ):
             CreateSchemaRequest(schema={}, name="schema.name", organization_name=name)
 
     @pytest.mark.parametrize(
