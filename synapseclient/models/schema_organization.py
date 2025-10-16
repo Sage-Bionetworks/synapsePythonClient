@@ -5,7 +5,7 @@ These are used to manage Organization and JSON Schema entities in Synapse.
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional
 
 from synapseclient.api import (
     create_organization,
@@ -237,52 +237,39 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
     async def update_acl_async(
         self,
-        resource_access: Sequence[Mapping[str, Sequence[str]]],
-        etag: str,
+        principal_id: int,
+        access_type: list[str],
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
         """
-        Updates the ACL for this organization
+        Updates the ACL for a principal for this organization
 
         Arguments:
-            resource_access: List of ResourceAccess objects, each containing:
-                - principalId: The user or team ID
-                - accessType: List of permission types (e.g., ["READ", "CREATE", "DELETE"])
+            principal_id: the id of the principal whose permissions are to be updates
+            access_type: List of permission types (e.g., ["READ", "CREATE", "DELETE"])
                 see:
                   https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/ResourceAccess.html
-            etag: The etag from get_organization_acl() for concurrency control
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Update the ACL or a SchemaOrganization
-            &nbsp;
-
-            ```python
-            from synapseclient.models import SchemaOrganization
-            from synapseclient import Synapse
-            import asyncio
-
-            syn = Synapse()
-            syn.login()
-
-            # Store a new org
-            org = SchemaOrganization("my.org.name")
-            asyncio.run(org.store_async())
-
-            # Get and modify the ACL
-            current_acl = asyncio.run(org.get_acl_async())
-            resource_access = current_acl["resourceAccess"]
-            resource_access.append({"principalId": 1, "accessType": ["READ"]})
-            etag = current_acl["etag"]
-
-            # Update the ACL
-            asyncio.run(org.update_acl_async(resource_access, etag))
-            ```
-
         """
-        if not self.id:
-            await self.get_async(synapse_client=synapse_client)
+        acl = await self.get_acl_async(synapse_client=synapse_client)
+
+        resource_access: list[dict[str, Any]] = acl["resourceAccess"]
+        etag = acl["etag"]
+
+        principal_id_match = False
+        for permissions in resource_access:
+            if permissions["principalId"] == principal_id:
+                permissions["accessType"] = access_type
+                principal_id_match = True
+
+        if not principal_id_match:
+            resource_access.append(
+                {"principalId": principal_id, "accessType": access_type}
+            )
+
         await update_organization_acl(
             organization_id=self.id,
             resource_access=resource_access,

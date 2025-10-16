@@ -189,12 +189,8 @@ class TestSchemaOrganization:
         # THEN the resource access should be have one principal
         assert len(resource_access) == 1
         # WHEN adding another principal to the resource access
-        resource_access.append({"principalId": 1, "accessType": ["READ"]})
-        etag = acl["etag"]
         # AND updating the acl
-        await organization.update_acl_async(
-            resource_access, etag, synapse_client=self.syn
-        )
+        await organization.update_acl_async(1, ["READ"], synapse_client=self.syn)
         # THEN the resource access should be have two principals
         acl = await organization.get_acl_async(synapse_client=self.syn)
         assert len(acl["resourceAccess"]) == 2
