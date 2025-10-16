@@ -700,7 +700,7 @@ class JSONSchema(JSONSchemaProtocol):
 @dataclass
 class CreateSchemaRequest(AsynchronousCommunicator):
     """
-    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
+    This class is for creating a [CreateSchemaRequest]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/CreateSchemaRequest.html
     """
 
     schema: dict[str, Any]
@@ -745,7 +745,7 @@ class CreateSchemaRequest(AsynchronousCommunicator):
     def to_synapse_request(self) -> dict[str, Any]:
         """
         Create a CreateSchemaRequest from attributes
-        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/CreateSchemaRequest.html
+        [CreateSchemaRequest]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/CreateSchemaRequest.html
         """
 
         result = {
@@ -758,8 +758,8 @@ class CreateSchemaRequest(AsynchronousCommunicator):
 
     def fill_from_dict(self, synapse_response: dict[str, Any]) -> "CreateSchemaRequest":
         """
-        Set attributes from CreateSchemaResponse
-        https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/CreateSchemaResponse.html
+        Set attributes from
+        [CreateSchemaResponse]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/CreateSchemaResponse.html
         """
         self.new_version_info = self._create_json_schema_version_from_response(
             synapse_response.get("newVersionInfo")
