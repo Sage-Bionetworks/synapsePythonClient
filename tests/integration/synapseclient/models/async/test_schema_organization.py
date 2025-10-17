@@ -3,6 +3,7 @@ import uuid
 from typing import Any, Optional
 
 import pytest
+import pytest_asyncio
 
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import CREATE_SCHEMA_REQUEST
@@ -25,7 +26,7 @@ def create_test_entity_name():
     return f"SYNPY.TEST.{random_string}"
 
 
-def org_exists(name: str, synapse_client: Optional[Synapse] = None) -> bool:
+async def org_exists(name: str, synapse_client: Optional[Synapse] = None) -> bool:
     """
     Checks if any organizations exists with the given name
 
@@ -73,16 +74,17 @@ def fixture_json_schema(module_organization: SchemaOrganization) -> JSONSchema:
     return js
 
 
-@pytest.fixture(name="organization", scope="function")
-def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
+@pytest_asyncio.fixture(name="organization", loop_scope="function", scope="function")
+async def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
     """
     Returns a Synapse organization.
     """
     name = create_test_entity_name()
     org = SchemaOrganization(name)
 
-    def delete_org():
-        if org_exists(name, syn):
+    async def delete_org():
+        exists = await org_exists(name, syn)
+        if exists:
             org.delete()
 
     request.addfinalizer(delete_org)
@@ -90,8 +92,10 @@ def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
     return org
 
 
-@pytest.fixture(name="organization_with_schema", scope="function")
-def fixture_organization_with_schema(request) -> SchemaOrganization:
+@pytest_asyncio.fixture(
+    name="organization_with_schema", loop_scope="function", scope="function"
+)
+async def fixture_organization_with_schema(request) -> SchemaOrganization:
     """
     Returns a Synapse organization.
     As Cleanup it checks for JSON Schemas and deletes them"""
@@ -131,7 +135,8 @@ class TestSchemaOrganization:
         assert organization.created_by is None
         assert organization.created_on is None
         # AND it shouldn't exist in Synapse
-        assert not org_exists(organization.name, synapse_client=self.syn)
+        exists = await org_exists(organization.name, synapse_client=self.syn)
+        assert not exists
         # WHEN I store the organization the metadata will be saved
         await organization.store_async(synapse_client=self.syn)
         assert organization.name is not None
@@ -139,7 +144,8 @@ class TestSchemaOrganization:
         assert organization.created_by is not None
         assert organization.created_on is not None
         # AND it should exist in Synapse
-        assert org_exists(organization.name, synapse_client=self.syn)
+        exists = await org_exists(organization.name, synapse_client=self.syn)
+        assert exists
         # AND it should be getable by future instances with the same name
         org2 = SchemaOrganization(organization.name)
         await org2.get_async(synapse_client=self.syn)
