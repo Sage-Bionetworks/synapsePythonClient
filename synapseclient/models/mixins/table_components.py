@@ -4184,13 +4184,13 @@ class TableDeleteRowMixin:
                 existing_rows, on=["ROW_ID", "ROW_VERSION"], how="left", indicator=True
             )
             if not all(merged["_merge"] == "both"):
-                discrepant_idx = (
+                discrepant_rows = (
                     merged.loc[merged["_merge"] != "both"][["ROW_ID", "ROW_VERSION"]]
                     .astype(str)
                     .values
                 )
                 discrepant_tuples = [
-                    f"({', '.join(tuple)})" for tuple in discrepant_idx
+                    f"({', '.join(tuple)})" for tuple in discrepant_rows
                 ]
                 raise LookupError(
                     f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {self.id}: {', '.join(discrepant_tuples)}."
