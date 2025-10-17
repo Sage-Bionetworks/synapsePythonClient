@@ -48,7 +48,7 @@ def fixture_module_organization(request) -> SchemaOrganization:
     org.store()
 
     def delete_org():
-        for schema in org.get_json_schema_list():
+        for schema in org.get_json_schemas():
             schema.delete()
         org.delete()
 
@@ -99,7 +99,7 @@ def fixture_organization_with_schema(request) -> SchemaOrganization:
     js3.store({})
 
     def delete_org():
-        for schema in org.get_json_schema_list():
+        for schema in org.get_json_schemas():
             schema.delete()
         org.delete()
 
@@ -152,9 +152,11 @@ class TestSchemaOrganization:
         # GIVEN an organization with no schemas and one with 3 schemas
         organization.store(synapse_client=self.syn)
         # THEN get_json_schema_list should return the correct list of schemas
-        assert not organization.get_json_schema_list(synapse_client=self.syn)
+        assert len(list(organization.get_json_schemas(synapse_client=self.syn))) == 0
         assert (
-            len(organization_with_schema.get_json_schema_list(synapse_client=self.syn))
+            len(
+                list(organization_with_schema.get_json_schemas(synapse_client=self.syn))
+            )
             == 3
         )
 
@@ -219,15 +221,15 @@ class TestJSONSchema:
     def test_get_versions(self, json_schema: JSONSchema) -> None:
         # GIVEN an schema that hasn't been created
         # THEN get_versions should return an empty list
-        assert not json_schema.get_versions(synapse_client=self.syn)
+        assert len(list(json_schema.get_versions(synapse_client=self.syn))) == 0
         # WHEN creating a schema with no version
         json_schema.store(schema_body={}, synapse_client=self.syn)
         # THEN get_versions should return an empty list
-        assert json_schema.get_versions(synapse_client=self.syn) == []
+        assert len(list(json_schema.get_versions(synapse_client=self.syn))) == 0
         # WHEN creating a schema with a version
         json_schema.store(schema_body={}, version="0.0.1", synapse_client=self.syn)
         # THEN get_versions should return that version
-        schemas = json_schema.get_versions(synapse_client=self.syn)
+        schemas = list(json_schema.get_versions(synapse_client=self.syn))
         assert len(schemas) == 1
         assert schemas[0].semantic_version == "0.0.1"
 

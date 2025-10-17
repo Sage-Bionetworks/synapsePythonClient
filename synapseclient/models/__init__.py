@@ -21,11 +21,8 @@ from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
-from synapseclient.models.schema_organization import (
-    JSONSchema,
-    RecordSet,
-    SchemaOrganization,
-)
+from synapseclient.models.recordset import RecordSet
+from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
 from synapseclient.models.services import FailureStrategy
 from synapseclient.models.submissionview import SubmissionView
 from synapseclient.models.table import Table

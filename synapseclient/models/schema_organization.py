@@ -5,7 +5,7 @@ These are used to manage Organization and JSON Schema entities in Synapse.
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional, Protocol
+from typing import Any, AsyncGenerator, Generator, Optional, Protocol
 
 from synapseclient import Synapse
 from synapseclient.api import (
@@ -20,7 +20,11 @@ from synapseclient.api import (
     list_organizations_sync,
     update_organization_acl,
 )
-from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    skip_async_to_sync,
+    wrap_async_generator_to_sync_generator,
+)
 from synapseclient.core.constants.concrete_types import CREATE_SCHEMA_REQUEST
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
@@ -119,9 +123,9 @@ class SchemaOrganizationProtocol(Protocol):
         """
         return None
 
-    def get_json_schema_list(
+    def get_json_schemas(
         self, synapse_client: Optional["Synapse"] = None
-    ) -> list["JSONSchema"]:
+    ) -> Generator["JSONSchema", None, None]:
         """
         Gets the list of JSON Schemas that are part of this organization
 
@@ -142,11 +146,16 @@ class SchemaOrganizationProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
-            org.get_json_schema_list()
+            org = SchemaOrganization("dpetest")
+            js_generator = org.get_json_schemas()
+            for item in js_generator:
+                print(item)
             ```
         """
-        return []
+        yield from wrap_async_generator_to_sync_generator(
+            async_gen_func=self.get_json_schemas_async,
+            synapse_client=synapse_client,
+        )
 
     def get_acl(self, synapse_client: Optional["Synapse"] = None) -> dict[str, Any]:
         """
@@ -382,13 +391,14 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             await self.get_async(synapse_client=synapse_client)
         await delete_organization(self.id, synapse_client=synapse_client)
 
-    async def get_json_schema_list_async(
+    @skip_async_to_sync
+    async def get_json_schemas_async(
         self, synapse_client: Optional["Synapse"] = None
-    ) -> list["JSONSchema"]:
+    ) -> AsyncGenerator["JSONSchema", None]:
         """
-        Gets the list of JSON Schemas that are part of this organization
+        Gets the JSON Schemas that are part of this organization
 
-        Returns: A list of JSONSchema objects
+        Returns: An AsyncGenerator of JSONSchema objects
 
         Raises:
             ValueError: If the name has not been set
@@ -406,21 +416,29 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def get_schemas():
 
-            org = SchemaOrganization("dpetest")
-            schemas = asyncio.run(org.get_json_schema_list_async())
+                syn = Synapse()
+                syn.login()
+
+                org = SchemaOrganization("dpetest")
+                js_generator = org.get_json_schemas_async()
+                js_list = []
+                async for item in js_generator:
+                    js_list.append(item)
+                return js_list
+
+            js_list = asyncio.run(get_schemas())
+            for item in js_list:
+                print(item)
             ```
 
         """
         if not self.name:
             raise ValueError("SchemaOrganization must have a name")
         response = list_json_schemas(self.name, synapse_client=synapse_client)
-        schemas = []
         async for item in response:
-            schemas.append(JSONSchema().fill_from_dict(item))
-        return schemas
+            yield JSONSchema().fill_from_dict(item)
 
     async def get_acl_async(
         self, synapse_client: Optional["Synapse"] = None
@@ -654,9 +672,9 @@ class JSONSchemaProtocol(Protocol):
 
     def get_versions(
         self, synapse_client: Optional["Synapse"] = None
-    ) -> list["JSONSchemaVersionInfo"]:
+    ) -> Generator["JSONSchemaVersionInfo", None, None]:
         """
-        Gets a list of all versions of this JSONSchema
+        Gets all versions of this JSONSchema
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -664,7 +682,7 @@ class JSONSchemaProtocol(Protocol):
                 instance from the Synapse class constructor
 
         Returns:
-            A JSONSchemaVersionInfo for each version of this schema
+            A Generator containing the JSONSchemaVersionInfo for each version of this schema
 
         Example: Get all versions of the JSONSchema
             &nbsp;
@@ -676,10 +694,15 @@ class JSONSchemaProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            js = JSONSchema("my.schema.name", "my.org.name")
-            versions = get_versions()
+            schema = JSONSchema(organization_name="dpetest", name="test.schematic.Biospecimen")
+            version_generator = schema.get_versions()
+            for item in version_generator:
+                print(item)
         """
-        return []
+        yield from wrap_async_generator_to_sync_generator(
+            async_gen_func=self.get_versions_async,
+            synapse_client=synapse_client,
+        )
 
     def get_body(
         self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
@@ -929,11 +952,12 @@ class JSONSchema(JSONSchemaProtocol):
 
         await delete_json_schema(self.uri, synapse_client=synapse_client)
 
+    @skip_async_to_sync
     async def get_versions_async(
         self, synapse_client: Optional["Synapse"] = None
-    ) -> list[JSONSchemaVersionInfo]:
+    ) -> AsyncGenerator[JSONSchemaVersionInfo, None]:
         """
-        Gets a list of all versions of this JSONSchema
+        Gets all versions of this JSONSchema
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -941,7 +965,7 @@ class JSONSchema(JSONSchemaProtocol):
                 instance from the Synapse class constructor
 
         Returns:
-            A JSONSchemaVersionInfo for each version of this schema
+            A generator containing each version of this schema
 
         Example: Get all the versions of the JSONSchema
             &nbsp;
@@ -951,24 +975,32 @@ class JSONSchema(JSONSchemaProtocol):
             from synapseclient import Synapse
             import asyncio
 
-            syn = Synapse()
-            syn.login()
+            async def get_versions():
 
-            js = JSONSchema("my.schema.name", "my.org.name")
-            versions = asyncio.run(get_versions_async())
+                syn = Synapse()
+                syn.login()
+
+                schema = JSONSchema(organization_name="dpetest", name="test.schematic.Biospecimen")
+                version_generator = schema.get_versions_async()
+                version_list = []
+                async for item in version_generator:
+                    version_list.append(item)
+                return version_list
+
+            version_list = asyncio.run(get_versions())
+            for item in version_list:
+                print(item)
             ```
         """
         all_schemas = list_json_schema_versions(
             self.organization_name, self.name, synapse_client=synapse_client
         )
-        versions = []
         async for schema in all_schemas:
             # Schemas created without a semantic version will be returned from the API call.
             # Those won't be returned here since they aren't really versions.
             # JSONSchemaVersionInfo.semantic_version could also be changed to optional.
             if "semanticVersion" in schema:
-                versions.append(self._create_json_schema_version_from_response(schema))
-        return versions
+                yield self._create_json_schema_version_from_response(schema)
 
     async def get_body_async(
         self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
