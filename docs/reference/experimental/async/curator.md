@@ -55,6 +55,8 @@ at your own risk.
         members:
             - create_async
             - export_to_record_set_async
+            - delete_async
+            - list_async
 ---
 [](){ #query-reference-async }
 ::: synapseclient.models.Query
