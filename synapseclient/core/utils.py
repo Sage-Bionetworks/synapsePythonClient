@@ -1508,17 +1508,19 @@ def merge_dataclass_entities(
 
     # Override any specified fields in destination with values from source
     if fields_to_preserve_from_source:
+        # Use provided logger or fall back to default
+        log = logger
+        if not log:
+            import logging
+
+            log = logging.getLogger(LOGGER_NAME)
+
+        # Warn if any preserved fields were modified in destination
         for field_name in fields_to_preserve_from_source:
             if hasattr(source, field_name) and hasattr(destination, field_name):
                 source_value = getattr(source, field_name)
                 destination_value = getattr(destination, field_name)
                 if destination_value != source_value:
-                    # Use provided logger or fall back to default
-                    log = logger
-                    if not log:
-                        import logging
-
-                        log = logging.getLogger(LOGGER_NAME)
                     log.warning(
                         f"Field '{field_name}' cannot be modified. Changes will be ignored."
                     )
