@@ -1313,6 +1313,17 @@ def list_json_schema_organizations(
 
     Returns:
         A list of SchemaOrganizations
+
+    Example:
+        from synapseclient.models.schema_organization import list_json_schema_organizations
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        all_orgs = list_json_schema_organizations()
+        for item in all_orgs:
+            print(item)
     """
     all_orgs = [
         SchemaOrganization().fill_from_dict(org)
