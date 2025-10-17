@@ -127,14 +127,14 @@ class SchemaOrganizationProtocol(Protocol):
         self, synapse_client: Optional["Synapse"] = None
     ) -> Generator["JSONSchema", None, None]:
         """
-        Gets the list of JSON Schemas that are part of this organization
+        Gets the JSON Schemas that are part of this organization
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Returns: A list of JSONSchema objects
+        Returns: A Generator containing the JSONSchemas that belong to this organization
 
         Example: Get the JSONSchemas that are part of this SchemaOrganization
             &nbsp;
@@ -165,13 +165,10 @@ class SchemaOrganizationProtocol(Protocol):
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
-            synapse_client: If not passed in and caching was not disabled by
-                `Synapse.allow_client_caching(False)` this will use the last created
-                instance from the Synapse class constructor
 
         Returns:
             A dictionary in the form of this response:
-              https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
+              [AccessControlList]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
         Example: Get the ACL for the SchemaOrganization
             &nbsp;
@@ -199,10 +196,10 @@ class SchemaOrganizationProtocol(Protocol):
         Updates the ACL for a principal for this organization
 
         Arguments:
-            principal_id: the id of the principal whose permissions are to be updates
+            principal_id: the id of the principal whose permissions are to be updated
             access_type: List of permission types (e.g., ["READ", "CREATE", "DELETE"])
                 see:
-                  https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/ResourceAccess.html
+                  [ACCESS_TYPE]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/ACCESS_TYPE.html
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
@@ -396,9 +393,9 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         self, synapse_client: Optional["Synapse"] = None
     ) -> AsyncGenerator["JSONSchema", None]:
         """
-        Gets the JSON Schemas that are part of this organization
+        Gets the JSONSchemas that are part of this organization
 
-        Returns: An AsyncGenerator of JSONSchema objects
+        Returns: An AsyncGenerator of JSONSchemas
 
         Raises:
             ValueError: If the name has not been set
@@ -453,7 +450,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
         Returns:
             A dictionary in the form of this response:
-              https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
+              [AccessControlList]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/AccessControlList.html
 
         Example: Get the ACL for a SchemaOrganization
             &nbsp;
@@ -501,7 +498,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             principal_id: the id of the principal whose permissions are to be updates
             access_type: List of permission types (e.g., ["READ", "CREATE", "DELETE"])
                 see:
-                  https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/ResourceAccess.html
+                  [ACCESS_TYPE]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/ACCESS_TYPE.html
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
@@ -557,7 +554,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
         Args:
             response: A response from this endpoint:
-              https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html
+              [Organization]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html
 
         Returns:
             Itself
@@ -577,7 +574,7 @@ class JSONSchemaProtocol(Protocol):
 
     def get(self, synapse_client: Optional["Synapse"] = None) -> "JSONSchema":
         """
-        Gets this JSON Schemas metadata
+        Gets this JSONSchemas metadata
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -647,7 +644,7 @@ class JSONSchemaProtocol(Protocol):
 
     def delete(self) -> None:
         """
-        Deletes this JSON Schema
+        Deletes this JSONSchema
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -708,7 +705,7 @@ class JSONSchemaProtocol(Protocol):
         self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
     ) -> dict[str, Any]:
         """
-        Gets the JSON body for the schema.
+        Gets the body of this JSONSchema.
 
         Arguments:
             version: Defaults to None.
@@ -795,7 +792,7 @@ class JSONSchema(JSONSchemaProtocol):
         self, synapse_client: Optional["Synapse"] = None
     ) -> "JSONSchema":
         """
-        Gets this JSON Schemas metadata
+        Gets the metadata for this JSONSchema from Synapse
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -919,7 +916,7 @@ class JSONSchema(JSONSchemaProtocol):
 
     async def delete_async(self, synapse_client: Optional["Synapse"] = None) -> None:
         """
-        Deletes this JSONSchema
+        Deletes this JSONSchema from Synapse
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -1006,7 +1003,7 @@ class JSONSchema(JSONSchemaProtocol):
         self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
     ) -> dict[str, Any]:
         """
-        Gets the JSON body for the schema.
+        Gets the body of this JSONSchema
 
         Arguments:
             version: Defaults to None.
