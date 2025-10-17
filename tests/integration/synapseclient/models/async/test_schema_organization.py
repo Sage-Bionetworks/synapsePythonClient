@@ -123,7 +123,6 @@ class TestSchemaOrganization:
     def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    @pytest.mark.asyncio
     async def test_create_and_get(self, organization: SchemaOrganization) -> None:
         # GIVEN an initialized organization object that hasn't been stored in Synapse
         # THEN it shouldn't have any metadata besides it's name
@@ -153,7 +152,6 @@ class TestSchemaOrganization:
         with pytest.raises(SynapseHTTPError):
             org2.store()
 
-    @pytest.mark.asyncio
     async def test_get_json_schemas_async(
         self,
         organization: SchemaOrganization,
@@ -173,7 +171,6 @@ class TestSchemaOrganization:
             schema_list2.append(item)
         assert len(schema_list2) == 3
 
-    @pytest.mark.asyncio
     async def test_get_acl_and_update_acl(
         self, organization: SchemaOrganization
     ) -> None:
@@ -300,7 +297,6 @@ class TestCreateSchemaRequest:
     def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    @pytest.mark.asyncio
     async def test_create_schema_request_no_version(
         self, module_organization: SchemaOrganization
     ) -> None:
@@ -342,7 +338,6 @@ class TestCreateSchemaRequest:
         #    schema.uri for schema in module_organization.get_json_schema_list()
         # ]
 
-    @pytest.mark.asyncio
     async def test_create_schema_request_with_version(
         self, module_organization: SchemaOrganization
     ) -> None:
