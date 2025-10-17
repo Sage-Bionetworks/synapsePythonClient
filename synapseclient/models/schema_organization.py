@@ -1161,7 +1161,9 @@ class JSONSchema(JSONSchemaProtocol):
         Raises:
             ValueError: If the string is not a correct semantic version
         """
-        if not re.match("^(\d+)\.(\d+)\.([1-9]\d*)$", version):
+        if version == "0.0.0":
+            raise ValueError("Schema version must start at '0.0.1' or higher")
+        if not re.match("^(\d+)\.(\d+)\.(\d+)$", version):
             raise ValueError(
                 (
                     "Schema version must be a semantic version with no letters "

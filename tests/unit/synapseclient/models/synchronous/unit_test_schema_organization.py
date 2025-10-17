@@ -125,6 +125,25 @@ class TestJSONSchema:
         assert js.created_by == "2"
         assert js.uri == "org.name-name"
 
+    @pytest.mark.parametrize("version", ["1.0.0", "0.0.1", "0.1.0"])
+    def test_check_semantic_version(self, version: str) -> None:
+        "Tests that only correct versions are allowed"
+        js = JSONSchema()
+        js._check_semantic_version(version)
+
+    def test_check_semantic_version_with_exceptions(self) -> None:
+        "Tests that only correct versions are allowed"
+        js = JSONSchema()
+        with pytest.raises(
+            ValueError, match="Schema version must start at '0.0.1' or higher"
+        ):
+            js._check_semantic_version("0.0.0")
+        with pytest.raises(
+            ValueError,
+            match="Schema version must be a semantic version with no letters and a major, minor and patch version",
+        ):
+            js._check_semantic_version("0.0.1.rc")
+
 
 class TestCreateSchemaRequest:
     @pytest.mark.parametrize(
