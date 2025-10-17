@@ -420,14 +420,10 @@ class SchemaOrganization(SchemaOrganizationProtocol):
 
                 org = SchemaOrganization("dpetest")
                 js_generator = org.get_json_schemas_async()
-                js_list = []
                 async for item in js_generator:
-                    js_list.append(item)
-                return js_list
+                    print(item)
 
-            js_list = asyncio.run(get_schemas())
-            for item in js_list:
-                print(item)
+            asyncio.run(get_schemas())
             ```
 
         """
@@ -979,14 +975,10 @@ class JSONSchema(JSONSchemaProtocol):
 
                 schema = JSONSchema(organization_name="dpetest", name="test.schematic.Biospecimen")
                 version_generator = schema.get_versions_async()
-                version_list = []
                 async for item in version_generator:
-                    version_list.append(item)
-                return version_list
+                    print(item)
 
-            version_list = asyncio.run(get_versions())
-            for item in version_list:
-                print(item)
+            asyncio.run(get_versions())
             ```
         """
         all_schemas = list_json_schema_versions(
