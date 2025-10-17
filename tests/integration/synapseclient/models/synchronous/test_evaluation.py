@@ -19,7 +19,7 @@ class TestEvaluationCreation:
 
     async def test_create_evaluation(self):
         # GIVEN a project to work with
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=self.syn
         )
         self.schedule_for_cleanup(project.id)
@@ -32,7 +32,7 @@ class TestEvaluationCreation:
             submission_instructions_message="Please submit your results in CSV format",
             submission_receipt_message="Thank you for your submission!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=self.syn)
+        created_evaluation = evaluation.store(synapse_client=self.syn)
         self.schedule_for_cleanup(created_evaluation.id)
 
         # THEN the evaluation should be created
@@ -58,7 +58,7 @@ class TestGetEvaluation:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=self.syn
         )
         schedule_for_cleanup(project.id)
@@ -79,7 +79,7 @@ class TestGetEvaluation:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        created_evaluation = evaluation.store(synapse_client=syn)
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
@@ -100,7 +100,7 @@ class TestGetEvaluation:
                 submission_instructions_message="Please submit your results",
                 submission_receipt_message="Thank you!",
             )
-            created_evaluation = await evaluation.store_async(synapse_client=syn)
+            created_evaluation = evaluation.store(synapse_client=syn)
             schedule_for_cleanup(created_evaluation.id)
             evaluations.append(created_evaluation)
         return evaluations
@@ -109,7 +109,7 @@ class TestGetEvaluation:
         self, test_evaluation: Evaluation, test_project: Project
     ):
         # WHEN I get an evaluation by id using the dataclass method
-        retrieved_evaluation = await Evaluation(id=test_evaluation.id).get_async(
+        retrieved_evaluation = Evaluation(id=test_evaluation.id).get(
             synapse_client=self.syn
         )
 
@@ -128,7 +128,7 @@ class TestGetEvaluation:
         self, test_evaluation: Evaluation, test_project: Project
     ):
         # WHEN I get an evaluation by name using the dataclass method
-        retrieved_evaluation = await Evaluation(name=test_evaluation.name).get_async(
+        retrieved_evaluation = Evaluation(name=test_evaluation.name).get(
             synapse_client=self.syn
         )
 
@@ -148,9 +148,7 @@ class TestGetEvaluation:
     ):
         # Test 1: Grab evaluations that the user has access to
         # WHEN a call is made to get all evaluations
-        evaluations = await Evaluation.get_all_evaluations_async(
-            synapse_client=self.syn
-        )
+        evaluations = Evaluation.get_all_evaluations(synapse_client=self.syn)
 
         # THEN the evaluations should be retrieved
         assert evaluations is not None
@@ -158,7 +156,7 @@ class TestGetEvaluation:
 
         # Test 2: Grab evaluations that the user has access to and are active
         # WHEN the active_only parameter is True
-        active_evaluations = await Evaluation.get_all_evaluations_async(
+        active_evaluations = Evaluation.get_all_evaluations(
             synapse_client=self.syn, active_only=True
         )
 
@@ -167,7 +165,7 @@ class TestGetEvaluation:
 
         # Test 3: Grab evaluations based on a limit
         # WHEN the limit parameter is set
-        limited_evaluations = await Evaluation.get_all_evaluations_async(
+        limited_evaluations = Evaluation.get_all_evaluations(
             synapse_client=self.syn, limit=limit
         )
 
@@ -178,9 +176,7 @@ class TestGetEvaluation:
         self, multiple_evaluations: list[Evaluation]
     ):
         # WHEN a call is made to get available evaluations for a given user
-        evaluations = await Evaluation.get_available_evaluations_async(
-            synapse_client=self.syn
-        )
+        evaluations = Evaluation.get_available_evaluations(synapse_client=self.syn)
 
         # THEN the evaluations should be retrieved
         assert evaluations is not None
@@ -190,7 +186,7 @@ class TestGetEvaluation:
         self, test_project: Project, multiple_evaluations: list[Evaluation]
     ):
         # WHEN a call is made to get evaluations by project
-        evaluations = await Evaluation.get_evaluations_by_project_async(
+        evaluations = Evaluation.get_evaluations_by_project(
             project_id=test_project.id, synapse_client=self.syn
         )
 
@@ -214,7 +210,7 @@ class TestStoreEvaluation:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=self.syn
         )
         schedule_for_cleanup(project.id)
@@ -235,16 +231,41 @@ class TestStoreEvaluation:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        created_evaluation = evaluation.store(synapse_client=syn)
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
+
+    async def test_store_evaluation_with_same_name(
+        self, test_project: Project, test_evaluation: Evaluation
+    ):
+        # GIVEN an existing evaluation
+        existing_name = test_evaluation.name
+
+        # WHEN I try to create a new evaluation with the same name
+        duplicate_evaluation = Evaluation(
+            name=existing_name,  # Use the same name as the existing evaluation
+            description="This is a duplicate evaluation name test",
+            content_source=test_project.id,
+            submission_instructions_message="Submit your results here",
+            submission_receipt_message="Thank you for submitting!",
+        )
+
+        # THEN it should raise a SynapseHTTPError with an appropriate message about name conflict
+        with pytest.raises(SynapseHTTPError) as excinfo:
+            duplicate_evaluation.store(synapse_client=self.syn)
+
+        # AND the error message contains information about the duplicate name
+        error_message = str(excinfo.value).lower()
+        assert (
+            "already exists with the name" in error_message
+        ), f"Unexpected error message: {error_message}"
 
     async def test_update_evaluation_name(self, test_evaluation: Evaluation):
         # WHEN I update the evaluation name in my evaluation object
         new_name = f"updated_evaluation_{uuid.uuid4()}"
         test_evaluation.name = new_name
 
-        updated_evaluation = await test_evaluation.store_async(synapse_client=self.syn)
+        updated_evaluation = test_evaluation.store(synapse_client=self.syn)
 
         # THEN the evaluation should be updated
         assert updated_evaluation.name == new_name
@@ -258,7 +279,7 @@ class TestStoreEvaluation:
         old_etag = test_evaluation.etag
         test_evaluation.description = new_description
 
-        updated_evaluation = await test_evaluation.store_async(synapse_client=self.syn)
+        updated_evaluation = test_evaluation.store(synapse_client=self.syn)
 
         # THEN the evaluation should be updated
         assert updated_evaluation.description == new_description
@@ -280,7 +301,7 @@ class TestStoreEvaluation:
         test_evaluation.description = new_description
         test_evaluation.submission_instructions_message = new_instructions
 
-        updated_evaluation = await test_evaluation.store_async(
+        updated_evaluation = test_evaluation.store(
             synapse_client=self.syn,
         )
 
@@ -294,6 +315,65 @@ class TestStoreEvaluation:
         assert updated_evaluation.etag is not None
         assert updated_evaluation.etag != old_etag
 
+    async def test_certain_fields_unchanged_once_retrieved_from_synapse(
+        self, test_evaluation: Evaluation
+    ):
+        # GIVEN an existing evaluation
+        retrieved_evaluation = Evaluation(id=test_evaluation.id).get(
+            synapse_client=self.syn
+        )
+
+        # WHEN I attempt to change immutable fields
+        original_id = retrieved_evaluation.id
+        original_content_source = retrieved_evaluation.content_source
+
+        retrieved_evaluation.id = "syn999999999"  # Attempt to change ID
+        retrieved_evaluation.content_source = (
+            "syn888888888"  # Attempt to change content_source
+        )
+
+        updated_evaluation = retrieved_evaluation.store(synapse_client=self.syn)
+
+        # THEN those fields should remain unchanged after the store operation
+        assert updated_evaluation.id == original_id
+        assert updated_evaluation.content_source == original_content_source
+
+    async def test_store_with_nonexistent_id(self, test_project: Project):
+        # GIVEN an evaluation with a non-existent ID that's never been stored
+        unique_name = f"test_evaluation_{uuid.uuid4()}"
+        evaluation = Evaluation(
+            id="syn999999999",
+            name=unique_name,
+            description="Test description",
+            content_source=test_project.id,
+            submission_instructions_message="Instructions",
+            submission_receipt_message="Receipt",
+        )
+
+        # WHEN I store the evaluation
+        # THEN it should succeed by ignoring the invalid ID
+        created_eval = evaluation.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(created_eval.id)
+
+        # AND other important attribute should not be changed
+        assert created_eval.name == unique_name
+
+        # GIVEN an evaluation that was retrieved from Synapse
+        # AND modified with a non-existent ID
+        retrieved_eval = Evaluation(id=created_eval.id).get(synapse_client=self.syn)
+        original_id = retrieved_eval.id
+        retrieved_eval.id = "syn999999999"
+        retrieved_eval.name = f"test_evaluation_{uuid.uuid4()}_new_name"
+
+        # WHEN I update the evaluation
+        # THEN it should succeed and ignore the invalid ID (with warning)
+        updated_eval = retrieved_eval.store(synapse_client=self.syn)
+
+        # AND the updated evaluation should maintain its original ID
+        assert updated_eval.id == original_id
+        assert updated_eval.id != "syn999999999"
+        assert updated_eval.name == retrieved_eval.name
+
     async def test_store_unchanged_evaluation(
         self, test_evaluation: Evaluation, monkeypatch
     ):
@@ -304,7 +384,7 @@ class TestStoreEvaluation:
             Using the method interception pattern to mock the implementation of logging.Logger.warning
             to create a mock logger that captures warning messages.
 
-            When the Evaluation.store_async method detects no changes, it logs a warning
+            When the Evaluation.store method detects no changes, it logs a warning
             using logger.warning(). This mock replaces the actual logging function to
             capture those warning messages in our warning_messages list instead of sending
             them to the logging system. This allows us to assert that the expected warning
@@ -315,12 +395,12 @@ class TestStoreEvaluation:
         monkeypatch.setattr(logging.Logger, "warning", mock_warning)
 
         # GIVEN an evaluation that has not been changed
-        retrieved_evaluation = await Evaluation(id=test_evaluation.id).get_async(
+        retrieved_evaluation = Evaluation(id=test_evaluation.id).get(
             synapse_client=self.syn
         )
 
         # WHEN trying to store the unchanged evaluation
-        result = await retrieved_evaluation.store_async(synapse_client=self.syn)
+        result = retrieved_evaluation.store(synapse_client=self.syn)
 
         # THEN it should not be updated and return the same instance
         assert result is retrieved_evaluation
@@ -345,7 +425,7 @@ class TestDeleteEvaluation:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=self.syn
         )
         schedule_for_cleanup(project.id)
@@ -366,17 +446,17 @@ class TestDeleteEvaluation:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        created_evaluation = evaluation.store(synapse_client=syn)
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
     async def test_delete_evaluation(self, test_evaluation: Evaluation):
         # WHEN I delete the evaluation using the dataclass method
-        await test_evaluation.delete_async(synapse_client=self.syn)
+        test_evaluation.delete(synapse_client=self.syn)
 
         # THEN the evaluation should be deleted (attempting to get it should raise an exception)
         with pytest.raises(SynapseHTTPError):
-            await Evaluation(id=test_evaluation.id).get_async(synapse_client=self.syn)
+            Evaluation(id=test_evaluation.id).get(synapse_client=self.syn)
 
 
 class TestEvaluationAccess:
@@ -390,7 +470,7 @@ class TestEvaluationAccess:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for evaluation tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=self.syn
         )
         schedule_for_cleanup(project.id)
@@ -411,7 +491,7 @@ class TestEvaluationAccess:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        created_evaluation = evaluation.store(synapse_client=syn)
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
@@ -421,7 +501,7 @@ class TestEvaluationAccess:
         current_user_id = int(user_profile.get("ownerId"))
 
         # WHEN we get the evaluation ACL using the dataclass method
-        acl = await test_evaluation.get_acl_async(synapse_client=self.syn)
+        acl = test_evaluation.get_acl(synapse_client=self.syn)
 
         # THEN the ACL should be retrieved
         assert acl is not None
@@ -442,23 +522,19 @@ class TestEvaluationAccess:
 
     async def test_get_evaluation_permissions(self, test_evaluation: Evaluation):
         # WHEN I get evaluation permissions using the dataclass method
-        permissions = await test_evaluation.get_permissions_async(
-            synapse_client=self.syn
-        )
+        permissions = test_evaluation.get_permissions(synapse_client=self.syn)
 
         # THEN the permissions should be retrieved
         assert permissions is not None
 
-    async def test_update_acl_async_with_principal_id(
-        self, test_evaluation: Evaluation
-    ):
+    async def test_update_acl_with_principal_id(self, test_evaluation: Evaluation):
         """Test updating ACL for an evaluation using principal_id and access_type."""
         # GIVEN the current user's ID
         user_profile = self.syn.getUserProfile()
         current_user_id = int(user_profile.get("ownerId"))
 
         # WHEN we update the ACL for the current user with specific permissions
-        updated_acl = await test_evaluation.update_acl_async(
+        updated_acl = test_evaluation.update_acl(
             principal_id=current_user_id,
             access_type=["READ", "UPDATE", "DELETE", "CHANGE_PERMISSIONS"],
             synapse_client=self.syn,
@@ -482,12 +558,10 @@ class TestEvaluationAccess:
             ["READ", "UPDATE", "DELETE", "CHANGE_PERMISSIONS"]
         )
 
-    async def test_update_acl_async_with_full_dictionary(
-        self, test_evaluation: Evaluation
-    ):
+    async def test_update_acl_with_full_dictionary(self, test_evaluation: Evaluation):
         """Test updating ACL for an evaluation using a complete ACL dictionary."""
         # GIVEN the current ACL
-        current_acl = await test_evaluation.get_acl_async(synapse_client=self.syn)
+        current_acl = test_evaluation.get_acl(synapse_client=self.syn)
 
         # AND a modified version of the ACL with a changed permission set
         modified_acl = current_acl.copy()
@@ -501,7 +575,7 @@ class TestEvaluationAccess:
                 break
 
         # WHEN we update the ACL with the complete dictionary
-        updated_acl = await test_evaluation.update_acl_async(
+        updated_acl = test_evaluation.update_acl(
             acl=modified_acl, synapse_client=self.syn
         )
 
@@ -533,7 +607,7 @@ class TestEvaluationValidation:
 
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="missing the 'description' attribute"):
-            await evaluation.store_async(synapse_client=self.syn)
+            evaluation.store(synapse_client=self.syn)
 
     async def test_get_evaluation_missing_id_and_name(self):
         # WHEN I try to get an evaluation without id or name
@@ -543,7 +617,7 @@ class TestEvaluationValidation:
         with pytest.raises(
             ValueError, match="Either id or name must be set to get an evaluation"
         ):
-            await evaluation.get_async(synapse_client=self.syn)
+            evaluation.get(synapse_client=self.syn)
 
     async def test_delete_evaluation_missing_id(self):
         # WHEN I try to delete an evaluation without an id
@@ -551,7 +625,7 @@ class TestEvaluationValidation:
 
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="id must be set to delete an evaluation"):
-            await evaluation.delete_async(synapse_client=self.syn)
+            evaluation.delete(synapse_client=self.syn)
 
     async def test_get_acl_missing_id(self):
         # WHEN I try to get ACL for an evaluation without an id
@@ -559,7 +633,7 @@ class TestEvaluationValidation:
 
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="id must be set to get evaluation ACL"):
-            await evaluation.get_acl_async(synapse_client=self.syn)
+            evaluation.get_acl(synapse_client=self.syn)
 
     async def test_get_permissions_missing_id(self):
         # WHEN I try to get permissions for an evaluation without an id
@@ -569,4 +643,4 @@ class TestEvaluationValidation:
         with pytest.raises(
             ValueError, match="id must be set to get evaluation permissions"
         ):
-            await evaluation.get_permissions_async(synapse_client=self.syn)
+            evaluation.get_permissions(synapse_client=self.syn)

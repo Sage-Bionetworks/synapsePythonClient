@@ -63,6 +63,17 @@ from .entity_services import (
     update_activity,
     update_entity_acl,
 )
+from .evaluation_services import (
+    create_or_update_evaluation,
+    delete_evaluation,
+    get_all_evaluations,
+    get_available_evaluations,
+    get_evaluation,
+    get_evaluation_acl,
+    get_evaluation_permissions,
+    get_evaluations_by_project,
+    update_evaluation_acl,
+)
 from .file_services import (
     AddPartResponse,
     get_file_handle,
@@ -261,4 +272,14 @@ __all__ = [
     "is_user_certified",
     # table_services
     "create_table_snapshot",
+    # evaluation_services
+    "create_or_update_evaluation",
+    "get_evaluation",
+    "get_evaluations_by_project",
+    "get_all_evaluations",
+    "get_available_evaluations",
+    "delete_evaluation",
+    "get_evaluation_acl",
+    "update_evaluation_acl",
+    "get_evaluation_permissions",
 ]
