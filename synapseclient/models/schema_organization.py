@@ -996,9 +996,9 @@ class JSONSchema(JSONSchemaProtocol):
             self.organization_name, self.name, synapse_client=synapse_client
         )
         async for schema in all_schemas:
-            # Schemas created without a semantic version will be returned from the API call.
-            # Those won't be returned here since they aren't really versions.
-            # JSONSchemaVersionInfo.semantic_version could also be changed to optional.
+            # Schema "versions" without a semantic version will be returned from the API call,
+            # but will be filtered out by this method.
+            # Only those with a semantic version will be returned.
             if "semanticVersion" in schema:
                 yield self._create_json_schema_version_from_response(schema)
 
