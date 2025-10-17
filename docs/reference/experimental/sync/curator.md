@@ -55,6 +55,8 @@ at your own risk.
         members:
             - create
             - export_to_record_set
+            - delete
+            - list
 ---
 [](){ #query-reference }
 ::: synapseclient.models.Query
