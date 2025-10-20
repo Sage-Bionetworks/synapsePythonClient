@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import re
 import string
 import tempfile
 import uuid
@@ -1848,6 +1849,43 @@ class TestDeleteRows:
 
         # AND only 1 row should exist on the table
         assert len(results) == 1
+
+    async def test_delete_multiple_rows_via_dataframe_exception(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[Column(name="column_string", column_type=ColumnType.STRING)],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for a column already stored in Synapse
+        data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+
+        # AND row ids and versions that do not exist in the table
+        row_ids = [4, 5]
+        row_versions = [1, 1]
+
+        # And an excpeted error message that should be displayed
+        row_id_version_tuples = ", ".join(
+            [f"({id}, {version})" for id, version in zip(row_ids, row_versions)]
+        )
+        exception_message = f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {re.escape(table.id)}: {re.escape(row_id_version_tuples)}."
+
+        # WHEN the rows that do not exist are attempted to be deleted
+        # THEN a value error should be raised and the appropriate message should be displayed
+        with pytest.raises(LookupError, match=exception_message):
+            await table.delete_rows_async(
+                df=pd.DataFrame({"ROW_ID": row_ids, "ROW_VERSION": row_versions}),
+                synapse_client=self.syn,
+            )
 
 
 class TestColumnModifications:

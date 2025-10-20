@@ -1902,15 +1902,9 @@ class TestTableDeleteRowMixin:
                 pd.DataFrame(columns=["INVALID_COL1", "INVALID_COL2"]),  # Both invalid
                 "The dataframe must contain the 'ROW_ID' and 'ROW_VERSION' columns.",
             ),
-            (
-                pd.DataFrame(
-                    {"ROW_ID": ["C", "D"], "ROW_VERSION": [2, 2]}
-                ),  # Both invalid
-                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: 0, 1.",
-            ),
         ],
     )
-    async def test_delete_rows_via_dataframe_fail(self, df, error_msg):
+    async def test_delete_rows_via_dataframe_fail_missing_columns(self, df, error_msg):
         # GIVEN a TestClass instance
         test_instance = self.ClassForTest()
 
@@ -1925,6 +1919,39 @@ class TestTableDeleteRowMixin:
             patch.object(self.syn.logger, "info") as mock_logger_info,
         ):
             with pytest.raises(ValueError, match=error_msg):
+                result = await test_instance.delete_rows_async(
+                    df=df, synapse_client=self.syn
+                )
+
+                # THEN mock_logger_info should not be called
+                mock_logger_info.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "df, error_msg",
+        [
+            (
+                pd.DataFrame(
+                    {"ROW_ID": ["C", "D"], "ROW_VERSION": [2, 2]}
+                ),  # Both invalid
+                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: \\(C, 2\\), \\(D, 2\\).",  # Special characters must be escaped due to use with regex in test
+            ),
+        ],
+    )
+    async def test_delete_rows_via_dataframe_fail_missing_rows(self, df, error_msg):
+        # GIVEN a TestClass instance
+        test_instance = self.ClassForTest()
+
+        # WHEN I call delete_rows_async
+        with (
+            patch(
+                "synapseclient.models.mixins.table_components.QueryMixin.query_async",
+                return_value=pd.DataFrame(
+                    {"ROW_ID": ["A", "B"], "ROW_VERSION": [1, 2]}
+                ),
+            ) as mock_query_async,
+            patch.object(self.syn.logger, "info") as mock_logger_info,
+        ):
+            with pytest.raises(LookupError, match=error_msg):
                 result = await test_instance.delete_rows_async(
                     df=df, synapse_client=self.syn
                 )
