@@ -215,7 +215,7 @@ class SchemaOrganizationProtocol(Protocol):
             syn.login()
 
             org = SchemaOrganization("my.org.name")
-            org.update_acl_async(
+            org.update_acl(
                 principal_id=1,
                 access_type=["READ"]
             )
@@ -491,7 +491,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         Updates the ACL for a principal for this organization
 
         Arguments:
-            principal_id: the id of the principal whose permissions are to be updates
+            principal_id: the id of the principal whose permissions are to be updated
             access_type: List of permission types (e.g., ["READ", "CREATE", "DELETE"])
                 see:
                   [ACCESS_TYPE]https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/ACCESS_TYPE.html
