@@ -280,6 +280,55 @@ OpenTelemetry (OTEL)
 
 Read more about OpenTelemetry in Python [here](https://opentelemetry.io/docs/instrumentation/python/)
 
+
+### Exporting Synapse Client Traces to Jaeger for developers
+The following shows an example of setting up [jaegertracing](https://www.jaegertracing.io/docs/1.50/deployment/#all-in-one) via docker and executing a simple python script that implements the Synapse Python client.
+
+#### Running the jaeger docker container
+Start a docker container with the following options:
+```
+docker run --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+```
+Explanation of ports:
+* `4318` HTTP port for OTLP data collection
+* `16686` Jaeger UI for visualizing traces
+
+Once the docker container is running you can access the Jaeger UI via: `http://localhost:16686`
+
+#### Environment Variable Configuration
+
+By default, the OTEL exporter sends trace data to `http://localhost:4318/v1/traces`. You can customize the behavior through environment variables:
+
+* `OTEL_SERVICE_NAME`: Defines a unique identifier for your application or service in telemetry data (defaults to 'synapseclient'). Set this to a descriptive name that represents your specific implementation, making it easier to filter and analyze traces in your monitoring system.
+* `OTEL_EXPORTER_OTLP_ENDPOINT`: Specifies the destination URL for sending telemetry data (defaults to 'http://localhost:4318'). Configure this to direct data to your preferred OpenTelemetry collector or monitoring service.
+* `OTEL_DEBUG_CONSOLE`: Controls local visibility of telemetry data. Set to 'true' to output trace information to the console, which is useful for development and troubleshooting without an external collector.
+* `OTEL_SERVICE_INSTANCE_ID`: Distinguishes between multiple instances of the same service (e.g., 'prod', 'development', 'local'). This helps identify which specific deployment or environment generated particular traces.
+* `OTEL_EXPORTER_OTLP_HEADERS`: Configures authentication and metadata for telemetry exports. Use this to add API keys, authentication tokens, or custom metadata when sending traces to secured collectors or third-party monitoring services.
+
+
+#### Enabling OpenTelemetry in your code
+To enable OpenTelemetry with the Synapse Python client, simply call the
+`enable_open_telemetry()` method on the Synapse class. Additionally you can access an
+instance of the OpenTelemetry tracer via the `get_tracer()` call. This will allow you
+to create new spans for your code.
+
+```python
+import synapseclient
+
+# Enable OpenTelemetry with default settings
+synapseclient.Synapse.enable_open_telemetry()
+tracer = synapseclient.Synapse.get_tracer()
+
+# Then create and use the Synapse client as usual
+with tracer.start_as_current_span("my_function_span"):
+    syn = synapseclient.Synapse()
+    syn.login(authToken='auth_token')
+```
+
 ### Exporting Synapse Client Traces to SigNoz Cloud for developers
 
 #### Prerequisites
@@ -303,8 +352,6 @@ Explanation of both required and optional environment variables:
 * `OTEL_SERVICE_INSTANCE_ID`: Distinguishes between multiple instances of the same service (e.g., 'prod', 'development', 'local'). This helps identify which specific deployment or environment generated particular traces.
 
 #### Enabling OpenTelemetry in your code
-You can copy `.env.example` file to `.env` and fill in the values as needed
-
 To enable OpenTelemetry with the Synapse Python client, simply call the
 `enable_open_telemetry()` method on the Synapse class. Additionally you can access an
 instance of the OpenTelemetry tracer via the `get_tracer()` call. This will allow you
@@ -314,8 +361,11 @@ to create new spans for your code.
 import synapseclient
 from dotenv import load_dotenv
 
-# load environment variables from .env file
-load_dotenv()
+# Set environment variables
+os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "https://ingest.us.signoz.cloud"
+os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = "signoz-ingestion-key=<your key>"
+os.environ["OTEL_SERVICE_NAME"] = "your-service-name"
+os.environ["OTEL_SERVICE_INSTANCE_ID"] = "local"
 
 # Enable OpenTelemetry with default settings
 synapseclient.Synapse.enable_open_telemetry()
