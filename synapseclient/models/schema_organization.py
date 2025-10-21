@@ -1385,11 +1385,14 @@ def list_json_schema_organizations(
     return all_orgs
 
 
-def _check_name(name) -> None:
+def _check_name(name: str) -> None:
     """
     Checks that the input name is a valid Synapse Organization or JSONSchema name
-    - Must start with a letter
-    - Must contains only letters, numbers and periods.
+    - Length requirement of 6 ≤ x ≤ 250
+    - Names do not contain the string sagebionetworks (case insensitive)
+    - May contain periods (each part is separated by periods)
+    - Each part must start with a letter
+    - Each part contains only letters and numbers
 
     Arguments:
         name: The name of the organization to be checked
@@ -1397,10 +1400,17 @@ def _check_name(name) -> None:
     Raises:
         ValueError: When the name isn't valid
     """
-    if not re.match("^([A-Za-z])([A-Za-z]|\d|\.)*$", name):
-        raise ValueError(
-            (
-                "Name must start with a letter and contain "
-                f"only letters numbers and periods: {name}"
+    if not 6 <= len(name) <= 250:
+        raise ValueError(f"The name must be of length 6 to 250 characters: {name}")
+    if re.search("sagebionetworks", name.lower()):
+        raise ValueError(f"The name must not contain 'sagebionetworks' : {name}")
+    parts = name.split(".")
+    for part in parts:
+        if not re.match("^([A-Za-z])([A-Za-z]|\d|)*$", part):
+            raise ValueError(
+                (
+                    "Name may be separated by periods, "
+                    "but each part must start with a letter and contain "
+                    f"only letters and numbers: {name}"
+                )
             )
-        )

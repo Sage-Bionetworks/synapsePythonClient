@@ -1,36 +1,12 @@
 """Unit tests for SchemaOrganization and JSONSchema classes"""
-from typing import Any
-
 import pytest
 
 from synapseclient.models import JSONSchema, SchemaOrganization
-from synapseclient.models.schema_organization import CreateSchemaRequest
+from synapseclient.models.schema_organization import CreateSchemaRequest, _check_name
 
 
 class TestSchemaOrganization:
     """Synchronous unit tests for SchemaOrganization."""
-
-    @pytest.mark.parametrize(
-        "name",
-        ["AAAAAAA", "A12345", "A....."],
-        ids=["Just letters", "Numbers", "Periods"],
-    )
-    def test_init(self, name: str) -> None:
-        "Tests that legal names don't raise a ValueError on init"
-        assert SchemaOrganization(name)
-
-    @pytest.mark.parametrize(
-        "name",
-        ["1AAAAAA", ".AAAAAA", "AAAAAA!"],
-        ids=["Starts with a number", "Starts with a period", "Special character"],
-    )
-    def test_init_name_exceptions(self, name: str) -> None:
-        "Tests that illegal names raise a ValueError on init"
-        with pytest.raises(
-            ValueError,
-            match="Name must start with a letter and contain only letters numbers and periods",
-        ):
-            SchemaOrganization(name)
 
     def test_fill_from_dict(self) -> None:
         "Tests that fill_from_dict fills in all fields"
@@ -55,28 +31,6 @@ class TestSchemaOrganization:
 
 class TestJSONSchema:
     """Synchronous unit tests for JSONSchema."""
-
-    @pytest.mark.parametrize(
-        "name",
-        ["AAAAAAA", "A12345", "A....."],
-        ids=["Just letters", "Numbers", "Periods"],
-    )
-    def test_init(self, name: str) -> None:
-        "Tests that legal names don't raise a ValueError on init"
-        assert JSONSchema(name, "org.name")
-
-    @pytest.mark.parametrize(
-        "name",
-        ["1AAAAAA", ".AAAAAA", "AAAAAA!"],
-        ids=["Starts with a number", "Starts with a period", "Special character"],
-    )
-    def test_init_name_exceptions(self, name: str) -> None:
-        "Tests that illegal names raise a ValueError on init"
-        with pytest.raises(
-            ValueError,
-            match="Name must start with a letter and contain only letters numbers and periods",
-        ):
-            JSONSchema(name, "org.name")
 
     @pytest.mark.parametrize(
         "uri",
@@ -147,52 +101,6 @@ class TestJSONSchema:
 
 class TestCreateSchemaRequest:
     @pytest.mark.parametrize(
-        "name",
-        ["AAAAAAA", "A12345", "A....."],
-        ids=["Just letters", "Numbers", "Periods"],
-    )
-    def test_init_name(self, name: str) -> None:
-        "Tests that legal names don't raise a ValueError on init"
-        assert CreateSchemaRequest(schema={}, name=name, organization_name="org.name")
-
-    @pytest.mark.parametrize(
-        "name",
-        ["1AAAAAA", ".AAAAAA", "AAAAAA!"],
-        ids=["Starts with a number", "Starts with a period", "Special character"],
-    )
-    def test_init_name_exceptions(self, name: str) -> None:
-        "Tests that illegal names raise a ValueError on init"
-        with pytest.raises(
-            ValueError,
-            match="Name must start with a letter and contain only letters numbers and periods",
-        ):
-            CreateSchemaRequest(schema={}, name=name, organization_name="org.name")
-
-    @pytest.mark.parametrize(
-        "name",
-        ["AAAAAAA", "A12345", "A....."],
-        ids=["Just letters", "Numbers", "Periods"],
-    )
-    def test_init_org_name(self, name: str) -> None:
-        "Tests that legal org names don't raise a ValueError on init"
-        assert CreateSchemaRequest(
-            schema={}, name="schema.name", organization_name=name
-        )
-
-    @pytest.mark.parametrize(
-        "name",
-        ["1AAAAAA", ".AAAAAA", "AAAAAA!"],
-        ids=["Starts with a number", "Starts with a period", "Special character"],
-    )
-    def test_init_org_name_exceptions(self, name: str) -> None:
-        "Tests that illegal org names raise a ValueError on init"
-        with pytest.raises(
-            ValueError,
-            match="Name must start with a letter and contain only letters numbers and periods",
-        ):
-            CreateSchemaRequest(schema={}, name="schema.name", organization_name=name)
-
-    @pytest.mark.parametrize(
         "version",
         ["0.0.1", "1.0.0"],
     )
@@ -218,3 +126,66 @@ class TestCreateSchemaRequest:
                 organization_name="org.name",
                 version=version,
             )
+
+
+class TestCheckName:
+    """Tests for check name helper function"""
+
+    @pytest.mark.parametrize(
+        "name",
+        ["aaaaaaa", "aaaaaa1", "aa.aa.aa", "a1.a1.a1"],
+    )
+    def test_check_name(self, name: str):
+        """Checks that legal names don't raise an exception"""
+        _check_name(name)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "a",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ],
+    )
+    def test_check_length_exception(self, name: str):
+        """Checks that names that are too short or long raise an exception"""
+        with pytest.raises(
+            ValueError, match="The name must be of length 6 to 250 characters"
+        ):
+            _check_name(name)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "sagebionetworks",
+            "asagebionetworks",
+            "sagebionetworksa",
+            "aaa.sagebionetworks.aaa",
+            "SAGEBIONETWORKS",
+            "SageBionetworks",
+        ],
+    )
+    def test_check_sage_exception(self, name: str):
+        """Checks that names that contain 'sagebionetworks' raise an exception"""
+        with pytest.raises(
+            ValueError, match="The name must not contain 'sagebionetworks'"
+        ):
+            _check_name(name)
+
+    @pytest.mark.parametrize(
+        "name",
+        ["1AAAAA", "AAA.1AAA", "AAA.AAA.1AAA", ".AAAAAAA", "AAAAAAAA!"],
+        ids=[
+            "Starts with number",
+            "Part2 starts with number",
+            "Part3 starts with number",
+            "Starts with period",
+            "Contains special characters",
+        ],
+    )
+    def test_check_content_exception(self, name: str):
+        """Checks that names that contain special characters(besides periods) or have parts that start with numbers raise an exception"""
+        with pytest.raises(
+            ValueError,
+            match="Name may be separated by periods, but each part must start with a letter and contain only letters and numbers",
+        ):
+            _check_name(name)
