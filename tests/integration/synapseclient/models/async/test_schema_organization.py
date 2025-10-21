@@ -12,6 +12,7 @@ from synapseclient.models import JSONSchema, SchemaOrganization
 from synapseclient.models.schema_organization import (
     SYNAPSE_SCHEMA_URL,
     CreateSchemaRequest,
+    JSONSchemaVersionInfo,
     list_json_schema_organizations,
 )
 
@@ -237,6 +238,50 @@ class TestJSONSchema:
         assert js2.id
         assert js2.created_by
         assert js2.created_on
+
+    async def test_delete(self, organization_with_schema: SchemaOrganization) -> None:
+        # GIVEN an organization with 3 schema
+        schemas: list[JSONSchema] = []
+        async for item in organization_with_schema.get_json_schemas_async():
+            schemas.append(item)
+        assert len(schemas) == 3
+        # WHEN deleting one of those schemas
+        schema = schemas[0]
+        await schema.delete_async()
+        # THEN there should be only two left
+        schemas2: list[JSONSchema] = []
+        async for item in organization_with_schema.get_json_schemas_async():
+            schemas2.append(item)
+        assert len(schemas2) == 2
+
+    async def test_delete_version(self, json_schema: JSONSchema) -> None:
+        # GIVEN an organization and a JSONSchema
+        await json_schema.store_async(schema_body={}, version="0.0.1")
+        # THEN that schema should have one version
+        js_versions: list[JSONSchemaVersionInfo] = []
+        async for item in json_schema.get_versions_async():
+            js_versions.append(item)
+        assert len(js_versions) == 1
+        # WHEN storing a second version
+        await json_schema.store_async(schema_body={}, version="0.0.2")
+        # THEN that schema should have two versions
+        js_versions = []
+        async for item in json_schema.get_versions_async():
+            js_versions.append(item)
+        assert len(js_versions) == 2
+        # AND they should be the ones stored
+        versions = [js_version.semantic_version for js_version in js_versions]
+        assert versions == ["0.0.1", "0.0.2"]
+        # WHEN deleting the first schema version
+        await json_schema.delete_async(version="0.0.1")
+        # THEN there should only be one version left
+        js_versions = []
+        async for item in json_schema.get_versions_async():
+            js_versions.append(item)
+        assert len(js_versions) == 1
+        # AND it should be the second version
+        versions = [js_version.semantic_version for js_version in js_versions]
+        assert versions == ["0.0.2"]
 
     async def test_get_versions(self, json_schema: JSONSchema) -> None:
         # GIVEN an schema that hasn't been created

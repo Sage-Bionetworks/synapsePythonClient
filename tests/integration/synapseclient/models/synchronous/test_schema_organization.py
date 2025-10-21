@@ -224,6 +224,40 @@ class TestJSONSchema:
         assert js2.created_by
         assert js2.created_on
 
+    async def test_delete(self, organization_with_schema: SchemaOrganization) -> None:
+        # GIVEN an organization with 3 schema
+        schemas = list(organization_with_schema.get_json_schemas())
+        assert len(schemas) == 3
+        # WHEN deleting one of those schemas
+        schema = schemas[0]
+        schema.delete()
+        # THEN there should be only two left
+        schemas = list(organization_with_schema.get_json_schemas())
+        assert len(schemas) == 2
+
+    async def test_delete_version(self, json_schema: JSONSchema) -> None:
+        # GIVEN an organization and a JSONSchema
+        json_schema.store(schema_body={}, version="0.0.1")
+        # THEN that schema should have one version
+        js_versions = list(json_schema.get_versions())
+        assert len(js_versions) == 1
+        # WHEN storing a second version
+        json_schema.store(schema_body={}, version="0.0.2")
+        # THEN that schema should have two versions
+        js_versions = list(json_schema.get_versions())
+        assert len(js_versions) == 2
+        # AND they should be the ones stored
+        versions = [js_version.semantic_version for js_version in js_versions]
+        assert versions == ["0.0.1", "0.0.2"]
+        # WHEN deleting the first schema version
+        json_schema.delete(version="0.0.1")
+        # THEN there should only be one version left
+        js_versions = list(json_schema.get_versions())
+        assert len(js_versions) == 1
+        # AND it should be the second version
+        versions = [js_version.semantic_version for js_version in js_versions]
+        assert versions == ["0.0.2"]
+
     async def test_get_versions(self, json_schema: JSONSchema) -> None:
         # GIVEN an schema that hasn't been created
         # THEN get_versions should return an empty list

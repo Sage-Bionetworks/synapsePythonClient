@@ -638,17 +638,23 @@ class JSONSchemaProtocol(Protocol):
         """
         return self
 
-    def delete(self) -> None:
+    def delete(
+        self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
+    ) -> None:
         """
         Deletes this JSONSchema
 
         Arguments:
+            version: Defaults to None.
+            - If a version is supplied, that version will be deleted.
+            - If no version is supplied the whole schema will be deleted.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Delete this JSONSchema from Synapse
-            &nbsp;
+        Example: Delete from Synapse
+
+            Delete the entire schema
 
             ```python
             from synapseclient.models import JSONSchema
@@ -659,6 +665,19 @@ class JSONSchemaProtocol(Protocol):
 
             js = JSONSchema("my.schema.name", "my.org.name")
             js.delete()
+            ```
+
+            Delete a specific version from Synapse
+
+            ```python
+            from synapseclient.models import JSONSchema
+            from synapseclient import Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            js = JSONSchema("my.schema.name", "my.org.name")
+            js.delete(version="0.0.1")
             ```
         """
         return None
@@ -750,7 +769,7 @@ class JSONSchema(JSONSchemaProtocol):
         id: The ID of the schema
         created_on: The date this schema was created
         created_by: The ID of the user that created this schema
-        uri: The uri of this schema
+        uri: The schema identifier in format: <organization_name>-<schema_name>
     """
 
     name: Optional[str] = None
@@ -772,7 +791,7 @@ class JSONSchema(JSONSchemaProtocol):
     """The ID of the user that created this schema"""
 
     uri: Optional[str] = field(init=False)
-    """The uri of this schema"""
+    """The schema identifier in format: <organization_name>-<schema_name>"""
 
     def __post_init__(self) -> None:
         if self.name:
@@ -883,7 +902,20 @@ class JSONSchema(JSONSchemaProtocol):
                 syn.login()
 
                 schema = JSONSchema(organization_name="my.org", name="test.schema")
-                await schema.store_async(schema_body = {})
+                schema_body = {
+                    {
+                        "properties": {
+                            "Component": {
+                                "description": "TBD",
+                                "not": {
+                                    "type": "null"
+                                },
+                                "title": "Component"
+                            }
+                        }
+                    }
+                }
+                await schema.store_async(schema_body = schema_body)
 
             asyncio.run(store_schema())
             ```
@@ -910,17 +942,24 @@ class JSONSchema(JSONSchemaProtocol):
         self.created_on = new_version_info.created_on
         return self
 
-    async def delete_async(self, synapse_client: Optional["Synapse"] = None) -> None:
+    async def delete_async(
+        self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
+    ) -> None:
         """
-        Deletes this JSONSchema from Synapse
+        If a version is supplied the specific version is deleted from Synapse.
+        Otherwise the entire schema is deleted from Synapse
 
         Arguments:
+            version: Defaults to None.
+            - If a version is supplied, that version will be deleted.
+            - If no version is supplied the whole schema will be deleted.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
         Example: Delete an existing JSONSchema
-            &nbsp;
+
+            Delete the whole schema
 
             ```python
             from synapseclient.models import JSONSchema
@@ -933,7 +972,25 @@ class JSONSchema(JSONSchemaProtocol):
                 syn.login()
 
                 schema = JSONSchema(organization_name="my.org", name="test.schema")
-                await schema.delete_async(schema_body = {})
+                await schema.delete_async()
+
+            asyncio.run(delete_schema())
+            ```
+
+            Delete a specific version of the schema
+
+            ```python
+            from synapseclient.models import JSONSchema
+            from synapseclient import Synapse
+            import asyncio
+
+            async def delete_schema():
+
+                syn = Synapse()
+                syn.login()
+
+                schema = JSONSchema(organization_name="my.org", name="test.schema")
+                await schema.delete_async(version = "0.0.1")
 
             asyncio.run(delete_schema())
             ```
@@ -943,7 +1000,12 @@ class JSONSchema(JSONSchemaProtocol):
         if not self.organization_name:
             raise ValueError("JSONSchema must have a organization_name")
 
-        await delete_json_schema(self.uri, synapse_client=synapse_client)
+        uri = self.uri
+        if version:
+            self._check_semantic_version(version)
+            uri = f"{uri}-{version}"
+
+        await delete_json_schema(uri, synapse_client=synapse_client)
 
     @skip_async_to_sync
     async def get_versions_async(
