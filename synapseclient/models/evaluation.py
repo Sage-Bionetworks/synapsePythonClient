@@ -695,10 +695,10 @@ class Evaluation(EvaluationSynchronousProtocol):
         if not self.id:
             raise ValueError("id must be set to update evaluation ACL")
 
-        access_type = [at.upper() for at in access_type] if access_type else []
-
         # Case 1: Update permissions for specific principal
         if principal_id is not None and access_type is not None:
+            access_type = [at.upper() for at in access_type]
+
             current_acl = await self.get_acl_async(synapse_client=synapse_client)
 
             updated_acl = self._update_acl_permissions(
