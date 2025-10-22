@@ -60,6 +60,10 @@ print("The following ACL has been retrieved from Synapse:")
 print(acl)
 
 # Now let's remove the user we just added from the Evaluation's ACL
+assert (
+    PRINCIPAL_ID is not None
+), "PRINCIPAL_ID must be set to the Synapse user ID or team ID you want to grant permissions to."
+
 evaluation.update_acl(principal_id=PRINCIPAL_ID, access_type=[])
 
 # Finally let's retrieve all Evaluations stored within this project, including the one we just created
