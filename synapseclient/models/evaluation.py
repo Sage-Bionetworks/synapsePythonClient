@@ -90,7 +90,7 @@ class Evaluation(EvaluationSynchronousProtocol):
         evaluation = Evaluation(id="9999999").get()
         acl = evaluation.get_acl()
 
-        # Let's grant this team READ and SUBMIT permissions
+        # Let's grant this team READ and SUBMIT permissions (`access_type` is case-sensitive)
         team_id = "123456"
         evaluation.update_acl(principal_id=team_id, access_type=["READ", "SUBMIT"])
 
@@ -582,7 +582,7 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         To remove a principal from the ACL completely, provide an empty list for access_type.
 
-        The available access types are:
+        The available access types are (case-sensitive):
 
         - 'CREATE'
         - 'SUBMIT'
