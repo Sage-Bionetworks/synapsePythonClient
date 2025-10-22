@@ -8,7 +8,7 @@ This tutorial will walk you through the basics of working with Evaluations using
 In this tutorial you will:
 
 1. Create and update an Evaluation on Synapse
-1. Update the ACL of an Evaluation on Synapse
+1. Update the ACL (Access Control List) of an Evaluation on Synapse
 1. Retrieve and delete all Evaluations from a given Project
 
 ## Prerequisites
