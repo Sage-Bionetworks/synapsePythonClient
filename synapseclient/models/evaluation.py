@@ -62,7 +62,6 @@ class Evaluation(EvaluationSynchronousProtocol):
         created = evaluation.store()
         ```
 
-
     Example: Update an existing evaluation retrieved from Synapse by ID
         &nbsp;
 
@@ -76,6 +75,42 @@ class Evaluation(EvaluationSynchronousProtocol):
         evaluation = Evaluation(id="9999999").get()
         evaluation.description = "Updated description for my evaluation"
         updated = evaluation.store()
+        ```
+
+    Example: Retrieve and update the ACL of an evaluation
+        &nbsp;
+
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        evaluation = Evaluation(id="9999999").get()
+        acl = evaluation.get_acl()
+
+        # Let's grant this team READ and SUBMIT permissions
+        team_id = "123456"
+        evaluation.update_acl(principal_id=team_id, access_type=["READ", "SUBMIT"])
+
+        # Now let's revoke all permissions from this team
+        team_to_revoke_from = "654321"
+        evaluation.update_acl(principal_id=team_to_revoke_from, access_type=[])
+        ```
+
+    Example: Delete an evaluation
+        &nbsp;
+
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        evaluation = Evaluation(id="9999999").get()
+        evaluation.delete()
         ```
     """
 
