@@ -44,11 +44,12 @@ from synapseclient.models import File, Folder, Project
 # trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 tracer = trace.get_tracer("my_tracer")
 
-PARENT_PROJECT = "syn$FILL_ME_IN"
+PARENT_PROJECT = "syn70749126"
 S3_BUCKET = "s3://$FILL_ME_IN"
 S3_PROFILE = "$FILL_ME_IN"
 
 MiB: int = 2**20
+GiB: int = 2**30
 
 
 def create_folder_structure(
@@ -342,6 +343,39 @@ def execute_sync_to_s3(
         )  # nosec
         print(f"\nTime to S3 sync: {perf_counter() - time_before_sync}")
 
+async def upload_multi_files_under_folder(path: str):
+    time_before_uploading_files = perf_counter()
+    # Create a project
+    root_project = Project(id=PARENT_PROJECT)
+    files = []
+    for directory_path, directory_names, file_names in os.walk(path):
+        # Replicate the files on Synapse
+        for filename in file_names:
+            filepath = os.path.join(directory_path, filename)
+            file = File(
+                path=filepath,
+            )
+            files.append(file)
+    
+    # Set the files attribute directly
+    root_project.files = files
+
+    # Store the project with all files
+    stored_project = await root_project.store_async()
+    return stored_project
+
+def execute_file_upload_test(path: str, test_name: str) -> None:
+    """Executes the file upload test.
+
+    :param path: The path to the root directory
+    :param test_name: The name of the test to add to the span name
+    """
+    with tracer.start_as_current_span(f"file_upload__{test_name}"):
+        asyncio.run(upload_multi_files_under_folder(path))
+
+    print(
+            f"\nTime to upload multiple files: {perf_counter() - time_before_uploading_files}"
+        )
 
 def execute_test_suite(
     path: str,
@@ -361,7 +395,7 @@ def execute_test_suite(
     # Cleanup can be changed to delete_local=True when we want to clear the files out
     # This can be kept as False to allow multiple tests with the same file/folder
     # structure to re-use the files on Disk.
-    cleanup(path=path, delete_synapse=True, delete_s3=True, delete_local=False)
+    # cleanup(path=path, delete_synapse=True, delete_s3=True, delete_local=False)
     _, total_files, _ = create_folder_structure(
         path=path,
         depth_of_directory_tree=depth_of_directory_tree,
@@ -370,6 +404,7 @@ def execute_test_suite(
         total_size_of_files_mib=total_size_of_files_mib,
     )
     test_name = f"{total_files}_files_{total_size_of_files_mib}MiB"
+    execute_file_upload_test(path, test_name)
 
     # execute_synapseutils_test(path, test_name)
 
@@ -380,17 +415,17 @@ def execute_test_suite(
     # execute_sync_to_s3(path, test_name)
 
 
-syn = synapseclient.Synapse(debug=False)
+syn = synapseclient.Synapse(debug=False, http_timeout_seconds=700)
 root_path = os.path.expanduser("~/benchmarking")
 # Log-in with ~.synapseConfig `authToken`
 syn.login()
 
-print("25 Files - 25MiB")
-# 25 Files - 25MiB -----------------------------------------------------------------------
+print("1 File - 10GB")
+# 1 Files - 10GB -----------------------------------------------------------------------
 depth = 1
 sub_directories = 1
-files_per_directory = 25
-size_mib = 25
+files_per_directory = 1
+size_mib = 10 * 1024
 
 execute_test_suite(
     path=root_path,
@@ -399,6 +434,21 @@ execute_test_suite(
     num_files_per_directory=files_per_directory,
     total_size_of_files_mib=size_mib,
 )
+
+# print("25 Files - 25MiB")
+# 25 Files - 25MiB -----------------------------------------------------------------------
+# depth = 1
+# sub_directories = 1
+# files_per_directory = 25
+# size_mib = 25
+
+# execute_test_suite(
+#     path=root_path,
+#     depth_of_directory_tree=depth,
+#     num_sub_directories=sub_directories,
+#     num_files_per_directory=files_per_directory,
+#     total_size_of_files_mib=size_mib,
+# )
 
 # print("1 Files - 10MiB")
 # ## 1 Files - 10MiB -----------------------------------------------------------------------
