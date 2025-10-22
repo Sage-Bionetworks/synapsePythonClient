@@ -21,16 +21,16 @@ By the end of this tutorial, you will:
 * You are familiar with [adding annotations](./annotation.md) to synapse entity.
 
 
-## 1. Set Up Synapse Python Client and Retrieve Project
+## 1. Set Up Synapse Python Client
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=1-19}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=1-10}
 ```
 
 ## 2. Take a Look at the Constants and Structure of the JSON Schema
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=21-49}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=13-40}
 ```
 
 Derived annotations allow you to define default values for annotations based on schema rules, ensuring consistency and reducing manual input errors. As you can see here, you could use derived annotations to prescribe default annotation values. Please read more about derived annotations [here](https://help.synapse.org/docs/JSON-Schemas.3107291536.html#JSONSchemas-DerivedAnnotations).
@@ -39,12 +39,12 @@ Derived annotations allow you to define default values for annotations based on 
 ## 3. Try Create Test Organization and JSON Schema if They Do Not Exist
 Next, try creating a test organization and register a schema if they do not already exist:
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=51-65}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=43-59}
 ```
 
 Note: If you update your schema, you can re-register it with the organization by assigning a new version number to reflect the changes. Synapse does not allow re-creating a schema with the same version number, so please ensure that each schema version within an organization is unique:
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=67-99}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=61-93}
 ```
 
 ## 4. Bind the JSON Schema to the Folder
@@ -53,7 +53,7 @@ After creating the organization, you can now bind your json schema to a test fol
 When you bind the schema, you may also include the boolean property `enable_derived_annotations` to have Synapse automatically calculate derived annotations based on the schema:
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=101-108}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=96-108}
 ```
 
 <details class="example">
