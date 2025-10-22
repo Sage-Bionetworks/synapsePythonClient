@@ -90,6 +90,8 @@ except synapseclient.core.exceptions.SynapseHTTPError as e:
     else:
         raise e
 
+schema.store(schema_body=updated_schema, version=NEW_VERSION)
+
 # 4. Bind the JSON schema to the folder
 # Retrieve test project
 PROJECT_ENT = Project(name="My uniquely named project about Alzheimer's Disease").get()
@@ -97,9 +99,8 @@ PROJECT_ENT = Project(name="My uniquely named project about Alzheimer's Disease"
 # Create a test folder for JSON schema experiments
 test_folder = Folder(name="test_folder", parent_id=PROJECT_ENT.id).store()
 
-schema_uri = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
 bound_schema = test_folder.bind_schema(
-    json_schema_uri=schema_uri, enable_derived_annotations=True
+    json_schema_uri=schema.id, enable_derived_annotations=True
 )
 json_schema_version_info = bound_schema.json_schema_version_info
 syn.logger.info("JSON schema was bound successfully. Please see details below:")
