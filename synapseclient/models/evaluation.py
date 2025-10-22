@@ -43,40 +43,75 @@ class Evaluation(EvaluationSynchronousProtocol):
         submission_receipt_message: Message to display to users upon successful submission to this Evaluation.
 
     Example: Create a new evaluation in a project
-    &nbsp;
+        &nbsp;
 
-    ```python
-    from synapseclient.models import Evaluation
-    from synapseclient import Synapse
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
 
-    syn = Synapse()
-    syn.login()
+        syn = Synapse()
+        syn.login()
 
-    evaluation = Evaluation(
-        name="My Challenge Evaluation",
-        description="Evaluation for my data challenge",
-        content_source="syn123456",
-        submission_instructions_message="Submit CSV files only",
-        submission_receipt_message="Thank you for your submission!",
-    )
-    created = evaluation.store()
-    ```
-
+        evaluation = Evaluation(
+            name="My Challenge Evaluation",
+            description="Evaluation for my data challenge",
+            content_source="syn123456",
+            submission_instructions_message="Submit CSV files only",
+            submission_receipt_message="Thank you for your submission!",
+        )
+        created = evaluation.store()
+        ```
 
     Example: Update an existing evaluation retrieved from Synapse by ID
-    &nbsp;
+        &nbsp;
 
-    ```python
-    from synapseclient.models import Evaluation
-    from synapseclient import Synapse
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
 
-    syn = Synapse()
-    syn.login()
+        syn = Synapse()
+        syn.login()
 
-    evaluation = Evaluation(id="9999999").get()
-    evaluation.description = "Updated description for my evaluation"
-    updated = evaluation.store()
-    ```
+        evaluation = Evaluation(id="9999999").get()
+        evaluation.description = "Updated description for my evaluation"
+        updated = evaluation.store()
+        ```
+
+    Example: Retrieve and update the ACL of an evaluation
+        &nbsp;
+
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        evaluation = Evaluation(id="9999999").get()
+        acl = evaluation.get_acl()
+
+        # Let's grant this team READ and SUBMIT permissions
+        team_id = "123456"
+        evaluation.update_acl(principal_id=team_id, access_type=["READ", "SUBMIT"])
+
+        # Now let's revoke all permissions from this team
+        team_to_revoke_from = "654321"
+        evaluation.update_acl(principal_id=team_to_revoke_from, access_type=[])
+        ```
+
+    Example: Delete an evaluation
+        &nbsp;
+
+        ```python
+        from synapseclient.models import Evaluation
+        from synapseclient import Synapse
+
+        syn = Synapse()
+        syn.login()
+
+        evaluation = Evaluation(id="9999999").get()
+        evaluation.delete()
+        ```
     """
 
     id: Optional[str] = None
@@ -662,6 +697,8 @@ class Evaluation(EvaluationSynchronousProtocol):
 
         # Case 1: Update permissions for specific principal
         if principal_id is not None and access_type is not None:
+            access_type = [at.upper() for at in access_type]
+
             current_acl = await self.get_acl_async(synapse_client=synapse_client)
 
             updated_acl = self._update_acl_permissions(
