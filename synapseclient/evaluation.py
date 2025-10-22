@@ -111,23 +111,23 @@ class Evaluation(DictObject):
     (or, really, any synapse ID, but sticking to projects is a good idea).
 
     Example: Create and store an Evaluation (NEW METHOD)
-    &nbsp;
-    ```python
-    from synapseclient import Synapse
-    from synapseclient.models import Evaluation
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Evaluation
 
-    # Create client and login
-    syn = Synapse()
-    syn.login()
+        # Create client and login
+        syn = Synapse()
+        syn.login()
 
-    evaluation = Evaluation(name="My Challenge Evaluation",
-                            description="Description of my challenge evaluation",
-                            content_source="syn12345",
-                            submission_instructions_message="Please submit your entries in the format described here: ...",
-                            submission_receipt_message="Thank you for your submission! Your entry has been received.")
+        evaluation = Evaluation(name="My Challenge Evaluation",
+                                description="Description of my challenge evaluation",
+                                content_source="syn12345",
+                                submission_instructions_message="Please submit your entries in the format described here: ...",
+                                submission_receipt_message="Thank you for your submission! Your entry has been received.")
 
-    evaluation.store()
-    ```
+        evaluation.store()
+        ```
 
     Example: Retrieve an Evaluation multiple ways (DEPRECATED)
         [Evaluations](https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html)
@@ -143,33 +143,33 @@ class Evaluation(DictObject):
             evaluation = syn.getEvaluationByContentSource('syn12345')
 
     Example: Retrieve an Evaluation multiple ways (NEW METHOD)
-    &nbsp;
-    ```python
-    from synapseclient import Synapse
-    from synapseclient.models import Evaluation
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import Evaluation
 
-    # Create client and login
-    syn = Synapse()
-    syn.login()
+        # Create client and login
+        syn = Synapse()
+        syn.login()
 
-    # Retrieve evaluation by ID
-    evaluation = Evaluation(id=9999999).get()
+        # Retrieve evaluation by ID
+        evaluation = Evaluation(id=9999999).get()
 
-    # Retrieve evaluation by name
-    evaluation = Evaluation(name='Foo Challenge Question 1').get()
+        # Retrieve evaluation by name
+        evaluation = Evaluation(name='Foo Challenge Question 1').get()
 
-    # Retrieve all evaluations by content source (associated entity)
-    evaluation = Evaluation.get_evaluations_by_project(id='syn12345')
+        # Retrieve all evaluations by content source (associated entity)
+        evaluation = Evaluation.get_evaluations_by_project(id='syn12345')
 
-    # Retrieve all evaluations the active user can submit to
-    evaluations_generator = Evaluation.get_available_evaluations()
+        # Retrieve all evaluations the active user can submit to
+        evaluations_generator = Evaluation.get_available_evaluations()
 
-    # Retrieve all evaluations the active user has READ/VIEW access to
-    evaluations_generator = Evaluation.get_all_evaluations()
+        # Retrieve all evaluations the active user has READ/VIEW access to
+        evaluations_generator = Evaluation.get_all_evaluations()
 
-    # Retrieve all evaluations the active user has UPDATE/EDIT access to
-    evaluations_generator = Evaluation.get_all_evaluations(access_type='UPDATE')
-    ```
+        # Retrieve all evaluations the active user has UPDATE/EDIT access to
+        evaluations_generator = Evaluation.get_all_evaluations(access_type=['UPDATE'])
+        ```
     """
 
     @classmethod
