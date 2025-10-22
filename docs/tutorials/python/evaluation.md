@@ -12,7 +12,8 @@ In this tutorial you will:
 1. Retrieve and delete all Evaluations from a given Project
 
 ## Prerequisites
-* Make sure that you have completed the [Project](./project.md) tutorial, or have an existing Project on Synapse to work from
+* You have completed the [Project](./project.md) tutorial, or have an existing Project on Synapse to work from
+* You have a Synapse user or team ID to share the evaluation with
 
 ## 1. Create and update an Evaluation on Synapse
 
