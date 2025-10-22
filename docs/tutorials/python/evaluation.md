@@ -50,7 +50,7 @@ Now we will show how you can retrieve lists of Evaluation objects, rather than r
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/file.py!}
+{!docs/tutorials/python/tutorial_scripts/evaluation.py!}
 ```
 </details>
 
