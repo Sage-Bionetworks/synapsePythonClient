@@ -625,15 +625,27 @@ class JSONSchemaProtocol(Protocol):
             &nbsp;
 
             ```python
-            from synapseclient.models import SchemaOrganization
+            from synapseclient.models import JSONSchema
             from synapseclient import Synapse
 
             syn = Synapse()
             syn.login()
 
-            org = SchemaOrganization("my.org.name")
-            org.store()
-            print(org)
+            schema = JSONSchema(organization_name="my.org", name="test.schema")
+            schema_body = {
+                {
+                    "properties": {
+                        "Component": {
+                            "description": "TBD",
+                            "not": {
+                                "type": "null"
+                            },
+                            "title": "Component"
+                        }
+                    }
+                }
+            }
+            schema.store(schema_body = schema_body)
             ```
         """
         return self
