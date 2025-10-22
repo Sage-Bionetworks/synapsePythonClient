@@ -20,7 +20,7 @@ print(f"Working within Project: {project_id}")
 
 # Create a new Evaluation object
 evaluation = Evaluation(
-    name="My Challenge Evaluation - Round 1",
+    name="My Challenge Evaluation: Study ABC - Round 1",
     description="Evaluation for my data challenge",
     content_source=project_id,
     submission_instructions_message="Submit CSV files only",
@@ -35,7 +35,7 @@ print(evaluation.name)
 print(evaluation.description)
 
 # Update the Evaluation object's name and description
-evaluation.name = "My Challenge Evaluation - Round 2"
+evaluation.name = "My Challenge Evaluation: Study XYZ - Round 1"
 evaluation.description = "Updated description for my evaluation"
 
 # Update the Evaluation on Synapse
