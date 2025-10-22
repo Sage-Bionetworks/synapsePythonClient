@@ -44,7 +44,7 @@ Next, try creating a test organization and register a schema if they do not alre
 
 Note: If you update your schema, you can re-register it with the organization by assigning a new version number to reflect the changes. Synapse does not allow re-creating a schema with the same version number, so please ensure that each schema version within an organization is unique:
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=61-93}
+{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=61-94}
 ```
 
 ## 4. Bind the JSON Schema to the Folder

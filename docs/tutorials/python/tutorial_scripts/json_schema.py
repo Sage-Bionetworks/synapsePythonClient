@@ -91,7 +91,7 @@ except synapseclient.core.exceptions.SynapseHTTPError as e:
         raise e
 
 schema.store(schema_body=updated_schema, version=NEW_VERSION)
-
+schema.get_body(version=VERSION)
 # 4. Bind the JSON schema to the folder
 # Retrieve test project
 PROJECT_ENT = Project(name="My uniquely named project about Alzheimer's Disease").get()
