@@ -51,7 +51,7 @@ from_synapse = Evaluation(id=evaluation.id).get()
 print("The following evaluation has been retrieved from Synapse:")
 print(from_synapse)
 
-# Update the Evaluation's ACL on Synapse by adding a new user (`access_type` is case-sensitive)
+# Update the Evaluation's ACL on Synapse by adding a new user
 assert (
     PRINCIPAL_ID is not None
 ), "PRINCIPAL_ID must be set to the Synapse user ID or team ID you want to grant permissions to."
