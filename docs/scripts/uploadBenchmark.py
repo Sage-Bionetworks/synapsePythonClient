@@ -344,7 +344,6 @@ def execute_sync_to_s3(
         print(f"\nTime to S3 sync: {perf_counter() - time_before_sync}")
 
 async def upload_multi_files_under_folder(path: str):
-    time_before_uploading_files = perf_counter()
     # Create a project
     root_project = Project(id=PARENT_PROJECT)
     files = []
@@ -371,6 +370,7 @@ def execute_file_upload_test(path: str, test_name: str) -> None:
     :param test_name: The name of the test to add to the span name
     """
     with tracer.start_as_current_span(f"file_upload__{test_name}"):
+        time_before_uploading_files = perf_counter()
         asyncio.run(upload_multi_files_under_folder(path))
 
     print(
