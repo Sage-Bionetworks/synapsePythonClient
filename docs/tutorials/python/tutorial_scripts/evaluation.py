@@ -13,7 +13,7 @@ syn.login()
 PRINCIPAL_ID = None  # Replace with actual user/team ID
 
 # Retrieve the Project where your Evaluation will be stored
-project = Project(name="test_project_b6a2a3c0-ed60-4127-b34f-414a9a0d8ba1").get()
+project = Project(name="My uniquely named project about Alzheimer's Disease").get()
 project_id = project.id
 
 print(f"Working within Project: {project_id}")
