@@ -38,18 +38,21 @@ from synapseclient.models import File, Folder, Project
 # from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 # from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-# trace.set_tracer_provider(
-#     TracerProvider(resource=Resource(attributes={SERVICE_NAME: "upload_benchmarking"}))
-# )
-# trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+# os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "https://ingest.us.signoz.cloud"
+# os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = "signoz-ingestion-key=<your key>"
+# os.environ["OTEL_SERVICE_INSTANCE_ID"] = "local"
+
+trace.set_tracer_provider(
+    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "upload_benchmarking"}))
+)
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 tracer = trace.get_tracer("my_tracer")
 
-PARENT_PROJECT = "syn70749126"
+PARENT_PROJECT = "syn18342812"
 S3_BUCKET = "s3://$FILL_ME_IN"
 S3_PROFILE = "$FILL_ME_IN"
 
 MiB: int = 2**20
-GiB: int = 2**30
 
 
 def create_folder_structure(
@@ -105,11 +108,21 @@ def create_folder_structure(
     print(f"total_size_of_files_bytes: {total_size_of_files_bytes}")
     print(f"size_of_each_file_bytes: {size_of_each_file_bytes}")
 
+    if total_size_of_files_mib >= 1024 * 5:
+        print(
+            f"total_size_of_files_gib: {total_size_of_files_bytes / (1024 * MiB)}"
+        )
+        # 32 MiB chunks
+        chunk_size = 32 * MiB 
+    else:
+        # 1 MiB chunks
+        chunk_size = MiB  # size of each chunk in bytes
+
     def create_files_in_current_dir(path_to_create_files: str) -> None:
         for i in range(1, num_files_per_directory + 1):
-            chunk_size = MiB  # size of each chunk in bytes
             num_chunks = size_of_each_file_bytes // chunk_size
             filename = os.path.join(path_to_create_files, f"file{i}.txt")
+            # when the file size is right, just modify the beginning to refresh the file
             if (
                 os.path.isfile(filename)
                 and os.path.getsize(filename) == size_of_each_file_bytes
@@ -117,6 +130,7 @@ def create_folder_structure(
                 with open(filename, "r+b") as f:
                     f.seek(0)
                     f.write(os.urandom(chunk_size))
+            # if the file doesn't exist or the size is wrong, create it from scratch
             else:
                 if os.path.isfile(filename):
                     os.remove(filename)
@@ -213,6 +227,7 @@ def execute_synapseutils_test(
             manifestFile=manifest_path,
             sendMessages=False,
         )
+        
         print(
             f"\nTime to sync to Synapse: {perf_counter() - time_before_syncToSynapse}"
         )
@@ -364,7 +379,7 @@ async def upload_multi_files_under_folder(path: str):
     return stored_project
 
 def execute_file_upload_test(path: str, test_name: str) -> None:
-    """Executes the file upload test.
+    """Executes the file upload stress test.
 
     :param path: The path to the root directory
     :param test_name: The name of the test to add to the span name
@@ -403,8 +418,13 @@ def execute_test_suite(
         num_files_per_directory=num_files_per_directory,
         total_size_of_files_mib=total_size_of_files_mib,
     )
-    test_name = f"{total_files}_files_{total_size_of_files_mib}MiB"
-    execute_file_upload_test(path, test_name)
+
+    if total_size_of_files_mib >= 1024:
+        test_name = f"{total_files}_files_{total_size_of_files_mib // 1024}GiB"
+    else:
+        test_name = f"{total_files}_files_{total_size_of_files_mib}MiB"
+
+    # execute_file_upload_test(path, test_name)
 
     # execute_synapseutils_test(path, test_name)
 
@@ -418,22 +438,7 @@ def execute_test_suite(
 syn = synapseclient.Synapse(debug=False, http_timeout_seconds=700)
 root_path = os.path.expanduser("~/benchmarking")
 # Log-in with ~.synapseConfig `authToken`
-syn.login()
-
-print("1 File - 10GB")
-# 1 Files - 10GB -----------------------------------------------------------------------
-depth = 1
-sub_directories = 1
-files_per_directory = 1
-size_mib = 10 * 1024
-
-execute_test_suite(
-    path=root_path,
-    depth_of_directory_tree=depth,
-    num_sub_directories=sub_directories,
-    num_files_per_directory=files_per_directory,
-    total_size_of_files_mib=size_mib,
-)
+syn.login(profile="dev")
 
 # print("25 Files - 25MiB")
 # 25 Files - 25MiB -----------------------------------------------------------------------
@@ -585,3 +590,18 @@ execute_test_suite(
 #     num_files_per_directory=files_per_directory,
 #     total_size_of_files_mib=size_mib,
 # )
+
+print("45 File - 100GB")
+# 45 Files - 100GB -----------------------------------------------------------------------
+depth = 1
+sub_directories = 1
+files_per_directory = 45
+size_mib = 100 * 1024 * 45
+
+execute_test_suite(
+    path=root_path,
+    depth_of_directory_tree=depth,
+    num_sub_directories=sub_directories,
+    num_files_per_directory=files_per_directory,
+    total_size_of_files_mib=size_mib,
+)
