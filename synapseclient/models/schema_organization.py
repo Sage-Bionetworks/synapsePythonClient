@@ -949,7 +949,6 @@ class JSONSchema(JSONSchemaProtocol):
         )
         new_version_info = completed_request.new_version_info
         self.organization_id = new_version_info.organization_id
-        self.id = new_version_info.id
         self.created_by = new_version_info.created_by
         self.created_on = new_version_info.created_on
         return self

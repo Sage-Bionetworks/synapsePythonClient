@@ -219,15 +219,15 @@ class TestJSONSchema:
         assert not json_schema.created_by
         assert not json_schema.created_on
         # WHEN the object is stored
-        # THEN the Synapse metadata is filled out
+        # THEN the Synapse metadata is filled out, minus id (which is not part of the response)
         await json_schema.store_async({}, synapse_client=self.syn)
         assert json_schema.name
         assert json_schema.organization_name
         assert json_schema.uri
         assert json_schema.organization_id
-        assert json_schema.id
         assert json_schema.created_by
         assert json_schema.created_on
+        assert not json_schema.id
         # AND it should be getable by future instances using the same name
         js2 = JSONSchema(json_schema.name, json_schema.organization_name)
         await js2.get_async(synapse_client=self.syn)
