@@ -100,7 +100,7 @@ PROJECT_ENT = Project(name="My uniquely named project about Alzheimer's Disease"
 test_folder = Folder(name="test_folder", parent_id=PROJECT_ENT.id).store()
 
 bound_schema = test_folder.bind_schema(
-    json_schema_uri=schema.id, enable_derived_annotations=True
+    json_schema_uri=schema.uri, enable_derived_annotations=True
 )
 json_schema_version_info = bound_schema.json_schema_version_info
 syn.logger.info("JSON schema was bound successfully. Please see details below:")
