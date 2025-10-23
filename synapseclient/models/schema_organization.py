@@ -1237,7 +1237,7 @@ class JSONSchema(JSONSchemaProtocol):
         """
         if version == "0.0.0":
             raise ValueError("Schema version must start at '0.0.1' or higher")
-        if not re.match("^(\d+)\.(\d+)\.(\d+)$", version):
+        if not re.match(r"^(\d+)\.(\d+)\.(\d+)$", version):
             raise ValueError(
                 (
                     "Schema version must be a semantic version with no letters "
@@ -1328,7 +1328,7 @@ class CreateSchemaRequest(AsynchronousCommunicator):
         Raises:
             ValueError: If the string is not a correct semantic version
         """
-        if not re.match("^(\d+)\.(\d+)\.(\d*)$", version) or version == "0.0.0":
+        if not re.match(r"^(\d+)\.(\d+)\.(\d*)$", version) or version == "0.0.0":
             raise ValueError(
                 (
                     "Schema version must be a semantic version starting at 0.0.1 with no letters "
@@ -1418,7 +1418,7 @@ def _check_name(name: str) -> None:
         raise ValueError(f"The name must not contain 'sagebionetworks' : {name}")
     parts = name.split(".")
     for part in parts:
-        if not re.match("^([A-Za-z])([A-Za-z]|\d|)*$", part):
+        if not re.match(r"^([A-Za-z])([A-Za-z]|\d|)*$", part):
             raise ValueError(
                 (
                     "Name may be separated by periods, "
