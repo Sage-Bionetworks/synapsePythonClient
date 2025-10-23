@@ -6,7 +6,7 @@ at your own risk.
 
 ## API Reference
 
-::: synapseclient.models.SchemaOrganization
+::: synapseclient.models.JSONSchema
     options:
         inherited_members: true
         members:
