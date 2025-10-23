@@ -3,29 +3,21 @@ from pprint import pprint
 
 import synapseclient
 from synapseclient.core.utils import make_bogus_data_file
-from synapseclient.models import File, Folder
+from synapseclient.models import File, Folder, JSONSchema, Project, SchemaOrganization
 
-# 1. Set up Synapse Python client and retrieve project
+# 1. Set up Synapse Python client
 syn = synapseclient.Synapse()
 syn.login()
 
-# Retrieve test project
-PROJECT_ID = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease"
-)
-
-# Create a test folder for JSON schema experiments
-test_folder = Folder(name="clinical_data_folder", parent_id=PROJECT_ID).store()
-
 # 2. Take a look at the constants and structure of the JSON schema
-ORG_NAME = "myUniqueAlzheimersResearchOrgTutorial"
+ORG_NAME = "myUniqueAlzheimersResearchOrgTutorialTest"
 VERSION = "0.0.1"
 NEW_VERSION = "0.0.2"
 
 SCHEMA_NAME = "clinicalObservations"
 
 title = "Alzheimer's Clinical Observation Schema"
-schema = {
+schema_body = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://example.com/schema/alzheimers_observation.json",
     "title": title,
@@ -48,20 +40,23 @@ schema = {
 }
 
 # 3. Try create test organization and json schema if they do not exist
-js = syn.service("json_schema")
-all_orgs = js.list_organizations()
-for org in all_orgs:
-    if org["name"] == ORG_NAME:
-        syn.logger.info(f"Organization {ORG_NAME} already exists.")
-        break
-else:
-    syn.logger.info(f"Creating organization {ORG_NAME}.")
-    js.create_organization(ORG_NAME)
+organization = SchemaOrganization(name=ORG_NAME)
+try:
+    organization.store()
+except Exception as e:
+    organization.get()
 
-my_test_org = js.JsonSchemaOrganization(ORG_NAME)
-test_schema = my_test_org.get_json_schema(SCHEMA_NAME)
-if not test_schema:
-    test_schema = my_test_org.create_json_schema(schema, SCHEMA_NAME, VERSION)
+schemas = list(organization.get_json_schemas())
+for schema in schemas:
+    print(schema)
+
+schema = JSONSchema(name=SCHEMA_NAME, organization_name=ORG_NAME)
+try:
+    schema.get()
+except Exception as e:
+    schema.store(schema_body=schema_body, version=VERSION)
+
+schema.get_body()
 
 # If you want to make an update, you can re-register your schema with the organization:
 updated_schema = {
@@ -86,9 +81,7 @@ updated_schema = {
 }
 
 try:
-    new_test_schema = my_test_org.create_json_schema(
-        updated_schema, SCHEMA_NAME, VERSION
-    )
+    schema.store(schema_body=updated_schema, version=VERSION)
 except synapseclient.core.exceptions.SynapseHTTPError as e:
     if e.response.status_code == 400 and "already exists" in e.response.text:
         syn.logger.warning(
@@ -97,10 +90,17 @@ except synapseclient.core.exceptions.SynapseHTTPError as e:
     else:
         raise e
 
+schema.store(schema_body=updated_schema, version=NEW_VERSION)
+schema.get_body(version=VERSION)
 # 4. Bind the JSON schema to the folder
-schema_uri = ORG_NAME + "-" + SCHEMA_NAME + "-" + VERSION
+# Retrieve test project
+PROJECT_ENT = Project(name="My uniquely named project about Alzheimer's Disease").get()
+
+# Create a test folder for JSON schema experiments
+test_folder = Folder(name="test_folder", parent_id=PROJECT_ENT.id).store()
+
 bound_schema = test_folder.bind_schema(
-    json_schema_uri=schema_uri, enable_derived_annotations=True
+    json_schema_uri=schema.id, enable_derived_annotations=True
 )
 json_schema_version_info = bound_schema.json_schema_version_info
 syn.logger.info("JSON schema was bound successfully. Please see details below:")
