@@ -264,7 +264,7 @@ class EvaluationSynchronousProtocol(Protocol):
             ValueError: If neither (principal_id and access_type) nor acl is provided, or if the ACL object is invalid.
             SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
 
-        Example: Update the ACL for an evaluation
+        Example: Update permissions for a specific principal (user/team)
             &nbsp;
 
             ```python
@@ -274,8 +274,60 @@ class EvaluationSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
+            # Get the evaluation first
             evaluation = Evaluation(id="9999999").get()
-            updated_acl = evaluation.update_acl(principal_id="12345", acl=["READ", "SUBMIT"])
+
+            # Update permissions for user with ID 12345
+            updated_acl = evaluation.update_acl(
+                principal_id="12345",
+                access_type=["READ", "SUBMIT"]
+            )
+            ```
+
+        Example: Remove a principal (user/team) from the ACL
+            &nbsp;
+
+            ```python
+            from synapseclient.models import Evaluation
+            from synapseclient import Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            # Get the evaluation first
+            evaluation = Evaluation(id="9999999").get()
+
+            # Remove user with ID 12345 from the ACL by providing an empty list
+            updated_acl = evaluation.update_acl(
+                principal_id="12345",
+                access_type=[]
+            )
+            ```
+
+        Example: Update the entire ACL manually
+            &nbsp;
+
+            ```python
+            from synapseclient.models import Evaluation
+            from synapseclient import Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            # Get the evaluation first
+            evaluation = Evaluation(id="9999999").get()
+
+            # Get the current ACL
+            acl = evaluation.get_acl()
+
+            # Modify the ACL manually
+            acl["resourceAccess"].append({
+                "principalId": 12345,
+                "accessType": ["READ", "SUBMIT"]
+            })
+
+            # Update with the modified ACL
+            updated_acl = evaluation.update_acl(acl=acl)
             ```
 
         Raises:
