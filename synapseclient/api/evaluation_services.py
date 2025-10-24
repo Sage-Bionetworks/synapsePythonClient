@@ -37,7 +37,7 @@ async def create_or_update_evaluation(
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
-    logger = client.logger if client else logging.getLogger(__name__)
+    logger = client.logger
 
     if request_body.get("id"):
         evaluation_id = request_body.get("id")
