@@ -32,7 +32,6 @@ async def create_or_update_evaluation(
     Raises:
         SynapseHTTPError: If the service rejects the request or an HTTP error occurs.
     """
-    import logging
 
     from synapseclient import Synapse
 
