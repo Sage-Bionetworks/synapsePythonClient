@@ -1,0 +1,1 @@
+::: synapseclient.extensions.curator
