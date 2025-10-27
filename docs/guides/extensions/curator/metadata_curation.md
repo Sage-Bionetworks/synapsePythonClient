@@ -87,6 +87,7 @@ print(f"Created CurationTask: {curation_task.task_id}")
 ```
 
 **What this creates:**
+
 - A RecordSet where metadata is stored as structured records (like a spreadsheet)
 - A CurationTask that guides users through completing the metadata
 - Automatic schema binding for validation
@@ -112,6 +113,7 @@ print(f"Created CurationTask: {task_id}")
 ```
 
 **What this creates:**
+
 - An EntityView that displays all files in the folder
 - A CurationTask for guided metadata entry
 - Automatic schema binding to the folder for validation
