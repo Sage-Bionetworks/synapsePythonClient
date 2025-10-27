@@ -6,9 +6,7 @@ This module provides library functions for creating record-based metadata curati
 in Synapse, including RecordSet creation, CurationTask setup, and Grid view initialization.
 """
 import tempfile
-from typing import Any, Dict, List, Optional, Tuple
-
-import pandas as pd
+from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
 from synapseclient import Synapse
 from synapseclient.models import (
@@ -18,6 +16,8 @@ from synapseclient.models import (
     RecordSet,
 )
 from synapseclient.services.json_schema import JsonSchemaService
+
+DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 
 def extract_property_titles(schema_data: Dict[str, Any]) -> List[str]:
@@ -42,7 +42,7 @@ def extract_property_titles(schema_data: Dict[str, Any]) -> List[str]:
     return titles
 
 
-def create_dataframe_from_titles(titles: List[str]) -> pd.DataFrame:
+def create_dataframe_from_titles(titles: List[str]) -> DATA_FRAME_TYPE:
     """
     Create an empty DataFrame with the extracted titles as column names.
     Args:
@@ -50,6 +50,8 @@ def create_dataframe_from_titles(titles: List[str]) -> pd.DataFrame:
     Returns:
         Empty DataFrame with titles as columns
     """
+    import pandas as pd
+
     if not titles:
         return pd.DataFrame()
 
@@ -57,7 +59,7 @@ def create_dataframe_from_titles(titles: List[str]) -> pd.DataFrame:
     return df
 
 
-def extract_schema_properties_from_dict(schema_data: Dict[str, Any]) -> pd.DataFrame:
+def extract_schema_properties_from_dict(schema_data: Dict[str, Any]) -> DATA_FRAME_TYPE:
     """
     Process a JSON schema dictionary and return a DataFrame with property titles as columns.
     Args:
@@ -72,7 +74,9 @@ def extract_schema_properties_from_dict(schema_data: Dict[str, Any]) -> pd.DataF
     return df
 
 
-def extract_schema_properties_from_web(syn: Synapse, schema_uri: str) -> pd.DataFrame:
+def extract_schema_properties_from_web(
+    syn: Synapse, schema_uri: str
+) -> DATA_FRAME_TYPE:
     """
     Extract schema properties from a web-based JSON schema URI using Synapse.
 
