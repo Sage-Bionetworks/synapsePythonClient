@@ -132,7 +132,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_create_wiki.assert_called_once_with(
             syn=self.mock_syn, entity_view_id="syn87654321", owner_id=self.folder_id
         )
-        mock_get.assert_called_once_with(self.folder_id)
+        mock_get.assert_called_once_with(self.folder_id, synapse_client=self.mock_syn)
 
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
