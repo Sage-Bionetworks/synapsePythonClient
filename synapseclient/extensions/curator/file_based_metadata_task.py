@@ -16,10 +16,11 @@ from synapseclient.models import (  # type: ignore
     EntityView,
     Folder,
     JSONSchema,
+    Project,
     ViewTypeMask,
 )
 from synapseclient.models.curation import CurationTask, FileBasedMetadataTaskProperties
-from synapseclient.operations import get
+from synapseclient.operations import FileOptions, get
 
 TYPE_DICT = {
     "string": ColumnType.STRING,
@@ -52,11 +53,16 @@ def create_json_schema_entity_view(
     Returns:
         The Synapse id of the crated entity view
     """
-    entity = get(synapse_id=synapse_entity_id)
+    entity = get(
+        file_options=FileOptions(download_file=False),
+        synapse_id=synapse_entity_id,
+        synapse_client=syn,
+    )
+    assert isinstance(entity, (Folder, Project))
     jsb = entity.get_schema()
     version_info = jsb.json_schema_version_info
     schema = JSONSchema(version_info.schema_name, version_info.organization_name)
-    body = schema.get_body(version=version_info.semantic_version)
+    body = schema.get_body(version=version_info.semantic_version, synapse_client=syn)
     columns = _create_columns_from_json_schema(body)
     view = EntityView(
         name=entity_view_name,
