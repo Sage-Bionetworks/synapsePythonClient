@@ -173,7 +173,7 @@ def cleanup(
             ["aws", "s3", "rm", S3_BUCKET, "--recursive", "--profile", S3_PROFILE]
         )  # nosec
     if delete_synapse:
-        for child in syn.getChildren(PARENT_PROJECT, includeTypes=["folder"]):
+        for child in syn.getChildren(PARENT_PROJECT, includeTypes=["folder", "file"]):
             syn.delete(child["id"])
         syn.cache.purge(after_date=datetime.datetime(2021, 1, 1))
 
@@ -358,39 +358,62 @@ def execute_sync_to_s3(
         )  # nosec
         print(f"\nTime to S3 sync: {perf_counter() - time_before_sync}")
 
-async def upload_multi_files_under_folder(path: str):
+async def upload_multi_files_under_folder(path: str, total_files: int = 1) -> Project:
     # Create a project
     root_project = Project(id=PARENT_PROJECT)
     files = []
+    i = total_files
     for directory_path, directory_names, file_names in os.walk(path):
         # Replicate the files on Synapse
         for filename in file_names:
+            if i > total_files:
+                break
+            time_before_uploading_files = perf_counter()
             filepath = os.path.join(directory_path, filename)
             file = File(
                 path=filepath,
             )
             files.append(file)
-    
+            print(f"Time to prepare file {filename} for upload")
+            i += 1
+
     # Set the files attribute directly
     root_project.files = files
 
     # Store the project with all files
+    print('About to store the file...')
     stored_project = await root_project.store_async()
     return stored_project
 
-def execute_file_upload_test(path: str, test_name: str) -> None:
+def execute_file_upload_test(path: str, test_name: str, total_files: int) -> None:
     """Executes the file upload stress test.
 
     :param path: The path to the root directory
     :param test_name: The name of the test to add to the span name
     """
     with tracer.start_as_current_span(f"file_upload__{test_name}"):
+        start_time = datetime.datetime.now()
         time_before_uploading_files = perf_counter()
-        asyncio.run(upload_multi_files_under_folder(path))
+        
+        # Write start time to log file
+        log_file_path = os.path.expanduser("~/upload_benchmark_times.log")
+        with open(log_file_path, "a") as log_file:
+            log_file.write(f"Test: {test_name}\n")
+            log_file.write(f"Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        
+        print(f"File upload test started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        asyncio.run(upload_multi_files_under_folder(path, total_files=total_files))
 
-    print(
-            f"\nTime to upload multiple files: {perf_counter() - time_before_uploading_files}"
-        )
+        end_time = datetime.datetime.now()
+        duration = perf_counter() - time_before_uploading_files
+        print(f"Time to upload multiple files: {duration}")
+
+        
+        # Write end time and duration to log file
+        with open(log_file_path, "a") as log_file:
+            log_file.write(f"End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            log_file.write(f"Duration: {duration:.2f} seconds\n")
+            log_file.write("-" * 50 + "\n")
 
 def execute_test_suite(
     path: str,
@@ -410,7 +433,7 @@ def execute_test_suite(
     # Cleanup can be changed to delete_local=True when we want to clear the files out
     # This can be kept as False to allow multiple tests with the same file/folder
     # structure to re-use the files on Disk.
-    # cleanup(path=path, delete_synapse=True, delete_s3=True, delete_local=False)
+    cleanup(path=path, delete_synapse=True, delete_s3=False, delete_local=False)
     _, total_files, _ = create_folder_structure(
         path=path,
         depth_of_directory_tree=depth_of_directory_tree,
@@ -424,7 +447,7 @@ def execute_test_suite(
     else:
         test_name = f"{total_files}_files_{total_size_of_files_mib}MiB"
 
-    # execute_file_upload_test(path, test_name)
+    execute_file_upload_test(path, test_name, total_files)
 
     # execute_synapseutils_test(path, test_name)
 
@@ -435,7 +458,7 @@ def execute_test_suite(
     # execute_sync_to_s3(path, test_name)
 
 
-syn = synapseclient.Synapse(debug=False, http_timeout_seconds=700)
+syn = synapseclient.Synapse(debug=True, http_timeout_seconds=60000000)
 root_path = os.path.expanduser("~/benchmarking")
 # Log-in with ~.synapseConfig `authToken`
 syn.login(profile="dev")
