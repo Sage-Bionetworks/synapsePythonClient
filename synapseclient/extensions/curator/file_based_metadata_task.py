@@ -409,7 +409,6 @@ def create_file_based_metadata_task(
     # The curation_task_name parameter is now required and used directly for the CurationTask.
 
     synapse_client.logger.info("Attempting to get the attached schema.")
-    print("$$$$$$$$$$$$$$$$$")
     try:
         entity = get(folder_id, synapse_client=synapse_client)
         entity.get_schema(synapse_client=synapse_client)
