@@ -163,7 +163,7 @@ class TestGetEvaluation:
         )
 
         # THEN the active evaluations should be retrieved
-        assert active_evaluations is not None
+        assert active_evaluations
 
         # Test 3: Grab evaluations based on a limit
         # WHEN the limit parameter is set
