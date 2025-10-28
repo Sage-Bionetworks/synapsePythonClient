@@ -15,10 +15,11 @@ from synapseclient.models import (  # type: ignore
     ColumnType,
     EntityView,
     Folder,
+    JSONSchema,
     ViewTypeMask,
 )
 from synapseclient.models.curation import CurationTask, FileBasedMetadataTaskProperties
-from synapseclient.services.json_schema import JsonSchemaVersion
+from synapseclient.operations import get
 
 TYPE_DICT = {
     "string": ColumnType.STRING,
@@ -51,16 +52,12 @@ def create_json_schema_entity_view(
     Returns:
         The Synapse id of the crated entity view
     """
-    js_service = syn.service("json_schema")
-    json_schema = js_service.get_json_schema(synapse_entity_id)
-    org = js_service.JsonSchemaOrganization(
-        json_schema["jsonSchemaVersionInfo"]["organizationName"]
-    )
-    schema_version = JsonSchemaVersion.from_response(
-        org,
-        json_schema["jsonSchemaVersionInfo"],
-    )
-    columns = _create_columns_from_json_schema(schema_version.body)
+    entity = get(synapse_id=synapse_entity_id)
+    jsb = entity.get_schema()
+    version_info = jsb.json_schema_version_info
+    schema = JSONSchema(version_info.schema_name, version_info.organization_name)
+    body = schema.get_body(version=version_info.semantic_version)
+    columns = _create_columns_from_json_schema(body)
     view = EntityView(
         name=entity_view_name,
         parent_id=synapse_entity_id,
@@ -405,10 +402,10 @@ def create_file_based_metadata_task(
     # Validate that the folder has an attached JSON schema
     # The curation_task_name parameter is now required and used directly for the CurationTask.
 
-    js = synapse_client.service("json_schema")
     synapse_client.logger.info("Attempting to get the attached schema.")
     try:
-        js.get_json_schema_from_entity(folder_id)
+        entity = get(folder_id)
+        entity.get_schema()
     except Exception as e:
         synapse_client.logger.exception("Error getting the attached schema.")
         raise e
