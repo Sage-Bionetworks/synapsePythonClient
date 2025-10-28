@@ -10,7 +10,7 @@ syn = synapseclient.Synapse()
 syn.login()
 
 # 2. Take a look at the constants and structure of the JSON schema
-ORG_NAME = "myUniqueAlzheimersResearchOrgTutorialTest"
+ORG_NAME = "myUniqueAlzheimersResearchOrgTutorial"
 VERSION = "0.0.1"
 NEW_VERSION = "0.0.2"
 
