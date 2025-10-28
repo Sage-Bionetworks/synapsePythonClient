@@ -21,6 +21,7 @@ By the end of this tutorial, you will:
 * You are familiar with [adding annotations](./annotation.md) to synapse entity.
 
 
+
 ## 1. Set Up Synapse Python Client
 
 ```python
