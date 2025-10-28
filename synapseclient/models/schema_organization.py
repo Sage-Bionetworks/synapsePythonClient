@@ -347,9 +347,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Delete a SchemaOrganization
-
-            Delete using a name
+        Example: Delete a SchemaOrganization using a name
+            &nbsp;
 
             ```python
             from synapseclient.models import SchemaOrganization
@@ -367,7 +366,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             asyncio.run(delete_org())
             ```
 
-            Delete using an id
+        Example: Delete a SchemaOrganization using an id
+            &nbsp;
 
             ```python
             from synapseclient.models import SchemaOrganization
@@ -383,6 +383,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 await org.delete_async()
 
             asyncio.run(delete_org())
+            ```
         """
         if not self.id:
             await self.get_async(synapse_client=synapse_client)
