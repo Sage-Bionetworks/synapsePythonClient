@@ -410,8 +410,8 @@ def create_file_based_metadata_task(
 
     synapse_client.logger.info("Attempting to get the attached schema.")
     try:
-        entity = get(folder_id)
-        entity.get_schema()
+        entity = get(folder_id, synapse_client=synapse_client)
+        entity.get_schema(synapse_client=synapse_client)
     except Exception as e:
         synapse_client.logger.exception("Error getting the attached schema.")
         raise e
