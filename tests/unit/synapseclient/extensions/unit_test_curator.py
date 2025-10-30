@@ -1214,6 +1214,7 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         self.mock_syn = Mock(spec=Synapse)
         self.mock_syn.logger = Mock()
 
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
@@ -1222,6 +1223,7 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         mock_json_schema_cls,
         mock_get,
         mock_entity_view_cls,
+        mock_isinstance,
     ):
         """Test successful creation of JSON schema entity view."""
         # GIVEN a valid synapse entity with a JSON schema
@@ -1249,6 +1251,7 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
             ),
         )
         mock_get.return_value = mock_entity
+        mock_isinstance.return_value = True
 
         mock_json_schema = Mock()
         mock_json_schema.get_body.return_value = {
