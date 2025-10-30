@@ -15,3 +15,4 @@ at your own risk.
         - delete
         - get_versions
         - get_body
+        - from_uri
