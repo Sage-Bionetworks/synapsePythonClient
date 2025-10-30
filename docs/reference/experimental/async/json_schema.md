@@ -15,5 +15,4 @@ at your own risk.
         - delete_async
         - get_versions_async
         - get_body_async
-        - fill_from_dict
         - from_uri
