@@ -27,9 +27,34 @@ from typing import (
     Union,
 )
 
-from dataclasses_json import config, dataclass_json
-from inflection import camelize
-from rdflib import Namespace
+try:
+    from dataclasses_json import config, dataclass_json
+except ImportError:
+    # dataclasses_json is an optional dependency only available with curator extra
+    # Provide dummy implementations to avoid import errors
+    def dataclass_json(cls):
+        """Dummy decorator when dataclasses_json is not installed"""
+        return cls
+
+    def config(**kwargs):
+        """Dummy config function when dataclasses_json is not installed"""
+        return None
+
+
+try:
+    from inflection import camelize
+except ImportError:
+    # inflection is an optional dependency only available with curator extra
+    def camelize(string, uppercase_first_letter=True):
+        """Dummy camelize function when inflection is not installed"""
+        return None
+
+
+try:
+    from rdflib import Namespace
+except ImportError:
+    # rdflib is an optional dependency
+    Namespace = None  # type: ignore
 
 from synapseclient import Synapse
 
@@ -333,7 +358,6 @@ def find_and_convert_ints(
     from pandas import DataFrame
     from pandas.api.types import is_integer
 
-    # pylint: disable=unnecessary-lambda
     large_manifest_cutoff_size = 1000
     # Find integers stored as strings and replace with entries of type np.int64
     if (
@@ -726,7 +750,7 @@ class DataModelCSVParser:
                                                         CSV Header: Value}}}
         """
         # Load the csv data model to DF
-        model_df = load_df(path_to_data_model, data_model=True)
+        model_df = load_df(file_path=path_to_data_model, data_model=True)
 
         # Gather info from the model
         model_dict = self.gather_csv_attributes_relationships(model_df)
@@ -891,9 +915,6 @@ class DataModelJSONLDParser:
               after the fact?
             - Right now, here we are stripping contexts, will need to track them in the future.
         """
-        # pylint:disable=too-many-locals
-        # pylint:disable=too-many-branches
-        # pylint:disable=too-many-nested-blocks
 
         # Retrieve relevant JSONLD keys.
         jsonld_keys_to_extract = ["label", "subClassOf", "id", "displayName"]
@@ -1094,6 +1115,7 @@ def extract_component_validation_rules(
     """
     manifest_component_rule = validation_rules_dict.get(manifest_component)
     all_component_rules = validation_rules_dict.get("all_other_components")
+    validation_rules_list = []
 
     # Capture situation where manifest_component rule is an empty string
     if manifest_component_rule is not None:
@@ -1114,7 +1136,7 @@ def extract_component_validation_rules(
     return validation_rules_list
 
 
-class DataModelGraphExplorer:  # pylint: disable=too-many-public-methods
+class DataModelGraphExplorer:
     """DataModelGraphExplorer"""
 
     def __init__(
@@ -1841,19 +1863,13 @@ class DataModelJsonLD:
 
         # Gather the templates
         base_template = BaseTemplate()
-        self.base_jsonld_template = json.loads(
-            base_template.to_json()  # type: ignore # pylint:disable=no-member
-        )
+        self.base_jsonld_template = json.loads(base_template.to_json())
 
         property_template = PropertyTemplate()
-        self.property_template = json.loads(
-            property_template.to_json()  # type: ignore # pylint:disable=no-member
-        )
+        self.property_template = json.loads(property_template.to_json())
 
         class_template = ClassTemplate()
-        self.class_template = json.loads(
-            class_template.to_json()  # type: ignore # pylint:disable=no-member
-        )
+        self.class_template = json.loads(class_template.to_json())
         self.logger = logger
 
     def get_edges_associated_with_node(
@@ -2328,6 +2344,7 @@ def get_stripped_label(
     """
     if blacklisted_chars is None:
         blacklisted_chars = BLACKLISTED_CHARS
+    stripped_label = None
     if entry_type.lower() == "class":
         stripped_label = [
             get_class_label_from_display_name(str(display_name)).translate(
@@ -2434,6 +2451,7 @@ def get_schema_label(
     Raises:
         Error Logged if entry_type.lower(), is not either 'class' or 'property'
     """
+    label = None
     if entry_type.lower() == "class":
         label = get_class_label_from_display_name(
             display_name=display_name, strict_camel_case=strict_camel_case
@@ -3794,14 +3812,20 @@ class DataModelValidator:  # pylint: disable=too-few-public-methods
         return create_reserve_name_error_messages(reserved_names_found)
 
 
-def export_schema(schema: dict, file_path: str) -> None:
+def export_schema(schema: dict, file_path: str, logger: Logger) -> None:
     """Export schema to given filepath.
     Args:
         schema, dict: JSONLD schema
         filepath, str: path to store the schema
     """
+    file_path = os.path.expanduser(file_path)
+    json_schema_dirname = os.path.dirname(file_path)
+    if json_schema_dirname != "":
+        os.makedirs(json_schema_dirname, exist_ok=True)
     with open(file_path, "w", encoding="utf-8") as json_file:
         json.dump(schema, json_file, sort_keys=True, indent=4, ensure_ascii=False)
+
+    logger.info(f"The Data Model was created and saved to '{file_path}' location.")
 
 
 def parsed_model_as_dataframe(
@@ -3853,8 +3877,11 @@ class JsonSchemaGeneratorDirector:
 
         Args:
             data_model_source (str): Path or URL to the data model JSON-LD file.
-            components (Optional[list[str]]): List of component names. If None, components will be gathered automatically from the data model.
-            output_directory (Optional[str]): Directory where JSON schema files will be saved. Defaults to a subdirectory named 'component_jsonschemas' in the current working directory.
+            components (Optional[list[str]]): List of component names. If None,
+                components will be gathered automatically from the data model.
+            output_directory (Optional[str]): Directory where JSON schema files will be
+                saved. Defaults to a subdirectory named 'component_jsonschemas' in the
+                current working directory.
 
         Attributes Updated:
             self.data_model_source
@@ -3875,19 +3902,24 @@ class JsonSchemaGeneratorDirector:
     def generate_jsonschema(
         self,
         data_model_labels: DisplayLabelType = "class_label",
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], list[str]]:
         """
         Generate JSON schemas for all specified components.
 
         Returns:
-            list[dict[str, Any]]: A list of JSON schema dictionaries, each corresponding to a component.
+            tuple[list[dict[str, Any]], list[str]]: A tuple containing:
+                - A list of JSON schema dictionaries, each corresponding to a component
+                - A list of absolute file paths where the schemas were written
         """
         json_schemas = []
+        file_paths = []
 
         for component in self.components:
-            json_schemas.append(self._generate_jsonschema(component, data_model_labels))
+            schema, file_path = self._generate_jsonschema(component, data_model_labels)
+            json_schemas.append(schema)
+            file_paths.append(file_path)
 
-        return json_schemas
+        return json_schemas, file_paths
 
     def gather_components(
         self,
@@ -3903,7 +3935,8 @@ class JsonSchemaGeneratorDirector:
         # it must be unpacked and the index reset
         attrs = parsed_model_as_dataframe(self.parsed_model)
 
-        # Get a series of boolean values that can be used to identify which attributes (rows) have 'Component' in the DependsOn column
+        # Get a series of boolean values that can be used to identify which attributes
+        # (rows) have 'Component' in the DependsOn column
         string_depends_on = attrs.DependsOn
         string_depends_on = string_depends_on.astype(str)
         depends_on_component = string_depends_on.str.contains("Component")
@@ -3934,7 +3967,7 @@ class JsonSchemaGeneratorDirector:
 
     def _generate_jsonschema(
         self, component: str, data_model_labels: DisplayLabelType
-    ) -> dict[str, Any]:
+    ) -> tuple[dict[str, Any], str]:
         """
         Generate the JSON schema for a single specified component.
 
@@ -3942,7 +3975,9 @@ class JsonSchemaGeneratorDirector:
             component (str): The name of the component for which the JSON schema is to be generated.
 
         Returns:
-            dict[str, Any]: The generated JSON schema dictionary for the specified component.
+            tuple[dict[str, Any], str]: A tuple containing:
+                - The generated JSON schema dictionary for the specified component
+                - The absolute file path where the schema was written
 
         Side Effects:
             Writes the generated JSON schema to a file via the JsonSchemaComponentGenerator.
@@ -3960,69 +3995,7 @@ class JsonSchemaGeneratorDirector:
         generator.get_component_json_schema(data_model_labels=data_model_labels)
         generator.write_json_schema_to_file()
 
-        return generator.component_json_schema
-
-
-class MetadataModel(object):
-    """Metadata model wrapper around schema.org specification graph.
-
-    Provides basic utilities to:
-
-    1) manipulate the metadata model
-    2) generate metadata model views:
-        - generate manifest view of the metadata model
-        - generate validation schema view of the metadata model
-    """
-
-    def __init__(
-        self,
-        inputMModelLocation: str,
-        inputMModelLocationType: str,
-        data_model_labels: str,
-        logger: Logger,
-    ) -> None:
-        """Instantiates a MetadataModel object.
-
-        Args:
-            inputMModelLocation: local path, uri, synapse entity id (e.g. gs://, syn123, /User/x/…); present location
-            inputMModelLocationType: specifier to indicate where the metadata model resource can be found (e.g. 'local' if file/JSON-LD is on local machine)
-        """
-        # extract extension of 'inputMModelLocation'
-        # ensure that it is necessarily pointing to a '.jsonld' file
-
-        self.logger = logger
-        logger.debug(
-            f"Initializing DataModelGraphExplorer object from {inputMModelLocation} schema."
-        )
-
-        # self.inputMModelLocation remains for backwards compatibility
-        self.inputMModelLocation = inputMModelLocation
-        self.path_to_json_ld = inputMModelLocation
-
-        data_model_parser = DataModelParser(
-            path_to_data_model=self.inputMModelLocation, logger=logger
-        )
-        # Parse Model
-        parsed_data_model = data_model_parser.parse_model()
-
-        # Instantiate DataModelGraph
-        data_model_grapher = DataModelGraph(
-            parsed_data_model, data_model_labels, logger
-        )
-
-        # Generate graph
-        self.graph_data_model = data_model_grapher.graph
-
-        self.dmge = DataModelGraphExplorer(self.graph_data_model, logger)
-
-        # check if the type of MModel file is "local"
-        # currently, the application only supports reading from local JSON-LD files
-        if inputMModelLocationType == "local":
-            self.inputMModelLocationType = inputMModelLocationType
-        else:
-            raise ValueError(
-                f"The type '{inputMModelLocationType}' is currently not supported."
-            )
+        return generator.component_json_schema, str(generator.output_path)
 
 
 def filter_unused_inputted_rules(
@@ -5155,56 +5128,11 @@ def export_json(json_doc: Any, file_path: str, indent: Optional[int] = 4) -> Non
         json.dump(json_doc, fle, sort_keys=True, indent=indent, ensure_ascii=False)
 
 
-def _write_data_model(
-    json_schema_dict: dict[str, Any],
-    logger: Logger,
-    schema_path: Optional[str] = None,
-    name: Optional[str] = None,
-    jsonld_path: Optional[str] = None,
-) -> None:
-    """
-    Creates the JSON Schema file
-
-    Arguments:
-        json_schema_dict: The JSON schema in dict form
-        schema_path: Where to save the JSON Schema file
-        jsonld_path:
-          The path to the JSONLD model, used to create the path
-          Used if schema_path is None
-        name:
-          The name of the datatype(source node) the schema is being created for
-          Used if schema_path is None
-    """
-    if schema_path:
-        json_schema_path = schema_path
-    elif name and jsonld_path:
-        json_schema_path = get_json_schema_log_file_path(
-            data_model_path=jsonld_path, source_node=name
-        )
-        json_schema_dirname = os.path.dirname(json_schema_path)
-        if json_schema_dirname != "":
-            os.makedirs(json_schema_dirname, exist_ok=True)
-
-        logger.info(
-            "The JSON schema file can be inspected by setting the following "
-            "nested key in the configuration: (model > location)."
-        )
-    else:
-        raise ValueError(
-            "Either schema_path or both name and jsonld_path must be provided."
-        )
-    export_json(json_doc=json_schema_dict, file_path=json_schema_path, indent=2)
-    logger.info("The JSON schema has been saved at %s", json_schema_path)
-
-
 def create_json_schema(  # pylint: disable=too-many-arguments
     dmge: DataModelGraphExplorer,
     datatype: str,
     schema_name: str,
     logger: Logger,
-    write_schema: bool = True,
-    schema_path: Optional[str] = None,
-    jsonld_path: Optional[str] = None,
     use_property_display_names: bool = True,
     use_valid_value_display_names: bool = True,
 ) -> dict[str, Any]:
@@ -5230,9 +5158,6 @@ def create_json_schema(  # pylint: disable=too-many-arguments
             (as mentioned above).
         schema_name: Name assigned to JSON-LD schema (to uniquely identify it via URI
             when it is hosted on the Internet).
-        write_schema: whether or not to write the schema as a json file
-        schema_path: Where to save the JSON Schema file
-        jsonld_path: Used to name the file if the path isn't supplied
         use_property_display_names: If True, the properties in the JSONSchema
           will be written using node display names
         use_valid_value_display_names: If True, the valid_values in the JSONSchema
@@ -5263,15 +5188,6 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     logger.info("JSON schema successfully created for %s", datatype)
 
     json_schema_dict = json_schema.as_json_schema_dict()
-
-    if write_schema:
-        _write_data_model(
-            json_schema_dict=json_schema_dict,
-            schema_path=schema_path,
-            name=datatype,
-            jsonld_path=jsonld_path,
-            logger=logger,
-        )
 
     return json_schema_dict
 
@@ -5379,12 +5295,6 @@ class JsonSchemaComponentGenerator:
         Raises:
             May raise errors if the component is not found in the data model graph.
         """
-        metadata_model = MetadataModel(
-            inputMModelLocation=self.data_model_source,
-            inputMModelLocationType="local",
-            data_model_labels=data_model_labels,
-            logger=self.logger,
-        )
 
         use_display_names = data_model_labels == "display_label"
 
@@ -5393,7 +5303,6 @@ class JsonSchemaComponentGenerator:
             datatype=self.component,
             logger=self.logger,
             schema_name=self.component + "_validation",
-            jsonld_path=metadata_model.inputMModelLocation,
             use_property_display_names=use_display_names,
         )
         self.component_json_schema = json_schema
@@ -5430,42 +5339,216 @@ def generate_jsonschema(
     output_directory: str,
     data_type: Optional[list[str]],
     data_model_labels: DisplayLabelType,
-    syn: Synapse,
-) -> None:
+    synapse_client: Synapse,
+) -> tuple[list[dict[str, Any]], list[str]]:
     """
-    Command to generate jsonschema files for validation for component(s) of the data model.
+    Generate JSON Schema validation files from a data model with validation rules.
+
+    This function creates JSON Schema files that enforce validation rules defined in your
+    CSV data model. The generated schemas can validate manifests for required fields,
+    data types, valid values (enums), ranges, regex patterns, conditional dependencies,
+    and more.
+
+    **Validation Rules Supported:**
+
+    - **Type validation**: Enforces string, number, integer, or boolean types
+    - **Valid values**: Creates enum constraints from valid values in the data model
+    - **Required fields**: Marks attributes as required (can be component-specific)
+    - **Range validation**: Translates `inRange` rules to min/max constraints
+    - **Pattern matching**: Converts `regex` rules to JSON Schema patterns
+    - **Format validation**: Applies `date` (ISO date) and `url` (URI) format constraints
+    - **Array validation**: Handles `list` rules for array-type properties
+    - **Conditional dependencies**: Creates `if/then` schemas for dependent attributes
+
+    **Component-Based Rules:**
+    Rules can be applied selectively to specific components using the `#Component` syntax
+    in your validation rules. This allows different validation behavior per manifest type.
+
+    Arguments:
+        data_model_source: Path to the data model file (CSV or JSONLD) or URL to the raw
+            JSONLD. Can accept:
+
+            - A CSV file with your data model specification (will be parsed automatically)
+            - A JSONLD file generated from `generate_jsonld()` or equivalent
+            - A URL pointing to a raw JSONLD data model
+        output_directory: Directory path where JSON Schema files will be saved. Each
+            component will generate a separate `<Component>_validation_schema.json` file.
+        data_type: List of specific component names (data types) to generate schemas for.
+            If None, generates schemas for all components in the data model.
+        data_model_labels: Label format for properties in the generated schema:
+
+            - `"class_label"` (default): Uses standard attribute names as property keys
+            - `"display_label"`: Uses display names if valid (no blacklisted characters),
+              otherwise falls back to class labels. Use with caution as display names
+              may contain spaces or special characters.
+        synapse_client: Synapse client instance for logging. Use `Synapse.get_client()`
+            or pass an existing authenticated client.
+
+    Returns:
+        tuple[list[dict[str, Any]], list[str]]: A tuple containing:
+            - A list of JSON schema dictionaries, each corresponding to a component
+            - A list of file paths where the schemas were written
+
+    Example: Using this function to generate JSON Schema files:
+        Generate schemas from a CSV data model:
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.extensions.curator import generate_jsonschema
+
+        syn = Synapse()
+        syn.login()
+
+        schemas, file_paths = generate_jsonschema(
+            data_model_source="path/to/model.csv",
+            output_directory="./schemas",
+            data_type=None,  # All components
+            data_model_labels="class_label",
+            synapse_client=syn
+        )
+        ```
+
+        Generate schemas from a JSONLD data model:
+
+        ```python
+        schemas, file_paths = generate_jsonschema(
+            data_model_source="path/to/model.jsonld",
+            output_directory="./schemas",
+            data_type=None,  # All components
+            data_model_labels="class_label",
+            synapse_client=syn
+        )
+        ```
+
+        Generate schema for specific components:
+
+        ```python
+        schemas, file_paths = generate_jsonschema(
+            data_model_source="https://example.com/model.jsonld",
+            output_directory="./validation_schemas",
+            data_type=["Patient", "Biospecimen"],
+            data_model_labels="class_label",
+            synapse_client=syn
+        )
+        ```
     """
 
-    syn = Synapse.get_client(synapse_client=syn)
+    synapse_client = Synapse.get_client(synapse_client=synapse_client)
 
     generator = JsonSchemaGeneratorDirector(
         data_model_source=data_model_source,
         output_directory=output_directory,
         components=data_type,
-        logger=syn.logger,
+        logger=synapse_client.logger,
     )
 
-    generator.generate_jsonschema(data_model_labels=data_model_labels)
+    schemas, file_paths = generator.generate_jsonschema(
+        data_model_labels=data_model_labels
+    )
+
+    return schemas, file_paths
 
 
-def convert(
+def generate_jsonld(
     schema: Any,
     data_model_labels: DisplayLabelType,
     output_jsonld: Optional[str],
     *,
     synapse_client: Optional[Synapse] = None,
-) -> None:
+) -> dict:
     """
-    Running CLI to convert data model specification in CSV format to
-    data model in JSON-LD format.
+    Convert a CSV data model specification to JSON-LD format with validation and error checking.
 
-    Note: Currently, not configured to build off of base model, so removing --base_schema
-      argument for now
+    This function parses your CSV data model (containing attributes, validation rules,
+    dependencies, and valid values), converts it to a graph-based JSON-LD representation,
+    validates the structure for common errors, and saves the result. The generated JSON-LD
+    file serves as input for `generate_jsonschema()` and other data model operations.
+
+    **Data Model Requirements:**
+
+    Your CSV should include columns defining:
+
+    - **Attribute names**: Property/attribute identifiers
+    - **Display names**: Human-readable labels (optional but recommended)
+    - **Descriptions**: Documentation for each attribute
+    - **Valid values**: Allowed enum values for attributes (comma-separated)
+    - **Validation rules**: Rules like `list`, `regex`, `inRange`, `required`, etc.
+    - **Dependencies**: Relationships between attributes using `dependsOn`
+    - **Required status**: Whether attributes are mandatory
+
+    **Validation Checks Performed:**
+
+    - Ensures all required fields (like `displayName`) are present
+    - Detects cycles in attribute dependencies (which would create invalid schemas)
+    - Checks for blacklisted characters in display names that Synapse doesn't allow
+    - Validates that attribute names don't conflict with reserved system names
+    - Verifies the graph structure is a valid directed acyclic graph (DAG)
+
+    Arguments:
+        schema: Path to your data model CSV file. This file should contain your complete
+            data model specification with all attributes, validation rules, and relationships.
+        data_model_labels: Label format for the JSON-LD output:
+
+            - `"class_label"` (default, recommended): Uses standard attribute names as labels
+            - `"display_label"`: Uses display names as labels if they contain no blacklisted
+              characters (parentheses, periods, spaces, hyphens), otherwise falls back to
+              class labels. Use cautiously as this can affect downstream compatibility.
+        output_jsonld: Path where the JSON-LD file will be saved. If None, saves alongside
+            the input CSV with a `.jsonld` extension (e.g., `model.csv` → `model.jsonld`).
+        synapse_client: Optional Synapse client instance for logging. If None, creates a
+            new client instance. Use `Synapse.get_client()` or pass an authenticated client.
+
+    **Output:**
+
+    The function logs validation errors and warnings to help you fix data model issues
+    before generating JSON schemas. Errors indicate critical problems that must be fixed,
+    while warnings suggest improvements but won't block schema generation.
+
+    Returns:
+        The generated data model as a dictionary in JSON-LD format. The same data is
+            also saved to the file path specified in `output_jsonld`.
+
+
+    Example: Using this function to generate JSONLD Schema files:
+        Basic usage with default output path:
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.extensions.curator import generate_jsonld
+
+        syn = Synapse()
+        syn.login()
+
+        jsonld_model = generate_jsonld(
+            schema="path/to/my_data_model.csv",
+            data_model_labels="class_label",
+            output_jsonld=None,  # Saves to my_data_model.jsonld
+            synapse_client=syn
+        )
+        ```
+
+        Specify custom output path:
+
+        ```python
+        jsonld_model = generate_jsonld(
+            schema="models/patient_model.csv",
+            data_model_labels="class_label",
+            output_jsonld="~/output/patient_model_v1.jsonld",
+            synapse_client=syn
+        )
+        ```
+
+        Use display labels:
+        ```python
+        jsonld_model = generate_jsonld(
+            schema="my_model.csv",
+            data_model_labels="display_label",
+            output_jsonld="my_model.jsonld",
+            synapse_client=syn
+        )
+        ```
     """
     syn = Synapse.get_client(synapse_client=synapse_client)
-    # pylint: disable=too-many-locals
-    # pylint: disable=redefined-outer-name
-    # pylint: disable=too-many-branches
 
     # Instantiate Parser
     data_model_parser = DataModelParser(path_to_data_model=schema, logger=syn.logger)
@@ -5528,14 +5611,14 @@ def convert(
 
     # saving updated schema.org schema
     try:
-        export_schema(jsonld_data_model, output_jsonld)
-        syn.logger.info(
-            f"The Data Model was created and saved to '{output_jsonld}' location."
+        export_schema(
+            schema=jsonld_data_model, file_path=output_jsonld, logger=syn.logger
         )
-    except Exception:  # pylint: disable=bare-except
+    except Exception:
         syn.logger.exception(
             (
                 f"The Data Model could not be created by using '{output_jsonld}' location. "
                 "Please check your file path again"
             )
         )
+    return jsonld_data_model
