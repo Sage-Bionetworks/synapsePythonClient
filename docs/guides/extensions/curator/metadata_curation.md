@@ -42,7 +42,7 @@ Before creating a curation task, identify which JSON schema matches your data ty
 # Find the latest schema for your specific data type
 schema_uri = query_schema_registry(
     synapse_client=syn,
-    dcc="ad",  # Your data coordination center
+    dcc="ad",  # Your data coordination center, check out the `syn69735275` table if you do not know your code
     datatype="IndividualAnimalMetadataTemplate"  # Your specific data type
 )
 

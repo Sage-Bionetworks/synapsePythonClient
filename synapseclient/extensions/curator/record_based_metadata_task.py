@@ -12,10 +12,10 @@ from synapseclient import Synapse
 from synapseclient.models import (
     CurationTask,
     Grid,
+    JSONSchema,
     RecordBasedMetadataTaskProperties,
     RecordSet,
 )
-from synapseclient.services.json_schema import JsonSchemaService
 
 DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
@@ -91,22 +91,10 @@ def extract_schema_properties_from_web(
         DataFrame with property titles from the schema as column names
 
     """
-    try:
-        org_name, schema_name, _ = schema_uri.split("-")
-    except ValueError as e:
-        raise ValueError(
-            f"Invalid schema URI format: {schema_uri}. Expected format 'org-name-schema.name.schema-version'."
-        ) from e
-
-    js = JsonSchemaService(synapse=syn)
-    schemas_list = js.list_json_schemas(organization_name=org_name)
-    if not any(schema_name == s["schemaName"] for s in schemas_list):
-        raise ValueError(
-            f"Schema URI '{schema_uri}' not found in Synapse JSON schemas."
-        )
-
-    schema = js.get_json_schema_body(json_schema_uri=schema_uri)
-    return extract_schema_properties_from_dict(schema_data=schema)
+    schema = JSONSchema.from_uri(schema_uri)
+    schema.get(synapse_client=syn)
+    body = schema.get_body(synapse_client=syn)
+    return extract_schema_properties_from_dict(schema_data=body)
 
 
 def create_record_based_metadata_task(
