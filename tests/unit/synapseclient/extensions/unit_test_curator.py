@@ -42,6 +42,8 @@ from synapseclient.extensions.curator.schema_registry import (
     get_latest_schema_uri,
 )
 from synapseclient.models import ColumnType
+from synapseclient.models.mixins import JSONSchemaBinding
+from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
 
 class TestCreateFileBasedMetadataTask(unittest.TestCase):
@@ -72,8 +74,10 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
     )
     @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.CurationTask")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
     def test_create_file_based_metadata_task_success_with_schema(
         self,
+        mock_get,
         mock_curation_task_cls,
         mock_folder_cls,
         mock_create_wiki,
@@ -94,9 +98,6 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_project.concreteType = "org.sagebionetworks.repo.model.Project"
         mock_project.id = "syn22222222"
         self.mock_syn.get.return_value = mock_project
-
-        mock_js_service = Mock()
-        self.mock_syn.service.return_value = mock_js_service
 
         mock_task = Mock()
         mock_task.task_id = "task123"
@@ -131,9 +132,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_create_wiki.assert_called_once_with(
             syn=self.mock_syn, entity_view_id="syn87654321", owner_id=self.folder_id
         )
-        mock_js_service.get_json_schema_from_entity.assert_called_once_with(
-            self.folder_id
-        )
+        mock_get.assert_called_once_with(self.folder_id, synapse_client=self.mock_syn)
 
     @patch(
         "synapseclient.extensions.curator.file_based_metadata_task.Synapse.get_client"
@@ -164,9 +163,6 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_project.concreteType = "org.sagebionetworks.repo.model.Project"
         mock_project.id = "syn22222222"
         self.mock_syn.get.return_value = mock_project
-
-        mock_js_service = Mock()
-        self.mock_syn.service.return_value = mock_js_service
 
         mock_task = Mock()
         mock_task.task_id = "task123"
@@ -343,8 +339,9 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         "synapseclient.extensions.curator.file_based_metadata_task.create_json_schema_entity_view"
     )
     @patch("synapseclient.extensions.curator.file_based_metadata_task.Folder")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
     def test_create_file_based_metadata_task_schema_retrieval_error(
-        self, mock_folder_cls, mock_create_entity_view, mock_get_client
+        self, mock_folder_cls, mock_create_entity_view, mock_get_client, mock_get
     ):
         """Test error handling during schema retrieval."""
         mock_get_client.return_value = self.mock_syn
@@ -354,11 +351,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_folder_cls.return_value = mock_folder
         mock_folder.get.return_value = mock_folder
 
-        mock_js_service = Mock()
-        mock_js_service.get_json_schema_from_entity.side_effect = Exception(
-            "Schema retrieval failed"
-        )
-        self.mock_syn.service.return_value = mock_js_service
+        mock_get.side_effect = Exception("Schema retrieval failed")
 
         with pytest.raises(Exception, match="Schema retrieval failed"):
             create_file_based_metadata_task(
@@ -399,9 +392,6 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
         mock_project.id = "syn22222222"
 
         self.mock_syn.get.side_effect = [mock_parent_folder, mock_project]
-
-        mock_js_service = Mock()
-        self.mock_syn.service.return_value = mock_js_service
 
         mock_task = Mock()
         mock_task.task_id = "task123"
@@ -1193,74 +1183,27 @@ class TestRecordBasedHelperFunctions(unittest.TestCase):
         expected_columns = ["specimenID", "age"]
         self.assertEqual(list(result.columns), expected_columns)
 
-    @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.JsonSchemaService"
-    )
-    def test_extract_schema_properties_from_web_success(self, mock_js_service_cls):
+    @patch("synapseclient.extensions.curator.record_based_metadata_task.JSONSchema")
+    def test_extract_schema_properties_from_web_success(self, mock_schema_cls):
         """Test successful schema property extraction from web."""
         mock_syn = Mock(spec=Synapse)
         schema_uri = "org-schema.name.schema-1.0.0"
 
-        mock_js_service = Mock()
-        mock_js_service.list_json_schemas.return_value = [
-            {"schemaName": "schema.name.schema"}
-        ]
-        mock_js_service.get_json_schema_body.return_value = {
+        mock_body = {
             "properties": {"specimenID": {"type": "string"}, "age": {"type": "integer"}}
         }
-        mock_js_service_cls.return_value = mock_js_service
+        mock_schema = Mock()
+        mock_schema.get_body.return_value = mock_body
+        mock_schema_cls.get.return_value = mock_schema
+        mock_schema_cls.from_uri.return_value = mock_schema
 
         result = extract_schema_properties_from_web(mock_syn, schema_uri)
 
         self.assertIsInstance(result, pd.DataFrame)
         expected_columns = ["specimenID", "age"]
         self.assertEqual(list(result.columns), expected_columns)
-        mock_js_service.list_json_schemas.assert_called_once_with(
-            organization_name="org"
-        )
-        mock_js_service.get_json_schema_body.assert_called_once_with(
-            json_schema_uri=schema_uri
-        )
-
-    @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.JsonSchemaService"
-    )
-    def test_extract_schema_properties_from_web_invalid_uri_format(
-        self, mock_js_service_cls
-    ):
-        """Test error handling for invalid schema URI format."""
-        # GIVEN an invalid schema URI that doesn't follow the expected format
-        mock_syn = Mock(spec=Synapse)
-        invalid_uri = "invalid-uri"  # Only 2 parts when split on "-"
-
-        # WHEN I extract schema properties from the invalid URI
-        # THEN it should raise a ValueError about invalid format
-        with pytest.raises(ValueError, match="Invalid schema URI format"):
-            extract_schema_properties_from_web(mock_syn, invalid_uri)
-
-    @patch(
-        "synapseclient.extensions.curator.record_based_metadata_task.JsonSchemaService"
-    )
-    def test_extract_schema_properties_from_web_schema_not_found(
-        self, mock_js_service_cls
-    ):
-        """Test error handling when schema is not found."""
-        # GIVEN a valid URI format but a schema that doesn't exist
-        mock_syn = Mock(spec=Synapse)
-        schema_uri = "org-nonexistent.schema-1.0.0"
-
-        mock_js_service = Mock()
-        mock_js_service.list_json_schemas.return_value = [
-            {"schemaName": "different.schema"}
-        ]
-        mock_js_service_cls.return_value = mock_js_service
-
-        # WHEN I extract schema properties from a non-existent schema
-        # THEN it should raise a ValueError about schema not found
-        with pytest.raises(
-            ValueError, match="Schema URI 'org-nonexistent.schema-1.0.0' not found"
-        ):
-            extract_schema_properties_from_web(mock_syn, schema_uri)
+        mock_schema.get.assert_called_once()
+        mock_schema.get_body.assert_called_once()
 
 
 class TestFileBasedHelperFunctions(unittest.TestCase):
@@ -1271,34 +1214,50 @@ class TestFileBasedHelperFunctions(unittest.TestCase):
         self.mock_syn = Mock(spec=Synapse)
         self.mock_syn.logger = Mock()
 
-    @patch(
-        "synapseclient.extensions.curator.file_based_metadata_task.JsonSchemaVersion"
-    )
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.isinstance")
     @patch("synapseclient.extensions.curator.file_based_metadata_task.EntityView")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.get")
+    @patch("synapseclient.extensions.curator.file_based_metadata_task.JSONSchema")
     def test_create_json_schema_entity_view_success(
-        self, mock_entity_view_cls, mock_schema_version_cls
+        self,
+        mock_json_schema_cls,
+        mock_get,
+        mock_entity_view_cls,
+        mock_isinstance,
     ):
         """Test successful creation of JSON schema entity view."""
         # GIVEN a valid synapse entity with a JSON schema
         entity_id = "syn12345678"
         entity_view_name = "Test View"
 
-        mock_js_service = Mock()
-        mock_json_schema = {
-            "jsonSchemaVersionInfo": {
-                "organizationName": "sage.schemas",
-                "$id": "sage.schemas.test-1.0.0",
-            }
-        }
-        mock_js_service.get_json_schema.return_value = mock_json_schema
-        mock_js_service.JsonSchemaOrganization.return_value = Mock()
-        self.mock_syn.service.return_value = mock_js_service
+        mock_entity = Mock()
+        mock_entity.get_schema.return_value = JSONSchemaBinding(
+            object_id=1,
+            object_type="",
+            created_on="",
+            created_by="",
+            enable_derived_annotations=True,
+            json_schema_version_info=JSONSchemaVersionInfo(
+                organization_id="",
+                organization_name="org.name",
+                schema_id="",
+                id="",
+                schema_name="schema.name",
+                version_id="",
+                semantic_version="0.0.1",
+                json_sha256_hex="",
+                created_on="",
+                created_by="",
+            ),
+        )
+        mock_get.return_value = mock_entity
+        mock_isinstance.return_value = True
 
-        mock_schema_version = Mock()
-        mock_schema_version.body = {
+        mock_json_schema = Mock()
+        mock_json_schema.get_body.return_value = {
             "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}
         }
-        mock_schema_version_cls.from_response.return_value = mock_schema_version
+        mock_json_schema_cls.return_value = mock_json_schema
 
         mock_view = Mock()
         mock_view.id = "syn87654321"
