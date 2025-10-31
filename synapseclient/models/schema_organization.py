@@ -229,6 +229,12 @@ class SchemaOrganizationProtocol(Protocol):
 class SchemaOrganization(SchemaOrganizationProtocol):
     """
     Represents an [Organization](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html).
+
+    Attributes:
+        name: The name of the organization
+        id: The ID of the organization
+        created_on: The date this organization was created
+        created_by: The ID of the user that created this organization
     """
 
     name: Optional[str] = None
@@ -347,9 +353,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor
 
-        Example: Delete a SchemaOrganization
-
-            Delete using a name
+        Example: Delete a SchemaOrganization using a name
+            &nbsp;
 
             ```python
             from synapseclient.models import SchemaOrganization
@@ -367,7 +372,8 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             asyncio.run(delete_org())
             ```
 
-            Delete using an id
+        Example: Delete a SchemaOrganization using an id
+            &nbsp;
 
             ```python
             from synapseclient.models import SchemaOrganization
@@ -383,6 +389,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
                 await org.delete_async()
 
             asyncio.run(delete_org())
+            ```
         """
         if not self.id:
             await self.get_async(synapse_client=synapse_client)
@@ -771,8 +778,7 @@ class JSONSchemaProtocol(Protocol):
 @async_to_sync
 class JSONSchema(JSONSchemaProtocol):
     """
-    Represents a:
-      [JSON Schema](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaInfo.html)
+    Represents a [JSON Schema](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaInfo.html)
 
     Attributes:
         name: The name of the schema
@@ -949,7 +955,6 @@ class JSONSchema(JSONSchemaProtocol):
         )
         new_version_info = completed_request.new_version_info
         self.organization_id = new_version_info.organization_id
-        self.id = new_version_info.id
         self.created_by = new_version_info.created_by
         self.created_on = new_version_info.created_on
         return self

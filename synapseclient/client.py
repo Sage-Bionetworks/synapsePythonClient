@@ -1627,7 +1627,10 @@ class Synapse(object):
         "json_schema": "JsonSchemaService",
     }
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1583
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0.",
+    )
     def get_available_services(self) -> typing.List[str]:
         """Get available Synapse services
         This is a beta feature and is subject to change
@@ -1638,7 +1641,10 @@ class Synapse(object):
         services = self._services.keys()
         return list(services)
 
-    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1583
+    @deprecated(
+        version="4.11.0",
+        reason="To be removed in 5.0.0.",
+    )
     def service(self, service_name: str):
         """Get available Synapse services
         This is a beta feature and is subject to change
