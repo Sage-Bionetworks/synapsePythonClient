@@ -56,6 +56,8 @@ nav:
       # - Using Entity Views: guides/views.md
       - Data Storage: guides/data_storage.md
       - Access the REST API: guides/accessing_the_rest_api.md
+      - Extensions:
+          - Curator: guides/extensions/curator/metadata_curation.md
       # - Expermental Features:
       #     - Validating Annotations: guides/validate_annotations.md
   - API Reference:
@@ -100,6 +102,8 @@ nav:
           - Curator: reference/experimental/sync/curator.md
           - Link: reference/experimental/sync/link_entity.md
           - Functional Interfaces: reference/experimental/functional_interfaces.md
+          - Extensions:
+              - Curator: reference/extensions/curator.md
           - Asynchronous:
               - Factory Operations: reference/experimental/async/factory_operations.md
               - Agent: reference/experimental/async/agent.md
