@@ -12,7 +12,7 @@ syn.login()
 # 2. Take a look at the constants and structure of the JSON schema
 # Replace your own project name here
 PROJECT_ENT = Project(name="My uniquely named project about Alzheimer's Disease").get()
-
+# Replace your own json schema organization name here
 ORG_NAME = "myUniqueAlzheimersResearchOrgTutorial"
 VERSION = "0.0.1"
 NEW_VERSION = "0.0.2"
