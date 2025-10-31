@@ -10,6 +10,9 @@ syn = synapseclient.Synapse()
 syn.login()
 
 # 2. Take a look at the constants and structure of the JSON schema
+# Replace your own project name here
+PROJECT_ENT = Project(name="My uniquely named project about Alzheimer's Disease").get()
+
 ORG_NAME = "myUniqueAlzheimersResearchOrgTutorial"
 VERSION = "0.0.1"
 NEW_VERSION = "0.0.2"
@@ -93,8 +96,6 @@ except synapseclient.core.exceptions.SynapseHTTPError as e:
 schema.store(schema_body=updated_schema, version=NEW_VERSION)
 schema.get_body(version=VERSION)
 # 4. Bind the JSON schema to the folder
-# Retrieve test project
-PROJECT_ENT = Project(name="My uniquely named project about Alzheimer's Disease").get()
 
 # Create a test folder for JSON schema experiments
 test_folder = Folder(name="test_folder", parent_id=PROJECT_ENT.id).store()
