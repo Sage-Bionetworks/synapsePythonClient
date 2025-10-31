@@ -15,6 +15,7 @@ from synapseclient.models.curation import (
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.entityview import EntityView, ViewTypeMask
+from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
 from synapseclient.models.link import Link
@@ -62,6 +63,7 @@ __all__ = [
     "Activity",
     "UsedURL",
     "UsedEntity",
+    "Evaluation",
     "FailureStrategy",
     "File",
     "FileHandle",
