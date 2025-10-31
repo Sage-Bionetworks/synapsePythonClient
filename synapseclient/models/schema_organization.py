@@ -229,6 +229,12 @@ class SchemaOrganizationProtocol(Protocol):
 class SchemaOrganization(SchemaOrganizationProtocol):
     """
     Represents an [Organization](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/Organization.html).
+
+    Attributes:
+        name: The name of the organization
+        id: The ID of the organization
+        created_on: The date this organization was created
+        created_by: The ID of the user that created this organization
     """
 
     name: Optional[str] = None
@@ -772,8 +778,7 @@ class JSONSchemaProtocol(Protocol):
 @async_to_sync
 class JSONSchema(JSONSchemaProtocol):
     """
-    Represents a:
-      [JSON Schema](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaInfo.html)
+    Represents a [JSON Schema](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchemaInfo.html)
 
     Attributes:
         name: The name of the schema
