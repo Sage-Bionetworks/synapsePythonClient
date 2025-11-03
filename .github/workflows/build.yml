@@ -125,12 +125,21 @@ jobs:
             echo "synapse_pat_available=true" >> $GITHUB_OUTPUT;
           fi
 
+      - name: Download Failed Tests from Previous Attempt
+        if: ${{ github.run_attempt > 1 && (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
+        uses: actions/download-artifact@v4
+        with:
+          name: failed-tests-${{ matrix.os }}-${{ matrix.python }}-attempt-${{ github.run_attempt - 1 }}
+        continue-on-error: true
+
       # run integration tests iff the decryption keys for the test configuration are available.
       # they will not be available in pull requests from forks.
       # run integration tests on the oldest and newest supported versions of python.
       # we don't run on the entire matrix to avoid a 3xN set of concurrent tests against
       # the target server where N is the number of supported python versions.
       - name: run-integration-tests
+        id: integration_tests
+        continue-on-error: true
         shell: bash
 
         # keep versions consistent with the first and last from the strategy matrix
@@ -204,11 +213,58 @@ jobs:
             echo "Running integration tests for Max Python version (3.13) - ignoring synchronous tests"
           fi
 
-          # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration -n 8 $IGNORE_FLAGS --dist loadscope
+          # Check if we should run only failed tests from previous attempt
+          if [[ -f failed_tests.txt && -s failed_tests.txt ]]; then
+            echo "::notice::Retry attempt ${{ github.run_attempt }} detected - running only previously failed tests"
+            cat failed_tests.txt
 
-          # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+            # Run only the failed tests
+            pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
+              --junit-xml=test-results.xml \
+              -n 8 --dist loadscope \
+              $(cat failed_tests.txt | tr '\n' ' ')
+          else
+            echo "::notice::First attempt or no previous failures - running full integration test suite"
+
+            # use loadscope to avoid issues running tests concurrently that share scoped fixtures
+            pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
+              --junit-xml=test-results.xml \
+              tests/integration -n 8 $IGNORE_FLAGS --dist loadscope
+
+            # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
+            pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
+              --junit-xml=test-results.xml \
+              tests/integration/synapseclient/test_command_line_client.py
+          fi
+
+      - name: Extract Failed Tests
+        if: failure() && steps.integration_tests.outcome == 'failure'
+        shell: bash
+        run: |
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('test-results.xml')
+          root = tree.getroot()
+          failed = []
+          for testcase in root.iter('testcase'):
+              if testcase.find('failure') is not None or testcase.find('error') is not None:
+                  classname = testcase.get('classname')
+                  name = testcase.get('name')
+                  failed.append(f'{classname}::{name}')
+          with open('failed_tests.txt', 'w') as f:
+              f.write('\n'.join(failed))
+          print(f'Found {len(failed)} failed tests')
+          print(f'Current attempt: ${{ github.run_attempt }}')
+          "
+
+      - name: Upload Failed Tests for Next Attempt
+        if: failure() && steps.integration_tests.outcome == 'failure' && github.run_attempt < 3
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-tests-${{ matrix.os }}-${{ matrix.python }}-attempt-${{ github.run_attempt }}
+          path: failed_tests.txt
+          retention-days: 2
+
       - name: Upload coverage report
         id: upload_coverage_report
         uses: actions/upload-artifact@v4
