@@ -129,7 +129,7 @@ jobs:
         if: ${{ github.run_attempt > 1 && (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
         uses: actions/download-artifact@v4
         with:
-          name: failed-tests-${{ matrix.os }}-${{ matrix.python }}-attempt-${{ github.run_attempt - 1 }}
+          name: failed-tests-${{ matrix.os }}-${{ matrix.python }}
         continue-on-error: true
 
       # run integration tests iff the decryption keys for the test configuration are available.
@@ -261,9 +261,10 @@ jobs:
         if: failure() && steps.integration_tests.outcome == 'failure' && github.run_attempt < 3
         uses: actions/upload-artifact@v4
         with:
-          name: failed-tests-${{ matrix.os }}-${{ matrix.python }}-attempt-${{ github.run_attempt }}
+          name: failed-tests-${{ matrix.os }}-${{ matrix.python }}
           path: failed_tests.txt
           retention-days: 2
+          overwrite: true
 
       - name: Upload coverage report
         id: upload_coverage_report
