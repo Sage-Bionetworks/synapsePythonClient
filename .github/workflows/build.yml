@@ -232,9 +232,7 @@ jobs:
           fi
 
           # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
-            --junit-xml=test-results.xml \
-            tests/integration/synapseclient/test_command_line_client.py
+          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
 
       - name: Extract Failed Tests
         if: always() && steps.integration_tests.outcome == 'failure'
