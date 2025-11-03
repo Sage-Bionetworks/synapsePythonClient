@@ -12,23 +12,29 @@ The curator extension is designed around three core principles:
 
 ## Module Structure
 
-The curator extension consists of three focused modules:
+The curator extension consists of four focused modules:
 
 ```
 synapseclient/extensions/curator/
 ├── __init__.py                      # Clean public API surface
 ├── file_based_metadata_task.py      # File-annotation workflows
 ├── record_based_metadata_task.py    # Structured record workflows
-└── schema_registry.py               # Schema discovery and validation
+├── schema_registry.py               # Schema discovery and validation
+└── schema_generation.py             # Data model and JSON Schema generation
 ```
 
 ## Public API Design
 
-The module exposes three main functions that follow consistent design patterns:
+The module exposes five main functions that follow consistent design patterns:
 
+**Metadata Curation Workflows:**
 - **`create_file_based_metadata_task()`** - Configurable file-annotation curation workflows
 - **`create_record_based_metadata_task()`** - Configurable structured-record curation workflows
 - **`query_schema_registry()`** - Flexible schema discovery with custom filtering
+
+**Data Model and Schema Generation:**
+- **`generate_jsonld()`** - Convert CSV data models to JSON-LD format with validation
+- **`generate_jsonschema()`** - Generate JSON Schema validation files from data models
 
 ## Configuration and Flexibility
 
@@ -166,6 +172,56 @@ The module provides composable building blocks that can be combined to create so
 - Column name mapping via `SchemaRegistryColumnConfig`
 - Version filtering (latest-only or all versions)
 - Dynamic filter construction using keyword arguments
+
+### Data Model and Schema Generation
+
+**Purpose**: Create and validate data models, then generate JSON Schema validation files.
+
+The schema generation workflow consists of two key functions that work together:
+
+#### JSON-LD Data Model Generation (`generate_jsonld`)
+
+Converts CSV-based data model specifications into standardized JSON-LD format with comprehensive validation:
+
+**Input Requirements**:
+- CSV file with attributes, validation rules, dependencies, and valid values
+- Columns defining display names, descriptions, requirements, and relationships
+
+**Validation Performed**:
+- Required field presence checks
+- Dependency cycle detection (ensures valid DAG structure)
+- Blacklisted character detection in display names
+- Reserved name conflict checking
+- Graph structure validation
+
+**Configuration Levers**:
+- Label format selection (`class_label` vs `display_label`)
+- Custom output path or automatic naming
+- Comprehensive error and warning logging
+
+**Output**: JSON-LD file suitable for schema generation and other data model operations
+
+#### JSON Schema Generation (`generate_jsonschema`)
+
+Generates JSON Schema validation files from JSON-LD data models, translating validation rules into schema constraints:
+
+**Supported Validation Rules**:
+- Type validation (string, number, integer, boolean)
+- Enum constraints from valid values
+- Required field enforcement (including component-specific requirements)
+- Range constraints (`inRange` → min/max)
+- Pattern matching (`regex` → JSON Schema patterns)
+- Format validation (`date`, `url`)
+- Array handling (`list` rules)
+- Conditional dependencies (if/then schemas)
+
+**Configuration Levers**:
+- Component selection (specific data types or all components)
+- Label format for property names
+- Custom output directory structure
+- Component-based rule application using `#Component` syntax
+
+**Output**: JSON Schema files for each component, enabling validation of submitted manifests
 
 ## Development Philosophy
 
