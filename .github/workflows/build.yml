@@ -139,7 +139,6 @@ jobs:
       # the target server where N is the number of supported python versions.
       - name: run-integration-tests
         id: integration_tests
-        continue-on-error: true
         shell: bash
 
         # keep versions consistent with the first and last from the strategy matrix
@@ -238,7 +237,7 @@ jobs:
           fi
 
       - name: Extract Failed Tests
-        if: failure() && steps.integration_tests.outcome == 'failure'
+        if: always() && steps.integration_tests.outcome == 'failure'
         shell: bash
         run: |
           python -c "
@@ -258,13 +257,20 @@ jobs:
           "
 
       - name: Upload Failed Tests for Next Attempt
-        if: failure() && steps.integration_tests.outcome == 'failure' && github.run_attempt < 3
+        if: always() && steps.integration_tests.outcome == 'failure' && github.run_attempt < 3
         uses: actions/upload-artifact@v4
         with:
           name: failed-tests-${{ matrix.os }}-${{ matrix.python }}
           path: failed_tests.txt
           retention-days: 2
           overwrite: true
+
+      - name: Fail job if integration tests failed after all retries
+        if: always() && steps.integration_tests.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::error::Integration tests failed after ${{ github.run_attempt }} attempt(s)"
+          exit 1
 
       - name: Upload coverage report
         id: upload_coverage_report
