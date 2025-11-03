@@ -242,6 +242,7 @@ jobs:
         run: |
           python -c "
           import xml.etree.ElementTree as ET
+          import os
           tree = ET.parse('test-results.xml')
           root = tree.getroot()
           failed = []
@@ -249,10 +250,41 @@ jobs:
               if testcase.find('failure') is not None or testcase.find('error') is not None:
                   classname = testcase.get('classname')
                   name = testcase.get('name')
-                  failed.append(f'{classname}::{name}')
+                  file_attr = testcase.get('file')
+
+                  # Use the file attribute if available, otherwise convert classname
+                  if file_attr:
+                      # file attribute is already in the correct format
+                      test_path = f'{file_attr}::{classname.split(\".\")[-1]}::{name}'
+                  else:
+                      # Convert classname from dot notation to file path
+                      # e.g., 'tests.integration.foo.test_bar.TestClass' -> 'tests/integration/foo/test_bar.py::TestClass'
+                      parts = classname.split('.')
+                      # Find the test file (usually starts with 'test_')
+                      module_parts = []
+                      class_parts = []
+                      found_test_file = False
+                      for part in parts:
+                          if not found_test_file:
+                              module_parts.append(part)
+                              if part.startswith('test_'):
+                                  found_test_file = True
+                          else:
+                              class_parts.append(part)
+
+                      file_path = '/'.join(module_parts) + '.py'
+                      if class_parts:
+                          test_path = f'{file_path}::{\"::\".join(class_parts)}::{name}'
+                      else:
+                          test_path = f'{file_path}::{name}'
+
+                  failed.append(test_path)
+
           with open('failed_tests.txt', 'w') as f:
               f.write('\n'.join(failed))
           print(f'Found {len(failed)} failed tests')
+          for test in failed:
+              print(f'  - {test}')
           print(f'Current attempt: ${{ github.run_attempt }}')
           "
 
