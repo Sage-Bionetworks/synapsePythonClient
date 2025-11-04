@@ -294,7 +294,7 @@ def create_file_based_metadata_task(
     folder_id: str,
     curation_task_name: str,
     instructions: str,
-    attach_wiki: bool = True,
+    attach_wiki: bool = False,
     entity_view_name: str = "JSON Schema view",
     schema_uri: Optional[str] = None,
     enable_derived_annotations: bool = False,
@@ -320,7 +320,7 @@ def create_file_based_metadata_task(
             folder_id="syn12345678",
             curation_task_name="BiospecimenMetadataTemplate",
             instructions="Please curate this metadata according to the schema requirements",
-            attach_wiki=True,
+            attach_wiki=False,
             entity_view_name="Biospecimen Metadata View",
             schema_uri="sage.schemas.v2571-amp.Biospecimen.schema-0.0.1"
         )
@@ -332,7 +332,7 @@ def create_file_based_metadata_task(
             Must be unique within the project, otherwise if it matches an existing
             CurationTask, that task will be updated with new data.
         instructions: Instructions for the curation task.
-        attach_wiki: Whether or not to attach a Synapse Wiki (default: True).
+        attach_wiki: Whether or not to attach a Synapse Wiki (default: False).
         entity_view_name: Name for the created entity view (default: "JSON Schema view").
         schema_uri: Optional JSON schema URI to bind to the folder. If provided,
             the schema will be bound to the folder before creating the entity view.
