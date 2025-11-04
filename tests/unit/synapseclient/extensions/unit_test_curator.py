@@ -206,6 +206,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 folder_id="",
                 curation_task_name=self.curation_task_name,
                 instructions=self.instructions,
+                attach_wiki=True,
                 synapse_client=self.mock_syn,
             )
 
@@ -226,6 +227,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 folder_id=self.folder_id,
                 curation_task_name="",
                 instructions=self.instructions,
+                attach_wiki=True,
                 synapse_client=self.mock_syn,
             )
 
@@ -246,6 +248,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 folder_id=self.folder_id,
                 curation_task_name=self.curation_task_name,
                 instructions="",
+                attach_wiki=True,
                 synapse_client=self.mock_syn,
             )
 
@@ -272,6 +275,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 folder_id=self.folder_id,
                 curation_task_name=self.curation_task_name,
                 instructions=self.instructions,
+                attach_wiki=True,
                 schema_uri=self.schema_uri,
                 synapse_client=self.mock_syn,
             )
@@ -302,6 +306,7 @@ class TestCreateFileBasedMetadataTask(unittest.TestCase):
                 folder_id=self.folder_id,
                 curation_task_name=self.curation_task_name,
                 instructions=self.instructions,
+                attach_wiki=True,
                 synapse_client=self.mock_syn,
             )
 
