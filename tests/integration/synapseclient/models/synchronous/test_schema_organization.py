@@ -210,9 +210,9 @@ class TestJSONSchema:
         assert json_schema.organization_name
         assert json_schema.uri
         assert json_schema.organization_id
-        assert json_schema.id
         assert json_schema.created_by
         assert json_schema.created_on
+        assert not json_schema.id
         # AND it should be getable by future instances with the same name
         js2 = JSONSchema(json_schema.name, json_schema.organization_name)
         js2.get(synapse_client=self.syn)
