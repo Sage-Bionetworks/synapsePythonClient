@@ -121,3 +121,9 @@ CREATE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.CreateGridRequest"
 GRID_RECORD_SET_EXPORT_REQUEST = (
     "org.sagebionetworks.repo.model.grid.GridRecordSetExportRequest"
 )
+LIST_GRID_SESSIONS_REQUEST = (
+    "org.sagebionetworks.repo.model.grid.ListGridSessionsRequest"
+)
+LIST_GRID_SESSIONS_RESPONSE = (
+    "org.sagebionetworks.repo.model.grid.ListGridSessionsResponse"
+)

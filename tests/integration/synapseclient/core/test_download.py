@@ -5,7 +5,7 @@ import os
 import random
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -18,8 +18,13 @@ import synapseclient
 import synapseclient.core.utils as utils
 from synapseclient import Synapse
 from synapseclient.api.file_services import get_file_handle_for_download
-from synapseclient.core.download import download_from_url, download_functions
-from synapseclient.core.exceptions import SynapseMd5MismatchError
+from synapseclient.core.download import (
+    PresignedUrlInfo,
+    download_from_url,
+    download_from_url_multi_threaded,
+    download_functions,
+)
+from synapseclient.core.exceptions import SynapseError, SynapseMd5MismatchError
 from synapseclient.models import File, Project
 from tests.test_utils import spy_for_async_function
 
@@ -309,7 +314,7 @@ class TestDownloadFromUrl:
     ) -> None:
         """Tests that a file download is retried when URL is expired."""
         # GIVEN a file stored in synapse
-        original_file = utils.make_bogus_data_file(40000)
+        original_file = utils.make_bogus_data_file()
         file = await File(path=original_file, parent_id=project_model.id).store_async(
             synapse_client=syn
         )
@@ -339,6 +344,175 @@ class TestDownloadFromUrl:
 
         # THEN the expired URL is refreshed
         spy_file_handle.assert_called_once()
+
+        # THEN the file is downloaded anyway AND matches the original
+        assert filecmp.cmp(original_file, path), "File comparison failed"
+
+    async def test_download_expired_presigned_url(
+        self,
+        syn: Synapse,
+        mocker: MockerFixture,
+        project_model: Project,
+    ) -> None:
+        """Tests that a file download is retried with a presigned URL but it is expired."""
+        # GIVEN a file stored in synapse
+        original_file = utils.make_bogus_data_file(40000)
+        file = await File(path=original_file, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+
+        # AND extract the preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+        expired_url = _expire_url(url)
+
+        # get_file_handle_for_download only runs if we are handling an expired URL and not
+        spy_file_handle = mocker.spy(download_functions, "get_file_handle_for_download")
+
+        # WHEN I download the file with a simulated expired url
+        with pytest.raises(
+            SynapseError,
+            match="The provided pre-signed URL has expired. Please provide a new pre-signed URL.",
+        ):
+            path = download_from_url(
+                url=expired_url,
+                destination=tempfile.gettempdir(),
+                entity_id=None,
+                file_handle_associate_type=None,
+                file_handle_id=None,
+                expected_md5=file.file_handle.content_md5,
+                url_is_presigned=True,
+            )
+
+        # THEN the expired URL is refreshed
+        spy_file_handle.assert_not_called()
+
+    async def test_download_via_presigned_url_md5_matches(
+        self,
+        syn: Synapse,
+        mocker: MockerFixture,
+        project_model: Project,
+    ) -> None:
+        """Tests that a file download is retried with a presigned URL when the md5 matches."""
+        # GIVEN a file stored in synapse
+        original_file = utils.make_bogus_data_file(40000)
+        file = await File(path=original_file, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+
+        # AND extract the preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+
+        # get_file_handle_for_download only runs if we are handling an expired URL and not
+        spy_file_handle = mocker.spy(download_functions, "get_file_handle_for_download")
+
+        path = download_from_url(
+            url=url,
+            destination=tempfile.gettempdir(),
+            entity_id=None,
+            file_handle_associate_type=None,
+            file_handle_id=None,
+            expected_md5=file.file_handle.content_md5,
+            url_is_presigned=True,
+        )
+
+        # THEN the expired URL is refreshed
+        spy_file_handle.assert_not_called()
+
+        # THEN the file is downloaded anyway AND matches the original
+        assert filecmp.cmp(original_file, path), "File comparison failed"
+
+    async def test_download_via_presigned_url_md5_mismatches(
+        self,
+        syn: Synapse,
+        mocker: MockerFixture,
+        project_model: Project,
+    ) -> None:
+        """Tests that a file download is retried with a presigned URL when the md5 does not match."""
+        # GIVEN a file stored in synapse
+        original_file = utils.make_bogus_data_file(40000)
+        file = await File(path=original_file, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+
+        # AND extract the preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+
+        # get_file_handle_for_download only runs if we are handling an expired URL and not
+        spy_file_handle = mocker.spy(download_functions, "get_file_handle_for_download")
+
+        with pytest.raises(SynapseMd5MismatchError):
+            path = download_from_url(
+                url=url,
+                destination=tempfile.gettempdir(),
+                entity_id=None,
+                file_handle_associate_type=None,
+                file_handle_id=None,
+                expected_md5="mismatchedmd5hash",
+                url_is_presigned=True,
+            )
+
+        # THEN the expired URL is refreshed
+        spy_file_handle.assert_not_called()
+
+    async def test_download_via_presigned_url_no_md5(
+        self,
+        syn: Synapse,
+        mocker: MockerFixture,
+        project_model: Project,
+    ) -> None:
+        """Tests that a file download is retried with a presigned URL when the md5 is not given."""
+        # GIVEN a file stored in synapse
+        original_file = utils.make_bogus_data_file(40000)
+        file = await File(path=original_file, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+
+        # AND extract the preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+
+        # get_file_handle_for_download only runs if we are handling an expired URL and not
+        spy_file_handle = mocker.spy(download_functions, "get_file_handle_for_download")
+        # os.remove only runs when the md5 is given
+        spy_os_remove = mocker.spy(os, "remove")
+
+        path = download_from_url(
+            url=url,
+            destination=tempfile.gettempdir(),
+            entity_id=None,
+            file_handle_associate_type=None,
+            file_handle_id=None,
+            expected_md5=None,
+            url_is_presigned=True,
+        )
+
+        # THEN the expired URL is refreshed
+        spy_file_handle.assert_not_called()
+        # THEN no MD5-related operations
+        spy_os_remove.assert_not_called()
 
         # THEN the file is downloaded anyway AND matches the original
         assert filecmp.cmp(original_file, path), "File comparison failed"
@@ -431,7 +605,7 @@ class TestDownloadFromUrlMultiThreaded:
     `synapseclient/core/download/download_functions.py::download_from_url_multi_threaded`
     """
 
-    async def test_download_from_url_multi_threaded(
+    async def test_download_from_url_multi_threaded_via_get(
         self,
         syn: Synapse,
         project_model: Project,
@@ -457,14 +631,17 @@ class TestDownloadFromUrlMultiThreaded:
         os.remove(file_path)
         assert not os.path.exists(file_path)
 
-        with patch.object(
-            synapseclient.core.download.download_functions,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            synapseclient.core.download.download_async,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
         ):
             # WHEN I download the file with multiple parts
             file = await File(id=file.id, path=os.path.dirname(file.path)).get_async(
@@ -475,7 +652,7 @@ class TestDownloadFromUrlMultiThreaded:
         assert file.file_handle.content_md5 == file_md5
         assert os.path.exists(file_path)
 
-    async def test_download_from_url_multi_threaded_random_failures(
+    async def test_download_from_url_multi_threaded_via_get_random_failures(
         self,
         syn: Synapse,
         project_model: Project,
@@ -521,30 +698,37 @@ class TestDownloadFromUrlMultiThreaded:
                     is_part_stream = True
                     break
             if is_part_stream and random.random() <= failure_rate:
-                # Return a mock object or value representing a bad HTTP response
-                # For example, a response with a 500 status code
-                mock_response = Mock()
+                # Return a mock object representing a bad HTTP response
+                mock_response = Mock(spec=httpx.Response)
                 mock_response.status_code = 500
+                mock_response.headers = httpx.Headers({})
+                mock_response.text = "Internal Server Error"
+                mock_response.json.return_value = {"reason": "Internal Server Error"}
                 return mock_response
             else:
                 # Call the real send function
                 return client.send(**kwargs)
 
-        with patch.object(
-            synapseclient.core.download.download_functions,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            synapseclient.core.download.download_async,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            syn._requests_session_storage,
-            "send",
-            mock_httpx_send,
-        ), patch(
-            "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
-            0.2,
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                syn._requests_session_storage,
+                "send",
+                mock_httpx_send,
+            ),
+            patch(
+                "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
+                0.2,
+            ),
         ):
             # WHEN I download the file with multiple parts
             file = await File(id=file.id, path=os.path.dirname(file.path)).get_async(
@@ -555,7 +739,7 @@ class TestDownloadFromUrlMultiThreaded:
         assert file.file_handle.content_md5 == file_md5
         assert os.path.exists(file_path)
 
-    async def test_download_from_url_multi_threaded_random_protocol_exceptions(
+    async def test_download_from_url_multi_threaded_via_get_random_protocol_exceptions(
         self,
         syn: Synapse,
         project_model: Project,
@@ -608,21 +792,26 @@ class TestDownloadFromUrlMultiThreaded:
                 # Call the real send function
                 return client.send(**kwargs)
 
-        with patch.object(
-            synapseclient.core.download.download_functions,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            synapseclient.core.download.download_async,
-            "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
-            new=500,
-        ), patch.object(
-            syn._requests_session_storage,
-            "send",
-            mock_httpx_send,
-        ), patch(
-            "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
-            0.2,
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                syn._requests_session_storage,
+                "send",
+                mock_httpx_send,
+            ),
+            patch(
+                "synapseclient.core.download.download_async.DEFAULT_MAX_BACK_OFF_ASYNC",
+                0.2,
+            ),
         ):
             # WHEN I download the file with multiple parts
             file = await File(id=file.id, path=os.path.dirname(file.path)).get_async(
@@ -632,6 +821,333 @@ class TestDownloadFromUrlMultiThreaded:
         # THEN the file is downloaded and the md5 matches
         assert file.file_handle.content_md5 == file_md5
         assert os.path.exists(file_path)
+
+    async def test_download_from_url_multi_threaded_via_expired_presigned_url(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test download of a file if downloaded in multiple parts via expired presigned url. In this case I am
+        dropping the download part size to 500 bytes to force multiple parts download.
+        """
+
+        # GIVEN a file stored in synapse
+        file_path = utils.make_bogus_data_file()
+        file = await File(path=file_path, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+        # AND an expired preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+
+        # Create a presigned URL info
+        presigned_url_info = PresignedUrlInfo(
+            file_name=file.name,
+            url=url,
+            expiration_utc=datetime.now(tz=timezone.utc) - timedelta(hours=1),
+        )
+
+        schedule_for_cleanup(file.id)
+        schedule_for_cleanup(file_path)
+        file_md5 = file.file_handle.content_md5
+        assert file_md5 is not None
+        assert os.path.exists(file_path)
+
+        # AND the file is not in the cache
+        syn.cache.remove(file_handle_id=file.file_handle.id)
+        os.remove(file_path)
+        assert not os.path.exists(file_path)
+
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+        ):
+            # WHEN I download the file with multiple parts and it should error out due to expired url
+            with pytest.raises(
+                SynapseError,
+                match="The provided pre-signed URL has expired. Please provide a new pre-signed URL.",
+            ):
+                path = await download_from_url_multi_threaded(
+                    destination=file_path,
+                    presigned_url=presigned_url_info,
+                    expected_md5=file_md5,
+                )
+
+    async def test_download_from_url_multi_threaded_via_presigned_url_no_file_name(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test download of a file if downloaded in multiple parts via presigned url but file name is not given when contructing the PresignedUrlInfo. In this case I am
+        dropping the download part size to 500 bytes to force multiple parts download.
+        """
+
+        # GIVEN a file stored in synapse
+        file_path = utils.make_bogus_data_file()
+        file = await File(path=file_path, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+        # AND an expired preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+
+        # Create a presigned URL info
+        presigned_url_info = PresignedUrlInfo(
+            file_name="",
+            url=url,
+            expiration_utc=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+        )
+
+        schedule_for_cleanup(file.id)
+        schedule_for_cleanup(file_path)
+        file_md5 = file.file_handle.content_md5
+        assert file_md5 is not None
+        assert os.path.exists(file_path)
+
+        # AND the file is not in the cache
+        syn.cache.remove(file_handle_id=file.file_handle.id)
+        os.remove(file_path)
+        assert not os.path.exists(file_path)
+
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+        ):
+            # WHEN I attempt to download the file with multiple parts, it should raise an error due to the missing file name
+            with pytest.raises(
+                SynapseError,
+                match="The provided pre-signed URL is missing the file name.",
+            ):
+                path = await download_from_url_multi_threaded(
+                    destination=file_path,
+                    presigned_url=presigned_url_info,
+                    expected_md5=file_md5,
+                )
+
+    async def test_download_from_url_multi_threaded_via_presigned_url_md5_matches(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test download of a file if downloaded in multiple parts via presigned url and md5 matches. In this case I am
+        dropping the download part size to 500 bytes to force multiple parts download.
+        """
+
+        # GIVEN a file stored in synapse
+        file_path = utils.make_bogus_data_file()
+        file = await File(path=file_path, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+        # AND an expired preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+
+        # Create a presigned URL info
+        presigned_url_info = PresignedUrlInfo(
+            file_name=file.name,
+            url=url,
+            expiration_utc=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+        )
+
+        schedule_for_cleanup(file.id)
+        schedule_for_cleanup(file_path)
+        file_md5 = file.file_handle.content_md5
+        assert file_md5 is not None
+        assert os.path.exists(file_path)
+
+        # AND the file is not in the cache
+        syn.cache.remove(file_handle_id=file.file_handle.id)
+        os.remove(file_path)
+        assert not os.path.exists(file_path)
+
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+        ):
+            # WHEN I attempt to download the file with multiple parts, it should raise an error due to the missing file name
+            path = await download_from_url_multi_threaded(
+                destination=file_path,
+                presigned_url=presigned_url_info,
+                expected_md5=file_md5,
+            )
+
+        # THEN the file is downloaded to the given location AND matches the original
+        assert os.path.exists(file_path)
+        assert utils.md5_for_file_hex(filename=file_path) == file_md5
+
+    async def test_download_from_url_multi_threaded_via_presigned_url_md5_mismatches(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> None:
+        """Test download of a file if downloaded in multiple parts via presigned url and md5 mismatches. In this case I am
+        dropping the download part size to 500 bytes to force multiple parts download.
+        """
+
+        # GIVEN a file stored in synapse
+        file_path = utils.make_bogus_data_file()
+        file = await File(path=file_path, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+        # AND an expired preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+
+        # Create a presigned URL info
+        presigned_url_info = PresignedUrlInfo(
+            file_name=file.name,
+            url=url,
+            expiration_utc=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+        )
+
+        schedule_for_cleanup(file.id)
+        schedule_for_cleanup(file_path)
+        file_md5 = file.file_handle.content_md5
+        assert file_md5 is not None
+        assert os.path.exists(file_path)
+
+        # AND the file is not in the cache
+        syn.cache.remove(file_handle_id=file.file_handle.id)
+        os.remove(file_path)
+        assert not os.path.exists(file_path)
+
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+        ):
+            # WHEN I attempt to download the file with multiple parts, it should raise an error due to mismatched md5
+            with pytest.raises(SynapseMd5MismatchError):
+                path = await download_from_url_multi_threaded(
+                    destination=file_path,
+                    presigned_url=presigned_url_info,
+                    expected_md5="mismatchedmd5hash",
+                )
+
+    async def test_download_from_url_multi_threaded_via_presigned_url_no_md5(
+        self,
+        syn: Synapse,
+        project_model: Project,
+        schedule_for_cleanup: Callable[..., None],
+        mocker: MockerFixture,
+    ) -> None:
+        """Test download of a file if downloaded in multiple parts via presigned url and md5 is not given. In this case I am
+        dropping the download part size to 500 bytes to force multiple parts download.
+        """
+
+        # GIVEN a file stored in synapse
+        file_path = utils.make_bogus_data_file()
+        file = await File(path=file_path, parent_id=project_model.id).store_async(
+            synapse_client=syn
+        )
+        # AND an expired preSignedURL for that file
+        file_handle_response = get_file_handle_for_download(
+            file_handle_id=file.data_file_handle_id,
+            synapse_id=file.id,
+            entity_type="FileEntity",
+            synapse_client=syn,
+        )
+        url = file_handle_response["preSignedURL"]
+
+        # Create a presigned URL info
+        presigned_url_info = PresignedUrlInfo(
+            file_name=file.name,
+            url=url,
+            expiration_utc=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+        )
+
+        schedule_for_cleanup(file.id)
+        schedule_for_cleanup(file_path)
+        file_md5 = file.file_handle.content_md5
+        assert file_md5 is not None
+        assert os.path.exists(file_path)
+
+        # AND the file is not in the cache
+        syn.cache.remove(file_handle_id=file.file_handle.id)
+        os.remove(file_path)
+        assert not os.path.exists(file_path)
+
+        # os.remove only runs when the md5 is given
+        spy_os_remove = mocker.spy(os, "remove")
+
+        with (
+            patch.object(
+                synapseclient.core.download.download_functions,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+            patch.object(
+                synapseclient.core.download.download_async,
+                "SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE",
+                new=500,
+            ),
+        ):
+            # WHEN I attempt to download the file with multiple parts, it should raise an error due to mismatched md5
+            path = await download_from_url_multi_threaded(
+                destination=file_path,
+                presigned_url=presigned_url_info,
+                expected_md5=None,
+            )
+
+            # THEN the file is downloaded to the given location AND no MD5-related operations
+            spy_os_remove.assert_not_called()
+            assert os.path.exists(file_path)
+            assert utils.md5_for_file_hex(filename=file_path) == file_md5
 
 
 class TestDownloadFromS3:

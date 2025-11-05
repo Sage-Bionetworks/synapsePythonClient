@@ -27,11 +27,12 @@ nav:
           - Project: tutorials/python/project.md
           - Folder: tutorials/python/folder.md
           - File: tutorials/python/file.md
+          - Evaluation: tutorials/python/evaluation.md
           - Annotation: tutorials/python/annotation.md
           # - Versions: tutorials/python/versions.md
           # - Activity/Provenance: tutorials/python/activity.md
           - Entity View: tutorials/python/entityview.md
-          # - Table: tutorials/python/table.md
+          - Table: tutorials/python/table.md
           # - Using a Table: tutorials/python/table_crud.md
           - VirtualTable: tutorials/python/virtualtable.md
           - Dataset: tutorials/python/dataset.md
@@ -47,16 +48,18 @@ nav:
         # - Move Files and Folders: tutorials/python/move_files_and_folders.md
         # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
       - Working with the Command Line Client: tutorials/command_line_client.md
-      - Working with file versioning: tutorials/file_versioning.md
-      - Working with tables: tutorials/tables.md
+      # - Working with file versioning: tutorials/file_versioning.md
+      # - Working with tables: tutorials/tables.md
       - Synapseclient with R through reticulate: tutorials/reticulate.md
   - How-To Guides:
       - Home: guides/home.md
-      - Using Entity Views: guides/views.md
+      # - Using Entity Views: guides/views.md
       - Data Storage: guides/data_storage.md
       - Access the REST API: guides/accessing_the_rest_api.md
-      - Expermental Features:
-          - Validating Annotations: guides/validate_annotations.md
+      - Extensions:
+          - Curator: guides/extensions/curator/metadata_curation.md
+      # - Expermental Features:
+      #     - Validating Annotations: guides/validate_annotations.md
   - API Reference:
       - Client: reference/client.md
       - Synapse Utils: reference/synapse_utils.md
@@ -80,10 +83,12 @@ nav:
       - Core: reference/core.md
       - REST Apis: reference/rest_apis.md
       - Experimental:
+          - Factory Operations: reference/experimental/sync/factory_operations.md
           - Agent: reference/experimental/sync/agent.md
           - Project: reference/experimental/sync/project.md
           - Folder: reference/experimental/sync/folder.md
           - File: reference/experimental/sync/file.md
+          - Evaluation: reference/experimental/sync/evaluation.md
           - Table: reference/experimental/sync/table.md
           - VirtualTable: reference/experimental/sync/virtualtable.md
           - Dataset: reference/experimental/sync/dataset.md
@@ -95,12 +100,19 @@ nav:
           - Team: reference/experimental/sync/team.md
           - UserProfile: reference/experimental/sync/user_profile.md
           - Curator: reference/experimental/sync/curator.md
+          - Link: reference/experimental/sync/link_entity.md
           - Functional Interfaces: reference/experimental/functional_interfaces.md
+          - SchemaOrganization: reference/experimental/sync/schema_organization.md
+          - JSONSchema: reference/experimental/sync/json_schema.md
+          - Extensions:
+              - Curator: reference/extensions/curator.md
           - Asynchronous:
+              - Factory Operations: reference/experimental/async/factory_operations.md
               - Agent: reference/experimental/async/agent.md
               - Project: reference/experimental/async/project.md
               - Folder: reference/experimental/async/folder.md
               - File: reference/experimental/async/file.md
+              - Evaluation: reference/experimental/async/evaluation.md
               - Table: reference/experimental/async/table.md
               - VirtualTable: reference/experimental/async/virtualtable.md
               - Dataset: reference/experimental/async/dataset.md
@@ -112,6 +124,9 @@ nav:
               - Team: reference/experimental/async/team.md
               - UserProfile: reference/experimental/async/user_profile.md
               - Curator: reference/experimental/async/curator.md
+              - Link: reference/experimental/async/link_entity.md
+              - SchemaOrganization: reference/experimental/async/schema_organization.md
+              - JSONSchema: reference/experimental/async/json_schema.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md

@@ -20,6 +20,7 @@ from synapseclient.models.mixins import (
 )
 from synapseclient.models.protocols.project_protocol import ProjectSynchronousProtocol
 from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity import store_entity
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
@@ -346,7 +347,11 @@ class Project(
                 )
             )
         ):
-            merge_dataclass_entities(source=existing_project, destination=self)
+            # Get logger from client
+            client = Synapse.get_client(synapse_client=synapse_client)
+            merge_dataclass_entities(
+                source=existing_project, destination=self, logger=client.logger
+            )
         trace.get_current_span().set_attributes(
             {
                 "synapse.name": self.name or "",
@@ -354,7 +359,6 @@ class Project(
             }
         )
         if self.has_changed:
-            loop = asyncio.get_event_loop()
             synapse_project = Synapse_Project(
                 id=self.id,
                 etag=self.etag,
@@ -364,13 +368,10 @@ class Project(
                 parentId=self.parent_id,
             )
             delete_none_keys(synapse_project)
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_project,
-                    set_annotations=False,
-                    createOrUpdate=False,
-                ),
+            entity = await store_entity(
+                resource=self,
+                entity=synapse_project,
+                synapse_client=synapse_client,
             )
             self.fill_from_dict(synapse_project=entity, set_annotations=False)
 

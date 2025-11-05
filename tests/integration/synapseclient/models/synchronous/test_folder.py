@@ -704,7 +704,7 @@ class TestFolderWalk:
             "empty_folder": empty_folder,
         }
 
-    def test_walk_recursive_true(self, project_model: Project) -> None:
+    async def test_walk_recursive_true(self, project_model: Project) -> None:
         """Test walk method with recursive=True."""
         # GIVEN: A folder with a hierarchical structure
         hierarchy = self.create_test_hierarchy(project_model)
@@ -750,7 +750,7 @@ class TestFolderWalk:
         assert len(empty_dirs) == 0
         assert len(empty_nondirs) == 0
 
-    def test_walk_recursive_false(self, project_model: Project) -> None:
+    async def test_walk_recursive_false(self, project_model: Project) -> None:
         """Test walk method with recursive=False."""
         # GIVEN: A folder with a hierarchical structure
         hierarchy = self.create_test_hierarchy(project_model)

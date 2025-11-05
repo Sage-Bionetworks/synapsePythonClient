@@ -25,7 +25,16 @@ at your own risk.
             - get
             - store
             - delete
-            - change_metadata
+            - get_acl
+            - get_permissions
+            - set_permissions
+            - delete_permissions
+            - list_acl
+            - bind_schema
+            - get_schema
+            - unbind_schema
+            - validate_schema
+            - get_schema_derived_keys
 ---
 [](){ #RecordBasedMetadataTaskProperties-reference }
 ::: synapseclient.models.RecordBasedMetadataTaskProperties

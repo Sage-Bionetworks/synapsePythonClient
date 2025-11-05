@@ -19,8 +19,7 @@ async def create_curation_task(
     """
     Create a CurationTask associated with a project.
 
-    POST /curation/task
-
+    https://rest-docs.synapse.org/rest/POST/curation/task.html
     Arguments:
         curation_task: The complete CurationTask object to create.
         synapse_client: If not passed in and caching was not disabled by
@@ -47,6 +46,8 @@ async def get_curation_task(
     """
     Get a CurationTask by its ID.
 
+    https://rest-docs.synapse.org/rest/GET/curation/task/taskId.html
+
     Arguments:
         task_id: The unique identifier of the task.
         synapse_client: If not passed in and caching was not disabled by
@@ -72,7 +73,7 @@ async def update_curation_task(
     """
     Update a CurationTask.
 
-    PUT /curation/task/{taskId}
+    https://rest-docs.synapse.org/rest/PUT/curation/task/taskId.html
 
     Arguments:
         task_id: The unique identifier of the task.
@@ -101,6 +102,8 @@ async def delete_curation_task(
     """
     Delete a CurationTask.
 
+    https://rest-docs.synapse.org/rest/DELETE/curation/task/taskId.html
+
     Arguments:
         task_id: The unique identifier of the task.
         synapse_client: If not passed in and caching was not disabled by
@@ -125,7 +128,7 @@ async def list_curation_tasks(
     """
     Generator to get a list of CurationTasks for a project.
 
-    POST /curation/task/list
+    https://rest-docs.synapse.org/rest/POST/curation/task/list.html
 
     Arguments:
         project_id: The synId of the project.
@@ -146,3 +149,64 @@ async def list_curation_tasks(
         "/curation/task/list", body=request_body, synapse_client=client
     ):
         yield item
+
+
+async def list_grid_sessions(
+    source_id: Optional[str] = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """
+    Generator to get a list of active grid sessions for the user.
+
+    https://rest-docs.synapse.org/rest/POST/grid/session/list.html
+
+    Arguments:
+        source_id: Optional. When provided, only sessions with this synId will be returned.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Yields:
+        Individual GridSession objects from each page of the response.
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    request_body = {}
+    if source_id is not None:
+        request_body["sourceId"] = source_id
+
+    async for item in rest_post_paginated_async(
+        "/grid/session/list", body=request_body, synapse_client=client
+    ):
+        yield item
+
+
+async def delete_grid_session(
+    session_id: str,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> None:
+    """
+    Delete a grid session.
+
+    https://rest-docs.synapse.org/rest/DELETE/grid/session/sessionId.html
+
+    Note: Only the user that created a grid session may delete it.
+
+    Arguments:
+        session_id: The unique identifier of the grid session to delete.
+        synapse_client: If not passed in and caching was not disabled by
+            `Synapse.allow_client_caching(False)` this will use the last created
+            instance from the Synapse class constructor.
+
+    Returns:
+        None
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    await client.rest_delete_async(uri=f"/grid/session/{session_id}")

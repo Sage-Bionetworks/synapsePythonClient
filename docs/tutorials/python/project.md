@@ -70,12 +70,9 @@ access it again by retrieving the synapse ID of the project and retrieving
 the existing project object.
 ```python
 from synapseclient.models import Project
-my_project_id = syn.findEntityId(
-    name="My uniquely named project about Alzheimer's Disease"
-)
 
-my_project_object = Project(id=my_project_id).get()
-print(f"I just got my project: {my_project_object.name}, id: {my_project_id}")
+my_project_object = Project(name="My uniquely named project about Alzheimer's Disease").get()
+print(f"I just got my project: {my_project_object.name}, id: {my_project_object.id}")
 ```
 
 <details class="example">

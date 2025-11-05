@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import re
 import string
 import tempfile
 import uuid
@@ -29,6 +30,7 @@ from synapseclient.models import (
     query_async,
     query_part_mask_async,
 )
+from tests.integration import QUERY_TIMEOUT_SEC
 
 
 class TestTableCreation:
@@ -221,7 +223,9 @@ class TestTableCreation:
 
         # THEN the table should have proper schema and data
         results = await query_async(
-            f"SELECT * FROM {table_dict.id}", synapse_client=self.syn
+            f"SELECT * FROM {table_dict.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
             results["column_string"], pd.DataFrame(dict_data)["column_string"]
@@ -244,7 +248,9 @@ class TestTableCreation:
 
         # THEN the table should have proper schema and data
         results = await query_async(
-            f"SELECT * FROM {table_df.id}", synapse_client=self.syn
+            f"SELECT * FROM {table_df.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
             results["column_string"], df_data["column_string"]
@@ -270,7 +276,9 @@ class TestTableCreation:
 
         # THEN the table should have proper schema and data
         results = await query_async(
-            f"SELECT * FROM {table_csv.id}", synapse_client=self.syn
+            f"SELECT * FROM {table_csv.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
             results["column_string"], csv_data["column_string"]
@@ -364,7 +372,9 @@ class TestRowStorage:
 
         # AND I can query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # AND the data in the columns should match
@@ -409,7 +419,9 @@ class TestRowStorage:
 
         # AND a query of the data
         query_results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # WHEN I update the rows with new data
@@ -429,7 +441,9 @@ class TestRowStorage:
 
         # THEN the data should be stored in Synapse, and match the updated data
         updated_results_from_table = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
             updated_results_from_table["column_string"], query_results["column_string"]
@@ -513,7 +527,9 @@ class TestRowStorage:
 
         # AND I can query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # AND the data in the columns should match
@@ -575,7 +591,9 @@ class TestRowStorage:
 
         # AND I can query the table
         results = await query_async(
-            f"SELECT * FROM {table.id}", synapse_client=self.syn
+            f"SELECT * FROM {table.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # AND the data in the columns should match
@@ -1683,7 +1701,7 @@ class TestDeleteRows:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_delete_single_row(self, project_model: Project) -> None:
+    async def test_delete_single_row_via_query(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         table = Table(
@@ -1720,7 +1738,7 @@ class TestDeleteRows:
         # AND only 2 rows should exist on the table
         assert len(results) == 2
 
-    async def test_delete_multiple_rows(self, project_model: Project) -> None:
+    async def test_delete_multiple_rows_via_query(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         table = Table(
@@ -1757,7 +1775,7 @@ class TestDeleteRows:
         # AND only 1 row should exist on the table
         assert len(results) == 1
 
-    async def test_delete_no_rows(self, project_model: Project) -> None:
+    async def test_delete_no_rows_via_query(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         table = Table(
@@ -1792,6 +1810,82 @@ class TestDeleteRows:
 
         # AND 3 rows should exist on the table
         assert len(results) == 3
+
+    async def test_delete_multiple_rows_via_dataframe(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[Column(name="column_string", column_type=ColumnType.STRING)],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for a column already stored in Synapse
+        data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+        # Get the ROW_ID and ROW_VERSION for the data we just added
+        # WHEN I delete rows from the table using a dataframe
+        await table.delete_rows_async(
+            df=pd.DataFrame({"ROW_ID": [2, 3], "ROW_VERSION": [1, 1]}),
+            synapse_client=self.syn,
+        )
+
+        # AND I query the table
+        results = await query_async(
+            f"SELECT * FROM {table.id}", synapse_client=self.syn
+        )
+
+        # THEN the data in the columns should match
+        pd.testing.assert_series_equal(
+            results["column_string"],
+            pd.DataFrame({"column_string": ["value1"]})["column_string"],
+        )
+
+        # AND only 1 row should exist on the table
+        assert len(results) == 1
+
+    async def test_delete_multiple_rows_via_dataframe_exception(
+        self, project_model: Project
+    ) -> None:
+        # GIVEN a table in Synapse
+        table_name = str(uuid.uuid4())
+        table = Table(
+            name=table_name,
+            parent_id=project_model.id,
+            columns=[Column(name="column_string", column_type=ColumnType.STRING)],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # AND data for a column already stored in Synapse
+        data_for_table = pd.DataFrame({"column_string": ["value1", "value2", "value3"]})
+        await table.store_rows_async(
+            values=data_for_table, schema_storage_strategy=None, synapse_client=self.syn
+        )
+
+        # AND row ids and versions that do not exist in the table
+        row_ids = [4, 5]
+        row_versions = [1, 1]
+
+        # And an excpeted error message that should be displayed
+        row_id_version_tuples = ", ".join(
+            [f"({id}, {version})" for id, version in zip(row_ids, row_versions)]
+        )
+        exception_message = f"Rows with the following ROW_ID and ROW_VERSION pairs were not found in table {re.escape(table.id)}: {re.escape(row_id_version_tuples)}."
+
+        # WHEN the rows that do not exist are attempted to be deleted
+        # THEN a value error should be raised and the appropriate message should be displayed
+        with pytest.raises(LookupError, match=exception_message):
+            await table.delete_rows_async(
+                df=pd.DataFrame({"ROW_ID": row_ids, "ROW_VERSION": row_versions}),
+                synapse_client=self.syn,
+            )
 
 
 class TestColumnModifications:
@@ -1968,6 +2062,7 @@ class TestQuerying:
             query=f"SELECT * FROM {table.id}",
             synapse_client=self.syn,
             part_mask=part_mask,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the data in the columns should match
@@ -2021,6 +2116,7 @@ class TestQuerying:
             query=f"SELECT * FROM {table.id}",
             synapse_client=self.syn,
             part_mask=QUERY_RESULTS,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the data in the columns should match

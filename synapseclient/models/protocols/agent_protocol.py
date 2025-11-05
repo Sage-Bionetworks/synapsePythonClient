@@ -113,6 +113,7 @@ class AgentSessionSynchronousProtocol(Protocol):
         print_response: bool = False,
         newer_than: Optional[int] = None,
         *,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "AgentPrompt":
         """Sends a prompt to the agent and adds the response to the AgentSession's
@@ -124,6 +125,8 @@ class AgentSessionSynchronousProtocol(Protocol):
             print_response: Whether to print the response to the console.
             newer_than: The timestamp to get trace results newer than.
                 Defaults to None (all results).
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
@@ -317,6 +320,7 @@ class AgentSynchronousProtocol(Protocol):
         session: Optional["AgentSession"] = None,
         newer_than: Optional[int] = None,
         *,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "AgentPrompt":
         """Sends a prompt to the agent for the current session.
@@ -329,6 +333,8 @@ class AgentSynchronousProtocol(Protocol):
             session_id: The ID of the session to send the prompt to.
                 If None, the current session will be used.
             newer_than: The timestamp to get trace results newer than. Defaults to None (all results).
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.

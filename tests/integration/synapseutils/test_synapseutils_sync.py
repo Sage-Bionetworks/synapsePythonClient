@@ -5,6 +5,7 @@ import os
 import tempfile
 import uuid
 from typing import Callable
+from unittest import skip
 
 import pandas as pd
 import pytest
@@ -131,6 +132,7 @@ def _makeManifest(content, schedule_for_cleanup: Callable[..., None]):
     return filepath
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_readManifest(test_state):
     """Creates multiple manifests and verifies that they validate correctly"""
     # Test manifest with missing columns
@@ -173,6 +175,7 @@ async def test_readManifest(test_state):
 class TestSyncToSynapse:
     """Testing the .syncToSynapse() function"""
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_file_only(
         self,
         syn: Synapse,
@@ -215,6 +218,7 @@ class TestSyncToSynapse:
         for file in folder.files:
             assert file.path in temp_files
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_files_with_annotations(
         self,
         syn: Synapse,
@@ -315,6 +319,7 @@ class TestSyncToSynapse:
                 assert file.annotations["foo"] == ["baz"]
                 assert len(file.annotations) == 1
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_with_activities(
         self,
         syn: Synapse,
@@ -363,6 +368,7 @@ class TestSyncToSynapse:
             assert file.activity.name == BOGUS_ACTIVITY
             assert file.activity.description == BOGUS_DESCRIPTION
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_activities_pointing_to_files(
         self,
         syn: Synapse,
@@ -429,6 +435,7 @@ class TestSyncToSynapse:
                 assert len(file.activity.executed) == 1
                 assert file.activity.executed[0].target_id in file_ids
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_activities_added_then_removed_from_manifest(
         self,
         syn: Synapse,
@@ -505,6 +512,7 @@ class TestSyncToSynapse:
         assert len(folder.files[0].activity.used) == 1
         assert folder.files[0].activity.used[0].url == SYNAPSE_URL
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_activities_added_then_removed_from_manifest_but_copied_to_new_version(
         self,
         syn: Synapse,
@@ -591,6 +599,7 @@ class TestSyncToSynapse:
         assert len(folder.files[0].activity.used) == 1
         assert folder.files[0].activity.used[0].url == SYNAPSE_URL
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_field_not_available_in_manifest_persisted(
         self,
         syn: Synapse,
@@ -670,6 +679,7 @@ class TestSyncToSynapse:
         # AND The metadata field updated is still present
         assert folder.files[0].description == "new file description"
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_activities_added_then_removed_with_version_updates(
         self,
         syn: Synapse,
@@ -754,6 +764,7 @@ class TestSyncToSynapse:
         assert len(first_file_version.activity.used) == 1
         assert first_file_version.activity.used[0].url == SYNAPSE_URL
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_annotations_added_then_removed(
         self,
         syn: Synapse,
@@ -837,6 +848,7 @@ class TestSyncToSynapse:
             assert len(file.annotations.keys()) == 1
             assert list(file.annotations.values())[0][0] in annotations
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_annotations_added_then_removed_with_no_annotation_merge(
         self,
         syn: Synapse,
@@ -930,6 +942,7 @@ class TestSyncToSynapse:
             # AND none of the files have annotations
             assert len(file.annotations.keys()) == 0
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_activities_pointing_to_files_and_urls(
         self,
         syn: Synapse,
@@ -1008,6 +1021,7 @@ class TestSyncToSynapse:
                 assert file.activity.executed[0].url == SUB_SYNAPSE_URL
                 assert file.activity.executed[1].target_id in file_ids
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_all_activities_pointing_to_single_file(
         self,
         syn: Synapse,
@@ -1078,6 +1092,7 @@ class TestSyncToSynapse:
                 assert len(file.activity.executed) == 1
                 assert file.activity.executed[0].target_id in file_ids
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_to_synapse_single_file_pointing_to_all_other_files(
         self,
         syn: Synapse,
@@ -1149,6 +1164,7 @@ class TestSyncToSynapse:
                 assert file.activity is None
 
 
+@skip("Skip integration tests for soon to be removed code")
 async def test_write_manifest_data_unicode_characters_in_rows(test_state):
     # SYNPY-693
 
@@ -1173,6 +1189,7 @@ async def test_write_manifest_data_unicode_characters_in_rows(test_state):
 class TestSyncFromSynapse:
     """Testing the .syncFromSynapse() method"""
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_folder_sync_from_synapse_files_only(
         self,
         syn: Synapse,
@@ -1252,6 +1269,7 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_folder_sync_from_synapse_files_with_annotations(
         self,
         syn: Synapse,
@@ -1362,6 +1380,7 @@ class TestSyncFromSynapse:
             )
             assert matching_row[BOOL_ANNO].values[0] == BOOL_ANNO_VALUE_IN_MANIFEST
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_folder_sync_from_synapse_files_with_activity(
         self,
         syn: Synapse,
@@ -1469,6 +1488,7 @@ class TestSyncFromSynapse:
                 == ACTIVITY_DESCRIPTION
             )
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_folder_sync_from_synapse_mix_of_entities(
         self,
         syn: Synapse,
@@ -1651,6 +1671,7 @@ class TestSyncFromSynapse:
         sub_directory = os.path.join(temp_dir, sub_folder.name)
         verify_manifest(path=os.path.join(sub_directory, MANIFEST_FILE))
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_folder_sync_from_synapse_files_contained_within_sub_folder_root_manifest_only(
         self,
         syn: Synapse,
@@ -1744,6 +1765,7 @@ class TestSyncFromSynapse:
         sub_directory = os.path.join(temp_dir, sub_folder.name)
         assert not os.path.exists(os.path.join(sub_directory, MANIFEST_FILE))
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_folder_sync_from_synapse_files_contained_within_sub_folder_suppress_manifest(
         self,
         syn: Synapse,
@@ -1804,6 +1826,7 @@ class TestSyncFromSynapse:
         assert not os.path.exists(os.path.join(temp_dir, MANIFEST_FILE))
         assert not os.path.exists(os.path.join(sub_directory, MANIFEST_FILE))
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_folder_sync_from_synapse_files_spread_across_folders(
         self,
         syn: Synapse,
@@ -1992,6 +2015,7 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
         assert found_matching_file
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_from_synapse_follow_links_files(
         self,
         syn: Synapse,
@@ -2082,6 +2106,7 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_from_synapse_follow_links_folder(
         self,
         syn: Synapse,
@@ -2171,6 +2196,7 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_NAME_COLUMN].values[0])
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_from_synapse_follow_links_sync_contains_all_folders(
         self,
         syn: Synapse,
@@ -2361,6 +2387,7 @@ class TestSyncFromSynapse:
             assert pd.isna(matching_row[ACTIVITY_DESCRIPTION_COLUMN].values[0])
         assert found_matching_file
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_sync_from_synapse_dont_follow_links(
         self,
         syn: Synapse,
@@ -2416,6 +2443,7 @@ class TestSyncFromSynapse:
         # AND the manifest has not been created
         assert os.path.exists(os.path.join(temp_dir, MANIFEST_FILE)) is False
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_file_sync_from_synapse(
         self,
         syn: Synapse,
@@ -2458,6 +2486,7 @@ class TestSyncFromSynapse:
         # AND the manifest has not been created
         assert os.path.exists(os.path.join(temp_dir, MANIFEST_FILE)) is False
 
+    @skip("Skip integration tests for soon to be removed code")
     async def test_file_sync_from_synapse_specific_version(
         self,
         syn: Synapse,

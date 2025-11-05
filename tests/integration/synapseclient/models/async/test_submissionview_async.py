@@ -18,6 +18,7 @@ from synapseclient.models import (
     UsedURL,
     query_part_mask_async,
 )
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC, QUERY_TIMEOUT_SEC
 
 
 class TestSubmissionViewCreation:
@@ -403,6 +404,7 @@ class TestQuerying:
         results = await submissionview.query_async(
             f"SELECT * FROM {submissionview.id}",
             synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN results should be returned (even if empty)
@@ -420,6 +422,7 @@ class TestQuerying:
             query=f"SELECT * FROM {submissionview.id}",
             synapse_client=self.syn,
             part_mask=part_mask,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the part mask should be reflected in the results
@@ -472,6 +475,7 @@ class TestSnapshotting:
             label="My snapshot label",
             include_activity=True,
             associate_activity_to_new_version=True,
+            timeout=ASYNC_JOB_TIMEOUT_SEC,
             synapse_client=self.syn,
         )
 
@@ -517,6 +521,7 @@ class TestSnapshotting:
             await empty_view.snapshot_async(
                 comment="My snapshot",
                 label="My snapshot label",
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
                 synapse_client=self.syn,
             )
         assert (
@@ -580,6 +585,7 @@ class TestSubmissionViewWithSubmissions:
             results = await submissionview.query_async(
                 f"SELECT * FROM {submissionview.id}",
                 synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
             )
 
             if len(results) == 1:
@@ -604,6 +610,7 @@ class TestSubmissionViewWithSubmissions:
             results = await submissionview.query_async(
                 f"SELECT * FROM {submissionview.id}",
                 synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
             )
 
             if len(results) == 0:
@@ -676,6 +683,7 @@ class TestSubmissionViewWithSubmissions:
             results = await submissionview.query_async(
                 f"SELECT * FROM {submissionview.id}",
                 synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
             )
 
             if len(results) == len(submissions):

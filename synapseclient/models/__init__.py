@@ -15,12 +15,15 @@ from synapseclient.models.curation import (
 )
 from synapseclient.models.dataset import Dataset, DatasetCollection, EntityRef
 from synapseclient.models.entityview import EntityView, ViewTypeMask
+from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
+from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
 from synapseclient.models.project import Project
 from synapseclient.models.recordset import RecordSet
+from synapseclient.models.schema_organization import JSONSchema, SchemaOrganization
 from synapseclient.models.services import FailureStrategy
 from synapseclient.models.submissionview import SubmissionView
 from synapseclient.models.table import Table
@@ -60,10 +63,12 @@ __all__ = [
     "Activity",
     "UsedURL",
     "UsedEntity",
+    "Evaluation",
     "FailureStrategy",
     "File",
     "FileHandle",
     "Folder",
+    "Link",
     "Project",
     "RecordSet",
     "Annotations",
@@ -124,6 +129,9 @@ __all__ = [
     "DatasetCollection",
     # Submission models
     "SubmissionView",
+    # JSON Schema models
+    "SchemaOrganization",
+    "JSONSchema",
 ]
 
 # Static methods to expose as functions
