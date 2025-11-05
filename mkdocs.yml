@@ -44,6 +44,7 @@ nav:
           # - Team: tutorials/python/team.md
           - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
           - Download data in bulk: tutorials/python/download_data_in_bulk.md
+          - Creating JSON Schema: tutorials/python/schema_operations.md
           - Working with JSON Schema: tutorials/python/json_schema.md
         # - Move Files and Folders: tutorials/python/move_files_and_folders.md
         # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
