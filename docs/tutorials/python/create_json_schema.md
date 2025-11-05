@@ -1,11 +1,11 @@
 JSON Schema is a tool used to validate data. In Synapse, JSON Schemas can be used to validate the metadata applied to an entity such as project, file, folder, table, or view, including the [annotations](https://help.synapse.org/docs/Annotating-Data-With-Metadata.2667708522.html) applied to it. To learn more about JSON Schemas, check out [JSON-Schema.org](https://json-schema.org/).
 
-Synapse supports a subset of features from [json-schema-draft-07](https://json-schema.org/draft-07). To see the list of features currently supported, see the [JSON Schema object definition](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html) from Synapse's REST API Documentation
+Synapse supports a subset of features from [json-schema-draft-07](https://json-schema.org/draft-07). To see the list of features currently supported, see the [JSON Schema object definition](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html) from Synapse's REST API Documentation.
 
-In this tutorial, you will learn how to create these JSON Schema using an existing data-model
+In this tutorial, you will learn how to create these JSON Schema using an existing data-model.
 
 ## Tutorial Purpose
-You will create a JSON schema using your data model
+You will create a JSON schema using your data model.
 
 ## Prerequisites
 * You have a working [installation](../installation.md) of the Synapse Python Client.
