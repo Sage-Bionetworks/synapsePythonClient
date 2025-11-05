@@ -14,7 +14,7 @@ You will create a JSON schema using your data model.
 ## 1. Set up your variables
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/create_json_schema.py!lines=10-14}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=10-14}
 ```
 
 To create a JSON Schema you need a data-model, and the data-type you want to create. The data-model must be in either CSV or JSON-LD form. See [here](https://sagebionetworks.jira.com/wiki/spaces/SCHEM/pages/2473623559/The+Data+Model+Schema) for instructions on how to crate a data-model.The data-type must exist in your data-model.
@@ -22,7 +22,7 @@ To create a JSON Schema you need a data-model, and the data-type you want to cre
 ## 2. Create the JSON Schema
 Try creating the JSON Schema
 ```python
-{!docs/tutorials/python/tutorial_scripts/json_schema.py!lines=16-24}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=16-24}
 ```
 You should see the JSON Schema for the datatype you selected printed.
 
@@ -33,7 +33,7 @@ You should see the JSON Schema for the datatype you selected printed.
   <summary>Click to show me</summary>
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/create_json_schema.py!}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!}
 ```
 </details>
 
