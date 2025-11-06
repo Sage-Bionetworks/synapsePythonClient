@@ -47,7 +47,7 @@ class TestDeletePermissions:
         self.delete_acl_patcher.stop()
         self.get_benefactor_patcher.stop()
 
-    async def test_delete_permissions_no_id_raises_error(self):
+    def test_delete_permissions_no_id_raises_error(self):
         """Test that attempting to delete permissions without an ID raises ValueError."""
         # GIVEN a file with no ID
         file = File()
@@ -59,7 +59,7 @@ class TestDeletePermissions:
         ):
             file.delete_permissions()
 
-    async def test_delete_permissions_basic_single_entity(self):
+    def test_delete_permissions_basic_single_entity(self):
         """Test basic permission deletion for a single entity."""
         # GIVEN a file with an ID
         file = File(id="syn123", name="test_file.txt")
@@ -72,7 +72,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_already_inherits(self):
+    def test_delete_permissions_already_inherits(self):
         """Test handling of 403 error when entity already inherits permissions."""
         # GIVEN a file with an ID
         file = File(id="syn123")
@@ -99,7 +99,7 @@ class TestDeletePermissions:
         # AND a debug log message should be generated
         self.synapse_client.logger.debug.assert_called_once()
 
-    async def test_delete_permissions_other_http_error(self):
+    def test_delete_permissions_other_http_error(self):
         """Test handling of other HTTP errors during deletion."""
         # GIVEN a file with an ID
         file = File(id="syn123")
@@ -126,7 +126,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_general_exception(self):
+    def test_delete_permissions_general_exception(self):
         """Test handling of general exceptions during deletion."""
         # GIVEN a file with an ID
         file = File(id="syn123")
@@ -143,7 +143,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_skip_self(self):
+    def test_delete_permissions_skip_self(self):
         """Test that when include_self=False, the entity's ACL is not deleted."""
         # GIVEN a file with an ID
         file = File(id="syn123")
@@ -154,7 +154,7 @@ class TestDeletePermissions:
         # THEN the delete_entity_acl function should not be called
         self.mock_delete_acl.assert_not_called()
 
-    async def test_delete_permissions_project_warning(self):
+    def test_delete_permissions_project_warning(self):
         """Test that deleting permissions on a Project shows warning and skips deletion."""
         # GIVEN a project with an ID
         project = Project(id="syn123", name="test_project")
@@ -168,7 +168,7 @@ class TestDeletePermissions:
         # AND delete_entity_acl should not be called
         self.mock_delete_acl.assert_not_called()
 
-    async def test_delete_permissions_folder_recursive_structure(self):
+    def test_delete_permissions_folder_recursive_structure(self):
         """Test recursive deletion on a complex folder structure."""
         # GIVEN a folder with an ID and child entities
         folder = Folder(id="syn123", name="parent_folder")
@@ -201,7 +201,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_target_entity_types_folder_only(self):
+    def test_delete_permissions_target_entity_types_folder_only(self):
         """Test filtering deletion by folder entity type only."""
         # GIVEN a folder with child folder and file
         folder = Folder(id="syn123", name="parent_folder")
@@ -236,7 +236,7 @@ class TestDeletePermissions:
         # AND delete_entity_acl should be called on the parent folder
         self.mock_delete_acl.assert_called_once()
 
-    async def test_delete_permissions_target_entity_types_file_only(self):
+    def test_delete_permissions_target_entity_types_file_only(self):
         """Test filtering deletion by file entity type only."""
         # GIVEN a folder with child folder and file
         folder = Folder(id="syn123", name="parent_folder")
@@ -272,7 +272,7 @@ class TestDeletePermissions:
         # AND delete_entity_acl should be called on the parent folder
         self.mock_delete_acl.assert_called_once()
 
-    async def test_delete_permissions_case_insensitive_entity_types(self):
+    def test_delete_permissions_case_insensitive_entity_types(self):
         """Test that entity type matching is case-insensitive."""
         # GIVEN a folder with child entities
         folder = Folder(id="syn123", name="parent_folder")
@@ -297,7 +297,7 @@ class TestDeletePermissions:
         self.mock_delete_acl.assert_called_once()
         assert child_folder.delete_permissions_async.called
 
-    async def test_delete_permissions_invalid_recursive_without_container_content(self):
+    def test_delete_permissions_invalid_recursive_without_container_content(self):
         """Test that recursive=True without include_container_content=True raises ValueError."""
         # GIVEN a folder with an ID
         folder = Folder(id="syn123")
@@ -311,7 +311,7 @@ class TestDeletePermissions:
         ):
             folder.delete_permissions(recursive=True, include_container_content=False)
 
-    async def test_delete_permissions_dry_run_mode(self):
+    def test_delete_permissions_dry_run_mode(self):
         """Test dry run mode logs changes without executing them."""
         # GIVEN a folder with child entities
         folder = Folder(id="syn123")
@@ -328,7 +328,7 @@ class TestDeletePermissions:
         # AND actual deletion should not occur
         self.mock_delete_acl.assert_not_called()
 
-    async def test_delete_permissions_benefactor_tracking(self):
+    def test_delete_permissions_benefactor_tracking(self):
         """Test that benefactor tracking works correctly during deletion."""
         # GIVEN a file with an ID and benefactor tracker
         file = File(id="syn123")
@@ -345,7 +345,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_empty_target_entity_types(self):
+    def test_delete_permissions_empty_target_entity_types(self):
         """Test handling of empty target entity types list."""
         # GIVEN a folder with child entities
         folder = Folder(id="syn123")
@@ -363,7 +363,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_multiple_entity_types(self):
+    def test_delete_permissions_multiple_entity_types(self):
         """Test handling multiple entity types."""
         # GIVEN a file with an ID
         file = File(id="syn123")
@@ -376,7 +376,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_custom_synapse_client(self):
+    def test_delete_permissions_custom_synapse_client(self):
         """Test using a custom Synapse client."""
         # GIVEN a file and a custom synapse client
         file = File(id="syn123")
@@ -390,7 +390,7 @@ class TestDeletePermissions:
         # THEN delete_entity_acl should be called with the custom client
         self.mock_delete_acl.assert_called_once()
 
-    async def test_delete_permissions_complex_hierarchy_dry_run(self):
+    def test_delete_permissions_complex_hierarchy_dry_run(self):
         """Test dry run with complex hierarchy showing detailed logging."""
         # GIVEN a complex folder structure
         root_folder = Folder(id="syn100", name="root")
@@ -431,7 +431,7 @@ class TestDeletePermissions:
         # AND no actual deletions should occur
         self.mock_delete_acl.assert_not_called()
 
-    async def test_delete_permissions_folder_only_direct_children(self):
+    def test_delete_permissions_folder_only_direct_children(self):
         """Test deletion affecting only direct children, not recursive."""
         # GIVEN a folder with nested structure
         parent_folder = Folder(id="syn100")
@@ -462,7 +462,7 @@ class TestDeletePermissions:
         # AND parent should be processed
         self.mock_delete_acl.assert_called_once()
 
-    async def test_delete_permissions_benefactor_impact_logging(self):
+    def test_delete_permissions_benefactor_impact_logging(self):
         """Test logging when ACL deletion affects other entities."""
         # GIVEN a file with benefactor relationships
         file = File(id="syn123")
@@ -477,7 +477,7 @@ class TestDeletePermissions:
         # THEN deletion should complete
         self.mock_delete_acl.assert_called_once()
 
-    async def test_delete_permissions_no_container_support(self):
+    def test_delete_permissions_no_container_support(self):
         """Test deletion on entity without container support."""
         # GIVEN a file (which doesn't have sync_from_synapse_async)
         file = File(id="syn123")
@@ -490,7 +490,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_entity_without_sync_method(self):
+    def test_delete_permissions_entity_without_sync_method(self):
         """Test handling of entities that don't support sync_from_synapse_async."""
         # GIVEN a basic entity without container methods
         file = File(id="syn123")
@@ -507,7 +507,7 @@ class TestDeletePermissions:
             entity_id="syn123", synapse_client=self.synapse_client
         )
 
-    async def test_delete_permissions_large_hierarchy_performance(self):
+    def test_delete_permissions_large_hierarchy_performance(self):
         """Test performance considerations with large hierarchy."""
         # GIVEN a folder with many children
         parent_folder = Folder(id="syn100")
@@ -740,7 +740,7 @@ class TestListAclAsyncComprehensive:
         with pytest.raises(
             ValueError, match="The entity must have an ID to list ACLs."
         ):
-            file.list_acl()
+            await file.list_acl_async()
 
     async def test_list_acl_basic_single_entity(self):
         """Test basic ACL listing for a single entity."""
@@ -759,7 +759,7 @@ class TestListAclAsyncComprehensive:
         self.mock_get_acl.return_value = mock_acl
 
         # WHEN listing ACL
-        result = file.list_acl()
+        result = await file.list_acl_async()
 
         # THEN ACL should be retrieved
         self.mock_get_acl.assert_called_once_with(
@@ -799,7 +799,7 @@ class TestListAclAsyncComprehensive:
         self.mock_get_acl.side_effect = http_error
 
         # WHEN listing ACL
-        result = file.list_acl()
+        result = await file.list_acl_async()
 
         # THEN result should be empty but valid
         assert isinstance(result, AclListResult)
@@ -819,7 +819,7 @@ class TestListAclAsyncComprehensive:
         self.mock_get_user_headers.return_value = []
 
         # WHEN listing ACL
-        result = file.list_acl()
+        result = await file.list_acl_async()
 
         # THEN result should be valid but empty
         assert isinstance(result, AclListResult)
@@ -838,7 +838,7 @@ class TestListAclAsyncComprehensive:
         self.mock_get_acl.return_value = {"id": "syn123", "resourceAccess": []}
 
         # WHEN listing ACL with custom entity types (even non-standard ones)
-        result = file.list_acl(target_entity_types=["CustomType", "FOLDER"])
+        result = await file.list_acl_async(target_entity_types=["CustomType", "FOLDER"])
 
         # THEN the method should complete successfully (entity types are normalized but not validated)
         assert isinstance(result, AclListResult)
@@ -857,7 +857,7 @@ class TestListAclAsyncComprehensive:
         self.mock_get_user_headers.return_value = []
 
         # WHEN listing ACL with mixed-case entity type
-        result = file.list_acl(target_entity_types=["FiLe"])
+        result = await file.list_acl_async(target_entity_types=["FiLe"])
 
         # THEN ACL should be retrieved (case-insensitive match)
         self.mock_get_acl.assert_called_once()
@@ -874,7 +874,7 @@ class TestListAclAsyncComprehensive:
             ValueError,
             match="When recursive=True, include_container_content must also be True",
         ):
-            folder.list_acl(recursive=True, include_container_content=False)
+            await folder.list_acl_async(recursive=True, include_container_content=False)
 
     async def test_list_acl_container_content_only(self):
         """Test listing ACL for container content without recursion."""
@@ -903,7 +903,9 @@ class TestListAclAsyncComprehensive:
         self.mock_get_user_headers.return_value = []
 
         # WHEN listing ACL with include_container_content=True but not recursive
-        result = folder.list_acl(include_container_content=True, recursive=False)
+        result = await folder.list_acl_async(
+            include_container_content=True, recursive=False
+        )
 
         # THEN sync should be called
         folder.sync_from_synapse_async.assert_called_once()
@@ -932,7 +934,9 @@ class TestListAclAsyncComprehensive:
         self.mock_get_user_headers.return_value = []
 
         # WHEN listing ACL recursively
-        result = folder.list_acl(recursive=True, include_container_content=True)
+        result = await folder.list_acl_async(
+            recursive=True, include_container_content=True
+        )
 
         # THEN entities should be collected recursively
         folder._collect_entities.assert_called_once()
@@ -963,7 +967,7 @@ class TestListAclAsyncComprehensive:
         self.mock_get_user_headers.return_value = []
 
         # WHEN listing ACL filtered by folder type only
-        result = folder.list_acl(
+        result = await folder.list_acl_async(
             recursive=True,
             include_container_content=True,
             target_entity_types=["folder"],
@@ -999,7 +1003,7 @@ class TestListAclAsyncComprehensive:
         ]
 
         # WHEN listing ACL with tree logging
-        result = folder.list_acl(
+        result = await folder.list_acl_async(
             log_tree=True, recursive=True, include_container_content=True
         )
 
@@ -1035,9 +1039,6 @@ class TestListAclAsyncComprehensive:
         # AND mock different ACL responses for each entity
         acl_responses = {}
 
-        def mock_get_acl_side_effect(entity_id, synapse_client):
-            return acl_responses.get(entity_id, {"resourceAccess": []})
-
         # Set up different ACLs for different entities
         acl_responses["syn100"] = {
             "id": "syn100",
@@ -1052,12 +1053,6 @@ class TestListAclAsyncComprehensive:
             ],
         }
         # syn300 (file) has no local ACL - will get 404
-
-        async def mock_get_current_acl(client):
-            entity_id = None
-            if hasattr(self, "id"):
-                entity_id = self.id
-            return acl_responses.get(entity_id, {}).get("resourceAccess", [])
 
         # Mock each entity's _get_current_entity_acl method
         child_folder._get_current_entity_acl = AsyncMock()
@@ -1075,7 +1070,9 @@ class TestListAclAsyncComprehensive:
         ]
 
         # WHEN listing ACL recursively
-        result = root_folder.list_acl(recursive=True, include_container_content=True)
+        result = await root_folder.list_acl_async(
+            recursive=True, include_container_content=True
+        )
 
         # THEN result should include ACLs from multiple entities
         assert isinstance(result, AclListResult)
@@ -1098,7 +1095,7 @@ class TestListAclAsyncComprehensive:
         self.mock_get_user_headers.side_effect = Exception("User service unavailable")
 
         # WHEN listing ACL
-        result = file.list_acl()
+        result = await file.list_acl_async()
 
         # THEN result should still be created without user info
         assert isinstance(result, AclListResult)
@@ -1133,7 +1130,7 @@ class TestListAclAsyncComprehensive:
         self.mock_get_user_headers.return_value = []
 
         # WHEN listing ACL
-        result = folder.list_acl(include_container_content=True)
+        result = await folder.list_acl_async(include_container_content=True)
 
         # THEN operation should complete successfully
         assert isinstance(result, AclListResult)
@@ -1166,7 +1163,7 @@ class TestListAclAsyncComprehensive:
         ]
 
         # WHEN listing ACL
-        result = file.list_acl()
+        result = await file.list_acl_async()
 
         # THEN result should contain all permission combinations
         assert isinstance(result, AclListResult)

@@ -1673,14 +1673,16 @@ class TestCreateS3StorageLocation:
     ) -> None:
         with patch.object(self.syn, "restPOST") as mock_post, patch.object(
             self.syn, "setStorageLocation"
-        ) as mock_set_storage_location, patch.object(self.syn, "store") as syn_store:
+        ) as mock_set_storage_location, patch.object(
+            self.syn, "store_async"
+        ) as syn_store:
             mock_post.return_value = {"storageLocationId": 456}
             mock_set_storage_location.return_value = {"id": "foo"}
 
             # either passed a folder or expected to create one
             expected_folder = kwargs.get("folder")
             if not expected_folder:
-                expected_folder = syn_store.return_value = Mock()
+                expected_folder = syn_store.return_value = AsyncMock()
 
             result = self.syn.create_s3_storage_location(*args, **kwargs)
 

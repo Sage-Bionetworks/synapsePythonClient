@@ -39,7 +39,7 @@ class TestActivity:
         self.schedule_for_cleanup(file.path)
 
         if store_file:
-            await file.store_async()
+            await file.store_async(synapse_client=self.syn)
             self.schedule_for_cleanup(file.id)
 
         return file
@@ -97,7 +97,7 @@ class TestActivity:
         )
 
         # WHEN I store the activity
-        result = await activity.store_async(parent=file)
+        result = await activity.store_async(parent=file, synapse_client=self.syn)
         self.schedule_for_cleanup(result.id)
 
         # THEN I expect the activity to be stored correctly
@@ -110,7 +110,7 @@ class TestActivity:
         modified_name = f"modified_name_{str(uuid.uuid4())}"
         result.name = modified_name
         result.description = "modified_description"
-        modified_result = await result.store_async()
+        modified_result = await result.store_async(synapse_client=self.syn)
 
         # THEN I expect the modified activity to be stored
         await self.verify_activity_properties(
@@ -121,7 +121,9 @@ class TestActivity:
         )
 
         # WHEN I get the activity from the file
-        retrieved_activity = await Activity.from_parent_async(parent=file)
+        retrieved_activity = await Activity.from_parent_async(
+            parent=file, synapse_client=self.syn
+        )
 
         # THEN I expect the retrieved activity to match the modified one
         assert retrieved_activity.name == modified_name
@@ -134,10 +136,12 @@ class TestActivity:
         )
 
         # WHEN I delete the activity
-        await result.delete_async(parent=file)
+        await result.delete_async(parent=file, synapse_client=self.syn)
 
         # THEN I expect no activity to be associated with the file
-        activity_after_delete = await Activity.from_parent_async(parent=file)
+        activity_after_delete = await Activity.from_parent_async(
+            parent=file, synapse_client=self.syn
+        )
         assert activity_after_delete is None
 
     async def test_store_activity_with_no_references(
@@ -162,7 +166,7 @@ class TestActivity:
         )
 
         # Clean up
-        await file.activity.delete_async(parent=file)
+        await file.activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_store_activity_via_file_creation(
         self, project: Synapse_Project
@@ -194,7 +198,7 @@ class TestActivity:
         )
 
         # Clean up
-        await file.activity.delete_async(parent=file)
+        await file.activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_get_by_activity_id(self, project: Synapse_Project) -> None:
         """Test retrieving an activity by its ID using async method"""
@@ -211,7 +215,9 @@ class TestActivity:
         stored_activity = file.activity
 
         # WHEN I retrieve the activity by its ID
-        retrieved_activity = await Activity.get_async(activity_id=stored_activity.id)
+        retrieved_activity = await Activity.get_async(
+            activity_id=stored_activity.id, synapse_client=self.syn
+        )
 
         # THEN I expect to get the same activity
         assert retrieved_activity is not None
@@ -226,7 +232,7 @@ class TestActivity:
         )
 
         # Clean up
-        await stored_activity.delete_async(parent=file)
+        await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_get_by_parent_id(self, project: Synapse_Project) -> None:
         """Test retrieving an activity by parent entity ID using async method"""
@@ -241,7 +247,9 @@ class TestActivity:
         await asyncio.sleep(2)
 
         # WHEN I retrieve the activity by parent ID
-        retrieved_activity = await Activity.get_async(parent_id=file.id)
+        retrieved_activity = await Activity.get_async(
+            parent_id=file.id, synapse_client=self.syn
+        )
 
         # THEN I expect to get the same activity
         assert retrieved_activity is not None
@@ -256,7 +264,7 @@ class TestActivity:
         )
 
         # Clean up
-        await stored_activity.delete_async(parent=file)
+        await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_get_by_parent_id_with_version(
         self, project: Synapse_Project
@@ -273,7 +281,9 @@ class TestActivity:
 
         # WHEN I retrieve the activity by parent ID with version
         retrieved_activity = await Activity.get_async(
-            parent_id=file.id, parent_version_number=file.version_number
+            parent_id=file.id,
+            parent_version_number=file.version_number,
+            synapse_client=self.syn,
         )
 
         # THEN I expect to get the same activity
@@ -286,18 +296,22 @@ class TestActivity:
         )
 
         # Clean up
-        await stored_activity.delete_async(parent=file)
+        await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_get_nonexistent_activity(self) -> None:
         """Test retrieving a nonexistent activity returns None using async method"""
         # WHEN I try to retrieve a nonexistent activity by ID
-        retrieved_activity = await Activity.get_async(activity_id="syn999999999")
+        retrieved_activity = await Activity.get_async(
+            activity_id="syn999999999", synapse_client=self.syn
+        )
 
         # THEN I expect to get None
         assert retrieved_activity is None
 
         # AND when I try to retrieve by nonexistent parent ID
-        retrieved_activity = await Activity.get_async(parent_id="syn999999999")
+        retrieved_activity = await Activity.get_async(
+            parent_id="syn999999999", synapse_client=self.syn
+        )
 
         # THEN I expect to get None
         assert retrieved_activity is None
@@ -325,7 +339,7 @@ class TestActivity:
 
         # WHEN I retrieve using activity_id from first activity and parent_id from second
         retrieved_activity = await Activity.get_async(
-            activity_id=stored_activity1.id, parent_id=file2.id
+            activity_id=stored_activity1.id, parent_id=file2.id, synapse_client=self.syn
         )
 
         # THEN I expect to get the first activity (activity_id takes precedence)
@@ -335,8 +349,8 @@ class TestActivity:
         assert retrieved_activity.description == "first activity async"
 
         # Clean up
-        await stored_activity1.delete_async(parent=file1)
-        await stored_activity2.delete_async(parent=file2)
+        await stored_activity1.delete_async(parent=file1, synapse_client=self.syn)
+        await stored_activity2.delete_async(parent=file2, synapse_client=self.syn)
 
     async def test_get_no_parameters_raises_error(self) -> None:
         """Test that calling get_async() without parameters raises ValueError"""
@@ -365,7 +379,7 @@ class TestActivity:
         )
 
         # WHEN I store the activity using a string parent ID
-        result = await activity.store_async(parent=file.id)
+        result = await activity.store_async(parent=file.id, synapse_client=self.syn)
         self.schedule_for_cleanup(result.id)
 
         # THEN I expect the activity to be stored correctly
@@ -375,12 +389,14 @@ class TestActivity:
         )
 
         # AND when I retrieve it from the file
-        retrieved_activity = await Activity.from_parent_async(parent=file)
+        retrieved_activity = await Activity.from_parent_async(
+            parent=file, synapse_client=self.syn
+        )
         assert retrieved_activity.id == result.id
         assert retrieved_activity.name == activity.name
 
         # Clean up
-        await result.delete_async(parent=file.id)
+        await result.delete_async(parent=file.id, synapse_client=self.syn)
 
     async def test_from_parent_with_string_parent(
         self, project: Synapse_Project
@@ -396,7 +412,9 @@ class TestActivity:
         stored_activity = file.activity
 
         # WHEN I retrieve the activity using a string parent ID
-        retrieved_activity = await Activity.from_parent_async(parent=file.id)
+        retrieved_activity = await Activity.from_parent_async(
+            parent=file.id, synapse_client=self.syn
+        )
 
         # THEN I expect to get the same activity
         assert retrieved_activity is not None
@@ -405,7 +423,7 @@ class TestActivity:
         assert retrieved_activity.description == "testing from_parent with string"
 
         # Clean up
-        await stored_activity.delete_async(parent=file)
+        await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_from_parent_with_string_parent_and_version(
         self, project: Synapse_Project
@@ -421,7 +439,9 @@ class TestActivity:
 
         # WHEN I retrieve the activity using a string parent ID with version parameter
         retrieved_activity = await Activity.from_parent_async(
-            parent=file.id, parent_version_number=file.version_number
+            parent=file.id,
+            parent_version_number=file.version_number,
+            synapse_client=self.syn,
         )
 
         # THEN I expect to get the same activity
@@ -430,7 +450,7 @@ class TestActivity:
         assert retrieved_activity.name == activity.name
 
         # Clean up
-        await stored_activity.delete_async(parent=file)
+        await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_from_parent_with_string_parent_with_embedded_version(
         self, project: Synapse_Project
@@ -447,7 +467,7 @@ class TestActivity:
         # WHEN I retrieve the activity using a string parent ID with embedded version
         parent_with_version = f"{file.id}.{file.version_number}"
         retrieved_activity = await Activity.from_parent_async(
-            parent=parent_with_version
+            parent=parent_with_version, synapse_client=self.syn
         )
 
         # THEN I expect to get the same activity
@@ -456,7 +476,7 @@ class TestActivity:
         assert retrieved_activity.name == activity.name
 
         # Clean up
-        await stored_activity.delete_async(parent=file)
+        await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_from_parent_version_precedence(
         self, project: Synapse_Project
@@ -475,7 +495,9 @@ class TestActivity:
         parent_with_version = f"{file.id}.{file.version_number}"
         wrong_version = file.version_number + 1 if file.version_number > 1 else 999
         retrieved_activity = await Activity.from_parent_async(
-            parent=parent_with_version, parent_version_number=wrong_version
+            parent=parent_with_version,
+            parent_version_number=wrong_version,
+            synapse_client=self.syn,
         )
 
         # THEN I expect to get the activity (embedded version should take precedence)
@@ -484,7 +506,7 @@ class TestActivity:
         assert retrieved_activity.name == activity.name
 
         # Clean up
-        await stored_activity.delete_async(parent=file)
+        await stored_activity.delete_async(parent=file, synapse_client=self.syn)
 
     async def test_delete_with_string_parent(self, project: Synapse_Project) -> None:
         """Test deleting an activity using a string parent ID"""
@@ -496,10 +518,12 @@ class TestActivity:
         file = await self.create_file_with_activity(project, activity=activity)
 
         # WHEN I delete the activity using a string parent ID
-        await Activity.delete_async(parent=file.id)
+        await Activity.delete_async(parent=file.id, synapse_client=self.syn)
 
         # THEN I expect no activity to be associated with the file
-        activity_after_delete = await Activity.from_parent_async(parent=file)
+        activity_after_delete = await Activity.from_parent_async(
+            parent=file, synapse_client=self.syn
+        )
         assert activity_after_delete is None
 
     async def test_disassociate_with_string_parent(
@@ -514,8 +538,12 @@ class TestActivity:
         file = await self.create_file_with_activity(project, activity=activity)
 
         # WHEN I disassociate the activity using a string parent ID
-        await Activity.disassociate_from_entity_async(parent=file.id)
+        await Activity.disassociate_from_entity_async(
+            parent=file.id, synapse_client=self.syn
+        )
 
         # THEN I expect no activity to be associated with the file
-        activity_after_disassociate = await Activity.from_parent_async(parent=file)
+        activity_after_disassociate = await Activity.from_parent_async(
+            parent=file, synapse_client=self.syn
+        )
         assert activity_after_disassociate is None

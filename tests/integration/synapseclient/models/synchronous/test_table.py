@@ -37,7 +37,7 @@ class TestTableCreation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_table_with_different_column_configurations(
+    def test_create_table_with_different_column_configurations(
         self, project_model: Project
     ) -> None:
         """Test creating tables with different column configurations."""
@@ -119,9 +119,7 @@ class TestTableCreation:
             new_table_instance.columns["test_column2"].column_type == ColumnType.INTEGER
         )
 
-    async def test_create_table_with_many_column_types(
-        self, project_model: Project
-    ) -> None:
+    def test_create_table_with_many_column_types(self, project_model: Project) -> None:
         """Test creating a table with many column types with different allowed characters."""
         # GIVEN a table with many columns with various naming patterns
         table_name = str(uuid.uuid4())
@@ -165,9 +163,7 @@ class TestTableCreation:
             assert name in new_table_instance.columns
             assert new_table_instance.columns[name].column_type == ColumnType.STRING
 
-    async def test_create_table_with_invalid_column(
-        self, project_model: Project
-    ) -> None:
+    def test_create_table_with_invalid_column(self, project_model: Project) -> None:
         """Test creating a table with an invalid column configuration."""
         # GIVEN a table with an invalid column (maximum_size too large)
         table_name = str(uuid.uuid4())
@@ -194,9 +190,7 @@ class TestTableCreation:
             in str(e.value)
         )
 
-    async def test_table_creation_with_data_sources(
-        self, project_model: Project
-    ) -> None:
+    def test_table_creation_with_data_sources(self, project_model: Project) -> None:
         """Test creating tables with different data sources."""
         # Test with dictionary data
         # GIVEN a table with no columns defined and dictionary data
@@ -266,9 +260,7 @@ class TestTableCreation:
             results["column_string"], csv_data["column_string"]
         )
 
-    async def test_create_table_with_string_column(
-        self, project_model: Project
-    ) -> None:
+    def test_create_table_with_string_column(self, project_model: Project) -> None:
         """Test creating tables with string column configurations."""
         # GIVEN a table with columns
         table_name = str(uuid.uuid4())
@@ -313,7 +305,7 @@ class TestRowStorage:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_store_rows_from_csv_infer_columns(
+    def test_store_rows_from_csv_infer_columns(
         self, mocker: MockerFixture, project_model: Project
     ) -> None:
         # SPYs
@@ -366,7 +358,7 @@ class TestRowStorage:
             results["float_string"], data_for_table["float_string"]
         )
 
-    async def test_update_rows_from_csv_infer_columns_no_column_updates(
+    def test_update_rows_from_csv_infer_columns_no_column_updates(
         self, project_model: Project
     ) -> None:
         # GIVEN a table with no columns defined
@@ -421,7 +413,7 @@ class TestRowStorage:
             updated_results_from_table["column_string"], query_results["column_string"]
         )
 
-    async def test_store_rows_from_csv_no_columns(self, project_model: Project) -> None:
+    def test_store_rows_from_csv_no_columns(self, project_model: Project) -> None:
         # GIVEN a table with no columns defined
         table_name = str(uuid.uuid4())
         table = Table(name=table_name, parent_id=project_model.id)
@@ -452,7 +444,7 @@ class TestRowStorage:
             in str(e.value)
         )
 
-    async def test_store_rows_from_manually_defined_columns(
+    def test_store_rows_from_manually_defined_columns(
         self, mocker: MockerFixture, project_model: Project
     ) -> None:
         # SPYs
@@ -511,7 +503,7 @@ class TestRowStorage:
             results["float_column"], data_for_table["float_column"]
         )
 
-    async def test_store_rows_on_existing_table_with_schema_storage_strategy(
+    def test_store_rows_on_existing_table_with_schema_storage_strategy(
         self, mocker: MockerFixture, project_model: Project
     ) -> None:
         # SPYs
@@ -565,7 +557,7 @@ class TestRowStorage:
             results["column_string"], data_for_table["column_string"]
         )
 
-    async def test_store_rows_on_existing_table_with_expanding_string_column(
+    def test_store_rows_on_existing_table_with_expanding_string_column(
         self, mocker: MockerFixture, project_model: Project
     ) -> None:
         # SPYs
@@ -635,7 +627,7 @@ class TestRowStorage:
         # AND the column should have been expanded
         assert table.columns["column_string"].maximum_size == 54
 
-    async def test_store_rows_on_existing_table_adding_column(
+    def test_store_rows_on_existing_table_adding_column(
         self, mocker: MockerFixture, project_model: Project
     ) -> None:
         # SPYs
@@ -694,7 +686,7 @@ class TestRowStorage:
             results["column_key_2"], data_for_table["column_key_2"]
         )
 
-    async def test_store_rows_on_existing_table_no_schema_storage_strategy(
+    def test_store_rows_on_existing_table_no_schema_storage_strategy(
         self, project_model: Project
     ) -> None:
         # GIVEN a table with a column defined
@@ -729,7 +721,7 @@ class TestRowStorage:
             in str(e.value)
         )
 
-    async def test_store_rows_as_csv_being_split_and_uploaded(
+    def test_store_rows_as_csv_being_split_and_uploaded(
         self, project_model: Project, mocker: MockerFixture
     ) -> None:
         # GIVEN a table in Synapse
@@ -795,7 +787,7 @@ class TestRowStorage:
         # AND The spy should have been called in multiple batches
         assert spy_send_job.call_count == 5
 
-    async def test_store_rows_as_df_being_split_and_uploaded(
+    def test_store_rows_as_df_being_split_and_uploaded(
         self, project_model: Project, mocker: MockerFixture
     ) -> None:
         # GIVEN a table in Synapse
@@ -860,7 +852,7 @@ class TestRowStorage:
         assert spy_send_job.call_count == 3
 
     @skip("Skip in normal testing because the large size makes it slow")
-    async def test_store_rows_as_large_df_being_split_and_uploaded(
+    def test_store_rows_as_large_df_being_split_and_uploaded(
         self, project_model: Project, mocker: MockerFixture
     ) -> None:
         # GIVEN a table in Synapse
@@ -879,7 +871,7 @@ class TestRowStorage:
         )
         table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
-        spy_send_job = mocker.spy(asynchronous_job_module, "send_job_async")
+        spy_send_job = mocker.spy(asynchronous_job_module, "send_job")
 
         # AND data that will be split into multiple parts
         rows_in_table = 20
@@ -930,7 +922,7 @@ class TestUpsertRows:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_upsert_operations_with_various_data_sources(
+    def test_upsert_operations_with_various_data_sources(
         self, project_model: Project, mocker: MockerFixture
     ) -> None:
         """Test various upsert operations with different data sources and options."""
@@ -1069,7 +1061,7 @@ class TestUpsertRows:
         # The spy should not have been called
         assert spy_table_update.call_count == 0
 
-    async def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
+    def test_upsert_with_multi_value_key(self, project_model: Project) -> None:
         """Test upserting rows using multiple columns as the primary key."""
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
@@ -1154,7 +1146,7 @@ class TestUpsertRows:
         # Should have 9 rows now (6 from before + 3 new)
         assert len(results) == 9
 
-    async def test_upsert_with_large_data_and_batching(
+    def test_upsert_with_large_data_and_batching(
         self, project_model: Project, mocker: MockerFixture
     ) -> None:
         """Test upserting with large data strings that require batching."""
@@ -1844,7 +1836,7 @@ class TestDeleteRows:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_delete_single_row(self, project_model: Project) -> None:
+    def test_delete_single_row(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         table = Table(
@@ -1879,7 +1871,7 @@ class TestDeleteRows:
         # AND only 2 rows should exist on the table
         assert len(results) == 2
 
-    async def test_delete_multiple_rows(self, project_model: Project) -> None:
+    def test_delete_multiple_rows(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         table = Table(
@@ -1914,7 +1906,7 @@ class TestDeleteRows:
         # AND only 1 row should exist on the table
         assert len(results) == 1
 
-    async def test_delete_no_rows(self, project_model: Project) -> None:
+    def test_delete_no_rows(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         table = Table(
@@ -1955,7 +1947,7 @@ class TestColumnModifications:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_column_rename(self, project_model: Project) -> None:
+    def test_column_rename(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         old_column_name = "column_string"
@@ -1985,7 +1977,7 @@ class TestColumnModifications:
         assert new_table_instance.columns[new_column_name] is not None
         assert old_column_name not in new_table_instance.columns
 
-    async def test_delete_column(self, project_model: Project) -> None:
+    def test_delete_column(self, project_model: Project) -> None:
         # GIVEN a table in Synapse
         table_name = str(uuid.uuid4())
         old_column_name = "column_string"
@@ -2031,7 +2023,7 @@ class TestQuerying:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_query_to_csv(self, project_model: Project) -> None:
+    def test_query_to_csv(self, project_model: Project) -> None:
         # GIVEN a table with a column defined
         table_name = str(uuid.uuid4())
         table = Table(
@@ -2081,7 +2073,7 @@ class TestQuerying:
             as_dataframe["float_column"], data_for_table["float_column"]
         )
 
-    async def test_part_mask_query_everything(self, project_model: Project) -> None:
+    def test_part_mask_query_everything(self, project_model: Project) -> None:
         # GIVEN a table with a column defined
         table_name = str(uuid.uuid4())
         table = Table(
@@ -2139,7 +2131,7 @@ class TestQuerying:
         assert results.sum_file_sizes.sum_file_size_bytes is not None
         assert results.last_updated_on is not None
 
-    async def test_part_mask_query_results_only(self, project_model: Project) -> None:
+    def test_part_mask_query_results_only(self, project_model: Project) -> None:
         # GIVEN a table with a column defined
         table_name = str(uuid.uuid4())
         table = Table(
@@ -2197,7 +2189,7 @@ class TestTableSnapshot:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_snapshot_basic(self, project_model: Project) -> None:
+    def test_snapshot_basic(self, project_model: Project) -> None:
         """Test creating a basic snapshot of a table."""
         # GIVEN a table with some data
         table = Table(
@@ -2208,7 +2200,7 @@ class TestTableSnapshot:
                 Column(name="col2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # Store some data
@@ -2243,7 +2235,7 @@ class TestTableSnapshot:
         assert latest_table.version_comment == "in progress"
         assert latest_table.version_number > 1
 
-    async def test_snapshot_with_activity(self, project_model: Project) -> None:
+    def test_snapshot_with_activity(self, project_model: Project) -> None:
         """Test creating a snapshot with activity (provenance)."""
         # GIVEN a table with some data and an activity
         table = Table(
@@ -2254,7 +2246,7 @@ class TestTableSnapshot:
                 Column(name="col2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # Create and store an activity
@@ -2301,7 +2293,7 @@ class TestTableSnapshot:
         assert latest_table.version_comment == "in progress"
         assert latest_table.version_number > 1
 
-    async def test_snapshot_without_activity(self, project_model: Project) -> None:
+    def test_snapshot_without_activity(self, project_model: Project) -> None:
         """Test creating a snapshot without including activity."""
         # GIVEN a table with some data and an activity
         table = Table(
@@ -2312,7 +2304,7 @@ class TestTableSnapshot:
                 Column(name="col2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # Create and store an activity
@@ -2358,7 +2350,7 @@ class TestTableSnapshot:
         assert latest_table.version_comment == "in progress"
         assert latest_table.version_number > 1
 
-    async def test_snapshot_minimal_args(self, project_model: Project) -> None:
+    def test_snapshot_minimal_args(self, project_model: Project) -> None:
         """Test creating a snapshot with minimal arguments."""
         # GIVEN a table with some data
         table = Table(
@@ -2369,7 +2361,7 @@ class TestTableSnapshot:
                 Column(name="col2", column_type=ColumnType.INTEGER),
             ],
         )
-        table = await table.store_async(synapse_client=self.syn)
+        table = table.store(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # Store some data

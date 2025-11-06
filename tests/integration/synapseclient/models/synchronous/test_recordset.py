@@ -1,7 +1,5 @@
 """Integration tests for the synapseclient.models.RecordSet class."""
 
-import os
-import tempfile
 import uuid
 from typing import Callable
 
@@ -43,7 +41,7 @@ class TestRecordSetStore:
             upsert_keys=["id", "name"],
         )
 
-    async def test_store_in_project(
+    def test_store_in_project(
         self, project_model: Project, record_set_fixture: RecordSet
     ) -> None:
         # GIVEN a RecordSet
@@ -66,7 +64,7 @@ class TestRecordSetStore:
         assert stored_record_set.created_on is not None
         assert stored_record_set.created_by is not None
 
-    async def test_store_in_folder(
+    def test_store_in_folder(
         self, project_model: Project, record_set_fixture: RecordSet
     ) -> None:
         # GIVEN a folder within a project
@@ -91,7 +89,7 @@ class TestRecordSetStore:
         assert stored_record_set.parent_id == folder.id
         assert stored_record_set.etag is not None
 
-    async def test_store_with_activity(
+    def test_store_with_activity(
         self, project_model: Project, record_set_fixture: RecordSet
     ) -> None:
         # GIVEN a RecordSet with activity
@@ -119,7 +117,7 @@ class TestRecordSetStore:
         assert stored_record_set.activity.description == "Test activity for RecordSet"
         assert len(stored_record_set.activity.used) == 2
 
-    async def test_store_with_annotations(
+    def test_store_with_annotations(
         self, project_model: Project, record_set_fixture: RecordSet
     ) -> None:
         # GIVEN a RecordSet with annotations
@@ -146,7 +144,7 @@ class TestRecordSetStore:
         assert stored_record_set.annotations["numeric_annotation"] == [42]
         assert stored_record_set.annotations["boolean_annotation"] == [True]
 
-    async def test_store_update_existing_record_set(
+    def test_store_update_existing_record_set(
         self, project_model: Project, record_set_fixture: RecordSet
     ) -> None:
         # GIVEN an existing RecordSet
@@ -168,7 +166,7 @@ class TestRecordSetStore:
         assert updated_record_set.version_comment == "Updated version comment"
         assert updated_record_set.version_number >= original_record_set.version_number
 
-    async def test_store_validation_errors(self) -> None:
+    def test_store_validation_errors(self) -> None:
         # GIVEN a RecordSet without required fields
         record_set = RecordSet()
 
@@ -203,7 +201,7 @@ class TestRecordSetGet:
         self.schedule_for_cleanup(record_set.id)
         return record_set
 
-    async def test_get_record_set_by_id(self, stored_record_set: RecordSet) -> None:
+    def test_get_record_set_by_id(self, stored_record_set: RecordSet) -> None:
         # GIVEN an existing RecordSet
         original_id = stored_record_set.id
 
@@ -220,7 +218,7 @@ class TestRecordSetGet:
         assert retrieved_record_set.etag == stored_record_set.etag
         assert retrieved_record_set.version_number == stored_record_set.version_number
 
-    async def test_get_record_set_with_activity(self, project_model: Project) -> None:
+    def test_get_record_set_with_activity(self, project_model: Project) -> None:
         # GIVEN a RecordSet with activity
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
@@ -254,7 +252,7 @@ class TestRecordSetGet:
         assert len(retrieved_record_set.activity.used) == 1
         assert retrieved_record_set.path is not None
 
-    async def test_get_validation_error(self) -> None:
+    def test_get_validation_error(self) -> None:
         # GIVEN a RecordSet without an ID
         record_set = RecordSet()
 
@@ -263,7 +261,7 @@ class TestRecordSetGet:
         with pytest.raises(ValueError):
             record_set.get(synapse_client=self.syn)
 
-    async def test_get_non_existent_record_set(self) -> None:
+    def test_get_non_existent_record_set(self) -> None:
         # GIVEN a non-existent RecordSet ID
         record_set = RecordSet(id="syn999999999")
 
@@ -281,7 +279,7 @@ class TestRecordSetDelete:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_delete_entire_record_set(self, project_model: Project) -> None:
+    def test_delete_entire_record_set(self, project_model: Project) -> None:
         # GIVEN an existing RecordSet
         filename = utils.make_bogus_uuid_file()
         self.schedule_for_cleanup(filename)
@@ -303,7 +301,7 @@ class TestRecordSetDelete:
         with pytest.raises(SynapseHTTPError):
             RecordSet(id=record_set_id).get(synapse_client=self.syn)
 
-    async def test_delete_specific_version(self, project_model: Project) -> None:
+    def test_delete_specific_version(self, project_model: Project) -> None:
         # GIVEN an existing RecordSet with multiple versions
         filename1 = utils.make_bogus_uuid_file()
         filename2 = utils.make_bogus_uuid_file()
@@ -334,7 +332,7 @@ class TestRecordSetDelete:
         assert current_record_set.version_number == 1  # Should be back to version 1
         assert current_record_set.description == "RecordSet version 1"
 
-    async def test_delete_validation_errors(self) -> None:
+    def test_delete_validation_errors(self) -> None:
         # GIVEN a RecordSet without an ID
         record_set = RecordSet()
 
