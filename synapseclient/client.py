@@ -2428,13 +2428,15 @@ class Synapse(object):
 
         # _synapse_store hook
         # for objects that know how to store themselves
-        if hasattr(obj, "_synapse_store"):
+        if hasattr(obj, "_synapse_store_async"):
+            return await obj._synapse_store_async(self)
+        elif hasattr(obj, "_synapse_store"):
             return obj._synapse_store(self)
 
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
             if isinstance(obj, Wiki):
-                return await self._storeWiki(obj, createOrUpdate)
+                return await self._storeWiki_async(obj, createOrUpdate)
 
             if "id" in obj:  # If ID is present, update
                 trace.get_current_span().set_attributes({"synapse.id": obj["id"]})
@@ -5720,13 +5722,38 @@ class Synapse(object):
         Returns:
             A 3-tuple of the synapse Folder, a the storage location setting, and the project setting dictionaries.
         """
+        return wrap_async_to_sync(
+            self.create_s3_storage_location_async(
+                parent=parent,
+                folder_name=folder_name,
+                folder=folder,
+                bucket_name=bucket_name,
+                base_key=base_key,
+                sts_enabled=sts_enabled,
+            )
+        )
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1441
+    async def create_s3_storage_location_async(
+        self,
+        *,
+        parent=None,
+        folder_name=None,
+        folder=None,
+        bucket_name=None,
+        base_key=None,
+        sts_enabled=False,
+    ) -> Tuple[Folder, Dict[str, str], Dict[str, str]]:
+        """
+        async version of create_s3_storage_location
+        """
         if folder_name and parent:
             if folder:
                 raise ValueError(
                     "folder and  folder_name are mutually exclusive, only one should be passed"
                 )
 
-            folder = self.store(Folder(name=folder_name, parent=parent))
+            folder = await self.store_async(Folder(name=folder_name, parent=parent))
 
         elif not folder:
             raise ValueError("either folder or folder_name should be required")
@@ -6944,7 +6971,22 @@ class Synapse(object):
         return [DictObject(**header) for header in self._GET_paginated(uri)]
 
     # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
-    async def _storeWiki(self, wiki: Wiki, createOrUpdate: bool) -> Wiki:
+    def _storeWiki(self, wiki: Wiki, createOrUpdate: bool) -> Wiki:
+        """
+        Stores or updates the given Wiki.
+
+        Arguments:
+            wiki:           A Wiki object
+            createOrUpdate: Indicates whether the method should automatically perform an update if the 'obj'
+                            conflicts with an existing Synapse object.
+
+        Returns:
+            An updated Wiki object
+        """
+        return wrap_async_to_sync(self._storeWiki_async(wiki, createOrUpdate))
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
+    async def _storeWiki_async(self, wiki: Wiki, createOrUpdate: bool) -> Wiki:
         """
         Stores or updates the given Wiki.
 
@@ -6988,7 +7030,7 @@ class Synapse(object):
                     )
                     or err.response.status_code == 409
                 ):
-                    existing_wiki = self.getWiki(wiki.ownerId)
+                    existing_wiki = await self.getWiki_async(wiki.ownerId)
 
                     # overwrite everything except for the etag (this will keep unmodified fields in the existing wiki)
                     etag = existing_wiki["etag"]
@@ -7822,12 +7864,6 @@ class Synapse(object):
         uri = "/entity/{id}/table/query/nextPage/async".format(id=tableId)
         return self._waitForAsync(uri=uri, request=nextPageToken)
 
-    @deprecated(
-        version="4.9.0",
-        reason="To be removed in 5.0.0. "
-        "Use the `_chunk_and_upload_csv` method on the `from synapseclient.models import Table` class instead. "
-        "Check the docstring for the replacement function example.",
-    )
     def _uploadCsv(
         self,
         filepath: str,
@@ -7910,9 +7946,44 @@ class Synapse(object):
             asyncio.run(upload_csv_with_chunk_method(table_id=TABLE_ID, path=PATH))
             ```
         """
+        return wrap_async_to_sync(
+            self._uploadCsv_async(
+                filepath,
+                schema,
+                updateEtag,
+                quoteCharacter,
+                escapeCharacter,
+                lineEnd,
+                separator,
+                header,
+                linesToSkip,
+            )
+        )
 
-        fileHandleId = wrap_async_to_sync(
-            multipart_upload_file_async(self, filepath, content_type="text/csv")
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. "
+        "Use the `_chunk_and_upload_csv` method on the `from synapseclient.models import Table` class instead. "
+        "Check the docstring for the replacement function example.",
+    )
+    async def _uploadCsv_async(
+        self,
+        filepath: str,
+        schema: Union[Entity, str],
+        updateEtag: str = None,
+        quoteCharacter: str = '"',
+        escapeCharacter: str = "\\",
+        lineEnd: str = os.linesep,
+        separator: str = ",",
+        header: bool = True,
+        linesToSkip: int = 0,
+    ) -> dict:
+        """
+        Async version of [_uploadCsv][]
+        """
+
+        fileHandleId = await multipart_upload_file_async(
+            self, filepath, content_type="text/csv"
         )
 
         uploadRequest = {

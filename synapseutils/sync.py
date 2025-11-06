@@ -614,7 +614,7 @@ class _SyncUploader:
                 used=used_activity,
                 executed=executed_activity,
             )
-        await item.store_async()
+        await item.store_async(synapse_client=self.syn)
         return item
 
 
