@@ -9,6 +9,7 @@ You will create a JSON schema using your data model.
 
 ## Prerequisites
 * You have a working [installation](../installation.md) of the Synapse Python Client.
+* You have a data-model, see [here](https://sagebionetworks.jira.com/wiki/spaces/SCHEM/pages/2473623559/The+Data+Model+Schema)
 
 
 ## 1. Set up your variables
