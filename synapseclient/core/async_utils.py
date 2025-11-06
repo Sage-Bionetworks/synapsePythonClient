@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import sys
 from typing import Any, Callable, Coroutine, Union
 
 import nest_asyncio
@@ -83,7 +84,11 @@ def wrap_async_to_sync(coroutine: Coroutine[Any, Any, Any]) -> Any:
     except RuntimeError:
         pass
 
-    if loop:
+    if loop and sys.version_info >= (3, 14, 0):
+        raise RuntimeError(
+            f"Cannot use wrap_async_to_sync from within an existing async context in Python 3.14+, instead call the async function `{coroutine.__name__}` directly"
+        )
+    elif loop:
         nest_asyncio.apply(loop=loop)
         return loop.run_until_complete(coroutine)
     else:
@@ -112,7 +117,11 @@ def wrap_async_generator_to_sync_generator(async_gen_func: Callable, *args, **kw
     except RuntimeError:
         pass
 
-    if loop:
+    if loop and sys.version_info >= (3, 14, 0):
+        raise RuntimeError(
+            f"Cannot use wrap_async_to_sync from within an existing async context in Python 3.14+, instead call the async generator function `{async_gen_func.__name__}` directly"
+        )
+    elif loop:
         nest_asyncio.apply(loop=loop)
 
         # Create the async generator
@@ -181,7 +190,11 @@ def async_to_sync(cls):
             except RuntimeError:
                 pass
 
-            if loop:
+            if loop and sys.version_info >= (3, 14, 0):
+                raise RuntimeError(
+                    f"Cannot use wrap_async_to_sync from within an existing async context in Python 3.14+, instead call the async method `{async_method_name}` directly"
+                )
+            elif loop:
                 nest_asyncio.apply(loop=loop)
                 return loop.run_until_complete(wrapper(*args, **kwargs))
             else:

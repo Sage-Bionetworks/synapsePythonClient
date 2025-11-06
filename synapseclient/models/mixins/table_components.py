@@ -159,7 +159,7 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
 
 async def _query_table_csv(
     query: str,
-    synapse: Synapse,
+    synapse_client: Synapse,
     header: bool = True,
     include_row_id_and_row_version: bool = True,
     # for csvTableDescriptor
@@ -186,7 +186,7 @@ async def _query_table_csv(
 
     Arguments:
         query: The SQL query string to execute against the table.
-        synapse: An authenticated Synapse client instance used for making the API call.
+        synapse_client: An authenticated Synapse client instance used for making the API call.
         header: Should the first line contain the column names as a header in the
             resulting file? Set to True to include the headers, False otherwise.
             The default value is True.
@@ -224,7 +224,7 @@ async def _query_table_csv(
         A tuple containing the download result (QueryJob object) and the path to the downloaded CSV file.
         The download result is a dictionary containing information about the download.
     """
-
+    client = Synapse.get_client(synapse_client=synapse_client)
     csv_descriptor = CsvTableDescriptor(
         separator=separator,
         escape_character=escape_character,
@@ -251,11 +251,11 @@ async def _query_table_csv(
     )
 
     download_from_table_result = await query_job_request.send_job_and_wait_async(
-        synapse_client=synapse, timeout=timeout
+        synapse_client=client, timeout=timeout
     )
 
     file_handle_id = download_from_table_result.results_file_handle_id
-    cached_file_path = synapse.cache.get(
+    cached_file_path = client.cache.get(
         file_handle_id=file_handle_id, path=download_location
     )
     if cached_file_path is not None:
@@ -266,7 +266,7 @@ async def _query_table_csv(
             download_location=download_location
         )
     else:
-        download_dir = synapse.cache.get_cache_dir(file_handle_id=file_handle_id)
+        download_dir = client.cache.get_cache_dir(file_handle_id=file_handle_id)
 
     os.makedirs(download_dir, exist_ok=True)
     filename = f"SYNAPSE_TABLE_QUERY_{file_handle_id}.csv"
@@ -275,13 +275,13 @@ async def _query_table_csv(
         synapse_id=extract_synapse_id_from_query(query),
         entity_type="TableEntity",
         destination=os.path.join(download_dir, filename),
-        synapse_client=synapse,
+        synapse_client=client,
     )
     return download_from_table_result, path
 
 
 def _query_table_next_page(
-    next_page_token: "QueryNextPageToken", table_id: str, synapse: Synapse
+    next_page_token: "QueryNextPageToken", table_id: str, synapse_client: Synapse
 ) -> "QueryResultBundle":
     """
     Retrieve following pages if the result contains a *nextPageToken*
@@ -289,12 +289,13 @@ def _query_table_next_page(
     Arguments:
         next_page_token: Forward this token to get the next page of results.
         table_id:       The Synapse ID of the table
-        synapse: An authenticated Synapse client instance used for making the API call.
+        synapse_client: An authenticated Synapse client instance used for making the API call.
 
     Returns:
         The following page of results as a QueryResultBundle
         <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
+    synapse = Synapse.get_client(synapse_client=synapse_client)
     uri = "/entity/{id}/table/query/nextPage/async".format(id=table_id)
     result = synapse._waitForAsync(uri=uri, request=next_page_token.token)
     return QueryResultBundle.fill_from_dict(data=result)
@@ -302,7 +303,7 @@ def _query_table_next_page(
 
 async def _query_table_row_set(
     query: str,
-    synapse: Synapse,
+    synapse_client: Synapse,
     limit: int = None,
     offset: int = None,
     part_mask=None,
@@ -333,7 +334,7 @@ async def _query_table_row_set(
     )
 
     completed_request = await query_bundle_request.send_job_and_wait_async(
-        synapse_client=synapse, timeout=timeout
+        synapse_client=synapse_client, timeout=timeout
     )
 
     return QueryResultBundle(
@@ -352,7 +353,7 @@ async def _query_table_row_set(
 
 async def _table_query(
     query: str,
-    synapse: Optional[Synapse] = None,
+    synapse_client: Optional[Synapse] = None,
     results_as: str = "csv",
     timeout: int = 250,
     **kwargs,
@@ -389,17 +390,15 @@ async def _table_query(
         If `results_as` is "rowset", returns a QueryResultBundle object.
         If `results_as` is "csv", returns a tuple of (QueryJob, csv_path).
     """
-    client = Synapse.get_client(synapse_client=synapse)
-
     if results_as.lower() == "rowset":
         return await _query_table_row_set(
-            query=query, synapse=client, timeout=timeout, **kwargs
+            query=query, synapse_client=synapse_client, timeout=timeout, **kwargs
         )
 
     elif results_as.lower() == "csv":
         result, csv_path = await _query_table_csv(
             query=query,
-            synapse=client,
+            synapse_client=synapse_client,
             quote_character=kwargs.get("quote_character", DEFAULT_QUOTE_CHARACTER),
             escape_character=kwargs.get("escape_character", DEFAULT_ESCAPSE_CHAR),
             line_end=kwargs.get("line_end", str(os.linesep)),
@@ -425,7 +424,7 @@ async def _table_query(
 
 def _rowset_to_pandas_df(
     query_result_bundle: QueryResultBundle,
-    synapse: Synapse,
+    synapse_client: Synapse,
     row_id_and_version_in_index: bool = True,
     **kwargs,
 ) -> "DATA_FRAME_TYPE":
@@ -437,7 +436,7 @@ def _rowset_to_pandas_df(
             table query. This is typically the response from a table query operation
             that includes query results, headers, and pagination information.
             see here: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html
-        synapse: An authenticated Synapse client instance used for making additional
+        synapse_client: An authenticated Synapse client instance used for making additional
             API calls when pagination is required to fetch subsequent pages of results.
         row_id_and_version_in_index: If True, uses ROW_ID, ROW_VERSION (and ROW_ETAG
             if present) as the DataFrame index.
@@ -510,7 +509,9 @@ def _rowset_to_pandas_df(
         # see QueryResult: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html
         # see RowSet: https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html
         result = _query_table_next_page(
-            next_page_token=next_page_token, table_id=rowset.table_id, synapse=synapse
+            next_page_token=next_page_token,
+            table_id=rowset.table_id,
+            synapse_client=synapse_client,
         )
         rowset = result.query_result.query_results
         next_page_token = result.query_result.next_page_token
@@ -2788,6 +2789,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             header=header,
             download_location=download_location,
             timeout=timeout,
+            synapse_client=synapse_client,
         )
 
         if download_location:
@@ -2924,13 +2926,14 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             limit=limit,
             offset=offset,
             timeout=timeout,
+            synapse_client=synapse_client,
         )
 
         as_df = await loop.run_in_executor(
             None,
             lambda: _rowset_to_pandas_df(
                 query_result_bundle=results,
-                synapse=client,
+                synapse_client=client,
                 row_id_and_version_in_index=False,
             ),
         )

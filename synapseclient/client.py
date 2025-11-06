@@ -2316,6 +2316,106 @@ class Synapse(object):
                 test_entity = syn.store(test_entity, activity=activity)
 
         """
+        return wrap_async_to_sync(
+            coroutine=self.store_async(
+                obj,
+                createOrUpdate=createOrUpdate,
+                forceVersion=forceVersion,
+                versionLabel=versionLabel,
+                isRestricted=isRestricted,
+                activity=activity,
+                used=used,
+                executed=executed,
+                activityName=activityName,
+                activityDescription=activityDescription,
+                set_annotations=set_annotations,
+            )
+        )
+
+    async def store_async(
+        self,
+        obj,
+        *,
+        createOrUpdate=True,
+        forceVersion=True,
+        versionLabel=None,
+        isRestricted=False,
+        activity=None,
+        used=None,
+        executed=None,
+        activityName=None,
+        activityDescription=None,
+        set_annotations=True,
+    ):
+        """
+        Creates a new Entity or updates an existing Entity, uploading any files in the process.
+
+        Arguments:
+            obj: A Synapse Entity, Evaluation, or Wiki
+            used: The Entity, Synapse ID, or URL used to create the object (can also be a list of these)
+            executed: The Entity, Synapse ID, or URL representing code executed to create the object
+                        (can also be a list of these)
+            activity: Activity object specifying the user's provenance.
+            activityName: Activity name to be used in conjunction with *used* and *executed*.
+            activityDescription: Activity description to be used in conjunction with *used* and *executed*.
+            createOrUpdate: Indicates whether the method should automatically perform an update if the 'obj'
+                            conflicts with an existing Synapse object.
+            forceVersion: Indicates whether the method should increment the version of the object even if nothing
+                            has changed.
+            versionLabel: Arbitrary string used to label the version.
+            isRestricted: If set to true, an email will be sent to the Synapse access control team to start the
+                            process of adding terms-of-use or review board approval for this entity.
+                            You will be contacted with regards to the specific data being restricted and the
+                            requirements of access.
+            set_annotations: If True, set the annotations on the entity. If False, do not set the annotations.
+
+        Returns:
+            A Synapse Entity, Evaluation, or Wiki
+
+        Example: Using this function
+            Creating a new Project:
+
+            ```python
+            import asyncio
+            from synapseclient import Project, Synapse
+
+            syn = Synapse()
+            syn.login()
+
+            async def main():
+                project = Project('My uniquely named project')
+                project = await syn.store_async(project)
+
+            asyncio.run(main())
+            ```
+
+            Adding files with [provenance (aka: Activity)][synapseclient.Activity]:
+
+            A synapse entity *syn1906480* contains data and an entity *syn1917825* contains code
+
+            ```python
+            import asyncio
+            from synapseclient import File, Activity, Synapse
+
+            syn = Synapse()
+            syn.login()
+
+
+            activity = Activity(
+                'Fancy Processing',
+                description='No seriously, really fancy processing',
+                used=['syn1906480', 'http://data_r_us.com/fancy/data.txt'],
+                executed='syn1917825')
+
+            test_entity = File('/path/to/data/file.xyz', description='Fancy new data', parent=project)
+
+            async def main():
+                test_entity = await syn.store_async(test_entity, activity=activity)
+
+            asyncio.run(main())
+            ```
+
+        """
         trace.get_current_span().set_attributes({"thread.id": threading.get_ident()})
         # SYNPY-1031: activity must be Activity object or code will fail later
         if activity:
@@ -2334,7 +2434,7 @@ class Synapse(object):
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
             if isinstance(obj, Wiki):
-                return self._storeWiki(obj, createOrUpdate)
+                return await self._storeWiki(obj, createOrUpdate)
 
             if "id" in obj:  # If ID is present, update
                 trace.get_current_span().set_attributes({"synapse.id": obj["id"]})
@@ -2446,18 +2546,16 @@ class Synapse(object):
                         "Entities of type File must have a parentId."
                     )
 
-                fileHandle = wrap_async_to_sync(
-                    upload_file_handle_async(
-                        self,
-                        parent_id_for_upload,
-                        local_state["path"]
-                        if (synapseStore or local_state_fh.get("externalURL") is None)
-                        else local_state_fh.get("externalURL"),
-                        synapse_store=synapseStore,
-                        md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
-                        file_size=local_state_fh.get("contentSize"),
-                        mimetype=local_state_fh.get("contentType"),
-                    )
+                fileHandle = await upload_file_handle_async(
+                    self,
+                    parent_id_for_upload,
+                    local_state["path"]
+                    if (synapseStore or local_state_fh.get("externalURL") is None)
+                    else local_state_fh.get("externalURL"),
+                    synapse_store=synapseStore,
+                    md5=local_file_md5_hex or local_state_fh.get("contentMd5"),
+                    file_size=local_state_fh.get("contentSize"),
+                    mimetype=local_state_fh.get("contentType"),
                 )
                 properties["dataFileHandleId"] = fileHandle["id"]
                 local_state["_file_handle"] = fileHandle
@@ -6776,6 +6874,22 @@ class Synapse(object):
         Returns:
             A [synapseclient.wiki.Wiki][] object
         """
+        return wrap_async_to_sync(
+            self.getWiki_async(owner, subpageId=subpageId, version=version)
+        )
+
+    async def getWiki_async(self, owner, subpageId=None, version=None):
+        """
+        Get a [synapseclient.wiki.Wiki][] object from Synapse. Uses wiki2 API which supports versioning.
+
+        Arguments:
+            owner: The entity to which the Wiki is attached
+            subpageId: The id of the specific sub-page or None to get the root Wiki page
+            version: The version of the page to retrieve or None to retrieve the latest
+
+        Returns:
+            A [synapseclient.wiki.Wiki][] object
+        """
         uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
         if subpageId is not None:
             uri += "/{wikiId}".format(wikiId=subpageId)
@@ -6791,16 +6905,14 @@ class Synapse(object):
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            path = wrap_async_to_sync(
-                coroutine=download_by_file_handle(
-                    file_handle_id=wiki["markdownFileHandleId"],
-                    synapse_id=wiki["id"],
-                    entity_type="WikiMarkdown",
-                    destination=os.path.join(
-                        cache_dir, str(wiki.markdownFileHandleId) + ".md"
-                    ),
-                    synapse_client=self,
-                )
+            path = await download_by_file_handle(
+                file_handle_id=wiki["markdownFileHandleId"],
+                synapse_id=wiki["id"],
+                entity_type="WikiMarkdown",
+                destination=os.path.join(
+                    cache_dir, str(wiki.markdownFileHandleId) + ".md"
+                ),
+                synapse_client=self,
             )
         try:
             import gzip
@@ -6832,7 +6944,7 @@ class Synapse(object):
         return [DictObject(**header) for header in self._GET_paginated(uri)]
 
     # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1351
-    def _storeWiki(self, wiki: Wiki, createOrUpdate: bool) -> Wiki:
+    async def _storeWiki(self, wiki: Wiki, createOrUpdate: bool) -> Wiki:
         """
         Stores or updates the given Wiki.
 
@@ -6851,7 +6963,7 @@ class Synapse(object):
         # Convert all attachments into file handles
         if wiki.get("attachments") is not None:
             for attachment in wiki["attachments"]:
-                fileHandle = wrap_async_to_sync(upload_synapse_s3(self, attachment))
+                fileHandle = await upload_synapse_s3(self, attachment)
                 wiki["attachmentFileHandleIds"].append(fileHandle["id"])
             del wiki["attachments"]
 
@@ -8242,7 +8354,15 @@ class Synapse(object):
                     data[file_handle_id] = f.read()
 
         """
+        return wrap_async_to_sync(
+            self.downloadTableColumns_async(table, columns, downloadLocation, **kwargs)
+        )
 
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1632
+    async def downloadTableColumns_async(
+        self, table, columns, downloadLocation=None, **kwargs
+    ):
+        """Async version of downloadTableColumns."""
         RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
         MAX_DOWNLOAD_TRIES = 100
         max_files_per_request = kwargs.get("max_files_per_request", 2500)
@@ -8303,13 +8423,11 @@ class Synapse(object):
             temp_dir = tempfile.mkdtemp()
             zipfilepath = os.path.join(temp_dir, "table_file_download.zip")
             try:
-                zipfilepath = wrap_async_to_sync(
-                    download_by_file_handle(
-                        file_handle_id=response["resultZipFileHandleId"],
-                        synapse_id=table.tableId,
-                        entity_type="TableEntity",
-                        destination=zipfilepath,
-                    )
+                zipfilepath = await download_by_file_handle(
+                    file_handle_id=response["resultZipFileHandleId"],
+                    synapse_id=table.tableId,
+                    entity_type="TableEntity",
+                    destination=zipfilepath,
                 )
                 # TODO handle case when no zip file is returned
                 # TODO test case when we give it partial or all bad file handles
@@ -8574,9 +8692,22 @@ class Synapse(object):
         Returns:
             The metadata of the created message
         """
+        return wrap_async_to_sync(
+            self.sendMessage_async(
+                userIds=userIds,
+                messageSubject=messageSubject,
+                messageBody=messageBody,
+                contentType=contentType,
+            )
+        )
 
-        fileHandleId = wrap_async_to_sync(
-            multipart_upload_string_async(self, messageBody, content_type=contentType)
+    async def sendMessage_async(
+        self, userIds, messageSubject, messageBody, contentType="text/plain"
+    ):
+        """Async version of sendMessage."""
+
+        fileHandleId = await multipart_upload_string_async(
+            self, messageBody, content_type=contentType
         )
         message = dict(
             recipients=userIds, subject=messageSubject, fileHandleId=fileHandleId

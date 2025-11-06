@@ -166,6 +166,33 @@ def syncFromSynapse(
             for f in entities:
                 print(f.path)
     """
+    return wrap_async_to_sync(
+        coroutine=syncFromSynapse_async(
+            syn=syn,
+            entity=entity,
+            path=path,
+            ifcollision=ifcollision,
+            allFiles=allFiles,
+            followLink=followLink,
+            manifest=manifest,
+            downloadFile=downloadFile,
+        )
+    )
+
+
+async def syncFromSynapse_async(
+    syn: Synapse,
+    entity: Union[str, SynapseFile, SynapseProject, SynapseFolder],
+    path: str = None,
+    ifcollision: str = "overwrite.local",
+    allFiles=None,
+    followLink: bool = False,
+    manifest: str = "all",
+    downloadFile: bool = True,
+):
+    """
+    Asynchronous version of syncFromSynapse.
+    """
 
     if manifest not in ("all", "root", "suppress"):
         raise ValueError(
@@ -182,16 +209,14 @@ def syncFromSynapse(
     #    their parts downloaded in additional threads in the same Executor
 
     with shared_download_progress_bar(file_size=1, synapse_client=syn):
-        root_entity = wrap_async_to_sync(
-            coroutine=_sync(
-                syn=syn,
-                entity=entity,
-                path=path,
-                if_collision=ifcollision,
-                follow_link=followLink,
-                download_file=downloadFile,
-                manifest=manifest,
-            )
+        root_entity = await _sync(
+            syn=syn,
+            entity=entity,
+            path=path,
+            if_collision=ifcollision,
+            follow_link=followLink,
+            download_file=downloadFile,
+            manifest=manifest,
         )
 
     files = []
@@ -1132,6 +1157,29 @@ def syncToSynapse(
     Returns:
         None
     """
+    wrap_async_to_sync(
+        coroutine=syncToSynapse_async(
+            syn=syn,
+            manifestFile=manifestFile,
+            dryRun=dryRun,
+            sendMessages=sendMessages,
+            retries=retries,
+            merge_existing_annotations=merge_existing_annotations,
+            associate_activity_to_new_version=associate_activity_to_new_version,
+        )
+    )
+
+
+async def syncToSynapse_async(
+    syn: Synapse,
+    manifestFile,
+    dryRun: bool = False,
+    sendMessages: bool = True,
+    retries: int = MAX_RETRIES,
+    merge_existing_annotations: bool = True,
+    associate_activity_to_new_version: bool = False,
+) -> None:
+    """Async version of syncToSynapse."""
     df = readManifestFile(syn, manifestFile)
 
     sizes = [
@@ -1164,22 +1212,18 @@ def syncToSynapse(
                 syn, "Upload of %s" % manifestFile, retries=retries
             )
             upload = notify_decorator(_manifest_upload)
-            wrap_async_to_sync(
-                upload(
-                    syn,
-                    df,
-                    merge_existing_annotations,
-                    associate_activity_to_new_version,
-                )
+            await upload(
+                syn,
+                df,
+                merge_existing_annotations,
+                associate_activity_to_new_version,
             )
         else:
-            wrap_async_to_sync(
-                _manifest_upload(
-                    syn,
-                    df,
-                    merge_existing_annotations,
-                    associate_activity_to_new_version,
-                )
+            await _manifest_upload(
+                syn,
+                df,
+                merge_existing_annotations,
+                associate_activity_to_new_version,
             )
         progress_bar.update(total_upload_size - progress_bar.n)
         progress_bar.close()

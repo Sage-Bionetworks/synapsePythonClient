@@ -6,8 +6,6 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Union
 
-from async_lru import alru_cache
-
 from synapseclient.api.api_client import rest_post_paginated_async
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import get_synid_and_version
@@ -180,7 +178,6 @@ async def get_entity(
         )
 
 
-@alru_cache(ttl=60)
 async def get_upload_destination(
     entity_id: str, *, synapse_client: Optional["Synapse"] = None
 ) -> Dict[str, Union[str, int]]:
