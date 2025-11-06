@@ -1770,7 +1770,55 @@ def _construct_partial_rows_for_upsert(
             column_id = entity.columns[column].id
             column_type = entity.columns[column].column_type
             cell_value = matching_row[column].values[0]
-            if not hasattr(row, column) or cell_value != getattr(row, column):
+
+            # Safely compare values, handling pandas NA and arrays
+            row_value = getattr(row, column) if hasattr(row, column) else None
+            values_differ = False
+
+            if not hasattr(row, column):
+                values_differ = True
+            else:
+                # Helper to check if value is NA (handles both scalars and arrays)
+                try:
+                    cell_is_na = isna(cell_value)
+                    # If isna returns an array, check if all elements are NA
+                    if hasattr(cell_is_na, "__iter__") and not isinstance(
+                        cell_is_na, str
+                    ):
+                        cell_is_na = all(cell_is_na)
+                except (TypeError, ValueError):
+                    cell_is_na = False
+
+                try:
+                    row_is_na = isna(row_value)
+                    # If isna returns an array, check if all elements are NA
+                    if hasattr(row_is_na, "__iter__") and not isinstance(
+                        row_is_na, str
+                    ):
+                        row_is_na = all(row_is_na)
+                except (TypeError, ValueError):
+                    row_is_na = False
+
+                if cell_is_na and row_is_na:
+                    # Both are NA, no change needed
+                    values_differ = False
+                elif cell_is_na or row_is_na:
+                    # One is NA, the other is not
+                    values_differ = True
+                else:
+                    # Neither is NA, safe to compare
+                    try:
+                        values_differ = cell_value != row_value
+                        # Handle array comparison result
+                        if hasattr(values_differ, "__iter__") and not isinstance(
+                            values_differ, str
+                        ):
+                            values_differ = any(values_differ)
+                    except (TypeError, ValueError):
+                        # If comparison fails, assume they differ
+                        values_differ = True
+
+            if values_differ:
                 if (isinstance(cell_value, list) and len(cell_value) > 0) or not isna(
                     cell_value
                 ):
@@ -1981,11 +2029,11 @@ async def _upsert_rows_async(
         )
 
     if isinstance(values, dict):
-        values = DataFrame(values)
+        values = DataFrame(values).convert_dtypes()
     elif isinstance(values, str):
-        values = csv_to_pandas_df(filepath=values, **kwargs)
+        values = csv_to_pandas_df(filepath=values, **kwargs).convert_dtypes()
     elif isinstance(values, DataFrame):
-        pass
+        values = values.convert_dtypes()
     else:
         raise ValueError(
             "Don't know how to make tables from values of type %s." % type(values)
@@ -2747,18 +2795,38 @@ class QueryMixin(QueryMixinSynchronousProtocol):
 
         date_columns = []
         list_columns = []
+        list_column_types = {}
         dtype = {}
 
         if result.headers is not None:
             for column in result.headers:
-                if column.column_type == "STRING":
-                    # we want to identify string columns so that pandas doesn't try to
-                    # automatically parse strings in a string column to other data types
+                if column.column_type in (
+                    "STRING",
+                    "LINK",
+                    "MEDIUMTEXT",
+                    "LARGETEXT",
+                    "ENTITYID",
+                    "SUBMISSIONID",
+                    "EVALUATIONID",
+                    "USERID",
+                    "FILEHANDLEID",
+                ):
+                    # String-based columns (including text types and ID types) should be
+                    # explicitly typed to prevent pandas from automatically converting
+                    # values to other types (e.g., 'syn123' to numeric)
                     dtype[column.name] = str
+                elif column.column_type == "JSON":
+                    # JSON columns are also stored as lists in the CSV and need to be
+                    # parsed with json.loads
+                    list_columns.append(column.name)
+                    list_column_types[column.name] = column.column_type
                 elif column.column_type in LIST_COLUMN_TYPES:
                     list_columns.append(column.name)
+                    list_column_types[column.name] = column.column_type
                 elif column.column_type == "DATE" and convert_to_datetime:
                     date_columns.append(column.name)
+                # Note: DOUBLE, INTEGER, and BOOLEAN types are handled by pandas'
+                # default type inference and do not need explicit dtype specifications
 
         return csv_to_pandas_df(
             filepath=csv_path,
@@ -2768,6 +2836,8 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             row_id_and_version_in_index=False,
             date_columns=date_columns if date_columns else None,
             list_columns=list_columns if list_columns else None,
+            list_column_types=list_column_types if list_column_types else None,
+            dtype=dtype,
             **kwargs,
         )
 
@@ -3470,14 +3540,18 @@ class TableStoreRowMixin:
 
         original_values = values
         if isinstance(values, dict):
-            values = DataFrame(values)
+            values = DataFrame(values).convert_dtypes()
         elif (
             isinstance(values, str)
             and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
         ):
-            values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
-        elif isinstance(values, DataFrame) or isinstance(values, str):
-            # We don't need to convert a DF, and CSVs will be uploaded as is
+            values = csv_to_pandas_df(
+                filepath=values, **(read_csv_kwargs or {})
+            ).convert_dtypes()
+        elif isinstance(values, DataFrame):
+            values = values.convert_dtypes()
+        elif isinstance(values, str):
+            # CSVs will be uploaded as is
             pass
         else:
             raise ValueError(
@@ -4350,6 +4424,7 @@ def csv_to_pandas_df(
     lines_to_skip: int = 0,
     date_columns: Optional[List[str]] = None,
     list_columns: Optional[List[str]] = None,
+    list_column_types: Optional[Dict[str, str]] = None,
     row_id_and_version_in_index: bool = True,
     dtype: Optional[Dict[str, Any]] = None,
     **kwargs,
@@ -4376,6 +4451,9 @@ def csv_to_pandas_df(
                         it will be used instead of this `lines_to_skip` argument.
         date_columns: The names of the date columns in the file
         list_columns: The names of the list columns in the file
+        list_column_types: A dictionary mapping list column names to their Synapse
+                        column types (e.g., 'INTEGER_LIST', 'USERID_LIST'). Used to
+                        properly convert items within lists to their correct types.
         row_id_and_version_in_index: Whether the file contains rowId and
                                 version in the index, Defaults to `True`.
         dtype: The data type for the file, Defaults to `None`.
@@ -4414,12 +4492,55 @@ def csv_to_pandas_df(
     # parse date columns if exists
     if date_columns:
         df = _convert_df_date_cols_to_datetime(df, date_columns)
-    # Turn list columns into lists
+    # Turn list columns into lists and convert items to their proper types
     if list_columns:
         for col in list_columns:
             # Fill NA values with empty lists, it must be a string for json.loads to work
             df.fillna({col: "[]"}, inplace=True)
             df[col] = df[col].apply(json.loads)
+
+            # Convert list items to their proper types based on column type
+            if list_column_types and col in list_column_types:
+                column_type = list_column_types[col]
+                if column_type == "INTEGER_LIST":
+                    # Convert items to int
+                    df[col] = df[col].apply(
+                        lambda x: [int(item) for item in x]
+                        if isinstance(x, list)
+                        else x
+                    )
+                elif column_type == "USERID_LIST":
+                    # USERID items should be strings
+                    df[col] = df[col].apply(
+                        lambda x: [str(item) for item in x]
+                        if isinstance(x, list)
+                        else x
+                    )
+                elif column_type == "BOOLEAN_LIST":
+                    # Convert items to bool
+                    df[col] = df[col].apply(
+                        lambda x: [bool(item) for item in x]
+                        if isinstance(x, list)
+                        else x
+                    )
+                elif column_type == "DATE_LIST":
+                    # Date items are already handled by json.loads as they come as numbers
+                    pass
+                elif column_type == "ENTITYID_LIST":
+                    # ENTITYID items should remain as strings
+                    df[col] = df[col].apply(
+                        lambda x: [str(item) for item in x]
+                        if isinstance(x, list)
+                        else x
+                    )
+                elif column_type == "STRING_LIST":
+                    # String items should remain as strings
+                    df[col] = df[col].apply(
+                        lambda x: [str(item) for item in x]
+                        if isinstance(x, list)
+                        else x
+                    )
+                # JSON type doesn't need item conversion as it preserves types from json.loads
 
     if (
         row_id_and_version_in_index
