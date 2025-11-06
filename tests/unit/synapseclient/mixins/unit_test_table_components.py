@@ -16,7 +16,7 @@ from synapseclient.core.constants.concrete_types import (
     QUERY_TABLE_CSV_REQUEST,
 )
 from synapseclient.core.utils import MB
-from synapseclient.models import Activity, Column, ColumnType
+from synapseclient.models import Activity, Column
 from synapseclient.models.mixins.table_components import (
     ColumnMixin,
     DeleteMixin,
@@ -1455,6 +1455,8 @@ class TestQueryMixin:
                 row_id_and_version_in_index=False,
                 date_columns=None,
                 list_columns=None,
+                dtype={"col1": str},
+                list_column_types=None,
             )
 
             # AND the result should match expected DataFrame
@@ -1542,6 +1544,12 @@ class TestQueryMixin:
                 row_id_and_version_in_index=False,
                 date_columns=["date_col"],  # Should contain the DATE column
                 list_columns=["list_col"],  # Should contain the STRING_LIST column
+                dtype={
+                    "string_col": str,
+                },
+                list_column_types={
+                    "list_col": ColumnType.STRING_LIST,
+                },
             )
 
             # AND the result should match expected DataFrame
