@@ -36,9 +36,9 @@ or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python
 Installation
 ------------
 
-The Python Synapse client has been tested on versions 3.9, 3.10, 3.11, 3.12 and 3.13 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on versions 3.10, 3.11, 3.12, 3.13 and 3.14 on Mac OS X, Ubuntu Linux and Windows.
 
-**Starting from Synapse Python client version 3.0, Synapse Python client requires Python >= 3.9**
+**Starting from Synapse Python client version 3.0, Synapse Python client requires Python >= 3.10**
 
 ### Install using pip
 
