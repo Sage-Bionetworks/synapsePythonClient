@@ -39,7 +39,7 @@ from synapseclient.extensions.curator.schema_generation import (
 # pylint: disable=too-many-positional-arguments
 
 
-# Test data paths - change these when files move
+# Test data paths
 TEST_DATA_BASE_PATH = "tests/unit/synapseclient/extensions"
 SCHEMA_FILES_DIR = f"{TEST_DATA_BASE_PATH}/schema_files"
 EXPECTED_SCHEMAS_DIR = f"{SCHEMA_FILES_DIR}/expected_jsonschemas"
