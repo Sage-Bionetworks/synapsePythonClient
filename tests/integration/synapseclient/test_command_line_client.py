@@ -31,7 +31,7 @@ from synapseclient import (
 )
 
 
-@pytest.fixture(loop_scope="function", scope="function")
+@pytest.fixture(scope="function")
 def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
         def __init__(self):
