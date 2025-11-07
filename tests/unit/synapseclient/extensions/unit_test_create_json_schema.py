@@ -562,7 +562,6 @@ def test_create_json_schema_with_class_label(
 ) -> None:
     """Tests for JSONSchemaGenerator.create_json_schema"""
     test_file = f"test.{datatype}.schema.json"
-    test_directory = "/Users/lpeng/code/synapsePythonClient/output"
     test_path = os.path.join(test_directory, test_file)
     logger = logging.getLogger(__name__)
 

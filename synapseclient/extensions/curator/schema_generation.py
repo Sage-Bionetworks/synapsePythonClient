@@ -3856,6 +3856,98 @@ def parsed_model_as_dataframe(
     return model_dataframe
 
 
+class MetadataModel(object):
+    """Metadata model wrapper around schema.org specification graph.
+
+    Provides basic utilities to:
+
+    1) manipulate the metadata model
+    2) generate metadata model views:
+        - generate manifest view of the metadata model
+        - generate validation schema view of the metadata model
+    """
+
+    def __init__(
+        self,
+        inputMModelLocation: str,
+        inputMModelLocationType: str,
+        data_model_labels: str,
+        logger: Logger,
+    ) -> None:
+        """Instantiates a MetadataModel object.
+
+        Args:
+            inputMModelLocation: local path, uri, synapse entity id (e.g. gs://, syn123, /User/x/…); present location
+            inputMModelLocationType: specifier to indicate where the metadata model resource can be found (e.g. 'local' if file/JSON-LD is on local machine)
+        """
+        # extract extension of 'inputMModelLocation'
+        # ensure that it is necessarily pointing to a '.jsonld' file
+
+        logger.debug(
+            f"Initializing DataModelGraphExplorer object from {inputMModelLocation} schema."
+        )
+
+        # self.inputMModelLocation remains for backwards compatibility
+        self.inputMModelLocation = inputMModelLocation
+        self.path_to_json_ld = inputMModelLocation
+
+        data_model_parser = DataModelParser(
+            path_to_data_model=self.inputMModelLocation, logger=logger
+        )
+        # Parse Model
+        parsed_data_model = data_model_parser.parse_model()
+
+        # Instantiate DataModelGraph
+        data_model_grapher = DataModelGraph(
+            parsed_data_model, data_model_labels, logger
+        )
+
+        # Generate graph
+        self.graph_data_model = data_model_grapher.graph
+
+        self.dmge = DataModelGraphExplorer(self.graph_data_model, logger)
+
+        # check if the type of MModel file is "local"
+        # currently, the application only supports reading from local JSON-LD files
+        if inputMModelLocationType == "local":
+            self.inputMModelLocationType = inputMModelLocationType
+        else:
+            raise ValueError(
+                f"The type '{inputMModelLocationType}' is currently not supported."
+            )
+
+    def get_component_requirements(
+        self, source_component: str, as_graph: bool = False
+    ) -> List:
+        """Given a source model component (see https://w3id.org/biolink/vocab/category for definnition of component), return all components required by it.
+        Useful to construct requirement dependencies not only between specific attributes but also between categories/components of attributes;
+        Can be utilized to track metadata completion progress across multiple categories of attributes.
+
+        Args:
+            source_component: an attribute label indicating the source component.
+            as_graph: if False return component requirements as a list; if True return component requirements as a dependency graph (i.e. a DAG)
+
+        Returns:
+            A list of required components associated with the source component.
+        """
+
+        # get required components for the input/source component
+        req_components = self.dmge.get_component_requirements(source_component)
+
+        # retrieve components as graph
+        if as_graph:
+            req_components_graph = self.dmge.get_component_requirements_graph(
+                source_component
+            )
+
+            # serialize component dependencies DAG to a edge list of node tuples
+            req_components = list(req_components_graph.edges())
+
+            return req_components
+
+        return req_components
+
+
 class JsonSchemaGeneratorDirector:
     """
     Directs the generation of JSON schemas for one or more components from a specified data model.
@@ -5196,9 +5288,13 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     json_schema_dict = json_schema.as_json_schema_dict()
 
     if write_schema:
+        print("schema path", schema_path)
+        print("name", datatype)
+        print("jsonld path", jsonld_path)
         _write_data_model(
             json_schema_dict=json_schema_dict,
             schema_path=schema_path,
+            name=datatype,
             jsonld_path=jsonld_path,
             logger=logger,
         )
@@ -5351,7 +5447,12 @@ class JsonSchemaComponentGenerator:
         Raises:
             May raise errors if the component is not found in the data model graph.
         """
-
+        metadata_model = MetadataModel(
+            inputMModelLocation=self.data_model_source,
+            inputMModelLocationType="local",
+            data_model_labels=data_model_labels,
+            logger=self.logger,
+        )
         use_display_names = data_model_labels == "display_label"
 
         json_schema = create_json_schema(
@@ -5359,6 +5460,7 @@ class JsonSchemaComponentGenerator:
             datatype=self.component,
             logger=self.logger,
             schema_name=self.component + "_validation",
+            jsonld_path=metadata_model.inputMModelLocation,
             use_property_display_names=use_display_names,
         )
         self.component_json_schema = json_schema
