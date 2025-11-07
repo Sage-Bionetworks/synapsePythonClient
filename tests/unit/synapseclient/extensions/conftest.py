@@ -4,11 +4,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from synapseclient.extensions.curator.df_utils import load_df
+# from synapseclient.extensions.curator.schema_generation import load_df
 from synapseclient.extensions.curator.schema_generation import (
     DataModelGraph,
     DataModelGraphExplorer,
     DataModelParser,
+    load_df,
 )
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
