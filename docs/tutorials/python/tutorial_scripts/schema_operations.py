@@ -1,5 +1,5 @@
 from synapseclient import Synapse
-from synapseclient.extensions.curator.schema_generation import generate_jsonschema
+from synapseclient.extensions.curator import generate_jsonschema
 
 # Put the path/url of your data model here, either CSV or JSONLD format
 DATA_MODEL_SOURCE = "tests/unit/synapseclient/extensions/schema_files/example.model.csv"
