@@ -13,33 +13,36 @@ from synapseclient.extensions.curator.schema_generation import (
 )
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(TESTS_DIR, "data")
+SCHEMA_FILES_DIR = os.path.join(TESTS_DIR, "schema_files")
 
 
 class Helpers:
     @staticmethod
     def get_data_path(path, *paths):
-        return os.path.join(DATA_DIR, path, *paths)
+        """Get path to test data files"""
+        return os.path.join(SCHEMA_FILES_DIR, path, *paths)
 
     @staticmethod
-    def get_data_file(path, *paths, **kwargs):
-        fullpath = os.path.join(DATA_DIR, path, *paths)
-        return open(fullpath, **kwargs)
+    def get_schema_file_path(filename):
+        """Get path to schema files specifically"""
+        return os.path.join(SCHEMA_FILES_DIR, filename)
 
     @staticmethod
     def get_data_frame(path, *paths, **kwargs):
-        fullpath = os.path.join(DATA_DIR, path, *paths)
+        """Load a dataframe from schema files"""
+        fullpath = os.path.join(SCHEMA_FILES_DIR, path, *paths)
         return load_df(fullpath, **kwargs)
 
     @staticmethod
     def get_data_model_graph_explorer(
-        path=None, data_model_labels: str = "class_label", *paths
+        path=None, data_model_labels: str = "class_label"
     ):
+        """Create DataModelGraphExplorer from schema file"""
         # commenting this now bc we dont want to have multiple instances
         if path is None:
             return
 
-        fullpath = Helpers.get_data_path(path, *paths)
+        fullpath = Helpers.get_schema_file_path(path)
 
         # Instantiate DataModelParser
         data_model_parser = DataModelParser(path_to_data_model=fullpath, logger=Mock())

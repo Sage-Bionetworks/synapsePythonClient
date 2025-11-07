@@ -39,6 +39,47 @@ from synapseclient.extensions.curator.schema_generation import (
 # pylint: disable=too-many-positional-arguments
 
 
+# Test data paths - change these when files move
+TEST_DATA_BASE_PATH = "tests/unit/synapseclient/extensions"
+SCHEMA_FILES_DIR = f"{TEST_DATA_BASE_PATH}/schema_files"
+EXPECTED_SCHEMAS_DIR = f"{SCHEMA_FILES_DIR}/expected_jsonschemas"
+JSON_INSTANCES_DIR = f"{SCHEMA_FILES_DIR}/json_instances"
+
+# Schema file patterns
+EXPECTED_SCHEMA_PATTERN = "{datatype}.schema.json"
+EXPECTED_DISPLAY_NAMES_SCHEMA_PATTERN = "{datatype}.display_names_schema.json"
+TEST_SCHEMA_PATTERN = "test.{datatype}.schema.json"
+TEST_DISPLAY_NAMES_SCHEMA_PATTERN = "test.{datatype}.display_names_schema.json"
+
+
+# Helper functions for path construction
+def get_expected_schema_path(datatype: str, display_names: bool = False) -> str:
+    """Get path to expected schema file"""
+    pattern = (
+        EXPECTED_DISPLAY_NAMES_SCHEMA_PATTERN
+        if display_names
+        else EXPECTED_SCHEMA_PATTERN
+    )
+    filename = f"expected.{pattern.format(datatype=datatype)}"
+    return f"{EXPECTED_SCHEMAS_DIR}/{filename}"
+
+
+def get_json_instance_path(filename: str) -> str:
+    """Get path to JSON instance file"""
+    return f"{JSON_INSTANCES_DIR}/{filename}"
+
+
+def get_test_schema_path(
+    test_directory: str, datatype: str, display_names: bool = False
+) -> str:
+    """Get path for generated test schema file"""
+    pattern = (
+        TEST_DISPLAY_NAMES_SCHEMA_PATTERN if display_names else TEST_SCHEMA_PATTERN
+    )
+    filename = pattern.format(datatype=datatype)
+    return os.path.join(test_directory, filename)
+
+
 @pytest.fixture(name="test_directory", scope="session")
 def fixture_test_directory(request) -> str:
     """Returns a directory for creating test jSON Schemas in"""
@@ -561,11 +602,10 @@ def test_create_json_schema_with_class_label(
     dmge: DataModelGraphExplorer, datatype: str, test_directory: str
 ) -> None:
     """Tests for JSONSchemaGenerator.create_json_schema"""
-    test_file = f"test.{datatype}.schema.json"
-    test_path = os.path.join(test_directory, test_file)
+    test_path = get_test_schema_path(test_directory, datatype)
+    expected_path = get_expected_schema_path(datatype)
     logger = logging.getLogger(__name__)
 
-    expected_path = f"tests/unit/synapseclient/extensions/data/expected_jsonschemas/expected.{datatype}.schema.json"
     create_json_schema(
         dmge=dmge,
         datatype=datatype,
@@ -594,10 +634,9 @@ def test_create_json_schema_with_display_names(
     dmge: DataModelGraphExplorer, datatype: str, test_directory: str
 ) -> None:
     """Tests for JSONSchemaGenerator.create_json_schema"""
-    test_file = f"test.{datatype}.display_names_schema.json"
-    test_path = os.path.join(test_directory, test_file)
     logger = logging.getLogger(__name__)
-    expected_path = f"tests/unit/synapseclient/extensions/data/expected_jsonschemas/expected.{datatype}.display_names_schema.json"
+    test_path = get_test_schema_path(test_directory, datatype, display_names=True)
+    expected_path = get_expected_schema_path(datatype, display_names=True)
     create_json_schema(
         dmge=dmge,
         datatype=datatype,
@@ -621,10 +660,9 @@ def test_create_json_schema_with_no_column_type(
     This tests where the data model does not have columnType attribute
     """
     datatype = "JSONSchemaComponent"
-    test_file = f"test.{datatype}.display_names_schema.json"
-    test_path = os.path.join(test_directory, test_file)
+    test_path = get_test_schema_path(test_directory, datatype, display_names=True)
+    expected_path = get_expected_schema_path(datatype)
     logger = logging.getLogger(__name__)
-    expected_path = f"tests/unit/synapseclient/extensions/data/expected_jsonschemas/expected.{datatype}.schema.json"
     create_json_schema(
         dmge=dmge,
         datatype=datatype,
@@ -649,11 +687,10 @@ def test_create_json_schema_with_column_type(
     This tests where the data model does have the columnType attribute
     """
     datatype = "JSONSchemaComponent"
-    test_file = f"test.{datatype}.display_names_schema.json"
-    test_path = os.path.join(test_directory, test_file)
+    test_path = get_test_schema_path(test_directory, datatype, display_names=True)
+    expected_path = get_expected_schema_path(datatype, display_names=True)
 
     logger = logging.getLogger(__name__)
-    expected_path = f"tests/unit/synapseclient/extensions/data/expected_jsonschemas/expected.{datatype}.display_names_schema.json"
     create_json_schema(
         dmge=dmge_column_type,
         datatype=datatype,
@@ -671,26 +708,26 @@ def test_create_json_schema_with_column_type(
 
 
 @pytest.mark.parametrize(
-    "instance_path, datatype",
+    "instance_filename, datatype",
     [
         (
-            "tests/unit/synapseclient/extensions/data/json_instances/valid_biospecimen1.json",
+            "valid_biospecimen1.json",
             "Biospecimen",
         ),
         (
-            "tests/unit/synapseclient/extensions/data/json_instances/valid_bulk_rna1.json",
+            "valid_bulk_rna1.json",
             "BulkRNA-seqAssay",
         ),
         (
-            "tests/unit/synapseclient/extensions/data/json_instances/valid_bulk_rna2.json",
+            "valid_bulk_rna2.json",
             "BulkRNA-seqAssay",
         ),
         (
-            "tests/unit/synapseclient/extensions/data/json_instances/valid_patient1.json",
+            "valid_patient1.json",
             "Patient",
         ),
         (
-            "tests/unit/synapseclient/extensions/data/json_instances/valid_patient2.json",
+            "valid_patient2.json",
             "Patient",
         ),
     ],
@@ -703,17 +740,12 @@ def test_create_json_schema_with_column_type(
     ],
 )
 def test_validate_valid_instances(
-    instance_path: str,
+    instance_filename: str,
     datatype: str,
 ) -> None:
     """Validates instances using expected JSON Schemas"""
-    from pathlib import Path
-
-    # Use absolute paths based on the test file location
-    test_file_dir = Path(__file__).parent
-    schema_path = (
-        test_file_dir / f"data/expected_jsonschemas/expected.{datatype}.schema.json"
-    )
+    schema_path = get_expected_schema_path(datatype)
+    instance_path = get_json_instance_path(instance_filename)
 
     with open(schema_path, encoding="utf-8") as schema_file:
         schema = json.load(schema_file)
@@ -724,14 +756,14 @@ def test_validate_valid_instances(
 
 
 @pytest.mark.parametrize(
-    "instance_path, datatype",
+    "instance_filename, datatype",
     [
         (
-            "tests/unit/synapseclient/extensions/data/json_instances/bulk_rna_missing_conditional_dependencies.json",
+            "bulk_rna_missing_conditional_dependencies.json",
             "BulkRNA-seqAssay",
         ),
         (
-            "tests/unit/synapseclient/extensions/data/json_instances/patient_missing_conditional_dependencies.json",
+            "patient_missing_conditional_dependencies.json",
             "Patient",
         ),
     ],
@@ -741,12 +773,14 @@ def test_validate_valid_instances(
     ],
 )
 def test_validate_invalid_instances(
-    instance_path: str,
+    instance_filename: str,
     datatype: str,
 ) -> None:
     """Raises a ValidationError validating invalid instances using expected JSON Schemas"""
 
-    schema_path = f"tests/unit/synapseclient/extensions/data/expected_jsonschemas/expected.{datatype}.schema.json"
+    schema_path = get_expected_schema_path(datatype)
+    instance_path = get_json_instance_path(instance_filename)
+
     with open(schema_path, encoding="utf-8") as schema_file:
         schema = json.load(schema_file)
     with open(instance_path, encoding="utf-8") as instance_file:
