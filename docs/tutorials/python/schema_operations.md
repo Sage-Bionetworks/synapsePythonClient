@@ -24,7 +24,7 @@ You will create a JSON schema using your data model.
 ```
 
 To create a JSON Schema you need a data-model, and the data-types you want to create.
-The data-model must be in either CSV or JSON-LD form. See [here](https://sagebionetworks.jira.com/wiki/spaces/SCHEM/pages/2473623559/The+Data+Model+Schema) for instructions on how to crate a data-model. The data model maybe a local path or a URL.
+The data-model must be in either CSV or JSON-LD form. The data model maybe a local path or a URL.
 
 The data-types must exist in your data-model. This cna be a list of data-types, or `None` to create all datatatypes in the data-model.
 
@@ -54,7 +54,6 @@ You should see the first JSON Schema for the datatype(s) you selected printed.
 
 
 ## Reference
-- [Data models](https://sagebionetworks.jira.com/wiki/spaces/SCHEM/pages/2473623559/The+Data+Model+Schema)
 - [JSON Schema Object Definition](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/schema/JsonSchema.html)
 - [JSON Schema Draft 7](https://json-schema.org/draft-07)
 - [JSON-Schema.org](https://json-schema.org./)
