@@ -11,21 +11,35 @@ You will create a JSON schema using your data model.
 * You have a working [installation](../installation.md) of the Synapse Python Client.
 * You have a data-model, see [here](https://sagebionetworks.jira.com/wiki/spaces/SCHEM/pages/2473623559/The+Data+Model+Schema)
 
-
-## 1. Set up your variables
+## 1. Imports
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=10-14}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=1-2}
 ```
 
-To create a JSON Schema you need a data-model, and the data-type you want to create. The data-model must be in either CSV or JSON-LD form. See [here](https://sagebionetworks.jira.com/wiki/spaces/SCHEM/pages/2473623559/The+Data+Model+Schema) for instructions on how to crate a data-model.The data-type must exist in your data-model.
+## 2. Set up your variables
 
-## 2. Create the JSON Schema
-Try creating the JSON Schema
 ```python
-{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=16-24}
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=4-10}
 ```
-You should see the JSON Schema for the datatype you selected printed.
+
+To create a JSON Schema you need a data-model, and the data-types you want to create.
+The data-model must be in either CSV or JSON-LD form. See [here](https://sagebionetworks.jira.com/wiki/spaces/SCHEM/pages/2473623559/The+Data+Model+Schema) for instructions on how to crate a data-model. The data model maybe a local path or a URL.
+
+The data-types must exist in your data-model. This cna be a list of data-types, or `None` to create all datatatypes in the data-model.
+
+## 3. Log into Synapse
+```python
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=12-13}
+```
+
+
+## 4. Create the JSON Schema
+Create the JSON Schema(s)
+```python
+{!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=15-23}
+```
+You should see the first JSON Schema for the datatype(s) you selected printed.
 
 
 ## Source Code for this Tutorial
