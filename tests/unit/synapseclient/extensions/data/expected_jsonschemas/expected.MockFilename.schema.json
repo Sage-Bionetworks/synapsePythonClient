@@ -1,0 +1,27 @@
+{
+  "$id": "http://example.com/MockFilename_validation",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "TBD",
+  "properties": {
+    "Component": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Component"
+    },
+    "Filename": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Filename"
+    }
+  },
+  "required": [
+    "Component",
+    "Filename"
+  ],
+  "title": "MockFilename_validation",
+  "type": "object"
+}

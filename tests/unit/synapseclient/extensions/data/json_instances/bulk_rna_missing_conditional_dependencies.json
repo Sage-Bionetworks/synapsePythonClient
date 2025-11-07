@@ -1,0 +1,7 @@
+{
+    "Component": "BulkRNA-seqAssay",
+    "FileFormat": "CRAM",
+    "Filename": "file.bam",
+    "SampleID": "Sample1",
+    "GenomeBuild": "GRCh38"
+}

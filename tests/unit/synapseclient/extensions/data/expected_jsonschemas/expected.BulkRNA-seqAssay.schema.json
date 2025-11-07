@@ -1,0 +1,168 @@
+{
+  "$id": "http://example.com/BulkRNA-seqAssay_validation",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "FileFormat": {
+            "enum": [
+              "BAM"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "GenomeBuild": {
+            "not": {
+              "type": "null"
+            }
+          }
+        },
+        "required": [
+          "GenomeBuild"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "FileFormat": {
+            "enum": [
+              "CRAM"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "GenomeBuild": {
+            "not": {
+              "type": "null"
+            }
+          }
+        },
+        "required": [
+          "GenomeBuild"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "FileFormat": {
+            "enum": [
+              "CSV/TSV"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "GenomeBuild": {
+            "not": {
+              "type": "null"
+            }
+          }
+        },
+        "required": [
+          "GenomeBuild"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "FileFormat": {
+            "enum": [
+              "CRAM"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "GenomeFASTA": {
+            "not": {
+              "type": "null"
+            }
+          }
+        },
+        "required": [
+          "GenomeFASTA"
+        ]
+      }
+    }
+  ],
+  "description": "TBD",
+  "properties": {
+    "Component": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Component"
+    },
+    "FileFormat": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "enum": [
+            "BAM",
+            "CRAM",
+            "CSV/TSV",
+            "FASTQ"
+          ],
+          "title": "enum"
+        }
+      ],
+      "title": "File Format"
+    },
+    "Filename": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Filename"
+    },
+    "GenomeBuild": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "enum": [
+            "GRCh37",
+            "GRCh38",
+            "GRCm38",
+            "GRCm39"
+          ],
+          "title": "enum"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "Genome Build"
+    },
+    "GenomeFASTA": {
+      "description": "TBD",
+      "title": "Genome FASTA"
+    },
+    "SampleID": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Sample ID"
+    }
+  },
+  "required": [
+    "Component",
+    "FileFormat",
+    "Filename",
+    "SampleID"
+  ],
+  "title": "BulkRNA-seqAssay_validation",
+  "type": "object"
+}

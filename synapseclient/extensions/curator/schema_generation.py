@@ -27,6 +27,8 @@ from typing import (
     Union,
 )
 
+from deprecated import deprecated
+
 try:
     from dataclasses_json import config, dataclass_json
 except ImportError:
@@ -3998,6 +4000,10 @@ class JsonSchemaGeneratorDirector:
         return generator.component_json_schema, str(generator.output_path)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Please use columnType to define types.",
+)
 def filter_unused_inputted_rules(
     inputted_rules: list[str], logger: Logger
 ) -> list[str]:
@@ -4029,6 +4035,10 @@ def filter_unused_inputted_rules(
     ]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Please use columnType to define types.",
+)
 def check_for_duplicate_inputted_rules(inputted_rules: list[str]) -> None:
     """Checks that there are no rules with duplicate names
 
@@ -4043,6 +4053,10 @@ def check_for_duplicate_inputted_rules(inputted_rules: list[str]) -> None:
         raise ValueError(f"Validation Rules contains duplicates: {inputted_rules}")
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Please use columnType to define types.",
+)
 def check_for_conflicting_inputted_rules(inputted_rules: list[str]) -> None:
     """Checks that each rule has no conflicts with any other rule
 
@@ -4185,6 +4199,10 @@ def get_regex_parameters_from_inputted_rule(
     return pattern
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Please use columnType to define types.",
+)
 def get_validation_rule_names_from_inputted_rules(
     inputted_rules: list[str],
 ) -> list[ValidationRuleName]:
@@ -4201,6 +4219,10 @@ def get_validation_rule_names_from_inputted_rules(
     return [rule.name for rule in rules]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Please use columnType to define types.",
+)
 def get_names_from_inputted_rules(inputted_rules: list[str]) -> list[str]:
     """Gets the names from a list of inputted rules
 
@@ -4268,7 +4290,7 @@ def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
 
 def _get_validation_rule_based_fields(
     validation_rules: list[str],
-    explicit_js_type: Optional[JSONSchemaType],
+    js_type: Optional[JSONSchemaType],
     name: str,
     logger: Logger,
 ) -> tuple[
@@ -4292,7 +4314,7 @@ def _get_validation_rule_based_fields(
 
     Arguments:
         validation_rules: A list of input validation rules
-        explicit_js_type: A JSONSchemaType if set explicitly in the data model, otherwise None
+        js_type: A JSONSchemaType if set explicitly in the data model, otherwise None
         name: The name of the node the validation rules belong to
 
     Raises:
@@ -4310,7 +4332,7 @@ def _get_validation_rule_based_fields(
         - js_pattern: If the type is string the JSON Schema pattern
     """
     js_is_array = False
-    js_type = explicit_js_type
+    js_type = js_type
     js_format = None
     js_minimum = None
     js_maximum = None
@@ -4329,34 +4351,14 @@ def _get_validation_rule_based_fields(
 
         js_is_array = ValidationRuleName.LIST in validation_rule_names
 
-        # The explicit JSON Schema type is the one set in the data model
         # The implicit JSON Schema type is the one implied by the presence
         #   of certain validation rules
-        # Schematic will use the implicit type if the explicit type isn't specified for now,
-        #   but this behavior is deprecated and will be removed in the future by SCHEMATIC-326
+
         implicit_js_type = get_js_type_from_inputted_rules(validation_rules)
-        # If there is an explicit and implicit type set and the implicit type conflicts with the
-        # explicit type, then an exception is raised
-        if (
-            explicit_js_type
-            and implicit_js_type
-            and explicit_js_type != implicit_js_type
-        ):
-            msg = (
-                f"Property: '{name}', has explicit type: '{explicit_js_type}' "
-                f"that conflicts with the implicit type: '{implicit_js_type}' "
-                f"derived from its validation rules: {validation_rules}"
+        if implicit_js_type:
+            logger.warning(
+                f"Detected implicit type: '{implicit_js_type}' for property: '{name}'. Please note that type can only be set explicitly via the columnType column in the data model going forward."
             )
-            logger.warning(msg)
-        if not explicit_js_type and implicit_js_type:
-            js_type = implicit_js_type
-            msg = (
-                f"No explicit type set for property: '{name}', "
-                "using validation rules to set the type. "
-                "Using validation rules to set type is deprecated. "
-                "You should set the columnType for this property in your data model."
-            )
-            logger.warning(msg)
 
         if ValidationRuleName.URL in validation_rule_names:
             js_format = JSONSchemaFormat.URI
@@ -4404,7 +4406,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         dependencies: This nodes dependencies
         description: This nodes description, gotten from the comment in the data model
         is_array: Whether or not the property is an array (inferred from validation_rules)
-        type: The type of the property (inferred from validation_rules)
+        type: The type of the property (set by ColumnType in the data model)
         format: The format of the property (inferred from validation_rules)
         minimum: The minimum value of the property (if numeric) (inferred from validation_rules)
         maximum: The maximum value of the property (if numeric) (inferred from validation_rules)
@@ -4453,9 +4455,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.description = self.dmge.get_node_comment(
             node_display_name=self.display_name
         )
-        explicit_js_type = self.dmge.get_node_column_type(
-            node_display_name=self.display_name
-        )
+        js_type = self.dmge.get_node_column_type(node_display_name=self.display_name)
 
         (
             self.is_array,
@@ -4466,7 +4466,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             self.pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
-            explicit_js_type=explicit_js_type,
+            js_type=js_type,
             name=self.name,
             logger=self.logger,
         )
@@ -5133,6 +5133,9 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     datatype: str,
     schema_name: str,
     logger: Logger,
+    write_schema: bool = True,
+    schema_path: Optional[str] = None,
+    jsonld_path: Optional[str] = None,
     use_property_display_names: bool = True,
     use_valid_value_display_names: bool = True,
 ) -> dict[str, Any]:
@@ -5156,8 +5159,11 @@ def create_json_schema(  # pylint: disable=too-many-arguments
         datatype: the datatype to create the schema for.
             Its node is where we can start recursive dependency traversal
             (as mentioned above).
+        write_schema: whether or not to write the schema as a json file
         schema_name: Name assigned to JSON-LD schema (to uniquely identify it via URI
             when it is hosted on the Internet).
+        schema_path: Where to save the JSON Schema file
+        jsonld_path: Used to name the file if the path isn't supplied
         use_property_display_names: If True, the properties in the JSONSchema
           will be written using node display names
         use_valid_value_display_names: If True, the valid_values in the JSONSchema
@@ -5189,7 +5195,57 @@ def create_json_schema(  # pylint: disable=too-many-arguments
 
     json_schema_dict = json_schema.as_json_schema_dict()
 
+    if write_schema:
+        _write_data_model(
+            json_schema_dict=json_schema_dict,
+            schema_path=schema_path,
+            jsonld_path=jsonld_path,
+            logger=logger,
+        )
+
     return json_schema_dict
+
+
+def _write_data_model(
+    json_schema_dict: dict[str, Any],
+    logger: Logger,
+    schema_path: Optional[str] = None,
+    name: Optional[str] = None,
+    jsonld_path: Optional[str] = None,
+) -> None:
+    """
+    Creates the JSON Schema file
+
+    Arguments:
+        json_schema_dict: The JSON schema in dict form
+        schema_path: Where to save the JSON Schema file
+        jsonld_path:
+          The path to the JSONLD model, used to create the path
+          Used if schema_path is None
+        name:
+          The name of the datatype(source node) the schema is being created for
+          Used if schema_path is None
+    """
+    if schema_path:
+        json_schema_path = schema_path
+    elif name and jsonld_path:
+        json_schema_path = get_json_schema_log_file_path(
+            data_model_path=jsonld_path, source_node=name
+        )
+        json_schema_dirname = os.path.dirname(json_schema_path)
+        if json_schema_dirname != "":
+            os.makedirs(json_schema_dirname, exist_ok=True)
+
+        logger.info(
+            "The JSON schema file can be inspected by setting the following "
+            "nested key in the configuration: (model > location)."
+        )
+    else:
+        raise ValueError(
+            "Either schema_path or both name and jsonld_path must be provided."
+        )
+    export_json(json_doc=json_schema_dict, file_path=json_schema_path, indent=2)
+    logger.info("The JSON schema has been saved at %s", json_schema_path)
 
 
 class JsonSchemaComponentGenerator:
@@ -5622,3 +5678,84 @@ def generate_jsonld(
             )
         )
     return jsonld_data_model
+
+
+@dataclass
+class Node2:  # pylint: disable=too-many-instance-attributes
+    """
+    A Dataclass representing data about a node in a data model in graph form
+    A DataModelGraphExplorer is used to infer most of the fields from the name of the node
+
+    Attributes:
+        name: The name of the node
+        source_node: The name of the node where the graph traversal started
+        dmge: A DataModelGraphExplorer with the data model loaded
+        display_name: The display name of the node
+        valid_values: The valid values of the node if any
+        valid_value_display_names: The display names of the valid values of the node if any
+        is_required: Whether or not this node is required
+        dependencies: This nodes dependencies
+        description: This nodes description, gotten from the comment in the data model
+        is_array: Whether or not the property is an array (inferred from validation_rules)
+        type: The type of the property (inferred from validation_rules)
+        format: The format of the property (inferred from validation_rules)
+        minimum: The minimum value of the property (if numeric) (inferred from validation_rules)
+        maximum: The maximum value of the property (if numeric) (inferred from validation_rules)
+        pattern: The regex pattern of the property (inferred from validation_rules)
+    """
+
+    name: str
+    source_node: str
+    dmge: DataModelGraphExplorer
+    display_name: str = field(init=False)
+    valid_values: list[str] = field(init=False)
+    valid_value_display_names: list[str] = field(init=False)
+    is_required: bool = field(init=False)
+    dependencies: list[str] = field(init=False)
+    description: str = field(init=False)
+    is_array: bool = field(init=False)
+    type: Optional[JSONSchemaType] = field(init=False)
+    format: Optional[JSONSchemaFormat] = field(init=False)
+    minimum: Optional[float] = field(init=False)
+    maximum: Optional[float] = field(init=False)
+    pattern: Optional[str] = field(init=False)
+
+    def __post_init__(self) -> None:
+        """
+        Uses the dmge to fill in most of the fields of the dataclass
+        """
+        self.display_name = self.dmge.get_nodes_display_names([self.name])[0]
+        self.valid_values = sorted(self.dmge.get_node_range(node_label=self.name))
+        self.valid_value_display_names = sorted(
+            self.dmge.get_node_range(node_label=self.name, display_names=True)
+        )
+        validation_rules = self.dmge.get_component_node_validation_rules(
+            manifest_component=self.source_node, node_display_name=self.display_name
+        )
+        self.is_required = self.dmge.get_component_node_required(
+            manifest_component=self.source_node,
+            node_validation_rules=validation_rules,
+            node_display_name=self.display_name,
+        )
+        self.dependencies = sorted(
+            self.dmge.get_node_dependencies(
+                self.name, display_names=False, schema_ordered=False
+            )
+        )
+        self.description = self.dmge.get_node_comment(
+            node_display_name=self.display_name
+        )
+        explicit_js_type = self.dmge.get_node_column_type(
+            node_display_name=self.display_name
+        )
+
+        (
+            self.is_array,
+            self.type,
+            self.format,
+            self.minimum,
+            self.maximum,
+            self.pattern,
+        ) = _get_validation_rule_based_fields(
+            validation_rules, explicit_js_type, self.name, logger=self.dmge.logger
+        )

@@ -1,0 +1,50 @@
+{
+  "$id": "http://example.com/Biospecimen_validation",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "TBD",
+  "properties": {
+    "Component": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Component"
+    },
+    "PatientID": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Patient ID"
+    },
+    "SampleID": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Sample ID"
+    },
+    "TissueStatus": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "enum": [
+            "Healthy",
+            "Malignant",
+            "None"
+          ],
+          "title": "enum"
+        }
+      ],
+      "title": "Tissue Status"
+    }
+  },
+  "required": [
+    "Component",
+    "PatientID",
+    "SampleID",
+    "TissueStatus"
+  ],
+  "title": "Biospecimen_validation",
+  "type": "object"
+}
