@@ -3916,37 +3916,6 @@ class MetadataModel(object):
                 f"The type '{inputMModelLocationType}' is currently not supported."
             )
 
-    def get_component_requirements(
-        self, source_component: str, as_graph: bool = False
-    ) -> List:
-        """Given a source model component (see https://w3id.org/biolink/vocab/category for definnition of component), return all components required by it.
-        Useful to construct requirement dependencies not only between specific attributes but also between categories/components of attributes;
-        Can be utilized to track metadata completion progress across multiple categories of attributes.
-
-        Args:
-            source_component: an attribute label indicating the source component.
-            as_graph: if False return component requirements as a list; if True return component requirements as a dependency graph (i.e. a DAG)
-
-        Returns:
-            A list of required components associated with the source component.
-        """
-
-        # get required components for the input/source component
-        req_components = self.dmge.get_component_requirements(source_component)
-
-        # retrieve components as graph
-        if as_graph:
-            req_components_graph = self.dmge.get_component_requirements_graph(
-                source_component
-            )
-
-            # serialize component dependencies DAG to a edge list of node tuples
-            req_components = list(req_components_graph.edges())
-
-            return req_components
-
-        return req_components
-
 
 class JsonSchemaGeneratorDirector:
     """
