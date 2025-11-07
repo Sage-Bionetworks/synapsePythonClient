@@ -1,5 +1,4 @@
 """Integration tests for the CLI."""
-import asyncio
 import filecmp
 import json
 import logging
@@ -8,12 +7,12 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 import uuid
 from io import StringIO
 from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
 
 import synapseclient.__main__ as cmdline
 import synapseclient.core.utils as utils
@@ -32,7 +31,7 @@ from synapseclient import (
 )
 
 
-@pytest_asyncio.fixture(loop_scope="function", scope="function")
+@pytest.fixture(loop_scope="function", scope="function")
 def test_state(syn: Synapse, project: Project, schedule_for_cleanup):
     class State:
         def __init__(self):
@@ -619,7 +618,7 @@ def test_command_get_recursive_and_query(test_state):
 
     # get -r uses syncFromSynapse() which uses getChildren(), which is not immediately consistent,
     # but faster than chunked queries.
-    await asyncio.sleep(2)
+    time.sleep(2)
     # Test recursive get
     run(test_state, "synapse" "--skip-checks", "get", "-r", folder_entity.id)
     # Verify that we downloaded files:
@@ -651,7 +650,7 @@ def test_command_get_recursive_and_query(test_state):
 
     test_state.syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data1]))
 
-    await asyncio.sleep(3)  # get -q are eventually consistent
+    time.sleep(3)  # get -q are eventually consistent
     # Test Table/View query get
     run(
         test_state,
