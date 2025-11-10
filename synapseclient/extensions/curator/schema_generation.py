@@ -98,6 +98,15 @@ class ValidationRuleName(Enum):
     IN_RANGE = "inRange"
 
 
+class JSONSchemaType(Enum):
+    """This enum is the currently supported JSON Schema types"""
+
+    STRING = "string"
+    NUMBER = "number"
+    INTEGER = "integer"
+    BOOLEAN = "boolean"
+
+
 class RegexModule(Enum):
     """This enum are allowed modules for the regex validation rule"""
 
@@ -1636,7 +1645,7 @@ class DataModelGraphExplorer:
 
     def get_node_column_type(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
-    ) -> str:
+    ) -> Optional[JSONSchemaType]:
         """Gets the column type of the node
 
         Args:
@@ -1649,7 +1658,9 @@ class DataModelGraphExplorer:
         node_label = self._get_node_label(node_label, node_display_name)
         rel_node_label = self.dmr.get_relationship_value("columnType", "node_label")
         type_string = self.graph.nodes[node_label][rel_node_label]
-        return type_string
+        if type_string is None:
+            return type_string
+        return JSONSchemaType(type_string)
 
     def _get_node_label(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
@@ -2767,7 +2778,7 @@ class DataModelRelationships:
                 "required_header": False,
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
-                "allowed_values": ["string", "number", "integer", "boolean"],
+                "allowed_values": [enum.value for enum in JSONSchemaType],
             },
         }
 
@@ -4349,7 +4360,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
     dependencies: list[str] = field(init=False)
     description: str = field(init=False)
     is_array: bool = field(init=False)
-    type: str = field(init=False)
+    type: Optional[JSONSchemaType] = field(init=False)
     format: Optional[JSONSchemaFormat] = field(init=False)
     minimum: Optional[float] = field(init=False)
     maximum: Optional[float] = field(init=False)
@@ -4835,7 +4846,7 @@ def _create_array_property(node: Node) -> Property:
 
     items: Items = {}
     if node.type:
-        items["type"] = node.type
+        items["type"] = node.type.value
         _set_type_specific_keywords(items, node)
 
     array_type_dict: TypeDict = {"type": "array", "title": "array"}
@@ -4908,10 +4919,10 @@ def _create_simple_property(node: Node) -> Property:
 
     if node.type:
         if node.is_required:
-            prop["type"] = node.type
+            prop["type"] = node.type.value
         else:
             prop["oneOf"] = [
-                {"type": node.type, "title": node.type},
+                {"type": node.type.value, "title": node.type.value},
                 {"type": "null", "title": "null"},
             ]
     elif node.is_required:

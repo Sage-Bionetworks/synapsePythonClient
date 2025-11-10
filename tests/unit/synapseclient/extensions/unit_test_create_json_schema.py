@@ -20,6 +20,7 @@ from synapseclient.extensions.curator.schema_generation import (
     GraphTraversalState,
     JSONSchema,
     JSONSchemaFormat,
+    JSONSchemaType,
     TraversalNode,
     _create_array_property,
     _create_enum_array_property,
@@ -246,7 +247,7 @@ class TestJSONSchema:
 )
 def test_node_init(
     node_name: str,
-    expected_type: str,
+    expected_type: Optional[JSONSchemaType],
     expected_is_array: bool,
     expected_min: Optional[float],
     expected_max: Optional[float],
