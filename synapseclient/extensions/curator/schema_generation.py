@@ -126,16 +126,11 @@ class ValidationRule:
 
     Attributes:
         name: The name of the validation rule
-        js_type: The JSON Schema type this rule indicates.
-          For example type rules map over to their equivalent JSON Schema type: str -> string
-          Other rules have an implicit type. For example the regex rule maps to the JSON
-            Schema pattern keyword. The pattern keyword requires the type to be string
         incompatible_rules: Other validation rules this rule can not be paired with
         parameters: Parameters for the validation rule that need to be collected for the JSON Schema
     """
 
     name: ValidationRuleName
-    js_type: Optional[JSONSchemaType]
     incompatible_rules: list[ValidationRuleName]
     parameters: Optional[list[str]] = None
 
@@ -143,12 +138,10 @@ class ValidationRule:
 _VALIDATION_RULES = {
     "list": ValidationRule(
         name=ValidationRuleName.LIST,
-        js_type=None,
         incompatible_rules=[],
     ),
     "date": ValidationRule(
         name=ValidationRuleName.DATE,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.URL,
@@ -160,7 +153,6 @@ _VALIDATION_RULES = {
     ),
     "url": ValidationRule(
         name=ValidationRuleName.URL,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.DATE,
@@ -172,7 +164,6 @@ _VALIDATION_RULES = {
     ),
     "regex": ValidationRule(
         name=ValidationRuleName.REGEX,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.INT,
@@ -184,7 +175,6 @@ _VALIDATION_RULES = {
     ),
     "inRange": ValidationRule(
         name=ValidationRuleName.IN_RANGE,
-        js_type=JSONSchemaType.NUMBER,
         incompatible_rules=[
             ValidationRuleName.URL,
             ValidationRuleName.DATE,
@@ -196,7 +186,6 @@ _VALIDATION_RULES = {
     ),
     "str": ValidationRule(
         name=ValidationRuleName.STR,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.INT,
@@ -207,7 +196,6 @@ _VALIDATION_RULES = {
     ),
     "float": ValidationRule(
         name=ValidationRuleName.FLOAT,
-        js_type=JSONSchemaType.NUMBER,
         incompatible_rules=[
             ValidationRuleName.URL,
             ValidationRuleName.DATE,
@@ -220,7 +208,6 @@ _VALIDATION_RULES = {
     ),
     "int": ValidationRule(
         name=ValidationRuleName.INT,
-        js_type=JSONSchemaType.INTEGER,
         incompatible_rules=[
             ValidationRuleName.URL,
             ValidationRuleName.DATE,
@@ -233,7 +220,6 @@ _VALIDATION_RULES = {
     ),
     "num": ValidationRule(
         name=ValidationRuleName.NUM,
-        js_type=JSONSchemaType.NUMBER,
         incompatible_rules=[
             ValidationRuleName.URL,
             ValidationRuleName.DATE,
@@ -4354,7 +4340,6 @@ def _get_validation_rule_based_fields(
     logger: Logger,
 ) -> tuple[
     bool,
-    Optional[JSONSchemaType],
     Optional[JSONSchemaFormat],
     Optional[float],
     Optional[float],
