@@ -4063,7 +4063,7 @@ class JsonSchemaGeneratorDirector:
 
 @deprecated(
     version="4.11.0",
-    reason="This function is going to be deprecated. Please use columnType to define types.",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
 )
 def filter_unused_inputted_rules(
     inputted_rules: list[str], logger: Logger
@@ -4098,7 +4098,7 @@ def filter_unused_inputted_rules(
 
 @deprecated(
     version="4.11.0",
-    reason="This function is going to be deprecated. Please use columnType to define types.",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
 )
 def check_for_duplicate_inputted_rules(inputted_rules: list[str]) -> None:
     """Checks that there are no rules with duplicate names
@@ -4116,7 +4116,7 @@ def check_for_duplicate_inputted_rules(inputted_rules: list[str]) -> None:
 
 @deprecated(
     version="4.11.0",
-    reason="This function is going to be deprecated. Please use columnType to define types.",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
 )
 def check_for_conflicting_inputted_rules(inputted_rules: list[str]) -> None:
     """Checks that each rule has no conflicts with any other rule
@@ -4262,7 +4262,7 @@ def get_regex_parameters_from_inputted_rule(
 
 @deprecated(
     version="4.11.0",
-    reason="This function is going to be deprecated. Please use columnType to define types.",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
 )
 def get_validation_rule_names_from_inputted_rules(
     inputted_rules: list[str],
@@ -4282,7 +4282,7 @@ def get_validation_rule_names_from_inputted_rules(
 
 @deprecated(
     version="4.11.0",
-    reason="This function is going to be deprecated. Please use columnType to define types.",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
 )
 def get_names_from_inputted_rules(inputted_rules: list[str]) -> list[str]:
     """Gets the names from a list of inputted rules
