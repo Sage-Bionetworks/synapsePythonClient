@@ -4351,8 +4351,6 @@ def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
 
 def _get_validation_rule_based_fields(
     validation_rules: list[str],
-    js_type: Optional[JSONSchemaType],
-    name: str,
     logger: Logger,
 ) -> tuple[
     bool,
@@ -4368,14 +4366,12 @@ def _get_validation_rule_based_fields(
     JSON Schema docs:
 
     Array: https://json-schema.org/understanding-json-schema/reference/array
-    Types: https://json-schema.org/understanding-json-schema/reference/type#type-specific-keywords
     Format: https://json-schema.org/understanding-json-schema/reference/type#format
     Pattern: https://json-schema.org/understanding-json-schema/reference/string#regexp
     Min/max: https://json-schema.org/understanding-json-schema/reference/numeric#range
 
     Arguments:
         validation_rules: A list of input validation rules
-        js_type: A JSONSchemaType if set explicitly in the data model, otherwise None
         name: The name of the node the validation rules belong to
 
     Raises:
@@ -4386,14 +4382,12 @@ def _get_validation_rule_based_fields(
     Returns:
         A tuple containing fields for a Node object:
         - js_is_array: Whether or not the Node should be an array in JSON Schema
-        - js_type: The JSON Schema type
         - js_format: The JSON Schema format
         - js_minimum: If the type is numeric the JSON Schema minimum
         - js_maximum: If the type is numeric the JSON Schema maximum
         - js_pattern: If the type is string the JSON Schema pattern
     """
     js_is_array = False
-    js_type = js_type
     js_format = None
     js_minimum = None
     js_maximum = None
@@ -4411,15 +4405,6 @@ def _get_validation_rule_based_fields(
         )
 
         js_is_array = ValidationRuleName.LIST in validation_rule_names
-
-        # The implicit JSON Schema type is the one implied by the presence
-        #   of certain validation rules
-
-        implicit_js_type = get_js_type_from_inputted_rules(validation_rules)
-        if implicit_js_type:
-            logger.warning(
-                f"Detected implicit type: '{implicit_js_type}' for property: '{name}'. Please note that type can only be set explicitly via the columnType column in the data model going forward."
-            )
 
         if ValidationRuleName.URL in validation_rule_names:
             js_format = JSONSchemaFormat.URI
@@ -4442,7 +4427,6 @@ def _get_validation_rule_based_fields(
 
     return (
         js_is_array,
-        js_type,
         js_format,
         js_minimum,
         js_maximum,
@@ -4516,19 +4500,16 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.description = self.dmge.get_node_comment(
             node_display_name=self.display_name
         )
-        js_type = self.dmge.get_node_column_type(node_display_name=self.display_name)
+        self.type = self.dmge.get_node_column_type(node_display_name=self.display_name)
 
         (
             self.is_array,
-            self.type,
             self.format,
             self.minimum,
             self.maximum,
             self.pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
-            js_type=js_type,
-            name=self.name,
             logger=self.logger,
         )
 
@@ -5816,17 +5797,12 @@ class Node2:  # pylint: disable=too-many-instance-attributes
         self.description = self.dmge.get_node_comment(
             node_display_name=self.display_name
         )
-        explicit_js_type = self.dmge.get_node_column_type(
-            node_display_name=self.display_name
-        )
+        self.type = self.dmge.get_node_column_type(node_display_name=self.display_name)
 
         (
             self.is_array,
-            self.type,
             self.format,
             self.minimum,
             self.maximum,
             self.pattern,
-        ) = _get_validation_rule_based_fields(
-            validation_rules, explicit_js_type, self.name, logger=self.dmge.logger
-        )
+        ) = _get_validation_rule_based_fields(validation_rules, logger=self.dmge.logger)

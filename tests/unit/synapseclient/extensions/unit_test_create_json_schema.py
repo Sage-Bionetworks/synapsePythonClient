@@ -220,23 +220,21 @@ class TestJSONSchema:
 @pytest.mark.parametrize(
     "node_name, expected_type, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
-        # If there are no type validation rules the type is None
+        # Node with no validation rules - all constraint fields should be None/False
         ("NoRules", None, False, None, None, None, None),
-        # If there is one type validation rule the type is set to the
-        #  JSON Schema remains None
+        # Node with "str" validation rule - type remains None, constraints not set in Node initialization
         ("String", None, False, None, None, None, None),
-        # If there are any list type validation rules then is_array is set to True
+        # Node with "list" validation rule - is_array is set to True, other fields remain None
         ("List", None, True, None, None, None, None),
-        # If there are any list type validation rules and one type validation rule
-        #  then is_array is set to True, and the type remains None
+        # Node with both "list" and "str" validation rules - is_array is True, type remains None
         ("ListString", None, True, None, None, None, None),
-        # If there is an inRange rule the min and max will be set.
+        # Node with "inRange 50 100" validation rule - minimum and maximum are extracted and set
         ("InRange", None, False, 50, 100, None, None),
-        # If there is a regex rule, then the pattern should be set
+        # Node with "regex search [a-f]" validation rule - pattern is extracted and set
         ("Regex", None, False, None, None, "[a-f]", None),
-        # If there is a date rule, then the format should be set to "date"
+        # Node with "date" validation rule - format is set to JSONSchemaFormat.DATE
         ("Date", None, False, None, None, None, JSONSchemaFormat.DATE),
-        # If there is a URL rule, then the format should be set to "uri"
+        # Node with "url" validation rule - format is set to JSONSchemaFormat.URI
         ("URL", None, False, None, None, None, JSONSchemaFormat.URI),
     ],
     ids=["None", "String", "List", "ListString", "InRange", "Regex", "Date", "URI"],
@@ -262,47 +260,43 @@ def test_node_init(
 
 
 @pytest.mark.parametrize(
-    "validation_rules, expected_type, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
+    "validation_rules, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
-        # If there are no type validation rules the type is None
-        ([], None, False, None, None, None, None),
-        # If there is one type validation rule the type, it remains None
-        (["str"], None, False, None, None, None, None),
-        # If there are any list type validation rules then is_array is set to True
-        (["list"], None, True, None, None, None, None),
-        # If there are any list type validation rules and one type validation rule
-        #  then is_array is set to True, and the type still remains None
-        (["list", "str"], None, True, None, None, None, None),
-        # If there is an inRange rule the min and max will be set
-        (["inRange 50 100"], None, False, 50, 100, None, None),
-        # If there is a regex rule, then the pattern should be set, but type remains None
+        # If there are no validation rules, all fields should be None/False
+        ([], False, None, None, None, None),
+        # If there is a "str" validation rule, only format/constraints are set, no explicit type
+        (["str"], False, None, None, None, None),
+        # If there is a "list" validation rule, is_array is set to True
+        (["list"], True, None, None, None, None),
+        # If there are both "list" and "str" validation rules, is_array is True, other fields remain None
+        (["list", "str"], True, None, None, None, None),
+        # If there is an "inRange" rule, minimum and maximum are extracted and set
+        (["inRange 50 100"], False, 50, 100, None, None),
+        # If there is a "regex search" rule, the pattern is extracted and set
         (
             ["regex search [a-f]"],
-            None,
             False,
             None,
             None,
             "[a-f]",
             None,
         ),
-        # If there is a date rule, then the format should be set to "date", but type remains None
+        # If there is a "date" rule, the format is set to JSONSchemaFormat.DATE
         (
             ["date"],
-            None,
             False,
             None,
             None,
             None,
             JSONSchemaFormat.DATE,
         ),
-        # If there is a URL rule, then the format should be set to "uri", but type remains None
-        (["url"], None, False, None, None, None, JSONSchemaFormat.URI),
+        # If there is a "url" rule, the format is set to JSONSchemaFormat.URI
+        (["url"], False, None, None, None, JSONSchemaFormat.URI),
     ],
     ids=["No rules", "String", "List", "ListString", "InRange", "Regex", "Date", "URL"],
 )
 def test_get_validation_rule_based_fields_no_explicit_type(
     validation_rules: list[str],
-    expected_type: Optional[JSONSchemaType],
     expected_is_array: bool,
     expected_min: Optional[float],
     expected_max: Optional[float],
@@ -316,13 +310,11 @@ def test_get_validation_rule_based_fields_no_explicit_type(
     logger = Mock()
     (
         is_array,
-        property_type,
         property_format,
         minimum,
         maximum,
         pattern,
-    ) = _get_validation_rule_based_fields(validation_rules, None, "name", logger)
-    assert property_type == expected_type
+    ) = _get_validation_rule_based_fields(validation_rules, logger)
     assert property_format == expected_format
     assert is_array == expected_is_array
     assert minimum == expected_min
@@ -331,12 +323,10 @@ def test_get_validation_rule_based_fields_no_explicit_type(
 
 
 @pytest.mark.parametrize(
-    "validation_rules, explicit_type, expected_type, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
+    "validation_rules, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
         (
             [],
-            JSONSchemaType.STRING,
-            JSONSchemaType.STRING,
             False,
             None,
             None,
@@ -345,8 +335,6 @@ def test_get_validation_rule_based_fields_no_explicit_type(
         ),
         (
             ["str"],
-            JSONSchemaType.STRING,
-            JSONSchemaType.STRING,
             False,
             None,
             None,
@@ -355,8 +343,6 @@ def test_get_validation_rule_based_fields_no_explicit_type(
         ),
         (
             ["list"],
-            JSONSchemaType.STRING,
-            JSONSchemaType.STRING,
             True,
             None,
             None,
@@ -365,8 +351,6 @@ def test_get_validation_rule_based_fields_no_explicit_type(
         ),
         (
             ["inRange 50 100"],
-            JSONSchemaType.NUMBER,
-            JSONSchemaType.NUMBER,
             False,
             50,
             100,
@@ -375,8 +359,6 @@ def test_get_validation_rule_based_fields_no_explicit_type(
         ),
         (
             ["regex search [a-f]"],
-            JSONSchemaType.STRING,
-            JSONSchemaType.STRING,
             False,
             None,
             None,
@@ -385,8 +367,6 @@ def test_get_validation_rule_based_fields_no_explicit_type(
         ),
         (
             ["date"],
-            JSONSchemaType.STRING,
-            JSONSchemaType.STRING,
             False,
             None,
             None,
@@ -395,8 +375,6 @@ def test_get_validation_rule_based_fields_no_explicit_type(
         ),
         (
             ["url"],
-            JSONSchemaType.STRING,
-            JSONSchemaType.STRING,
             False,
             None,
             None,
@@ -408,8 +386,6 @@ def test_get_validation_rule_based_fields_no_explicit_type(
 )
 def test_get_validation_rule_based_fields_with_explicit_type(
     validation_rules: list[str],
-    explicit_type: JSONSchemaType,
-    expected_type: Optional[JSONSchemaType],
     expected_is_array: bool,
     expected_min: Optional[float],
     expected_max: Optional[float],
@@ -423,15 +399,11 @@ def test_get_validation_rule_based_fields_with_explicit_type(
     logger = Mock()
     (
         is_array,
-        property_type,
         property_format,
         minimum,
         maximum,
         pattern,
-    ) = _get_validation_rule_based_fields(
-        validation_rules, explicit_type, "name", logger
-    )
-    assert property_type == expected_type
+    ) = _get_validation_rule_based_fields(validation_rules, logger)
     assert property_format == expected_format
     assert is_array == expected_is_array
     assert minimum == expected_min
