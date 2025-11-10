@@ -49,22 +49,27 @@ class TestSubmissionCreationAsync:
 
     @pytest_asyncio.fixture(scope="function")
     async def test_file(
-        self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import tempfile
         import os
-        
+        import tempfile
+
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write("This is test content for submission testing.")
             temp_file_path = temp_file.name
-        
+
         try:
             file = await File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id
+                parent_id=test_project.id,
             ).store_async(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
@@ -93,7 +98,9 @@ class TestSubmissionCreationAsync:
         assert created_submission.created_on is not None
         assert created_submission.version_number is not None
 
-    async def test_store_submission_without_entity_id_async(self, test_evaluation: Evaluation):
+    async def test_store_submission_without_entity_id_async(
+        self, test_evaluation: Evaluation
+    ):
         # WHEN I try to create a submission without entity_id using async method
         submission = Submission(
             evaluation_id=test_evaluation.id,
@@ -101,7 +108,9 @@ class TestSubmissionCreationAsync:
         )
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="entity_id is required to create a submission"):
+        with pytest.raises(
+            ValueError, match="entity_id is required to create a submission"
+        ):
             await submission.store_async(synapse_client=self.syn)
 
     async def test_store_submission_without_evaluation_id_async(self, test_file: File):
@@ -120,7 +129,7 @@ class TestSubmissionCreationAsync:
     # ):
     #     # GIVEN we would need a Docker repository entity (mocked for this test)
     #     # This test demonstrates the expected behavior for Docker repository submissions
-        
+
     #     # WHEN I create a submission for a Docker repository entity using async method
     #     # TODO: This would require a real Docker repository entity in a full integration test
     #     submission = Submission(
@@ -128,7 +137,7 @@ class TestSubmissionCreationAsync:
     #         evaluation_id=test_evaluation.id,
     #         name=f"Docker Submission {uuid.uuid4()}",
     #     )
-        
+
     #     # THEN the submission should handle Docker-specific attributes
     #     # (This test would need to be expanded with actual Docker repository setup)
     #     assert submission.entity_id == "syn123456789"
@@ -173,21 +182,26 @@ class TestSubmissionRetrievalAsync:
 
     @pytest_asyncio.fixture(scope="function")
     async def test_file(
-        self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import tempfile
         import os
-        
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write("This is test content for submission testing.")
             temp_file_path = temp_file.name
-        
+
         try:
             file = await File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id
+                parent_id=test_project.id,
             ).store_async(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
@@ -239,7 +253,7 @@ class TestSubmissionRetrievalAsync:
         # THEN I should get a response with submissions
         assert "results" in response
         assert len(response["results"]) > 0
-        
+
         # AND the submission should be in the results
         submission_ids = [sub.get("id") for sub in response["results"]]
         assert test_submission.id in submission_ids
@@ -336,21 +350,26 @@ class TestSubmissionDeletionAsync:
 
     @pytest_asyncio.fixture(scope="function")
     async def test_file(
-        self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import tempfile
         import os
-        
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write("This is test content for submission testing.")
             temp_file_path = temp_file.name
-        
+
         try:
             file = await File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id
+                parent_id=test_project.id,
             ).store_async(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
@@ -373,7 +392,9 @@ class TestSubmissionDeletionAsync:
 
         # THEN attempting to retrieve it should raise an error
         with pytest.raises(SynapseHTTPError):
-            await Submission(id=created_submission.id).get_async(synapse_client=self.syn)
+            await Submission(id=created_submission.id).get_async(
+                synapse_client=self.syn
+            )
 
     async def test_delete_submission_without_id_async(self):
         # WHEN I try to delete a submission without an ID using async method
@@ -422,21 +443,26 @@ class TestSubmissionCancelAsync:
 
     @pytest_asyncio.fixture(scope="function")
     async def test_file(
-        self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import tempfile
         import os
-        
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write("This is test content for submission testing.")
             temp_file_path = temp_file.name
-        
+
         try:
             file = await File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id
+                parent_id=test_project.id,
             ).store_async(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file

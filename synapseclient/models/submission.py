@@ -245,25 +245,32 @@ class Submission(
 
         try:
             entity_info = await client.rest_get_async(f"/entity/{self.entity_id}")
-            
+
             # If this is a DockerRepository, fetch docker image tag & digest, and add it to the entity_info dict
-            if entity_info.get("concreteType") == "org.sagebionetworks.repo.model.docker.DockerRepository":
-                docker_tag_response = await client.rest_get_async(f"/entity/{self.entity_id}/dockerTag")
-                
+            if (
+                entity_info.get("concreteType")
+                == "org.sagebionetworks.repo.model.docker.DockerRepository"
+            ):
+                docker_tag_response = await client.rest_get_async(
+                    f"/entity/{self.entity_id}/dockerTag"
+                )
+
                 # Get the latest digest from the docker tag results
                 if "results" in docker_tag_response and docker_tag_response["results"]:
                     # Sort by createdOn timestamp to get the latest entry
                     # Convert ISO timestamp strings to datetime objects for comparison
                     from datetime import datetime
-                    
+
                     latest_result = max(
                         docker_tag_response["results"],
-                        key=lambda x: datetime.fromisoformat(x["createdOn"].replace("Z", "+00:00"))
+                        key=lambda x: datetime.fromisoformat(
+                            x["createdOn"].replace("Z", "+00:00")
+                        ),
                     )
-                    
+
                     # Add the latest result to entity_info
                     entity_info.update(latest_result)
-            
+
             return entity_info
         except Exception as e:
             raise ValueError(
@@ -292,7 +299,7 @@ class Submission(
         request_body = {
             "entityId": self.entity_id,
             "evaluationId": self.evaluation_id,
-            "versionNumber": self.version_number
+            "versionNumber": self.version_number,
         }
 
         # Add optional fields if they are set
@@ -360,10 +367,18 @@ class Submission(
 
             self.entity_etag = entity_info.get("etag")
 
-            if entity_info.get("concreteType") == "org.sagebionetworks.repo.model.FileEntity":
+            if (
+                entity_info.get("concreteType")
+                == "org.sagebionetworks.repo.model.FileEntity"
+            ):
                 self.version_number = entity_info.get("versionNumber")
-            elif entity_info.get("concreteType") == "org.sagebionetworks.repo.model.docker.DockerRepository":
-                self.version_number = 1  # TODO: Docker repositories do not have version numbers
+            elif (
+                entity_info.get("concreteType")
+                == "org.sagebionetworks.repo.model.docker.DockerRepository"
+            ):
+                self.version_number = (
+                    1  # TODO: Docker repositories do not have version numbers
+                )
                 self.docker_repository_name = entity_info.get("repositoryName")
                 self.docker_digest = entity_info.get("digest")
         else:
