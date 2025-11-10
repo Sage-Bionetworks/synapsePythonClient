@@ -141,7 +141,7 @@ class Submission(
 
     version_number: Optional[int] = field(default=None, compare=False)
     """
-    The version number of the entity at submission.
+    The version number of the entity at submission. If not provided, it will be automatically retrieved from the entity.
     """
 
     evaluation_id: Optional[str] = None
@@ -196,6 +196,9 @@ class Submission(
     analogous to the Activity defined in the
     [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance."""
 
+    etag: Optional[str] = None
+    """The current eTag of the Entity being submitted. If not provided, it will be automatically retrieved."""
+
     _last_persistent_instance: Optional["Submission"] = field(
         default=None, repr=False, compare=False
     )
@@ -237,6 +240,38 @@ class Submission(
             self.activity = {}
 
         return self
+
+    async def _fetch_latest_entity(
+        self, *, synapse_client: Optional[Synapse] = None
+    ) -> Dict:
+        """
+        Fetch the latest entity information from Synapse.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
+
+        Returns:
+            Dictionary containing entity information from the REST API.
+
+        Raises:
+            ValueError: If entity_id is not set or if unable to fetch entity information.
+        """
+        if not self.entity_id:
+            raise ValueError("entity_id must be set to fetch entity information")
+
+        from synapseclient import Synapse
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        try:
+            entity_info = await client.rest_get_async(f"/entity/{self.entity_id}")
+            return entity_info
+        except Exception as e:
+            raise ValueError(
+                f"Unable to fetch entity information for {self.entity_id}: {e}"
+            )
 
     def to_synapse_request(self) -> Dict:
         """Creates a request body expected of the Synapse REST API for the Submission model.
@@ -296,7 +331,7 @@ class Submission(
             The Submission object with the ID set.
 
         Raises:
-            ValueError: If the submission is missing required fields.
+            ValueError: If the submission is missing required fields, or if unable to fetch entity etag.
 
         Example: Creating a submission
             &nbsp;
@@ -319,12 +354,23 @@ class Submission(
         # Create the submission using the new to_synapse_request method
         request_body = self.to_synapse_request()
 
-        # Create the submission using the service
-        response = await evaluation_services.create_submission(
-            request_body=request_body, synapse_client=synapse_client
-        )
+        if self.entity_id:
+            entity_info = await self._fetch_latest_entity(synapse_client=synapse_client)
+            self.entity_etag = entity_info.get("etag")
+            self.version_number = entity_info.get("versionNumber")
 
-        # Update this object with the response
+            # version number is required in the request body
+            if self.version_number is not None:
+                request_body["versionNumber"] = self.version_number
+        else:
+            raise ValueError("entity_id is required to create a submission")
+
+        if not self.entity_etag:
+            raise ValueError("Unable to fetch etag for entity")
+
+        response = await evaluation_services.create_submission(
+            request_body, self.entity_etag, synapse_client=synapse_client
+        )
         self.fill_from_dict(response)
         return self
 
@@ -355,6 +401,7 @@ class Submission(
             ValueError: If the submission does not have an ID to get.
 
         Example: Retrieving a submission by ID
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Submission
@@ -362,7 +409,7 @@ class Submission(
             syn = Synapse()
             syn.login()
 
-            submission = await Submission(id="syn1234").get_async()
+            submission = await Submission(id="9999999").get_async()
             print(submission)
             ```
         """
