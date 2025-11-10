@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Protocol, Union
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.api import submission_services
+from synapseclient.api import evaluation_services
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import delete_none_keys
 from synapseclient.models import Annotations
@@ -409,7 +409,7 @@ class SubmissionStatus(
         if not self.id:
             raise ValueError("The submission status must have an ID to get.")
 
-        response = await submission_services.get_submission_status(
+        response = await evaluation_services.get_submission_status(
             submission_id=self.id, synapse_client=synapse_client
         )
 
@@ -488,7 +488,7 @@ class SubmissionStatus(
             request_body["submissionAnnotations"] = self.submission_annotations
 
         # Update the submission status using the service
-        response = await submission_services.update_submission_status(
+        response = await evaluation_services.update_submission_status(
             submission_id=self.id,
             request_body=request_body,
             synapse_client=synapse_client,
@@ -542,7 +542,7 @@ class SubmissionStatus(
             print(f"Found {len(response['results'])} submission statuses")
             ```
         """
-        return await submission_services.get_all_submission_statuses(
+        return await evaluation_services.get_all_submission_statuses(
             evaluation_id=evaluation_id,
             status=status,
             limit=limit,
@@ -638,7 +638,7 @@ class SubmissionStatus(
         if batch_token:
             request_body["batchToken"] = batch_token
 
-        return await submission_services.batch_update_submission_statuses(
+        return await evaluation_services.batch_update_submission_statuses(
             evaluation_id=evaluation_id,
             request_body=request_body,
             synapse_client=synapse_client,

@@ -387,6 +387,7 @@ async def get_evaluation_permissions(
 
     return await client.rest_get_async(uri)
 
+
 async def create_submission(
     request_body: dict, synapse_client: Optional["Synapse"] = None
 ) -> dict:
