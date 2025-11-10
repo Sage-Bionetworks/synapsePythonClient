@@ -120,6 +120,35 @@ def fixture_test_nodes(
     return nodes
 
 
+@pytest.fixture(name="test_nodes_column_types")
+def fixture_test_nodes_column_types(
+    dmge_column_type: DataModelGraphExplorer,
+):
+    """Yields dict of Nodes"""
+    nodes = [
+        "NoRules",
+        "NoRulesNotRequired",
+        "String",
+        "StringNotRequired",
+        "Enum",
+        "EnumNotRequired",
+        "InRange",
+        "Regex",
+        "Date",
+        "URL",
+        "List",
+        "ListNotRequired",
+        "ListEnum",
+        "ListEnumNotRequired",
+        "ListString",
+        "ListInRange",
+    ]
+    nodes = {
+        node: Node2(node, "JSONSchemaComponent", dmge_column_type) for node in nodes
+    }
+    return nodes
+
+
 class TestJSONSchema:
     """Tests for JSONSchema"""
 
@@ -1125,7 +1154,9 @@ def test_create_enum_array_property(
         (
             "ListString",
             {
-                "oneOf": [{"type": "array", "title": "array"}],
+                "oneOf": [
+                    {"type": "array", "title": "array", "items": {"type": "string"}}
+                ],
             },
             [[], ["x"]],
             [None, [None], [1]],
@@ -1138,6 +1169,7 @@ def test_create_enum_array_property(
                     {
                         "type": "array",
                         "title": "array",
+                        "items": {"type": "number", "minimum": 50.0, "maximum": 100.0},
                     }
                 ],
             },
@@ -1157,18 +1189,18 @@ def test_create_array_property(
     expected_schema: dict[str, Any],
     valid_values: list[Any],
     invalid_values: list[Any],
-    test_nodes: dict[str, Node2],
+    test_nodes_column_types: dict[str, Node2],
 ) -> None:
     """Test for _create_array_property"""
-    schema = _create_array_property(test_nodes[node_name])
+    schema = _create_array_property(test_nodes_column_types[node_name])
     assert schema == expected_schema
     full_schema = {"type": "object", "properties": {"name": schema}, "required": []}
     validator = Draft7Validator(full_schema)
     for value in valid_values:
         validator.validate({"name": value})
-    # for value in invalid_values:
-    #     with pytest.raises(ValidationError):
-    #         validator.validate({"name": value})
+    for value in invalid_values:
+        with pytest.raises(ValidationError):
+            validator.validate({"name": value})
 
 
 @pytest.mark.parametrize(
@@ -1222,7 +1254,7 @@ def test_create_enum_property(
         # If property_type is given, it is added to the schema
         (
             "String",
-            {"not": {"type": "null"}},
+            {"type": "string"},
             [""],
             [1, None],
         ),
@@ -1231,16 +1263,16 @@ def test_create_enum_property(
         (
             "StringNotRequired",
             {
-                # "oneOf": [
-                #     {"type": "string", "title": "string"},
-                #     {"type": "null", "title": "null"},
-                # ],
+                "oneOf": [
+                    {"type": "string", "title": "string"},
+                    {"type": "null", "title": "null"},
+                ],
             },
             [None, "x"],
             [1],
         ),
-        # # If is_required is True '"not": {"type":"null"}' is added to schema if
-        # # property_type is not given
+        # If is_required is True '"not": {"type":"null"}' is added to schema if
+        # property_type is not given
         (
             "NoRules",
             {"not": {"type": "null"}},
@@ -1250,7 +1282,7 @@ def test_create_enum_property(
         (
             "InRange",
             {
-                "not": {"type": "null"},
+                "type": "number",
                 "minimum": 50,
                 "maximum": 100,
             },
@@ -1271,18 +1303,18 @@ def test_create_simple_property(
     expected_schema: dict[str, Any],
     valid_values: list[Any],
     invalid_values: list[Any],
-    test_nodes: dict[str, Node2],
+    test_nodes_column_types: dict[str, Node2],
 ) -> None:
     """Test for _create_simple_property"""
-    schema = _create_simple_property(test_nodes[node_name])
+    schema = _create_simple_property(test_nodes_column_types[node_name])
     assert schema == expected_schema
     full_schema = {"type": "object", "properties": {"name": schema}, "required": []}
     validator = Draft7Validator(full_schema)
     for value in valid_values:
         validator.validate({"name": value})
-    # for value in invalid_values:
-    #     with pytest.raises(ValidationError):
-    #         validator.validate({"name": value})
+    for value in invalid_values:
+        with pytest.raises(ValidationError):
+            validator.validate({"name": value})
 
 
 @pytest.mark.parametrize(
