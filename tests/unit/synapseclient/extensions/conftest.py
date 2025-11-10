@@ -8,7 +8,6 @@ from synapseclient.extensions.curator.schema_generation import (
     DataModelGraph,
     DataModelGraphExplorer,
     DataModelParser,
-    load_df,
 )
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,20 +16,9 @@ SCHEMA_FILES_DIR = os.path.join(TESTS_DIR, "schema_files")
 
 class Helpers:
     @staticmethod
-    def get_data_path(path, *paths):
-        """Get path to test data files"""
-        return os.path.join(SCHEMA_FILES_DIR, path, *paths)
-
-    @staticmethod
     def get_schema_file_path(filename):
         """Get path to schema files specifically"""
         return os.path.join(SCHEMA_FILES_DIR, filename)
-
-    @staticmethod
-    def get_data_frame(path, *paths, **kwargs):
-        """Load a dataframe from schema files"""
-        fullpath = os.path.join(SCHEMA_FILES_DIR, path, *paths)
-        return load_df(fullpath, **kwargs)
 
     @staticmethod
     def get_data_model_graph_explorer(
@@ -61,13 +49,6 @@ class Helpers:
         DMGE = DataModelGraphExplorer(graph_data_model, logger=Mock())
 
         return DMGE
-
-    @staticmethod
-    def get_python_version():
-        version = sys.version
-        base_version = ".".join(version.split(".")[0:2])
-
-        return base_version
 
 
 @pytest.fixture(scope="function")
