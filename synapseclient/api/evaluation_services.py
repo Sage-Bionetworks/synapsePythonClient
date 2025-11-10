@@ -389,7 +389,7 @@ async def get_evaluation_permissions(
 
 
 async def create_submission(
-    request_body: dict, synapse_client: Optional["Synapse"] = None
+    request_body: dict, etag: str, synapse_client: Optional["Synapse"] = None
 ) -> dict:
     """
     Creates a Submission and sends a submission notification email to the submitter's team members.
@@ -398,6 +398,7 @@ async def create_submission(
 
     Arguments:
         request_body: The request body to send to the server.
+        etag: The current eTag of the Entity being submitted.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                         instance from the Synapse class constructor.
     """
@@ -407,7 +408,12 @@ async def create_submission(
 
     uri = "/evaluation/submission"
 
-    response = await client.rest_post_async(uri, body=json.dumps(request_body))
+    # Add etag as query parameter if provided
+    params = {"etag": etag}
+
+    response = await client.rest_post_async(
+        uri, body=json.dumps(request_body), params=params
+    )
 
     return response
 
