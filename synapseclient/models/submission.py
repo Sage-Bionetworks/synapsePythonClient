@@ -15,7 +15,6 @@ class SubmissionSynchronousProtocol(Protocol):
 
     def get(
         self,
-        include_activity: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
@@ -104,7 +103,6 @@ class Submission(
             file handles, and other metadata.
         docker_repository_name: For Docker repositories, the repository name.
         docker_digest: For Docker repositories, the digest of the submitted Docker image.
-        activity: The Activity model represents the main record of Provenance in Synapse.
 
     Example: Retrieve a Submission.
         ```python
@@ -190,12 +188,6 @@ class Submission(
     For Docker repositories, the digest of the submitted Docker image.
     """
 
-    # TODO
-    activity: Optional[Dict] = field(default=None, compare=False)
-    """The Activity model represents the main record of Provenance in Synapse. It is
-    analogous to the Activity defined in the
-    [W3C Specification](https://www.w3.org/TR/prov-n/) on Provenance."""
-
     etag: Optional[str] = None
     """The current eTag of the Entity being submitted. If not provided, it will be automatically retrieved."""
 
@@ -233,11 +225,6 @@ class Submission(
             "dockerRepositoryName", None
         )
         self.docker_digest = synapse_submission.get("dockerDigest", None)
-
-        activity_dict = synapse_submission.get("activity", None)
-        if activity_dict:
-            # TODO: Implement Activity class and its fill_from_dict method
-            self.activity = {}
 
         return self
 
@@ -336,19 +323,24 @@ class Submission(
         Example: Creating a submission
             &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Submission
 
             syn = Synapse()
             syn.login()
 
-            submission = Submission(
-                entity_id="syn123456",
-                evaluation_id="9614543",
-                name="My Submission"
-            )
-            submission = await submission.store_async()
-            print(submission.id)
+            async def create_submission_example():
+
+                submission = Submission(
+                    entity_id="syn123456",
+                    evaluation_id="9614543",
+                    name="My Submission"
+                )
+                submission = await submission.store_async()
+                print(submission.id)
+
+            asyncio.run(create_submission_example())
             ```
         """
         # Create the submission using the new to_synapse_request method
@@ -379,7 +371,6 @@ class Submission(
     )
     async def get_async(
         self,
-        include_activity: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Submission":
@@ -387,9 +378,6 @@ class Submission(
         Retrieve a Submission from Synapse.
 
         Arguments:
-            include_activity: Whether to include the activity in the returned submission.
-                Defaults to False. Setting this to True will include the activity
-                record associated with this submission.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -403,32 +391,29 @@ class Submission(
         Example: Retrieving a submission by ID
             &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Submission
 
             syn = Synapse()
             syn.login()
 
-            submission = await Submission(id="9999999").get_async()
-            print(submission)
+            async def get_submission_example():
+
+                submission = await Submission(id="9999999").get_async()
+                print(submission)
+
+            asyncio.run(get_submission_example())
             ```
         """
         if not self.id:
             raise ValueError("The submission must have an ID to get.")
 
-        # Get the submission using the service
         response = await evaluation_services.get_submission(
             submission_id=self.id, synapse_client=synapse_client
         )
 
-        # Update this object with the response
         self.fill_from_dict(response)
-
-        # Handle activity if requested
-        if include_activity and self.activity:
-            # The activity should be included in the response by default
-            # but if we need to fetch it separately, we would do it here
-            pass
 
         return self
 
@@ -446,11 +431,11 @@ class Submission(
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
-            status: Optionally filter submissions by a submission status, such as SCORED, VALID,
-                    INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
-            limit: Limits the number of submissions in a single response. Default to 20.
+            status: Optionally filter submissions by a submission status.
+                    Submission status can be one of <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html>
+            limit: Limits the number of submissions in a single response. Defaults to 20.
             offset: The offset index determines where this page will start from.
-                    An index of 0 is the first submission. Default to 0.
+                    An index of 0 is the first submission. Defaults to 0.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -459,19 +444,24 @@ class Submission(
             A response JSON containing a paginated list of submissions for the evaluation queue.
 
         Example: Getting submissions for an evaluation
+            &nbsp;
+            Get SCORED submissions from a specific evaluation.
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Submission
 
             syn = Synapse()
             syn.login()
 
-            response = await Submission.get_evaluation_submissions_async(
-                evaluation_id="9614543",
-                status="SCORED",
-                limit=10
-            )
-            print(f"Found {len(response['results'])} submissions")
+            async def get_evaluation_submissions_example():
+                response = await Submission.get_evaluation_submissions_async(
+                    evaluation_id="9999999",
+                    status="SCORED"
+                )
+                print(f"Found {len(response['results'])} submissions")
+
+            asyncio.run(get_evaluation_submissions_example())
             ```
         """
         return await evaluation_services.get_evaluation_submissions(
@@ -511,18 +501,22 @@ class Submission(
 
         Example: Getting user submissions
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Submission
 
             syn = Synapse()
             syn.login()
 
-            response = await Submission.get_user_submissions_async(
-                evaluation_id="9614543",
-                user_id="123456",
-                limit=10
-            )
-            print(f"Found {len(response['results'])} user submissions")
+            async def get_user_submissions_example():
+                response = await Submission.get_user_submissions_async(
+                    evaluation_id="9999999",
+                    user_id="123456",
+                    limit=10
+                )
+                print(f"Found {len(response['results'])} user submissions")
+
+            asyncio.run(get_user_submissions_example())
             ```
         """
         return await evaluation_services.get_user_submissions(
@@ -555,18 +549,24 @@ class Submission(
             A response JSON containing the submission count.
 
         Example: Getting submission count
+            &nbsp;
+            Get the total number of SCORED submissions from a specific evaluation.
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Submission
 
             syn = Synapse()
             syn.login()
 
-            response = await Submission.get_submission_count_async(
-                evaluation_id="9614543",
-                status="SCORED"
-            )
-            print(f"Found {response['count']} submissions")
+            async def get_submission_count_example():
+                response = await Submission.get_submission_count_async(
+                    evaluation_id="9999999",
+                    status="SCORED"
+                )
+                print(f"Found {response['count']} submissions")
+
+            asyncio.run(get_submission_count_example())
             ```
         """
         return await evaluation_services.get_submission_count(
@@ -576,7 +576,7 @@ class Submission(
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Submission_Delete: {self.id}"
     )
-    async def delete_submission_async(
+    async def delete_async(
         self,
         *,
         synapse_client: Optional[Synapse] = None,
@@ -593,16 +593,22 @@ class Submission(
             ValueError: If the submission does not have an ID to delete.
 
         Example: Delete a submission
+            &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Submission
 
             syn = Synapse()
             syn.login()
 
-            submission = Submission(id="syn1234")
-            await submission.delete_submission_async()
-            print("Deleted Submission.")
+            async def delete_submission_example():
+                submission = Submission(id="9999999")
+                await submission.delete_async()
+                print("Submission deleted successfully")
+
+            # Run the async function
+            asyncio.run(delete_submission_example())
             ```
         """
         if not self.id:
@@ -611,11 +617,16 @@ class Submission(
         await evaluation_services.delete_submission(
             submission_id=self.id, synapse_client=synapse_client
         )
+        
+        from synapseclient import Synapse
+        client = Synapse.get_client(synapse_client=synapse_client)
+        logger = client.logger
+        logger.info(f"Submission {self.id} has successfully been deleted.")
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Submission_Cancel: {self.id}"
     )
-    async def cancel_submission_async(
+    async def cancel_async(
         self,
         *,
         synapse_client: Optional[Synapse] = None,
@@ -635,16 +646,22 @@ class Submission(
             ValueError: If the submission does not have an ID to cancel.
 
         Example: Cancel a submission
+            &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import Submission
 
             syn = Synapse()
             syn.login()
 
-            submission = Submission(id="syn1234")
-            canceled_submission = await submission.cancel_submission_async()
-            print(f"Canceled submission: {canceled_submission.id}")
+            async def cancel_submission_example():
+                submission = Submission(id="syn1234")
+                canceled_submission = await submission.cancel_async()
+                print(f"Canceled submission: {canceled_submission.id}")
+
+            # Run the async function
+            asyncio.run(cancel_submission_example())
             ```
         """
         if not self.id:
@@ -653,6 +670,11 @@ class Submission(
         response = await evaluation_services.cancel_submission(
             submission_id=self.id, synapse_client=synapse_client
         )
+
+        from synapseclient import Synapse
+        client = Synapse.get_client(synapse_client=synapse_client)
+        logger = client.logger
+        logger.info(f"Submission {self.id} has successfully been cancelled.")
 
         # Update this object with the response
         self.fill_from_dict(response)
