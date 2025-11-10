@@ -96,11 +96,6 @@ class ValidationRuleName(Enum):
     URL = "url"
     REGEX = "regex"
     IN_RANGE = "inRange"
-    STR = "str"
-    FLOAT = "float"
-    INT = "int"
-    BOOL = "bool"
-    NUM = "num"
 
 
 class JSONSchemaType(Enum):
@@ -145,10 +140,6 @@ _VALIDATION_RULES = {
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.URL,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
     ),
     "url": ValidationRule(
@@ -156,20 +147,12 @@ _VALIDATION_RULES = {
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.DATE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
     ),
     "regex": ValidationRule(
         name=ValidationRuleName.REGEX,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
         parameters=["module", "pattern"],
     ),
@@ -179,56 +162,8 @@ _VALIDATION_RULES = {
             ValidationRuleName.URL,
             ValidationRuleName.DATE,
             ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
         ],
         parameters=["minimum", "maximum"],
-    ),
-    "str": ValidationRule(
-        name=ValidationRuleName.STR,
-        incompatible_rules=[
-            ValidationRuleName.IN_RANGE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.NUM,
-            ValidationRuleName.BOOL,
-        ],
-    ),
-    "float": ValidationRule(
-        name=ValidationRuleName.FLOAT,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.INT,
-            ValidationRuleName.NUM,
-        ],
-    ),
-    "int": ValidationRule(
-        name=ValidationRuleName.INT,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
-            ValidationRuleName.FLOAT,
-        ],
-    ),
-    "num": ValidationRule(
-        name=ValidationRuleName.NUM,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-        ],
     ),
 }
 
