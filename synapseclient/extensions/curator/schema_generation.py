@@ -4153,35 +4153,6 @@ def get_rule_from_inputted_rules(
     return inputted_rules[0]
 
 
-def get_js_type_from_inputted_rules(
-    inputted_rules: list[str],
-) -> Optional[JSONSchemaType]:
-    """Gets the JSON Schema type from a list of rules
-
-    Arguments:
-        inputted_rules: A list of inputted validation rules
-
-    Raises:
-        ValueError: If there are multiple type rules in the list
-
-    Returns:
-        The JSON Schema type if a type rule is found, otherwise None
-    """
-    rule_names = get_names_from_inputted_rules(inputted_rules)
-    validation_rules = _get_rules_by_names(rule_names)
-    # A set of js_types of the validation rules
-    json_schema_types = {
-        rule.js_type for rule in validation_rules if rule.js_type is not None
-    }
-    if len(json_schema_types) > 1:
-        raise ValueError(
-            f"Validation rules contain more than one implied JSON Schema type: {inputted_rules}"
-        )
-    if len(json_schema_types) == 0:
-        return None
-    return list(json_schema_types)[0]
-
-
 def get_in_range_parameters_from_inputted_rule(
     inputted_rule: str,
 ) -> tuple[Optional[float], Optional[float]]:
