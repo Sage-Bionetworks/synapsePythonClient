@@ -4,7 +4,6 @@ from unittest.mock import Mock
 
 import pytest
 
-# from synapseclient.extensions.curator.schema_generation import load_df
 from synapseclient.extensions.curator.schema_generation import (
     DataModelGraph,
     DataModelGraphExplorer,
