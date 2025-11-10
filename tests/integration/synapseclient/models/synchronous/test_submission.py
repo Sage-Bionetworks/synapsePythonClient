@@ -1,34 +1,33 @@
-"""Async integration tests for the synapseclient.models.Submission class."""
+"""Integration tests for the synapseclient.models.Submission class."""
 
 import uuid
 from typing import Callable
 
 import pytest
-import pytest_asyncio
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Evaluation, File, Project, Submission
 
 
-class TestSubmissionCreationAsync:
+class TestSubmissionCreation:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=syn
         )
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -43,11 +42,11 @@ class TestSubmissionCreationAsync:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        created_evaluation = evaluation.store(synapse_client=syn)
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_file(
         self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> File:
@@ -61,27 +60,27 @@ class TestSubmissionCreationAsync:
             temp_file_path = temp_file.name
         
         try:
-            file = await File(
+            file = File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
                 parent_id=test_project.id
-            ).store_async(synapse_client=syn)
+            ).store(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
         finally:
             # Clean up the temporary file
             os.unlink(temp_file_path)
 
-    async def test_store_submission_successfully_async(
+    async def test_store_submission_successfully(
         self, test_evaluation: Evaluation, test_file: File
     ):
-        # WHEN I create a submission with valid data using async method
+        # WHEN I create a submission with valid data
         submission = Submission(
             entity_id=test_file.id,
             evaluation_id=test_evaluation.id,
             name=f"Test Submission {uuid.uuid4()}",
         )
-        created_submission = await submission.store_async(synapse_client=self.syn)
+        created_submission = submission.store(synapse_client=self.syn)
         self.schedule_for_cleanup(created_submission.id)
 
         # THEN the submission should be created successfully
@@ -93,19 +92,19 @@ class TestSubmissionCreationAsync:
         assert created_submission.created_on is not None
         assert created_submission.version_number is not None
 
-    async def test_store_submission_without_entity_id_async(self, test_evaluation: Evaluation):
-        # WHEN I try to create a submission without entity_id using async method
+    async def test_store_submission_without_entity_id(self, test_evaluation: Evaluation):
+        # WHEN I try to create a submission without entity_id
         submission = Submission(
             evaluation_id=test_evaluation.id,
             name="Test Submission",
         )
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="entity_id is required to create a submission"):
-            await submission.store_async(synapse_client=self.syn)
+        with pytest.raises(ValueError, match="entity_id is required"):
+            submission.store(synapse_client=self.syn)
 
-    async def test_store_submission_without_evaluation_id_async(self, test_file: File):
-        # WHEN I try to create a submission without evaluation_id using async method
+    async def test_store_submission_without_evaluation_id(self, test_file: File):
+        # WHEN I try to create a submission without evaluation_id
         submission = Submission(
             entity_id=test_file.id,
             name="Test Submission",
@@ -113,46 +112,46 @@ class TestSubmissionCreationAsync:
 
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
-            await submission.store_async(synapse_client=self.syn)
+            submission.store(synapse_client=self.syn)
 
-    # async def test_store_submission_with_docker_repository_async(
-    #     self, test_evaluation: Evaluation
-    # ):
-    #     # GIVEN we would need a Docker repository entity (mocked for this test)
-    #     # This test demonstrates the expected behavior for Docker repository submissions
+    async def test_store_submission_with_docker_repository(
+        self, test_evaluation: Evaluation
+    ):
+        # GIVEN we would need a Docker repository entity (mocked for this test)
+        # This test demonstrates the expected behavior for Docker repository submissions
         
-    #     # WHEN I create a submission for a Docker repository entity using async method
-    #     # TODO: This would require a real Docker repository entity in a full integration test
-    #     submission = Submission(
-    #         entity_id="syn123456789",  # Would be a Docker repository ID
-    #         evaluation_id=test_evaluation.id,
-    #         name=f"Docker Submission {uuid.uuid4()}",
-    #     )
+        # WHEN I create a submission for a Docker repository entity
+        # TODO: This would require a real Docker repository entity in a full integration test
+        submission = Submission(
+            entity_id="syn123456789",  # Would be a Docker repository ID
+            evaluation_id=test_evaluation.id,
+            name=f"Docker Submission {uuid.uuid4()}",
+        )
         
-    #     # THEN the submission should handle Docker-specific attributes
-    #     # (This test would need to be expanded with actual Docker repository setup)
-    #     assert submission.entity_id == "syn123456789"
-    #     assert submission.evaluation_id == test_evaluation.id
+        # THEN the submission should handle Docker-specific attributes
+        # (This test would need to be expanded with actual Docker repository setup)
+        assert submission.entity_id == "syn123456789"
+        assert submission.evaluation_id == test_evaluation.id
 
 
-class TestSubmissionRetrievalAsync:
+class TestSubmissionRetrieval:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=syn
         )
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -167,11 +166,11 @@ class TestSubmissionRetrievalAsync:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        created_evaluation = evaluation.store(synapse_client=syn)
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_file(
         self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> File:
@@ -184,17 +183,17 @@ class TestSubmissionRetrievalAsync:
             temp_file_path = temp_file.name
         
         try:
-            file = await File(
+            file = File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
                 parent_id=test_project.id
-            ).store_async(synapse_client=syn)
+            ).store(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
         finally:
             os.unlink(temp_file_path)
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_submission(
         self,
         test_evaluation: Evaluation,
@@ -208,15 +207,15 @@ class TestSubmissionRetrievalAsync:
             evaluation_id=test_evaluation.id,
             name=f"Test Submission {uuid.uuid4()}",
         )
-        created_submission = await submission.store_async(synapse_client=syn)
+        created_submission = submission.store(synapse_client=syn)
         schedule_for_cleanup(created_submission.id)
         return created_submission
 
-    async def test_get_submission_by_id_async(
+    async def test_get_submission_by_id(
         self, test_submission: Submission, test_evaluation: Evaluation, test_file: File
     ):
-        # WHEN I get a submission by ID using async method
-        retrieved_submission = await Submission(id=test_submission.id).get_async(
+        # WHEN I get a submission by ID
+        retrieved_submission = Submission(id=test_submission.id).get(
             synapse_client=self.syn
         )
 
@@ -228,11 +227,11 @@ class TestSubmissionRetrievalAsync:
         assert retrieved_submission.user_id is not None
         assert retrieved_submission.created_on is not None
 
-    async def test_get_evaluation_submissions_async(
+    async def test_get_evaluation_submissions(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
-        # WHEN I get all submissions for an evaluation using async method
-        response = await Submission.get_evaluation_submissions_async(
+        # WHEN I get all submissions for an evaluation
+        response = Submission.get_evaluation_submissions(
             evaluation_id=test_evaluation.id, synapse_client=self.syn
         )
 
@@ -244,11 +243,11 @@ class TestSubmissionRetrievalAsync:
         submission_ids = [sub.get("id") for sub in response["results"]]
         assert test_submission.id in submission_ids
 
-    async def test_get_evaluation_submissions_with_status_filter_async(
+    async def test_get_evaluation_submissions_with_status_filter(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
-        # WHEN I get submissions filtered by status using async method
-        response = await Submission.get_evaluation_submissions_async(
+        # WHEN I get submissions filtered by status
+        response = Submission.get_evaluation_submissions(
             evaluation_id=test_evaluation.id,
             status="RECEIVED",
             synapse_client=self.syn,
@@ -263,11 +262,11 @@ class TestSubmissionRetrievalAsync:
         else:
             pytest.fail("Test submission not found in filtered results")
 
-    async def test_get_evaluation_submissions_with_pagination_async(
+    async def test_get_evaluation_submissions_with_pagination(
         self, test_evaluation: Evaluation
     ):
-        # WHEN I get submissions with pagination parameters using async method
-        response = await Submission.get_evaluation_submissions_async(
+        # WHEN I get submissions with pagination parameters
+        response = Submission.get_evaluation_submissions(
             evaluation_id=test_evaluation.id,
             limit=5,
             offset=0,
@@ -278,9 +277,9 @@ class TestSubmissionRetrievalAsync:
         assert "results" in response
         assert len(response["results"]) <= 5
 
-    async def test_get_user_submissions_async(self, test_evaluation: Evaluation):
-        # WHEN I get submissions for the current user using async method
-        response = await Submission.get_user_submissions_async(
+    async def test_get_user_submissions(self, test_evaluation: Evaluation):
+        # WHEN I get submissions for the current user
+        response = Submission.get_user_submissions(
             evaluation_id=test_evaluation.id, synapse_client=self.syn
         )
 
@@ -288,34 +287,35 @@ class TestSubmissionRetrievalAsync:
         assert "results" in response
         # Note: Could be empty if user hasn't made submissions to this evaluation
 
-    async def test_get_submission_count_async(self, test_evaluation: Evaluation):
-        # WHEN I get the submission count for an evaluation using async method
-        response = await Submission.get_submission_count_async(
+    async def test_get_submission_count(self, test_evaluation: Evaluation):
+        # WHEN I get the submission count for an evaluation
+        response = Submission.get_submission_count(
             evaluation_id=test_evaluation.id, synapse_client=self.syn
         )
 
         # THEN I should get a count response
         assert isinstance(response, int)
+        assert response >= 0
 
 
-class TestSubmissionDeletionAsync:
+class TestSubmissionDeletion:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=syn
         )
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -330,11 +330,11 @@ class TestSubmissionDeletionAsync:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        created_evaluation = evaluation.store(synapse_client=syn)
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_file(
         self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> File:
@@ -347,61 +347,61 @@ class TestSubmissionDeletionAsync:
             temp_file_path = temp_file.name
         
         try:
-            file = await File(
+            file = File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
                 parent_id=test_project.id
-            ).store_async(synapse_client=syn)
+            ).store(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
         finally:
             os.unlink(temp_file_path)
 
-    async def test_delete_submission_successfully_async(
+    async def test_delete_submission_successfully(
         self, test_evaluation: Evaluation, test_file: File
     ):
-        # GIVEN a submission created with async method
+        # GIVEN a submission
         submission = Submission(
             entity_id=test_file.id,
             evaluation_id=test_evaluation.id,
             name=f"Test Submission for Deletion {uuid.uuid4()}",
         )
-        created_submission = await submission.store_async(synapse_client=self.syn)
+        created_submission = submission.store(synapse_client=self.syn)
 
-        # WHEN I delete the submission using async method
-        await created_submission.delete_async(synapse_client=self.syn)
+        # WHEN I delete the submission
+        created_submission.delete(synapse_client=self.syn)
 
         # THEN attempting to retrieve it should raise an error
         with pytest.raises(SynapseHTTPError):
-            await Submission(id=created_submission.id).get_async(synapse_client=self.syn)
+            Submission(id=created_submission.id).get(synapse_client=self.syn)
 
-    async def test_delete_submission_without_id_async(self):
-        # WHEN I try to delete a submission without an ID using async method
+    async def test_delete_submission_without_id(self):
+        # WHEN I try to delete a submission without an ID
         submission = Submission(entity_id="syn123", evaluation_id="456")
 
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="must have an ID to delete"):
-            await submission.delete_async(synapse_client=self.syn)
+            submission.delete(synapse_client=self.syn)
 
 
-class TestSubmissionCancelAsync:
+class TestSubmissionCancel:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(
             synapse_client=syn
         )
         schedule_for_cleanup(project.id)
         return project
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_evaluation(
         self,
         test_project: Project,
@@ -416,11 +416,11 @@ class TestSubmissionCancelAsync:
             submission_instructions_message="Please submit your results",
             submission_receipt_message="Thank you!",
         )
-        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        created_evaluation = evaluation.store(synapse_client=syn)
         schedule_for_cleanup(created_evaluation.id)
         return created_evaluation
 
-    @pytest_asyncio.fixture(scope="function")
+    @pytest.fixture(scope="function")
     async def test_file(
         self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> File:
@@ -433,66 +433,67 @@ class TestSubmissionCancelAsync:
             temp_file_path = temp_file.name
         
         try:
-            file = await File(
+            file = File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
                 parent_id=test_project.id
-            ).store_async(synapse_client=syn)
+            ).store(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
         finally:
             os.unlink(temp_file_path)
 
-    # async def test_cancel_submission_successfully_async(
+    # TODO: Add with SubmissionStatus model tests
+    # async def test_cancel_submission_successfully(
     #     self, test_evaluation: Evaluation, test_file: File
     # ):
-    #     # GIVEN a submission created with async method
+    #     # GIVEN a submission
     #     submission = Submission(
     #         entity_id=test_file.id,
     #         evaluation_id=test_evaluation.id,
     #         name=f"Test Submission for Cancellation {uuid.uuid4()}",
     #     )
-    #     created_submission = await submission.store_async(synapse_client=self.syn)
+    #     created_submission = submission.store(synapse_client=self.syn)
     #     self.schedule_for_cleanup(created_submission.id)
 
-    #     # WHEN I cancel the submission using async method
-    #     cancelled_submission = await created_submission.cancel_async(synapse_client=self.syn)
+    #     # WHEN I cancel the submission
+    #     cancelled_submission = created_submission.cancel(synapse_client=self.syn)
 
     #     # THEN the submission should be cancelled
     #     assert cancelled_submission.id == created_submission.id
 
-    async def test_cancel_submission_without_id_async(self):
-        # WHEN I try to cancel a submission without an ID using async method
+    async def test_cancel_submission_without_id(self):
+        # WHEN I try to cancel a submission without an ID
         submission = Submission(entity_id="syn123", evaluation_id="456")
 
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="must have an ID to cancel"):
-            await submission.cancel_async(synapse_client=self.syn)
+            submission.cancel(synapse_client=self.syn)
 
 
-class TestSubmissionValidationAsync:
+class TestSubmissionValidation:
     @pytest.fixture(autouse=True, scope="function")
     def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_get_submission_without_id_async(self):
-        # WHEN I try to get a submission without an ID using async method
+    async def test_get_submission_without_id(self):
+        # WHEN I try to get a submission without an ID
         submission = Submission(entity_id="syn123", evaluation_id="456")
 
         # THEN it should raise a ValueError
         with pytest.raises(ValueError, match="must have an ID to get"):
-            await submission.get_async(synapse_client=self.syn)
+            submission.get(synapse_client=self.syn)
 
-    async def test_to_synapse_request_missing_entity_id_async(self):
+    async def test_to_synapse_request_missing_entity_id(self):
         # WHEN I try to create a request without entity_id
         submission = Submission(evaluation_id="456", name="Test")
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="missing the 'entity_id' attribute"):
+        with pytest.raises(ValueError, match="Your submission object is missing the 'entity_id' attribute"):
             submission.to_synapse_request()
 
-    async def test_to_synapse_request_missing_evaluation_id_async(self):
+    async def test_to_synapse_request_missing_evaluation_id(self):
         # WHEN I try to create a request without evaluation_id
         submission = Submission(entity_id="syn123", name="Test")
 
@@ -500,7 +501,7 @@ class TestSubmissionValidationAsync:
         with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
             submission.to_synapse_request()
 
-    async def test_to_synapse_request_valid_data_async(self):
+    async def test_to_synapse_request_valid_data(self):
         # WHEN I create a request with valid required data
         submission = Submission(
             entity_id="syn123456",
@@ -523,7 +524,7 @@ class TestSubmissionValidationAsync:
         assert request_body["dockerRepositoryName"] == "test/repo"
         assert request_body["dockerDigest"] == "sha256:abc123"
 
-    async def test_to_synapse_request_minimal_data_async(self):
+    async def test_to_synapse_request_minimal_data(self):
         # WHEN I create a request with only required data
         submission = Submission(entity_id="syn123456", evaluation_id="789")
 
@@ -538,27 +539,9 @@ class TestSubmissionValidationAsync:
         assert "dockerRepositoryName" not in request_body
         assert "dockerDigest" not in request_body
 
-    async def test_fetch_latest_entity_success_async(self):
-        # GIVEN a submission with a valid entity_id
-        submission = Submission(entity_id="syn123456", evaluation_id="789")
 
-        # Note: This test would need a real entity ID to work in practice
-        # For now, we test the validation logic
-        with pytest.raises(ValueError, match="Unable to fetch entity information"):
-            await submission._fetch_latest_entity(synapse_client=self.syn)
-
-    async def test_fetch_latest_entity_without_entity_id_async(self):
-        # GIVEN a submission without entity_id
-        submission = Submission(evaluation_id="789")
-
-        # WHEN I try to fetch entity information
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="entity_id must be set"):
-            await submission._fetch_latest_entity(synapse_client=self.syn)
-
-
-class TestSubmissionDataMappingAsync:
-    async def test_fill_from_dict_complete_data_async(self):
+class TestSubmissionDataMapping:
+    async def test_fill_from_dict_complete_data(self):
         # GIVEN a complete submission response from the REST API
         api_response = {
             "id": "123456",
@@ -597,7 +580,7 @@ class TestSubmissionDataMappingAsync:
         assert submission.docker_repository_name == "test/repo"
         assert submission.docker_digest == "sha256:abc123"
 
-    async def test_fill_from_dict_minimal_data_async(self):
+    async def test_fill_from_dict_minimal_data(self):
         # GIVEN a minimal submission response from the REST API
         api_response = {
             "id": "123456",
@@ -624,3 +607,4 @@ class TestSubmissionDataMappingAsync:
         assert submission.entity_bundle_json is None
         assert submission.docker_repository_name is None
         assert submission.docker_digest is None
+

@@ -7,7 +7,6 @@ from synapseclient import Synapse
 from synapseclient.api import evaluation_services
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.models.mixins.access_control import AccessControllable
-from synapseclient.models.mixins.table_components import DeleteMixin, GetMixin
 
 
 class SubmissionSynchronousProtocol(Protocol):
@@ -80,8 +79,6 @@ class SubmissionSynchronousProtocol(Protocol):
 class Submission(
     SubmissionSynchronousProtocol,
     AccessControllable,
-    GetMixin,
-    DeleteMixin,
 ):
     """A `Submission` object represents a Synapse Submission, which is created when a user
     submits an entity to an evaluation queue.
@@ -191,12 +188,6 @@ class Submission(
     etag: Optional[str] = None
     """The current eTag of the Entity being submitted. If not provided, it will be automatically retrieved."""
 
-    _last_persistent_instance: Optional["Submission"] = field(
-        default=None, repr=False, compare=False
-    )
-    """The last persistent instance of this object. This is used to determine if the
-    object has been changed and needs to be updated in Synapse."""
-
     def fill_from_dict(
         self, synapse_submission: Dict[str, Union[bool, str, int, List]]
     ) -> "Submission":
@@ -254,6 +245,25 @@ class Submission(
 
         try:
             entity_info = await client.rest_get_async(f"/entity/{self.entity_id}")
+            
+            # If this is a DockerRepository, fetch docker image tag & digest, and add it to the entity_info dict
+            if entity_info.get("concreteType") == "org.sagebionetworks.repo.model.docker.DockerRepository":
+                docker_tag_response = await client.rest_get_async(f"/entity/{self.entity_id}/dockerTag")
+                
+                # Get the latest digest from the docker tag results
+                if "results" in docker_tag_response and docker_tag_response["results"]:
+                    # Sort by createdOn timestamp to get the latest entry
+                    # Convert ISO timestamp strings to datetime objects for comparison
+                    from datetime import datetime
+                    
+                    latest_result = max(
+                        docker_tag_response["results"],
+                        key=lambda x: datetime.fromisoformat(x["createdOn"].replace("Z", "+00:00"))
+                    )
+                    
+                    # Add the latest result to entity_info
+                    entity_info.update(latest_result)
+            
             return entity_info
         except Exception as e:
             raise ValueError(
@@ -282,6 +292,7 @@ class Submission(
         request_body = {
             "entityId": self.entity_id,
             "evaluationId": self.evaluation_id,
+            "versionNumber": self.version_number
         }
 
         # Add optional fields if they are set
@@ -343,22 +354,26 @@ class Submission(
             asyncio.run(create_submission_example())
             ```
         """
-        # Create the submission using the new to_synapse_request method
-        request_body = self.to_synapse_request()
 
         if self.entity_id:
             entity_info = await self._fetch_latest_entity(synapse_client=synapse_client)
-            self.entity_etag = entity_info.get("etag")
-            self.version_number = entity_info.get("versionNumber")
 
-            # version number is required in the request body
-            if self.version_number is not None:
-                request_body["versionNumber"] = self.version_number
+            self.entity_etag = entity_info.get("etag")
+
+            if entity_info.get("concreteType") == "org.sagebionetworks.repo.model.FileEntity":
+                self.version_number = entity_info.get("versionNumber")
+            elif entity_info.get("concreteType") == "org.sagebionetworks.repo.model.docker.DockerRepository":
+                self.version_number = 1  # TODO: Docker repositories do not have version numbers
+                self.docker_repository_name = entity_info.get("repositoryName")
+                self.docker_digest = entity_info.get("digest")
         else:
             raise ValueError("entity_id is required to create a submission")
 
         if not self.entity_etag:
             raise ValueError("Unable to fetch etag for entity")
+
+        # Build the request body now that all the necessary dataclass attributes are set
+        request_body = self.to_synapse_request()
 
         response = await evaluation_services.create_submission(
             request_body, self.entity_etag, synapse_client=synapse_client
@@ -417,6 +432,7 @@ class Submission(
 
         return self
 
+    # TODO: Have all staticmethods return generators for pagination
     @staticmethod
     async def get_evaluation_submissions_async(
         evaluation_id: str,
@@ -564,7 +580,7 @@ class Submission(
                     evaluation_id="9999999",
                     status="SCORED"
                 )
-                print(f"Found {response['count']} submissions")
+                print(f"Found {response} submissions")
 
             asyncio.run(get_submission_count_example())
             ```
@@ -617,8 +633,9 @@ class Submission(
         await evaluation_services.delete_submission(
             submission_id=self.id, synapse_client=synapse_client
         )
-        
+
         from synapseclient import Synapse
+
         client = Synapse.get_client(synapse_client=synapse_client)
         logger = client.logger
         logger.info(f"Submission {self.id} has successfully been deleted.")
@@ -672,6 +689,7 @@ class Submission(
         )
 
         from synapseclient import Synapse
+
         client = Synapse.get_client(synapse_client=synapse_client)
         logger = client.logger
         logger.info(f"Submission {self.id} has successfully been cancelled.")
