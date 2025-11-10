@@ -13,10 +13,8 @@
     "Date": {
       "description": "TBD",
       "format": "date",
-      "not": {
-        "type": "null"
-      },
-      "title": "Date"
+      "title": "Date",
+      "type": "string"
     },
     "Enum": {
       "description": "TBD",
@@ -56,10 +54,8 @@
       "description": "TBD",
       "maximum": 100.0,
       "minimum": 50.0,
-      "not": {
-        "type": "null"
-      },
-      "title": "InRange"
+      "title": "InRange",
+      "type": "number"
     },
     "List": {
       "description": "TBD",
@@ -115,6 +111,11 @@
       "description": "TBD",
       "oneOf": [
         {
+          "items": {
+            "maximum": 100.0,
+            "minimum": 50.0,
+            "type": "number"
+          },
           "title": "array",
           "type": "array"
         }
@@ -139,6 +140,9 @@
       "description": "TBD",
       "oneOf": [
         {
+          "items": {
+            "type": "string"
+          },
           "title": "array",
           "type": "array"
         }
@@ -158,30 +162,34 @@
     },
     "Regex": {
       "description": "TBD",
-      "not": {
-        "type": "null"
-      },
       "pattern": "[a-f]",
-      "title": "Regex"
+      "title": "Regex",
+      "type": "string"
     },
     "String": {
       "description": "TBD",
-      "not": {
-        "type": "null"
-      },
-      "title": "String"
+      "title": "String",
+      "type": "string"
     },
     "StringNotRequired": {
       "description": "TBD",
+      "oneOf": [
+        {
+          "title": "string",
+          "type": "string"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
       "title": "String Not Required"
     },
     "URL": {
       "description": "TBD",
       "format": "uri",
-      "not": {
-        "type": "null"
-      },
-      "title": "URL"
+      "title": "URL",
+      "type": "string"
     }
   },
   "required": [

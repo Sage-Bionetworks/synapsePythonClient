@@ -80,17 +80,11 @@ def get_test_schema_path(
     return os.path.join(test_directory, filename)
 
 
-@pytest.fixture(name="test_directory", scope="session")
-def fixture_test_directory(request) -> str:
-    """Returns a directory for creating test jSON Schemas in"""
-    test_folder = f"tests/data/create_json_schema_{str(uuid.uuid4())}"
-
-    def delete_folder():
-        rmtree(test_folder)
-
-    request.addfinalizer(delete_folder)
-    os.makedirs(test_folder, exist_ok=True)
-    return test_folder
+@pytest.fixture(name="test_directory", scope="function")
+def fixture_test_directory(tmp_path) -> str:
+    """Returns a directory for creating test JSON Schemas in"""
+    # pytest automatically handles cleanup
+    return str(tmp_path)
 
 
 @pytest.fixture(name="test_nodes")
