@@ -21,9 +21,7 @@ class TestSubmissionCreation:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
-        project = Project(name=f"test_project_{uuid.uuid4()}").store(
-            synapse_client=syn
-        )
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -48,22 +46,27 @@ class TestSubmissionCreation:
 
     @pytest.fixture(scope="function")
     async def test_file(
-        self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import tempfile
         import os
-        
+        import tempfile
+
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write("This is test content for submission testing.")
             temp_file_path = temp_file.name
-        
+
         try:
             file = File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id
+                parent_id=test_project.id,
             ).store(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
@@ -92,7 +95,9 @@ class TestSubmissionCreation:
         assert created_submission.created_on is not None
         assert created_submission.version_number is not None
 
-    async def test_store_submission_without_entity_id(self, test_evaluation: Evaluation):
+    async def test_store_submission_without_entity_id(
+        self, test_evaluation: Evaluation
+    ):
         # WHEN I try to create a submission without entity_id
         submission = Submission(
             evaluation_id=test_evaluation.id,
@@ -119,7 +124,7 @@ class TestSubmissionCreation:
     ):
         # GIVEN we would need a Docker repository entity (mocked for this test)
         # This test demonstrates the expected behavior for Docker repository submissions
-        
+
         # WHEN I create a submission for a Docker repository entity
         # TODO: This would require a real Docker repository entity in a full integration test
         submission = Submission(
@@ -127,7 +132,7 @@ class TestSubmissionCreation:
             evaluation_id=test_evaluation.id,
             name=f"Docker Submission {uuid.uuid4()}",
         )
-        
+
         # THEN the submission should handle Docker-specific attributes
         # (This test would need to be expanded with actual Docker repository setup)
         assert submission.entity_id == "syn123456789"
@@ -145,9 +150,7 @@ class TestSubmissionRetrieval:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
-        project = Project(name=f"test_project_{uuid.uuid4()}").store(
-            synapse_client=syn
-        )
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -172,21 +175,26 @@ class TestSubmissionRetrieval:
 
     @pytest.fixture(scope="function")
     async def test_file(
-        self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import tempfile
         import os
-        
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write("This is test content for submission testing.")
             temp_file_path = temp_file.name
-        
+
         try:
             file = File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id
+                parent_id=test_project.id,
             ).store(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
@@ -238,7 +246,7 @@ class TestSubmissionRetrieval:
         # THEN I should get a response with submissions
         assert "results" in response
         assert len(response["results"]) > 0
-        
+
         # AND the submission should be in the results
         submission_ids = [sub.get("id") for sub in response["results"]]
         assert test_submission.id in submission_ids
@@ -309,9 +317,7 @@ class TestSubmissionDeletion:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
-        project = Project(name=f"test_project_{uuid.uuid4()}").store(
-            synapse_client=syn
-        )
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -336,21 +342,26 @@ class TestSubmissionDeletion:
 
     @pytest.fixture(scope="function")
     async def test_file(
-        self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import tempfile
         import os
-        
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write("This is test content for submission testing.")
             temp_file_path = temp_file.name
-        
+
         try:
             file = File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id
+                parent_id=test_project.id,
             ).store(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
@@ -395,9 +406,7 @@ class TestSubmissionCancel:
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
         """Create a test project for submission tests."""
-        project = Project(name=f"test_project_{uuid.uuid4()}").store(
-            synapse_client=syn
-        )
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -422,21 +431,26 @@ class TestSubmissionCancel:
 
     @pytest.fixture(scope="function")
     async def test_file(
-        self, test_project: Project, syn: Synapse, schedule_for_cleanup: Callable[..., None]
+        self,
+        test_project: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
     ) -> File:
         """Create a test file for submission tests."""
-        import tempfile
         import os
-        
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write("This is test content for submission testing.")
             temp_file_path = temp_file.name
-        
+
         try:
             file = File(
                 path=temp_file_path,
                 name=f"test_file_{uuid.uuid4()}.txt",
-                parent_id=test_project.id
+                parent_id=test_project.id,
             ).store(synapse_client=syn)
             schedule_for_cleanup(file.id)
             return file
@@ -490,7 +504,10 @@ class TestSubmissionValidation:
         submission = Submission(evaluation_id="456", name="Test")
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="Your submission object is missing the 'entity_id' attribute"):
+        with pytest.raises(
+            ValueError,
+            match="Your submission object is missing the 'entity_id' attribute",
+        ):
             submission.to_synapse_request()
 
     async def test_to_synapse_request_missing_evaluation_id(self):
@@ -607,4 +624,3 @@ class TestSubmissionDataMapping:
         assert submission.entity_bundle_json is None
         assert submission.docker_repository_name is None
         assert submission.docker_digest is None
-

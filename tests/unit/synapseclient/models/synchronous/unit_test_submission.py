@@ -88,14 +88,14 @@ class TestSubmission:
                 {
                     "tag": "v1.0",
                     "digest": "sha256:older123def456",
-                    "createdOn": "2024-01-01T10:00:00.000Z"
+                    "createdOn": "2024-01-01T10:00:00.000Z",
                 },
                 {
-                    "tag": "v2.0", 
+                    "tag": "v2.0",
                     "digest": "sha256:latest456abc789",
-                    "createdOn": "2024-06-01T15:30:00.000Z"
-                }
-            ]
+                    "createdOn": "2024-06-01T15:30:00.000Z",
+                },
+            ],
         }
 
     def get_complex_docker_tag_response(self) -> Dict[str, Union[str, int, List]]:
@@ -106,24 +106,24 @@ class TestSubmission:
                 {
                     "tag": "v1.0",
                     "digest": "sha256:version1",
-                    "createdOn": "2024-01-01T10:00:00.000Z"
+                    "createdOn": "2024-01-01T10:00:00.000Z",
                 },
                 {
-                    "tag": "v3.0", 
+                    "tag": "v3.0",
                     "digest": "sha256:version3",
-                    "createdOn": "2024-08-15T12:00:00.000Z"  # This should be selected (latest)
+                    "createdOn": "2024-08-15T12:00:00.000Z",  # This should be selected (latest)
                 },
                 {
-                    "tag": "v2.0", 
+                    "tag": "v2.0",
                     "digest": "sha256:version2",
-                    "createdOn": "2024-06-01T15:30:00.000Z"
+                    "createdOn": "2024-06-01T15:30:00.000Z",
                 },
                 {
                     "tag": "v1.5",
                     "digest": "sha256:version1_5",
-                    "createdOn": "2024-03-15T08:45:00.000Z"
-                }
-            ]
+                    "createdOn": "2024-03-15T08:45:00.000Z",
+                },
+            ],
         }
 
     def test_fill_from_dict_complete_data(self) -> None:
@@ -270,9 +270,9 @@ class TestSubmission:
                     return self.get_example_docker_entity_response()
                 elif url == f"/entity/{ENTITY_ID}/dockerTag":
                     return self.get_example_docker_tag_response()
-                
+
             mock_rest_get.side_effect = side_effect
-            
+
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should return the entity information with latest docker tag info
@@ -283,11 +283,11 @@ class TestSubmission:
             assert entity_info["tag"] == "v2.0"
             assert entity_info["digest"] == "sha256:latest456abc789"
             assert entity_info["createdOn"] == "2024-06-01T15:30:00.000Z"
-            
+
             # Verify both API calls were made
             expected_calls = [
                 call(f"/entity/{ENTITY_ID}"),
-                call(f"/entity/{ENTITY_ID}/dockerTag")
+                call(f"/entity/{ENTITY_ID}/dockerTag"),
             ]
             mock_rest_get.assert_has_calls(expected_calls)
 
@@ -308,9 +308,9 @@ class TestSubmission:
                     return self.get_example_docker_entity_response()
                 elif url == f"/entity/{ENTITY_ID}/dockerTag":
                     return {"totalNumberOfResults": 0, "results": []}
-                
+
             mock_rest_get.side_effect = side_effect
-            
+
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should return the entity information without docker tag info
@@ -339,9 +339,9 @@ class TestSubmission:
                     return self.get_example_docker_entity_response()
                 elif url == f"/entity/{ENTITY_ID}/dockerTag":
                     return self.get_complex_docker_tag_response()
-                
+
             mock_rest_get.side_effect = side_effect
-            
+
             entity_info = await submission._fetch_latest_entity(synapse_client=self.syn)
 
             # THEN it should select the tag with the latest createdOn timestamp (v3.0)
@@ -356,7 +356,9 @@ class TestSubmission:
 
         # WHEN I call _fetch_latest_entity
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="entity_id must be set to fetch entity information"):
+        with pytest.raises(
+            ValueError, match="entity_id must be set to fetch entity information"
+        ):
             await submission._fetch_latest_entity(synapse_client=self.syn)
 
     @pytest.mark.asyncio
@@ -372,7 +374,9 @@ class TestSubmission:
             side_effect=SynapseHTTPError("Entity not found"),
         ) as mock_rest_get:
             # THEN it should raise a ValueError with context about the original error
-            with pytest.raises(ValueError, match=f"Unable to fetch entity information for {ENTITY_ID}"):
+            with pytest.raises(
+                ValueError, match=f"Unable to fetch entity information for {ENTITY_ID}"
+            ):
                 await submission._fetch_latest_entity(synapse_client=self.syn)
 
     @pytest.mark.asyncio
@@ -395,24 +399,23 @@ class TestSubmission:
             new_callable=AsyncMock,
             return_value=self.get_example_submission_response(),
         ) as mock_create_submission:
-
             stored_submission = await submission.store_async(synapse_client=self.syn)
 
             # THEN it should fetch entity information, create the submission, and fill the object
             mock_fetch_entity.assert_called_once_with(synapse_client=self.syn)
             mock_create_submission.assert_called_once()
-            
+
             # Check the call arguments to create_submission
             call_args = mock_create_submission.call_args
             request_body = call_args[0][0]
             etag = call_args[0][1]
-            
+
             assert request_body["entityId"] == ENTITY_ID
             assert request_body["evaluationId"] == EVALUATION_ID
             assert request_body["name"] == SUBMISSION_NAME
             assert request_body["versionNumber"] == VERSION_NUMBER
             assert etag == ETAG
-            
+
             # Verify the submission is filled with response data
             assert stored_submission.id == SUBMISSION_ID
             assert stored_submission.entity_id == ENTITY_ID
@@ -429,12 +432,14 @@ class TestSubmission:
 
         # WHEN I call store_async with mocked Docker repository entity
         docker_entity_with_tag = self.get_example_docker_entity_response()
-        docker_entity_with_tag.update({
-            "tag": "v2.0",
-            "digest": "sha256:latest456abc789",
-            "createdOn": "2024-06-01T15:30:00.000Z"
-        })
-        
+        docker_entity_with_tag.update(
+            {
+                "tag": "v2.0",
+                "digest": "sha256:latest456abc789",
+                "createdOn": "2024-06-01T15:30:00.000Z",
+            }
+        )
+
         with patch.object(
             submission,
             "_fetch_latest_entity",
@@ -445,13 +450,12 @@ class TestSubmission:
             new_callable=AsyncMock,
             return_value=self.get_example_submission_response(),
         ) as mock_create_submission:
-
             stored_submission = await submission.store_async(synapse_client=self.syn)
 
             # THEN it should handle Docker repository specific logic
             mock_fetch_entity.assert_called_once_with(synapse_client=self.syn)
             mock_create_submission.assert_called_once()
-            
+
             # Verify Docker repository attributes are set correctly
             assert submission.version_number == 1  # Docker repos get version 1
             assert submission.docker_repository_name == "test/repository"
@@ -479,13 +483,12 @@ class TestSubmission:
             new_callable=AsyncMock,
             return_value=self.get_example_submission_response(),
         ) as mock_create_submission:
-
             stored_submission = await submission.store_async(synapse_client=self.syn)
 
             # THEN it should preserve team information in the stored submission
             mock_fetch_entity.assert_called_once_with(synapse_client=self.syn)
             mock_create_submission.assert_called_once()
-            
+
             # Verify team data is preserved
             assert stored_submission.team_id == TEAM_ID
             assert stored_submission.contributors == CONTRIBUTORS
@@ -500,7 +503,9 @@ class TestSubmission:
 
         # WHEN I call store_async
         # THEN it should raise a ValueError during to_synapse_request
-        with pytest.raises(ValueError, match="entity_id is required to create a submission"):
+        with pytest.raises(
+            ValueError, match="entity_id is required to create a submission"
+        ):
             await submission.store_async(synapse_client=self.syn)
 
     @pytest.mark.asyncio
@@ -534,7 +539,6 @@ class TestSubmission:
             new_callable=AsyncMock,
             return_value=self.get_example_submission_response(),
         ) as mock_get_submission:
-
             retrieved_submission = await submission.get_async(synapse_client=self.syn)
 
             # THEN it should call the API and fill the object
@@ -610,7 +614,9 @@ class TestSubmission:
             # Mock the logger
             self.syn.logger = MagicMock()
 
-            cancelled_submission = await submission.cancel_async(synapse_client=self.syn)
+            cancelled_submission = await submission.cancel_async(
+                synapse_client=self.syn
+            )
 
             # THEN it should call the API, log the cancellation, and update the object
             mock_cancel_submission.assert_called_once_with(
@@ -653,7 +659,6 @@ class TestSubmission:
             new_callable=AsyncMock,
             return_value=expected_response,
         ) as mock_get_submissions:
-
             response = await Submission.get_evaluation_submissions_async(
                 evaluation_id=evaluation_id,
                 status=status,
@@ -691,7 +696,6 @@ class TestSubmission:
             new_callable=AsyncMock,
             return_value=expected_response,
         ) as mock_get_user_submissions:
-
             response = await Submission.get_user_submissions_async(
                 evaluation_id=evaluation_id,
                 user_id=user_id,
@@ -724,7 +728,6 @@ class TestSubmission:
             new_callable=AsyncMock,
             return_value=expected_response,
         ) as mock_get_count:
-
             response = await Submission.get_submission_count_async(
                 evaluation_id=evaluation_id,
                 status=status,
