@@ -4,9 +4,8 @@ from typing import Dict, List, Optional, Protocol, Union
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.api import submission_services
+from synapseclient.api import evaluation_services
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.utils import delete_none_keys
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.table_components import DeleteMixin, GetMixin
 
@@ -239,6 +238,44 @@ class Submission(
 
         return self
 
+    def to_synapse_request(self) -> Dict:
+        """Creates a request body expected of the Synapse REST API for the Submission model.
+
+        Returns:
+            A dictionary containing the request body for creating a submission.
+
+        Raises:
+            ValueError: If any required attributes are missing.
+        """
+        # These attributes are required for creating a submission
+        required_attributes = ["entity_id", "evaluation_id"]
+
+        for attribute in required_attributes:
+            if not getattr(self, attribute):
+                raise ValueError(
+                    f"Your submission object is missing the '{attribute}' attribute. This attribute is required to create a submission"
+                )
+
+        # Build a request body for creating a submission
+        request_body = {
+            "entityId": self.entity_id,
+            "evaluationId": self.evaluation_id,
+        }
+
+        # Add optional fields if they are set
+        if self.name is not None:
+            request_body["name"] = self.name
+        if self.team_id is not None:
+            request_body["teamId"] = self.team_id
+        if self.contributors:
+            request_body["contributors"] = self.contributors
+        if self.docker_repository_name is not None:
+            request_body["dockerRepositoryName"] = self.docker_repository_name
+        if self.docker_digest is not None:
+            request_body["dockerDigest"] = self.docker_digest
+
+        return request_body
+
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Submission_Store: {self.id if self.id else 'new_submission'}"
     )
@@ -262,6 +299,7 @@ class Submission(
             ValueError: If the submission is missing required fields.
 
         Example: Creating a submission
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import Submission
@@ -278,26 +316,11 @@ class Submission(
             print(submission.id)
             ```
         """
-        if not self.entity_id:
-            raise ValueError("The submission must have an entity_id to store.")
-        if not self.evaluation_id:
-            raise ValueError("The submission must have an evaluation_id to store.")
-
-        # Prepare request body
-        request_body = delete_none_keys(
-            {
-                "entityId": self.entity_id,
-                "evaluationId": self.evaluation_id,
-                "name": self.name,
-                "teamId": self.team_id,
-                "contributors": self.contributors if self.contributors else None,
-                "dockerRepositoryName": self.docker_repository_name,
-                "dockerDigest": self.docker_digest,
-            }
-        )
+        # Create the submission using the new to_synapse_request method
+        request_body = self.to_synapse_request()
 
         # Create the submission using the service
-        response = await submission_services.create_submission(
+        response = await evaluation_services.create_submission(
             request_body=request_body, synapse_client=synapse_client
         )
 
@@ -347,7 +370,7 @@ class Submission(
             raise ValueError("The submission must have an ID to get.")
 
         # Get the submission using the service
-        response = await submission_services.get_submission(
+        response = await evaluation_services.get_submission(
             submission_id=self.id, synapse_client=synapse_client
         )
 
@@ -404,7 +427,7 @@ class Submission(
             print(f"Found {len(response['results'])} submissions")
             ```
         """
-        return await submission_services.get_evaluation_submissions(
+        return await evaluation_services.get_evaluation_submissions(
             evaluation_id=evaluation_id,
             status=status,
             limit=limit,
@@ -455,7 +478,7 @@ class Submission(
             print(f"Found {len(response['results'])} user submissions")
             ```
         """
-        return await submission_services.get_user_submissions(
+        return await evaluation_services.get_user_submissions(
             evaluation_id=evaluation_id,
             user_id=user_id,
             limit=limit,
@@ -499,7 +522,7 @@ class Submission(
             print(f"Found {response['count']} submissions")
             ```
         """
-        return await submission_services.get_submission_count(
+        return await evaluation_services.get_submission_count(
             evaluation_id=evaluation_id, status=status, synapse_client=synapse_client
         )
 
@@ -538,7 +561,7 @@ class Submission(
         if not self.id:
             raise ValueError("The submission must have an ID to delete.")
 
-        await submission_services.delete_submission(
+        await evaluation_services.delete_submission(
             submission_id=self.id, synapse_client=synapse_client
         )
 
@@ -580,7 +603,7 @@ class Submission(
         if not self.id:
             raise ValueError("The submission must have an ID to cancel.")
 
-        response = await submission_services.cancel_submission(
+        response = await evaluation_services.cancel_submission(
             submission_id=self.id, synapse_client=synapse_client
         )
 

@@ -1,11 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Protocol, Union, TYPE_CHECKING
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
 
 from synapseclient import Synapse
-from synapseclient.api import submission_services
-from synapseclient.core.async_utils import async_to_sync, otel_trace_method
+from synapseclient.api import evaluation_services
+from synapseclient.core.async_utils import async_to_sync
 from synapseclient.models.mixins.access_control import AccessControllable
 
 if TYPE_CHECKING:
@@ -85,7 +83,7 @@ class SubmissionBundleSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            A list of SubmissionBundle objects containing the requesting user's 
+            A list of SubmissionBundle objects containing the requesting user's
             submission bundles for the evaluation queue.
 
         Example: Getting user submission bundles
@@ -138,7 +136,7 @@ class SubmissionBundle(
             evaluation_id="9614543",
             status="SCORED"
         )
-        
+
         for bundle in bundles:
             print(f"Submission ID: {bundle.submission.id if bundle.submission else 'N/A'}")
             print(f"Status: {bundle.submission_status.status if bundle.submission_status else 'N/A'}")
@@ -177,16 +175,18 @@ class SubmissionBundle(
         """
         from synapseclient.models.submission import Submission
         from synapseclient.models.submission_status import SubmissionStatus
-        
+
         submission_dict = synapse_submission_bundle.get("submission", None)
         if submission_dict:
             self.submission = Submission().fill_from_dict(submission_dict)
         else:
             self.submission = None
-            
+
         submission_status_dict = synapse_submission_bundle.get("submissionStatus", None)
         if submission_status_dict:
-            self.submission_status = SubmissionStatus().fill_from_dict(submission_status_dict)
+            self.submission_status = SubmissionStatus().fill_from_dict(
+                submission_status_dict
+            )
         else:
             self.submission_status = None
 
@@ -240,19 +240,19 @@ class SubmissionBundle(
                 print(f"Submission ID: {bundle.submission.id if bundle.submission else 'N/A'}")
             ```
         """
-        response = await submission_services.get_evaluation_submission_bundles(
+        response = await evaluation_services.get_evaluation_submission_bundles(
             evaluation_id=evaluation_id,
             status=status,
             limit=limit,
             offset=offset,
             synapse_client=synapse_client,
         )
-        
+
         bundles = []
         for bundle_dict in response.get("results", []):
             bundle = SubmissionBundle().fill_from_dict(bundle_dict)
             bundles.append(bundle)
-        
+
         return bundles
 
     @staticmethod
@@ -277,7 +277,7 @@ class SubmissionBundle(
                 instance from the Synapse class constructor.
 
         Returns:
-            A list of SubmissionBundle objects containing the requesting user's 
+            A list of SubmissionBundle objects containing the requesting user's
             submission bundles for the evaluation queue.
 
         Example: Getting user submission bundles
@@ -297,17 +297,17 @@ class SubmissionBundle(
                 print(f"Submission ID: {bundle.submission.id if bundle.submission else 'N/A'}")
             ```
         """
-        response = await submission_services.get_user_submission_bundles(
+        response = await evaluation_services.get_user_submission_bundles(
             evaluation_id=evaluation_id,
             limit=limit,
             offset=offset,
             synapse_client=synapse_client,
         )
-        
+
         # Convert response to list of SubmissionBundle objects
         bundles = []
         for bundle_dict in response.get("results", []):
             bundle = SubmissionBundle().fill_from_dict(bundle_dict)
             bundles.append(bundle)
-        
+
         return bundles
