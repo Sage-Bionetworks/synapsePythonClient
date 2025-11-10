@@ -21,7 +21,7 @@ from synapseclient.extensions.curator.schema_generation import (
     JSONSchema,
     JSONSchemaFormat,
     JSONSchemaType,
-    Node2,
+    TraversalNode,
     _create_array_property,
     _create_enum_array_property,
     _create_enum_property,
@@ -96,7 +96,7 @@ def fixture_test_directory(request) -> str:
 @pytest.fixture(name="test_nodes")
 def fixture_test_nodes(
     dmge: DataModelGraphExplorer,
-) -> dict[str, Node2]:
+) -> dict[str, TraversalNode]:
     """Yields dict of Nodes"""
     nodes = [
         "NoRules",
@@ -116,7 +116,10 @@ def fixture_test_nodes(
         "ListString",
         "ListInRange",
     ]
-    nodes = {node: Node2(node, "JSONSchemaComponent", dmge) for node in nodes}
+    nodes = {
+        node: TraversalNode(node, "JSONSchemaComponent", dmge, logger=Mock())
+        for node in nodes
+    }
     return nodes
 
 
@@ -144,7 +147,10 @@ def fixture_test_nodes_column_types(
         "ListInRange",
     ]
     nodes = {
-        node: Node2(node, "JSONSchemaComponent", dmge_column_type) for node in nodes
+        node: TraversalNode(
+            node, "JSONSchemaComponent", dmge_column_type, logger=Mock()
+        )
+        for node in nodes
     }
     return nodes
 
@@ -247,7 +253,7 @@ def test_node_init(
     expected_max: Optional[float],
     expected_pattern: Optional[str],
     expected_format: Optional[JSONSchemaFormat],
-    test_nodes: dict[str, Node2],
+    test_nodes: dict[str, TraversalNode],
 ) -> None:
     """Tests for Node class"""
     node = test_nodes[node_name]
@@ -1038,7 +1044,9 @@ def test_set_conditional_dependencies(
     ids=["Array, enum", "Array, enum, not required", "Enum", "Array", "String"],
 )
 def test_set_property(
-    node_name: str, expected_schema: dict[str, Any], test_nodes: dict[str, Node2]
+    node_name: str,
+    expected_schema: dict[str, Any],
+    test_nodes: dict[str, TraversalNode],
 ) -> None:
     """Tests for set_property"""
     schema = JSONSchema()
@@ -1087,7 +1095,7 @@ def test_create_enum_array_property(
     expected_schema: dict[str, Any],
     valid_values: list[Any],
     invalid_values: list[Any],
-    test_nodes: dict[str, Node2],
+    test_nodes: dict[str, TraversalNode],
 ) -> None:
     """Test for _create_enum_array_property"""
     schema = _create_enum_array_property(test_nodes[node_name])
@@ -1161,7 +1169,7 @@ def test_create_array_property(
     expected_schema: dict[str, Any],
     valid_values: list[Any],
     invalid_values: list[Any],
-    test_nodes_column_types: dict[str, Node2],
+    test_nodes_column_types: dict[str, TraversalNode],
 ) -> None:
     """Test for _create_array_property"""
     schema = _create_array_property(test_nodes_column_types[node_name])
@@ -1205,7 +1213,7 @@ def test_create_enum_property(
     expected_schema: dict[str, Any],
     valid_values: list[Any],
     invalid_values: list[Any],
-    test_nodes: dict[str, Node2],
+    test_nodes: dict[str, TraversalNode],
 ) -> None:
     """Test for _create_enum_property"""
     schema = _create_enum_property(test_nodes[node_name])
@@ -1275,7 +1283,7 @@ def test_create_simple_property(
     expected_schema: dict[str, Any],
     valid_values: list[Any],
     invalid_values: list[Any],
-    test_nodes_column_types: dict[str, Node2],
+    test_nodes_column_types: dict[str, TraversalNode],
 ) -> None:
     """Test for _create_simple_property"""
     schema = _create_simple_property(test_nodes_column_types[node_name])
@@ -1305,7 +1313,7 @@ def test_create_simple_property(
 def test_set_type_specific_keywords(
     node_name: str,
     expected_schema: dict[str, Any],
-    test_nodes: dict[str, Node2],
+    test_nodes: dict[str, TraversalNode],
 ) -> None:
     """Test for _set_type_specific_keywords"""
     schema = {}

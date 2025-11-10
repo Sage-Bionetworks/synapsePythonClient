@@ -5688,77 +5688,77 @@ def generate_jsonld(
     return jsonld_data_model
 
 
-@dataclass
-class Node2:  # pylint: disable=too-many-instance-attributes
-    """
-    A Dataclass representing data about a node in a data model in graph form
-    A DataModelGraphExplorer is used to infer most of the fields from the name of the node
+# @dataclass
+# class Node2:  # pylint: disable=too-many-instance-attributes
+#     """
+#     A Dataclass representing data about a node in a data model in graph form
+#     A DataModelGraphExplorer is used to infer most of the fields from the name of the node
 
-    Attributes:
-        name: The name of the node
-        source_node: The name of the node where the graph traversal started
-        dmge: A DataModelGraphExplorer with the data model loaded
-        display_name: The display name of the node
-        valid_values: The valid values of the node if any
-        valid_value_display_names: The display names of the valid values of the node if any
-        is_required: Whether or not this node is required
-        dependencies: This nodes dependencies
-        description: This nodes description, gotten from the comment in the data model
-        is_array: Whether or not the property is an array (inferred from validation_rules)
-        type: The type of the property (inferred from validation_rules)
-        format: The format of the property (inferred from validation_rules)
-        minimum: The minimum value of the property (if numeric) (inferred from validation_rules)
-        maximum: The maximum value of the property (if numeric) (inferred from validation_rules)
-        pattern: The regex pattern of the property (inferred from validation_rules)
-    """
+#     Attributes:
+#         name: The name of the node
+#         source_node: The name of the node where the graph traversal started
+#         dmge: A DataModelGraphExplorer with the data model loaded
+#         display_name: The display name of the node
+#         valid_values: The valid values of the node if any
+#         valid_value_display_names: The display names of the valid values of the node if any
+#         is_required: Whether or not this node is required
+#         dependencies: This nodes dependencies
+#         description: This nodes description, gotten from the comment in the data model
+#         is_array: Whether or not the property is an array (inferred from validation_rules)
+#         type: The type of the property (inferred from validation_rules)
+#         format: The format of the property (inferred from validation_rules)
+#         minimum: The minimum value of the property (if numeric) (inferred from validation_rules)
+#         maximum: The maximum value of the property (if numeric) (inferred from validation_rules)
+#         pattern: The regex pattern of the property (inferred from validation_rules)
+#     """
 
-    name: str
-    source_node: str
-    dmge: DataModelGraphExplorer
-    display_name: str = field(init=False)
-    valid_values: list[str] = field(init=False)
-    valid_value_display_names: list[str] = field(init=False)
-    is_required: bool = field(init=False)
-    dependencies: list[str] = field(init=False)
-    description: str = field(init=False)
-    is_array: bool = field(init=False)
-    type: Optional[JSONSchemaType] = field(init=False)
-    format: Optional[JSONSchemaFormat] = field(init=False)
-    minimum: Optional[float] = field(init=False)
-    maximum: Optional[float] = field(init=False)
-    pattern: Optional[str] = field(init=False)
+#     name: str
+#     source_node: str
+#     dmge: DataModelGraphExplorer
+#     display_name: str = field(init=False)
+#     valid_values: list[str] = field(init=False)
+#     valid_value_display_names: list[str] = field(init=False)
+#     is_required: bool = field(init=False)
+#     dependencies: list[str] = field(init=False)
+#     description: str = field(init=False)
+#     is_array: bool = field(init=False)
+#     type: Optional[JSONSchemaType] = field(init=False)
+#     format: Optional[JSONSchemaFormat] = field(init=False)
+#     minimum: Optional[float] = field(init=False)
+#     maximum: Optional[float] = field(init=False)
+#     pattern: Optional[str] = field(init=False)
 
-    def __post_init__(self) -> None:
-        """
-        Uses the dmge to fill in most of the fields of the dataclass
-        """
-        self.display_name = self.dmge.get_nodes_display_names([self.name])[0]
-        self.valid_values = sorted(self.dmge.get_node_range(node_label=self.name))
-        self.valid_value_display_names = sorted(
-            self.dmge.get_node_range(node_label=self.name, display_names=True)
-        )
-        validation_rules = self.dmge.get_component_node_validation_rules(
-            manifest_component=self.source_node, node_display_name=self.display_name
-        )
-        self.is_required = self.dmge.get_component_node_required(
-            manifest_component=self.source_node,
-            node_validation_rules=validation_rules,
-            node_display_name=self.display_name,
-        )
-        self.dependencies = sorted(
-            self.dmge.get_node_dependencies(
-                self.name, display_names=False, schema_ordered=False
-            )
-        )
-        self.description = self.dmge.get_node_comment(
-            node_display_name=self.display_name
-        )
-        self.type = self.dmge.get_node_column_type(node_display_name=self.display_name)
+#     def __post_init__(self) -> None:
+#         """
+#         Uses the dmge to fill in most of the fields of the dataclass
+#         """
+#         self.display_name = self.dmge.get_nodes_display_names([self.name])[0]
+#         self.valid_values = sorted(self.dmge.get_node_range(node_label=self.name))
+#         self.valid_value_display_names = sorted(
+#             self.dmge.get_node_range(node_label=self.name, display_names=True)
+#         )
+#         validation_rules = self.dmge.get_component_node_validation_rules(
+#             manifest_component=self.source_node, node_display_name=self.display_name
+#         )
+#         self.is_required = self.dmge.get_component_node_required(
+#             manifest_component=self.source_node,
+#             node_validation_rules=validation_rules,
+#             node_display_name=self.display_name,
+#         )
+#         self.dependencies = sorted(
+#             self.dmge.get_node_dependencies(
+#                 self.name, display_names=False, schema_ordered=False
+#             )
+#         )
+#         self.description = self.dmge.get_node_comment(
+#             node_display_name=self.display_name
+#         )
+#         self.type = self.dmge.get_node_column_type(node_display_name=self.display_name)
 
-        (
-            self.is_array,
-            self.format,
-            self.minimum,
-            self.maximum,
-            self.pattern,
-        ) = _get_validation_rule_based_fields(validation_rules, logger=self.dmge.logger)
+#         (
+#             self.is_array,
+#             self.format,
+#             self.minimum,
+#             self.maximum,
+#             self.pattern,
+#         ) = _get_validation_rule_based_fields(validation_rules, logger=self.dmge.logger)
