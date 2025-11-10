@@ -58,13 +58,6 @@ def helpers():
 
 @pytest.fixture(name="dmge", scope="function")
 def DMGE(helpers: Helpers) -> DataModelGraphExplorer:
-    """Fixture to instantiate a DataModelGraphExplorer object."""
-    dmge = helpers.get_data_model_graph_explorer(path="example.model.jsonld")
-    return dmge
-
-
-@pytest.fixture(name="dmge_column_type", scope="function")
-def DMGE_column_type(helpers: Helpers) -> DataModelGraphExplorer:
     """Fixture to instantiate a DataModelGraphExplorer object using the data model with column types"""
     dmge = helpers.get_data_model_graph_explorer(
         path="example.model.column_type_component.csv"

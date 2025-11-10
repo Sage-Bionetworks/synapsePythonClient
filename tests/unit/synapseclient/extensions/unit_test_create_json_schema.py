@@ -125,7 +125,7 @@ def fixture_test_nodes(
 
 @pytest.fixture(name="test_nodes_column_types")
 def fixture_test_nodes_column_types(
-    dmge_column_type: DataModelGraphExplorer,
+    dmge: DataModelGraphExplorer,
 ):
     """Yields dict of Nodes"""
     nodes = [
@@ -147,16 +147,14 @@ def fixture_test_nodes_column_types(
         "ListInRange",
     ]
     nodes = {
-        node: TraversalNode(
-            node, "JSONSchemaComponent", dmge_column_type, logger=Mock()
-        )
+        node: TraversalNode(node, "JSONSchemaComponent", dmge, logger=Mock())
         for node in nodes
     }
     return nodes
 
 
 class TestJSONSchema:
-    """Tests for JSONSchema"""
+    """Tests for JSONSchema class - validates JSON schema object creation and manipulation."""
 
     def test_init(self) -> None:
         """Test the JSONSchema.init method"""
@@ -210,7 +208,12 @@ class TestJSONSchema:
         assert schema.all_of == [{"if": {}, "then": {}}, {"if2": {}, "then2": {}}]
 
     def test_update_property(self) -> None:
-        """Test the JSONSchema.update_property method"""
+        """
+        Test JSONSchema.update_property method.
+
+        Verifies that properties can be added and updated in the schema's
+        properties dictionary, maintaining existing properties while adding new ones.
+        """
         # GIVEN a JSONSchema instance
         schema = JSONSchema()
         # WHEN updating the properties dict
@@ -226,22 +229,22 @@ class TestJSONSchema:
 @pytest.mark.parametrize(
     "node_name, expected_type, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
-        # Node with no validation rules - all constraint fields should be None/False
+        # Node with no columnType - all constraint fields should be None/False
         ("NoRules", None, False, None, None, None, None),
-        # Node with "str" validation rule - type remains None, constraints not set in Node initialization
-        ("String", None, False, None, None, None, None),
-        # Node with "list" validation rule - is_array is set to True, other fields remain None
+        # Node with columnType "string" - type is set to STRING via columnType
+        ("String", JSONSchemaType.STRING, False, None, None, None, None),
+        # Node with "list" validation rule - is_array is set to True, type remains None (no columnType)
         ("List", None, True, None, None, None, None),
-        # Node with both "list" and "str" validation rules - is_array is True, type remains None
-        ("ListString", None, True, None, None, None, None),
-        # Node with "inRange 50 100" validation rule - minimum and maximum are extracted and set
-        ("InRange", None, False, 50, 100, None, None),
-        # Node with "regex search [a-f]" validation rule - pattern is extracted and set
-        ("Regex", None, False, None, None, "[a-f]", None),
-        # Node with "date" validation rule - format is set to JSONSchemaFormat.DATE
-        ("Date", None, False, None, None, None, JSONSchemaFormat.DATE),
-        # Node with "url" validation rule - format is set to JSONSchemaFormat.URI
-        ("URL", None, False, None, None, None, JSONSchemaFormat.URI),
+        # Node with both "list" validation rules and columnType "string" - is_array is True, type is STRING
+        ("ListString", JSONSchemaType.STRING, True, None, None, None, None),
+        # Node with "inRange 50 100" validation rule and columnType "number" - min/max are set, type is NUMBER
+        ("InRange", JSONSchemaType.NUMBER, False, 50, 100, None, None),
+        # Node with "regex search [a-f]" validation rule and columnType "string" - pattern is set, type is STRING
+        ("Regex", JSONSchemaType.STRING, False, None, None, "[a-f]", None),
+        # Node with "date" validation rule and columnType "string" - format is set to DATE, type is STRING
+        ("Date", JSONSchemaType.STRING, False, None, None, None, JSONSchemaFormat.DATE),
+        # Node with "url" validation rule and columnType "string" - format is set to URI, type is STRING
+        ("URL", JSONSchemaType.STRING, False, None, None, None, JSONSchemaFormat.URI),
     ],
     ids=["None", "String", "List", "ListString", "InRange", "Regex", "Date", "URI"],
 )
@@ -255,7 +258,17 @@ def test_node_init(
     expected_format: Optional[JSONSchemaFormat],
     test_nodes: dict[str, TraversalNode],
 ) -> None:
-    """Tests for Node class"""
+    """
+    Tests for TraversalNode class initialization.
+
+    Verifies that TraversalNode objects are correctly initialized with:
+    - Types derived from columnType attribute in the data model
+    - Validation constraints extracted from validation rules (format, pattern, min/max, array flag)
+    - Proper combination of columnType and validation rule parsing
+
+    The type property comes from the columnType field, while constraints
+    come from parsing validation rules like "str", "inRange", "regex", etc.
+    """
     node = test_nodes[node_name]
     assert node.type == expected_type
     assert node.format == expected_format
@@ -687,7 +700,7 @@ def test_create_json_schema_with_no_column_type(
 
 
 def test_create_json_schema_with_column_type(
-    dmge_column_type: DataModelGraphExplorer, test_directory: str
+    dmge: DataModelGraphExplorer, test_directory: str
 ) -> None:
     """
     Tests for JSONSchemaGenerator.create_json_schema
@@ -699,7 +712,7 @@ def test_create_json_schema_with_column_type(
 
     logger = logging.getLogger(__name__)
     create_json_schema(
-        dmge=dmge_column_type,
+        dmge=dmge,
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
@@ -807,8 +820,10 @@ def test_write_data_model_with_schema_path(test_directory: str) -> None:
 
 def test_write_data_model_with_name_and_jsonld_path(test_directory: str) -> None:
     """
-    Test for _write_data_model with a name and the data model path used to create it.
-    The name of the file should be "<jsonld_path_prefix>.<name>.schema.json"
+    Test _write_data_model with a name and JSONLD path.
+
+    When provided with a name and jsonld_path, the function should create
+    a schema file with the format: "<jsonld_path_prefix>.<name>.schema.json"
     """
     json_ld_path = os.path.join(test_directory, "fake_model.jsonld")
     logger = Mock()
@@ -826,8 +841,10 @@ def test_write_data_model_with_name_and_jsonld_path(test_directory: str) -> None
 
 def test_write_data_model_exception() -> None:
     """
-    Test for _write_data_model where neither the path, the name, or JSONLD path are provided.
-    This should return a ValueError
+    Test _write_data_model error handling.
+
+    When neither schema_path nor (name + jsonld_path) are provided,
+    the function should raise a ValueError.
     """
     with pytest.raises(ValueError):
         _write_data_model(json_schema_dict={}, logger=Mock())
@@ -1032,8 +1049,8 @@ def test_set_conditional_dependencies(
             JSONSchema(
                 properties={
                     "String": {
-                        "not": {"type": "null"},
                         "description": "TBD",
+                        "type": "string",
                         "title": "String",
                     }
                 },
@@ -1130,7 +1147,7 @@ def test_create_enum_array_property(
             [None, [], [None], ["x"]],
             ["x"],
         ),
-        # # If item_type is given, it is set in the schema
+        # If item_type is given, it is set in the schema
         (
             "ListString",
             {
