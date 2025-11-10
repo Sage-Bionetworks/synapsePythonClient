@@ -1650,7 +1650,6 @@ class DataModelGraphExplorer:
         rel_node_label = self.dmr.get_relationship_value("columnType", "node_label")
         type_string = self.graph.nodes[node_label][rel_node_label]
         return type_string
-        # return JSONSchemaType(type_string)
 
     def _get_node_label(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
