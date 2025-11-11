@@ -4296,9 +4296,12 @@ def _get_validation_rule_based_fields(
 
     Arguments:
         validation_rules: A list of input validation rules
-        explicit_is_array: If set explicitly in the  columnType or None
+        explicit_is_array:
+          True: If the type is set explicitly with a list-type
+          False: If the type is set explicitly with a non list-type
+          None: If the type was nto set explicitly
         name: The name of the node the validation rules belong to
-        column_type: The type of this node
+        column_type: The type of this node if set explicitly
         logger: A logger for handling warnings
 
     Raises:
