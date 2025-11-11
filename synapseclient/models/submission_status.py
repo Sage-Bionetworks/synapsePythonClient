@@ -286,6 +286,9 @@ class SubmissionStatus(
     ] = field(default_factory=dict, compare=False)
     """Annotations are additional key-value pair metadata that are associated with an object."""
 
+    is_private: Optional[bool] = field(default=True, compare=False)
+    """Indicates whether the submission annotations are private (True) or public (False). Default is True."""
+
     entity_id: Optional[str] = None
     """
     The Synapse ID of the Entity in this Submission.
@@ -425,7 +428,7 @@ class SubmissionStatus(
         if self.submission_annotations and len(self.submission_annotations) > 0:
             # Convert submission annotations to the format expected by the API
             request_body["submissionAnnotations"] = to_submission_status_annotations(
-                self.submission_annotations
+                self.submission_annotations, is_private=self.is_private
             )
 
         return request_body
