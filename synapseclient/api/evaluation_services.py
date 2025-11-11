@@ -678,7 +678,8 @@ async def update_submission_status(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/submission/{submission_id}/status"
-
+    print("request body")
+    print(request_body)
     response = await client.rest_put_async(uri, body=json.dumps(request_body))
 
     return response
