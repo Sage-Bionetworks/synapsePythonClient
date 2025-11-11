@@ -1756,7 +1756,6 @@ def _construct_partial_rows_for_upsert(
         for col in primary_keys[1:]:
             matching_conditions &= chunk_to_check_for_upsert[col] == getattr(row, col)
         matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
-
         # Determines which cells need to be updated
         for column in chunk_to_check_for_upsert.columns:
             if len(matching_row[column].values) > 1:
@@ -1782,20 +1781,18 @@ def _construct_partial_rows_for_upsert(
                 try:
                     cell_is_na = isna(cell_value)
                     # If isna returns an array, check if all elements are NA
-                    if hasattr(cell_is_na, "__iter__") and not isinstance(
-                        cell_is_na, str
-                    ):
-                        cell_is_na = all(cell_is_na)
+                    if hasattr(cell_is_na, "__iter__"):
+                        # convert np.bool_ to bool
+                        cell_is_na = bool(cell_is_na.all())
                 except (TypeError, ValueError):
                     cell_is_na = False
 
                 try:
                     row_is_na = isna(row_value)
                     # If isna returns an array, check if all elements are NA
-                    if hasattr(row_is_na, "__iter__") and not isinstance(
-                        row_is_na, str
-                    ):
-                        row_is_na = all(row_is_na)
+                    if hasattr(row_is_na, "__iter__"):
+                        # convert np.bool_ to bool
+                        row_is_na = bool(row_is_na.all())
                 except (TypeError, ValueError):
                     row_is_na = False
 
@@ -1810,26 +1807,23 @@ def _construct_partial_rows_for_upsert(
                     try:
                         values_differ = cell_value != row_value
                         # Handle array comparison result
-                        if hasattr(values_differ, "__iter__") and not isinstance(
-                            values_differ, str
-                        ):
-                            values_differ = any(values_differ)
+                        if hasattr(values_differ, "__iter__"):
+                            # convert np.bool_ to bool
+                            values_differ = bool(values_differ.any())
                     except (TypeError, ValueError):
                         # If comparison fails, assume they differ
                         values_differ = True
-
             if values_differ:
-                if (isinstance(cell_value, list) and len(cell_value) > 0) or not isna(
-                    cell_value
-                ):
-                    partial_change_values[
-                        column_id
-                    ] = _convert_pandas_row_to_python_types(
-                        cell=cell_value, column_type=column_type
+                if (
+                    isinstance(cell_value, list) and len(cell_value) > 0
+                ) or not cell_is_na:
+                    partial_change_values[column_id] = (
+                        _convert_pandas_row_to_python_types(
+                            cell=cell_value, column_type=column_type
+                        )
                     )
                 else:
                     partial_change_values[column_id] = None
-
         if partial_change_values:
             partial_change = PartialRow(
                 row_id=row.ROW_ID,
@@ -4505,23 +4499,23 @@ def csv_to_pandas_df(
                 if column_type == "INTEGER_LIST":
                     # Convert items to int
                     df[col] = df[col].apply(
-                        lambda x: [int(item) for item in x]
-                        if isinstance(x, list)
-                        else x
+                        lambda x: (
+                            [int(item) for item in x] if isinstance(x, list) else x
+                        )
                     )
                 elif column_type == "USERID_LIST":
                     # USERID items should be strings
                     df[col] = df[col].apply(
-                        lambda x: [str(item) for item in x]
-                        if isinstance(x, list)
-                        else x
+                        lambda x: (
+                            [str(item) for item in x] if isinstance(x, list) else x
+                        )
                     )
                 elif column_type == "BOOLEAN_LIST":
                     # Convert items to bool
                     df[col] = df[col].apply(
-                        lambda x: [bool(item) for item in x]
-                        if isinstance(x, list)
-                        else x
+                        lambda x: (
+                            [bool(item) for item in x] if isinstance(x, list) else x
+                        )
                     )
                 elif column_type == "DATE_LIST":
                     # Date items are already handled by json.loads as they come as numbers
@@ -4529,16 +4523,16 @@ def csv_to_pandas_df(
                 elif column_type == "ENTITYID_LIST":
                     # ENTITYID items should remain as strings
                     df[col] = df[col].apply(
-                        lambda x: [str(item) for item in x]
-                        if isinstance(x, list)
-                        else x
+                        lambda x: (
+                            [str(item) for item in x] if isinstance(x, list) else x
+                        )
                     )
                 elif column_type == "STRING_LIST":
                     # String items should remain as strings
                     df[col] = df[col].apply(
-                        lambda x: [str(item) for item in x]
-                        if isinstance(x, list)
-                        else x
+                        lambda x: (
+                            [str(item) for item in x] if isinstance(x, list) else x
+                        )
                     )
                 # JSON type doesn't need item conversion as it preserves types from json.loads
 
