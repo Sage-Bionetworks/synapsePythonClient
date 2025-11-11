@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+import numpy as np
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
 from synapseclient.core.constants.concrete_types import (
@@ -31,6 +32,7 @@ from synapseclient.models.mixins.table_components import (
     ViewSnapshotMixin,
     ViewStoreMixin,
     ViewUpdateMixin,
+    _construct_partial_rows_for_upsert,
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
@@ -39,6 +41,7 @@ from synapseclient.models.table_components import (
     ActionRequiredCount,
     ColumnType,
     CsvTableDescriptor,
+    PartialRow,
     Query,
     QueryBundleRequest,
     QueryJob,
@@ -949,6 +952,778 @@ class TestTableUpsertMixin:
                 job_timeout=600,
                 synapse_client=self.syn,
             )
+
+    def test_construct_partial_rows_for_upsert_single_value_column_no_na_with_changes(
+        self,
+    ):
+        # GIVEN an entity with single value columns without NA values
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        # Results from Synapse query (existing rows)
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [1, 2],
+            }
+        )
+
+        # Data to upsert (with changes)
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [1, 20],  # Changed values
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect rows to be updated
+        assert len(rows_to_update) == 1
+        assert len(indexes_with_changes) == 1
+        assert len(indexes_without_changes) == 1
+        assert len(syn_id_and_etags) == 0
+
+        # Verify the second row update
+        assert rows_to_update[0].row_id == "row2"
+        assert rows_to_update[0].etag is None
+        assert len(rows_to_update[0].values) == 1
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == 20
+
+        # verify first row without changes
+        assert indexes_without_changes[0] == 0
+
+    def test_construct_partial_rows_for_upsert_single_value_column_no_na_without_changes(
+        self,
+    ):
+        # GIVEN an entity with single value columns without NA values where values don't change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [1, 2],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [1, 2],  # Same values, no changes
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect no rows to be updated
+        assert len(rows_to_update) == 0
+        assert len(indexes_with_changes) == 0
+        assert len(indexes_without_changes) == 2
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_single_value_no_na_with_etag(self):
+        # GIVEN an entity with single value columns without NA values and results containing ROW_ETAG
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "ROW_ETAG": ["etag1"],
+                "id": ["syn123"],
+                "col1": ["A"],
+                "col2": [1],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": [10],  # Changed value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = True
+        wait_for_eventually_consistent_view = True
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated with etag
+        assert len(rows_to_update) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].etag == "etag1"
+        assert len(indexes_with_changes) == 1
+        assert indexes_with_changes[0] == 0
+        assert len(indexes_without_changes) == 0
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == 10
+        assert len(syn_id_and_etags) == 1
+        assert syn_id_and_etags["syn123"] == "etag1"
+
+    def test_construct_partial_rows_for_upsert_single_value_column_with_na_values_changes(
+        self,
+    ):
+        # GIVEN an entity with columns and dataframes containing NA values and values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [1, pd.NA],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    pd.NA,
+                    pd.NA,
+                ],  # row2 shouldn't be updated since it both cell and row are NA
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # Verify the first row update
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].etag is None
+        assert len(rows_to_update[0].values) == 1
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == None
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_list_column__no_na_changes(self):
+        # GIVEN an entity with a list column without NA values where values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.STRING_LIST, id="id2"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [["item1", "item2"], ["item3", "item4"]],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [["item1", "item3"], ["item3", "item4"]],  # Changed list value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated
+        assert len(rows_to_update) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert len(indexes_with_changes) == 1
+        assert indexes_with_changes[0] == 0
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == ["item1", "item3"]
+
+        # Verify second row is not tracked since it has no changes
+        assert len(indexes_without_changes) == 1
+        assert indexes_without_changes[0] == 1
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_list_column_with_na_values_changes(
+        self,
+    ):
+        # GIVEN an entity with a List column with NA values where values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.STRING_LIST, id="id2"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [["item1", "item2"], [pd.NA, "item4"]],  # row2 has NA
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    ["item1", "item3"],
+                    ["item3", "item4"],
+                ],  # row 1 and 2 both change
+            }
+        )
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect both rows to be updated (value to NA, and NA to value)
+        assert len(rows_to_update) == 2
+        assert len(indexes_with_changes) == 2
+        assert len(indexes_without_changes) == 0
+        assert len(syn_id_and_etags) == 0
+
+        # Verify first row: list value changes to NA
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == ["item1", "item3"]
+
+        # Verify second row: NA changes to list value
+        assert rows_to_update[1].row_id == "row2"
+        assert rows_to_update[1].values[0]["key"] == "id2"
+        assert rows_to_update[1].values[0]["value"] == ["item3", "item4"]
+
+    def test_construct_partial_rows_for_upsert_with_list_column_with_na_values_no_changes(
+        self,
+    ):
+        # GIVEN an entity with a LIST column where values don't change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.STRING_LIST, id="id2"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "col1": ["A"],
+                "col2": [["item1", "item2", pd.NA]],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": [["item1", "item2", pd.NA]],  # Same list value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect no rows to be updated
+        assert len(rows_to_update) == 0
+        assert len(indexes_with_changes) == 0
+        assert len(indexes_without_changes) == 1
+        assert indexes_without_changes[0] == 0
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_list_column_changes_with_na_values_changes(
+        self,
+    ):
+        # GIVEN an entity with a List column with NA values where values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.STRING_LIST, id="id2"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [["item1", "item2"], [pd.NA, "item4"]],  # row2 has NA
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    ["item1", "item3"],
+                    ["item3", "item4"],
+                ],  # row 1 and 2 both change
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect both rows to be updated (value to NA, and NA to value)
+        assert len(rows_to_update) == 2
+        assert len(indexes_with_changes) == 2
+        assert len(indexes_without_changes) == 0
+        assert len(syn_id_and_etags) == 0
+
+        # Verify first row: list value changes to NA
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == ["item1", "item3"]
+
+        # Verify second row: NA changes to list value
+        assert rows_to_update[1].row_id == "row2"
+        assert rows_to_update[1].values[0]["key"] == "id2"
+        assert rows_to_update[1].values[0]["value"] == ["item3", "item4"]
+
+    def test_construct_partial_rows_for_upsert_with_numpy_array_comparison_no_na_changes(
+        self,
+    ):
+        # GIVEN an entity where values might be numpy arrays without NA values where values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.INTEGER_LIST, id="id2"
+                ),
+            },
+        )
+
+        # Create dataframes with numpy arrays
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [np.array([1, 2, 3]), np.array([4, 5, 6])],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    np.array([1, 2, 4]),
+                    np.array([4, 5, 6]),
+                ],  # Changed array value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated (numpy array comparison should work)
+        assert len(rows_to_update) == 1
+        assert len(indexes_with_changes) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == [
+            np.int64(1),
+            np.int64(2),
+            np.int64(4),
+        ]
+        assert len(indexes_without_changes) == 1
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_numpy_array_comparison_with_na_changes(
+        self,
+    ):
+        # GIVEN an entity with numpy arrays that might contain NA values where values change
+        import numpy as np
+
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.INTEGER_LIST, id="id2"
+                ),
+            },
+        )
+
+        # Test with arrays containing pd.NA where values change
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [np.array([1, 2, pd.NA]), np.array([4, 5, 6])],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    np.array([1, 2, pd.NA]),
+                    np.array([4, pd.NA, 6]),
+                ],  # row 2 changes
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        # This should handle the pd.NA comparison gracefully
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN the function should handle this without crashing
+        assert len(rows_to_update) == 2
+        assert len(indexes_with_changes) == 2
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == [1, 2, pd.NA]
+        assert indexes_with_changes[0] == 0
+        assert rows_to_update[1].row_id == "row2"
+        assert rows_to_update[1].values[0]["key"] == "id2"
+        assert rows_to_update[1].values[0]["value"] == [4, pd.NA, 6]
+        assert len(indexes_without_changes) == 0
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_multiple_primary_keys(self):
+        # GIVEN an entity with columns and multiple primary keys
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.STRING, id="id2"),
+                "col3": Column(name="col3", column_type=ColumnType.INTEGER, id="id3"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "col1": ["A"],
+                "col2": ["B"],
+                "col3": [1],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": ["B"],
+                "col3": [10],  # Changed value
+            }
+        )
+
+        primary_keys = ["col1", "col2"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated
+        assert len(rows_to_update) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id3"
+        assert rows_to_update[0].values[0]["value"] == 10
+        assert len(indexes_with_changes) == 1
+        assert indexes_with_changes[0] == 0
+        assert len(indexes_without_changes) == 0
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_column_not_in_entity(self):
+        # GIVEN an entity with columns and upsert data containing a column not in entity and changes to the column should be ignored
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "col1": ["A"],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": [10],  # Column not in entity.columns
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect no rows to be updated (col2 is ignored)
+        assert len(rows_to_update) == 0
+        assert len(indexes_with_changes) == 0
+        assert len(indexes_without_changes) == 1
+        assert indexes_without_changes[0] == 0
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_wait_for_eventually_consistent_view(
+        self,
+    ):
+        # GIVEN an entity with columns and results containing id and ROW_ETAG
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "ROW_ETAG": ["etag1"],
+                "id": ["syn456"],
+                "col1": ["A"],
+                "col2": [1],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": [10],  # Changed value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = True
+        wait_for_eventually_consistent_view = True
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated and syn_id_and_etags to be populated
+        assert len(rows_to_update) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].etag == "etag1"
+        assert len(syn_id_and_etags) == 1
+        assert syn_id_and_etags["syn456"] == "etag1"
 
 
 class TestQuery:
