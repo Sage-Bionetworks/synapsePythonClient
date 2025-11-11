@@ -4904,7 +4904,6 @@ def _create_array_property(node: Node) -> Property:
     if items:
         array_type_dict["items"] = items
 
-    print(array_type_dict)
     return array_type_dict
 
 
