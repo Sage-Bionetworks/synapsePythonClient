@@ -34,86 +34,59 @@
     },
     "CheckList": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "type": "array",
       "title": "Check List"
     },
     "CheckListEnum": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "items": {
-            "enum": [
-              "ab",
-              "cd",
-              "ef",
-              "gh"
-            ]
-          },
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "items": {
+        "enum": [
+          "ab",
+          "cd",
+          "ef",
+          "gh"
+        ],
+        "type": "string"
+      },
+      "type": "array",
       "title": "Check List Enum"
     },
     "CheckListEnumStrict": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "items": {
-            "enum": [
-              "ab",
-              "cd",
-              "ef",
-              "gh"
-            ]
-          },
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "items": {
+        "enum": [
+          "ab",
+          "cd",
+          "ef",
+          "gh"
+        ],
+        "type": "string"
+      },
+      "type": "array",
       "title": "Check List Enum Strict"
     },
     "CheckListLike": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "type": "array",
       "title": "Check List Like"
     },
     "CheckListLikeEnum": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "items": {
-            "enum": [
-              "ab",
-              "cd",
-              "ef",
-              "gh"
-            ]
-          },
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "items": {
+        "enum": [
+          "ab",
+          "cd",
+          "ef",
+          "gh"
+        ],
+        "type": "string"
+      },
+      "type": "array",
       "title": "Check List Like Enum"
     },
     "CheckListStrict": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "type": "array",
       "title": "Check List Strict"
     },
     "CheckMatchExactly": {
@@ -203,32 +176,17 @@
     },
     "CheckRegexList": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "type": "array",
       "title": "Check Regex List"
     },
     "CheckRegexListLike": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "type": "array",
       "title": "Check Regex List Like"
     },
     "CheckRegexListStrict": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "array",
-          "type": "array"
-        }
-      ],
+      "type": "array",
       "title": "Check Regex List Strict"
     },
     "CheckRegexSingle": {

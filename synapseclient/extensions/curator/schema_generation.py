@@ -88,23 +88,46 @@ TypeDict = dict[str, Union[str, Items]]
 AllOf = dict[str, Any]
 
 
-class ValidationRuleName(Enum):
-    """Names of validation rules that are used to create JSON Schema"""
-
-    LIST = "list"
-    DATE = "date"
-    URL = "url"
-    REGEX = "regex"
-    IN_RANGE = "inRange"
+class ColumnType(Enum):
+    """Names of values allowed in the columnType column in datamodel csvs."""
 
 
-class JSONSchemaType(Enum):
-    """This enum is the currently supported JSON Schema types"""
+class AtomicColumnType(ColumnType):
+    """Column Types that are not strings"""
 
     STRING = "string"
     NUMBER = "number"
     INTEGER = "integer"
     BOOLEAN = "boolean"
+
+
+class ListColumnType(ColumnType):
+    """Column Types that are strings"""
+
+    STRING_LIST = "string_list"
+    INTEGER_LIST = "integer_list"
+    BOOLEAN_LIST = "boolean_list"
+
+
+# Translates list types to their atomic type
+LIST_TYPE_DICT = {
+    ListColumnType.STRING_LIST: AtomicColumnType.STRING,
+    ListColumnType.INTEGER_LIST: AtomicColumnType.INTEGER,
+    ListColumnType.BOOLEAN_LIST: AtomicColumnType.BOOLEAN,
+}
+
+
+class ValidationRuleName(Enum):
+    """Names of validation rules that are used to create JSON Schema"""
+
+    # list validation rule is been deprecated for use in deciding type
+    # TODO: remove list:
+    # https://sagebionetworks.jira.com/browse/SYNPY-1692
+    LIST = "list"
+    DATE = "date"
+    URL = "url"
+    REGEX = "regex"
+    IN_RANGE = "inRange"
 
 
 class RegexModule(Enum):
@@ -131,6 +154,9 @@ class ValidationRule:
 
 
 _VALIDATION_RULES = {
+    # list validation rule is been deprecated for use in deciding type
+    # TODO: remove list:
+    # https://sagebionetworks.jira.com/browse/SYNPY-1692
     "list": ValidationRule(
         name=ValidationRuleName.LIST,
         incompatible_rules=[],
@@ -1645,7 +1671,7 @@ class DataModelGraphExplorer:
 
     def get_node_column_type(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
-    ) -> Optional[JSONSchemaType]:
+    ) -> Optional[ColumnType]:
         """Gets the column type of the node
 
         Args:
@@ -1660,7 +1686,11 @@ class DataModelGraphExplorer:
         type_string = self.graph.nodes[node_label][rel_node_label]
         if type_string is None:
             return type_string
-        return JSONSchemaType(type_string)
+        try:
+            column_type = AtomicColumnType(type_string)
+        except ValueError:
+            column_type = ListColumnType(type_string)
+        return column_type
 
     def _get_node_label(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
@@ -2778,7 +2808,7 @@ class DataModelRelationships:
                 "required_header": False,
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
-                "allowed_values": [enum.value for enum in JSONSchemaType],
+                "allowed_values": [enum.value for enum in ColumnType],
             },
         }
 
@@ -4243,6 +4273,9 @@ def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
 
 def _get_validation_rule_based_fields(
     validation_rules: list[str],
+    explicit_is_array: Optional[bool],
+    name: str,
+    column_type: Optional[ColumnType],
     logger: Logger,
 ) -> tuple[
     bool,
@@ -4263,7 +4296,10 @@ def _get_validation_rule_based_fields(
 
     Arguments:
         validation_rules: A list of input validation rules
+        explicit_is_array: If set explicitly in the  columnType or None
         name: The name of the node the validation rules belong to
+        column_type: The type of this node
+        logger: A logger for handling warnings
 
     Raises:
        ValueError: When an explicit JSON Schema type is given, but the implicit type is different
@@ -4278,7 +4314,7 @@ def _get_validation_rule_based_fields(
         - js_maximum: If the type is numeric the JSON Schema maximum
         - js_pattern: If the type is string the JSON Schema pattern
     """
-    js_is_array = False
+    js_is_array = explicit_is_array
     js_format = None
     js_minimum = None
     js_maximum = None
@@ -4295,7 +4331,19 @@ def _get_validation_rule_based_fields(
             validation_rules
         )
 
-        js_is_array = ValidationRuleName.LIST in validation_rule_names
+        # list validation rule is been deprecated for use in deciding type
+        # TODO: Sunset this block: https://sagebionetworks.jira.com/browse/SYNPY-1692
+
+        if explicit_is_array:
+            js_is_array = explicit_is_array
+        implicit_is_array = ValidationRuleName.LIST in validation_rule_names
+        if implicit_is_array and not explicit_is_array:
+            js_is_array = implicit_is_array
+            msg = (
+                f"A list validation rule set for property: {name}, "
+                f"but columnType is not a list type: {column_type}."
+            )
+            logger.warning(msg)
 
         if ValidationRuleName.URL in validation_rule_names:
             js_format = JSONSchemaFormat.URI
@@ -4360,7 +4408,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
     dependencies: list[str] = field(init=False)
     description: str = field(init=False)
     is_array: bool = field(init=False)
-    type: Optional[JSONSchemaType] = field(init=False)
+    type: Optional[ColumnType] = field(init=False)
     format: Optional[JSONSchemaFormat] = field(init=False)
     minimum: Optional[float] = field(init=False)
     maximum: Optional[float] = field(init=False)
@@ -4391,8 +4439,22 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.description = self.dmge.get_node_comment(
             node_display_name=self.display_name
         )
-        self.type = self.dmge.get_node_column_type(node_display_name=self.display_name)
+        column_type = self.dmge.get_node_column_type(
+            node_display_name=self.display_name
+        )
 
+        # list validation rule is been deprecated for use in deciding type
+        # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
+        # https://sagebionetworks.jira.com/browse/SYNPY-1692
+        if isinstance(column_type, AtomicColumnType):
+            self.type = column_type
+            explicit_is_array = False
+        elif isinstance(column_type, ListColumnType):
+            self.type = LIST_TYPE_DICT[column_type]
+            explicit_is_array = True
+        else:
+            self.type = None
+            explicit_is_array = False
         (
             self.is_array,
             self.format,
@@ -4401,6 +4463,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             self.pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
+            explicit_is_array=explicit_is_array,
+            name=self.name,
+            column_type=self.type,
             logger=self.logger,
         )
 
@@ -4784,13 +4849,9 @@ def _create_enum_array_property(
 
     Example:
         {
-            "oneOf": [
-                {
-                    "type": "array",
-                    "title": "array",
-                    "items": {"enum": ["enum1"]},
-                }
-            ],
+            "type": "array",
+            "title": "array",
+            "items": {"enum": ["enum1"], "type": "string"},
         },
 
 
@@ -4806,20 +4867,13 @@ def _create_enum_array_property(
         valid_values = node.valid_value_display_names
     else:
         valid_values = node.valid_values
-    items: Items = {"enum": valid_values}
-    types = [
-        {
-            "type": "array",
-            "title": "array",
-            "items": items,
-        }
-    ]
-
-    if not node.is_required:
-        types += [{"type": "null", "title": "null"}]
-
-    enum_array_property: Property = {"oneOf": types}
-    return enum_array_property  # type: ignore
+    items: Items = {"enum": valid_values, "type": "string"}
+    array_property = {
+        "type": "array",
+        "title": "array",
+        "items": items,
+    }
+    return array_property
 
 
 def _create_array_property(node: Node) -> Property:
@@ -4828,13 +4882,9 @@ def _create_array_property(node: Node) -> Property:
 
     Example:
         {
-            "oneOf": [
-                {
-                    "type": "array",
-                    "title": "array",
-                    "items": {"type": "number", "minimum": 0, "maximum": 1},
-                }
-            ],
+            "type": "array",
+            "title": "array",
+            "items": {"type": "integer", "minimum": 0, "maximum": 1},
         }
 
     Arguments:
@@ -4850,17 +4900,12 @@ def _create_array_property(node: Node) -> Property:
         _set_type_specific_keywords(items, node)
 
     array_type_dict: TypeDict = {"type": "array", "title": "array"}
-    null_type_dict: TypeDict = {"type": "null", "title": "null"}
 
     if items:
         array_type_dict["items"] = items
 
-    types = [array_type_dict]
-    if not node.is_required:
-        types.append(null_type_dict)
-
-    array_property: Property = {"oneOf": types}
-    return array_property
+    print(array_type_dict)
+    return array_type_dict
 
 
 def _create_enum_property(
