@@ -8,7 +8,7 @@ from synapseclient import Synapse
 from synapseclient.annotations import to_submission_status_annotations
 from synapseclient.api import evaluation_services
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
-from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
+from synapseclient.core.utils import merge_dataclass_entities
 from synapseclient.models import Annotations
 from synapseclient.models.mixins.access_control import AccessControllable
 
@@ -377,21 +377,41 @@ class SubmissionStatus(
 
         Returns:
             A dictionary containing the request body for updating a submission status.
+
+        Raises:
+            ValueError: If any required attributes are missing.
         """
-        # Prepare request body with basic fields
-        request_body = delete_none_keys(
-            {
-                "id": self.id,
-                "etag": self.etag,
-                "status": self.status,
-                "score": self.score,
-                "report": self.report,
-                "entityId": self.entity_id,
-                "versionNumber": self.version_number,
-                "canCancel": self.can_cancel,
-                "cancelRequested": self.cancel_requested,
-            }
-        )
+        # These attributes are required for updating a submission status
+        required_attributes = ["id", "etag", "status_version"]
+
+        for attribute in required_attributes:
+            if getattr(self, attribute) is None:
+                raise ValueError(
+                    f"Your submission status object is missing the '{attribute}' attribute. This attribute is required to update a submission status"
+                )
+
+        # Build request body with required fields
+        request_body = {
+            "id": self.id,
+            "etag": self.etag,
+            "statusVersion": self.status_version,
+        }
+
+        # Add optional fields only if they have values
+        if self.status is not None:
+            request_body["status"] = self.status
+        if self.score is not None:
+            request_body["score"] = self.score
+        if self.report is not None:
+            request_body["report"] = self.report
+        if self.entity_id is not None:
+            request_body["entityId"] = self.entity_id
+        if self.version_number is not None:
+            request_body["versionNumber"] = self.version_number
+        if self.can_cancel is not None:
+            request_body["canCancel"] = self.can_cancel
+        if self.cancel_requested is not None:
+            request_body["cancelRequested"] = self.cancel_requested
 
         # Add annotations if present
         if self.annotations and len(self.annotations) > 0:
