@@ -1,0 +1,83 @@
+Attribute,Description,Valid Values,DependsOn,Properties,Required,Parent,DependsOn Component,Source,Validation Rules,columnType
+Component,,,,,TRUE,,,,,
+Patient,,,"Patient ID, Sex, Year of Birth, Diagnosis, Component",,FALSE,DataType,,,,
+Patient ID,,,,,TRUE,DataProperty,,,#Patient unique warning^^#Biospecimen unique error,
+Sex,,"Female, Male, Other",,,TRUE,DataProperty,,,,
+Year of Birth,,,,,FALSE,DataProperty,,,,
+Diagnosis,,"Healthy, Cancer",,,TRUE,DataProperty,,,,
+Cancer,,,"Cancer Type, Family History",,FALSE,ValidValue,,,,
+Cancer Type,,"Breast, Colorectal, Lung, Prostate, Skin",,,TRUE,DataProperty,,,,
+Family History,,"Breast, Colorectal, Lung, Prostate, Skin",,,TRUE,DataProperty,,,list strict,
+Biospecimen,,,"Sample ID, Patient ID, Tissue Status, Component",,FALSE,DataType,Patient,,,
+Sample ID,,,,,TRUE,DataProperty,,,,
+Tissue Status,,"Healthy, Malignant, None",,,TRUE,DataProperty,,,,
+Bulk RNA-seq Assay,,,"Filename, Sample ID, File Format, Component",,FALSE,DataType,Biospecimen,,,
+Filename,,,,,TRUE,DataProperty,,,#MockFilename filenameExists^^,
+File Format,,"FASTQ, BAM, CRAM, CSV/TSV",,,TRUE,DataProperty,,,,
+BAM,,,Genome Build,,FALSE,ValidValue,,,,
+CRAM,,,"Genome Build, Genome FASTA",,FALSE,ValidValue,,,,
+CSV/TSV,,,Genome Build,,FALSE,ValidValue,,,,
+Genome Build,,"GRCh37, GRCh38, GRCm38, GRCm39",,,TRUE,DataProperty,,,,
+Genome FASTA,,,,,TRUE,DataProperty,,,,
+MockComponent,Component to hold mock attributes for testing all validation rules,,"Component, Check List, Check List Enum, Check List Like, Check List Like Enum, Check List Strict, Check List Enum Strict, Check Regex List, Check Regex List Like, Check Regex List Strict, Check Regex Single, Check Regex Format, Check Regex Integer, Check Num, Check Float, Check Int, Check String, Check URL,Check Match at Least, Check Match at Least values, Check Match Exactly, Check Match Exactly values, Check Match None, Check Match None values, Check Recommended, Check Ages, Check Unique, Check Range, Check Date, Check NA",,FALSE,DataType,,,,
+Check List,,,,,TRUE,DataProperty,,,list,
+Check List Enum,,"ab, cd, ef, gh",,,TRUE,DataProperty,,,list,
+Check List Like,,,,,TRUE,DataProperty,,,list like,
+Check List Like Enum,,"ab, cd, ef, gh",,,TRUE,DataProperty,,,list like,
+Check List Strict,,,,,TRUE,DataProperty,,,list strict,
+Check List Enum Strict,,"ab, cd, ef, gh",,,TRUE,DataProperty,,,list strict,
+Check Regex List,,,,,TRUE,DataProperty,,,list::regex match [a-f],
+Check Regex List Strict,,,,,TRUE,DataProperty,,,list strict::regex match [a-f],
+Check Regex List Like,,,,,TRUE,DataProperty,,,list like::regex match [a-f],
+Check Regex Single,,,,,TRUE,DataProperty,,,regex search [a-f],
+Check Regex Format,,,,,TRUE,DataProperty,,,regex match [a-f],
+Check Regex Integer,,,,,TRUE,DataProperty,,,regex search ^\d+$,
+Check Num,,,,,TRUE,DataProperty,,,num error,
+Check Float,,,,,TRUE,DataProperty,,,float error,
+Check Int,,,,,TRUE,DataProperty,,,int error,
+Check String,,,,,TRUE,DataProperty,,,str error,
+Check URL,,,,,TRUE,DataProperty,,,url,
+Check Match at Least,,,,,TRUE,DataProperty,,,matchAtLeastOne Patient.PatientID set,
+Check Match Exactly,,,,,TRUE,DataProperty,,,matchExactlyOne MockComponent.checkMatchExactly set,
+Check Match None,,,,,TRUE,DataProperty,,,matchNone MockComponent.checkMatchNone set error,
+Check Match at Least values,,,,,TRUE,DataProperty,,,matchAtLeastOne MockComponent.checkMatchatLeastvalues value,
+Check Match Exactly values,,,,,TRUE,DataProperty,,,matchExactlyOne MockComponent.checkMatchExactlyvalues value,
+Check Match None values,,,,,TRUE,DataProperty,,,matchNone MockComponent.checkMatchNonevalues value error,
+Check Recommended,,,,,FALSE,DataProperty,,,recommended,
+Check Ages,,,,,TRUE,DataProperty,,,protectAges,
+Check Unique,,,,,TRUE,DataProperty,,,unique error,
+Check Range,,,,,TRUE,DataProperty,,,inRange 50 100 error,
+Check Date,,,,,TRUE,DataProperty,,,date,
+Check NA,,,,,TRUE,DataProperty,,,int::IsNA,
+MockRDB,,,"Component, MockRDB_id, SourceManifest",,FALSE,DataType,,,,
+MockRDB_id,,,,,TRUE,DataProperty,,,int,
+SourceManifest,,,,,TRUE,DataProperty,,,,
+MockFilename,,,"Component, Filename",,FALSE,DataType,,,,
+JSONSchemaComponent,Component to hold attributes for testing JSON Schemas,,"Component, No Rules, No Rules Not Required, String, String Not Required, Enum, Enum Not Required, Date, URL, InRange, Regex, List, List Not Required, List Enum, List Enum Not Required, List String, List InRange",,FALSE,DataType,,,,
+No Rules,,,,,TRUE,DataProperty,,,,
+No Rules Not Required,,,,,FALSE,DataProperty,,,,
+String,,,,,TRUE,DataProperty,,,str error,string
+String Not Required,,,,,FALSE,DataProperty,,,str error,string
+Enum,,"ab, cd, ef, gh",,,TRUE,DataProperty,,,,
+Enum Not Required,,"ab, cd, ef, gh",,,FALSE,DataProperty,,,,
+Date,,,,,TRUE,DataProperty,,,date,string
+URL,,,,,TRUE,DataProperty,,,url,string
+InRange,,,,,TRUE,DataProperty,,,inRange 50 100,number
+Regex,,,,,TRUE,DataProperty,,,regex search [a-f],string
+List,,,,,TRUE,DataProperty,,,list,
+List Not Required,,,,,FALSE,DataProperty,,,list,
+List Enum,,"ab, cd, ef, gh",,,TRUE,DataProperty,,,list,
+List Enum Not Required,,"ab, cd, ef, gh",,,FALSE,DataProperty,,,list,
+List String,,,,,TRUE,DataProperty,,,list::str,string
+List InRange,,,,,TRUE,DataProperty,,,list::inRange 50 100,number
+TypeDefinitionComponent,Component to check type specification,,"Component, String type, String type caps, Int type, Int type caps, Num type, Num type caps, Nan type, Missing type, Boolean type, Boolean type caps",,FALSE,DataType,,,,
+String type,,,,,TRUE,DataProperty,,,,string
+String type caps,,,,,TRUE,DataProperty,,,,STRING
+Int type,,,,,TRUE,DataProperty,,,,integer
+Int type caps,,,,,TRUE,DataProperty,,,,INTEGER
+Num type,,,,,TRUE,DataProperty,,,,number
+Num type caps,,,,,TRUE,DataProperty,,,,NUMBER
+Nan type,,,,,TRUE,DataProperty,,,,nan
+Missing type,,,,,TRUE,DataProperty,,,,
+Boolean type,,,,,TRUE,DataProperty,,,,boolean
+Boolean type caps,,,,,TRUE,DataProperty,,,,BOOLEAN

@@ -27,6 +27,8 @@ from typing import (
     Union,
 )
 
+from deprecated import deprecated
+
 try:
     from dataclasses_json import config, dataclass_json
 except ImportError:
@@ -94,11 +96,6 @@ class ValidationRuleName(Enum):
     URL = "url"
     REGEX = "regex"
     IN_RANGE = "inRange"
-    STR = "str"
-    FLOAT = "float"
-    INT = "int"
-    BOOL = "bool"
-    NUM = "num"
 
 
 class JSONSchemaType(Enum):
@@ -124,16 +121,11 @@ class ValidationRule:
 
     Attributes:
         name: The name of the validation rule
-        js_type: The JSON Schema type this rule indicates.
-          For example type rules map over to their equivalent JSON Schema type: str -> string
-          Other rules have an implicit type. For example the regex rule maps to the JSON
-            Schema pattern keyword. The pattern keyword requires the type to be string
         incompatible_rules: Other validation rules this rule can not be paired with
         parameters: Parameters for the validation rule that need to be collected for the JSON Schema
     """
 
     name: ValidationRuleName
-    js_type: Optional[JSONSchemaType]
     incompatible_rules: list[ValidationRuleName]
     parameters: Optional[list[str]] = None
 
@@ -141,106 +133,37 @@ class ValidationRule:
 _VALIDATION_RULES = {
     "list": ValidationRule(
         name=ValidationRuleName.LIST,
-        js_type=None,
         incompatible_rules=[],
     ),
     "date": ValidationRule(
         name=ValidationRuleName.DATE,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.URL,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
     ),
     "url": ValidationRule(
         name=ValidationRuleName.URL,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.DATE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
     ),
     "regex": ValidationRule(
         name=ValidationRuleName.REGEX,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
         parameters=["module", "pattern"],
     ),
     "inRange": ValidationRule(
         name=ValidationRuleName.IN_RANGE,
-        js_type=JSONSchemaType.NUMBER,
         incompatible_rules=[
             ValidationRuleName.URL,
             ValidationRuleName.DATE,
             ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
         ],
         parameters=["minimum", "maximum"],
-    ),
-    "str": ValidationRule(
-        name=ValidationRuleName.STR,
-        js_type=JSONSchemaType.STRING,
-        incompatible_rules=[
-            ValidationRuleName.IN_RANGE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.NUM,
-            ValidationRuleName.BOOL,
-        ],
-    ),
-    "float": ValidationRule(
-        name=ValidationRuleName.FLOAT,
-        js_type=JSONSchemaType.NUMBER,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.INT,
-            ValidationRuleName.NUM,
-        ],
-    ),
-    "int": ValidationRule(
-        name=ValidationRuleName.INT,
-        js_type=JSONSchemaType.INTEGER,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
-            ValidationRuleName.FLOAT,
-        ],
-    ),
-    "num": ValidationRule(
-        name=ValidationRuleName.NUM,
-        js_type=JSONSchemaType.NUMBER,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-        ],
     ),
 }
 
@@ -3854,6 +3777,67 @@ def parsed_model_as_dataframe(
     return model_dataframe
 
 
+class MetadataModel(object):
+    """Metadata model wrapper around schema.org specification graph.
+
+    Provides basic utilities to:
+
+    1) manipulate the metadata model
+    2) generate metadata model views:
+        - generate manifest view of the metadata model
+        - generate validation schema view of the metadata model
+    """
+
+    def __init__(
+        self,
+        inputMModelLocation: str,
+        inputMModelLocationType: str,
+        data_model_labels: str,
+        logger: Logger,
+    ) -> None:
+        """Instantiates a MetadataModel object.
+
+        Args:
+            inputMModelLocation: local path, uri, synapse entity id (e.g. gs://, syn123, /User/x/…); present location
+            inputMModelLocationType: specifier to indicate where the metadata model resource can be found (e.g. 'local' if file/JSON-LD is on local machine)
+        """
+        # extract extension of 'inputMModelLocation'
+        # ensure that it is necessarily pointing to a '.jsonld' file
+
+        logger.debug(
+            f"Initializing DataModelGraphExplorer object from {inputMModelLocation} schema."
+        )
+
+        # self.inputMModelLocation remains for backwards compatibility
+        self.inputMModelLocation = inputMModelLocation
+        self.path_to_json_ld = inputMModelLocation
+
+        data_model_parser = DataModelParser(
+            path_to_data_model=self.inputMModelLocation, logger=logger
+        )
+        # Parse Model
+        parsed_data_model = data_model_parser.parse_model()
+
+        # Instantiate DataModelGraph
+        data_model_grapher = DataModelGraph(
+            parsed_data_model, data_model_labels, logger
+        )
+
+        # Generate graph
+        self.graph_data_model = data_model_grapher.graph
+
+        self.dmge = DataModelGraphExplorer(self.graph_data_model, logger)
+
+        # check if the type of MModel file is "local"
+        # currently, the application only supports reading from local JSON-LD files
+        if inputMModelLocationType == "local":
+            self.inputMModelLocationType = inputMModelLocationType
+        else:
+            raise ValueError(
+                f"The type '{inputMModelLocationType}' is currently not supported."
+            )
+
+
 class JsonSchemaGeneratorDirector:
     """
     Directs the generation of JSON schemas for one or more components from a specified data model.
@@ -3998,6 +3982,10 @@ class JsonSchemaGeneratorDirector:
         return generator.component_json_schema, str(generator.output_path)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def filter_unused_inputted_rules(
     inputted_rules: list[str], logger: Logger
 ) -> list[str]:
@@ -4029,6 +4017,10 @@ def filter_unused_inputted_rules(
     ]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def check_for_duplicate_inputted_rules(inputted_rules: list[str]) -> None:
     """Checks that there are no rules with duplicate names
 
@@ -4043,6 +4035,10 @@ def check_for_duplicate_inputted_rules(inputted_rules: list[str]) -> None:
         raise ValueError(f"Validation Rules contains duplicates: {inputted_rules}")
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def check_for_conflicting_inputted_rules(inputted_rules: list[str]) -> None:
     """Checks that each rule has no conflicts with any other rule
 
@@ -4090,35 +4086,6 @@ def get_rule_from_inputted_rules(
     if len(inputted_rules) == 0:
         return None
     return inputted_rules[0]
-
-
-def get_js_type_from_inputted_rules(
-    inputted_rules: list[str],
-) -> Optional[JSONSchemaType]:
-    """Gets the JSON Schema type from a list of rules
-
-    Arguments:
-        inputted_rules: A list of inputted validation rules
-
-    Raises:
-        ValueError: If there are multiple type rules in the list
-
-    Returns:
-        The JSON Schema type if a type rule is found, otherwise None
-    """
-    rule_names = get_names_from_inputted_rules(inputted_rules)
-    validation_rules = _get_rules_by_names(rule_names)
-    # A set of js_types of the validation rules
-    json_schema_types = {
-        rule.js_type for rule in validation_rules if rule.js_type is not None
-    }
-    if len(json_schema_types) > 1:
-        raise ValueError(
-            f"Validation rules contain more than one implied JSON Schema type: {inputted_rules}"
-        )
-    if len(json_schema_types) == 0:
-        return None
-    return list(json_schema_types)[0]
 
 
 def get_in_range_parameters_from_inputted_rule(
@@ -4185,6 +4152,10 @@ def get_regex_parameters_from_inputted_rule(
     return pattern
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_validation_rule_names_from_inputted_rules(
     inputted_rules: list[str],
 ) -> list[ValidationRuleName]:
@@ -4201,6 +4172,10 @@ def get_validation_rule_names_from_inputted_rules(
     return [rule.name for rule in rules]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_names_from_inputted_rules(inputted_rules: list[str]) -> list[str]:
     """Gets the names from a list of inputted rules
 
@@ -4268,12 +4243,9 @@ def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
 
 def _get_validation_rule_based_fields(
     validation_rules: list[str],
-    explicit_js_type: Optional[JSONSchemaType],
-    name: str,
     logger: Logger,
 ) -> tuple[
     bool,
-    Optional[JSONSchemaType],
     Optional[JSONSchemaFormat],
     Optional[float],
     Optional[float],
@@ -4285,14 +4257,12 @@ def _get_validation_rule_based_fields(
     JSON Schema docs:
 
     Array: https://json-schema.org/understanding-json-schema/reference/array
-    Types: https://json-schema.org/understanding-json-schema/reference/type#type-specific-keywords
     Format: https://json-schema.org/understanding-json-schema/reference/type#format
     Pattern: https://json-schema.org/understanding-json-schema/reference/string#regexp
     Min/max: https://json-schema.org/understanding-json-schema/reference/numeric#range
 
     Arguments:
         validation_rules: A list of input validation rules
-        explicit_js_type: A JSONSchemaType if set explicitly in the data model, otherwise None
         name: The name of the node the validation rules belong to
 
     Raises:
@@ -4303,14 +4273,12 @@ def _get_validation_rule_based_fields(
     Returns:
         A tuple containing fields for a Node object:
         - js_is_array: Whether or not the Node should be an array in JSON Schema
-        - js_type: The JSON Schema type
         - js_format: The JSON Schema format
         - js_minimum: If the type is numeric the JSON Schema minimum
         - js_maximum: If the type is numeric the JSON Schema maximum
         - js_pattern: If the type is string the JSON Schema pattern
     """
     js_is_array = False
-    js_type = explicit_js_type
     js_format = None
     js_minimum = None
     js_maximum = None
@@ -4328,35 +4296,6 @@ def _get_validation_rule_based_fields(
         )
 
         js_is_array = ValidationRuleName.LIST in validation_rule_names
-
-        # The explicit JSON Schema type is the one set in the data model
-        # The implicit JSON Schema type is the one implied by the presence
-        #   of certain validation rules
-        # Schematic will use the implicit type if the explicit type isn't specified for now,
-        #   but this behavior is deprecated and will be removed in the future by SCHEMATIC-326
-        implicit_js_type = get_js_type_from_inputted_rules(validation_rules)
-        # If there is an explicit and implicit type set and the implicit type conflicts with the
-        # explicit type, then an exception is raised
-        if (
-            explicit_js_type
-            and implicit_js_type
-            and explicit_js_type != implicit_js_type
-        ):
-            msg = (
-                f"Property: '{name}', has explicit type: '{explicit_js_type}' "
-                f"that conflicts with the implicit type: '{implicit_js_type}' "
-                f"derived from its validation rules: {validation_rules}"
-            )
-            logger.warning(msg)
-        if not explicit_js_type and implicit_js_type:
-            js_type = implicit_js_type
-            msg = (
-                f"No explicit type set for property: '{name}', "
-                "using validation rules to set the type. "
-                "Using validation rules to set type is deprecated. "
-                "You should set the columnType for this property in your data model."
-            )
-            logger.warning(msg)
 
         if ValidationRuleName.URL in validation_rule_names:
             js_format = JSONSchemaFormat.URI
@@ -4379,7 +4318,6 @@ def _get_validation_rule_based_fields(
 
     return (
         js_is_array,
-        js_type,
         js_format,
         js_minimum,
         js_maximum,
@@ -4404,7 +4342,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         dependencies: This nodes dependencies
         description: This nodes description, gotten from the comment in the data model
         is_array: Whether or not the property is an array (inferred from validation_rules)
-        type: The type of the property (inferred from validation_rules)
+        type: The type of the property (set by ColumnType in the data model)
         format: The format of the property (inferred from validation_rules)
         minimum: The minimum value of the property (if numeric) (inferred from validation_rules)
         maximum: The maximum value of the property (if numeric) (inferred from validation_rules)
@@ -4453,21 +4391,16 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.description = self.dmge.get_node_comment(
             node_display_name=self.display_name
         )
-        explicit_js_type = self.dmge.get_node_column_type(
-            node_display_name=self.display_name
-        )
+        self.type = self.dmge.get_node_column_type(node_display_name=self.display_name)
 
         (
             self.is_array,
-            self.type,
             self.format,
             self.minimum,
             self.maximum,
             self.pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
-            explicit_js_type=explicit_js_type,
-            name=self.name,
             logger=self.logger,
         )
 
@@ -5133,6 +5066,9 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     datatype: str,
     schema_name: str,
     logger: Logger,
+    write_schema: bool = True,
+    schema_path: Optional[str] = None,
+    jsonld_path: Optional[str] = None,
     use_property_display_names: bool = True,
     use_valid_value_display_names: bool = True,
 ) -> dict[str, Any]:
@@ -5156,8 +5092,11 @@ def create_json_schema(  # pylint: disable=too-many-arguments
         datatype: the datatype to create the schema for.
             Its node is where we can start recursive dependency traversal
             (as mentioned above).
+        write_schema: whether or not to write the schema as a json file
         schema_name: Name assigned to JSON-LD schema (to uniquely identify it via URI
             when it is hosted on the Internet).
+        schema_path: Where to save the JSON Schema file
+        jsonld_path: Used to name the file if the path isn't supplied
         use_property_display_names: If True, the properties in the JSONSchema
           will be written using node display names
         use_valid_value_display_names: If True, the valid_values in the JSONSchema
@@ -5189,7 +5128,61 @@ def create_json_schema(  # pylint: disable=too-many-arguments
 
     json_schema_dict = json_schema.as_json_schema_dict()
 
+    if write_schema:
+        print("schema path", schema_path)
+        print("name", datatype)
+        print("jsonld path", jsonld_path)
+        _write_data_model(
+            json_schema_dict=json_schema_dict,
+            schema_path=schema_path,
+            name=datatype,
+            jsonld_path=jsonld_path,
+            logger=logger,
+        )
+
     return json_schema_dict
+
+
+def _write_data_model(
+    json_schema_dict: dict[str, Any],
+    logger: Logger,
+    schema_path: Optional[str] = None,
+    name: Optional[str] = None,
+    jsonld_path: Optional[str] = None,
+) -> None:
+    """
+    Creates the JSON Schema file
+
+    Arguments:
+        json_schema_dict: The JSON schema in dict form
+        schema_path: Where to save the JSON Schema file
+        jsonld_path:
+          The path to the JSONLD model, used to create the path
+          Used if schema_path is None
+        name:
+          The name of the datatype(source node) the schema is being created for
+          Used if schema_path is None
+    """
+    if schema_path:
+        json_schema_path = schema_path
+    elif name and jsonld_path:
+        json_schema_path = get_json_schema_log_file_path(
+            data_model_path=jsonld_path, source_node=name
+        )
+        json_schema_dirname = os.path.dirname(json_schema_path)
+        if json_schema_dirname != "":
+            os.makedirs(json_schema_dirname, exist_ok=True)
+
+        logger.info(
+            "The JSON schema file can be inspected by setting the following "
+            "nested key in the configuration: (model > location)."
+        )
+    else:
+        raise ValueError(
+            "Either schema_path or both name and jsonld_path must be provided."
+        )
+    export_json(json_doc=json_schema_dict, file_path=json_schema_path, indent=2)
+    logger.info("The JSON schema has been saved at %s", json_schema_path)
 
 
 class JsonSchemaComponentGenerator:
@@ -5295,7 +5288,12 @@ class JsonSchemaComponentGenerator:
         Raises:
             May raise errors if the component is not found in the data model graph.
         """
-
+        metadata_model = MetadataModel(
+            inputMModelLocation=self.data_model_source,
+            inputMModelLocationType="local",
+            data_model_labels=data_model_labels,
+            logger=self.logger,
+        )
         use_display_names = data_model_labels == "display_label"
 
         json_schema = create_json_schema(
@@ -5303,6 +5301,7 @@ class JsonSchemaComponentGenerator:
             datatype=self.component,
             logger=self.logger,
             schema_name=self.component + "_validation",
+            jsonld_path=metadata_model.inputMModelLocation,
             use_property_display_names=use_display_names,
         )
         self.component_json_schema = json_schema

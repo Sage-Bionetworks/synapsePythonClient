@@ -1,0 +1,151 @@
+{
+  "$id": "http://example.com/Patient_validation",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "Diagnosis": {
+            "enum": [
+              "Cancer"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "Cancer Type": {
+            "not": {
+              "type": "null"
+            }
+          }
+        },
+        "required": [
+          "Cancer Type"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "Diagnosis": {
+            "enum": [
+              "Cancer"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "Family History": {
+            "not": {
+              "type": "null"
+            }
+          }
+        },
+        "required": [
+          "Family History"
+        ]
+      }
+    }
+  ],
+  "description": "TBD",
+  "properties": {
+    "Cancer Type": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "enum": [
+            "Breast",
+            "Colorectal",
+            "Lung",
+            "Prostate",
+            "Skin"
+          ],
+          "title": "enum"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "Cancer Type"
+    },
+    "Component": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Component"
+    },
+    "Diagnosis": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "enum": [
+            "Cancer",
+            "Healthy"
+          ],
+          "title": "enum"
+        }
+      ],
+      "title": "Diagnosis"
+    },
+    "Family History": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "items": {
+            "enum": [
+              "Breast",
+              "Colorectal",
+              "Lung",
+              "Prostate",
+              "Skin"
+            ]
+          },
+          "title": "array",
+          "type": "array"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "Family History"
+    },
+    "Patient ID": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Patient ID"
+    },
+    "Sex": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "enum": [
+            "Female",
+            "Male",
+            "Other"
+          ],
+          "title": "enum"
+        }
+      ],
+      "title": "Sex"
+    },
+    "Year of Birth": {
+      "description": "TBD",
+      "title": "Year of Birth"
+    }
+  },
+  "required": [
+    "Component",
+    "Diagnosis",
+    "Patient ID",
+    "Sex"
+  ],
+  "title": "Patient_validation",
+  "type": "object"
+}

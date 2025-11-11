@@ -1,0 +1,35 @@
+{
+  "$id": "http://example.com/MockRDB_validation",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "TBD",
+  "properties": {
+    "Component": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Component"
+    },
+    "MockRDBId": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "MockRDB_id"
+    },
+    "SourceManifest": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "SourceManifest"
+    }
+  },
+  "required": [
+    "Component",
+    "MockRDBId",
+    "SourceManifest"
+  ],
+  "title": "MockRDB_validation",
+  "type": "object"
+}
