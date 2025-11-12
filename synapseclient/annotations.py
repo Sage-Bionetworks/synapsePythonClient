@@ -228,6 +228,128 @@ def to_submission_status_annotations(annotations, is_private=True):
     return synapseAnnos
 
 
+def to_submission_annotations(
+    id: typing.Union[str, int],
+    etag: str,
+    annotations: typing.Dict[str, typing.Any],
+    is_private: bool = True,
+    logger: typing.Optional[typing.Any] = None,
+) -> typing.Dict[str, typing.Any]:
+    """
+    Converts a normal dictionary to the format used for submission annotations, which is different from the format
+    used to annotate entities.
+
+    This function creates the proper nested structure that includes id, etag, and annotations in the format
+    expected by the submissionAnnotations field of a SubmissionStatus request body.
+
+    Arguments:
+        id: The unique ID of the submission being annotated.
+        etag: The etag of the submission status for optimistic concurrency control.
+        annotations: A normal Python dictionary comprised of the annotations to be added.
+        logger: An optional logger instance. If not provided, a default logger will be used.
+
+    Returns:
+        A dictionary in the format expected by submissionAnnotations with nested structure containing
+        id, etag, and annotations object with type/value format.
+
+    Example: Using this function
+        Converting annotations to submission format
+
+            from synapseclient.annotations import to_submission_annotations
+
+            # Input annotations
+            my_annotations = {
+                "score": 85,
+                "feedback": "Good work!"
+            }
+
+            # Convert to submission annotations format
+            submission_annos = to_submission_annotations(
+                id="9999999",
+                etag="abc123",
+                annotations=my_annotations,
+                is_private=True
+            )
+
+            # Result:
+            # {
+            #     "id": "9999999",
+            #     "etag": "abc123",
+            #     "annotations": {
+            #         "score": {"type": "INTEGER", "value": [85]},
+            #         "feedback": {"type": "STRING", "value": ["Good work!"]},
+            #     }
+            # }
+
+    Note:
+        This function is designed specifically for the submissionAnnotations field format,
+        which is part of the creation of a SubmissionStatus request body:
+
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html>
+    """
+    # Create the base structure
+    submission_annos = {"id": str(id), "etag": str(etag), "annotations": {}}
+
+    # Convert each annotation to the proper nested format
+    for key, value in annotations.items():
+        # Ensure value is a list
+        if not isinstance(value, list):
+            value_list = [value]
+        else:
+            value_list = value
+
+        # Warn about empty annotation values and skip them
+        if not value_list:
+            if logger:
+                logger.warning(
+                    f"Annotation '{key}' has an empty value list and will be skipped"
+                )
+            else:
+                from synapseclient import Synapse
+
+                client = Synapse.get_client()
+                client.logger.warning(
+                    f"Annotation '{key}' has an empty value list and will be skipped"
+                )
+            continue
+
+        # Determine type based on the first element
+        first_element = value_list[0]
+
+        if isinstance(first_element, str):
+            submission_annos["annotations"][key] = {
+                "type": "STRING",
+                "value": value_list,
+            }
+        elif isinstance(first_element, bool):
+            # Convert booleans to lowercase strings
+            submission_annos["annotations"][key] = {
+                "type": "STRING",
+                "value": [str(v).lower() for v in value_list],
+            }
+        elif isinstance(first_element, int):
+            submission_annos["annotations"][key] = {"type": "LONG", "value": value_list}
+        elif isinstance(first_element, float):
+            submission_annos["annotations"][key] = {
+                "type": "DOUBLE",
+                "value": value_list,
+            }
+        elif is_date(first_element):
+            # Convert dates to unix timestamps
+            submission_annos["annotations"][key] = {
+                "type": "LONG",
+                "value": [to_unix_epoch_time(v) for v in value_list],
+            }
+        else:
+            # Default to string representation
+            submission_annos["annotations"][key] = {
+                "type": "STRING",
+                "value": [str(v) for v in value_list],
+            }
+
+    return submission_annos
+
+
 # TODO: this should accept a status object and return its annotations or an empty dict if there are none
 def from_submission_status_annotations(annotations) -> dict:
     """

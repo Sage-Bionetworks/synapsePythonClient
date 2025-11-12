@@ -1,3 +1,4 @@
+from calendar import c
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import Dict, List, Optional, Protocol, Union
@@ -5,7 +6,10 @@ from typing import Dict, List, Optional, Protocol, Union
 from typing_extensions import Self
 
 from synapseclient import Synapse
-from synapseclient.annotations import to_submission_status_annotations
+from synapseclient.annotations import (
+    to_submission_annotations,
+    to_submission_status_annotations,
+)
 from synapseclient.api import evaluation_services
 from synapseclient.core.async_utils import async_to_sync, otel_trace_method
 from synapseclient.core.utils import merge_dataclass_entities
@@ -286,8 +290,8 @@ class SubmissionStatus(
     ] = field(default_factory=dict, compare=False)
     """Annotations are additional key-value pair metadata that are associated with an object."""
 
-    is_private: Optional[bool] = field(default=True, compare=False)
-    """Indicates whether the submission annotations are private (True) or public (False). Default is True."""
+    private_status_annotations: Optional[bool] = field(default=True, compare=False)
+    """Indicates whether the submission status annotations (NOT to be confused with submission annotations) are private (True) or public (False). Default is True."""
 
     entity_id: Optional[str] = None
     """
@@ -326,7 +330,8 @@ class SubmissionStatus(
     def has_changed(self) -> bool:
         """Determines if the object has been newly created OR changed since last retrieval, and needs to be updated in Synapse."""
         return (
-            not self._last_persistent_instance or self._last_persistent_instance is not self
+            not self._last_persistent_instance
+            or self._last_persistent_instance is not self
         )
 
     def _set_last_persistent_instance(self) -> None:
@@ -375,9 +380,14 @@ class SubmissionStatus(
 
         return self
 
-    def to_synapse_request(self) -> Dict:
+    def to_synapse_request(self, synapse_client: Optional[Synapse] = None) -> Dict:
         """
         Creates a request body expected by the Synapse REST API for the SubmissionStatus model.
+
+        Arguments:
+            synapse_client: If not passed in and caching was not disabled by
+                `Synapse.allow_client_caching(False)` this will use the last created
+                instance from the Synapse class constructor.
 
         Returns:
             A dictionary containing the request body for updating a submission status.
@@ -385,6 +395,10 @@ class SubmissionStatus(
         Raises:
             ValueError: If any required attributes are missing.
         """
+        # Get the client for logging
+        client = Synapse.get_client(synapse_client=synapse_client)
+        logger = client.logger
+
         # These attributes are required for updating a submission status
         required_attributes = ["id", "etag", "status_version"]
 
@@ -417,18 +431,17 @@ class SubmissionStatus(
         if self.cancel_requested is not None:
             request_body["cancelRequested"] = self.cancel_requested
 
-        # Add annotations if present
         if self.annotations and len(self.annotations) > 0:
-            # Convert annotations to the format expected by the API
             request_body["annotations"] = to_submission_status_annotations(
-                self.annotations
+                self.annotations, self.private_status_annotations
             )
 
-        # Add submission annotations if present
         if self.submission_annotations and len(self.submission_annotations) > 0:
-            # Convert submission annotations to the format expected by the API
-            request_body["submissionAnnotations"] = to_submission_status_annotations(
-                self.submission_annotations, is_private=self.is_private
+            request_body["submissionAnnotations"] = to_submission_annotations(
+                id=self.id,
+                etag=self.etag,
+                annotations=self.submission_annotations,
+                logger=logger,
             )
 
         return request_body
@@ -473,7 +486,8 @@ class SubmissionStatus(
         response = await evaluation_services.get_submission_status(
             submission_id=self.id, synapse_client=synapse_client
         )
-
+        print("raw response")
+        print(response)
         self.fill_from_dict(response)
         self._set_last_persistent_instance()
         return self
