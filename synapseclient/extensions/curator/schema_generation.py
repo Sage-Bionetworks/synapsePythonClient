@@ -93,7 +93,7 @@ class ColumnType(Enum):
 
 
 class AtomicColumnType(ColumnType):
-    """Column Types that are not strings"""
+    """Column Types that are not lists"""
 
     STRING = "string"
     NUMBER = "number"
@@ -102,7 +102,7 @@ class AtomicColumnType(ColumnType):
 
 
 class ListColumnType(ColumnType):
-    """Column Types that are strings"""
+    """Column Types that are lists"""
 
     STRING_LIST = "string_list"
     INTEGER_LIST = "integer_list"
@@ -1678,18 +1678,32 @@ class DataModelGraphExplorer:
             node_label: The label of the node to get the type from
             node_display_name: The display name of the node to get the type from
 
+        Raises:
+            ValueError: If the value from the node is not allowed
+
         Returns:
             The column type of the node if it has one, otherwise None
         """
         node_label = self._get_node_label(node_label, node_display_name)
         rel_node_label = self.dmr.get_relationship_value("columnType", "node_label")
-        type_string = self.graph.nodes[node_label][rel_node_label]
-        if type_string is None:
-            return type_string
+        column_type_value = self.graph.nodes[node_label][rel_node_label]
+        if column_type_value is None:
+            return column_type_value
+        column_type_string = str(column_type_value).lower()
         try:
-            column_type = AtomicColumnType(type_string)
+            column_type = AtomicColumnType(column_type_string)
         except ValueError:
-            column_type = ListColumnType(type_string)
+            try:
+                column_type = ListColumnType(column_type_string)
+            except ValueError:
+                allowed_values = [member.value for member in AtomicColumnType] + [
+                    member.value for member in ListColumnType
+                ]
+                msg = (
+                    f"Node: '{node_label}' had illegal column type value: '{column_type_string}'. "
+                    f"Allowed values are: [{allowed_values}]"
+                )
+                raise ValueError(msg)
         return column_type
 
     def _get_node_label(
