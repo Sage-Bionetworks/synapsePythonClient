@@ -6,8 +6,6 @@ The helper classes tested are JSONSchema, Node, GraphTraversalState,
 import json
 import logging
 import os
-import uuid
-from shutil import rmtree
 from typing import Any, Optional
 from unittest.mock import Mock
 
