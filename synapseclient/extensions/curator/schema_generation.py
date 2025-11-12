@@ -2822,7 +2822,8 @@ class DataModelRelationships:
                 "required_header": False,
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
-                "allowed_values": [enum.value for enum in ColumnType],
+                "allowed_values": [member.value for member in AtomicColumnType]
+                + [member.value for member in ListColumnType],
             },
         }
 
