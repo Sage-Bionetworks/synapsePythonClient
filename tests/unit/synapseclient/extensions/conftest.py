@@ -8,6 +8,7 @@ from synapseclient.extensions.curator.schema_generation import (
     DataModelGraph,
     DataModelGraphExplorer,
     DataModelParser,
+    DataModelRelationships,
 )
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -63,3 +64,9 @@ def DMGE(helpers: Helpers) -> DataModelGraphExplorer:
         path="example.model.column_type_component.csv"
     )
     return dmge
+
+
+@pytest.fixture(name="dmr")
+def fixture_dmr():
+    "Returns a DataModelRelationships instance"
+    return DataModelRelationships()
