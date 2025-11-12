@@ -22,7 +22,6 @@ from synapseclient.extensions.curator.schema_generation import (
     GraphTraversalState,
     JSONSchema,
     JSONSchemaFormat,
-    ListColumnType,
     TraversalNode,
     _create_array_property,
     _create_enum_array_property,
@@ -111,36 +110,6 @@ def fixture_test_nodes(
         "ListEnumNotRequired",
         "ListBoolean",
         "ListInteger",
-        "ListInRange",
-    ]
-    nodes = {
-        node: TraversalNode(node, "JSONSchemaComponent", dmge, logger=Mock())
-        for node in nodes
-    }
-    return nodes
-
-
-@pytest.fixture(name="test_nodes_column_types")
-def fixture_test_nodes_column_types(
-    dmge: DataModelGraphExplorer,
-):
-    """Yields dict of Nodes"""
-    nodes = [
-        "NoRules",
-        "NoRulesNotRequired",
-        "String",
-        "StringNotRequired",
-        "Enum",
-        "EnumNotRequired",
-        "InRange",
-        "Regex",
-        "Date",
-        "URL",
-        "List",
-        "ListNotRequired",
-        "ListEnum",
-        "ListEnumNotRequired",
-        "ListString",
         "ListInRange",
     ]
     nodes = {
