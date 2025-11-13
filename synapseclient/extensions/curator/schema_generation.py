@@ -4352,9 +4352,6 @@ def _get_validation_rule_based_fields(
 
         # list validation rule is been deprecated for use in deciding type
         # TODO: Sunset this block: https://sagebionetworks.jira.com/browse/SYNPY-1692
-
-        if explicit_is_array:
-            js_is_array = explicit_is_array
         implicit_is_array = ValidationRuleName.LIST in validation_rule_names
         if implicit_is_array and not explicit_is_array:
             js_is_array = implicit_is_array
