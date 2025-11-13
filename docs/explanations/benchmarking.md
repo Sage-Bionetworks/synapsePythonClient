@@ -27,7 +27,7 @@ The results were created on a `c6a.8xlarge` EC2 instance running in us-east-1. T
   - **EBS Volume:** 5TB gp3 volume (4.5TB of test data)
   - **EBS Bandwidth:** 10 Gbps
   - **Baseline throughput (MB/s, 128 KiB I/O)**: 1250
-  - **Maximum throughput (MB/s, 128 KiB I/O)**: 1250 
+  - **Maximum throughput (MB/s, 128 KiB I/O)**: 1250
 
 
 | Test                | Total Transfer Size | Sequential Upload (OOP) | Per file size |

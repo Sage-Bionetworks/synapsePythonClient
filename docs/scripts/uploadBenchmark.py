@@ -288,9 +288,9 @@ def execute_walk_file_sequential(
     test_name: str,
 ) -> None:
     """Execute the test that uses os.walk to upload files/folders to Synapse sequentially.
-    
+
     This function uploads files one-by-one in a sequential pattern. Each file is uploaded
-    immediately after creation using asyncio.run(File.store_async()). 
+    immediately after creation using asyncio.run(File.store_async()).
 
     Arguments:
         path: The path to the root directory containing files to upload
