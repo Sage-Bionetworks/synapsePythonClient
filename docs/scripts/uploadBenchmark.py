@@ -144,7 +144,6 @@ def create_folder_structure(
     return total_dirs, total_files, size_of_each_file_bytes
 
 
-
 def cleanup(
     path: str,
     delete_synapse: bool = True,
