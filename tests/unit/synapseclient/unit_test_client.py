@@ -3043,7 +3043,7 @@ def test_get_submission_with_annotations(syn: Synapse) -> None:
     }
 
     with patch.object(syn, "restGET") as restGET, patch.object(
-        syn, "_getWithEntityBundle"
+        syn, "_getWithEntityBundle_async"
     ) as get_entity:
         restGET.return_value = submission
         response = syn.getSubmission(submission_id)
@@ -3090,7 +3090,7 @@ def run_get_submission_test(
     }
 
     with patch.object(syn, "restGET") as restGET, patch.object(
-        syn, "_getWithEntityBundle"
+        syn, "_getWithEntityBundle_async"
     ) as get_entity:
         restGET.return_value = submission
 
@@ -3168,7 +3168,7 @@ def test_get_submission_and_submission_status_interchangeability(
     ) as get_submission_uri, patch.object(
         SubmissionStatus, "getURI"
     ) as get_status_uri, patch.object(
-        syn, "_getWithEntityBundle"
+        syn, "_getWithEntityBundle_async"
     ):
         get_submission_uri.return_value = (
             f"/evaluation/submission/{expected_submission_id}"
