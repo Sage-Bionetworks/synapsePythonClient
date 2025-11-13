@@ -32,7 +32,7 @@ The results were created on a `c6a.8xlarge` EC2 instance running in us-east-1. T
 
 | Test                | Total Transfer Size | Sequential Upload (OOP) | Per file size |
 |---------------------|---------------------|-------------------------|---------------|
-| 45 Files/100GiB ea  | 4.5TB               | 74392.21s (~20.6h) ✅   | 100GB         |
+| 45 Files/100GiB ea  | 4.5TB               | 74392.21s (~20.6h)    | 100GB         |
 
 #### Key Insights:
 - Successfully uploaded 4.5TB of data (45 × 100GB files) in approximately 20.6 hours
