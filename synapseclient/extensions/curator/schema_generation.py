@@ -4333,11 +4333,14 @@ def _get_validation_rule_based_fields(
         - js_maximum: If the type is numeric the JSON Schema maximum
         - js_pattern: If the type is string the JSON Schema pattern
     """
-    js_is_array = explicit_is_array
+    js_is_array = False
     js_format = None
     js_minimum = None
     js_maximum = None
     js_pattern = None
+
+    if explicit_is_array is not None:
+        js_is_array = explicit_is_array
 
     if validation_rules:
         validation_rules = filter_unused_inputted_rules(
@@ -4351,15 +4354,41 @@ def _get_validation_rule_based_fields(
         )
 
         # list validation rule is been deprecated for use in deciding type
-        # TODO: Sunset this block: https://sagebionetworks.jira.com/browse/SYNPY-1692
+        # TODO: Sunset both if blocks below: https://sagebionetworks.jira.com/browse/SYNPY-1692
         implicit_is_array = ValidationRuleName.LIST in validation_rule_names
-        if implicit_is_array and not explicit_is_array:
+        print(implicit_is_array)
+
+        if explicit_is_array is None:
             js_is_array = implicit_is_array
-            msg = (
-                f"A list validation rule set for property: {name}, "
-                f"but columnType is not a list type: {column_type}."
-            )
-            logger.warning(msg)
+            if implicit_is_array:
+                msg = (
+                    f"No columnType is set for property: {name}, "
+                    "but a list validation rule is present. "
+                    "Please set the columnType as a list-type."
+                    "This behavior is deprecated and list validation rules will no longer be used."
+                )
+                logger.warning(msg)
+            else:
+                msg = (
+                    f"No columnType is set for property: {name}. "
+                    "Please set the columnType."
+                )
+                logger.warning(msg)
+        if explicit_is_array != implicit_is_array:
+            if explicit_is_array:
+                msg = (
+                    f"For property: {name}, the columnType is a list-type: {column_type} "
+                    "but no list validation rule is present. "
+                    "Using columnType to set type."
+                )
+                logger.warning(msg)
+            else:
+                msg = (
+                    f"For property: {name}, the columnType is not a list-type: {column_type} "
+                    "but a list validation rule is present. "
+                    "Using columnType to set type."
+                )
+                logger.warning(msg)
 
         if ValidationRuleName.URL in validation_rule_names:
             js_format = JSONSchemaFormat.URI
@@ -4380,6 +4409,7 @@ def _get_validation_rule_based_fields(
         if regex_rule:
             js_pattern = get_regex_parameters_from_inputted_rule(regex_rule)
 
+    print(js_is_array)
     return (
         js_is_array,
         js_format,
@@ -4470,7 +4500,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             explicit_is_array = True
         else:
             self.type = None
-            explicit_is_array = False
+            explicit_is_array = None
         (
             self.is_array,
             self.format,

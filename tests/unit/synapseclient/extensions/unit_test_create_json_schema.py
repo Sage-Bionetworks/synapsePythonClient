@@ -193,7 +193,7 @@ class TestJSONSchema:
 @pytest.mark.parametrize(
     "node_name, expected_type, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
-        # Node with no columnType - all constraint fields should be None/False
+        # Node with no columnType -all constraint fields should be None/False
         ("NoRules", None, False, None, None, None, None),
         # Node with columnType "string" - type is set to STRING via columnType
         ("String", AtomicColumnType.STRING, False, None, None, None, None),
@@ -269,9 +269,11 @@ def test_node_init(
         ([], False, False, None, None, None, None),
         # If there are no "list" validation rule, explicit_is_array is set to True, expected_is_array is True
         ([], True, True, None, None, None, None),
-        # If there is a "list" validation rule, explicit_is_array is set to False, expected_is_array is True
-        (["list"], False, True, None, None, None, None),
-        # If there is a "list" validation rule, explicit_is_array is set to True, expected_is_array is True
+        # If there is a "list" validation rule, explicit_is_array in None,  expected_is_array is True
+        (["list"], None, True, None, None, None, None),
+        # If explicit_is_array is False, expected_is_array is False
+        (["list"], False, False, None, None, None, None),
+        # If explicit_is_array  True, expected_is_array is True
         (["list"], True, True, None, None, None, None),
         # If there is an "inRange" rule, minimum and maximum are extracted and set
         (["inRange 50 100"], False, False, 50, 100, None, None),
@@ -301,8 +303,9 @@ def test_node_init(
     ids=[
         "No rules",
         "No rules, explicit_is_array",
-        "List rule",
-        "List rule, explicit_is_array",
+        "List rule, explicit_is_array is None",
+        "List rule, explicit_is_array is False",
+        "List rule, explicit_is_array is True",
         "InRange",
         "Regex",
         "Date",
@@ -311,7 +314,7 @@ def test_node_init(
 )
 def test_get_validation_rule_based_fields_no_explicit_type(
     validation_rules: list[str],
-    explicit_is_array: bool,
+    explicit_is_array: Optional[bool],
     expected_is_array: bool,
     expected_min: Optional[float],
     expected_max: Optional[float],
