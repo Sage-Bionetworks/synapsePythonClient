@@ -49,7 +49,7 @@ trace.set_tracer_provider(
 trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 tracer = trace.get_tracer("my_tracer")
 
-PARENT_PROJECT = "syn70984427"
+PARENT_PROJECT = "syn$FILL_ME_IN"
 S3_BUCKET = "s3://$FILL_ME_IN"
 S3_PROFILE = "$FILL_ME_IN"
 
@@ -368,16 +368,6 @@ def execute_walk_test_oop(
     with tracer.start_as_current_span(f"manual_walk__{test_name}"):
         time_before_walking_tree = perf_counter()
 
-        # Create descriptive log file name with timestamp
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file_path = os.path.expanduser(
-            f"~/upload_benchmark_{test_name}_{timestamp}.log"
-        )
-        with open(log_file_path, "a") as log_file:
-            log_file.write(f"Test: {test_name}\n")
-            start_time = datetime.datetime.now()
-            log_file.write(f"Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-
         root_project = Project(id=PARENT_PROJECT)
         parents = {path: root_project}
         for directory_path, directory_names, file_names in os.walk(path):
@@ -406,14 +396,6 @@ def execute_walk_test_oop(
                 )
                 parent_container.files.append(new_file)
         asyncio.run(root_project.store_async())
-
-        # Write end time and duration to log file
-        with open(log_file_path, "a") as log_file:
-            end_time = datetime.datetime.now()
-            duration = perf_counter() - time_before_walking_tree
-            log_file.write(f"End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-            log_file.write(f"Duration: {duration:.2f} seconds\n")
-            log_file.write("-" * 50 + "\n")
         print(
             f"\nTime to walk and sync tree - OOP: {perf_counter() - time_before_walking_tree}"
         )
@@ -484,25 +466,25 @@ def execute_test_suite(
 
 syn = synapseclient.Synapse(debug=True, http_timeout_seconds=600)
 synapseclient.Synapse.enable_open_telemetry()
-root_path = os.path.expanduser("~/benchmarking3")
+root_path = os.path.expanduser("~/benchmarking")
 
 # Log-in with ~.synapseConfig `authToken`
 syn.login()
 
-# print("25 Files - 25MiB")
+print("25 Files - 25MiB")
 # 25 Files - 25MiB -----------------------------------------------------------------------
-# depth = 1
-# sub_directories = 1
-# files_per_directory = 25
-# size_mib = 25
+depth = 1
+sub_directories = 1
+files_per_directory = 25
+size_mib = 25
 
-# execute_test_suite(
-#     path=root_path,
-#     depth_of_directory_tree=depth,
-#     num_sub_directories=sub_directories,
-#     num_files_per_directory=files_per_directory,
-#     total_size_of_files_mib=size_mib,
-# )
+execute_test_suite(
+    path=root_path,
+    depth_of_directory_tree=depth,
+    num_sub_directories=sub_directories,
+    num_files_per_directory=files_per_directory,
+    total_size_of_files_mib=size_mib,
+)
 
 # print("1 Files - 10MiB")
 # ## 1 Files - 10MiB -----------------------------------------------------------------------
@@ -640,44 +622,12 @@ syn.login()
 #     total_size_of_files_mib=size_mib,
 # )
 
-# print("4 Files - 400GB")
-# # 4 Files - 400GB -----------------------------------------------------------------------
-# depth = 1
-# sub_directories = 1
-# files_per_directory = 4
-# size_mib = 4 * 100 * 1024
-
-# execute_test_suite(
-#     path=root_path,
-#     depth_of_directory_tree=depth,
-#     num_sub_directories=sub_directories,
-#     num_files_per_directory=files_per_directory,
-#     total_size_of_files_mib=size_mib,
-# )
-
-
 # print("45 File - 100GB")
 # # 45 File - 100GB -----------------------------------------------------------------------
 # depth = 1
 # sub_directories = 1
 # files_per_directory = 45
 # size_mib = 45 * 100 * 1024
-
-# execute_test_suite(
-#     path=root_path,
-#     depth_of_directory_tree=depth,
-#     num_sub_directories=sub_directories,
-#     num_files_per_directory=files_per_directory,
-#     total_size_of_files_mib=size_mib,
-# )
-
-
-# print("4 Files - 1MB")
-# # 4 Files - 1MB -----------------------------------------------------------------------
-# depth = 1
-# sub_directories = 1
-# files_per_directory = 4
-# size_mib = 4 * 1024
 
 # execute_test_suite(
 #     path=root_path,
