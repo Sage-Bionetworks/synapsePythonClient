@@ -4362,10 +4362,13 @@ def _get_validation_rule_based_fields(
             js_is_array = implicit_is_array
             if implicit_is_array:
                 msg = (
-                    f"No columnType is set for property: {name}, "
-                    "but a list validation rule is present. "
-                    "Please set the columnType as a list-type."
-                    "This behavior is deprecated and list validation rules will no longer be used."
+                    f"A list validation rule is set for property: {name}, "
+                    f"but columnType is not a list type (current value: {column_type}). "
+                    "To properly define an array property, set columnType to a list type "
+                    "(e.g., 'string_list', 'integer_list', 'boolean_list') "
+                    "instead of using the list validation rule."
+                    "This behavior is deprecated and list validation rules will no longer "
+                    "be used in the future.."
                 )
                 logger.warning(msg)
             else:
@@ -4379,14 +4382,14 @@ def _get_validation_rule_based_fields(
                 msg = (
                     f"For property: {name}, the columnType is a list-type: {column_type} "
                     "but no list validation rule is present. "
-                    "Using columnType to set type."
+                    "The columnType will be used to set type."
                 )
                 logger.warning(msg)
             else:
                 msg = (
                     f"For property: {name}, the columnType is not a list-type: {column_type} "
                     "but a list validation rule is present. "
-                    "Using columnType to set type."
+                    "The columnType will be used to set type."
                 )
                 logger.warning(msg)
 
