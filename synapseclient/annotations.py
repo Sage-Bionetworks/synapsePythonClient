@@ -232,7 +232,6 @@ def to_submission_annotations(
     id: typing.Union[str, int],
     etag: str,
     annotations: typing.Dict[str, typing.Any],
-    is_private: bool = True,
     logger: typing.Optional[typing.Any] = None,
 ) -> typing.Dict[str, typing.Any]:
     """
