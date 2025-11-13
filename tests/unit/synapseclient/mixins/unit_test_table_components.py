@@ -2,6 +2,7 @@ import os
 import re
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from io import BytesIO
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
@@ -36,6 +37,7 @@ from synapseclient.models.mixins.table_components import (
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
+    csv_to_pandas_df,
 )
 from synapseclient.models.table_components import (
     ActionRequiredCount,
@@ -71,6 +73,9 @@ DELETE_ENTITY_PATCH = "synapseclient.models.mixins.table_components.delete_entit
 _UPSERT_ROWS_ASYNC_PATCH = (
     "synapseclient.models.mixins.table_components._upsert_rows_async"
 )
+DEFAULT_QUOTE_CHARACTER = '"'
+DEFAULT_SEPARATOR = ","
+DEFAULT_ESCAPSE_CHAR = "\\"
 
 
 class TestTableStoreMixin:
@@ -3675,3 +3680,286 @@ class TestQueryTableNextPage:
             assert result.select_columns[0].name == "column1"
             assert result.select_columns[0].column_type == "STRING"
             assert result.select_columns[0].id == "12345"
+
+
+class TestCsvToPandasDf:
+    """Test suite for csv_to_pandas_df function focusing on date and list columns."""
+
+    @pytest.fixture
+    def csv_with_date_columns(self):
+        """CSV content with date columns (epoch time in milliseconds)."""
+        return "id,name,created_date\n1,Alice,1609459200000\n2,Bob,1609545600000\n3,Charlie,1609632000000"
+
+    @pytest.fixture
+    def csv_with_list_columns(self):
+        """CSV content with integer, boolean, and string list columns with NAs."""
+        return 'name,age,city,number,bool,string,number_list,bool_list,string_list\nAlice,30,New York,42,"True","hello","[1, 2, 3]","[true, false, true]","[1, 2]"\nBob,25,Los Angeles,10,"False","world",,"[false, true]","[3]"\nCharlie,35,Chicago,99,"True","test","[6, 7, 8, 9]",,"[4, 5, 6]"'
+
+    @pytest.fixture
+    def csv_with_list_columns_with_na_in_items_and_date_columns(self):
+        """CSV content with list columns containing NA values within list items. Use null instead of None to avoid type errors for json.loads."""
+        return 'name,age,city,number,bool,string,created_date,number_list,bool_list,string_list,userid_list,entityid_list\nAlice,30,New York,42,"True","hello",1609459200000,"[1, null, 3]","[true, null, false]","[\\"tag1\\", null, \\"tag3\\"]","[123, null, 456]","[\\"syn123\\", null, \\"syn456\\"]"\nBob,25,Los Angeles,,"False","world",1609545600000,"[null, 5]","[null, true]","[null, \\"tag2\\"]","[null, 789]","[null, \\"syn789\\"]"\nCharlie,35,Chicago,99,"True","test",1609632000000,"[6, null, null, 9]","[null, null, false]","[null, \\"tag4\\", null]","[101, null, null, 202]","[\\"syn101\\", null, null, \\"syn202\\"]"'
+
+    @pytest.fixture
+    def csv_with_date_and_list_columns(self):
+        """CSV content with both date and list columns."""
+        return 'id,name,created_date,number,bool,string,number_list,bool_list,string_list\n1,Alice,1609459200000,42,"True","hello","[1, 2, 3]","[true, false, true]","[\\"tag1\\", \\"tag2\\"]"\n2,Bob,1609545600000,10,"False","world",,"[false, true]","[\\"tag3\\"]"\n3,Charlie,1609632000000,99,"True","test","[6, 7, 8, 9]",,"[\\"tag4\\", \\"tag5\\", \\"tag6\\"]"'
+
+    @pytest.fixture
+    def csv_with_row_id_and_version_and_etag_in_index(self):
+        """CSV content with row id, version, and etag in index."""
+        return 'ROW_ID,ROW_VERSION,ROW_ETAG,name,age,city,number,bool,string,created_date,number_list,bool_list,string_list,userid_list,entityid_list\n1,1,test-etag,Alice,30,New York,42,"True","hello",1609459200000,"[1, null, 3]","[true, null, false]","[\\"tag1\\", null, \\"tag3\\"]","[123, null, 456]","[\\"syn123\\", null, \\"syn456\\"]"\n2,1,test-etag,Bob,25,Los Angeles,,"False","world",1609545600000,,"[null, true]","[null, \\"tag2\\"]","[null, 789]","[null, \\"syn789\\"]"\n3,1,test-etag,Charlie,35,Chicago,99,"True","test",1609632000000,"[6, null, null, 9]","[null, null, false]","[null, \\"tag4\\", null]","[101, null, null, 202]","[\\"syn101\\", null, null, \\"syn202\\"]"'
+
+    def test_csv_to_pandas_df_with_date_columns(self, csv_with_date_columns):
+        """Test csv_to_pandas_df correctly converts date columns to datetime."""
+        # WHEN converting CSV with date columns
+        csv_file = BytesIO(csv_with_date_columns.encode("utf-8"))
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            date_columns=["created_date"],
+        )
+        # THEN assert the date column is converted to datetime
+        assert str(df["created_date"].dtype) == "datetime64[ns, UTC]"
+
+        expected_dates = pd.to_datetime(
+            [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
+        )
+        # THEN assert the create_date column is equal to the expected dates
+        pd.testing.assert_series_equal(
+            df["created_date"], pd.Series(expected_dates), check_names=False
+        )
+
+    def test_csv_to_pandas_df_with_all_list_columns(self, csv_with_list_columns):
+        """Test csv_to_pandas_df correctly parses all list column types together."""
+        # WHEN converting CSV with all list column types
+        csv_file = BytesIO(csv_with_list_columns.encode("utf-8"))
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            list_columns=["number_list", "bool_list", "string_list"],
+            list_column_types={
+                "number_list": "INTEGER_LIST",
+                "bool_list": "BOOLEAN_LIST",
+                "string_list": "STRING_LIST",
+            },
+        )
+        # expected dataframe content
+        expected_df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+                "number": [42, 10, 99],
+                "bool": [True, False, True],
+                "string": ["hello", "world", "test"],
+                "number_list": [[1, 2, 3], [], [6, 7, 8, 9]],
+                "bool_list": [[True, False, True], [False, True], []],
+                "string_list": [
+                    ["1", "2"],
+                    ["3"],
+                    ["4", "5", "6"],
+                ],  # integers are converted to strings
+            }
+        )
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
+
+    def test_csv_to_pandas_df_with_date_and_list_columns(
+        self, csv_with_date_and_list_columns
+    ):
+        """Test csv_to_pandas_df correctly handles both date and list columns together."""
+        # WHEN converting CSV with both date and list columns
+        csv_file = BytesIO(csv_with_date_and_list_columns.encode("utf-8"))
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            date_columns=["created_date"],
+            list_columns=["number_list", "bool_list", "string_list"],
+            list_column_types={
+                "number_list": "INTEGER_LIST",
+                "bool_list": "BOOLEAN_LIST",
+                "string_list": "STRING_LIST",
+            },
+        )
+        # expected dataframe content
+        expected_df = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "name": ["Alice", "Bob", "Charlie"],
+                "created_date": pd.to_datetime(
+                    [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
+                ),
+                "number": [42, 10, 99],
+                "bool": [True, False, True],
+                "string": ["hello", "world", "test"],
+                "number_list": [[1, 2, 3], [], [6, 7, 8, 9]],
+                "bool_list": [[True, False, True], [False, True], []],
+                "string_list": [["tag1", "tag2"], ["tag3"], ["tag4", "tag5", "tag6"]],
+            }
+        )
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
+
+    def test_csv_to_pandas_df_list_columns_without_types(self, csv_with_list_columns):
+        """Test csv_to_pandas_df handles list columns without explicit list_column_types. NAs are filled with empty lists."""
+        # WHEN converting CSV with list columns but no list_column_types
+        csv_file = BytesIO(csv_with_list_columns.encode("utf-8"))
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            list_columns=["number_list", "bool_list", "string_list"],
+        )
+        expected_df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+                "number": [42, 10, 99],
+                "bool": [True, False, True],
+                "string": ["hello", "world", "test"],
+                "number_list": [[1, 2, 3], [], [6, 7, 8, 9]],
+                "bool_list": [[True, False, True], [False, True], []],
+                "string_list": [
+                    [1, 2],
+                    [3],
+                    [4, 5, 6],
+                ],  # integers are not converted to strings since they are not in list_column_types
+            }
+        )
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
+
+    def test_csv_to_pandas_df_all_list_types_with_na_in_items_and_date_columns(
+        self, csv_with_list_columns_with_na_in_items_and_date_columns
+    ):
+        """Test csv_to_pandas_df handles NA values within all list column types and date columns."""
+        # WHEN converting CSV with all list types containing None values and date columns
+        csv_file = BytesIO(
+            csv_with_list_columns_with_na_in_items_and_date_columns.encode("utf-8")
+        )
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            date_columns=["created_date"],
+            list_columns=[
+                "number_list",
+                "bool_list",
+                "string_list",
+                "userid_list",
+                "entityid_list",
+            ],
+            list_column_types={
+                "number_list": "INTEGER_LIST",
+                "bool_list": "BOOLEAN_LIST",
+                "string_list": "STRING_LIST",
+                "userid_list": "USERID_LIST",
+                "entityid_list": "ENTITYID_LIST",
+            },
+        )
+        # expected dataframe content
+        expected_df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+                "number": [
+                    42.0,
+                    np.nan,
+                    99.0,
+                ],  # Integers are converted to floats due to the presence of NaN values
+                "bool": [
+                    True,
+                    False,
+                    True,
+                ],  # Read as strings from CSV, and converted to booleans
+                "string": ["hello", "world", "test"],
+                "created_date": pd.to_datetime(
+                    [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
+                ),
+                "number_list": [
+                    [1, None, 3],
+                    [None, 5],
+                    [6, None, None, 9],
+                ],  # None values remain as None
+                "bool_list": [
+                    [True, None, False],
+                    [None, True],
+                    [None, None, False],
+                ],  # None values are preserved as None
+                "string_list": [
+                    ["tag1", "", "tag3"],
+                    ["", "tag2"],
+                    ["", "tag4", ""],
+                ],  # None values are preserved as ""
+                "userid_list": [
+                    ["123", "", "456"],
+                    ["", "789"],
+                    ["101", "", "", "202"],
+                ],  # None values are preserved as ""
+                "entityid_list": [
+                    ["syn123", "", "syn456"],
+                    ["", "syn789"],
+                    ["syn101", "", "", "syn202"],
+                ],  # None values are preserved as ""
+            }
+        )
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
+
+    def test_csv_pandas_df_with_row_id_and_version_etag_in_index(
+        self, csv_with_row_id_and_version_and_etag_in_index
+    ):
+        """Test csv_to_pandas_df handles row id and version in index. NAs are filled with empty lists."""
+        # WHEN converting CSV with row id and version in index
+        csv_file = BytesIO(
+            csv_with_row_id_and_version_and_etag_in_index.encode("utf-8")
+        )
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            row_id_and_version_in_index=True,
+            date_columns=["created_date"],
+            list_columns=[
+                "number_list",
+                "bool_list",
+                "string_list",
+                "userid_list",
+                "entityid_list",
+            ],
+            list_column_types={
+                "number_list": "INTEGER_LIST",
+                "bool_list": "BOOLEAN_LIST",
+                "string_list": "STRING_LIST",
+                "userid_list": "USERID_LIST",
+                "entityid_list": "ENTITYID_LIST",
+            },
+        )
+        # expected dataframe content
+        expected_df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+                "number": [
+                    42.0,
+                    np.nan,
+                    99.0,
+                ],  # Integers are converted to floats due to the presence of NaN values
+                "bool": [True, False, True],
+                "string": ["hello", "world", "test"],
+                "created_date": pd.to_datetime(
+                    [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
+                ),
+                "number_list": [[1, None, 3], [], [6, None, None, 9]],
+                "bool_list": [[True, None, False], [None, True], [None, None, False]],
+                "string_list": [["tag1", "", "tag3"], ["", "tag2"], ["", "tag4", ""]],
+                "userid_list": [
+                    ["123", "", "456"],
+                    ["", "789"],
+                    ["101", "", "", "202"],
+                ],
+                "entityid_list": [
+                    ["syn123", "", "syn456"],
+                    ["", "syn789"],
+                    ["syn101", "", "", "syn202"],
+                ],
+            },
+            index=["1_1_test-etag", "2_1_test-etag", "3_1_test-etag"],
+        )
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
