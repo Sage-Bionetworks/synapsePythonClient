@@ -508,8 +508,6 @@ class SubmissionStatus(
         response = await evaluation_services.get_submission_status(
             submission_id=self.id, synapse_client=synapse_client
         )
-        print("raw response")
-        print(response)
         self.fill_from_dict(response)
 
         # Fetch evaluation_id from the associated submission since it's not in the SubmissionStatus response
