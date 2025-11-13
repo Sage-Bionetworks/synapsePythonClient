@@ -1817,10 +1817,10 @@ def _construct_partial_rows_for_upsert(
                 if (
                     isinstance(cell_value, list) and len(cell_value) > 0
                 ) or not cell_is_na:
-                    partial_change_values[column_id] = (
-                        _convert_pandas_row_to_python_types(
-                            cell=cell_value, column_type=column_type
-                        )
+                    partial_change_values[
+                        column_id
+                    ] = _convert_pandas_row_to_python_types(
+                        cell=cell_value, column_type=column_type
                     )
                 else:
                     partial_change_values[column_id] = None
@@ -2006,8 +2006,8 @@ async def _upsert_rows_async(
     method name.
     """
     test_import_pandas()
-    from pandas import DataFrame
     import pandas as pd
+    from pandas import DataFrame
 
     if not entity._last_persistent_instance:
         await entity.get_async(include_columns=True, synapse_client=synapse_client)
@@ -2040,7 +2040,7 @@ async def _upsert_rows_async(
         for col in num_cols:
             values[col] = values[col].replace({pd.NA: None})
             # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
-            if col.startswith('ROW_'):
+            if col.startswith("ROW_"):
                 values[col] = values[col].astype(int)
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
@@ -2078,7 +2078,7 @@ async def _upsert_rows_async(
                 for col in num_cols:
                     results[col] = results[col].replace({pd.NA: None})
                     # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
-                    if col.startswith('ROW_'):
+                    if col.startswith("ROW_"):
                         results[col] = results[col].astype(int)
             (
                 rows_to_update,
@@ -3550,9 +3550,7 @@ class TableStoreRowMixin:
             isinstance(values, str)
             and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
         ):
-            values = csv_to_pandas_df(
-                filepath=values, **(read_csv_kwargs or {})
-            )
+            values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
         elif isinstance(values, DataFrame):
             values = values.convert_dtypes()
         elif isinstance(values, str):

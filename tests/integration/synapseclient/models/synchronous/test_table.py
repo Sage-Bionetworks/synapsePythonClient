@@ -218,7 +218,8 @@ class TestTableCreation:
         # THEN the table should have proper schema and data
         results = query(f"SELECT * FROM {table_dict.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], pd.DataFrame(dict_data)["column_string"].convert_dtypes()
+            results["column_string"],
+            pd.DataFrame(dict_data)["column_string"].convert_dtypes(),
         )
 
         # Test with DataFrame data
@@ -783,7 +784,8 @@ class TestRowStorage:
             results["column_string"], data_for_table["column_string"].convert_dtypes()
         )
         pd.testing.assert_series_equal(
-            results["column_to_order_on"], data_for_table["column_to_order_on"].convert_dtypes()
+            results["column_to_order_on"],
+            data_for_table["column_to_order_on"].convert_dtypes(),
         )
         pd.testing.assert_series_equal(
             results["large_string"], data_for_table["large_string"].convert_dtypes()
@@ -846,7 +848,8 @@ class TestRowStorage:
             results["column_string"], data_for_table["column_string"].convert_dtypes()
         )
         pd.testing.assert_series_equal(
-            results["column_to_order_on"], data_for_table["column_to_order_on"].convert_dtypes()
+            results["column_to_order_on"],
+            data_for_table["column_to_order_on"].convert_dtypes(),
         )
         pd.testing.assert_series_equal(
             results["large_string"], data_for_table["large_string"].convert_dtypes()
@@ -911,7 +914,8 @@ class TestRowStorage:
             results["column_string"], data_for_table["column_string"].convert_dtypes()
         )
         pd.testing.assert_series_equal(
-            results["column_to_order_on"], data_for_table["column_to_order_on"].convert_dtypes()
+            results["column_to_order_on"],
+            data_for_table["column_to_order_on"].convert_dtypes(),
         )
         pd.testing.assert_series_equal(
             results["large_string"], data_for_table["large_string"].convert_dtypes()
@@ -1005,10 +1009,12 @@ class TestUpsertRows:
         # THEN the values should be updated and new rows added
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], updated_and_new_data["column_string"].convert_dtypes()
+            results["column_string"],
+            updated_and_new_data["column_string"].convert_dtypes(),
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], updated_and_new_data["column_key_2"].convert_dtypes()
+            results["column_key_2"],
+            updated_and_new_data["column_key_2"].convert_dtypes(),
         )
         assert len(results) == 6  # 3 original + 3 new
 
@@ -1121,13 +1127,16 @@ class TestUpsertRows:
         # THEN matching rows should be updated and new rows added
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], modified_data_for_table["column_string"].convert_dtypes()
+            results["column_string"],
+            modified_data_for_table["column_string"].convert_dtypes(),
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], modified_data_for_table["column_key_2"].convert_dtypes()
+            results["column_key_2"],
+            modified_data_for_table["column_key_2"].convert_dtypes(),
         )
         pd.testing.assert_series_equal(
-            results["column_key_3"], modified_data_for_table["column_key_3"].convert_dtypes()
+            results["column_key_3"],
+            modified_data_for_table["column_key_3"].convert_dtypes(),
         )
         assert len(results) == 6  # 3 updated + 3 new
 
@@ -1226,13 +1235,16 @@ class TestUpsertRows:
         # THEN all rows should be updated or inserted correctly
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], modified_data_for_table["column_string"].convert_dtypes()
+            results["column_string"],
+            modified_data_for_table["column_string"].convert_dtypes(),
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], modified_data_for_table["column_key_2"].convert_dtypes()
+            results["column_key_2"],
+            modified_data_for_table["column_key_2"].convert_dtypes(),
         )
         pd.testing.assert_series_equal(
-            results["large_string"], modified_data_for_table["large_string"].convert_dtypes()
+            results["large_string"],
+            modified_data_for_table["large_string"].convert_dtypes(),
         )
         assert len(results) == 6
 
@@ -1404,24 +1416,70 @@ class TestUpsertRows:
                     "column_double": [1.1, None, 2.2],
                     "column_integer": [1, None, 3],
                     "column_boolean": [True, None, True],
-                    "column_date": [utils.to_unix_epoch_time("2021-01-01"), None, utils.to_unix_epoch_time("2021-01-03")],
-                    "column_filehandleid": [file.file_handle.id, None, file.file_handle.id],
+                    "column_date": [
+                        utils.to_unix_epoch_time("2021-01-01"),
+                        None,
+                        utils.to_unix_epoch_time("2021-01-03"),
+                    ],
+                    "column_filehandleid": [
+                        file.file_handle.id,
+                        None,
+                        file.file_handle.id,
+                    ],
                     "column_entityid": [file.id, None, file.id],
                     "column_submissionid": [submission.id, None, submission.id],
                     "column_evaluationid": [evaluation.id, None, evaluation.id],
-                    "column_link": ["https://www.synapse.org/Profile:", None, "https://www.synapse.org/Profile:"],
+                    "column_link": [
+                        "https://www.synapse.org/Profile:",
+                        None,
+                        "https://www.synapse.org/Profile:",
+                    ],
                     "column_mediumtext": ["value1", None, "value3"],
                     "column_largetext": ["value1", None, "value3"],
-                    "column_userid": [self.syn.credentials.owner_id, None, self.syn.credentials.owner_id],
-                    "column_string_LIST": [["value1", "value2"], [], ["value5", "value6"]],
+                    "column_userid": [
+                        self.syn.credentials.owner_id,
+                        None,
+                        self.syn.credentials.owner_id,
+                    ],
+                    "column_string_LIST": [
+                        ["value1", "value2"],
+                        [],
+                        ["value5", "value6"],
+                    ],
                     "column_integer_LIST": [[1, 2], [], [5, 6]],
-                    "column_boolean_LIST": [[True, False], [], [True, False]], # empty values to [] in csv_to_pandas_df
-                    "column_date_LIST": [[utils.to_unix_epoch_time("2021-01-01"), utils.to_unix_epoch_time("2021-01-02")], [], [utils.to_unix_epoch_time("2021-01-05"), utils.to_unix_epoch_time("2021-01-06")]],
-                    "column_entity_id_list": [[file.id, file.id], [], [file.id, file.id]],
-                    "column_user_id_list": [[self.syn.credentials.owner_id, self.syn.credentials.owner_id], [], [self.syn.credentials.owner_id, self.syn.credentials.owner_id]],
-                    "column_json": [{"key1": "value1", "key2": 2}, [], {"key5": "value5", "key6": 6}],
+                    "column_boolean_LIST": [
+                        [True, False],
+                        [],
+                        [True, False],
+                    ],  # empty values to [] in csv_to_pandas_df
+                    "column_date_LIST": [
+                        [
+                            utils.to_unix_epoch_time("2021-01-01"),
+                            utils.to_unix_epoch_time("2021-01-02"),
+                        ],
+                        [],
+                        [
+                            utils.to_unix_epoch_time("2021-01-05"),
+                            utils.to_unix_epoch_time("2021-01-06"),
+                        ],
+                    ],
+                    "column_entity_id_list": [
+                        [file.id, file.id],
+                        [],
+                        [file.id, file.id],
+                    ],
+                    "column_user_id_list": [
+                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                        [],
+                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    ],
+                    "column_json": [
+                        {"key1": "value1", "key2": 2},
+                        [],
+                        {"key5": "value5", "key6": 6},
+                    ],
                 }
-            ).convert_dtypes() # resolve datatype issue such as StringDtype vs object
+            ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
             pd.testing.assert_frame_equal(results_after_insert, expected_results)
 
             # Create a second test file to update references
@@ -1547,24 +1605,66 @@ class TestUpsertRows:
                     "column_double": [11.2, None, 33.4],
                     "column_integer": [11, None, 33],
                     "column_boolean": [False, None, False],
-                    "column_date": [utils.to_unix_epoch_time("2022-01-01"), None, utils.to_unix_epoch_time("2022-01-03")],
-                    "column_filehandleid": [file2.file_handle.id, None, file2.file_handle.id],
+                    "column_date": [
+                        utils.to_unix_epoch_time("2022-01-01"),
+                        None,
+                        utils.to_unix_epoch_time("2022-01-03"),
+                    ],
+                    "column_filehandleid": [
+                        file2.file_handle.id,
+                        None,
+                        file2.file_handle.id,
+                    ],
                     "column_entityid": [file2.id, None, file2.id],
                     "column_submissionid": [submission.id, None, submission.id],
                     "column_evaluationid": [evaluation.id, None, evaluation.id],
-                    "column_link": ["https://www.synapse.org/", None, "https://www.synapse.org/"],
+                    "column_link": [
+                        "https://www.synapse.org/",
+                        None,
+                        "https://www.synapse.org/",
+                    ],
                     "column_mediumtext": ["value11", None, "value33"],
                     "column_largetext": ["value11", None, "value33"],
-                    "column_userid": [self.syn.credentials.owner_id, None, self.syn.credentials.owner_id],
-                    "column_string_LIST": [["value11", "value22"], [], ["value55", "value66"]],
+                    "column_userid": [
+                        self.syn.credentials.owner_id,
+                        None,
+                        self.syn.credentials.owner_id,
+                    ],
+                    "column_string_LIST": [
+                        ["value11", "value22"],
+                        [],
+                        ["value55", "value66"],
+                    ],
                     "column_integer_LIST": [[11, 22], [], [55, 66]],
                     "column_boolean_LIST": [[False, True], [], [False, True]],
-                    "column_date_LIST": [[utils.to_unix_epoch_time("2022-01-01"), utils.to_unix_epoch_time("2022-01-02")], [], [utils.to_unix_epoch_time("2022-01-05"), utils.to_unix_epoch_time("2022-01-06")]],
-                    "column_entity_id_list": [[file2.id, file2.id], [], [file2.id, file2.id]],
-                    "column_user_id_list": [[self.syn.credentials.owner_id, self.syn.credentials.owner_id], [], [self.syn.credentials.owner_id, self.syn.credentials.owner_id]],
-                    "column_json": [{'key11': "value11", 'key22': 22}, [], {'key55': "value55", 'key66': 66}],
+                    "column_date_LIST": [
+                        [
+                            utils.to_unix_epoch_time("2022-01-01"),
+                            utils.to_unix_epoch_time("2022-01-02"),
+                        ],
+                        [],
+                        [
+                            utils.to_unix_epoch_time("2022-01-05"),
+                            utils.to_unix_epoch_time("2022-01-06"),
+                        ],
+                    ],
+                    "column_entity_id_list": [
+                        [file2.id, file2.id],
+                        [],
+                        [file2.id, file2.id],
+                    ],
+                    "column_user_id_list": [
+                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                        [],
+                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    ],
+                    "column_json": [
+                        {"key11": "value11", "key22": 22},
+                        [],
+                        {"key55": "value55", "key66": 66},
+                    ],
                 }
-            ).convert_dtypes() # resolve datatype issue such as StringDtype vs object
+            ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
             pd.testing.assert_frame_equal(results, expected_results)
 
             # WHEN I upsert with multiple primary keys and null values
@@ -1770,7 +1870,9 @@ class TestDeleteRows:
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
             results["column_string"],
-            pd.DataFrame({"column_string": ["value1", "value3"]})["column_string"].convert_dtypes(),
+            pd.DataFrame({"column_string": ["value1", "value3"]})[
+                "column_string"
+            ].convert_dtypes(),
         )
 
         # AND only 2 rows should exist on the table
@@ -1805,7 +1907,9 @@ class TestDeleteRows:
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
             results["column_string"],
-            pd.DataFrame({"column_string": ["value1"]})["column_string"].convert_dtypes(),
+            pd.DataFrame({"column_string": ["value1"]})[
+                "column_string"
+            ].convert_dtypes(),
         )
 
         # AND only 1 row should exist on the table

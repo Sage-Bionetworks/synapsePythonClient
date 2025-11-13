@@ -6,10 +6,10 @@ from io import BytesIO
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
-import numpy as np
 from synapseclient import Synapse
 from synapseclient.api import ViewEntityType, ViewTypeMask
 from synapseclient.core.constants.concrete_types import (
@@ -3759,7 +3759,7 @@ class TestCsvToPandasDf:
                     ["4", "5", "6"],
                 ],  # integers are converted to strings
             }
-        ).convert_dtypes() # resolve datatype issue such as StringDtype vs object
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
         # THEN assert the dataframe is equal to the expected dataframe
         pd.testing.assert_frame_equal(df, expected_df)
 
@@ -3794,7 +3794,7 @@ class TestCsvToPandasDf:
                 "bool_list": [[True, False, True], [False, True], []],
                 "string_list": [["tag1", "tag2"], ["tag3"], ["tag4", "tag5", "tag6"]],
             }
-        ).convert_dtypes() # resolve datatype issue such as StringDtype vs object
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
         # THEN assert the dataframe is equal to the expected dataframe
         pd.testing.assert_frame_equal(df, expected_df)
 
@@ -3822,7 +3822,7 @@ class TestCsvToPandasDf:
                     [4, 5, 6],
                 ],  # integers are not converted to strings since they are not in list_column_types
             }
-        ).convert_dtypes() # resolve datatype issue such as StringDtype vs object
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
         # THEN assert the dataframe is equal to the expected dataframe
         pd.testing.assert_frame_equal(df, expected_df)
 
@@ -3862,7 +3862,7 @@ class TestCsvToPandasDf:
                     42,
                     None,
                     99,
-                ], # Integers are converted to floats due to the presence of NaN values, but convert_dtypes converts them to int via convert_dtypes
+                ],  # Integers are converted to floats due to the presence of NaN values, but convert_dtypes converts them to int via convert_dtypes
                 "bool": [
                     True,
                     False,
@@ -3898,7 +3898,7 @@ class TestCsvToPandasDf:
                     ["syn101", "", "", "syn202"],
                 ],  # None values are preserved as ""
             }
-        ).convert_dtypes() # resolve datatype issue such as StringDtype vs object
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
         # THEN assert the dataframe is equal to the expected dataframe
         pd.testing.assert_frame_equal(df, expected_df)
 
@@ -3960,6 +3960,6 @@ class TestCsvToPandasDf:
                 ],
             },
             index=["1_1_test-etag", "2_1_test-etag", "3_1_test-etag"],
-        ).convert_dtypes() # resolve datatype issue such as StringDtype vs object
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
         # THEN assert the dataframe is equal to the expected dataframe
         pd.testing.assert_frame_equal(df, expected_df)
