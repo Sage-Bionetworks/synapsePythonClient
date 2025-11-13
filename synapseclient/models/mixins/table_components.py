@@ -1876,7 +1876,6 @@ async def _push_row_updates_to_synapse(
                 entity_id=entity.id,
                 changes=[change],
             )
-
             result = await request.send_job_and_wait_async(
                 synapse_client=client, timeout=job_timeout
             )
@@ -2008,6 +2007,7 @@ async def _upsert_rows_async(
     """
     test_import_pandas()
     from pandas import DataFrame
+    import pandas as pd
 
     if not entity._last_persistent_instance:
         await entity.get_async(include_columns=True, synapse_client=synapse_client)
@@ -2025,7 +2025,7 @@ async def _upsert_rows_async(
     if isinstance(values, dict):
         values = DataFrame(values).convert_dtypes()
     elif isinstance(values, str):
-        values = csv_to_pandas_df(filepath=values, **kwargs).convert_dtypes()
+        values = csv_to_pandas_df(filepath=values, **kwargs)
     elif isinstance(values, DataFrame):
         values = values.convert_dtypes()
     else:
@@ -2034,12 +2034,18 @@ async def _upsert_rows_async(
         )
 
     client = Synapse.get_client(synapse_client=synapse_client)
-
+    # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
+    num_cols = values.select_dtypes(include=["int64", "float64"]).columns
+    if len(num_cols) > 0:
+        for col in num_cols:
+            values[col] = values[col].replace({pd.NA: None})
+            # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
+            if col.startswith('ROW_'):
+                values[col] = values[col].astype(int)
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
         chunk_list.append(values[i : i + rows_per_query])
-
     all_columns_from_df = [f'"{column}"' for column in values.columns]
     contains_etag = entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
     original_synids_and_etags_to_track = {}
@@ -2047,7 +2053,6 @@ async def _upsert_rows_async(
     indexes_of_original_df_with_no_changes = []
     total_row_count_to_update = 0
     row_update_results = None
-
     with logging_redirect_tqdm(loggers=[client.logger]):
         progress_bar = tqdm(
             total=len(values),
@@ -2067,7 +2072,14 @@ async def _upsert_rows_async(
             results = await entity.query_async(
                 query=select_statement, synapse_client=synapse_client
             )
-
+            # Replace pd.NA with None for int64/float64 columns to avoid JSON serialization issues
+            num_cols = results.select_dtypes(include=["int64", "float64"]).columns
+            if len(num_cols) > 0:
+                for col in num_cols:
+                    results[col] = results[col].replace({pd.NA: None})
+                    # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
+                    if col.startswith('ROW_'):
+                        results[col] = results[col].astype(int)
             (
                 rows_to_update,
                 indexes_with_updates,
@@ -2086,7 +2098,6 @@ async def _upsert_rows_async(
             indexes_of_original_df_with_no_changes.extend(indexes_without_updates)
             if syn_id_and_etag_dict:
                 original_synids_and_etags_to_track.update(syn_id_and_etag_dict)
-
             if not dry_run and rows_to_update:
                 row_update_results = await _push_row_updates_to_synapse(
                     entity=entity,
@@ -3541,7 +3552,7 @@ class TableStoreRowMixin:
         ):
             values = csv_to_pandas_df(
                 filepath=values, **(read_csv_kwargs or {})
-            ).convert_dtypes()
+            )
         elif isinstance(values, DataFrame):
             values = values.convert_dtypes()
         elif isinstance(values, str):
