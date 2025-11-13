@@ -4339,6 +4339,7 @@ def _get_validation_rule_based_fields(
     js_maximum = None
     js_pattern = None
 
+    # If an array type is explicitly set then is_array can be set to True
     if explicit_is_array is not None:
         js_is_array = explicit_is_array
 
@@ -4355,10 +4356,12 @@ def _get_validation_rule_based_fields(
 
         # list validation rule is been deprecated for use in deciding type
         # TODO: Sunset both if blocks below: https://sagebionetworks.jira.com/browse/SYNPY-1692
-        implicit_is_array = ValidationRuleName.LIST in validation_rule_names
-        print(implicit_is_array)
 
+        implicit_is_array = ValidationRuleName.LIST in validation_rule_names
         if explicit_is_array is None:
+            # If an array type is not explicitly set then is_array can be set by using
+            # whether or not a list validation rule is present.
+            # Since this is deprecated behavior a warning should be given.
             js_is_array = implicit_is_array
             if implicit_is_array:
                 msg = (
@@ -4378,6 +4381,8 @@ def _get_validation_rule_based_fields(
                 )
                 logger.warning(msg)
         if explicit_is_array != implicit_is_array:
+            # If an array type is explicitly but it is the opposite of whether or not a
+            # list validation rule is present, then the user should be warned of the mismatch.
             if explicit_is_array:
                 msg = (
                     f"For property: {name}, the columnType is a list-type: {column_type} "
