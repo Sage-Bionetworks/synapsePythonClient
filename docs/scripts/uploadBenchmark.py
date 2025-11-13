@@ -287,11 +287,14 @@ def execute_walk_file_sequential(
     path: str,
     test_name: str,
 ) -> None:
-    """Execute the test that uses os.walk to sync all files/folders to synapse.
+    """Execute the test that uses os.walk to upload files/folders to Synapse sequentially.
+    
+    This function uploads files one-by-one in a sequential pattern. Each file is uploaded
+    immediately after creation using asyncio.run(File.store_async()). 
 
     Arguments:
-        path: The path to the root directory
-        test_name: The name of the test to add to the span name
+        path: The path to the root directory containing files to upload
+        test_name: The name of the test to add to the span name and log file
     """
     with tracer.start_as_current_span(f"manual_walk__{test_name}"):
         time_before_walking_tree = perf_counter()
