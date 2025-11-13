@@ -79,7 +79,7 @@ async def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
     filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
     try:
         file = await syn.store_async(File(filepath, parent=project))
-        file2 = syn.get(file)
+        file2 = await syn.get_async(file)
         assert file.externalURL == file2.externalURL
         assert urlparse(file2.externalURL).scheme == "sftp"
 
@@ -116,7 +116,7 @@ async def test_synGet_sftpIntegration(syn, project):
     )
     file = await syn.store_async(File(path=url, parent=project, synapseStore=False))
 
-    junk = syn.get(file, downloadLocation=os.getcwd(), downloadFile=True)
+    junk = await syn.get_async(file, downloadLocation=os.getcwd(), downloadFile=True)
     filecmp.cmp(filepath, junk.path)
 
 

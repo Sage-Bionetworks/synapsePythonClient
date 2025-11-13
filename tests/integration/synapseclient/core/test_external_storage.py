@@ -176,7 +176,7 @@ class TestExernalStorage:
         )
 
         return (
-            self.syn.get(entity=folder_id),
+            await self.syn.get_async(entity=folder_id),
             destination,
             upload_destination["keyPrefixUUID"],
         )

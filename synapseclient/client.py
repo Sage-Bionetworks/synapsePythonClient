@@ -1719,6 +1719,55 @@ class Synapse(object):
                 entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
                 print(syn.getProvenance(entity))
         """
+        return wrap_async_to_sync(self.get_async(entity, **kwargs))
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1623
+    async def get_async(self, entity, **kwargs):
+        """
+        Gets a Synapse entity from the repository service.
+
+        Arguments:
+            entity:           A Synapse ID (e.g. syn123 or syn123.1, with .1 denoting version), a Synapse Entity object,
+                              a plain dictionary in which 'id' maps to a Synapse ID or a local file that is stored in
+                              Synapse (found by the file MD5)
+            version:          The specific version to get.
+                                Defaults to the most recent version. If not denoted in the entity input.
+            downloadFile:     Whether associated files(s) should be downloaded.
+                                Defaults to True.
+            downloadLocation: Directory where to download the Synapse File Entity.
+                                Defaults to the local cache.
+            followLink:       Whether the link returns the target Entity.
+                                Defaults to False.
+            ifcollision:      Determines how to handle file collisions.
+                                May be "overwrite.local", "keep.local", or "keep.both".
+                                Defaults to "keep.both".
+            limitSearch:      A Synanpse ID used to limit the search in Synapse if entity is specified as a local
+                                file.  That is, if the file is stored in multiple locations in Synapse only the ones
+                                in the specified folder/project will be returned.
+            md5: The MD5 checksum for the file, if known. Otherwise if the file is a
+                local file, it will be calculated automatically.
+
+        Returns:
+            A new Synapse Entity object of the appropriate type.
+
+        Example: Using this function
+            Download file into cache
+
+                entity = syn.get('syn1906479')
+                print(entity.name)
+                print(entity.path)
+
+            Download file into current working directory
+
+                entity = syn.get('syn1906479', downloadLocation='.')
+                print(entity.name)
+                print(entity.path)
+
+            Determine the provenance of a locally stored file as indicated in Synapse
+
+                entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
+                print(syn.getProvenance(entity))
+        """
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(
@@ -1754,7 +1803,7 @@ class Synapse(object):
             bundle, entity, kwargs.get("downloadFile", True)
         )
 
-        return_data = self._getWithEntityBundle(
+        return_data = await self._getWithEntityBundle_async(
             entityBundle=bundle, entity=entity, **kwargs
         )
         trace.get_current_span().set_attributes(
@@ -1994,6 +2043,34 @@ class Synapse(object):
         - See [_getEntityBundle][synapseclient.Synapse._getEntityBundle].
         - See [Entity][synapseclient.Entity].
         """
+        return wrap_async_to_sync(
+            self._getWithEntityBundle_async(entityBundle, entity, **kwargs)
+        )
+
+    @deprecated(
+        version="4.9.0",
+        reason="To be removed in 5.0.0. This is a private function and has no direct replacement.",
+    )
+    async def _getWithEntityBundle_async(
+        self, entityBundle: dict, entity: Entity = None, **kwargs
+    ) -> Entity:
+        """
+        Creates a [Entity][synapseclient.Entity] from an entity bundle returned by Synapse.
+        An existing Entity can be supplied in case we want to refresh a stale Entity.
+
+        Arguments:
+            entityBundle: Uses the given dictionary as the meta information of the Entity to get
+            entity:       Optional, entity whose local state will be copied into the returned entity
+            submission:   Optional, access associated files through a submission rather than through an entity.
+
+        Returns:
+            A new Synapse Entity
+
+        Also see:
+        - See [get][synapseclient.Synapse.get].
+        - See [_getEntityBundle][synapseclient.Synapse._getEntityBundle].
+        - See [Entity][synapseclient.Entity].
+        """
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
         kwargs.pop("version", None)
         downloadFile = kwargs.pop("downloadFile", True)
@@ -2041,14 +2118,12 @@ class Synapse(object):
 
             if downloadFile:
                 if file_handle:
-                    wrap_async_to_sync(
-                        coroutine=download_file_entity(
-                            download_location=downloadLocation,
-                            entity=entity,
-                            if_collision=ifcollision,
-                            submission=submission,
-                            synapse_client=self,
-                        )
+                    await download_file_entity(
+                        download_location=downloadLocation,
+                        entity=entity,
+                        if_collision=ifcollision,
+                        submission=submission,
+                        synapse_client=self,
                     )
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = (
@@ -6835,6 +6910,27 @@ class Synapse(object):
         - [synapseclient.Synapse.get][] for information
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
         """
+        return wrap_async_to_sync(self.getSubmission_async(id=id, **kwargs))
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    async def getSubmission_async(
+        self, id: typing.Union[str, int, collections.abc.Mapping], **kwargs
+    ) -> Submission:
+        """
+        Gets a [synapseclient.evaluation.Submission][] object based on a given ID
+        or previous [synapseclient.evaluation.Submission][] object.
+
+        Arguments:
+            id: The ID of the submission to retrieve or a [synapseclient.evaluation.Submission][] object
+
+        Returns:
+            A [synapseclient.evaluation.Submission][] object
+
+        See:
+
+        - [synapseclient.Synapse.get][] for information
+             on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
+        """
 
         submission_id = validate_submission_id(id)
         uri = Submission.getURI(submission_id)
@@ -6854,7 +6950,7 @@ class Synapse(object):
                     annotations
                 )
 
-            related = self._getWithEntityBundle(
+            related = await self._getWithEntityBundle_async(
                 entityBundle=entityBundleJSON,
                 entity=submission["entityId"],
                 submission=submission_id,
