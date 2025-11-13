@@ -109,13 +109,11 @@ def create_folder_structure(
     print(f"total_size_of_files_bytes: {total_size_of_files_bytes}")
     print(f"size_of_each_file_bytes: {size_of_each_file_bytes}")
 
-    chunk_size = MiB  # size of each chunk in bytes
-
     def create_files_in_current_dir(path_to_create_files: str) -> None:
         for i in range(1, num_files_per_directory + 1):
+            chunk_size = MiB  # size of each chunk in bytes
             num_chunks = size_of_each_file_bytes // chunk_size
             filename = os.path.join(path_to_create_files, f"file{i}.txt")
-            # when the file size is right, just modify the beginning to refresh the file
             if (
                 os.path.isfile(filename)
                 and os.path.getsize(filename) == size_of_each_file_bytes
@@ -123,7 +121,6 @@ def create_folder_structure(
                 with open(filename, "r+b") as f:
                     f.seek(0)
                     f.write(os.urandom(chunk_size))
-            # if the file doesn't exist or the size is wrong, create it from scratch
             else:
                 if os.path.isfile(filename):
                     os.remove(filename)
@@ -145,6 +142,7 @@ def create_folder_structure(
     os.makedirs(root_dir, exist_ok=True)
     create_directories_in_current_dir(root_dir, 0)
     return total_dirs, total_files, size_of_each_file_bytes
+
 
 
 def cleanup(
@@ -439,7 +437,7 @@ def execute_test_suite(
     # Cleanup can be changed to delete_local=True when we want to clear the files out
     # This can be kept as False to allow multiple tests with the same file/folder
     # structure to re-use the files on Disk.
-    cleanup(path=path, delete_synapse=True, delete_s3=False, delete_local=False)
+    cleanup(path=path, delete_synapse=True, delete_s3=True, delete_local=False)
     _, total_files, _ = create_folder_structure(
         path=path,
         depth_of_directory_tree=depth_of_directory_tree,
@@ -453,7 +451,7 @@ def execute_test_suite(
     else:
         test_name = f"{total_files}_files_{total_size_of_files_mib}MiB"
 
-    execute_walk_file_sequential(path, test_name)
+    # execute_walk_file_sequential(path, test_name)
 
     # execute_synapseutils_test(path, test_name)
 
