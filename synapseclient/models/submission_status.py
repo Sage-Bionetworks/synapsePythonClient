@@ -35,7 +35,11 @@ class SubmissionStatusSynchronousProtocol(Protocol):
         Returns:
             The SubmissionStatus instance retrieved from Synapse.
 
-        Example: Retrieving a submission status by ID.
+        Raises:
+            ValueError: If the submission status does not have an ID to get.
+
+        Example: Retrieving a submission status by ID
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
@@ -43,7 +47,7 @@ class SubmissionStatusSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            status = SubmissionStatus(id="syn1234").get()
+            status = SubmissionStatus(id="9999999").get()
             print(status)
             ```
         """
@@ -63,9 +67,14 @@ class SubmissionStatusSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            The updated SubmissionStatus instance.
+            The updated SubmissionStatus object.
 
-        Example: Update a submission status.
+        Raises:
+            ValueError: If the submission status is missing required fields.
+
+        Example: Update a submission status
+            &nbsp;
+            Update an existing submission status by first retrieving it, then modifying fields and storing the changes.
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
@@ -73,10 +82,17 @@ class SubmissionStatusSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            status = SubmissionStatus(id="syn1234").get()
+            # Get existing status
+            status = SubmissionStatus(id="9999999").get()
+
+            # Update fields
             status.status = "SCORED"
+            status.submission_annotations = {"score": [85.5]}
+
+            # Store the update
             status = status.store()
-            print("Updated SubmissionStatus.")
+            print(f"Updated status:")
+            print(status)
             ```
         """
         return self
@@ -108,6 +124,8 @@ class SubmissionStatusSynchronousProtocol(Protocol):
             A list of SubmissionStatus objects for the evaluation queue.
 
         Example: Getting all submission statuses for an evaluation
+            &nbsp;
+            Retrieve a list of submission statuses for a specific evaluation, optionally filtered by status.
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
@@ -155,6 +173,8 @@ class SubmissionStatusSynchronousProtocol(Protocol):
             and other response information.
 
         Example: Batch update submission statuses
+            &nbsp;
+            Update multiple submission statuses in a single batch operation for efficiency.
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
@@ -162,12 +182,17 @@ class SubmissionStatusSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            # Prepare list of status updates
-            statuses = [
-                SubmissionStatus(id="syn1", status="SCORED", submission_annotations={"score": [90.0]}),
-                SubmissionStatus(id="syn2", status="SCORED", submission_annotations={"score": [85.0]})
-            ]
+            # Retrieve existing statuses to update
+            statuses = SubmissionStatus.get_all_submission_statuses(
+                evaluation_id="9614543",
+                status="RECEIVED"
+            )
 
+            # Modify statuses as needed
+            for status in statuses:
+                status.status = "SCORED"
+
+            # Update statuses in batch
             response = SubmissionStatus.batch_update_submission_statuses(
                 evaluation_id="9614543",
                 statuses=statuses,
@@ -216,6 +241,8 @@ class SubmissionStatus(
             Submission owner can read and request to change this value.
 
     Example: Retrieve and update a SubmissionStatus.
+        &nbsp;
+        This example demonstrates the basic workflow of retrieving an existing submission status, updating its fields, and storing the changes back to Synapse.
         ```python
         from synapseclient import Synapse
         from synapseclient.models import SubmissionStatus
@@ -224,7 +251,7 @@ class SubmissionStatus(
         syn.login()
 
         # Get a submission status
-        status = SubmissionStatus(id="syn123456").get()
+        status = SubmissionStatus(id="9999999").get()
 
         # Update the status
         status.status = "SCORED"
@@ -491,6 +518,7 @@ class SubmissionStatus(
             ValueError: If the submission status does not have an ID to get.
 
         Example: Retrieving a submission status by ID
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
@@ -498,7 +526,7 @@ class SubmissionStatus(
             syn = Synapse()
             syn.login()
 
-            status = await SubmissionStatus(id="syn1234").get_async()
+            status = await SubmissionStatus(id="9999999").get_async()
             print(status)
             ```
         """
@@ -543,6 +571,7 @@ class SubmissionStatus(
             ValueError: If the submission status is missing required fields.
 
         Example: Update a submission status
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
@@ -551,7 +580,7 @@ class SubmissionStatus(
             syn.login()
 
             # Get existing status
-            status = await SubmissionStatus(id="syn1234").get_async()
+            status = await SubmissionStatus(id="9999999").get_async()
 
             # Update fields
             status.status = "SCORED"
@@ -630,6 +659,7 @@ class SubmissionStatus(
             A list of SubmissionStatus objects for the evaluation queue.
 
         Example: Getting all submission statuses for an evaluation
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
@@ -695,6 +725,7 @@ class SubmissionStatus(
             and other response information.
 
         Example: Batch update submission statuses
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionStatus
