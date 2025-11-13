@@ -9,7 +9,7 @@ You will create a JSON schema using your data model.
 
 ## Prerequisites
 * You have a working [installation](../installation.md) of the Synapse Python Client.
-* You have a data-model, see [here](https://sagebionetworks.jira.com/wiki/spaces/SCHEM/pages/2473623559/The+Data+Model+Schema)
+* You have a data-model, see this [example data model](https://github.com/Sage-Bionetworks/schematic/blob/develop/tests/data/example.model.column_type_component.csv).
 
 ## 1. Imports
 
@@ -25,8 +25,9 @@ You will create a JSON schema using your data model.
 
 To create a JSON Schema you need a data-model, and the data-types you want to create.
 The data-model must be in either CSV or JSON-LD form. The data model may be a local path or a URL.
+[Example data model](https://github.com/Sage-Bionetworks/schematic/blob/develop/tests/data/example.model.column_type_component.csv).
 
-The data-types must exist in your data-model. This cna be a list of data-types, or `None` to create all datatatypes in the data-model.
+The data-types must exist in your data-model. This can be a list of data-types, or `None` to create all data-types in the data-model.
 
 ## 3. Log into Synapse
 ```python
@@ -40,6 +41,7 @@ Create the JSON Schema(s)
 {!docs/tutorials/python/tutorial_scripts/schema_operations.py!lines=15-23}
 ```
 You should see the first JSON Schema for the datatype(s) you selected printed.
+It will look like [this schema](https://repo-prod.prod.sagebase.org/repo/v1/schema/type/registered/dpetest-test.schematic.Patient).
 
 
 ## Source Code for this Tutorial
