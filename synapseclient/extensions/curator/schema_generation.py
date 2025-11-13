@@ -109,6 +109,11 @@ class ListColumnType(ColumnType):
     BOOLEAN_LIST = "boolean_list"
 
 
+ALL_COLUMN_TYPE_VALUES = [member.value for member in AtomicColumnType] + [
+    member.value for member in ListColumnType
+]
+
+
 # Translates list types to their atomic type
 LIST_TYPE_DICT = {
     ListColumnType.STRING_LIST: AtomicColumnType.STRING,
@@ -1696,12 +1701,9 @@ class DataModelGraphExplorer:
             try:
                 column_type = ListColumnType(column_type_string)
             except ValueError:
-                allowed_values = [member.value for member in AtomicColumnType] + [
-                    member.value for member in ListColumnType
-                ]
                 msg = (
                     f"Node: '{node_label}' had illegal column type value: '{column_type_string}'. "
-                    f"Allowed values are: [{allowed_values}]"
+                    f"Allowed values are: [{ALL_COLUMN_TYPE_VALUES}]"
                 )
                 raise ValueError(msg)
         return column_type
@@ -2822,8 +2824,7 @@ class DataModelRelationships:
                 "required_header": False,
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
-                "allowed_values": [member.value for member in AtomicColumnType]
-                + [member.value for member in ListColumnType],
+                "allowed_values": ALL_COLUMN_TYPE_VALUES,
             },
         }
 
