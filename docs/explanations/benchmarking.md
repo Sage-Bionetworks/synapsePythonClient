@@ -11,6 +11,33 @@ will give us a way to measure the impact of changes to the client.
 
 ## Results
 
+### 11/12/2025: Uploading multiple large files to Synapse
+These benchmarking results were collected to test the upload performance of very large files to Synapse using the new AsyncIO-based OOP API with sequential upload logic.
+
+The results were created on a `c6a.8xlarge` EC2 instance running in us-east-1. The script that was run can be found in `docs/scripts/uploadBenchmark.py` using the `execute_walk_file_sequential()` function.
+
+#### Test Configuration:
+- **Environment:** Synapse Production
+- **Storage:** Project linked to external S3 bucket
+- **Upload Method:** Sequential file-by-file upload using OOP Models Interface
+- **Instance Type:** `c6a.8xlarge` EC2 instance
+  - **vCPU:** 32
+  - **Memory:** 64 GiB
+  - **Network Bandwidth:** 12.5 Gbps
+  - **EBS Volume:** 5TB gp3 volume (4.5TB of test data)
+  - **EBS Bandwidth:** 10 Gbps
+  - **Baseline throughput (MB/s, 128 KiB I/O)**: 1250
+  - **Maximum throughput (MB/s, 128 KiB I/O)**: 1250 
+
+
+| Test                | Total Transfer Size | Sequential Upload (OOP) | Per file size |
+|---------------------|---------------------|-------------------------|---------------|
+| 45 Files/100GiB ea  | 4.5TB               | 74392.21s (~20.6h) ✅   | 100GB         |
+
+#### Key Insights:
+- Successfully uploaded 4.5TB of data (45 × 100GB files) in approximately 20.6 hours
+- Sequential upload pattern handled very large files (100GB each) reliably
+- The `execute_walk_file_sequential()` function stores each file immediately using `asyncio.run(File.store_async())`
 
 ### 07/02/2024: Downloading files from Synapse
 These benchmarking results were collected due to the following changes:
