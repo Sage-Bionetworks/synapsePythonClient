@@ -4481,7 +4481,7 @@ def csv_to_pandas_df(
         filepath,
         lineterminator=line_terminator if len(line_terminator) == 1 else None,
         **pandas_args,
-    )
+    ).convert_dtypes()
     # parse date columns if exists
     if date_columns:
         df = _convert_df_date_cols_to_datetime(df, date_columns)
