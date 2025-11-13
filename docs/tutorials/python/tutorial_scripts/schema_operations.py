@@ -1,12 +1,13 @@
 from synapseclient import Synapse
 from synapseclient.extensions.curator import generate_jsonschema
 
-# Put the path/url of your data model here, either CSV or JSONLD format
+# Path or URL to your data model (CSV or JSONLD format)
+# Example: "path/to/my_data_model.csv" or "https://raw.githubusercontent.com/example.csv"
 DATA_MODEL_SOURCE = "tests/unit/synapseclient/extensions/schema_files/example.model.csv"
-# Put the names of the datatypes in your data-model you want to create here
-#  or None to create them all
+# List of component names/data types to create schemas for, or None for all components/data types
+# Example: ["Patient", "Biospecimen"] or None
 DATA_TYPE = ["Patient"]
-# Put the directory where you want the JSONSchema to generated at here
+# Directory where JSON Schema files will be saved
 OUTPUT_DIRECTORY = "./"
 
 syn = Synapse()
