@@ -89,7 +89,7 @@ class SubmissionStatusSynchronousProtocol(Protocol):
         offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> List["SubmissionStatus"]:
         """
         Gets a collection of SubmissionStatuses to a specified Evaluation.
 
@@ -105,8 +105,7 @@ class SubmissionStatusSynchronousProtocol(Protocol):
                 instance from the Synapse class constructor.
 
         Returns:
-            A PaginatedResults<SubmissionStatus> object as a JSON dict containing
-            a paginated list of submission statuses for the evaluation queue.
+            A list of SubmissionStatus objects for the evaluation queue.
 
         Example: Getting all submission statuses for an evaluation
             ```python
@@ -116,15 +115,17 @@ class SubmissionStatusSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            response = SubmissionStatus.get_all_submission_statuses(
+            statuses = SubmissionStatus.get_all_submission_statuses(
                 evaluation_id="9614543",
                 status="SCORED",
                 limit=50
             )
-            print(f"Found {len(response['results'])} submission statuses")
+            print(f"Found {len(statuses)} submission statuses")
+            for status in statuses:
+                print(f"Status ID: {status.id}, Status: {status.status}")
             ```
         """
-        return {}
+        return []
 
     @staticmethod
     def batch_update_submission_statuses(
@@ -386,7 +387,6 @@ class SubmissionStatus(
             self.submission_annotations = Annotations.from_dict(
                 submission_annotations_dict
             )
-            print(self.submission_annotations)
 
         return self
 
@@ -611,7 +611,7 @@ class SubmissionStatus(
         offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> List["SubmissionStatus"]:
         """
         Gets a collection of SubmissionStatuses to a specified Evaluation.
 
@@ -627,8 +627,7 @@ class SubmissionStatus(
                 instance from the Synapse class constructor.
 
         Returns:
-            A PaginatedResults<SubmissionStatus> object as a JSON dict containing
-            a paginated list of submission statuses for the evaluation queue.
+            A list of SubmissionStatus objects for the evaluation queue.
 
         Example: Getting all submission statuses for an evaluation
             ```python
@@ -638,21 +637,35 @@ class SubmissionStatus(
             syn = Synapse()
             syn.login()
 
-            response = await SubmissionStatus.get_all_submission_statuses_async(
+            statuses = await SubmissionStatus.get_all_submission_statuses_async(
                 evaluation_id="9614543",
                 status="SCORED",
                 limit=50
             )
-            print(f"Found {len(response['results'])} submission statuses")
+            print(f"Found {len(statuses)} submission statuses")
+            for status in statuses:
+                print(f"Status ID: {status.id}, Status: {status.status}")
             ```
         """
-        return await evaluation_services.get_all_submission_statuses(
+        response = await evaluation_services.get_all_submission_statuses(
             evaluation_id=evaluation_id,
             status=status,
             limit=limit,
             offset=offset,
             synapse_client=synapse_client,
         )
+
+        # Convert each result to a SubmissionStatus object
+        submission_statuses = []
+        for status_dict in response.get("results", []):
+            submission_status = SubmissionStatus()
+            submission_status.fill_from_dict(status_dict)
+            # Manually set evaluation_id since it's not part of the response
+            submission_status.evaluation_id = evaluation_id
+            submission_status._set_last_persistent_instance()
+            submission_statuses.append(submission_status)
+
+        return submission_statuses
 
     @staticmethod
     async def batch_update_submission_statuses_async(
@@ -689,12 +702,17 @@ class SubmissionStatus(
             syn = Synapse()
             syn.login()
 
-            # Prepare list of status updates
-            statuses = [
-                SubmissionStatus(id="syn1", status="SCORED", submission_annotations={"score": [90.0]}),
-                SubmissionStatus(id="syn2", status="SCORED", submission_annotations={"score": [85.0]})
-            ]
+            # Retrieve existing statuses to update
+            statuses = SubmissionStatus.get_all_submission_statuses(
+                evaluation_id="9614543",
+                status="RECEIVED"
+                )
 
+            # Modify statuses as needed
+            for status in statuses:
+                status.status = "SCORED"
+
+            # Update statuses in batch
             response = await SubmissionStatus.batch_update_submission_statuses_async(
                 evaluation_id="9614543",
                 statuses=statuses,
