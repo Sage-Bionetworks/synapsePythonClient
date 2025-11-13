@@ -4482,7 +4482,6 @@ def csv_to_pandas_df(
         lineterminator=line_terminator if len(line_terminator) == 1 else None,
         **pandas_args,
     )
-
     # parse date columns if exists
     if date_columns:
         df = _convert_df_date_cols_to_datetime(df, date_columns)
@@ -4490,48 +4489,58 @@ def csv_to_pandas_df(
     if list_columns:
         for col in list_columns:
             # Fill NA values with empty lists, it must be a string for json.loads to work
+            # json.loads will convert null values in boolean list, string list to None.
             df.fillna({col: "[]"}, inplace=True)
             df[col] = df[col].apply(json.loads)
-
             # Convert list items to their proper types based on column type
             if list_column_types and col in list_column_types:
                 column_type = list_column_types[col]
                 if column_type == "INTEGER_LIST":
-                    # Convert items to int
+                    # Convert items to int, preserving None values. Otherwise int(None) would output TypeError.
                     df[col] = df[col].apply(
                         lambda x: (
-                            [int(item) for item in x] if isinstance(x, list) else x
+                            [int(item) if item is not None else None for item in x]
+                            if isinstance(x, list)
+                            else x
                         )
                     )
                 elif column_type == "USERID_LIST":
-                    # USERID items should be strings
+                    # USERID items should be strings, converting None values as empty strings
                     df[col] = df[col].apply(
                         lambda x: (
-                            [str(item) for item in x] if isinstance(x, list) else x
+                            [str(item) if item is not None else "" for item in x]
+                            if isinstance(x, list)
+                            else x
                         )
                     )
                 elif column_type == "BOOLEAN_LIST":
-                    # Convert items to bool
+                    # Convert items to bool, preserving None values. Otherwise bool(None) would output False
                     df[col] = df[col].apply(
                         lambda x: (
-                            [bool(item) for item in x] if isinstance(x, list) else x
+                            [bool(item) if item is not None else None for item in x]
+                            if isinstance(x, list)
+                            else x
                         )
                     )
                 elif column_type == "DATE_LIST":
                     # Date items are already handled by json.loads as they come as numbers
                     pass
                 elif column_type == "ENTITYID_LIST":
-                    # ENTITYID items should remain as strings
+                    # ENTITYID items should remain as strings, converting None values as empty strings
                     df[col] = df[col].apply(
                         lambda x: (
-                            [str(item) for item in x] if isinstance(x, list) else x
+                            [str(item) if item is not None else "" for item in x]
+                            if isinstance(x, list)
+                            else x
                         )
                     )
                 elif column_type == "STRING_LIST":
-                    # String items should remain as strings
+                    # String items should remain as strings, converting None values as empty strings
                     df[col] = df[col].apply(
                         lambda x: (
-                            [str(item) for item in x] if isinstance(x, list) else x
+                            [str(item) if item is not None else "" for item in x]
+                            if isinstance(x, list)
+                            else x
                         )
                     )
                 # JSON type doesn't need item conversion as it preserves types from json.loads
