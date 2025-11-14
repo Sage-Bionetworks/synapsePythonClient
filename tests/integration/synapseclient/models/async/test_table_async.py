@@ -229,7 +229,8 @@ class TestTableCreation:
         )
         pd.testing.assert_series_equal(
             results["column_string"],
-            pd.DataFrame(dict_data)["column_string"].convert_dtypes(),
+            pd.DataFrame(dict_data)["column_string"],
+            check_dtype=False,
         )
 
         # Test with DataFrame data
@@ -254,7 +255,7 @@ class TestTableCreation:
             timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
-            results["column_string"], df_data["column_string"].convert_dtypes()
+            results["column_string"], df_data["column_string"], check_dtype=False
         )
 
         # Test with CSV file data
@@ -282,7 +283,7 @@ class TestTableCreation:
             timeout=QUERY_TIMEOUT_SEC,
         )
         pd.testing.assert_series_equal(
-            results["column_string"], csv_data["column_string"].convert_dtypes()
+            results["column_string"], csv_data["column_string"], check_dtype=False
         )
 
     async def test_create_table_with_string_column(
@@ -380,13 +381,15 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["integer_string"], data_for_table["integer_string"].convert_dtypes()
+            results["integer_string"],
+            data_for_table["integer_string"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["float_string"], data_for_table["float_string"].convert_dtypes()
+            results["float_string"], data_for_table["float_string"], check_dtype=False
         )
 
     async def test_update_rows_from_csv_infer_columns_no_column_updates(
@@ -448,7 +451,8 @@ class TestRowStorage:
         )
         pd.testing.assert_series_equal(
             updated_results_from_table["column_string"],
-            query_results["column_string"].convert_dtypes(),
+            query_results["column_string"],
+            check_dtype=False,
         )
 
     async def test_store_rows_from_csv_no_columns(self, project_model: Project) -> None:
@@ -536,13 +540,15 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["integer_column"], data_for_table["integer_column"].convert_dtypes()
+            results["integer_column"],
+            data_for_table["integer_column"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["float_column"], data_for_table["float_column"].convert_dtypes()
+            results["float_column"], data_for_table["float_column"], check_dtype=False
         )
 
     async def test_store_rows_on_existing_table_with_schema_storage_strategy(
@@ -600,7 +606,7 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
 
     async def test_store_rows_on_existing_table_with_expanding_string_column(
@@ -669,7 +675,7 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
 
         # AND the column should have been expanded
@@ -730,10 +736,10 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], data_for_table["column_key_2"].convert_dtypes()
+            results["column_key_2"], data_for_table["column_key_2"], check_dtype=False
         )
 
     async def test_store_rows_on_existing_table_no_schema_storage_strategy(
@@ -822,14 +828,15 @@ class TestRowStorage:
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
             results["column_to_order_on"],
-            data_for_table["column_to_order_on"].convert_dtypes(),
+            data_for_table["column_to_order_on"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["large_string"], data_for_table["large_string"].convert_dtypes()
+            results["large_string"], data_for_table["large_string"], check_dtype=False
         )
 
         # AND 200 rows exist on the table
@@ -886,14 +893,15 @@ class TestRowStorage:
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
             results["column_to_order_on"],
-            data_for_table["column_to_order_on"].convert_dtypes(),
+            data_for_table["column_to_order_on"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["large_string"], data_for_table["large_string"].convert_dtypes()
+            results["large_string"], data_for_table["large_string"], check_dtype=False
         )
 
         # AND 200 rows exist on the table
@@ -952,14 +960,15 @@ class TestRowStorage:
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
             results["column_to_order_on"],
-            data_for_table["column_to_order_on"].convert_dtypes(),
+            data_for_table["column_to_order_on"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["large_string"], data_for_table["large_string"].convert_dtypes()
+            results["large_string"], data_for_table["large_string"], check_dtype=False
         )
 
         # AND `rows_in_table` rows exist on the table
@@ -1017,10 +1026,10 @@ class TestUpsertRows:
             f"SELECT * FROM {table.id}", synapse_client=self.syn
         )
         pd.testing.assert_series_equal(
-            results["column_string"], updated_data["column_string"].convert_dtypes()
+            results["column_string"], updated_data["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], updated_data["column_key_2"].convert_dtypes()
+            results["column_key_2"], updated_data["column_key_2"], check_dtype=False
         )
         assert len(results) == 3
 
@@ -1055,11 +1064,13 @@ class TestUpsertRows:
         )
         pd.testing.assert_series_equal(
             results["column_string"],
-            updated_and_new_data["column_string"].convert_dtypes(),
+            updated_and_new_data["column_string"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
             results["column_key_2"],
-            updated_and_new_data["column_key_2"].convert_dtypes(),
+            updated_and_new_data["column_key_2"],
+            check_dtype=False,
         )
         assert len(results) == 6  # 3 original + 3 new
 
@@ -1179,15 +1190,18 @@ class TestUpsertRows:
         )
         pd.testing.assert_series_equal(
             results["column_string"],
-            modified_data_for_table["column_string"].convert_dtypes(),
+            modified_data_for_table["column_string"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
             results["column_key_2"],
-            modified_data_for_table["column_key_2"].convert_dtypes(),
+            modified_data_for_table["column_key_2"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
             results["column_key_3"],
-            modified_data_for_table["column_key_3"].convert_dtypes(),
+            modified_data_for_table["column_key_3"],
+            check_dtype=False,
         )
         assert len(results) == 6  # 3 updated + 3 new
 
@@ -1291,15 +1305,18 @@ class TestUpsertRows:
         )
         pd.testing.assert_series_equal(
             results["column_string"],
-            modified_data_for_table["column_string"].convert_dtypes(),
+            modified_data_for_table["column_string"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
             results["column_key_2"],
-            modified_data_for_table["column_key_2"].convert_dtypes(),
+            modified_data_for_table["column_key_2"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
             results["large_string"],
-            modified_data_for_table["large_string"].convert_dtypes(),
+            modified_data_for_table["large_string"],
+            check_dtype=False,
         )
         assert len(results) == 6
 
@@ -1531,8 +1548,10 @@ class TestUpsertRows:
                         {"key5": "value5", "key6": 6},
                     ],
                 }
-            ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
-            pd.testing.assert_frame_equal(results_after_insert, expected_results)
+            )
+            pd.testing.assert_frame_equal(
+                results_after_insert, expected_results, check_dtype=False
+            )
             # Create a second test file to update references
             path2 = utils.make_bogus_data_file()
             self.schedule_for_cleanup(path2)
@@ -1713,8 +1732,8 @@ class TestUpsertRows:
                         {"key55": "value55", "key66": 66},
                     ],
                 }
-            ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
-            pd.testing.assert_frame_equal(results, expected_results)
+            )
+            pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
             # WHEN I upsert with multiple primary keys and null values
             multi_key_data = pd.DataFrame(
                 {
@@ -1920,9 +1939,8 @@ class TestDeleteRows:
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
             results["column_string"],
-            pd.DataFrame({"column_string": ["value1", "value3"]})[
-                "column_string"
-            ].convert_dtypes(),
+            pd.DataFrame({"column_string": ["value1", "value3"]})["column_string"],
+            check_dtype=False,
         )
 
         # AND only 2 rows should exist on the table
@@ -1959,9 +1977,8 @@ class TestDeleteRows:
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
             results["column_string"],
-            pd.DataFrame({"column_string": ["value1"]})[
-                "column_string"
-            ].convert_dtypes(),
+            pd.DataFrame({"column_string": ["value1"]})["column_string"],
+            check_dtype=False,
         )
 
         # AND only 1 row should exist on the table
@@ -1997,7 +2014,7 @@ class TestDeleteRows:
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"].convert_dtypes()
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
 
         # AND 3 rows should exist on the table
@@ -2036,9 +2053,8 @@ class TestDeleteRows:
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
             results["column_string"],
-            pd.DataFrame({"column_string": ["value1"]})[
-                "column_string"
-            ].convert_dtypes(),
+            pd.DataFrame({"column_string": ["value1"]})["column_string"],
+            check_dtype=False,
         )
 
         # AND only 1 row should exist on the table
