@@ -38,7 +38,9 @@ class TestDataModelCsvParser:
         self, helpers, csv_dmp: DataModelCSVParser
     ):
         """The output of the function is a attributes relationship dictionary, check that it is formatted properly."""
-        path_to_data_model = helpers.get_schema_file_path("example.model.csv")
+        path_to_data_model = helpers.get_schema_file_path(
+            "data_models/example.model.csv"
+        )
         model_df = load_df(path_to_data_model, data_model=True)
 
         attr_rel_dict = csv_dmp.gather_csv_attributes_relationships(model_df=model_df)
@@ -52,7 +54,9 @@ class TestDataModelCsvParser:
 
     def test_parse_csv_model(self, helpers, csv_dmp: DataModelCSVParser):
         """The output of the function is a attributes relationship dictionary, check that it is formatted properly."""
-        path_to_data_model = helpers.get_schema_file_path("example.model.csv")
+        path_to_data_model = helpers.get_schema_file_path(
+            "data_models/example.model.csv"
+        )
 
         attr_rel_dictionary = csv_dmp.parse_csv_model(
             path_to_data_model=path_to_data_model
@@ -91,7 +95,9 @@ class TestDataModelJsonLdParser:
         jsonld_dmp: DataModelJSONLDParser,
     ):
         """The output of the function is a attributes relationship dictionary, check that it is formatted properly."""
-        path_to_data_model = helpers.get_schema_file_path("example.model.jsonld")
+        path_to_data_model = helpers.get_schema_file_path(
+            "data_models/example.model.jsonld"
+        )
         model_jsonld = load_json(path_to_data_model)
         attr_rel_dict = jsonld_dmp.gather_jsonld_attributes_relationships(
             model_jsonld=model_jsonld["@graph"],
@@ -110,7 +116,9 @@ class TestDataModelJsonLdParser:
         jsonld_dmp: DataModelJSONLDParser,
     ):
         """The output of the function is a attributes relationship dictionary, check that it is formatted properly."""
-        path_to_data_model = helpers.get_schema_file_path("example.model.jsonld")
+        path_to_data_model = helpers.get_schema_file_path(
+            "data_models/example.model.jsonld"
+        )
         attr_rel_dictionary = jsonld_dmp.parse_jsonld_model(
             path_to_data_model=path_to_data_model,
         )

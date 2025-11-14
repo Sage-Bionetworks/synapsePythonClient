@@ -61,7 +61,7 @@ def helpers():
 @pytest.fixture(name="dmge", scope="function")
 def DMGE(helpers: Helpers) -> DataModelGraphExplorer:
     """Fixture to instantiate a DataModelGraphExplorer object using the data model with column types"""
-    dmge = helpers.get_data_model_graph_explorer(path="example.model.csv")
+    dmge = helpers.get_data_model_graph_explorer(path="data_models/example.model.csv")
     return dmge
 
 
@@ -74,7 +74,7 @@ def fixture_dmr():
 @pytest.fixture(name="dmp")
 def fixture_dmp(helpers: Helpers) -> DataModelParser:
     "Returns a DataModelParser using the csv data model"
-    data_model_path = helpers.get_schema_file_path("example.model.csv")
+    data_model_path = helpers.get_schema_file_path("data_models/example.model.csv")
     dmp = DataModelParser(data_model_path, logger=Mock())
     return dmp
 
@@ -82,7 +82,7 @@ def fixture_dmp(helpers: Helpers) -> DataModelParser:
 @pytest.fixture(name="dmp_jsonld")
 def fixture_dmp_json_ld(helpers: Helpers) -> DataModelParser:
     "Returns a DataModelParser using the jsonld data model"
-    data_model_path = helpers.get_schema_file_path("example.model.jsonld")
+    data_model_path = helpers.get_schema_file_path("data_models/example.model.jsonld")
     dmp = DataModelParser(data_model_path, logger=Mock())
     return dmp
 

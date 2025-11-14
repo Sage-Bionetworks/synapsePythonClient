@@ -6,7 +6,7 @@ from synapseclient.extensions.curator.schema_generation import (
     AtomicColumnType,
     ColumnType,
     DataModelGraphExplorer,
-    Format,
+    JSONSchemaFormat,
     ListColumnType,
 )
 
@@ -71,9 +71,9 @@ def test_get_node_column_type(
 
 @pytest.mark.parametrize(
     "node_label, column_type",
-    [("String", None), ("Date", Format.DATE), ("URL", Format.URI)],
+    [("String", None), ("Date", JSONSchemaFormat.DATE), ("URL", JSONSchemaFormat.URI)],
 )
 def test_get_node_format(
-    dmge: DataModelGraphExplorer, node_label: str, column_type: Format
+    dmge: DataModelGraphExplorer, node_label: str, column_type: JSONSchemaFormat
 ) -> None:
     assert dmge.get_node_format(node_label) == column_type
