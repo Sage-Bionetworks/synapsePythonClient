@@ -639,6 +639,51 @@ def test_create_json_schema_with_display_names(
 
 
 @pytest.mark.parametrize(
+    "datatype",
+    [
+        ("Biospecimen"),
+        ("BulkRNA-seqAssay"),
+        ("JSONSchemaComponent"),
+        ("MockComponent"),
+        ("MockFilename"),
+        ("MockRDB"),
+        ("Patient"),
+    ],
+    ids=[
+        "Biospecimen",
+        "BulkRNA-seqAssay",
+        "JSONSchemaComponent",
+        "MockComponent",
+        "MockFilename",
+        "MockRDB",
+        "Patient",
+    ],
+)
+def test_create_json_schema_with_class_label_using_jsonld(
+    dmge_json_ld: DataModelGraphExplorer, datatype: str, test_directory: str
+) -> None:
+    """Tests for JSONSchemaGenerator.create_json_schema"""
+    test_path = get_test_schema_path(test_directory, datatype)
+    expected_path = get_expected_schema_path(datatype)
+    logger = logging.getLogger(__name__)
+
+    create_json_schema(
+        dmge=dmge_json_ld,
+        datatype=datatype,
+        schema_name=f"{datatype}_validation",
+        schema_path=test_path,
+        use_property_display_names=False,
+        logger=logger,
+    )
+    with open(expected_path, encoding="utf-8") as file1, open(
+        test_path, encoding="utf-8"
+    ) as file2:
+        expected_json = json.load(file1)
+        test_json = json.load(file2)
+    assert expected_json == test_json
+
+
+@pytest.mark.parametrize(
     "instance_filename, datatype",
     [
         (

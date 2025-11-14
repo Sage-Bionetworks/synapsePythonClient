@@ -96,7 +96,7 @@ class TestDataModelJsonLdParser:
     ):
         """The output of the function is a attributes relationship dictionary, check that it is formatted properly."""
         path_to_data_model = helpers.get_schema_file_path(
-            "data_models/example.model.jsonld"
+            "data_models_jsonld/example.model.jsonld"
         )
         model_jsonld = load_json(path_to_data_model)
         attr_rel_dict = jsonld_dmp.gather_jsonld_attributes_relationships(
@@ -117,7 +117,7 @@ class TestDataModelJsonLdParser:
     ):
         """The output of the function is a attributes relationship dictionary, check that it is formatted properly."""
         path_to_data_model = helpers.get_schema_file_path(
-            "data_models/example.model.jsonld"
+            "data_models_jsonld/example.model.jsonld"
         )
         attr_rel_dictionary = jsonld_dmp.parse_jsonld_model(
             path_to_data_model=path_to_data_model,
