@@ -114,7 +114,7 @@ ALL_COLUMN_TYPE_VALUES = [member.value for member in AtomicColumnType] + [
 ]
 
 
-class Format(Enum):
+class JSONSchemaFormat(Enum):
     """
     Allowed formats by the JSON Schema validator used by Synapse: https://github.com/everit-org/json-schema#format-validators
     For descriptions see: https://json-schema.org/understanding-json-schema/reference/type#format
@@ -150,6 +150,9 @@ class ValidationRuleName(Enum):
     # TODO: remove list:
     # https://sagebionetworks.jira.com/browse/SYNPY-1692
     LIST = "list"
+    # url and date rules are deprecated for adding format keyword
+    # TODO: remove url and date
+    # https://sagebionetworks.jira.com/browse/SYNPY-1685
     DATE = "date"
     URL = "url"
     REGEX = "regex"
@@ -187,6 +190,9 @@ _VALIDATION_RULES = {
         name=ValidationRuleName.LIST,
         incompatible_rules=[],
     ),
+    # url and date rules are deprecated for adding format keyword
+    # TODO: remove url and date
+    # https://sagebionetworks.jira.com/browse/SYNPY-1685
     "date": ValidationRule(
         name=ValidationRuleName.DATE,
         incompatible_rules=[
@@ -234,13 +240,6 @@ class Node:
         if "displayName" not in self.fields:
             raise ValueError(f"Node: {str(self.name)} missing displayName field")
         self.display_name = str(self.fields["displayName"])
-
-
-class JSONSchemaFormat(Enum):
-    """This enum is the currently supported JSON Schema formats"""
-
-    DATE = "date"
-    URI = "uri"
 
 
 def load_json(file_path: str) -> Any:
@@ -1763,7 +1762,7 @@ class DataModelGraphExplorer:
 
     def get_node_format(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
-    ) -> Optional[ColumnType]:
+    ) -> Optional[JSONSchemaFormat]:
         """Gets the format of the node
 
         Args:
@@ -1783,11 +1782,11 @@ class DataModelGraphExplorer:
             return format_value
         format_string = str(format_value).lower()
         try:
-            column_type = Format(format_string)
+            column_type = JSONSchemaFormat(format_string)
         except ValueError as exc:
             msg = (
                 f"Node: '{node_label}' had illegal format value: '{format_value}'. "
-                f"Allowed values are: [{[member.value for member in Format]}]"
+                f"Allowed values are: [{[member.value for member in JSONSchemaFormat]}]"
             )
             raise ValueError(msg) from exc
         return column_type
@@ -2918,7 +2917,7 @@ class DataModelRelationships:
                 "required_header": False,
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
-                "allowed_values": [member.value for member in Format],
+                "allowed_values": [member.value for member in JSONSchemaFormat],
             },
         }
 
@@ -4384,6 +4383,7 @@ def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
 def _get_validation_rule_based_fields(
     validation_rules: list[str],
     explicit_is_array: Optional[bool],
+    explicit_format: Optional[JSONSchemaFormat],
     name: str,
     column_type: Optional[ColumnType],
     logger: Logger,
@@ -4428,7 +4428,7 @@ def _get_validation_rule_based_fields(
         - js_pattern: If the type is string the JSON Schema pattern
     """
     js_is_array = False
-    js_format = None
+    js_format = explicit_format
     js_minimum = None
     js_maximum = None
     js_pattern = None
@@ -4492,10 +4492,51 @@ def _get_validation_rule_based_fields(
                 )
                 logger.warning(msg)
 
-        if ValidationRuleName.URL in validation_rule_names:
-            js_format = JSONSchemaFormat.URI
-        elif ValidationRuleName.DATE in validation_rule_names:
-            js_format = JSONSchemaFormat.DATE
+        if explicit_format:
+            if (
+                ValidationRuleName.DATE in validation_rule_names
+                and explicit_format == JSONSchemaFormat.URI
+            ):
+                msg = (
+                    f"For property: {name}, the format is uri, "
+                    "but the validation rule date is present. "
+                    "The format will be set to uri."
+                )
+                logger.warning(msg)
+            elif (
+                ValidationRuleName.URL in validation_rule_names
+                and explicit_format == JSONSchemaFormat.DATE
+            ):
+                msg = (
+                    f"For property: {name}, the format is date, "
+                    "but the validation rule url is present. "
+                    "The format will be set to date."
+                )
+                logger.warning(msg)
+
+        # url and date rules are deprecated for adding format keyword
+        # TODO: remove the if/else block below
+        # https://sagebionetworks.jira.com/browse/SYNPY-1685
+
+        else:
+            if ValidationRuleName.URL in validation_rule_names:
+                js_format = JSONSchemaFormat.URI
+                msg = (
+                    f"A url validation rule is set for property: {name}, but the format is not set. "
+                    "The format will be set to uri, but this behavior is deprecated and validation "
+                    "rules will no longer be used in the future."
+                    "Please explicitly set the format to uri in the data model."
+                )
+                logger.warning(msg)
+            elif ValidationRuleName.DATE in validation_rule_names:
+                js_format = JSONSchemaFormat.DATE
+                msg = (
+                    f"A date validation rule is set for property: {name}, but the format is not set. "
+                    "The format will be set to date, but this behavior is deprecated and validation "
+                    "rules will no longer be used in the future."
+                    "Please explicitly set the format to uri in the data model."
+                )
+                logger.warning(msg)
 
         in_range_rule = get_rule_from_inputted_rules(
             ValidationRuleName.IN_RANGE, validation_rules
@@ -4511,7 +4552,6 @@ def _get_validation_rule_based_fields(
         if regex_rule:
             js_pattern = get_regex_parameters_from_inputted_rule(regex_rule)
 
-    print(js_is_array)
     return (
         js_is_array,
         js_format,
@@ -4590,7 +4630,6 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         column_type = self.dmge.get_node_column_type(
             node_display_name=self.display_name
         )
-
         # list validation rule is been deprecated for use in deciding type
         # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
         # https://sagebionetworks.jira.com/browse/SYNPY-1692
@@ -4603,6 +4642,25 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         else:
             self.type = None
             explicit_is_array = None
+
+        # url and date rules are deprecated for adding format keyword
+        # TODO: set self.format here instead of passing it to get_validation_rule_based_fields
+        # https://sagebionetworks.jira.com/browse/SYNPY-1685
+        explicit_format = self.dmge.get_node_format(node_display_name=self.display_name)
+        if explicit_format:
+            if (
+                column_type != ListColumnType.STRING_LIST
+                and column_type != AtomicColumnType.STRING
+            ):
+                msg = (
+                    f"A format value (current value: {explicit_format.value}) "
+                    f"is set for property: {self.name}, but columnType is not a string type "
+                    f"(current value: {column_type.value}). "
+                    "To use a format value the columnType must be set to one of: "
+                    "[string, string_list] "
+                )
+                raise ValueError(msg)
+
         (
             self.is_array,
             self.format,
@@ -4612,6 +4670,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
             explicit_is_array=explicit_is_array,
+            explicit_format=explicit_format,
             name=self.name,
             column_type=self.type,
             logger=self.logger,
@@ -4990,7 +5049,7 @@ def _set_conditional_dependencies(
 
 
 def _create_enum_array_property(
-    node: Node, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_valid_value_display_names: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property array with enum items
@@ -5024,7 +5083,7 @@ def _create_enum_array_property(
     return array_property
 
 
-def _create_array_property(node: Node) -> Property:
+def _create_array_property(node: TraversalNode) -> Property:
     """
     Creates a JSON Schema property array
 
@@ -5056,7 +5115,7 @@ def _create_array_property(node: Node) -> Property:
 
 
 def _create_enum_property(
-    node: Node, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_valid_value_display_names: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property enum
@@ -5089,7 +5148,7 @@ def _create_enum_property(
     return enum_property
 
 
-def _create_simple_property(node: Node) -> Property:
+def _create_simple_property(node: TraversalNode) -> Property:
     """
     Creates a JSON Schema property
 
@@ -5125,7 +5184,7 @@ def _create_simple_property(node: Node) -> Property:
     return prop
 
 
-def _set_type_specific_keywords(schema: dict[str, Any], node: Node) -> None:
+def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> None:
     """Sets JSON Schema keywords that are allowed if type has been set
 
     Arguments:
@@ -5143,7 +5202,7 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: Node) -> None:
 
 def _set_property(
     json_schema: JSONSchema,
-    node: Node,
+    node: TraversalNode,
     use_property_display_names: bool = True,
     use_valid_value_display_names: bool = True,
 ) -> None:

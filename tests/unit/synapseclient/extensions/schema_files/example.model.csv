@@ -33,7 +33,7 @@ Check Regex Single,,,,,TRUE,DataProperty,,,regex search [a-f],,
 Check Regex Format,,,,,TRUE,DataProperty,,,regex match [a-f],,
 Check Regex Integer,,,,,TRUE,DataProperty,,,regex search ^\d+$,,
 Check Num,,,,,TRUE,DataProperty,,,num error,,
-Check Float,,,,,TRUE,DataProperty,,,float error,,
+Check Float,,,,,TRUE,DataProperty,,,float error,number,
 Check Int,,,,,TRUE,DataProperty,,,int error,,
 Check String,,,,,TRUE,DataProperty,,,str error,,
 Check URL,,,,,TRUE,DataProperty,,,url,string,uri
