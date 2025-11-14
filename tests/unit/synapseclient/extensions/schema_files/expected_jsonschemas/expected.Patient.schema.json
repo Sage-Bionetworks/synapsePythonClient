@@ -93,25 +93,17 @@
     },
     "FamilyHistory": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "items": {
-            "enum": [
-              "Breast",
-              "Colorectal",
-              "Lung",
-              "Prostate",
-              "Skin"
-            ]
-          },
-          "title": "array",
-          "type": "array"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
-      ],
+      "items": {
+        "enum": [
+          "Breast",
+          "Colorectal",
+          "Lung",
+          "Prostate",
+          "Skin"
+        ],
+        "type": "string"
+      },
+      "type": "array",
       "title": "Family History"
     },
     "PatientID": {

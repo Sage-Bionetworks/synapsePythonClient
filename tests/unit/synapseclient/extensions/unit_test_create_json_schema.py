@@ -14,11 +14,12 @@ from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
 
 from synapseclient.extensions.curator.schema_generation import (
+    AtomicColumnType,
+    ColumnType,
     DataModelGraphExplorer,
     GraphTraversalState,
     JSONSchema,
     JSONSchemaFormat,
-    JSONSchemaType,
     TraversalNode,
     _create_array_property,
     _create_enum_array_property,
@@ -105,37 +106,8 @@ def fixture_test_nodes(
         "ListNotRequired",
         "ListEnum",
         "ListEnumNotRequired",
-        "ListString",
-        "ListInRange",
-    ]
-    nodes = {
-        node: TraversalNode(node, "JSONSchemaComponent", dmge, logger=Mock())
-        for node in nodes
-    }
-    return nodes
-
-
-@pytest.fixture(name="test_nodes_column_types")
-def fixture_test_nodes_column_types(
-    dmge: DataModelGraphExplorer,
-):
-    """Yields dict of Nodes"""
-    nodes = [
-        "NoRules",
-        "NoRulesNotRequired",
-        "String",
-        "StringNotRequired",
-        "Enum",
-        "EnumNotRequired",
-        "InRange",
-        "Regex",
-        "Date",
-        "URL",
-        "List",
-        "ListNotRequired",
-        "ListEnum",
-        "ListEnumNotRequired",
-        "ListString",
+        "ListBoolean",
+        "ListInteger",
         "ListInRange",
     ]
     nodes = {
@@ -221,28 +193,48 @@ class TestJSONSchema:
 @pytest.mark.parametrize(
     "node_name, expected_type, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
-        # Node with no columnType - all constraint fields should be None/False
+        # Node with no columnType -all constraint fields should be None/False
         ("NoRules", None, False, None, None, None, None),
         # Node with columnType "string" - type is set to STRING via columnType
-        ("String", JSONSchemaType.STRING, False, None, None, None, None),
-        # Node with "list" validation rule - is_array is set to True, type remains None (no columnType)
-        ("List", None, True, None, None, None, None),
-        # Node with both "list" validation rules and columnType "string" - is_array is True, type is STRING
-        ("ListString", JSONSchemaType.STRING, True, None, None, None, None),
+        ("String", AtomicColumnType.STRING, False, None, None, None, None),
+        # Node with columnType "string_list" - type is set to STRING via columnType
+        ("List", AtomicColumnType.STRING, True, None, None, None, None),
         # Node with "inRange 50 100" validation rule and columnType "number" - min/max are set, type is NUMBER
-        ("InRange", JSONSchemaType.NUMBER, False, 50, 100, None, None),
+        ("InRange", AtomicColumnType.NUMBER, False, 50, 100, None, None),
         # Node with "regex search [a-f]" validation rule and columnType "string" - pattern is set, type is STRING
-        ("Regex", JSONSchemaType.STRING, False, None, None, "[a-f]", None),
+        ("Regex", AtomicColumnType.STRING, False, None, None, "[a-f]", None),
         # Node with "date" validation rule and columnType "string" - format is set to DATE, type is STRING
-        ("Date", JSONSchemaType.STRING, False, None, None, None, JSONSchemaFormat.DATE),
+        (
+            "Date",
+            AtomicColumnType.STRING,
+            False,
+            None,
+            None,
+            None,
+            JSONSchemaFormat.DATE,
+        ),
         # Node with "url" validation rule and columnType "string" - format is set to URI, type is STRING
-        ("URL", JSONSchemaType.STRING, False, None, None, None, JSONSchemaFormat.URI),
+        ("URL", AtomicColumnType.STRING, False, None, None, None, JSONSchemaFormat.URI),
+        # Node with columnType "boolean_list" - type is set to BOOLEAN via columnType
+        ("ListBoolean", AtomicColumnType.BOOLEAN, True, None, None, None, None),
+        # Node with columnType "integer_list" - type is set to INTEGER via columnType
+        ("ListInteger", AtomicColumnType.INTEGER, True, None, None, None, None),
     ],
-    ids=["None", "String", "List", "ListString", "InRange", "Regex", "Date", "URI"],
+    ids=[
+        "None",
+        "String",
+        "List",
+        "InRange",
+        "Regex",
+        "Date",
+        "URI",
+        "ListBoolean",
+        "ListInteger",
+    ],
 )
 def test_node_init(
     node_name: str,
-    expected_type: Optional[JSONSchemaType],
+    expected_type: Optional[ColumnType],
     expected_is_array: bool,
     expected_min: Optional[float],
     expected_max: Optional[float],
@@ -271,21 +263,24 @@ def test_node_init(
 
 
 @pytest.mark.parametrize(
-    "validation_rules, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
+    "validation_rules, explicit_is_array, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
         # If there are no validation rules, all fields should be None/False
-        ([], False, None, None, None, None),
-        # If there is a "str" validation rule, only format/constraints are set, no explicit type
-        (["str"], False, None, None, None, None),
-        # If there is a "list" validation rule, is_array is set to True
-        (["list"], True, None, None, None, None),
-        # If there are both "list" and "str" validation rules, is_array is True, other fields remain None
-        (["list", "str"], True, None, None, None, None),
+        ([], False, False, None, None, None, None),
+        # If there are no "list" validation rule, explicit_is_array is set to True, expected_is_array is True
+        ([], True, True, None, None, None, None),
+        # If there is a "list" validation rule, explicit_is_array in None,  expected_is_array is True
+        (["list"], None, True, None, None, None, None),
+        # If explicit_is_array is False, expected_is_array is False
+        (["list"], False, False, None, None, None, None),
+        # If explicit_is_array  True, expected_is_array is True
+        (["list"], True, True, None, None, None, None),
         # If there is an "inRange" rule, minimum and maximum are extracted and set
-        (["inRange 50 100"], False, 50, 100, None, None),
+        (["inRange 50 100"], False, False, 50, 100, None, None),
         # If there is a "regex search" rule, the pattern is extracted and set
         (
             ["regex search [a-f]"],
+            False,
             False,
             None,
             None,
@@ -296,18 +291,30 @@ def test_node_init(
         (
             ["date"],
             False,
+            False,
             None,
             None,
             None,
             JSONSchemaFormat.DATE,
         ),
         # If there is a "url" rule, the format is set to JSONSchemaFormat.URI
-        (["url"], False, None, None, None, JSONSchemaFormat.URI),
+        (["url"], False, False, None, None, None, JSONSchemaFormat.URI),
     ],
-    ids=["No rules", "String", "List", "ListString", "InRange", "Regex", "Date", "URL"],
+    ids=[
+        "No rules",
+        "No rules, explicit_is_array",
+        "List rule, explicit_is_array is None",
+        "List rule, explicit_is_array is False",
+        "List rule, explicit_is_array is True",
+        "InRange",
+        "Regex",
+        "Date",
+        "URL",
+    ],
 )
 def test_get_validation_rule_based_fields_no_explicit_type(
     validation_rules: list[str],
+    explicit_is_array: Optional[bool],
     expected_is_array: bool,
     expected_min: Optional[float],
     expected_max: Optional[float],
@@ -325,96 +332,13 @@ def test_get_validation_rule_based_fields_no_explicit_type(
         minimum,
         maximum,
         pattern,
-    ) = _get_validation_rule_based_fields(validation_rules, logger)
-    assert property_format == expected_format
-    assert is_array == expected_is_array
-    assert minimum == expected_min
-    assert maximum == expected_max
-    assert pattern == expected_pattern
-
-
-@pytest.mark.parametrize(
-    "validation_rules, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
-    [
-        (
-            [],
-            False,
-            None,
-            None,
-            None,
-            None,
-        ),
-        (
-            ["str"],
-            False,
-            None,
-            None,
-            None,
-            None,
-        ),
-        (
-            ["list"],
-            True,
-            None,
-            None,
-            None,
-            None,
-        ),
-        (
-            ["inRange 50 100"],
-            False,
-            50,
-            100,
-            None,
-            None,
-        ),
-        (
-            ["regex search [a-f]"],
-            False,
-            None,
-            None,
-            "[a-f]",
-            None,
-        ),
-        (
-            ["date"],
-            False,
-            None,
-            None,
-            None,
-            JSONSchemaFormat.DATE,
-        ),
-        (
-            ["url"],
-            False,
-            None,
-            None,
-            None,
-            JSONSchemaFormat.URI,
-        ),
-    ],
-    ids=["No rules", "String", "List string", "InRange", "Regex", "Date", "URL"],
-)
-def test_get_validation_rule_based_fields_with_explicit_type(
-    validation_rules: list[str],
-    expected_is_array: bool,
-    expected_min: Optional[float],
-    expected_max: Optional[float],
-    expected_pattern: Optional[str],
-    expected_format: Optional[JSONSchemaFormat],
-) -> None:
-    """
-    Test for _get_validation_rule_based_fields
-    Tests that output is expected based on the input validation rules, and explicit type
-    """
-    logger = Mock()
-    (
-        is_array,
-        property_format,
-        minimum,
-        maximum,
-        pattern,
-    ) = _get_validation_rule_based_fields(validation_rules, logger)
+    ) = _get_validation_rule_based_fields(
+        validation_rules,
+        explicit_is_array=explicit_is_array,
+        name="name",
+        column_type=AtomicColumnType.STRING,
+        logger=logger,
+    )
     assert property_format == expected_format
     assert is_array == expected_is_array
     assert minimum == expected_min
@@ -654,61 +578,6 @@ def test_create_json_schema_with_display_names(
         datatype=datatype,
         schema_name=f"{datatype}_validation",
         schema_path=test_path,
-        logger=logger,
-    )
-    with open(expected_path, encoding="utf-8") as file1, open(
-        test_path, encoding="utf-8"
-    ) as file2:
-        expected_json = json.load(file1)
-        test_json = json.load(file2)
-    assert expected_json == test_json
-
-
-def test_create_json_schema_with_no_column_type(
-    dmge: DataModelGraphExplorer, test_directory: str
-) -> None:
-    """
-    Tests for JSONSchemaGenerator.create_json_schema
-    This tests where the data model does not have columnType attribute
-    """
-    datatype = "JSONSchemaComponent"
-    test_path = get_test_schema_path(test_directory, datatype, display_names=True)
-    expected_path = get_expected_schema_path(datatype)
-    logger = logging.getLogger(__name__)
-    create_json_schema(
-        dmge=dmge,
-        datatype=datatype,
-        schema_name=f"{datatype}_validation",
-        schema_path=test_path,
-        use_property_display_names=False,
-        logger=logger,
-    )
-    with open(expected_path, encoding="utf-8") as file1, open(
-        test_path, encoding="utf-8"
-    ) as file2:
-        expected_json = json.load(file1)
-        test_json = json.load(file2)
-    assert expected_json == test_json
-
-
-def test_create_json_schema_with_column_type(
-    dmge: DataModelGraphExplorer, test_directory: str
-) -> None:
-    """
-    Tests for JSONSchemaGenerator.create_json_schema
-    This tests where the data model does have the columnType attribute
-    """
-    datatype = "JSONSchemaComponent"
-    test_path = get_test_schema_path(test_directory, datatype, display_names=True)
-    expected_path = get_expected_schema_path(datatype, display_names=True)
-
-    logger = logging.getLogger(__name__)
-    create_json_schema(
-        dmge=dmge,
-        datatype=datatype,
-        schema_name=f"{datatype}_validation",
-        schema_path=test_path,
-        use_property_display_names=False,
         logger=logger,
     )
     with open(expected_path, encoding="utf-8") as file1, open(
@@ -972,13 +841,8 @@ def test_set_conditional_dependencies(
                     "ListEnum": {
                         "description": "TBD",
                         "title": "List Enum",
-                        "oneOf": [
-                            {
-                                "type": "array",
-                                "title": "array",
-                                "items": {"enum": ["ab", "cd", "ef", "gh"]},
-                            },
-                        ],
+                        "type": "array",
+                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
                     }
                 },
                 required=["ListEnum"],
@@ -992,14 +856,8 @@ def test_set_conditional_dependencies(
                     "ListEnumNotRequired": {
                         "description": "TBD",
                         "title": "List Enum Not Required",
-                        "oneOf": [
-                            {
-                                "type": "array",
-                                "title": "array",
-                                "items": {"enum": ["ab", "cd", "ef", "gh"]},
-                            },
-                            {"type": "null", "title": "null"},
-                        ],
+                        "type": "array",
+                        "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
                     }
                 },
                 required=[],
@@ -1025,9 +883,10 @@ def test_set_conditional_dependencies(
             JSONSchema(
                 properties={
                     "List": {
-                        "oneOf": [
-                            {"type": "array", "title": "array"},
-                        ],
+                        "items": {
+                            "type": "string",
+                        },
+                        "type": "array",
                         "description": "TBD",
                         "title": "List",
                     }
@@ -1069,31 +928,21 @@ def test_set_property(
         (
             "ListEnum",
             {
-                "oneOf": [
-                    {
-                        "type": "array",
-                        "title": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"]},
-                    }
-                ],
+                "type": "array",
+                "title": "array",
+                "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
             },
             [[], ["ab"]],
-            [[None], ["x"], None],
+            [[None], ["x"]],
         ),
-        # If is_required is False, "{'type': 'null'}" is added to the oneOf list
         (
             "ListEnumNotRequired",
             {
-                "oneOf": [
-                    {
-                        "type": "array",
-                        "title": "array",
-                        "items": {"enum": ["ab", "cd", "ef", "gh"]},
-                    },
-                    {"type": "null", "title": "null"},
-                ],
+                "type": "array",
+                "title": "array",
+                "items": {"enum": ["ab", "cd", "ef", "gh"], "type": "string"},
             },
-            [[], ["ab"], None],
+            [[], ["ab"]],
             [[None], ["x"]],
         ),
     ],
@@ -1123,65 +972,42 @@ def test_create_enum_array_property(
     [
         (
             "List",
-            {"oneOf": [{"type": "array", "title": "array"}]},
-            [[], [None], ["x"]],
-            ["x", None],
-        ),
-        # If is_required is False, "{'type': 'null'}" is added to the oneOf list
-        (
-            "ListNotRequired",
-            {
-                "oneOf": [
-                    {"type": "array", "title": "array"},
-                    {"type": "null", "title": "null"},
-                ],
-            },
-            [None, [], [None], ["x"]],
-            ["x"],
-        ),
-        # If item_type is given, it is set in the schema
-        (
-            "ListString",
-            {
-                "oneOf": [
-                    {"type": "array", "title": "array", "items": {"type": "string"}}
-                ],
-            },
+            {"type": "array", "title": "array", "items": {"type": "string"}},
             [[], ["x"]],
-            [None, [None], [1]],
+            [[None], [1]],
         ),
-        # If property_data has range_min or range_max, they are set in the schema
         (
-            "ListInRange",
+            "ListInteger",
             {
-                "oneOf": [
-                    {
-                        "type": "array",
-                        "title": "array",
-                        "items": {"type": "number", "minimum": 50.0, "maximum": 100.0},
-                    }
-                ],
+                "type": "array",
+                "title": "array",
+                "items": {"type": "integer"},
             },
-            [[], [50]],
-            [None, [None], [2], ["x"]],
+            [[], [1]],
+            [[None], ["x"], [1.1]],
+        ),
+        (
+            "ListBoolean",
+            {
+                "type": "array",
+                "title": "array",
+                "items": {"type": "boolean"},
+            },
+            [[], [True], [False]],
+            [[2], ["x"]],
         ),
     ],
-    ids=[
-        "Required, no item type",
-        "Not required, no item type",
-        "Required, string item type",
-        "Required, integer item type",
-    ],
+    ids=["String Array", "Integer Array", "Boolean Array"],
 )
 def test_create_array_property(
     node_name: str,
     expected_schema: dict[str, Any],
     valid_values: list[Any],
     invalid_values: list[Any],
-    test_nodes_column_types: dict[str, TraversalNode],
+    test_nodes: dict[str, TraversalNode],
 ) -> None:
     """Test for _create_array_property"""
-    schema = _create_array_property(test_nodes_column_types[node_name])
+    schema = _create_array_property(test_nodes[node_name])
     assert schema == expected_schema
     full_schema = {"type": "object", "properties": {"name": schema}, "required": []}
     validator = Draft7Validator(full_schema)
@@ -1292,10 +1118,10 @@ def test_create_simple_property(
     expected_schema: dict[str, Any],
     valid_values: list[Any],
     invalid_values: list[Any],
-    test_nodes_column_types: dict[str, TraversalNode],
+    test_nodes: dict[str, TraversalNode],
 ) -> None:
     """Test for _create_simple_property"""
-    schema = _create_simple_property(test_nodes_column_types[node_name])
+    schema = _create_simple_property(test_nodes[node_name])
     assert schema == expected_schema
     full_schema = {"type": "object", "properties": {"name": schema}, "required": []}
     validator = Draft7Validator(full_schema)
