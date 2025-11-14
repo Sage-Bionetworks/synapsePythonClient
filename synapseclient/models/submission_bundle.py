@@ -202,9 +202,15 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
 
         submission_status_dict = synapse_submission_bundle.get("submissionStatus", None)
         if submission_status_dict:
-            self.submission_status = SubmissionStatus().fill_from_dict(submission_status_dict)
+            self.submission_status = SubmissionStatus().fill_from_dict(
+                submission_status_dict
+            )
             # Manually set evaluation_id from the submission data if available
-            if self.submission_status and self.submission and self.submission.evaluation_id:
+            if (
+                self.submission_status
+                and self.submission
+                and self.submission.evaluation_id
+            ):
                 self.submission_status.evaluation_id = self.submission.evaluation_id
         else:
             self.submission_status = None
