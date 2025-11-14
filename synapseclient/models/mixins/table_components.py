@@ -157,6 +157,51 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
+def convert_dtypes_to_json_serializable(df):
+    """
+    Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
+    Also, convert the ROW_ID, ROW_VERSION, and ROW_ID.1 columns to int columns which are JSON serializable types.
+    Arguments:
+        df: The dataframe to convert the dtypes of.
+    Returns:
+        The dataframe with the dtypes converted to JSON serializable types.
+    Example:
+        df = pd.DataFrame({
+            "ROW_ID": [1, 2, 3, 4],
+            "ROW_VERSION": [1, 2, 3, 4],
+            "ROW_ETAG": ['test-etag-1', 'test-etag-2', 'test-etag-3', 'test-etag-4'],
+            "int64_col": [1, 2, 3, None],
+            "float64_col": [1.1, 2.2, 3.3, 4.4],
+            "string_col": ["a", "b", "c", "d"],
+            "string_col_with_na": ["a", "b", "c", None],
+            "boolean_col": [True, False, None, False],
+            "datetime_col": [datetime(2021, 1, 1), datetime(2021, 1, 2), None, datetime(2021, 1, 4)],
+            "int_list_col": [[1, 2, 3], [4, 5, 6], None, [7, 8, 9]],
+            "string_list_col": [["a", "b", "c"], ["d", "e", "f"], None, ["g", "h", "i"]],
+            "boolean_list_col": [[True, None, True], [False, True, False], None, [True, False, True]],
+            "datetime_list_col": [[datetime(2021, 1, 1), datetime(2021, 1, 2), datetime(2021, 1, 3)], [datetime(2021, 1, 4), datetime(2021, 1, 5), datetime(2021, 1, 6)], None, [datetime(2021, 1, 7), datetime(2021, 1, 8), datetime(2021, 1, 9)]],
+            "entityid_list_col": [["syn123", "syn456", None], ["syn101", "syn102", "syn103"], None, ["syn104", "syn105", "syn106"]],
+            "userid_list_col": [["user1", "user2", "user3"], ["user4", "user5", None], None, ["user7", "user8", "user9"]],
+        }).convert_dtypes()
+        df = convert_dtypes_to_json_serializable(df)
+        print(df)
+    """
+    import pandas as pd
+
+    for col in df.columns:
+        df[col] = (
+            df[col].replace({pd.NA: None}).astype(object)
+        )  # this will convert the int64 and float64 columns to object columns
+        # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
+        if col in [
+            "ROW_ID",
+            "ROW_VERSION",
+            "ROW_ID.1",
+        ]:  # ROW_ID.1 is the temporary row id to constrct row to upsert
+            df[col] = df[col].astype(int)
+    return df
+
+
 async def _query_table_csv(
     query: str,
     synapse: Synapse,
@@ -2006,7 +2051,6 @@ async def _upsert_rows_async(
     method name.
     """
     test_import_pandas()
-    import pandas as pd
     from pandas import DataFrame
 
     if not entity._last_persistent_instance:
@@ -2035,13 +2079,7 @@ async def _upsert_rows_async(
 
     client = Synapse.get_client(synapse_client=synapse_client)
     # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
-    num_cols = values.select_dtypes(include=["int64", "float64"]).columns
-    if len(num_cols) > 0:
-        for col in num_cols:
-            values[col] = values[col].replace({pd.NA: None})
-            # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
-            if col.startswith("ROW_"):
-                values[col] = values[col].astype(int)
+    values = convert_dtypes_to_json_serializable(values)
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
@@ -2073,13 +2111,7 @@ async def _upsert_rows_async(
                 query=select_statement, synapse_client=synapse_client
             )
             # Replace pd.NA with None for int64/float64 columns to avoid JSON serialization issues
-            num_cols = results.select_dtypes(include=["int64", "float64"]).columns
-            if len(num_cols) > 0:
-                for col in num_cols:
-                    results[col] = results[col].replace({pd.NA: None})
-                    # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
-                    if col.startswith("ROW_"):
-                        results[col] = results[col].astype(int)
+            results = convert_dtypes_to_json_serializable(results)
             (
                 rows_to_update,
                 indexes_with_updates,
@@ -2833,7 +2865,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
                 # Note: DOUBLE, INTEGER, and BOOLEAN types are handled by pandas'
                 # default type inference and do not need explicit dtype specifications
 
-        return csv_to_pandas_df(
+        df = csv_to_pandas_df(
             filepath=csv_path,
             separator=separator or DEFAULT_SEPARATOR,
             quote_char=quote_character or DEFAULT_QUOTE_CHARACTER,
@@ -2845,6 +2877,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             dtype=dtype,
             **kwargs,
         )
+        return convert_dtypes_to_json_serializable(df)
 
     @staticmethod
     async def query_part_mask_async(
@@ -4513,7 +4546,7 @@ def csv_to_pandas_df(
                             else x
                         )
                     )
-                elif column_type == "USERID_LIST":
+                elif column_type in ["USERID_LIST", "ENTITYID_LIST", "STRING_LIST"]:
                     # USERID items should be strings, converting None values as empty strings
                     df[col] = df[col].apply(
                         lambda x: (
@@ -4534,24 +4567,6 @@ def csv_to_pandas_df(
                 elif column_type == "DATE_LIST":
                     # Date items are already handled by json.loads as they come as numbers
                     pass
-                elif column_type == "ENTITYID_LIST":
-                    # ENTITYID items should remain as strings, converting None values as empty strings
-                    df[col] = df[col].apply(
-                        lambda x: (
-                            [str(item) if item is not None else "" for item in x]
-                            if isinstance(x, list)
-                            else x
-                        )
-                    )
-                elif column_type == "STRING_LIST":
-                    # String items should remain as strings, converting None values as empty strings
-                    df[col] = df[col].apply(
-                        lambda x: (
-                            [str(item) if item is not None else "" for item in x]
-                            if isinstance(x, list)
-                            else x
-                        )
-                    )
                 # JSON type doesn't need item conversion as it preserves types from json.loads
 
     if (
