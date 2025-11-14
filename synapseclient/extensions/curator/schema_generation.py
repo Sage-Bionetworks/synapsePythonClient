@@ -114,6 +114,27 @@ ALL_COLUMN_TYPE_VALUES = [member.value for member in AtomicColumnType] + [
 ]
 
 
+class Format(Enum):
+    """
+    Allowed formats by the JSON Schema validator used by Synapse: https://github.com/everit-org/json-schema#format-validators
+    For descriptions see: https://json-schema.org/understanding-json-schema/reference/type#format
+    """
+
+    DATE_TIME = "date-time"
+    EMAIL = "email"
+    HOSTNAME = "hostname"
+    IPV4 = "ipv4"
+    IPV6 = "ipv6"
+    URI = "uri"
+    URI_REFERENCE = "uri-reference"
+    URI_TEMPLATE = "uri-template"
+    JSON_POINTER = "json-pointer"
+    DATE = "date"
+    TIME = "time"
+    REGEX = "regex"
+    RELATIVE_JSON_POINTER = "relative-json-pointer"
+
+
 # Translates list types to their atomic type
 LIST_TYPE_DICT = {
     ListColumnType.STRING_LIST: AtomicColumnType.STRING,
@@ -636,6 +657,7 @@ class DataModelCSVParser:
         # get attributes from Attribute column
         attributes = model_df.to_dict("records")
         model_includes_column_type = "columnType" in model_df.columns
+        model_includes_format = "Format" in model_df.columns
 
         # Build attribute/relationship dictionary
         relationship_types = self.required_headers
@@ -659,6 +681,9 @@ class DataModelCSVParser:
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     column_type_dict
                 )
+            if model_includes_format:
+                format_dict = self.parse_format(attr)
+                attr_rel_dictionary[attribute_name]["Relationships"].update(format_dict)
         return attr_rel_dictionary
 
     def parse_column_type(self, attr: dict) -> dict:
@@ -690,6 +715,34 @@ class DataModelCSVParser:
         )
 
         return {"ColumnType": column_type}
+
+    def parse_format(self, attr: dict) -> dict[str, str]:
+        """Parse the format for a given attribute.
+
+        Args:
+            attr: The attribute dictionary.
+
+        Returns:
+            A dictionary containing the parsed column type information if present
+            else an empty dict
+        """
+        from pandas import isna
+
+        format_value = attr.get("Format")
+
+        if isna(format_value):
+            return {}
+
+        format_string = str(format_value).strip().lower()
+
+        check_allowed_values(
+            self.dmr,
+            entry_id=attr["Format"],
+            value=format_string,
+            relationship="format",
+        )
+
+        return {"Format": format_string}
 
     def parse_csv_model(
         self,
@@ -1706,6 +1759,37 @@ class DataModelGraphExplorer:
                     f"Allowed values are: [{ALL_COLUMN_TYPE_VALUES}]"
                 )
                 raise ValueError(msg)
+        return column_type
+
+    def get_node_format(
+        self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
+    ) -> Optional[ColumnType]:
+        """Gets the format of the node
+
+        Args:
+            node_label: The label of the node to get the format from
+            node_display_name: The display name of the node to get the format from
+
+        Raises:
+            ValueError: If the value from the node is not allowed
+
+        Returns:
+            The format of the node if it has one, otherwise None
+        """
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value("format", "node_label")
+        format_value = self.graph.nodes[node_label][rel_node_label]
+        if format_value is None:
+            return format_value
+        format_string = str(format_value).lower()
+        try:
+            column_type = Format(format_string)
+        except ValueError as exc:
+            msg = (
+                f"Node: '{node_label}' had illegal format value: '{format_value}'. "
+                f"Allowed values are: [{[member.value for member in Format]}]"
+            )
+            raise ValueError(msg) from exc
         return column_type
 
     def _get_node_label(
@@ -2825,6 +2909,16 @@ class DataModelRelationships:
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
                 "allowed_values": ALL_COLUMN_TYPE_VALUES,
+            },
+            "format": {
+                "jsonld_key": "sms:format",
+                "csv_header": "Format",
+                "node_label": "format",
+                "type": str,
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+                "allowed_values": [member.value for member in Format],
             },
         }
 

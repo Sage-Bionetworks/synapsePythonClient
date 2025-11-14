@@ -1,12 +1,13 @@
 import os
-import sys
 from unittest.mock import Mock
 
 import pytest
 
 from synapseclient.extensions.curator.schema_generation import (
+    DataModelCSVParser,
     DataModelGraph,
     DataModelGraphExplorer,
+    DataModelJSONLDParser,
     DataModelParser,
     DataModelRelationships,
 )
@@ -68,3 +69,33 @@ def DMGE(helpers: Helpers) -> DataModelGraphExplorer:
 def fixture_dmr():
     "Returns a DataModelRelationships instance"
     return DataModelRelationships()
+
+
+@pytest.fixture(name="dmp")
+def fixture_dmp(helpers: Helpers) -> DataModelParser:
+    "Returns a DataModelParser using the csv data model"
+    data_model_path = helpers.get_schema_file_path("example.model.csv")
+    dmp = DataModelParser(data_model_path, logger=Mock())
+    return dmp
+
+
+@pytest.fixture(name="dmp_jsonld")
+def fixture_dmp_json_ld(helpers: Helpers) -> DataModelParser:
+    "Returns a DataModelParser using the jsonld data model"
+    data_model_path = helpers.get_schema_file_path("example.model.jsonld")
+    dmp = DataModelParser(data_model_path, logger=Mock())
+    return dmp
+
+
+@pytest.fixture(name="csv_dmp")
+def fixture_csv_dmp() -> DataModelCSVParser:
+    "Returns a DataModelCSVParser"
+    dmp = DataModelCSVParser(logger=Mock())
+    return dmp
+
+
+@pytest.fixture(name="jsonld_dmp")
+def fixture_jsonld_dmp() -> DataModelCSVParser:
+    "Returns a DataModelJSONLDParser"
+    dmp = DataModelJSONLDParser()
+    return dmp
