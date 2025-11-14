@@ -179,7 +179,8 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
     """
 
     def fill_from_dict(
-        self, synapse_submission_bundle: Dict[str, Union[bool, str, int, Dict]]
+        self,
+        synapse_submission_bundle: Dict[str, Union[bool, str, int, Dict]],
     ) -> "SubmissionBundle":
         """
         Converts a response from the REST API into this dataclass.
@@ -201,9 +202,10 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
 
         submission_status_dict = synapse_submission_bundle.get("submissionStatus", None)
         if submission_status_dict:
-            self.submission_status = SubmissionStatus().fill_from_dict(
-                submission_status_dict
-            )
+            self.submission_status = SubmissionStatus().fill_from_dict(submission_status_dict)
+            # Manually set evaluation_id from the submission data if available
+            if self.submission_status and self.submission and self.submission.evaluation_id:
+                self.submission_status.evaluation_id = self.submission.evaluation_id
         else:
             self.submission_status = None
 
@@ -268,7 +270,8 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
 
         bundles = []
         for bundle_dict in response.get("results", []):
-            bundle = SubmissionBundle().fill_from_dict(bundle_dict)
+            bundle = SubmissionBundle()
+            bundle.fill_from_dict(bundle_dict)
             bundles.append(bundle)
 
         return bundles
@@ -327,7 +330,8 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
         # Convert response to list of SubmissionBundle objects
         bundles = []
         for bundle_dict in response.get("results", []):
-            bundle = SubmissionBundle().fill_from_dict(bundle_dict)
+            bundle = SubmissionBundle()
+            bundle.fill_from_dict(bundle_dict)
             bundles.append(bundle)
 
         return bundles

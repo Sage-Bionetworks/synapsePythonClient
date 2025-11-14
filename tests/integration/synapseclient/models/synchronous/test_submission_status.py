@@ -97,7 +97,9 @@ class TestSubmissionStatusRetrieval:
         assert submission_status.id == test_submission.id
         assert submission_status.entity_id == test_submission.entity_id
         assert submission_status.evaluation_id == test_evaluation.id
-        assert submission_status.status is not None  # Should have some status (e.g., "RECEIVED")
+        assert (
+            submission_status.status is not None
+        )  # Should have some status (e.g., "RECEIVED")
         assert submission_status.etag is not None
         assert submission_status.status_version is not None
         assert submission_status.modified_on is not None
@@ -108,7 +110,9 @@ class TestSubmissionStatusRetrieval:
         submission_status = SubmissionStatus()
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="The submission status must have an ID to get"):
+        with pytest.raises(
+            ValueError, match="The submission status must have an ID to get"
+        ):
             submission_status.get(synapse_client=self.syn)
 
     async def test_get_submission_status_with_invalid_id(self):
@@ -229,7 +233,7 @@ class TestSubmissionStatusUpdates:
         # WHEN I add submission annotations and store
         test_submission_status.submission_annotations = {
             "score": 85.5,
-            "validation_passed": True,
+            "validation_passed": [True],
             "feedback": "Good work!",
         }
         updated_status = test_submission_status.store(synapse_client=self.syn)
@@ -237,9 +241,9 @@ class TestSubmissionStatusUpdates:
         # THEN the submission annotations should be saved
         assert updated_status.submission_annotations is not None
         assert "score" in updated_status.submission_annotations
-        assert updated_status.submission_annotations["score"] == 85.5
-        assert updated_status.submission_annotations["validation_passed"] == True
-        assert updated_status.submission_annotations["feedback"] == "Good work!"
+        assert updated_status.submission_annotations["score"] == [85.5]
+        assert updated_status.submission_annotations["validation_passed"] == [True]
+        assert updated_status.submission_annotations["feedback"] == ["Good work!"]
 
     async def test_store_submission_status_with_legacy_annotations(
         self, test_submission_status: SubmissionStatus
@@ -255,8 +259,8 @@ class TestSubmissionStatusUpdates:
         # THEN the legacy annotations should be saved
         assert updated_status.annotations is not None
         assert "internal_score" in updated_status.annotations
-        assert updated_status.annotations["internal_score"] == 92.3
-        assert updated_status.annotations["reviewer_notes"] == "Excellent submission"
+        assert updated_status.annotations["internal_score"] == [92.3]
+        assert updated_status.annotations["reviewer_notes"] == ["Excellent submission"]
 
     async def test_store_submission_status_with_combined_annotations(
         self, test_submission_status: SubmissionStatus
@@ -276,11 +280,11 @@ class TestSubmissionStatusUpdates:
         # THEN both types of annotations should be saved
         assert updated_status.submission_annotations is not None
         assert "public_score" in updated_status.submission_annotations
-        assert updated_status.submission_annotations["public_score"] == 78.0
+        assert updated_status.submission_annotations["public_score"] == [78.0]
 
         assert updated_status.annotations is not None
         assert "internal_review" in updated_status.annotations
-        assert updated_status.annotations["internal_review"] == True
+        assert updated_status.annotations["internal_review"] == [True]
 
     async def test_store_submission_status_with_private_annotations_false(
         self, test_submission_status: SubmissionStatus
@@ -292,10 +296,12 @@ class TestSubmissionStatusUpdates:
             "public_notes": "This should be visible",
         }
         test_submission_status.private_status_annotations = False
-        
+
         # AND I create the request body to inspect it
-        request_body = test_submission_status.to_synapse_request(synapse_client=self.syn)
-        
+        request_body = test_submission_status.to_synapse_request(
+            synapse_client=self.syn
+        )
+
         # THEN the annotations should be marked as not private in the request
         assert "annotations" in request_body
         annotations_data = request_body["annotations"]
@@ -312,10 +318,12 @@ class TestSubmissionStatusUpdates:
             "private_notes": "This should be private",
         }
         test_submission_status.private_status_annotations = True
-        
+
         # AND I create the request body to inspect it
-        request_body = test_submission_status.to_synapse_request(synapse_client=self.syn)
-        
+        request_body = test_submission_status.to_synapse_request(
+            synapse_client=self.syn
+        )
+
         # THEN the annotations should be marked as private in the request
         assert "annotations" in request_body
         annotations_data = request_body["annotations"]
@@ -328,7 +336,9 @@ class TestSubmissionStatusUpdates:
         submission_status = SubmissionStatus(status="SCORED")
 
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="The submission status must have an ID to update"):
+        with pytest.raises(
+            ValueError, match="The submission status must have an ID to update"
+        ):
             submission_status.store(synapse_client=self.syn)
 
     async def test_store_submission_status_without_changes(
@@ -405,7 +415,9 @@ class TestSubmissionStatusBulkOperations:
             with tempfile.NamedTemporaryFile(
                 mode="w", delete=False, suffix=".txt"
             ) as temp_file:
-                temp_file.write(f"This is test content {i} for submission status testing.")
+                temp_file.write(
+                    f"This is test content {i} for submission status testing."
+                )
                 temp_file_path = temp_file.name
 
             try:
@@ -546,7 +558,7 @@ class TestSubmissionStatusBulkOperations:
             )
             assert updated_status.status == "VALIDATED"
             assert "batch_score" in updated_status.submission_annotations
-            assert updated_status.submission_annotations["batch_processed"] == True
+            assert updated_status.submission_annotations["batch_processed"] == [True]
 
     async def test_batch_update_submission_statuses_large_batch(
         self, test_evaluation: Evaluation
@@ -554,10 +566,10 @@ class TestSubmissionStatusBulkOperations:
         """Test batch update behavior with larger batch (approaching limits)."""
         # Note: This test demonstrates the pattern but doesn't create 500 submissions
         # as that would be too expensive for regular test runs
-        
+
         # GIVEN I have a list of statuses (simulated for this test)
         statuses = []
-        
+
         # WHEN I try to batch update (even with empty list)
         response = SubmissionStatus.batch_update_submission_statuses(
             evaluation_id=test_evaluation.id,
@@ -600,8 +612,10 @@ class TestSubmissionStatusBulkOperations:
 
         # IF there's a second batch and we got a batch token
         if len(batch2) > 0:
-            batch_token = response1.get("batchToken") if isinstance(response1, dict) else None
-            
+            batch_token = (
+                response1.get("batchToken") if isinstance(response1, dict) else None
+            )
+
             # WHEN I update the second batch with the token
             response2 = SubmissionStatus.batch_update_submission_statuses(
                 evaluation_id=test_evaluation.id,
@@ -644,10 +658,7 @@ class TestSubmissionStatusValidation:
         """Test that annotations require evaluation_id."""
         # WHEN I try to create a request with annotations but no evaluation_id
         submission_status = SubmissionStatus(
-            id="123",
-            etag="some-etag", 
-            status_version=1,
-            annotations={"test": "value"}
+            id="123", etag="some-etag", status_version=1, annotations={"test": "value"}
         )
 
         # THEN it should raise a ValueError
@@ -663,7 +674,7 @@ class TestSubmissionStatusValidation:
             status_version=1,
             status="SCORED",
             evaluation_id="eval123",
-            submission_annotations={"score": 85.5}
+            submission_annotations={"score": 85.5},
         )
 
         # THEN it should create a valid request body
@@ -690,21 +701,15 @@ class TestSubmissionStatusValidation:
             "canCancel": False,
             "cancelRequested": False,
             "annotations": {
-                "stringAnnos": {
-                    "internal_note": ["This is internal"]
-                },
+                "stringAnnos": {"internal_note": ["This is internal"]},
                 "doubleAnnos": {},
-                "longAnnos": {}
+                "longAnnos": {},
             },
             "submissionAnnotations": {
-                "stringAnnos": {
-                    "feedback": ["Great work!"]
-                },
-                "doubleAnnos": {
-                    "score": [92.5]
-                },
-                "longAnnos": {}
-            }
+                "stringAnnos": {"feedback": ["Great work!"]},
+                "doubleAnnos": {"score": [92.5]},
+                "longAnnos": {},
+            },
         }
 
         # WHEN I fill a SubmissionStatus from the response
@@ -730,10 +735,7 @@ class TestSubmissionStatusValidation:
     async def test_fill_from_dict_with_minimal_response(self):
         """Test filling a SubmissionStatus from a minimal API response."""
         # GIVEN a minimal API response
-        api_response = {
-            "id": "123456",
-            "status": "RECEIVED"
-        }
+        api_response = {"id": "123456", "status": "RECEIVED"}
 
         # WHEN I fill a SubmissionStatus from the response
         submission_status = SubmissionStatus()

@@ -432,7 +432,8 @@ class SubmissionStatus(
         self._last_persistent_instance = replace(self)
 
     def fill_from_dict(
-        self, synapse_submission_status: Dict[str, Union[bool, str, int, float, List]]
+        self,
+        synapse_submission_status: Dict[str, Union[bool, str, int, float, List]],
     ) -> "SubmissionStatus":
         """
         Converts a response from the REST API into this dataclass.
@@ -744,7 +745,7 @@ class SubmissionStatus(
         for status_dict in response.get("results", []):
             submission_status = SubmissionStatus()
             submission_status.fill_from_dict(status_dict)
-            # Manually set evaluation_id since it's not part of the response
+            # Manually set evaluation_id since it's not in the SubmissionStatus response
             submission_status.evaluation_id = evaluation_id
             submission_status._set_last_persistent_instance()
             submission_statuses.append(submission_status)
