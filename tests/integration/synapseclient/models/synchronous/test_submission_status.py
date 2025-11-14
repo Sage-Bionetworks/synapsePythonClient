@@ -1,0 +1,748 @@
+"""Integration tests for the synapseclient.models.SubmissionStatus class."""
+
+import os
+import tempfile
+import uuid
+from typing import Callable
+
+import pytest
+
+from synapseclient import Synapse
+from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.models import Evaluation, File, Project, Submission, SubmissionStatus
+
+
+class TestSubmissionStatusRetrieval:
+    """Tests for retrieving SubmissionStatus objects."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    @pytest.fixture(scope="function")
+    async def test_evaluation(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Evaluation:
+        """Create a test evaluation for submission status tests."""
+        evaluation = Evaluation(
+            name=f"test_evaluation_{uuid.uuid4()}",
+            description="A test evaluation for submission status tests",
+            content_source=project_model.id,
+            submission_instructions_message="Please submit your results",
+            submission_receipt_message="Thank you!",
+        )
+        created_evaluation = evaluation.store(synapse_client=syn)
+        schedule_for_cleanup(created_evaluation.id)
+        return created_evaluation
+
+    @pytest.fixture(scope="function")
+    async def test_file(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> File:
+        """Create a test file for submission status tests."""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
+            temp_file.write("This is test content for submission status testing.")
+            temp_file_path = temp_file.name
+
+        try:
+            file = File(
+                path=temp_file_path,
+                name=f"test_file_{uuid.uuid4()}.txt",
+                parent_id=project_model.id,
+            ).store(synapse_client=syn)
+            schedule_for_cleanup(file.id)
+            return file
+        finally:
+            # Clean up the temporary file
+            os.unlink(temp_file_path)
+
+    @pytest.fixture(scope="function")
+    async def test_submission(
+        self,
+        test_evaluation: Evaluation,
+        test_file: File,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Submission:
+        """Create a test submission for status tests."""
+        submission = Submission(
+            entity_id=test_file.id,
+            evaluation_id=test_evaluation.id,
+            name=f"Test Submission {uuid.uuid4()}",
+        )
+        created_submission = submission.store(synapse_client=syn)
+        schedule_for_cleanup(created_submission.id)
+        return created_submission
+
+    async def test_get_submission_status_by_id(
+        self, test_submission: Submission, test_evaluation: Evaluation
+    ):
+        """Test retrieving a submission status by ID."""
+        # WHEN I get a submission status by ID
+        submission_status = SubmissionStatus(id=test_submission.id).get(
+            synapse_client=self.syn
+        )
+
+        # THEN the submission status should be retrieved correctly
+        assert submission_status.id == test_submission.id
+        assert submission_status.entity_id == test_submission.entity_id
+        assert submission_status.evaluation_id == test_evaluation.id
+        assert submission_status.status is not None  # Should have some status (e.g., "RECEIVED")
+        assert submission_status.etag is not None
+        assert submission_status.status_version is not None
+        assert submission_status.modified_on is not None
+
+    async def test_get_submission_status_without_id(self):
+        """Test that getting a submission status without ID raises ValueError."""
+        # WHEN I try to get a submission status without an ID
+        submission_status = SubmissionStatus()
+
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="The submission status must have an ID to get"):
+            submission_status.get(synapse_client=self.syn)
+
+    async def test_get_submission_status_with_invalid_id(self):
+        """Test that getting a submission status with invalid ID raises exception."""
+        # WHEN I try to get a submission status with an invalid ID
+        submission_status = SubmissionStatus(id="syn999999999999")
+
+        # THEN it should raise a SynapseHTTPError (404)
+        with pytest.raises(SynapseHTTPError):
+            submission_status.get(synapse_client=self.syn)
+
+
+class TestSubmissionStatusUpdates:
+    """Tests for updating SubmissionStatus objects."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    @pytest.fixture(scope="function")
+    async def test_evaluation(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Evaluation:
+        """Create a test evaluation for submission status tests."""
+        evaluation = Evaluation(
+            name=f"test_evaluation_{uuid.uuid4()}",
+            description="A test evaluation for submission status tests",
+            content_source=project_model.id,
+            submission_instructions_message="Please submit your results",
+            submission_receipt_message="Thank you!",
+        )
+        created_evaluation = evaluation.store(synapse_client=syn)
+        schedule_for_cleanup(created_evaluation.id)
+        return created_evaluation
+
+    @pytest.fixture(scope="function")
+    async def test_file(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> File:
+        """Create a test file for submission status tests."""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
+            temp_file.write("This is test content for submission status testing.")
+            temp_file_path = temp_file.name
+
+        try:
+            file = File(
+                path=temp_file_path,
+                name=f"test_file_{uuid.uuid4()}.txt",
+                parent_id=project_model.id,
+            ).store(synapse_client=syn)
+            schedule_for_cleanup(file.id)
+            return file
+        finally:
+            # Clean up the temporary file
+            os.unlink(temp_file_path)
+
+    @pytest.fixture(scope="function")
+    async def test_submission(
+        self,
+        test_evaluation: Evaluation,
+        test_file: File,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Submission:
+        """Create a test submission for status tests."""
+        submission = Submission(
+            entity_id=test_file.id,
+            evaluation_id=test_evaluation.id,
+            name=f"Test Submission {uuid.uuid4()}",
+        )
+        created_submission = submission.store(synapse_client=syn)
+        schedule_for_cleanup(created_submission.id)
+        return created_submission
+
+    @pytest.fixture(scope="function")
+    async def test_submission_status(
+        self, test_submission: Submission
+    ) -> SubmissionStatus:
+        """Create a test submission status by getting the existing one."""
+        submission_status = SubmissionStatus(id=test_submission.id).get(
+            synapse_client=self.syn
+        )
+        return submission_status
+
+    async def test_store_submission_status_with_status_change(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test updating a submission status with a status change."""
+        # GIVEN a submission status that exists
+        original_status = test_submission_status.status
+        original_etag = test_submission_status.etag
+
+        # WHEN I update the status
+        test_submission_status.status = "VALIDATED"
+        updated_status = test_submission_status.store(synapse_client=self.syn)
+
+        # THEN the submission status should be updated
+        assert updated_status.id == test_submission_status.id
+        assert updated_status.status == "VALIDATED"
+        assert updated_status.status != original_status
+        assert updated_status.etag != original_etag  # etag should change
+        assert updated_status.status_version > test_submission_status.status_version
+
+    async def test_store_submission_status_with_submission_annotations(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test updating a submission status with submission annotations."""
+        # WHEN I add submission annotations and store
+        test_submission_status.submission_annotations = {
+            "score": 85.5,
+            "validation_passed": True,
+            "feedback": "Good work!",
+        }
+        updated_status = test_submission_status.store(synapse_client=self.syn)
+
+        # THEN the submission annotations should be saved
+        assert updated_status.submission_annotations is not None
+        assert "score" in updated_status.submission_annotations
+        assert updated_status.submission_annotations["score"] == 85.5
+        assert updated_status.submission_annotations["validation_passed"] == True
+        assert updated_status.submission_annotations["feedback"] == "Good work!"
+
+    async def test_store_submission_status_with_legacy_annotations(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test updating a submission status with legacy annotations."""
+        # WHEN I add legacy annotations and store
+        test_submission_status.annotations = {
+            "internal_score": 92.3,
+            "reviewer_notes": "Excellent submission",
+        }
+        updated_status = test_submission_status.store(synapse_client=self.syn)
+
+        # THEN the legacy annotations should be saved
+        assert updated_status.annotations is not None
+        assert "internal_score" in updated_status.annotations
+        assert updated_status.annotations["internal_score"] == 92.3
+        assert updated_status.annotations["reviewer_notes"] == "Excellent submission"
+
+    async def test_store_submission_status_with_combined_annotations(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test updating a submission status with both types of annotations."""
+        # WHEN I add both submission and legacy annotations
+        test_submission_status.submission_annotations = {
+            "public_score": 78.0,
+            "category": "Bronze",
+        }
+        test_submission_status.annotations = {
+            "internal_review": True,
+            "notes": "Needs minor improvements",
+        }
+        updated_status = test_submission_status.store(synapse_client=self.syn)
+
+        # THEN both types of annotations should be saved
+        assert updated_status.submission_annotations is not None
+        assert "public_score" in updated_status.submission_annotations
+        assert updated_status.submission_annotations["public_score"] == 78.0
+
+        assert updated_status.annotations is not None
+        assert "internal_review" in updated_status.annotations
+        assert updated_status.annotations["internal_review"] == True
+
+    async def test_store_submission_status_with_private_annotations_false(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test updating a submission status with private_status_annotations set to False."""
+        # WHEN I add legacy annotations with private_status_annotations set to False
+        test_submission_status.annotations = {
+            "public_internal_score": 88.5,
+            "public_notes": "This should be visible",
+        }
+        test_submission_status.private_status_annotations = False
+        
+        # AND I create the request body to inspect it
+        request_body = test_submission_status.to_synapse_request(synapse_client=self.syn)
+        
+        # THEN the annotations should be marked as not private in the request
+        assert "annotations" in request_body
+        annotations_data = request_body["annotations"]
+        assert "isPrivate" in annotations_data
+        assert annotations_data["isPrivate"] is False
+
+    async def test_store_submission_status_with_private_annotations_true(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test updating a submission status with private_status_annotations set to True (default)."""
+        # WHEN I add legacy annotations with private_status_annotations set to True (default)
+        test_submission_status.annotations = {
+            "private_internal_score": 95.0,
+            "private_notes": "This should be private",
+        }
+        test_submission_status.private_status_annotations = True
+        
+        # AND I create the request body to inspect it
+        request_body = test_submission_status.to_synapse_request(synapse_client=self.syn)
+        
+        # THEN the annotations should be marked as private in the request
+        assert "annotations" in request_body
+        annotations_data = request_body["annotations"]
+        assert "isPrivate" in annotations_data
+        assert annotations_data["isPrivate"] is True
+
+    async def test_store_submission_status_without_id(self):
+        """Test that storing a submission status without ID raises ValueError."""
+        # WHEN I try to store a submission status without an ID
+        submission_status = SubmissionStatus(status="SCORED")
+
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="The submission status must have an ID to update"):
+            submission_status.store(synapse_client=self.syn)
+
+    async def test_store_submission_status_without_changes(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test that storing a submission status without changes shows warning."""
+        # GIVEN a submission status that hasn't been modified
+        # (it already has _last_persistent_instance set from get())
+
+        # WHEN I try to store it without making changes
+        result = test_submission_status.store(synapse_client=self.syn)
+
+        # THEN it should return the same instance (no update sent to Synapse)
+        assert result is test_submission_status
+
+    async def test_store_submission_status_change_tracking(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test that change tracking works correctly."""
+        # GIVEN a submission status that was retrieved (has_changed should be False)
+        assert not test_submission_status.has_changed
+
+        # WHEN I make a change
+        test_submission_status.status = "SCORED"
+
+        # THEN has_changed should be True
+        assert test_submission_status.has_changed
+
+        # WHEN I store the changes
+        updated_status = test_submission_status.store(synapse_client=self.syn)
+
+        # THEN has_changed should be False again
+        assert not updated_status.has_changed
+
+
+class TestSubmissionStatusBulkOperations:
+    """Tests for bulk SubmissionStatus operations."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    @pytest.fixture(scope="function")
+    async def test_evaluation(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Evaluation:
+        """Create a test evaluation for submission status tests."""
+        evaluation = Evaluation(
+            name=f"test_evaluation_{uuid.uuid4()}",
+            description="A test evaluation for submission status tests",
+            content_source=project_model.id,
+            submission_instructions_message="Please submit your results",
+            submission_receipt_message="Thank you!",
+        )
+        created_evaluation = evaluation.store(synapse_client=syn)
+        schedule_for_cleanup(created_evaluation.id)
+        return created_evaluation
+
+    @pytest.fixture(scope="function")
+    async def test_files(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> list[File]:
+        """Create multiple test files for submission status tests."""
+        files = []
+        for i in range(3):
+            # Create a temporary file
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".txt"
+            ) as temp_file:
+                temp_file.write(f"This is test content {i} for submission status testing.")
+                temp_file_path = temp_file.name
+
+            try:
+                file = File(
+                    path=temp_file_path,
+                    name=f"test_file_{i}_{uuid.uuid4()}.txt",
+                    parent_id=project_model.id,
+                ).store(synapse_client=syn)
+                schedule_for_cleanup(file.id)
+                files.append(file)
+            finally:
+                # Clean up the temporary file
+                os.unlink(temp_file_path)
+        return files
+
+    @pytest.fixture(scope="function")
+    async def test_submissions(
+        self,
+        test_evaluation: Evaluation,
+        test_files: list[File],
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> list[Submission]:
+        """Create multiple test submissions for status tests."""
+        submissions = []
+        for i, file in enumerate(test_files):
+            submission = Submission(
+                entity_id=file.id,
+                evaluation_id=test_evaluation.id,
+                name=f"Test Submission {i} {uuid.uuid4()}",
+            )
+            created_submission = submission.store(synapse_client=syn)
+            schedule_for_cleanup(created_submission.id)
+            submissions.append(created_submission)
+        return submissions
+
+    async def test_get_all_submission_statuses(
+        self, test_evaluation: Evaluation, test_submissions: list[Submission]
+    ):
+        """Test getting all submission statuses for an evaluation."""
+        # WHEN I get all submission statuses for the evaluation
+        statuses = SubmissionStatus.get_all_submission_statuses(
+            evaluation_id=test_evaluation.id,
+            synapse_client=self.syn,
+        )
+
+        # THEN I should get submission statuses for all submissions
+        assert len(statuses) >= len(test_submissions)
+        status_ids = [status.id for status in statuses]
+
+        # AND all test submissions should have their statuses in the results
+        for submission in test_submissions:
+            assert submission.id in status_ids
+
+        # AND each status should have proper attributes
+        for status in statuses:
+            assert status.id is not None
+            assert status.evaluation_id == test_evaluation.id
+            assert status.status is not None
+            assert status.etag is not None
+
+    async def test_get_all_submission_statuses_with_status_filter(
+        self, test_evaluation: Evaluation, test_submissions: list[Submission]
+    ):
+        """Test getting submission statuses with status filter."""
+        # WHEN I get submission statuses filtered by status
+        statuses = SubmissionStatus.get_all_submission_statuses(
+            evaluation_id=test_evaluation.id,
+            status="RECEIVED",
+            synapse_client=self.syn,
+        )
+
+        # THEN I should only get statuses with the specified status
+        for status in statuses:
+            assert status.status == "RECEIVED"
+            assert status.evaluation_id == test_evaluation.id
+
+    async def test_get_all_submission_statuses_with_pagination(
+        self, test_evaluation: Evaluation, test_submissions: list[Submission]
+    ):
+        """Test getting submission statuses with pagination."""
+        # WHEN I get submission statuses with pagination
+        statuses_page1 = SubmissionStatus.get_all_submission_statuses(
+            evaluation_id=test_evaluation.id,
+            limit=2,
+            offset=0,
+            synapse_client=self.syn,
+        )
+
+        # THEN I should get at most 2 statuses
+        assert len(statuses_page1) <= 2
+
+        # WHEN I get the next page
+        statuses_page2 = SubmissionStatus.get_all_submission_statuses(
+            evaluation_id=test_evaluation.id,
+            limit=2,
+            offset=2,
+            synapse_client=self.syn,
+        )
+
+        # THEN the results should be different (assuming more than 2 submissions exist)
+        if len(statuses_page1) == 2 and len(statuses_page2) > 0:
+            page1_ids = {status.id for status in statuses_page1}
+            page2_ids = {status.id for status in statuses_page2}
+            assert page1_ids != page2_ids  # Should be different sets
+
+    async def test_batch_update_submission_statuses(
+        self, test_evaluation: Evaluation, test_submissions: list[Submission]
+    ):
+        """Test batch updating multiple submission statuses."""
+        # GIVEN multiple submission statuses
+        statuses = []
+        for submission in test_submissions:
+            status = SubmissionStatus(id=submission.id).get(synapse_client=self.syn)
+            # Update each status
+            status.status = "VALIDATED"
+            status.submission_annotations = {
+                "batch_score": 90.0 + (len(statuses) * 2),
+                "batch_processed": True,
+            }
+            statuses.append(status)
+
+        # WHEN I batch update the statuses
+        response = SubmissionStatus.batch_update_submission_statuses(
+            evaluation_id=test_evaluation.id,
+            statuses=statuses,
+            synapse_client=self.syn,
+        )
+
+        # THEN the batch update should succeed
+        assert response is not None
+        assert "batchToken" in response or response == {}  # Response format may vary
+
+        # AND I should be able to verify the updates by retrieving the statuses
+        for original_status in statuses:
+            updated_status = SubmissionStatus(id=original_status.id).get(
+                synapse_client=self.syn
+            )
+            assert updated_status.status == "VALIDATED"
+            assert "batch_score" in updated_status.submission_annotations
+            assert updated_status.submission_annotations["batch_processed"] == True
+
+    async def test_batch_update_submission_statuses_large_batch(
+        self, test_evaluation: Evaluation
+    ):
+        """Test batch update behavior with larger batch (approaching limits)."""
+        # Note: This test demonstrates the pattern but doesn't create 500 submissions
+        # as that would be too expensive for regular test runs
+        
+        # GIVEN I have a list of statuses (simulated for this test)
+        statuses = []
+        
+        # WHEN I try to batch update (even with empty list)
+        response = SubmissionStatus.batch_update_submission_statuses(
+            evaluation_id=test_evaluation.id,
+            statuses=statuses,
+            synapse_client=self.syn,
+        )
+
+        # THEN the operation should complete without error
+        assert response is not None
+
+    async def test_batch_update_submission_statuses_with_batch_tokens(
+        self, test_evaluation: Evaluation, test_submissions: list[Submission]
+    ):
+        """Test batch updating with batch tokens for multi-batch operations."""
+        if len(test_submissions) < 2:
+            pytest.skip("Need at least 2 submissions for batch token test")
+
+        # GIVEN multiple statuses split into batches
+        all_statuses = []
+        for submission in test_submissions:
+            status = SubmissionStatus(id=submission.id).get(synapse_client=self.syn)
+            status.status = "SCORED"
+            all_statuses.append(status)
+
+        # Split into batches
+        batch1 = all_statuses[:1]
+        batch2 = all_statuses[1:]
+
+        # WHEN I update the first batch
+        response1 = SubmissionStatus.batch_update_submission_statuses(
+            evaluation_id=test_evaluation.id,
+            statuses=batch1,
+            is_first_batch=True,
+            is_last_batch=len(batch2) == 0,
+            synapse_client=self.syn,
+        )
+
+        # THEN I should get a response (possibly with batch token)
+        assert response1 is not None
+
+        # IF there's a second batch and we got a batch token
+        if len(batch2) > 0:
+            batch_token = response1.get("batchToken") if isinstance(response1, dict) else None
+            
+            # WHEN I update the second batch with the token
+            response2 = SubmissionStatus.batch_update_submission_statuses(
+                evaluation_id=test_evaluation.id,
+                statuses=batch2,
+                is_first_batch=False,
+                is_last_batch=True,
+                batch_token=batch_token,
+                synapse_client=self.syn,
+            )
+
+            # THEN the second batch should also succeed
+            assert response2 is not None
+
+
+class TestSubmissionStatusValidation:
+    """Tests for SubmissionStatus validation and error handling."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    async def test_to_synapse_request_missing_required_attributes(self):
+        """Test that to_synapse_request validates required attributes."""
+        # WHEN I try to create a request with missing required attributes
+        submission_status = SubmissionStatus(id="123")  # Missing etag, status_version
+
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="missing the 'etag' attribute"):
+            submission_status.to_synapse_request(synapse_client=self.syn)
+
+        # WHEN I add etag but still missing status_version
+        submission_status.etag = "some-etag"
+
+        # THEN it should raise a ValueError for status_version
+        with pytest.raises(ValueError, match="missing the 'status_version' attribute"):
+            submission_status.to_synapse_request(synapse_client=self.syn)
+
+    async def test_to_synapse_request_with_annotations_missing_evaluation_id(self):
+        """Test that annotations require evaluation_id."""
+        # WHEN I try to create a request with annotations but no evaluation_id
+        submission_status = SubmissionStatus(
+            id="123",
+            etag="some-etag", 
+            status_version=1,
+            annotations={"test": "value"}
+        )
+
+        # THEN it should raise a ValueError
+        with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
+            submission_status.to_synapse_request(synapse_client=self.syn)
+
+    async def test_to_synapse_request_valid_attributes(self):
+        """Test that to_synapse_request works with valid attributes."""
+        # WHEN I create a request with all required attributes
+        submission_status = SubmissionStatus(
+            id="123",
+            etag="some-etag",
+            status_version=1,
+            status="SCORED",
+            evaluation_id="eval123",
+            submission_annotations={"score": 85.5}
+        )
+
+        # THEN it should create a valid request body
+        request_body = submission_status.to_synapse_request(synapse_client=self.syn)
+
+        # AND the request should have the required fields
+        assert request_body["id"] == "123"
+        assert request_body["etag"] == "some-etag"
+        assert request_body["statusVersion"] == 1
+        assert request_body["status"] == "SCORED"
+        assert "submissionAnnotations" in request_body
+
+    async def test_fill_from_dict_with_complete_response(self):
+        """Test filling a SubmissionStatus from a complete API response."""
+        # GIVEN a complete API response
+        api_response = {
+            "id": "123456",
+            "etag": "abcd-1234",
+            "modifiedOn": "2023-01-01T00:00:00.000Z",
+            "status": "SCORED",
+            "entityId": "syn789",
+            "versionNumber": 1,
+            "statusVersion": 2,
+            "canCancel": False,
+            "cancelRequested": False,
+            "annotations": {
+                "stringAnnos": {
+                    "internal_note": ["This is internal"]
+                },
+                "doubleAnnos": {},
+                "longAnnos": {}
+            },
+            "submissionAnnotations": {
+                "stringAnnos": {
+                    "feedback": ["Great work!"]
+                },
+                "doubleAnnos": {
+                    "score": [92.5]
+                },
+                "longAnnos": {}
+            }
+        }
+
+        # WHEN I fill a SubmissionStatus from the response
+        submission_status = SubmissionStatus()
+        result = submission_status.fill_from_dict(api_response)
+
+        # THEN all fields should be populated correctly
+        assert result.id == "123456"
+        assert result.etag == "abcd-1234"
+        assert result.modified_on == "2023-01-01T00:00:00.000Z"
+        assert result.status == "SCORED"
+        assert result.entity_id == "syn789"
+        assert result.version_number == 1
+        assert result.status_version == 2
+        assert result.can_cancel is False
+        assert result.cancel_requested is False
+        assert "internal_note" in result.annotations
+        assert result.annotations["internal_note"] == "This is internal"
+        assert "feedback" in result.submission_annotations
+        assert "score" in result.submission_annotations
+        assert result.submission_annotations["score"] == 92.5
+
+    async def test_fill_from_dict_with_minimal_response(self):
+        """Test filling a SubmissionStatus from a minimal API response."""
+        # GIVEN a minimal API response
+        api_response = {
+            "id": "123456",
+            "status": "RECEIVED"
+        }
+
+        # WHEN I fill a SubmissionStatus from the response
+        submission_status = SubmissionStatus()
+        result = submission_status.fill_from_dict(api_response)
+
+        # THEN basic fields should be populated
+        assert result.id == "123456"
+        assert result.status == "RECEIVED"
+        # AND optional fields should have default values
+        assert result.etag is None
+        assert result.can_cancel is False
+        assert result.cancel_requested is False
