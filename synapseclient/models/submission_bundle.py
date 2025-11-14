@@ -1,10 +1,9 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
 
 from synapseclient import Synapse
 from synapseclient.api import evaluation_services
 from synapseclient.core.async_utils import async_to_sync
-from synapseclient.models.mixins.access_control import AccessControllable
 
 if TYPE_CHECKING:
     from synapseclient.models.submission import Submission
@@ -41,7 +40,11 @@ class SubmissionBundleSynchronousProtocol(Protocol):
             A list of SubmissionBundle objects containing the submission bundles
             for the evaluation queue.
 
+        Note:
+            The caller must be granted the ACCESS_TYPE.READ_PRIVATE_SUBMISSION on the specified Evaluation.
+
         Example: Getting submission bundles for an evaluation
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionBundle
@@ -87,6 +90,7 @@ class SubmissionBundleSynchronousProtocol(Protocol):
             submission bundles for the evaluation queue.
 
         Example: Getting user submission bundles
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionBundle
@@ -95,12 +99,12 @@ class SubmissionBundleSynchronousProtocol(Protocol):
             syn.login()
 
             bundles = SubmissionBundle.get_user_submission_bundles(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 limit=25
             )
             print(f"Found {len(bundles)} user submission bundles")
             for bundle in bundles:
-                print(f"Submission ID: {bundle.submission.id if bundle.submission else 'N/A'}")
+                print(f"Submission ID: {bundle.submission.id}")
             ```
         """
         return []
@@ -108,13 +112,11 @@ class SubmissionBundleSynchronousProtocol(Protocol):
 
 @dataclass
 @async_to_sync
-class SubmissionBundle(
-    SubmissionBundleSynchronousProtocol,
-    AccessControllable,
-):
+class SubmissionBundle(SubmissionBundleSynchronousProtocol):
     """A `SubmissionBundle` object represents a bundle containing a Synapse Submission
     and its accompanying SubmissionStatus. This bundle provides convenient access to both
     the submission data and its current status in a single object.
+
     <https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionBundle.html>
 
     Attributes:
@@ -124,6 +126,7 @@ class SubmissionBundle(
             This object should be used to contain scoring data about the Submission.
 
     Example: Retrieve submission bundles for an evaluation.
+        &nbsp;
         ```python
         from synapseclient import Synapse
         from synapseclient.models import SubmissionBundle
@@ -141,6 +144,26 @@ class SubmissionBundle(
             print(f"Submission ID: {bundle.submission.id if bundle.submission else 'N/A'}")
             print(f"Status: {bundle.submission_status.status if bundle.submission_status else 'N/A'}")
         ```
+
+    Example: Retrieve user submission bundles for an evaluation.
+        &nbsp;
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SubmissionBundle
+
+        syn = Synapse()
+        syn.login()
+
+        # Get current user's submission bundles for an evaluation
+        user_bundles = SubmissionBundle.get_user_submission_bundles(
+            evaluation_id="9999999",
+            limit=25
+        )
+
+        for bundle in user_bundles:
+            print(f"Submission ID: {bundle.submission.id}")
+            print(f"Status: {bundle.submission_status.status}")
+        ```
     """
 
     submission: Optional["Submission"] = None
@@ -154,12 +177,6 @@ class SubmissionBundle(
     A SubmissionStatus is a secondary, mutable object associated with a Submission.
     This object should be used to contain scoring data about the Submission.
     """
-
-    _last_persistent_instance: Optional["SubmissionBundle"] = field(
-        default=None, repr=False, compare=False
-    )
-    """The last persistent instance of this object. This is used to determine if the
-    object has been changed and needs to be updated in Synapse."""
 
     def fill_from_dict(
         self, synapse_submission_bundle: Dict[str, Union[bool, str, int, Dict]]
@@ -223,6 +240,7 @@ class SubmissionBundle(
             The caller must be granted the ACCESS_TYPE.READ_PRIVATE_SUBMISSION on the specified Evaluation.
 
         Example: Getting submission bundles for an evaluation
+            &nbsp;
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionBundle
@@ -231,13 +249,13 @@ class SubmissionBundle(
             syn.login()
 
             bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 status="SCORED",
                 limit=50
             )
             print(f"Found {len(bundles)} submission bundles")
             for bundle in bundles:
-                print(f"Submission ID: {bundle.submission.id if bundle.submission else 'N/A'}")
+                print(f"Submission ID: {bundle.submission.id}")
             ```
         """
         response = await evaluation_services.get_evaluation_submission_bundles(
@@ -281,6 +299,8 @@ class SubmissionBundle(
             submission bundles for the evaluation queue.
 
         Example: Getting user submission bundles
+            &nbsp;
+
             ```python
             from synapseclient import Synapse
             from synapseclient.models import SubmissionBundle
@@ -289,12 +309,12 @@ class SubmissionBundle(
             syn.login()
 
             bundles = await SubmissionBundle.get_user_submission_bundles_async(
-                evaluation_id="9614543",
+                evaluation_id="9999999",
                 limit=25
             )
             print(f"Found {len(bundles)} user submission bundles")
             for bundle in bundles:
-                print(f"Submission ID: {bundle.submission.id if bundle.submission else 'N/A'}")
+                print(f"Submission ID: {bundle.submission.id}")
             ```
         """
         response = await evaluation_services.get_user_submission_bundles(
