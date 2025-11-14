@@ -259,6 +259,60 @@ class SubmissionStatus(
         status = status.store()
         print(status)
         ```
+
+    Example: Get all submission statuses for an evaluation.
+        &nbsp;
+        Retrieve multiple submission statuses for an evaluation queue with optional filtering.
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SubmissionStatus
+
+        syn = Synapse()
+        syn.login()
+
+        # Get all RECEIVED statuses for an evaluation
+        statuses = SubmissionStatus.get_all_submission_statuses(
+            evaluation_id="9999999",
+            status="RECEIVED",
+            limit=100
+        )
+
+        print(f"Found {len(statuses)} submission statuses")
+        for status in statuses:
+            print(f"Status ID: {status.id}, Status: {status.status}")
+        ```
+
+    Example: Batch update multiple submission statuses.
+        &nbsp;
+        Efficiently update multiple submission statuses in a single operation.
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import SubmissionStatus
+
+        syn = Synapse()
+        syn.login()
+
+        # Retrieve statuses to update
+        statuses = SubmissionStatus.get_all_submission_statuses(
+            evaluation_id="9999999",
+            status="RECEIVED"
+        )
+
+        # Update each status
+        for status in statuses:
+            status.status = "SCORED"
+            status.submission_annotations = {
+                "validation_score": 95.0,
+                "comments": "Passed validation"
+            }
+
+        # Batch update all statuses
+        response = SubmissionStatus.batch_update_submission_statuses(
+            evaluation_id="9614543",
+            statuses=statuses
+        )
+        print(f"Batch update completed: {response}")
+        ```
     """
 
     id: Optional[str] = None
