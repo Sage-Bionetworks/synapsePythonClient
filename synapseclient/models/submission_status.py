@@ -665,7 +665,6 @@ class SubmissionStatus(
                     "modified_on",
                     "entity_id",
                     "version_number",
-                    "status_version",
                 ],
                 logger=logger,
             )

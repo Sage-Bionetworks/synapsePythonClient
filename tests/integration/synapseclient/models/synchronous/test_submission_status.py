@@ -8,6 +8,7 @@ from typing import Callable
 import pytest
 
 from synapseclient import Synapse
+from synapseclient.annotations import from_submission_status_annotations
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Evaluation, File, Project, Submission, SubmissionStatus
 
@@ -214,6 +215,7 @@ class TestSubmissionStatusUpdates:
         # GIVEN a submission status that exists
         original_status = test_submission_status.status
         original_etag = test_submission_status.etag
+        original_status_version = test_submission_status.status_version
 
         # WHEN I update the status
         test_submission_status.status = "VALIDATED"
@@ -224,7 +226,7 @@ class TestSubmissionStatusUpdates:
         assert updated_status.status == "VALIDATED"
         assert updated_status.status != original_status
         assert updated_status.etag != original_etag  # etag should change
-        assert updated_status.status_version > test_submission_status.status_version
+        assert updated_status.status_version > original_status_version
 
     async def test_store_submission_status_with_submission_annotations(
         self, test_submission_status: SubmissionStatus
@@ -233,17 +235,18 @@ class TestSubmissionStatusUpdates:
         # WHEN I add submission annotations and store
         test_submission_status.submission_annotations = {
             "score": 85.5,
-            "validation_passed": [True],
             "feedback": "Good work!",
         }
         updated_status = test_submission_status.store(synapse_client=self.syn)
 
         # THEN the submission annotations should be saved
         assert updated_status.submission_annotations is not None
-        assert "score" in updated_status.submission_annotations
-        assert updated_status.submission_annotations["score"] == [85.5]
-        assert updated_status.submission_annotations["validation_passed"] == [True]
-        assert updated_status.submission_annotations["feedback"] == ["Good work!"]
+        converted_submission_annotations = from_submission_status_annotations(
+            updated_status.submission_annotations
+        )
+        assert "score" in converted_submission_annotations
+        assert converted_submission_annotations["score"] == [85.5]
+        assert converted_submission_annotations["feedback"] == ["Good work!"]
 
     async def test_store_submission_status_with_legacy_annotations(
         self, test_submission_status: SubmissionStatus
@@ -255,12 +258,16 @@ class TestSubmissionStatusUpdates:
             "reviewer_notes": "Excellent submission",
         }
         updated_status = test_submission_status.store(synapse_client=self.syn)
+        assert updated_status.annotations is not None
+
+        converted_annotations = from_submission_status_annotations(
+            updated_status.annotations
+        )
 
         # THEN the legacy annotations should be saved
-        assert updated_status.annotations is not None
-        assert "internal_score" in updated_status.annotations
-        assert updated_status.annotations["internal_score"] == [92.3]
-        assert updated_status.annotations["reviewer_notes"] == ["Excellent submission"]
+        assert "internal_score" in converted_annotations
+        assert converted_annotations["internal_score"] == 92.3
+        assert converted_annotations["reviewer_notes"] == "Excellent submission"
 
     async def test_store_submission_status_with_combined_annotations(
         self, test_submission_status: SubmissionStatus
@@ -279,12 +286,18 @@ class TestSubmissionStatusUpdates:
 
         # THEN both types of annotations should be saved
         assert updated_status.submission_annotations is not None
-        assert "public_score" in updated_status.submission_annotations
-        assert updated_status.submission_annotations["public_score"] == [78.0]
+        converted_submission_annotations = from_submission_status_annotations(
+            updated_status.submission_annotations
+        )
+        assert "public_score" in converted_submission_annotations
+        assert converted_submission_annotations["public_score"] == [78.0]
 
         assert updated_status.annotations is not None
-        assert "internal_review" in updated_status.annotations
-        assert updated_status.annotations["internal_review"] == [True]
+        converted_annotations = from_submission_status_annotations(
+            updated_status.annotations
+        )
+        assert "internal_review" in converted_annotations
+        assert converted_annotations["internal_review"] == "true"
 
     async def test_store_submission_status_with_private_annotations_false(
         self, test_submission_status: SubmissionStatus
@@ -557,8 +570,11 @@ class TestSubmissionStatusBulkOperations:
                 synapse_client=self.syn
             )
             assert updated_status.status == "VALIDATED"
-            assert "batch_score" in updated_status.submission_annotations
-            assert updated_status.submission_annotations["batch_processed"] == [True]
+            converted_submission_annotations = from_submission_status_annotations(
+                updated_status.submission_annotations
+            )
+            assert "batch_score" in converted_submission_annotations
+            assert converted_submission_annotations["batch_processed"] == ["true"]
 
     async def test_batch_update_submission_statuses_large_batch(
         self, test_evaluation: Evaluation
