@@ -29,10 +29,18 @@ The results were created on a `c6a.8xlarge` EC2 instance running in us-east-1. T
   - **Baseline throughput (MB/s, 128 KiB I/O)**: 1250
   - **Maximum throughput (MB/s, 128 KiB I/O)**: 1250
 
+#### Successful Test result
 
 | Test                | Total Transfer Size | Sequential Upload (OOP) | Per file size |
 |---------------------|---------------------|-------------------------|---------------|
 | 45 Files/100GiB ea  | 4.5TB               | 74392.21s (~20.6h)    | 100GB         |
+
+
+#### Failed Test Attempts:
+During testing, several upload scenarios failed before achieving the successful 4.5TB upload:
+- **45 files to Synapse Dev (no S3 bucket)**: Failed due to extensive "Server disconnected without sending a response" errors and connection issues during multi-part uploads.
+- **45 files to Synapse Prod (1st attempt)**: Failed after ~44 hours, likely due to system reboot with repeated retry attempts and persistent connection timeouts
+- **Smaller scale tests**: 1 file of GiB (28 min) to Synapse Dev, 4 files (~3h) to Synapse Dev, and 4 files to Synapse Prod sequential (~1.8h) completed successfully, indicating the issues primarily affected large-scale uploads.
 
 #### Key Insights:
 - Successfully uploaded 4.5TB of data (45 × 100GB files) in approximately 20.6 hours
