@@ -2732,7 +2732,7 @@ def test_store__409_processed_as_update(syn: Synapse) -> None:
     ) as mock_set_annotations, patch.object(
         Entity, "create"
     ), patch.object(
-        syn, "get"
+        syn, "get_async"
     ):
         mock_get_entity_bundle.side_effect = [None, returned_bundle]
         mock_createEntity.side_effect = SynapseHTTPError(
