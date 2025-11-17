@@ -2770,7 +2770,7 @@ class Synapse(object):
 
         # Return the updated Entity object
         entity = Entity.create(properties, annotations, local_state)
-        return_data = self.get(entity, downloadFile=False)
+        return_data = await self.get_async(entity, downloadFile=False)
 
         trace.get_current_span().set_attributes(
             {

@@ -1038,6 +1038,23 @@ def readManifestFile(syn: Synapse, manifestFile: str) -> DATA_FRAME_TYPE:
     Returns:
         A pandas dataframe if the manifest is validated.
     """
+    return wrap_async_to_sync(
+        readManifestFile_async(syn=syn, manifestFile=manifestFile)
+    )
+
+
+async def readManifestFile_async(syn: Synapse, manifestFile: str) -> DATA_FRAME_TYPE:
+    """Verifies a file manifest and returns a reordered dataframe ready for upload.
+
+    [Read more about the manifest file format](../../explanations/manifest_tsv/)
+
+    Arguments:
+        syn: A Synapse object with user's login, e.g. syn = synapseclient.login()
+        manifestFile: A tsv file with file locations and metadata to be pushed to Synapse.
+
+    Returns:
+        A pandas dataframe if the manifest is validated.
+    """
     table.test_import_pandas()
     import pandas as pd
 
@@ -1092,7 +1109,7 @@ def readManifestFile(syn: Synapse, manifestFile: str) -> DATA_FRAME_TYPE:
     parents = set(df.parent)
     for synId in parents:
         try:
-            container = syn.get(synId, downloadFile=False)
+            container = await syn.get_async(synId, downloadFile=False)
         except SynapseHTTPError:
             syn.logger.warning(
                 f"\n{synId} in the parent column is not a valid Synapse Id\n"
@@ -1180,7 +1197,7 @@ async def syncToSynapse_async(
     associate_activity_to_new_version: bool = False,
 ) -> None:
     """Async version of syncToSynapse."""
-    df = readManifestFile(syn, manifestFile)
+    df = await readManifestFile_async(syn, manifestFile)
 
     sizes = [
         os.stat(os.path.expandvars(os.path.expanduser(f))).st_size
