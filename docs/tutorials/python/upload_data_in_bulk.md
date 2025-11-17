@@ -28,9 +28,9 @@ In this tutorial you will:
 1. Add a provenance/activity record to one of our files
 
 !!! warning "Uploading Very Large Files"
-    The bulk upload approach using `synapseutils.syncToSynapse()` is optimized for uploading many files efficiently. However, if you are uploading very large files (>100 GiB each), consider using the **async OOP API with sequential uploads** instead.
+    The bulk upload approach using `synapseutils.syncToSynapse()` is optimized for uploading many files efficiently. However, if you are uploading very large files (>100 GiB each), consider using **sequential uploads with async API** instead.
 
-    For very large file uploads, see the `execute_walk_file_sequential()` function in [uploadBenchmark.py](https://github.com/Sage-Bionetworks/synapsePythonClient/blob/develop/docs/scripts/uploadBenchmark.py) as a reference implementation. This approach uses `asyncio.run(file.store_async())` with the newer async API, which has been optimized for handling very large files efficiently. In benchmarks, this pattern successfully uploaded 45 files of 100 GB each (4.5 TB total) in approximately 20.6 hours.
+    For very large file uploads, see the `execute_walk_file_sequential()` function in [uploadBenchmark.py](https://github.com/Sage-Bionetworks/synapsePythonClient/blob/develop/docs/scripts/uploadBenchmark.py#L286) as a reference implementation. This approach uses `asyncio.run(file.store_async())` with the newer async API, which has been optimized for handling very large files efficiently. In benchmarks, this pattern successfully uploaded 45 files of 100 GB each (4.5 TB total) in approximately 20.6 hours.
 
 
 ## Prerequisites
