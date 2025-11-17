@@ -1345,7 +1345,7 @@ class TestUpsertRows:
         # TODO: When Evaluation and Submission are implemented with Async methods update this test
         evaluation = await self.syn.store_async(evaluation)
         try:
-            submission = self.syn.submit(
+            submission = await self.syn.submit_async(
                 evaluation, file.id, name="Submission 1", submitterAlias="My Team"
             )
 

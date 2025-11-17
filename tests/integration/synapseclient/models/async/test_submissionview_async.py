@@ -569,7 +569,7 @@ class TestSubmissionViewWithSubmissions:
         self.schedule_for_cleanup(file_entity.id)
 
         # WHEN I submit the file to the evaluation
-        submission = self.syn.submit(
+        submission = await self.syn.submit_async(
             evaluation,
             file_entity.id,
             name="Test submission",
@@ -666,7 +666,7 @@ class TestSubmissionViewWithSubmissions:
             files.append(file_entity)
 
             # Submit to evaluation
-            submission = self.syn.submit(
+            submission = await self.syn.submit_async(
                 evaluation,
                 file_entity.id,
                 name=f"Submission {i}",

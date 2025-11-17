@@ -6508,6 +6508,60 @@ class Synapse(object):
                 entity = syn.get('syn456')
                 submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
         """
+        return wrap_async_to_sync(
+            self.submit_async(
+                evaluation,
+                entity,
+                name=name,
+                team=team,
+                silent=silent,
+                submitterAlias=submitterAlias,
+                teamName=teamName,
+                dockerTag=dockerTag,
+            )
+        )
+
+    # TODO: Deprecate method in https://sagebionetworks.jira.com/browse/SYNPY-1590
+    async def submit_async(
+        self,
+        evaluation,
+        entity,
+        name=None,
+        team=None,
+        silent=False,
+        submitterAlias=None,
+        teamName=None,
+        dockerTag="latest",
+    ):
+        """
+        Submit an Entity for [evaluation][synapseclient.evaluation.Evaluation].
+
+        Arguments:
+            evalation: Evaluation queue to submit to
+            entity: The Entity containing the Submissions
+            name: A name for this submission. In the absent of this parameter, the entity name will be used.
+                    (Optional) A [synapseclient.team.Team][] object, ID or name of a Team that is registered for the challenge
+            team: (optional) A [synapseclient.team.Team][] object, ID or name of a Team that is registered for the challenge
+            silent: Set to True to suppress output.
+            submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
+            teamName: (deprecated) A synonym for submitterAlias
+            dockerTag: (optional) The Docker tag must be specified if the entity is a DockerRepository.
+
+        Returns:
+            A [synapseclient.evaluation.Submission][] object
+
+
+        In the case of challenges, a team can optionally be provided to give credit to members of the team that
+        contributed to the submission. The team must be registered for the challenge with which the given evaluation is
+        associated. The caller must be a member of the submitting team.
+
+        Example: Using this function
+            Getting and submitting an evaluation
+
+                evaluation = syn.getEvaluation(123)
+                entity = syn.get('syn456')
+                submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
+        """
 
         require_param(evaluation, "evaluation")
         require_param(entity, "entity")
@@ -6535,7 +6589,7 @@ class Synapse(object):
             entity_version = entity.version_number
         else:
             if "versionNumber" not in entity:
-                entity = self.get(entity, downloadFile=False)
+                entity = await self.get_async(entity, downloadFile=False)
             # version defaults to 1 to hack around required version field and allow submission of files/folders
             entity_version = entity.get("versionNumber", 1)
 
