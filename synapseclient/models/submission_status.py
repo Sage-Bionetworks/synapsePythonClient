@@ -421,9 +421,22 @@ class SubmissionStatus(
     @property
     def has_changed(self) -> bool:
         """Determines if the object has been newly created OR changed since last retrieval, and needs to be updated in Synapse."""
+        if not self._last_persistent_instance:
+            return True
+
+        model_attributes_changed = self._last_persistent_instance != self
+        annotations_changed = (
+            self._last_persistent_instance.annotations != self.annotations
+        )
+        submission_annotations_changed = (
+            self._last_persistent_instance.submission_annotations
+            != self.submission_annotations
+        )
+
         return (
-            not self._last_persistent_instance
-            or self._last_persistent_instance is not self
+            model_attributes_changed
+            or annotations_changed
+            or submission_annotations_changed
         )
 
     def _set_last_persistent_instance(self) -> None:

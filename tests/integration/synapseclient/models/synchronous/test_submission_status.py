@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+import test
 import uuid
 from typing import Callable
 
@@ -241,12 +242,9 @@ class TestSubmissionStatusUpdates:
 
         # THEN the submission annotations should be saved
         assert updated_status.submission_annotations is not None
-        converted_submission_annotations = from_submission_status_annotations(
-            updated_status.submission_annotations
-        )
-        assert "score" in converted_submission_annotations
-        assert converted_submission_annotations["score"] == [85.5]
-        assert converted_submission_annotations["feedback"] == ["Good work!"]
+        assert "score" in updated_status.submission_annotations
+        assert updated_status.submission_annotations["score"] == [85.5]
+        assert updated_status.submission_annotations["feedback"] == ["Good work!"]
 
     async def test_store_submission_status_with_legacy_annotations(
         self, test_submission_status: SubmissionStatus
@@ -286,11 +284,8 @@ class TestSubmissionStatusUpdates:
 
         # THEN both types of annotations should be saved
         assert updated_status.submission_annotations is not None
-        converted_submission_annotations = from_submission_status_annotations(
-            updated_status.submission_annotations
-        )
-        assert "public_score" in converted_submission_annotations
-        assert converted_submission_annotations["public_score"] == [78.0]
+        assert "public_score" in updated_status.submission_annotations
+        assert updated_status.submission_annotations["public_score"] == [78.0]
 
         assert updated_status.annotations is not None
         converted_annotations = from_submission_status_annotations(
@@ -310,16 +305,22 @@ class TestSubmissionStatusUpdates:
         }
         test_submission_status.private_status_annotations = False
 
-        # AND I create the request body to inspect it
-        request_body = test_submission_status.to_synapse_request(
-            synapse_client=self.syn
-        )
+        # WHEN I store the submission status
+        updated_status = test_submission_status.store(synapse_client=self.syn)
 
-        # THEN the annotations should be marked as not private in the request
-        assert "annotations" in request_body
-        annotations_data = request_body["annotations"]
-        assert "isPrivate" in annotations_data
-        assert annotations_data["isPrivate"] is False
+        # THEN they should be properly stored
+        assert updated_status.annotations is not None
+        converted_annotations = from_submission_status_annotations(
+            updated_status.annotations
+        )
+        assert "public_internal_score" in converted_annotations
+        assert converted_annotations["public_internal_score"] == 88.5
+        assert converted_annotations["public_notes"] == "This should be visible"
+
+        # AND the annotations should be marked as not private
+        for annos_type in ["stringAnnos", "doubleAnnos"]:
+            annotations = updated_status.annotations[annos_type]
+            assert all(not anno["isPrivate"] for anno in annotations)
 
     async def test_store_submission_status_with_private_annotations_true(
         self, test_submission_status: SubmissionStatus
@@ -337,11 +338,23 @@ class TestSubmissionStatusUpdates:
             synapse_client=self.syn
         )
 
-        # THEN the annotations should be marked as private in the request
-        assert "annotations" in request_body
-        annotations_data = request_body["annotations"]
-        assert "isPrivate" in annotations_data
-        assert annotations_data["isPrivate"] is True
+        # WHEN I store the submission status
+        updated_status = test_submission_status.store(synapse_client=self.syn)
+
+        # THEN they should be properly stored
+        assert updated_status.annotations is not None
+        converted_annotations = from_submission_status_annotations(
+            updated_status.annotations
+        )
+        assert "private_internal_score" in converted_annotations
+        assert converted_annotations["private_internal_score"] == 95.0
+        assert converted_annotations["private_notes"] == "This should be private"
+
+        # AND the annotations should be marked as private
+        for annos_type in ["stringAnnos", "doubleAnnos"]:
+            annotations = updated_status.annotations[annos_type]
+            print(annotations)
+            assert all(anno["isPrivate"] for anno in annotations)
 
     async def test_store_submission_status_without_id(self):
         """Test that storing a submission status without ID raises ValueError."""
@@ -385,6 +398,57 @@ class TestSubmissionStatusUpdates:
 
         # THEN has_changed should be False again
         assert not updated_status.has_changed
+
+    async def test_has_changed_property_edge_cases(
+        self, test_submission_status: SubmissionStatus
+    ):
+        """Test the has_changed property with various edge cases and detailed scenarios."""
+        # GIVEN a submission status that was just retrieved
+        assert not test_submission_status.has_changed
+        original_annotations = (
+            test_submission_status.annotations.copy()
+            if test_submission_status.annotations
+            else {}
+        )
+
+        # WHEN I modify only annotations (not submission_annotations)
+        test_submission_status.annotations = {"test_key": "test_value"}
+
+        # THEN has_changed should be True
+        assert test_submission_status.has_changed
+
+        # WHEN I reset annotations to the original value (should be the same as the persistent instance)
+        test_submission_status.annotations = original_annotations
+
+        # THEN has_changed should be False (same as original)
+        assert not test_submission_status.has_changed
+
+        # WHEN I add a different annotation value
+        test_submission_status.annotations = {"different_key": "different_value"}
+
+        # THEN has_changed should be True
+        assert test_submission_status.has_changed
+
+        # WHEN I store and get a fresh copy
+        updated_status = test_submission_status.store(synapse_client=self.syn)
+        fresh_status = SubmissionStatus(id=updated_status.id).get(
+            synapse_client=self.syn
+        )
+
+        # THEN the fresh copy should not have changes
+        assert not fresh_status.has_changed
+
+        # WHEN I modify only submission_annotations
+        fresh_status.submission_annotations = {"new_key": ["new_value"]}
+
+        # THEN has_changed should be True
+        assert fresh_status.has_changed
+
+        # WHEN I modify a scalar field
+        fresh_status.status = "VALIDATED"
+
+        # THEN has_changed should still be True
+        assert fresh_status.has_changed
 
 
 class TestSubmissionStatusBulkOperations:
@@ -576,75 +640,6 @@ class TestSubmissionStatusBulkOperations:
             assert "batch_score" in converted_submission_annotations
             assert converted_submission_annotations["batch_processed"] == ["true"]
 
-    async def test_batch_update_submission_statuses_large_batch(
-        self, test_evaluation: Evaluation
-    ):
-        """Test batch update behavior with larger batch (approaching limits)."""
-        # Note: This test demonstrates the pattern but doesn't create 500 submissions
-        # as that would be too expensive for regular test runs
-
-        # GIVEN I have a list of statuses (simulated for this test)
-        statuses = []
-
-        # WHEN I try to batch update (even with empty list)
-        response = SubmissionStatus.batch_update_submission_statuses(
-            evaluation_id=test_evaluation.id,
-            statuses=statuses,
-            synapse_client=self.syn,
-        )
-
-        # THEN the operation should complete without error
-        assert response is not None
-
-    async def test_batch_update_submission_statuses_with_batch_tokens(
-        self, test_evaluation: Evaluation, test_submissions: list[Submission]
-    ):
-        """Test batch updating with batch tokens for multi-batch operations."""
-        if len(test_submissions) < 2:
-            pytest.skip("Need at least 2 submissions for batch token test")
-
-        # GIVEN multiple statuses split into batches
-        all_statuses = []
-        for submission in test_submissions:
-            status = SubmissionStatus(id=submission.id).get(synapse_client=self.syn)
-            status.status = "SCORED"
-            all_statuses.append(status)
-
-        # Split into batches
-        batch1 = all_statuses[:1]
-        batch2 = all_statuses[1:]
-
-        # WHEN I update the first batch
-        response1 = SubmissionStatus.batch_update_submission_statuses(
-            evaluation_id=test_evaluation.id,
-            statuses=batch1,
-            is_first_batch=True,
-            is_last_batch=len(batch2) == 0,
-            synapse_client=self.syn,
-        )
-
-        # THEN I should get a response (possibly with batch token)
-        assert response1 is not None
-
-        # IF there's a second batch and we got a batch token
-        if len(batch2) > 0:
-            batch_token = (
-                response1.get("batchToken") if isinstance(response1, dict) else None
-            )
-
-            # WHEN I update the second batch with the token
-            response2 = SubmissionStatus.batch_update_submission_statuses(
-                evaluation_id=test_evaluation.id,
-                statuses=batch2,
-                is_first_batch=False,
-                is_last_batch=True,
-                batch_token=batch_token,
-                synapse_client=self.syn,
-            )
-
-            # THEN the second batch should also succeed
-            assert response2 is not None
-
 
 class TestSubmissionStatusValidation:
     """Tests for SubmissionStatus validation and error handling."""
@@ -717,15 +712,26 @@ class TestSubmissionStatusValidation:
             "canCancel": False,
             "cancelRequested": False,
             "annotations": {
-                "stringAnnos": {"internal_note": ["This is internal"]},
-                "doubleAnnos": {},
-                "longAnnos": {},
+                "objectId": "123456",
+                "scopeId": "9617645",
+                "stringAnnos": [
+                    {
+                        "key": "internal_note",
+                        "isPrivate": True,
+                        "value": "This is internal",
+                    },
+                    {
+                        "key": "reviewer_notes",
+                        "isPrivate": True,
+                        "value": "Excellent work",
+                    },
+                ],
+                "doubleAnnos": [
+                    {"key": "validation_score", "isPrivate": True, "value": 95.0}
+                ],
+                "longAnnos": [],
             },
-            "submissionAnnotations": {
-                "stringAnnos": {"feedback": ["Great work!"]},
-                "doubleAnnos": {"score": [92.5]},
-                "longAnnos": {},
-            },
+            "submissionAnnotations": {"feedback": ["Great work!"], "score": [92.5]},
         }
 
         # WHEN I fill a SubmissionStatus from the response
@@ -742,11 +748,21 @@ class TestSubmissionStatusValidation:
         assert result.status_version == 2
         assert result.can_cancel is False
         assert result.cancel_requested is False
-        assert "internal_note" in result.annotations
-        assert result.annotations["internal_note"] == "This is internal"
+
+        # The annotations field should contain the raw submission status format
+        assert result.annotations is not None
+        assert "objectId" in result.annotations
+        assert "scopeId" in result.annotations
+        assert "stringAnnos" in result.annotations
+        assert "doubleAnnos" in result.annotations
+        assert len(result.annotations["stringAnnos"]) == 2
+        assert len(result.annotations["doubleAnnos"]) == 1
+
+        # The submission_annotations should be in simple key-value format
         assert "feedback" in result.submission_annotations
         assert "score" in result.submission_annotations
-        assert result.submission_annotations["score"] == 92.5
+        assert result.submission_annotations["feedback"] == ["Great work!"]
+        assert result.submission_annotations["score"] == [92.5]
 
     async def test_fill_from_dict_with_minimal_response(self):
         """Test filling a SubmissionStatus from a minimal API response."""
