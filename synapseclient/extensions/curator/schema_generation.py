@@ -4494,6 +4494,10 @@ def _get_validation_rule_based_fields(
                 )
                 logger.warning(msg)
 
+        # url and date rules are deprecated for adding format keyword
+        # TODO: remove the if/else block below
+        # https://sagebionetworks.jira.com/browse/SYNPY-1685
+
         if explicit_format:
             if (
                 ValidationRuleName.DATE in validation_rule_names
@@ -4515,10 +4519,6 @@ def _get_validation_rule_based_fields(
                     "The format will be set to date."
                 )
                 logger.warning(msg)
-
-        # url and date rules are deprecated for adding format keyword
-        # TODO: remove the if/else block below
-        # https://sagebionetworks.jira.com/browse/SYNPY-1685
 
         else:
             if ValidationRuleName.URL in validation_rule_names:
@@ -4650,10 +4650,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         # https://sagebionetworks.jira.com/browse/SYNPY-1685
         explicit_format = self.dmge.get_node_format(node_display_name=self.display_name)
         if explicit_format:
-            if (
-                column_type != ListColumnType.STRING_LIST
-                and column_type != AtomicColumnType.STRING
-            ):
+            if column_type not in (ListColumnType.STRING_LIST, AtomicColumnType.STRING):
                 msg = (
                     f"A format value (current value: {explicit_format.value}) "
                     f"is set for property: {self.name}, but columnType is not a string type "
