@@ -114,6 +114,14 @@ ALL_COLUMN_TYPE_VALUES = [member.value for member in AtomicColumnType] + [
 ]
 
 
+# Translates list types to their atomic type
+LIST_TYPE_DICT = {
+    ListColumnType.STRING_LIST: AtomicColumnType.STRING,
+    ListColumnType.INTEGER_LIST: AtomicColumnType.INTEGER,
+    ListColumnType.BOOLEAN_LIST: AtomicColumnType.BOOLEAN,
+}
+
+
 class JSONSchemaFormat(Enum):
     """
     Allowed formats by the JSON Schema validator used by Synapse: https://github.com/everit-org/json-schema#format-validators
@@ -133,14 +141,6 @@ class JSONSchemaFormat(Enum):
     TIME = "time"
     REGEX = "regex"
     RELATIVE_JSON_POINTER = "relative-json-pointer"
-
-
-# Translates list types to their atomic type
-LIST_TYPE_DICT = {
-    ListColumnType.STRING_LIST: AtomicColumnType.STRING,
-    ListColumnType.INTEGER_LIST: AtomicColumnType.INTEGER,
-    ListColumnType.BOOLEAN_LIST: AtomicColumnType.BOOLEAN,
-}
 
 
 class ValidationRuleName(Enum):
@@ -655,6 +655,8 @@ class DataModelCSVParser:
 
         # get attributes from Attribute column
         attributes = model_df.to_dict("records")
+
+        # Check for presence of optional columns
         model_includes_column_type = "columnType" in model_df.columns
         model_includes_format = "Format" in model_df.columns
 
@@ -715,19 +717,19 @@ class DataModelCSVParser:
 
         return {"ColumnType": column_type}
 
-    def parse_format(self, attr: dict) -> dict[str, str]:
-        """Parse the format for a given attribute.
+    def parse_format(self, attribute_dict: dict) -> dict[str, str]:
+        """Finds the format value if it exists and returns it as a dictionary.
 
         Args:
-            attr: The attribute dictionary.
+            attribute_dict: The attribute dictionary.
 
         Returns:
-            A dictionary containing the parsed column type information if present
+            A dictionary containing the format value if it exists
             else an empty dict
         """
         from pandas import isna
 
-        format_value = attr.get("Format")
+        format_value = attribute_dict.get("Format")
 
         if isna(format_value):
             return {}
@@ -736,7 +738,7 @@ class DataModelCSVParser:
 
         check_allowed_values(
             self.dmr,
-            entry_id=attr["Format"],
+            entry_id=attribute_dict["Format"],
             value=format_string,
             relationship="format",
         )
