@@ -212,7 +212,9 @@ class TestTableCreation:
         # THEN the table should have proper schema and data
         results = query(f"SELECT * FROM {table_dict.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], pd.DataFrame(dict_data)["column_string"]
+            results["column_string"],
+            pd.DataFrame(dict_data)["column_string"],
+            check_dtype=False,
         )
 
         # Test with DataFrame data
@@ -233,7 +235,7 @@ class TestTableCreation:
         # THEN the table should have proper schema and data
         results = query(f"SELECT * FROM {table_df.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], df_data["column_string"]
+            results["column_string"], df_data["column_string"], check_dtype=False
         )
 
         # Test with CSV file data
@@ -257,7 +259,7 @@ class TestTableCreation:
         # THEN the table should have proper schema and data
         results = query(f"SELECT * FROM {table_csv.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], csv_data["column_string"]
+            results["column_string"], csv_data["column_string"], check_dtype=False
         )
 
     def test_create_table_with_string_column(self, project_model: Project) -> None:
@@ -349,13 +351,15 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["integer_string"], data_for_table["integer_string"]
+            results["integer_string"],
+            data_for_table["integer_string"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["float_string"], data_for_table["float_string"]
+            results["float_string"], data_for_table["float_string"], check_dtype=False
         )
 
     def test_update_rows_from_csv_infer_columns_no_column_updates(
@@ -494,13 +498,15 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["integer_column"], data_for_table["integer_column"]
+            results["integer_column"],
+            data_for_table["integer_column"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["float_column"], data_for_table["float_column"]
+            results["float_column"], data_for_table["float_column"], check_dtype=False
         )
 
     def test_store_rows_on_existing_table_with_schema_storage_strategy(
@@ -554,7 +560,7 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
 
     def test_store_rows_on_existing_table_with_expanding_string_column(
@@ -621,7 +627,7 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
 
         # AND the column should have been expanded
@@ -680,10 +686,10 @@ class TestRowStorage:
 
         # AND the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], data_for_table["column_key_2"]
+            results["column_key_2"], data_for_table["column_key_2"], check_dtype=False
         )
 
     def test_store_rows_on_existing_table_no_schema_storage_strategy(
@@ -772,13 +778,15 @@ class TestRowStorage:
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["column_to_order_on"], data_for_table["column_to_order_on"]
+            results["column_to_order_on"],
+            data_for_table["column_to_order_on"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["large_string"], data_for_table["large_string"]
+            results["large_string"], data_for_table["large_string"], check_dtype=False
         )
 
         # AND 200 rows exist on the table
@@ -835,13 +843,15 @@ class TestRowStorage:
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["column_to_order_on"], data_for_table["column_to_order_on"]
+            results["column_to_order_on"],
+            data_for_table["column_to_order_on"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["large_string"], data_for_table["large_string"]
+            results["large_string"], data_for_table["large_string"], check_dtype=False
         )
 
         # AND 200 rows exist on the table
@@ -900,13 +910,15 @@ class TestRowStorage:
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["column_to_order_on"], data_for_table["column_to_order_on"]
+            results["column_to_order_on"],
+            data_for_table["column_to_order_on"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["large_string"], data_for_table["large_string"]
+            results["large_string"], data_for_table["large_string"], check_dtype=False
         )
 
         # AND `rows_in_table` rows exist on the table
@@ -962,10 +974,10 @@ class TestUpsertRows:
         # THEN the values should be updated with no new rows
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], updated_data["column_string"]
+            results["column_string"], updated_data["column_string"], check_dtype=False
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], updated_data["column_key_2"]
+            results["column_key_2"], updated_data["column_key_2"], check_dtype=False
         )
         assert len(results) == 3
 
@@ -997,10 +1009,14 @@ class TestUpsertRows:
         # THEN the values should be updated and new rows added
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], updated_and_new_data["column_string"]
+            results["column_string"],
+            updated_and_new_data["column_string"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], updated_and_new_data["column_key_2"]
+            results["column_key_2"],
+            updated_and_new_data["column_key_2"],
+            check_dtype=False,
         )
         assert len(results) == 6  # 3 original + 3 new
 
@@ -1113,13 +1129,19 @@ class TestUpsertRows:
         # THEN matching rows should be updated and new rows added
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], modified_data_for_table["column_string"]
+            results["column_string"],
+            modified_data_for_table["column_string"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], modified_data_for_table["column_key_2"]
+            results["column_key_2"],
+            modified_data_for_table["column_key_2"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["column_key_3"], modified_data_for_table["column_key_3"]
+            results["column_key_3"],
+            modified_data_for_table["column_key_3"],
+            check_dtype=False,
         )
         assert len(results) == 6  # 3 updated + 3 new
 
@@ -1218,13 +1240,19 @@ class TestUpsertRows:
         # THEN all rows should be updated or inserted correctly
         results = query(f"SELECT * FROM {table.id}", synapse_client=self.syn)
         pd.testing.assert_series_equal(
-            results["column_string"], modified_data_for_table["column_string"]
+            results["column_string"],
+            modified_data_for_table["column_string"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["column_key_2"], modified_data_for_table["column_key_2"]
+            results["column_key_2"],
+            modified_data_for_table["column_key_2"],
+            check_dtype=False,
         )
         pd.testing.assert_series_equal(
-            results["large_string"], modified_data_for_table["large_string"]
+            results["large_string"],
+            modified_data_for_table["large_string"],
+            check_dtype=False,
         )
         assert len(results) == 6
 
@@ -1389,113 +1417,80 @@ class TestUpsertRows:
 
             # Verify data types and values match for all columns
             assert len(results_after_insert) == 3
-
-            # Row 0 - all non-null values
-            assert results_after_insert["column_string"][0] == "value1"
-            assert results_after_insert["column_double"][0] == 1.1
-            assert results_after_insert["column_integer"][0] == 1
-            assert results_after_insert["column_boolean"][0] is True
-            assert results_after_insert["column_date"][0] == utils.to_unix_epoch_time(
-                "2021-01-01"
+            # expected dataframe
+            expected_results = pd.DataFrame(
+                {
+                    "column_string": ["value1", "value2", "value3"],
+                    "column_double": [1.1, None, 2.2],
+                    "column_integer": [1, None, 3],
+                    "column_boolean": [True, None, True],
+                    "column_date": [
+                        utils.to_unix_epoch_time("2021-01-01"),
+                        None,
+                        utils.to_unix_epoch_time("2021-01-03"),
+                    ],
+                    "column_filehandleid": [
+                        file.file_handle.id,
+                        None,
+                        file.file_handle.id,
+                    ],
+                    "column_entityid": [file.id, None, file.id],
+                    "column_submissionid": [submission.id, None, submission.id],
+                    "column_evaluationid": [evaluation.id, None, evaluation.id],
+                    "column_link": [
+                        "https://www.synapse.org/Profile:",
+                        None,
+                        "https://www.synapse.org/Profile:",
+                    ],
+                    "column_mediumtext": ["value1", None, "value3"],
+                    "column_largetext": ["value1", None, "value3"],
+                    "column_userid": [
+                        self.syn.credentials.owner_id,
+                        None,
+                        self.syn.credentials.owner_id,
+                    ],
+                    "column_string_LIST": [
+                        ["value1", "value2"],
+                        [],
+                        ["value5", "value6"],
+                    ],
+                    "column_integer_LIST": [[1, 2], [], [5, 6]],
+                    "column_boolean_LIST": [
+                        [True, False],
+                        [],
+                        [True, False],
+                    ],  # empty values to [] in csv_to_pandas_df
+                    "column_date_LIST": [
+                        [
+                            utils.to_unix_epoch_time("2021-01-01"),
+                            utils.to_unix_epoch_time("2021-01-02"),
+                        ],
+                        [],
+                        [
+                            utils.to_unix_epoch_time("2021-01-05"),
+                            utils.to_unix_epoch_time("2021-01-06"),
+                        ],
+                    ],
+                    "column_entity_id_list": [
+                        [file.id, file.id],
+                        [],
+                        [file.id, file.id],
+                    ],
+                    "column_user_id_list": [
+                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                        [],
+                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    ],
+                    "column_json": [
+                        {"key1": "value1", "key2": 2},
+                        [],
+                        {"key5": "value5", "key6": 6},
+                    ],
+                }
             )
-            assert results_after_insert["column_filehandleid"][0] == file.file_handle.id
-            assert results_after_insert["column_entityid"][0] == file.id
-            assert results_after_insert["column_submissionid"][0] == submission.id
-            assert results_after_insert["column_evaluationid"][0] == evaluation.id
-            assert (
-                results_after_insert["column_link"][0]
-                == "https://www.synapse.org/Profile:"
+            pd.testing.assert_frame_equal(
+                results_after_insert, expected_results, check_dtype=False
             )
-            assert results_after_insert["column_mediumtext"][0] == "value1"
-            assert results_after_insert["column_largetext"][0] == "value1"
-            assert (
-                results_after_insert["column_userid"][0]
-                == self.syn.credentials.owner_id
-            )
-            assert results_after_insert["column_string_LIST"][0] == ["value1", "value2"]
-            assert results_after_insert["column_integer_LIST"][0] == [1, 2]
-            assert results_after_insert["column_boolean_LIST"][0] == [True, False]
-            assert results_after_insert["column_date_LIST"][0] == [
-                utils.to_unix_epoch_time("2021-01-01"),
-                utils.to_unix_epoch_time("2021-01-02"),
-            ]
-            assert results_after_insert["column_entity_id_list"][0] == [
-                file.id,
-                file.id,
-            ]
-            assert results_after_insert["column_user_id_list"][0] == [
-                self.syn.credentials.owner_id,
-                self.syn.credentials.owner_id,
-            ]
-            assert results_after_insert["column_json"][0] == {
-                "key1": "value1",
-                "key2": 2,
-            }
-
-            assert results_after_insert["column_string"][1] == "value2"
-
-            # Row 1 - all null values
-            assert pd.isna(results_after_insert["column_double"][1])
-            assert pd.isna(results_after_insert["column_integer"][1])
-            assert pd.isna(results_after_insert["column_boolean"][1])
-            assert pd.isna(results_after_insert["column_date"][1])
-            assert pd.isna(results_after_insert["column_filehandleid"][1])
-            assert pd.isna(results_after_insert["column_entityid"][1])
-            assert pd.isna(results_after_insert["column_submissionid"][1])
-            assert pd.isna(results_after_insert["column_evaluationid"][1])
-            assert pd.isna(results_after_insert["column_link"][1])
-            assert pd.isna(results_after_insert["column_mediumtext"][1])
-            assert pd.isna(results_after_insert["column_largetext"][1])
-            assert pd.isna(results_after_insert["column_userid"][1])
-            assert len(results_after_insert["column_string_LIST"][1]) == 0
-            assert len(results_after_insert["column_integer_LIST"][1]) == 0
-            assert len(results_after_insert["column_boolean_LIST"][1]) == 0
-            assert len(results_after_insert["column_date_LIST"][1]) == 0
-            assert len(results_after_insert["column_entity_id_list"][1]) == 0
-            assert len(results_after_insert["column_user_id_list"][1]) == 0
-            assert len(results_after_insert["column_json"][1]) == 0
-
-            # Row 2 - all non-null values
-            assert results_after_insert["column_string"][2] == "value3"
-            assert results_after_insert["column_double"][2] == 2.2
-            assert results_after_insert["column_integer"][2] == 3
-            assert results_after_insert["column_boolean"][2] is True
-            assert results_after_insert["column_date"][2] == utils.to_unix_epoch_time(
-                "2021-01-03"
-            )
-            assert results_after_insert["column_filehandleid"][2] == file.file_handle.id
-            assert results_after_insert["column_entityid"][2] == file.id
-            assert results_after_insert["column_submissionid"][2] == submission.id
-            assert results_after_insert["column_evaluationid"][2] == evaluation.id
-            assert (
-                results_after_insert["column_link"][2]
-                == "https://www.synapse.org/Profile:"
-            )
-            assert results_after_insert["column_mediumtext"][2] == "value3"
-            assert results_after_insert["column_largetext"][2] == "value3"
-            assert (
-                results_after_insert["column_userid"][2]
-                == self.syn.credentials.owner_id
-            )
-            assert results_after_insert["column_string_LIST"][2] == ["value5", "value6"]
-            assert results_after_insert["column_integer_LIST"][2] == [5, 6]
-            assert results_after_insert["column_boolean_LIST"][2] == [True, False]
-            assert results_after_insert["column_date_LIST"][2] == [
-                utils.to_unix_epoch_time("2021-01-05"),
-                utils.to_unix_epoch_time("2021-01-06"),
-            ]
-            assert results_after_insert["column_entity_id_list"][2] == [
-                file.id,
-                file.id,
-            ]
-            assert results_after_insert["column_user_id_list"][2] == [
-                self.syn.credentials.owner_id,
-                self.syn.credentials.owner_id,
-            ]
-            assert results_after_insert["column_json"][2] == {
-                "key5": "value5",
-                "key6": 6,
-            }
 
             # Create a second test file to update references
             path2 = utils.make_bogus_data_file()
@@ -1613,54 +1608,74 @@ class TestUpsertRows:
             # Verify the upserted data matches expected values and handles nulls correctly
             assert len(results) == 3
 
-            # Check string column (primary key)
-            assert results["column_string"][0] == "value1"
-            assert results["column_string"][1] == "value2"
-            assert results["column_string"][2] == "value3"
-
-            # Check numeric types with null
-            assert results["column_double"][0] == 11.2
-            assert pd.isna(results["column_double"][1])
-            assert results["column_double"][2] == 33.4
-
-            assert results["column_integer"][0] == 11
-            assert pd.isna(results["column_integer"][1])
-            assert results["column_integer"][2] == 33
-
-            # Check boolean with null
-            assert results["column_boolean"][0] is False
-            assert pd.isna(results["column_boolean"][1])
-            assert results["column_boolean"][2] is False
-
-            # Check date with null
-            assert results["column_date"][0] == utils.to_unix_epoch_time("2022-01-01")
-            assert pd.isna(results["column_date"][1])
-            assert results["column_date"][2] == utils.to_unix_epoch_time("2022-01-03")
-
-            # Check reference types with nulls
-            assert results["column_filehandleid"][0] == file2.file_handle.id
-            assert pd.isna(results["column_filehandleid"][1])
-
-            assert results["column_entityid"][0] == file2.id
-            assert pd.isna(results["column_entityid"][1])
-
-            # Check text types with nulls
-            assert results["column_mediumtext"][0] == "value11"
-            assert pd.isna(results["column_mediumtext"][1])
-            assert results["column_mediumtext"][2] == "value33"
-
-            # Check list types with nulls
-            assert results["column_string_LIST"][0] == ["value11", "value22"]
-            assert len(results["column_string_LIST"][1]) == 0
-            assert results["column_string_LIST"][2] == ["value55", "value66"]
-
-            assert results["column_integer_LIST"][0] == [11, 22]
-            assert len(results["column_integer_LIST"][1]) == 0
-
-            # Check JSON with null
-            assert results["column_json"][0] == {"key11": "value11", "key22": 22}
-            assert len(results["column_json"][1]) == 0
-            assert results["column_json"][2] == {"key55": "value55", "key66": 66}
+            # expected dataframe
+            expected_results = pd.DataFrame(
+                {
+                    "column_string": ["value1", "value2", "value3"],
+                    "column_double": [11.2, None, 33.4],
+                    "column_integer": [11, None, 33],
+                    "column_boolean": [False, None, False],
+                    "column_date": [
+                        utils.to_unix_epoch_time("2022-01-01"),
+                        None,
+                        utils.to_unix_epoch_time("2022-01-03"),
+                    ],
+                    "column_filehandleid": [
+                        file2.file_handle.id,
+                        None,
+                        file2.file_handle.id,
+                    ],
+                    "column_entityid": [file2.id, None, file2.id],
+                    "column_submissionid": [submission.id, None, submission.id],
+                    "column_evaluationid": [evaluation.id, None, evaluation.id],
+                    "column_link": [
+                        "https://www.synapse.org/",
+                        None,
+                        "https://www.synapse.org/",
+                    ],
+                    "column_mediumtext": ["value11", None, "value33"],
+                    "column_largetext": ["value11", None, "value33"],
+                    "column_userid": [
+                        self.syn.credentials.owner_id,
+                        None,
+                        self.syn.credentials.owner_id,
+                    ],
+                    "column_string_LIST": [
+                        ["value11", "value22"],
+                        [],
+                        ["value55", "value66"],
+                    ],
+                    "column_integer_LIST": [[11, 22], [], [55, 66]],
+                    "column_boolean_LIST": [[False, True], [], [False, True]],
+                    "column_date_LIST": [
+                        [
+                            utils.to_unix_epoch_time("2022-01-01"),
+                            utils.to_unix_epoch_time("2022-01-02"),
+                        ],
+                        [],
+                        [
+                            utils.to_unix_epoch_time("2022-01-05"),
+                            utils.to_unix_epoch_time("2022-01-06"),
+                        ],
+                    ],
+                    "column_entity_id_list": [
+                        [file2.id, file2.id],
+                        [],
+                        [file2.id, file2.id],
+                    ],
+                    "column_user_id_list": [
+                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                        [],
+                        [self.syn.credentials.owner_id, self.syn.credentials.owner_id],
+                    ],
+                    "column_json": [
+                        {"key11": "value11", "key22": 22},
+                        [],
+                        {"key55": "value55", "key66": 66},
+                    ],
+                }
+            )
+            pd.testing.assert_frame_equal(results, expected_results, check_dtype=False)
 
             # WHEN I upsert with multiple primary keys and null values
             multi_key_data = pd.DataFrame(
@@ -1866,6 +1881,7 @@ class TestDeleteRows:
         pd.testing.assert_series_equal(
             results["column_string"],
             pd.DataFrame({"column_string": ["value1", "value3"]})["column_string"],
+            check_dtype=False,
         )
 
         # AND only 2 rows should exist on the table
@@ -1901,6 +1917,7 @@ class TestDeleteRows:
         pd.testing.assert_series_equal(
             results["column_string"],
             pd.DataFrame({"column_string": ["value1"]})["column_string"],
+            check_dtype=False,
         )
 
         # AND only 1 row should exist on the table
@@ -1934,7 +1951,7 @@ class TestDeleteRows:
 
         # THEN the data in the columns should match
         pd.testing.assert_series_equal(
-            results["column_string"], data_for_table["column_string"]
+            results["column_string"], data_for_table["column_string"], check_dtype=False
         )
 
         # AND 3 rows should exist on the table

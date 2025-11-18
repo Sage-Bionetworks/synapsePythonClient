@@ -157,6 +157,51 @@ def row_labels_from_rows(rows: List[Row]) -> List[Row]:
     )
 
 
+def convert_dtypes_to_json_serializable(df):
+    """
+    Convert the dtypes of the int64 and float64 columns to object columns which are JSON serializable types.
+    Also, convert the ROW_ID, ROW_VERSION, and ROW_ID.1 columns to int columns which are JSON serializable types.
+    Arguments:
+        df: The dataframe to convert the dtypes of.
+    Returns:
+        The dataframe with the dtypes converted to JSON serializable types.
+    Example:
+        df = pd.DataFrame({
+            "ROW_ID": [1, 2, 3, 4],
+            "ROW_VERSION": [1, 2, 3, 4],
+            "ROW_ETAG": ['test-etag-1', 'test-etag-2', 'test-etag-3', 'test-etag-4'],
+            "int64_col": [1, 2, 3, None],
+            "float64_col": [1.1, 2.2, 3.3, 4.4],
+            "string_col": ["a", "b", "c", "d"],
+            "string_col_with_na": ["a", "b", "c", None],
+            "boolean_col": [True, False, None, False],
+            "datetime_col": [datetime(2021, 1, 1), datetime(2021, 1, 2), None, datetime(2021, 1, 4)],
+            "int_list_col": [[1, 2, 3], [4, 5, 6], None, [7, 8, 9]],
+            "string_list_col": [["a", "b", "c"], ["d", "e", "f"], None, ["g", "h", "i"]],
+            "boolean_list_col": [[True, None, True], [False, True, False], None, [True, False, True]],
+            "datetime_list_col": [[datetime(2021, 1, 1), datetime(2021, 1, 2), datetime(2021, 1, 3)], [datetime(2021, 1, 4), datetime(2021, 1, 5), datetime(2021, 1, 6)], None, [datetime(2021, 1, 7), datetime(2021, 1, 8), datetime(2021, 1, 9)]],
+            "entityid_list_col": [["syn123", "syn456", None], ["syn101", "syn102", "syn103"], None, ["syn104", "syn105", "syn106"]],
+            "userid_list_col": [["user1", "user2", "user3"], ["user4", "user5", None], None, ["user7", "user8", "user9"]],
+        }).convert_dtypes()
+        df = convert_dtypes_to_json_serializable(df)
+        print(df)
+    """
+    import pandas as pd
+
+    for col in df.columns:
+        df[col] = (
+            df[col].replace({pd.NA: None}).astype(object)
+        )  # this will convert the int64 and float64 columns to object columns
+        # Convert ROW_ prefixed columns back to int (like ROW_ID, ROW_VERSION)
+        if col in [
+            "ROW_ID",
+            "ROW_VERSION",
+            "ROW_ID.1",
+        ]:  # ROW_ID.1 is the temporary row id to constrct row to upsert
+            df[col] = df[col].astype(int)
+    return df
+
+
 async def _query_table_csv(
     query: str,
     synapse_client: Synapse,
@@ -1757,7 +1802,6 @@ def _construct_partial_rows_for_upsert(
         for col in primary_keys[1:]:
             matching_conditions &= chunk_to_check_for_upsert[col] == getattr(row, col)
         matching_row = chunk_to_check_for_upsert.loc[matching_conditions]
-
         # Determines which cells need to be updated
         for column in chunk_to_check_for_upsert.columns:
             if len(matching_row[column].values) > 1:
@@ -1783,20 +1827,18 @@ def _construct_partial_rows_for_upsert(
                 try:
                     cell_is_na = isna(cell_value)
                     # If isna returns an array, check if all elements are NA
-                    if hasattr(cell_is_na, "__iter__") and not isinstance(
-                        cell_is_na, str
-                    ):
-                        cell_is_na = all(cell_is_na)
+                    if hasattr(cell_is_na, "__iter__"):
+                        # convert np.bool_ to bool
+                        cell_is_na = bool(cell_is_na.all())
                 except (TypeError, ValueError):
                     cell_is_na = False
 
                 try:
                     row_is_na = isna(row_value)
                     # If isna returns an array, check if all elements are NA
-                    if hasattr(row_is_na, "__iter__") and not isinstance(
-                        row_is_na, str
-                    ):
-                        row_is_na = all(row_is_na)
+                    if hasattr(row_is_na, "__iter__"):
+                        # convert np.bool_ to bool
+                        row_is_na = bool(row_is_na.all())
                 except (TypeError, ValueError):
                     row_is_na = False
 
@@ -1811,18 +1853,16 @@ def _construct_partial_rows_for_upsert(
                     try:
                         values_differ = cell_value != row_value
                         # Handle array comparison result
-                        if hasattr(values_differ, "__iter__") and not isinstance(
-                            values_differ, str
-                        ):
-                            values_differ = any(values_differ)
+                        if hasattr(values_differ, "__iter__"):
+                            # convert np.bool_ to bool
+                            values_differ = bool(values_differ.any())
                     except (TypeError, ValueError):
                         # If comparison fails, assume they differ
                         values_differ = True
-
             if values_differ:
-                if (isinstance(cell_value, list) and len(cell_value) > 0) or not isna(
-                    cell_value
-                ):
+                if (
+                    isinstance(cell_value, list) and len(cell_value) > 0
+                ) or not cell_is_na:
                     partial_change_values[
                         column_id
                     ] = _convert_pandas_row_to_python_types(
@@ -1830,7 +1870,6 @@ def _construct_partial_rows_for_upsert(
                     )
                 else:
                     partial_change_values[column_id] = None
-
         if partial_change_values:
             partial_change = PartialRow(
                 row_id=row.ROW_ID,
@@ -1883,7 +1922,6 @@ async def _push_row_updates_to_synapse(
                 entity_id=entity.id,
                 changes=[change],
             )
-
             result = await request.send_job_and_wait_async(
                 synapse_client=client, timeout=job_timeout
             )
@@ -2032,7 +2070,7 @@ async def _upsert_rows_async(
     if isinstance(values, dict):
         values = DataFrame(values).convert_dtypes()
     elif isinstance(values, str):
-        values = csv_to_pandas_df(filepath=values, **kwargs).convert_dtypes()
+        values = csv_to_pandas_df(filepath=values, **kwargs)
     elif isinstance(values, DataFrame):
         values = values.convert_dtypes()
     else:
@@ -2041,12 +2079,12 @@ async def _upsert_rows_async(
         )
 
     client = Synapse.get_client(synapse_client=synapse_client)
-
+    # Replace pd.NA with None so the columns are converted to object columns instead of 'int64' or 'float64' which are not JSON serializable
+    values = convert_dtypes_to_json_serializable(values)
     rows_to_update: List[PartialRow] = []
     chunk_list: List[DataFrame] = []
     for i in range(0, len(values), rows_per_query):
         chunk_list.append(values[i : i + rows_per_query])
-
     all_columns_from_df = [f'"{column}"' for column in values.columns]
     contains_etag = entity.__class__.__name__ in CLASSES_THAT_CONTAIN_ROW_ETAG
     original_synids_and_etags_to_track = {}
@@ -2054,7 +2092,6 @@ async def _upsert_rows_async(
     indexes_of_original_df_with_no_changes = []
     total_row_count_to_update = 0
     row_update_results = None
-
     with logging_redirect_tqdm(loggers=[client.logger]):
         progress_bar = tqdm(
             total=len(values),
@@ -2074,7 +2111,8 @@ async def _upsert_rows_async(
             results = await entity.query_async(
                 query=select_statement, synapse_client=synapse_client
             )
-
+            # Replace pd.NA with None for int64/float64 columns to avoid JSON serialization issues
+            results = convert_dtypes_to_json_serializable(results)
             (
                 rows_to_update,
                 indexes_with_updates,
@@ -2093,7 +2131,6 @@ async def _upsert_rows_async(
             indexes_of_original_df_with_no_changes.extend(indexes_without_updates)
             if syn_id_and_etag_dict:
                 original_synids_and_etags_to_track.update(syn_id_and_etag_dict)
-
             if not dry_run and rows_to_update:
                 row_update_results = await _push_row_updates_to_synapse(
                     entity=entity,
@@ -2830,7 +2867,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
                 # Note: DOUBLE, INTEGER, and BOOLEAN types are handled by pandas'
                 # default type inference and do not need explicit dtype specifications
 
-        return csv_to_pandas_df(
+        df = csv_to_pandas_df(
             filepath=csv_path,
             separator=separator or DEFAULT_SEPARATOR,
             quote_char=quote_character or DEFAULT_QUOTE_CHARACTER,
@@ -2842,6 +2879,7 @@ class QueryMixin(QueryMixinSynchronousProtocol):
             dtype=dtype,
             **kwargs,
         )
+        return convert_dtypes_to_json_serializable(df)
 
     @staticmethod
     async def query_part_mask_async(
@@ -3548,9 +3586,7 @@ class TableStoreRowMixin:
             isinstance(values, str)
             and schema_storage_strategy == SchemaStorageStrategy.INFER_FROM_DATA
         ):
-            values = csv_to_pandas_df(
-                filepath=values, **(read_csv_kwargs or {})
-            ).convert_dtypes()
+            values = csv_to_pandas_df(filepath=values, **(read_csv_kwargs or {}))
         elif isinstance(values, DataFrame):
             values = values.convert_dtypes()
         elif isinstance(values, str):
@@ -4490,8 +4526,7 @@ def csv_to_pandas_df(
         filepath,
         lineterminator=line_terminator if len(line_terminator) == 1 else None,
         **pandas_args,
-    )
-
+    ).convert_dtypes()
     # parse date columns if exists
     if date_columns:
         df = _convert_df_date_cols_to_datetime(df, date_columns)
@@ -4499,50 +4534,42 @@ def csv_to_pandas_df(
     if list_columns:
         for col in list_columns:
             # Fill NA values with empty lists, it must be a string for json.loads to work
+            # json.loads will convert null values in boolean list, string list to None.
             df.fillna({col: "[]"}, inplace=True)
             df[col] = df[col].apply(json.loads)
-
             # Convert list items to their proper types based on column type
             if list_column_types and col in list_column_types:
                 column_type = list_column_types[col]
                 if column_type == "INTEGER_LIST":
-                    # Convert items to int
+                    # Convert items to int, preserving None values. Otherwise int(None) would output TypeError.
                     df[col] = df[col].apply(
-                        lambda x: [int(item) for item in x]
-                        if isinstance(x, list)
-                        else x
+                        lambda x: (
+                            [int(item) if item is not None else None for item in x]
+                            if isinstance(x, list)
+                            else x
+                        )
                     )
-                elif column_type == "USERID_LIST":
-                    # USERID items should be strings
+                elif column_type in ["USERID_LIST", "ENTITYID_LIST", "STRING_LIST"]:
+                    # USERID items should be strings, converting None values as empty strings
                     df[col] = df[col].apply(
-                        lambda x: [str(item) for item in x]
-                        if isinstance(x, list)
-                        else x
+                        lambda x: (
+                            [str(item) if item is not None else "" for item in x]
+                            if isinstance(x, list)
+                            else x
+                        )
                     )
                 elif column_type == "BOOLEAN_LIST":
-                    # Convert items to bool
+                    # Convert items to bool, preserving None values. Otherwise bool(None) would output False
                     df[col] = df[col].apply(
-                        lambda x: [bool(item) for item in x]
-                        if isinstance(x, list)
-                        else x
+                        lambda x: (
+                            [bool(item) if item is not None else None for item in x]
+                            if isinstance(x, list)
+                            else x
+                        )
                     )
                 elif column_type == "DATE_LIST":
                     # Date items are already handled by json.loads as they come as numbers
                     pass
-                elif column_type == "ENTITYID_LIST":
-                    # ENTITYID items should remain as strings
-                    df[col] = df[col].apply(
-                        lambda x: [str(item) for item in x]
-                        if isinstance(x, list)
-                        else x
-                    )
-                elif column_type == "STRING_LIST":
-                    # String items should remain as strings
-                    df[col] = df[col].apply(
-                        lambda x: [str(item) for item in x]
-                        if isinstance(x, list)
-                        else x
-                    )
                 # JSON type doesn't need item conversion as it preserves types from json.loads
 
     if (
