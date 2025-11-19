@@ -4709,21 +4709,12 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.minimum = self.dmge.get_node_maximum_minimum_value(
             relationship_value="minimum", node_display_name=self.display_name
         )
+
         # list validation rule is been deprecated for use in deciding type
         # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
         # https://sagebionetworks.jira.com/browse/SYNPY-1692
-        if isinstance(column_type, AtomicColumnType):
-            self.type = column_type
-            explicit_is_array = False
-            if self.maximum or self.minimum:
-                self.type = AtomicColumnType.NUMBER
-
-        elif isinstance(column_type, ListColumnType):
-            self.type = LIST_TYPE_DICT[column_type]
-            explicit_is_array = True
-        else:
-            self.type = None
-            explicit_is_array = None
+        self.type, explicit_is_array = self._determine_type_and_array(column_type)
+        self.override_type_if_needed()
 
         # url and date rules are deprecated for adding format keyword
         # TODO: set self.format here instead of passing it to get_validation_rule_based_fields
@@ -4752,6 +4743,46 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             column_type=self.type,
             logger=self.logger,
         )
+
+    def _determine_type_and_array(
+        self, column_type: Optional[ColumnType]
+    ) -> tuple[Optional[AtomicColumnType], Optional[bool]]:
+        """Determine the JSON Schema type and array flag from columnType
+
+        Args:
+            column_type: The columnType from the data model
+
+        Returns:
+            Tuple of (type, explicit_is_array)
+        """
+        if isinstance(column_type, AtomicColumnType):
+            return column_type, False
+        elif isinstance(column_type, ListColumnType):
+            return LIST_TYPE_DICT[column_type], True
+        else:
+            return None, None
+
+    def override_type_if_needed(self) -> None:
+        """Override the type of the node if node has "Maximum" or "Minimum" constraints and the type is not numeric.
+
+        Args:
+            new_type: The new type to set
+        """
+        if self.maximum or self.minimum:
+            # If no type specified but numeric constraints exist, infer number type
+            if not self.type:
+                self.type = AtomicColumnType.NUMBER
+            if self.type not in (AtomicColumnType.NUMBER, AtomicColumnType.INTEGER):
+                if self.type == AtomicColumnType.STRING:
+                    wrong_type = "string"
+                elif self.type == AtomicColumnType.BOOLEAN:
+                    wrong_type = "boolean"
+                self.logger.warning(
+                    f"For attribute '{self.display_name}': columnType is '{wrong_type}' "
+                    f"but numeric constraints (min: {self.minimum}, max: {self.maximum}) "
+                    f"are specified. Column type is being overridden to 'number'."
+                )
+                self.type = AtomicColumnType.NUMBER
 
 
 @dataclass
@@ -5328,9 +5359,6 @@ def _set_property(
     prop["description"] = node.description
     prop["title"] = node.display_name
     schema_property = {node_name: prop}
-
-    print("setting property for node:", node_name, "property:", schema_property)
-
     json_schema.update_property(schema_property)
 
     if node.is_required:
