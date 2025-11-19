@@ -459,11 +459,12 @@ jobs:
       #     asset_path: dist/${{ steps.build-package.outputs.bdist-package-name }}
       #     asset_content_type: application/zip
 
-
   # build standalone desktop client artifacts for Windows and macOS on release
   build-electron-desktop-clients:
-    needs: [test, pre-commit]
-    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'synapsedesktopclient')
+    # TODO: Revert me
+    # needs: [test, pre-commit]
+    needs: [pre-commit]
+    # if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'synapsedesktopclient')
 
     strategy:
       matrix:
@@ -519,7 +520,15 @@ jobs:
           cd synapse-electron
           npm install
 
-      - name: Build using build scripts (Windows)
+      # macOS code signing setup
+      - name: Import Code Signing Certificates (macOS)
+        if: matrix.platform == 'macos'
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+
+      - name: Build Python backend (Windows)
         if: matrix.platform == 'windows'
         shell: bash
         run: |
@@ -532,6 +541,10 @@ jobs:
       - name: Build using build scripts (macOS)
         if: matrix.platform == 'macos'
         shell: bash
+        env:
+          APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.MACOS_APPLE_TEAM_ID }}
         run: |
           # Set environment variable to skip dependency installation in build script
           export SKIP_DEPENDENCY_INSTALL=1
