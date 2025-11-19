@@ -436,8 +436,9 @@ jobs:
           # Unlock keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # Import certificate to keychain
-          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/productsign
+          # Import certificate to keychain with -A flag (allow all apps) and -x (no ACL)
+          # Using -A and -x can help avoid MAC verification issues
+          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -A -x
 
           # Add keychain to search list
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
