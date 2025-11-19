@@ -407,54 +407,48 @@ jobs:
       - name: Import Code Signing Certificates (macOS)
         if: matrix.platform == 'macos'
         shell: bash
+        env:
+          # 1. MAP SECRET TO ENV VAR (Prevents special char issues)
+          CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          CERT_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
         run: |
-          # Create variables
+          # Variables
           CERTIFICATE_PATH="${RUNNER_TEMP}/certificate.p12"
+          CLEAN_CERT_PATH="${RUNNER_TEMP}/clean_certificate.p12"
           KEYCHAIN_PATH="${RUNNER_TEMP}/app-signing.keychain-db"
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
 
-          # Decode certificate
-          echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > "$CERTIFICATE_PATH"
+          # 1. Decode the raw certificate
+          echo "$CERT_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
 
-          # Verify certificate can be read
-          echo "Verifying certificate..."
-          openssl pkcs12 -in "$CERTIFICATE_PATH" -nokeys -passin pass:"${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -passout pass:dummy -info -nodes > /dev/null
+          # 2. Re-encode the P12 using Legacy encryption
+          # This fixes "MAC verification failed" by ensuring the P12 uses
+          # algorithms compatible with the 'security' tool.
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -legacy -nokeys -out temp-cert.pem -passin env:CERT_PASSWORD
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -legacy -nocerts -out temp-key.pem -passin env:CERT_PASSWORD
 
-          if [ $? -eq 0 ]; then
-            echo "✅ Certificate verified successfully"
-          else
-            echo "❌ Certificate verification failed"
-            exit 1
-          fi
+          # Combine them back into a P12 compatible with macOS 'security'
+          openssl pkcs12 -export -in temp-cert.pem -inkey temp-key.pem -out "$CLEAN_CERT_PATH" -passout env:CERT_PASSWORD -legacy
 
-          # Create temporary keychain
+          # 3. Create and Unlock Keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          # Set keychain settings
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-
-          # Unlock keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # Import certificate to keychain with -A flag (allow all apps) and -x (no ACL)
-          # Using -A and -x can help avoid MAC verification issues
-          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -A -x
+          # 4. Import the CLEANED certificate
+          # Note: Removed -x (allowing key extraction is safer for CI tools)
+          # Added -T /usr/bin/codesign to pre-approve codesign access
+          security import "$CLEAN_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign -A
 
-          # Add keychain to search list
+          # 5. Set Search List and Default
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
-
-          # Set keychain as default
           security default-keychain -s "$KEYCHAIN_PATH"
 
-          # Allow codesign to access the keychain without prompting
+          # 6. Partition List (Grant access to tools)
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # Verify identity
-          echo "Available signing identities:"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-
-          # Clean up certificate file
-          rm "$CERTIFICATE_PATH"
+          # 7. Clean up
+          rm "$CERTIFICATE_PATH" "$CLEAN_CERT_PATH" temp-cert.pem temp-key.pem
 
       - name: Build Python backend (Windows)
         if: matrix.platform == 'windows'
