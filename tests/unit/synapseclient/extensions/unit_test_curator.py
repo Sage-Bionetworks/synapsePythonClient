@@ -1731,7 +1731,7 @@ class TestGenerateJsonld(unittest.TestCase):
         self.test_schema_path = os.path.join(
             os.path.dirname(__file__),
             "schema_files",
-            "example.model.csv",
+            "data_models/example.model.csv",
         )
 
     def test_generate_jsonld_with_default_output_path(self):
@@ -1945,7 +1945,7 @@ class TestGenerateJsonschema(unittest.TestCase):
         self.test_schema_path = os.path.join(
             os.path.dirname(__file__),
             "schema_files",
-            "example.model.csv",
+            "data_models/example.model.csv",
         )
 
     def test_generate_jsonschema_from_csv(self):
