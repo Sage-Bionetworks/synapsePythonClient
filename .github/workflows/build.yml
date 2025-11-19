@@ -520,36 +520,57 @@ jobs:
           cd synapse-electron
           npm install
 
-      # Validate p12 certificate and password before import
-      - name: Validate p12 certificate and password (macOS)
+      # macOS code signing setup - manual import
+      - name: Import Code Signing Certificates (macOS)
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          echo "Decoding base64 certificate..."
-          echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > test.p12
+          # Create variables
+          CERTIFICATE_PATH="${RUNNER_TEMP}/certificate.p12"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
 
-          echo "Checking p12 file size..."
-          ls -lh test.p12
+          # Decode certificate
+          echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > "$CERTIFICATE_PATH"
 
-          echo "Attempting to read p12 with provided password using openssl..."
-          openssl pkcs12 -in test.p12 -nokeys -passin pass:"${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -passout pass:dummy -info -nodes > /dev/null
+          # Verify certificate can be read
+          echo "Verifying certificate..."
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nokeys -passin pass:"${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -passout pass:dummy -info -nodes > /dev/null
 
           if [ $? -eq 0 ]; then
-            echo "✅ p12 password and base64 are valid."
+            echo "✅ Certificate verified successfully"
           else
-            echo "❌ p12 password or base64 is invalid."
+            echo "❌ Certificate verification failed"
             exit 1
           fi
 
-          rm test.p12
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-      # macOS code signing setup
-      - name: Import Code Signing Certificates (macOS)
-        if: matrix.platform == 'macos'
-        uses: apple-actions/import-codesign-certs@v5.0.3
-        with:
-          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE }}
-          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          # Set keychain settings
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+
+          # Unlock keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate to keychain
+          security import "$CERTIFICATE_PATH" -k "$KEYCHAIN_PATH" -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/productsign
+
+          # Add keychain to search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
+
+          # Set keychain as default
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          # Allow codesign to access the keychain without prompting
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Verify identity
+          echo "Available signing identities:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          # Clean up certificate file
+          rm "$CERTIFICATE_PATH"
 
       - name: Build Python backend (Windows)
         if: matrix.platform == 'windows'
