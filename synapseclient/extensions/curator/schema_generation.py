@@ -685,6 +685,17 @@ class DataModelCSVParser:
             if model_includes_format:
                 format_dict = self.parse_format(attr)
                 attr_rel_dictionary[attribute_name]["Relationships"].update(format_dict)
+
+            if "Minimum" in model_df.columns:
+                minimum_dict = self.parse_minimum_maximum(attr, "Minimum")
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    minimum_dict
+                )
+            if "Maximum" in model_df.columns:
+                maximum_dict = self.parse_minimum_maximum(attr, "Maximum")
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    maximum_dict
+                )
         return attr_rel_dictionary
 
     def parse_column_type(self, attr: dict) -> dict:
@@ -716,6 +727,45 @@ class DataModelCSVParser:
         )
 
         return {"ColumnType": column_type}
+
+    def parse_minimum_maximum(self, attr: dict, relationship: str) -> dict[str, float]:
+        """Parse minimum/maximum value for inRange validation rule
+
+        Args:
+            attr, dict: single row of a csv model in dict form, where only the required
+              headers are keys. Values are the entries under each header.
+            relationship, str: either "Minimum" or "Maximum"
+        Returns:
+            parsed_rel_entry, float: parsed minimum/maximum entry for downstream processing
+              based on the entry type.
+        """
+        from numbers import Number
+
+        from pandas import isna
+
+        value = attr.get(relationship)
+
+        # If maximum and minimum are not specified, we don't want to add any entry to the dictionary
+        if isna(value):
+            return {}
+
+        # Validate that the value is numeric
+        if not isinstance(value, Number) or isinstance(value, bool):
+            raise ValueError(
+                f"The {relationship} value: {attr[relationship]} is not numeric, "
+                "please correct this value in the data model."
+            )
+
+        # if both maximum and minimum are present, check if maximum > minimum
+        if attr.get("Minimum") and attr.get("Maximum"):
+            maximum = attr.get("Maximum")
+            minimum = attr.get("Minimum")
+            if maximum < minimum:
+                raise ValueError(
+                    f"The Maximum value: {maximum} must be greater than the Minimum value: {minimum}"
+                )
+
+        return {relationship: value}
 
     def parse_format(self, attribute_dict: dict) -> dict[str, str]:
         """Finds the format value if it exists and returns it as a dictionary.
@@ -1792,6 +1842,30 @@ class DataModelGraphExplorer:
             )
             raise ValueError(msg) from exc
         return column_type
+
+    def get_node_maximum_minimum_value(
+        self,
+        relationship_value: str,
+        node_label: Optional[str] = None,
+        node_display_name: Optional[str] = None,
+    ):
+        """Gets the maximum and minimum value of the node
+
+        Args:
+            relationship_value: The relationship value (either maximum or minimum) to get the maximum or minimum from
+            node_label: The label of the node to get the format from
+            node_display_name: The display name of the node to get the format from
+
+        Returns:
+            The maximum or minimum value of the node
+        """
+
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value(
+            relationship_value, "node_label"
+        )
+        value = self.graph.nodes[node_label][rel_node_label]
+        return value
 
     def _get_node_label(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
@@ -2920,6 +2994,24 @@ class DataModelRelationships:
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
                 "allowed_values": [member.value for member in JSONSchemaFormat],
+            },
+            "maximum": {
+                "jsonld_key": "sms:maximum",
+                "csv_header": "Maximum",
+                "node_label": "maximum",
+                "type": float,
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+            },
+            "minimum": {
+                "jsonld_key": "sms:minimum",
+                "csv_header": "Minimum",
+                "node_label": "minimum",
+                "type": float,
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
             },
         }
 
@@ -4389,13 +4481,7 @@ def _get_validation_rule_based_fields(
     name: str,
     column_type: Optional[ColumnType],
     logger: Logger,
-) -> tuple[
-    bool,
-    Optional[JSONSchemaFormat],
-    Optional[float],
-    Optional[float],
-    Optional[str],
-]:
+) -> tuple[bool, Optional[JSONSchemaFormat], Optional[str],]:
     """
     Gets the fields for the Node class that are based on the validation rules
 
@@ -4404,7 +4490,6 @@ def _get_validation_rule_based_fields(
     Array: https://json-schema.org/understanding-json-schema/reference/array
     Format: https://json-schema.org/understanding-json-schema/reference/type#format
     Pattern: https://json-schema.org/understanding-json-schema/reference/string#regexp
-    Min/max: https://json-schema.org/understanding-json-schema/reference/numeric#range
 
     Arguments:
         validation_rules: A list of input validation rules
@@ -4425,14 +4510,10 @@ def _get_validation_rule_based_fields(
         A tuple containing fields for a Node object:
         - js_is_array: Whether or not the Node should be an array in JSON Schema
         - js_format: The JSON Schema format
-        - js_minimum: If the type is numeric the JSON Schema minimum
-        - js_maximum: If the type is numeric the JSON Schema maximum
         - js_pattern: If the type is string the JSON Schema pattern
     """
     js_is_array = False
     js_format = explicit_format
-    js_minimum = None
-    js_maximum = None
     js_pattern = None
 
     # If an array type is explicitly set then is_array can be set to True
@@ -4540,14 +4621,6 @@ def _get_validation_rule_based_fields(
                 )
                 logger.warning(msg)
 
-        in_range_rule = get_rule_from_inputted_rules(
-            ValidationRuleName.IN_RANGE, validation_rules
-        )
-        if in_range_rule:
-            js_minimum, js_maximum = get_in_range_parameters_from_inputted_rule(
-                in_range_rule
-            )
-
         regex_rule = get_rule_from_inputted_rules(
             ValidationRuleName.REGEX, validation_rules
         )
@@ -4557,8 +4630,6 @@ def _get_validation_rule_based_fields(
     return (
         js_is_array,
         js_format,
-        js_minimum,
-        js_maximum,
         js_pattern,
     )
 
@@ -4632,6 +4703,12 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         column_type = self.dmge.get_node_column_type(
             node_display_name=self.display_name
         )
+        self.maximum = self.dmge.get_node_maximum_minimum_value(
+            relationship_value="maximum", node_display_name=self.display_name
+        )
+        self.minimum = self.dmge.get_node_maximum_minimum_value(
+            relationship_value="minimum", node_display_name=self.display_name
+        )
         # list validation rule is been deprecated for use in deciding type
         # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
         # https://sagebionetworks.jira.com/browse/SYNPY-1692
@@ -4663,8 +4740,6 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         (
             self.is_array,
             self.format,
-            self.minimum,
-            self.maximum,
             self.pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
@@ -5179,6 +5254,7 @@ def _create_simple_property(node: TraversalNode) -> Property:
         prop["not"] = {"type": "null"}
 
     _set_type_specific_keywords(prop, node)
+    _set_node_max_min(prop, node)
 
     return prop
 
@@ -5197,6 +5273,19 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> 
 
     if node.format is not None:
         schema["format"] = node.format.value
+
+
+def _set_node_max_min(schema: dict[str, Any], node: TraversalNode) -> None:
+    """Sets the maximum and minimum keywords for a node in the JSON Schema
+
+    Arguments:
+        schema: The schema to set keywords on
+        node (Node): The node the corresponds to the property which is being set in the JSON Schema
+    """
+    if node.minimum is not None:
+        schema["minimum"] = node.minimum
+    if node.maximum is not None:
+        schema["maximum"] = node.maximum
 
 
 def _set_property(
@@ -5236,6 +5325,8 @@ def _set_property(
     prop["description"] = node.description
     prop["title"] = node.display_name
     schema_property = {node_name: prop}
+
+    print("setting property for node:", node_name, "property:", schema_property)
 
     json_schema.update_property(schema_property)
 
