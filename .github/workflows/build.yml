@@ -403,6 +403,29 @@ jobs:
           cd synapse-electron
           npm install
 
+      # Validate p12 certificate and password before import
+      - name: Validate p12 certificate and password (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          echo "Decoding base64 certificate..."
+          echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > test.p12
+
+          echo "Checking p12 file size..."
+          ls -lh test.p12
+
+          echo "Attempting to read p12 with provided password using openssl..."
+          openssl pkcs12 -in test.p12 -nokeys -passin pass:"${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -passout pass:dummy -info -nodes > /dev/null
+
+          if [ $? -eq 0 ]; then
+            echo "✅ p12 password and base64 are valid."
+          else
+            echo "❌ p12 password or base64 is invalid."
+            exit 1
+          fi
+
+          rm test.p12
+
       # macOS code signing setup
       - name: Import Code Signing Certificates (macOS)
         if: matrix.platform == 'macos'
