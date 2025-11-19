@@ -59,8 +59,14 @@
         }
       ],
       "icon": "assets/icon.icns",
-      "artifactName": "${productName}-${version}-${arch}-${os}.${ext}"
+      "artifactName": "${productName}-${version}-${arch}-${os}.${ext}",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
+    "afterSign": "scripts/notarize.js",
     "linux": {
       "target": [
         {
@@ -82,8 +88,10 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "cross-env": "^10.0.0",
+    "dotenv": "^16.0.3",
     "electron": "^27.0.0",
-    "electron-builder": "^24.6.4"
+    "electron-builder": "^24.6.4",
+    "@electron/notarize": "^2.1.0"
   },
   "dependencies": {
     "axios": "^1.5.0",

@@ -92,6 +92,32 @@ build_python_backend() {
         exit 1
     fi
 
+    # Sign the Python backend executable on macOS
+    if [[ "$platform" == "macos" ]]; then
+        echo "Signing Python backend executable..."
+
+        # Check if we're in a CI environment with signing credentials
+        if [ -n "$APPLE_TEAM_ID" ]; then
+            # Sign with hardened runtime and backend-specific entitlements
+            codesign --sign "Developer ID Application" \
+                --force \
+                --options runtime \
+                --entitlements ../build/entitlements.backend.plist \
+                --timestamp \
+                dist/synapse-backend
+
+            # Verify the signature
+            codesign --verify --verbose dist/synapse-backend
+            if [ $? -eq 0 ]; then
+                echo "Python backend successfully signed"
+            else
+                echo "WARNING: Python backend signature verification failed"
+            fi
+        else
+            echo "Skipping code signing (not in CI environment or credentials not available)"
+        fi
+    fi
+
     echo "Python backend built successfully"
     cd ../..
 }
