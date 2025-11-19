@@ -408,11 +408,11 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         env:
-          # 1. MAP SECRET TO ENV VAR (Prevents special char issues)
+          # Pass secrets as env vars to prevent special character errors
           CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
           CERT_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
         run: |
-          # Variables
+          # Define paths
           CERTIFICATE_PATH="${RUNNER_TEMP}/certificate.p12"
           CLEAN_CERT_PATH="${RUNNER_TEMP}/clean_certificate.p12"
           KEYCHAIN_PATH="${RUNNER_TEMP}/app-signing.keychain-db"
@@ -421,14 +421,18 @@ jobs:
           # 1. Decode the raw certificate
           echo "$CERT_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
 
-          # 2. Re-encode the P12 using Legacy encryption
-          # This fixes "MAC verification failed" by ensuring the P12 uses
-          # algorithms compatible with the 'security' tool.
-          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -legacy -nokeys -out temp-cert.pem -passin env:CERT_PASSWORD
-          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -legacy -nocerts -out temp-key.pem -passin env:CERT_PASSWORD
+          # 2. Re-encode the P12 to ensure compatibility
+          # We strip the encryption (-nodes) and repackage it.
+          # This fixes "MAC verification failed" caused by modern macOS export formats.
 
-          # Combine them back into a P12 compatible with macOS 'security'
-          openssl pkcs12 -export -in temp-cert.pem -inkey temp-key.pem -out "$CLEAN_CERT_PATH" -passout env:CERT_PASSWORD -legacy
+          # Extract Private Key (No legacy flag needed for this version of OpenSSL)
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -nocerts -out temp-key.pem -passin env:CERT_PASSWORD
+
+          # Extract Certificate
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -nokeys -out temp-cert.pem -passin env:CERT_PASSWORD
+
+          # Re-combine into a clean P12
+          openssl pkcs12 -export -in temp-cert.pem -inkey temp-key.pem -out "$CLEAN_CERT_PATH" -passout env:CERT_PASSWORD
 
           # 3. Create and Unlock Keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -436,18 +440,18 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
           # 4. Import the CLEANED certificate
-          # Note: Removed -x (allowing key extraction is safer for CI tools)
-          # Added -T /usr/bin/codesign to pre-approve codesign access
+          # -T /usr/bin/codesign grants permission to the codesign tool
+          # -A allows any application to access (useful for CI)
           security import "$CLEAN_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign -A
 
           # 5. Set Search List and Default
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
           security default-keychain -s "$KEYCHAIN_PATH"
 
-          # 6. Partition List (Grant access to tools)
+          # 6. Partition List (Grant access to tools to prevent UI prompts)
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # 7. Clean up
+          # 7. Clean up sensitive files
           rm "$CERTIFICATE_PATH" "$CLEAN_CERT_PATH" temp-cert.pem temp-key.pem
 
       - name: Build Python backend (Windows)
