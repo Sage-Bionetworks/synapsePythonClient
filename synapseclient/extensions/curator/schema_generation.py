@@ -4715,6 +4715,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         if isinstance(column_type, AtomicColumnType):
             self.type = column_type
             explicit_is_array = False
+            if self.maximum or self.minimum:
+                self.type = AtomicColumnType.NUMBER
+
         elif isinstance(column_type, ListColumnType):
             self.type = LIST_TYPE_DICT[column_type]
             explicit_is_array = True
