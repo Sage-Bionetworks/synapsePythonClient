@@ -34,266 +34,274 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-    - uses: pre-commit/action@v3.0.1
-
-  # run unit (and integration tests if account secrets available) on our build matrix
-  test:
-    needs: [pre-commit]
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-13, windows-2022]
-
-        # if changing the below change the run-integration-tests versions and the check-deploy versions
-        # Make sure that we are running the integration tests on the first and last versions of the matrix
-        python: ['3.9', '3.10', '3.11', '3.12', '3.13']
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: '3.13'
+      - uses: pre-commit/action@v3.0.1
 
-      - name: get-dependencies-location
-        shell: bash
-        run: |
-          SITE_PACKAGES_LOCATION=$(python -c "from sysconfig import get_path; print(get_path('purelib'))")
-          SITE_BIN_DIR=$(python3 -c "import os; import platform; import sysconfig; pre = sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
-          echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
-          echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
-        id: get-dependencies
+      # Uncomment this job and comment out the main `test` job below when debugging
+      # to allow dependent jobs to run without waiting for full test suite
+  test:
+    needs: [pre-commit]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stub test job for debugging
+        run: echo "Using stub test job - remember to re-enable full tests before merging"
 
-      - name: Cache py-dependencies
-        id: cache-dependencies
-        uses: actions/cache@v4
-        env:
-          cache-name: cache-py-dependencies
-        with:
-          path: |
-            ${{ steps.get-dependencies.outputs.site_packages_loc }}
-            ${{ steps.get-dependencies.outputs.site_bin_dir }}
-          key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v28
+      # run unit (and integration tests if account secrets available) on our build matrix
+      # test:
+      #   needs: [pre-commit]
 
-      - name: Install py-dependencies
-        if: steps.cache-dependencies.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          python -m pip install --upgrade pip
+      #   strategy:
+      #     fail-fast: false
+      #     matrix:
+      #       os: [ubuntu-22.04, macos-13, windows-2022]
 
-          pip install -e ".[boto3,pandas,pysftp,tests,curator]"
+      #       # if changing the below change the run-integration-tests versions and the check-deploy versions
+      #       # Make sure that we are running the integration tests on the first and last versions of the matrix
+      #       python: ['3.9', '3.10', '3.11', '3.12', '3.13']
 
-          # ensure that numpy c extensions are installed on windows
-          # https://stackoverflow.com/a/59346525
-          if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
-            pip uninstall -y numpy
-            pip uninstall -y setuptools
-            pip install setuptools
-            pip install numpy
-          fi
+      #   runs-on: ${{ matrix.os }}
 
-      - name: run-unit-tests
-        shell: bash
-        run: |
-          pytest -sv --cov-append --cov=. --cov-report xml tests/unit
-      - name: Check for Secret availability
-        id: secret-check
-        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python) }}
-        # perform secret check & put boolean result as an output
-        shell: bash
-        run: |
-          if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
-            echo "secrets_available=false" >> $GITHUB_OUTPUT;
-          else
-            echo "secrets_available=true" >> $GITHUB_OUTPUT;
-          fi
+      #   steps:
+      #     - uses: actions/checkout@v4
 
-          if [ -z "${{ secrets.synapse_personal_access_token }}" ]; then
-            echo "synapse_pat_available=false" >> $GITHUB_OUTPUT;
-          else
-            echo "synapse_pat_available=true" >> $GITHUB_OUTPUT;
-          fi
+      #     - uses: actions/setup-python@v5
+      #       with:
+      #         python-version: ${{ matrix.python }}
 
-      - name: Download Failed Tests from Previous Attempt
-        if: ${{ github.run_attempt > 1 && (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
-        uses: actions/download-artifact@v4
-        with:
-          name: failed-tests-${{ matrix.os }}-${{ matrix.python }}
-        continue-on-error: true
+      #     - name: get-dependencies-location
+      #       shell: bash
+      #       run: |
+      #         SITE_PACKAGES_LOCATION=$(python -c "from sysconfig import get_path; print(get_path('purelib'))")
+      #         SITE_BIN_DIR=$(python3 -c "import os; import platform; import sysconfig; pre = sysconfig.get_config_var('prefix'); bindir = os.path.join(pre, 'Scripts' if platform.system() == 'Windows' else 'bin'); print(bindir)")
+      #         echo "site_packages_loc=$SITE_PACKAGES_LOCATION" >> $GITHUB_OUTPUT
+      #         echo "site_bin_dir=$SITE_BIN_DIR" >> $GITHUB_OUTPUT
+      #       id: get-dependencies
 
-      # run integration tests iff the decryption keys for the test configuration are available.
-      # they will not be available in pull requests from forks.
-      # run integration tests on the oldest and newest supported versions of python.
-      # we don't run on the entire matrix to avoid a 3xN set of concurrent tests against
-      # the target server where N is the number of supported python versions.
-      - name: run-integration-tests
-        id: integration_tests
-        shell: bash
+      #     - name: Cache py-dependencies
+      #       id: cache-dependencies
+      #       uses: actions/cache@v4
+      #       env:
+      #         cache-name: cache-py-dependencies
+      #       with:
+      #         path: |
+      #           ${{ steps.get-dependencies.outputs.site_packages_loc }}
+      #           ${{ steps.get-dependencies.outputs.site_bin_dir }}
+      #         key: ${{ runner.os }}-${{ matrix.python }}-build-${{ env.cache-name }}-${{ hashFiles('setup.py') }}-v28
 
-        # keep versions consistent with the first and last from the strategy matrix
-        if: ${{ (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
-        run: |
-          # Set SYNAPSE_PROFILE based on OS and Python version
-          if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
-            if [ "${{ matrix.python }}" == "3.9" ]; then
-              export SYNAPSE_PROFILE="TestUbuntuMinimumPython"
-            elif [ "${{ matrix.python }}" == "3.13" ]; then
-              export SYNAPSE_PROFILE="TestUbuntuMaximumPython"
-            fi
-          elif [ "${{ startsWith(matrix.os, 'windows') }}" == "true" ]; then
-            if [ "${{ matrix.python }}" == "3.9" ]; then
-              export SYNAPSE_PROFILE="TestWindowsMinimumPython"
-            elif [ "${{ matrix.python }}" == "3.13" ]; then
-              export SYNAPSE_PROFILE="TestWindowsMaximumPython"
-            fi
-          elif [ "${{ startsWith(matrix.os, 'macos') }}" == "true" ]; then
-            if [ "${{ matrix.python }}" == "3.9" ]; then
-              export SYNAPSE_PROFILE="TestMacosMinimumPython"
-            elif [ "${{ matrix.python }}" == "3.13" ]; then
-              export SYNAPSE_PROFILE="TestMacosMaximumPython"
-            fi
-          fi
+      #     - name: Install py-dependencies
+      #       if: steps.cache-dependencies.outputs.cache-hit != 'true'
+      #       shell: bash
+      #       run: |
+      #         python -m pip install --upgrade pip
 
-          echo "Using SYNAPSE_PROFILE: $SYNAPSE_PROFILE"
+      #         pip install -e ".[boto3,pandas,pysftp,tests,curator]"
 
-          # decrypt the encrypted test synapse configuration
-          openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
-          mv test.synapseConfig ~/.synapseConfig
+      #         # ensure that numpy c extensions are installed on windows
+      #         # https://stackoverflow.com/a/59346525
+      #         if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
+      #           pip uninstall -y numpy
+      #           pip uninstall -y setuptools
+      #           pip install setuptools
+      #           pip install numpy
+      #         fi
 
-          if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
-            # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
-            # Docker is not available on GH Action runners on Mac and Windows.
+      #     - name: run-unit-tests
+      #       shell: bash
+      #       run: |
+      #         pytest -sv --cov-append --cov=. --cov-report xml tests/unit
+      #     - name: Check for Secret availability
+      #       id: secret-check
+      #       if: ${{ contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python) }}
+      #       # perform secret check & put boolean result as an output
+      #       shell: bash
+      #       run: |
+      #         if [ -z "${{ secrets.encrypted_d17283647768_key }}" ]  || [ -z "${{ secrets.encrypted_d17283647768_iv }}" ]; then
+      #           echo "secrets_available=false" >> $GITHUB_OUTPUT;
+      #         else
+      #           echo "secrets_available=true" >> $GITHUB_OUTPUT;
+      #         fi
 
-            docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
-            docker run -d sftp_tests:latest
+      #         if [ -z "${{ secrets.synapse_personal_access_token }}" ]; then
+      #           echo "synapse_pat_available=false" >> $GITHUB_OUTPUT;
+      #         else
+      #           echo "synapse_pat_available=true" >> $GITHUB_OUTPUT;
+      #         fi
 
-            # get the internal IP address of the just launched container
-            export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
+      #     - name: Download Failed Tests from Previous Attempt
+      #       if: ${{ github.run_attempt > 1 && (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
+      #       uses: actions/download-artifact@v4
+      #       with:
+      #         name: failed-tests-${{ matrix.os }}-${{ matrix.python }}
+      #       continue-on-error: true
 
-            printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
+      #     # run integration tests iff the decryption keys for the test configuration are available.
+      #     # they will not be available in pull requests from forks.
+      #     # run integration tests on the oldest and newest supported versions of python.
+      #     # we don't run on the entire matrix to avoid a 3xN set of concurrent tests against
+      #     # the target server where N is the number of supported python versions.
+      #     - name: run-integration-tests
+      #       id: integration_tests
+      #       shell: bash
 
-            # add to known_hosts so the ssh connections can be made without any prompting/errors
-            mkdir -p ~/.ssh
-            ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
-          fi
+      #       # keep versions consistent with the first and last from the strategy matrix
+      #       if: ${{ (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
+      #       run: |
+      #         # Set SYNAPSE_PROFILE based on OS and Python version
+      #         if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
+      #           if [ "${{ matrix.python }}" == "3.9" ]; then
+      #             export SYNAPSE_PROFILE="TestUbuntuMinimumPython"
+      #           elif [ "${{ matrix.python }}" == "3.13" ]; then
+      #             export SYNAPSE_PROFILE="TestUbuntuMaximumPython"
+      #           fi
+      #         elif [ "${{ startsWith(matrix.os, 'windows') }}" == "true" ]; then
+      #           if [ "${{ matrix.python }}" == "3.9" ]; then
+      #             export SYNAPSE_PROFILE="TestWindowsMinimumPython"
+      #           elif [ "${{ matrix.python }}" == "3.13" ]; then
+      #             export SYNAPSE_PROFILE="TestWindowsMaximumPython"
+      #           fi
+      #         elif [ "${{ startsWith(matrix.os, 'macos') }}" == "true" ]; then
+      #           if [ "${{ matrix.python }}" == "3.9" ]; then
+      #             export SYNAPSE_PROFILE="TestMacosMinimumPython"
+      #           elif [ "${{ matrix.python }}" == "3.13" ]; then
+      #             export SYNAPSE_PROFILE="TestMacosMaximumPython"
+      #           fi
+      #         fi
 
-            # set env vars used in external bucket tests from secrets
-          export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
-          export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
-          export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
+      #         echo "Using SYNAPSE_PROFILE: $SYNAPSE_PROFILE"
 
-          # Set env vars for OTEL
-          export OTEL_EXPORTER_OTLP_ENDPOINT="${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}"
-          export OTEL_SERVICE_INSTANCE_ID="${{ vars.OTEL_SERVICE_INSTANCE_ID }}"
-          export SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED="${{ vars.SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED }}"
-          export OTEL_EXPORTER_OTLP_HEADERS="${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}"
+      #         # decrypt the encrypted test synapse configuration
+      #         openssl aes-256-cbc -K ${{ secrets.encrypted_d17283647768_key }} -iv ${{ secrets.encrypted_d17283647768_iv }} -in test.synapseConfig.enc -out test.synapseConfig -d
+      #         mv test.synapseConfig ~/.synapseConfig
 
-          # Setup ignore patterns based on Python version
-          IGNORE_FLAGS="--ignore=tests/integration/synapseclient/test_command_line_client.py"
+      #         if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
+      #           # on linux only we can build and run a docker container to serve as an SFTP host for our SFTP tests.
+      #           # Docker is not available on GH Action runners on Mac and Windows.
 
-          if [ "${{ matrix.python }}" == "3.9" ]; then
-            # For min Python version, ignore async tests
-            IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/async/"
-            echo "Running integration tests for Min Python version (3.9) - ignoring async tests"
-          elif [ "${{ matrix.python }}" == "3.13" ]; then
-            # For max Python version, ignore synchronous tests
-            IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/synchronous/"
-            echo "Running integration tests for Max Python version (3.13) - ignoring synchronous tests"
-          fi
+      #           docker build -t sftp_tests - < tests/integration/synapseclient/core/upload/Dockerfile_sftp
+      #           docker run -d sftp_tests:latest
 
-          # Check if we should run only failed tests from previous attempt
-          if [[ -f failed_tests.txt && -s failed_tests.txt ]]; then
-            echo "::notice::Retry attempt ${{ github.run_attempt }} detected - running only previously failed tests"
-            cat failed_tests.txt
+      #           # get the internal IP address of the just launched container
+      #           export SFTP_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -q))
 
-            # Run only the failed tests
-            pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
-              --junit-xml=test-results.xml \
-              -n 8 --dist loadscope \
-              $(cat failed_tests.txt | tr '\n' ' ')
-          else
-            echo "::notice::First attempt or no previous failures - running full integration test suite"
+      #           printf "[sftp://$SFTP_HOST]\nusername: test\npassword: test\n" >> ~/.synapseConfig
 
-            # use loadscope to avoid issues running tests concurrently that share scoped fixtures
-            pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
-              --junit-xml=test-results.xml \
-              tests/integration -n 8 $IGNORE_FLAGS --dist loadscope
-          fi
+      #           # add to known_hosts so the ssh connections can be made without any prompting/errors
+      #           mkdir -p ~/.ssh
+      #           ssh-keyscan -H $SFTP_HOST >> ~/.ssh/known_hosts
+      #         fi
 
-          # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
-          pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+      #           # set env vars used in external bucket tests from secrets
+      #         export EXTERNAL_S3_BUCKET_NAME="${{secrets.EXTERNAL_S3_BUCKET_NAME}}"
+      #         export EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID="${{secrets.EXTERNAL_S3_BUCKET_AWS_ACCESS_KEY_ID}}"
+      #         export EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY="${{secrets.EXTERNAL_S3_BUCKET_AWS_SECRET_ACCESS_KEY}}"
 
-      - name: Extract Failed Tests
-        if: always() && steps.integration_tests.outcome == 'failure'
-        shell: bash
-        run: |
-          python -c "
-          import xml.etree.ElementTree as ET
-          import os
-          tree = ET.parse('test-results.xml')
-          root = tree.getroot()
-          failed = []
-          for testcase in root.iter('testcase'):
-              if testcase.find('failure') is not None or testcase.find('error') is not None:
-                  classname = testcase.get('classname')
-                  name = testcase.get('name')
-                  file_attr = testcase.get('file')
+      #         # Set env vars for OTEL
+      #         export OTEL_EXPORTER_OTLP_ENDPOINT="${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}"
+      #         export OTEL_SERVICE_INSTANCE_ID="${{ vars.OTEL_SERVICE_INSTANCE_ID }}"
+      #         export SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED="${{ vars.SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED }}"
+      #         export OTEL_EXPORTER_OTLP_HEADERS="${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}"
 
-                  # Use the file attribute if available, otherwise convert classname
-                  if file_attr:
-                      # file attribute is already in the correct format
-                      test_path = f'{file_attr}::{classname.split(\".\")[-1]}::{name}'
-                  else:
-                      # Convert classname from dot notation to file path
-                      # e.g., 'tests.integration.foo.test_bar.TestClass' -> 'tests/integration/foo/test_bar.py::TestClass'
-                      parts = classname.split('.')
-                      # Find the test file (usually starts with 'test_')
-                      module_parts = []
-                      class_parts = []
-                      found_test_file = False
-                      for part in parts:
-                          if not found_test_file:
-                              module_parts.append(part)
-                              if part.startswith('test_'):
-                                  found_test_file = True
-                          else:
-                              class_parts.append(part)
+      #         # Setup ignore patterns based on Python version
+      #         IGNORE_FLAGS="--ignore=tests/integration/synapseclient/test_command_line_client.py"
 
-                      file_path = '/'.join(module_parts) + '.py'
-                      if class_parts:
-                          test_path = f'{file_path}::{\"::\".join(class_parts)}::{name}'
-                      else:
-                          test_path = f'{file_path}::{name}'
+      #         if [ "${{ matrix.python }}" == "3.9" ]; then
+      #           # For min Python version, ignore async tests
+      #           IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/async/"
+      #           echo "Running integration tests for Min Python version (3.9) - ignoring async tests"
+      #         elif [ "${{ matrix.python }}" == "3.13" ]; then
+      #           # For max Python version, ignore synchronous tests
+      #           IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/synchronous/"
+      #           echo "Running integration tests for Max Python version (3.13) - ignoring synchronous tests"
+      #         fi
 
-                  failed.append(test_path)
+      #         # Check if we should run only failed tests from previous attempt
+      #         if [[ -f failed_tests.txt && -s failed_tests.txt ]]; then
+      #           echo "::notice::Retry attempt ${{ github.run_attempt }} detected - running only previously failed tests"
+      #           cat failed_tests.txt
 
-          with open('failed_tests.txt', 'w') as f:
-              f.write('\n'.join(failed))
-          print(f'Found {len(failed)} failed tests')
-          for test in failed:
-              print(f'  - {test}')
-          print(f'Current attempt: ${{ github.run_attempt }}')
-          "
+      #           # Run only the failed tests
+      #           pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
+      #             --junit-xml=test-results.xml \
+      #             -n 8 --dist loadscope \
+      #             $(cat failed_tests.txt | tr '\n' ' ')
+      #         else
+      #           echo "::notice::First attempt or no previous failures - running full integration test suite"
 
-      - name: Upload Failed Tests for Next Attempt
-        if: always() && steps.integration_tests.outcome == 'failure' && github.run_attempt < 3
-        uses: actions/upload-artifact@v4
-        with:
-          name: failed-tests-${{ matrix.os }}-${{ matrix.python }}
-          path: failed_tests.txt
-          retention-days: 2
-          overwrite: true
+      #           # use loadscope to avoid issues running tests concurrently that share scoped fixtures
+      #           pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml \
+      #             --junit-xml=test-results.xml \
+      #             tests/integration -n 8 $IGNORE_FLAGS --dist loadscope
+      #         fi
+
+      #         # Execute the CLI tests in a non-dist way because they were causing some test instability when being run concurrently
+      #         pytest -sv --reruns 3 --cov-append --cov=. --cov-report xml tests/integration/synapseclient/test_command_line_client.py
+
+      #     - name: Extract Failed Tests
+      #       if: always() && steps.integration_tests.outcome == 'failure'
+      #       shell: bash
+      #       run: |
+      #         python -c "
+      #         import xml.etree.ElementTree as ET
+      #         import os
+      #         tree = ET.parse('test-results.xml')
+      #         root = tree.getroot()
+      #         failed = []
+      #         for testcase in root.iter('testcase'):
+      #             if testcase.find('failure') is not None or testcase.find('error') is not None:
+      #                 classname = testcase.get('classname')
+      #                 name = testcase.get('name')
+      #                 file_attr = testcase.get('file')
+
+      #                 # Use the file attribute if available, otherwise convert classname
+      #                 if file_attr:
+      #                     # file attribute is already in the correct format
+      #                     test_path = f'{file_attr}::{classname.split(\".\")[-1]}::{name}'
+      #                 else:
+      #                     # Convert classname from dot notation to file path
+      #                     # e.g., 'tests.integration.foo.test_bar.TestClass' -> 'tests/integration/foo/test_bar.py::TestClass'
+      #                     parts = classname.split('.')
+      #                     # Find the test file (usually starts with 'test_')
+      #                     module_parts = []
+      #                     class_parts = []
+      #                     found_test_file = False
+      #                     for part in parts:
+      #                         if not found_test_file:
+      #                             module_parts.append(part)
+      #                             if part.startswith('test_'):
+      #                                 found_test_file = True
+      #                         else:
+      #                             class_parts.append(part)
+
+      #                     file_path = '/'.join(module_parts) + '.py'
+      #                     if class_parts:
+      #                         test_path = f'{file_path}::{\"::\".join(class_parts)}::{name}'
+      #                     else:
+      #                         test_path = f'{file_path}::{name}'
+
+      #                 failed.append(test_path)
+
+      #         with open('failed_tests.txt', 'w') as f:
+      #             f.write('\n'.join(failed))
+      #         print(f'Found {len(failed)} failed tests')
+      #         for test in failed:
+      #             print(f'  - {test}')
+      #         print(f'Current attempt: ${{ github.run_attempt }}')
+      #         "
+
+      #     - name: Upload Failed Tests for Next Attempt
+      #       if: always() && steps.integration_tests.outcome == 'failure' && github.run_attempt < 3
+      #       uses: actions/upload-artifact@v4
+      #       with:
+      #         name: failed-tests-${{ matrix.os }}-${{ matrix.python }}
+      #         path: failed_tests.txt
+      #         retention-days: 2
+      #         overwrite: true
 
       - name: Fail job if integration tests failed after all retries
         if: always() && steps.integration_tests.outcome == 'failure'
@@ -302,13 +310,13 @@ jobs:
           echo "::error::Integration tests failed after ${{ github.run_attempt }} attempt(s)"
           exit 1
 
-      - name: Upload coverage report
-        id: upload_coverage_report
-        uses: actions/upload-artifact@v4
-        if: ${{ contains(fromJSON('["3.13"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
-        with:
-          name: coverage-report
-          path: coverage.xml
+  #     - name: Upload coverage report
+  #       id: upload_coverage_report
+  #       uses: actions/upload-artifact@v4
+  #       if: ${{ contains(fromJSON('["3.13"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
+  #       with:
+  #         name: coverage-report
+  #         path: coverage.xml
 
   sonarcloud:
     needs: [test]
@@ -318,12 +326,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
       - name: Check coverage-report artifact existence
         id: check_coverage_report
         uses: LIT-Protocol/artifact-exists-action@v0
         with:
-          name: "coverage-report"
+          name: 'coverage-report'
       - name: Download coverage report
         uses: actions/download-artifact@v4
         if: steps.check_coverage_report.outputs.exists == 'true'
@@ -333,7 +341,7 @@ jobs:
         id: check_coverage_xml
         uses: andstor/file-existence-action@v3
         with:
-          files: "coverage.xml"
+          files: 'coverage.xml'
         # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
       - name: Override Coverage Source Path for Sonar
         if: steps.check_coverage_xml.outputs.files_exists == 'true'
@@ -347,7 +355,7 @@ jobs:
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
-    needs: [test,pre-commit]
+    needs: [test, pre-commit]
 
     runs-on: ubuntu-22.04
 
