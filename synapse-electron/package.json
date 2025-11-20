@@ -58,7 +58,6 @@
           ]
         }
       ],
-      "bundleId": "com.sagebase.synapse-desktop-client",
       "icon": "assets/icon.icns",
       "artifactName": "${productName}-${version}-${arch}-${os}.${ext}",
       "category": "public.app-category.developer-tools",
