@@ -359,7 +359,7 @@ class SubmissionStatus(
                 List[datetime],
             ],
         ]
-    ] = field(default_factory=dict, compare=False)
+    ] = field(default_factory=dict)
     """Primary container object for Annotations on a Synapse object."""
 
     submission_annotations: Optional[
@@ -374,10 +374,10 @@ class SubmissionStatus(
                 List[datetime],
             ],
         ]
-    ] = field(default_factory=dict, compare=False)
+    ] = field(default_factory=dict)
     """Annotations are additional key-value pair metadata that are associated with an object."""
 
-    private_status_annotations: Optional[bool] = field(default=True, compare=False)
+    private_status_annotations: Optional[bool] = field(default=True)
     """Indicates whether the submission status annotations (NOT to be confused with submission annotations) are private (True) or public (False). Default is True."""
 
     entity_id: Optional[str] = None
