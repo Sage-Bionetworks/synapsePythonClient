@@ -608,6 +608,11 @@ jobs:
           # Set environment variable to skip dependency installation in build script
           export SKIP_DEPENDENCY_INSTALL=1
 
+          # Export Apple credentials for notarization (electron-builder will pick these up)
+          export APPLE_ID="${APPLE_ID}"
+          export APPLE_APP_SPECIFIC_PASSWORD="${APPLE_APP_SPECIFIC_PASSWORD}"
+          export APPLE_TEAM_ID="${APPLE_TEAM_ID}"
+
           chmod +x build_electron_app.sh
           ./build_electron_app.sh macos
 
