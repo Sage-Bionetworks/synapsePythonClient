@@ -1294,6 +1294,7 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "number",
             "sms:displayName": "Check Float",
             "sms:required": "sms:true",
             "sms:validationRules": [
@@ -1351,7 +1352,9 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "Check URL",
+            "sms:format": "uri",
             "sms:required": "sms:true",
             "sms:validationRules": [
                 "url"
@@ -1560,7 +1563,9 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "Check Date",
+            "sms:format": "date",
             "sms:required": "sms:true",
             "sms:validationRules": [
                 "date"
@@ -1877,7 +1882,10 @@
                     "@id": "bts:ListEnumNotRequired"
                 },
                 {
-                    "@id": "bts:ListString"
+                    "@id": "bts:ListBoolean"
+                },
+                {
+                    "@id": "bts:Integer"
                 },
                 {
                     "@id": "bts:ListInRange"
@@ -1932,11 +1940,10 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "String",
             "sms:required": "sms:true",
-            "sms:validationRules": [
-                "str error"
-            ]
+            "sms:validationRules": []
         },
         {
             "@id": "bts:StringNotRequired",
@@ -1951,11 +1958,10 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "String Not Required",
             "sms:required": "sms:false",
-            "sms:validationRules": [
-                "str error"
-            ]
+            "sms:validationRules": []
         },
         {
             "@id": "bts:Enum",
@@ -1984,6 +1990,7 @@
                     "@id": "bts:Gh"
                 }
             ],
+            "sms:columnType": "string",
             "sms:displayName": "Enum",
             "sms:required": "sms:true",
             "sms:validationRules": []
@@ -2015,6 +2022,7 @@
                     "@id": "bts:Gh"
                 }
             ],
+            "sms:columnType": "string",
             "sms:displayName": "Enum Not Required",
             "sms:required": "sms:false",
             "sms:validationRules": []
@@ -2032,7 +2040,9 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "Date",
+            "sms:format": "date",
             "sms:required": "sms:true",
             "sms:validationRules": [
                 "date"
@@ -2051,7 +2061,9 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "URL",
+            "sms:format": "uri",
             "sms:required": "sms:true",
             "sms:validationRules": [
                 "url"
@@ -2070,6 +2082,7 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "number",
             "sms:displayName": "InRange",
             "sms:required": "sms:true",
             "sms:validationRules": [
@@ -2089,6 +2102,7 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "Regex",
             "sms:required": "sms:true",
             "sms:validationRules": [
@@ -2108,11 +2122,10 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string_list",
             "sms:displayName": "List",
             "sms:required": "sms:true",
-            "sms:validationRules": [
-                "list"
-            ]
+            "sms:validationRules": []
         },
         {
             "@id": "bts:ListNotRequired",
@@ -2127,11 +2140,10 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string_list",
             "sms:displayName": "List Not Required",
             "sms:required": "sms:false",
-            "sms:validationRules": [
-                "list"
-            ]
+            "sms:validationRules": []
         },
         {
             "@id": "bts:ListEnum",
@@ -2160,11 +2172,10 @@
                     "@id": "bts:Gh"
                 }
             ],
+            "sms:columnType": "string_list",
             "sms:displayName": "List Enum",
             "sms:required": "sms:true",
-            "sms:validationRules": [
-                "list"
-            ]
+            "sms:validationRules": []
         },
         {
             "@id": "bts:ListEnumNotRequired",
@@ -2193,17 +2204,16 @@
                     "@id": "bts:Gh"
                 }
             ],
+            "sms:columnType": "string_list",
             "sms:displayName": "List Enum Not Required",
             "sms:required": "sms:false",
-            "sms:validationRules": [
-                "list"
-            ]
+            "sms:validationRules": []
         },
         {
-            "@id": "bts:ListString",
+            "@id": "bts:ListBoolean",
             "@type": "rdfs:Class",
             "rdfs:comment": "TBD",
-            "rdfs:label": "ListString",
+            "rdfs:label": "ListBoolean",
             "rdfs:subClassOf": [
                 {
                     "@id": "bts:DataProperty"
@@ -2212,12 +2222,27 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
-            "sms:displayName": "List String",
+            "sms:columnType": "boolean_list",
+            "sms:displayName": "List Boolean",
             "sms:required": "sms:true",
-            "sms:validationRules": [
-                "list",
-                "str"
-            ]
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Integer",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Integer",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:Thing"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:displayName": "Integer",
+            "sms:required": "sms:false",
+            "sms:validationRules": []
         },
         {
             "@id": "bts:ListInRange",
@@ -2232,12 +2257,260 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "integer_list",
             "sms:displayName": "List InRange",
             "sms:required": "sms:true",
             "sms:validationRules": [
-                "list",
                 "inRange 50 100"
             ]
+        },
+        {
+            "@id": "bts:ListInteger",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "ListInteger",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer_list",
+            "sms:displayName": "List Integer",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:TypeDefinitionComponent",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "Component to check type specification",
+            "rdfs:label": "TypeDefinitionComponent",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataType"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:displayName": "TypeDefinitionComponent",
+            "sms:required": "sms:false",
+            "sms:requiresDependency": [
+                {
+                    "@id": "bts:Component"
+                },
+                {
+                    "@id": "bts:Stringtype"
+                },
+                {
+                    "@id": "bts:Stringtypecaps"
+                },
+                {
+                    "@id": "bts:Inttype"
+                },
+                {
+                    "@id": "bts:Inttypecaps"
+                },
+                {
+                    "@id": "bts:Numtype"
+                },
+                {
+                    "@id": "bts:Numtypecaps"
+                },
+                {
+                    "@id": "bts:Nantype"
+                },
+                {
+                    "@id": "bts:Missingtype"
+                },
+                {
+                    "@id": "bts:Booleantype"
+                },
+                {
+                    "@id": "bts:Booleantypecaps"
+                }
+            ],
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Stringtype",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Stringtype",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "string",
+            "sms:displayName": "String type",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Stringtypecaps",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Stringtypecaps",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "string",
+            "sms:displayName": "String type caps",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Inttype",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Inttype",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer",
+            "sms:displayName": "Int type",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Inttypecaps",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Inttypecaps",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer",
+            "sms:displayName": "Int type caps",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Numtype",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Numtype",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "number",
+            "sms:displayName": "Num type",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Numtypecaps",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Numtypecaps",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "number",
+            "sms:displayName": "Num type caps",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Nantype",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Nantype",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:displayName": "Nan type",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Missingtype",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Missingtype",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:displayName": "Missing type",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Booleantype",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Booleantype",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "boolean",
+            "sms:displayName": "Boolean type",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:Booleantypecaps",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "Booleantypecaps",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "boolean",
+            "sms:displayName": "Boolean type caps",
+            "sms:required": "sms:true",
+            "sms:validationRules": []
         }
     ],
     "@id": "http://schema.biothings.io/#0.1"

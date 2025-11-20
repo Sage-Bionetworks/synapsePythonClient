@@ -62,6 +62,7 @@ class TestDataModelRelationships2:
             assert dmr.retrieve_rel_headers_dict(edge=edge) == {
                 "columnType": "ColumnType",
                 "displayName": "Attribute",
+                "format": "Format",
                 "label": None,
                 "comment": "Description",
                 "required": "Required",
