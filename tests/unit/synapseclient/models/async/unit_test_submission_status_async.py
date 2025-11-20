@@ -30,7 +30,9 @@ class TestSubmissionStatus:
     def init_syn(self, syn: Synapse) -> None:
         self.syn = syn
 
-    def get_example_submission_status_dict(self) -> Dict[str, Union[str, int, bool, Dict]]:
+    def get_example_submission_status_dict(
+        self,
+    ) -> Dict[str, Union[str, int, bool, Dict]]:
         """Return example submission status data from REST API."""
         return {
             "id": SUBMISSION_STATUS_ID,
@@ -181,7 +183,9 @@ class TestSubmissionStatus:
 
         # WHEN I call get_async
         # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="The submission status must have an ID to get"):
+        with pytest.raises(
+            ValueError, match="The submission status must have an ID to get"
+        ):
             await submission_status.get_async(synapse_client=self.syn)
 
     async def test_store_async(self) -> None:
@@ -520,7 +524,9 @@ class TestSubmissionStatus:
         assert submission_status._last_persistent_instance is not None
         assert submission_status._last_persistent_instance.id == SUBMISSION_STATUS_ID
         assert submission_status._last_persistent_instance.status == STATUS
-        assert submission_status._last_persistent_instance.annotations == {"test": "value"}
+        assert submission_status._last_persistent_instance.annotations == {
+            "test": "value"
+        }
 
         # AND modifying the current instance shouldn't affect the persistent one
         submission_status.status = "MODIFIED"

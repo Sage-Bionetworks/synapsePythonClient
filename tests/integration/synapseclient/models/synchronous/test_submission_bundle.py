@@ -7,7 +7,14 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Evaluation, File, Project, Submission, SubmissionBundle, SubmissionStatus
+from synapseclient.models import (
+    Evaluation,
+    File,
+    Project,
+    Submission,
+    SubmissionBundle,
+    SubmissionStatus,
+)
 
 
 class TestSubmissionBundleRetrieval:
@@ -22,9 +29,7 @@ class TestSubmissionBundleRetrieval:
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
-        project = Project(name=f"test_project_{uuid.uuid4()}").store(
-            synapse_client=syn
-        )
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -192,9 +197,15 @@ class TestSubmissionBundleRetrieval:
 
         # AND the bundle IDs should not overlap if we have enough submissions
         if len(bundles_page1) == 2 and len(bundles_page2) > 0:
-            page1_ids = {bundle.submission.id for bundle in bundles_page1 if bundle.submission}
-            page2_ids = {bundle.submission.id for bundle in bundles_page2 if bundle.submission}
-            assert page1_ids.isdisjoint(page2_ids), "Pages should not have overlapping submissions"
+            page1_ids = {
+                bundle.submission.id for bundle in bundles_page1 if bundle.submission
+            }
+            page2_ids = {
+                bundle.submission.id for bundle in bundles_page2 if bundle.submission
+            }
+            assert page1_ids.isdisjoint(
+                page2_ids
+            ), "Pages should not have overlapping submissions"
 
     async def test_get_evaluation_submission_bundles_invalid_evaluation(self):
         """Test getting submission bundles for invalid evaluation ID."""
@@ -267,9 +278,15 @@ class TestSubmissionBundleRetrieval:
 
         # AND the bundle IDs should not overlap if we have enough submissions
         if len(bundles_page1) == 2 and len(bundles_page2) > 0:
-            page1_ids = {bundle.submission.id for bundle in bundles_page1 if bundle.submission}
-            page2_ids = {bundle.submission.id for bundle in bundles_page2 if bundle.submission}
-            assert page1_ids.isdisjoint(page2_ids), "Pages should not have overlapping submissions"
+            page1_ids = {
+                bundle.submission.id for bundle in bundles_page1 if bundle.submission
+            }
+            page2_ids = {
+                bundle.submission.id for bundle in bundles_page2 if bundle.submission
+            }
+            assert page1_ids.isdisjoint(
+                page2_ids
+            ), "Pages should not have overlapping submissions"
 
 
 class TestSubmissionBundleDataIntegrity:
@@ -284,9 +301,7 @@ class TestSubmissionBundleDataIntegrity:
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
-        project = Project(name=f"test_project_{uuid.uuid4()}").store(
-            synapse_client=syn
-        )
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 
@@ -410,7 +425,9 @@ class TestSubmissionBundleDataIntegrity:
         assert test_bundle.submission_status.status == "VALIDATED"
         assert test_bundle.submission_status.submission_annotations is not None
         assert "test_score" in test_bundle.submission_status.submission_annotations
-        assert test_bundle.submission_status.submission_annotations["test_score"] == [95.5]
+        assert test_bundle.submission_status.submission_annotations["test_score"] == [
+            95.5
+        ]
 
         # CLEANUP: Reset the status back to original
         submission_status.status = original_status
@@ -454,9 +471,7 @@ class TestSubmissionBundleEdgeCases:
     async def test_project(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
     ) -> Project:
-        project = Project(name=f"test_project_{uuid.uuid4()}").store(
-            synapse_client=syn
-        )
+        project = Project(name=f"test_project_{uuid.uuid4()}").store(synapse_client=syn)
         schedule_for_cleanup(project.id)
         return project
 

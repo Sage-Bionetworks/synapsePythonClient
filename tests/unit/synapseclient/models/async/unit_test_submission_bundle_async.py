@@ -47,7 +47,9 @@ class TestSubmissionBundle:
             },
         }
 
-    def get_example_submission_status_dict(self) -> Dict[str, Union[str, int, bool, Dict]]:
+    def get_example_submission_status_dict(
+        self,
+    ) -> Dict[str, Union[str, int, bool, Dict]]:
         """Return example submission status data from REST API."""
         return {
             "id": SUBMISSION_STATUS_ID,
@@ -126,7 +128,7 @@ class TestSubmissionBundle:
         # THEN all fields should be populated correctly
         assert bundle.submission is not None
         assert bundle.submission_status is not None
-        
+
         # Check submission fields
         assert bundle.submission.id == SUBMISSION_ID
         assert bundle.submission.entity_id == ENTITY_ID
@@ -137,7 +139,9 @@ class TestSubmissionBundle:
         assert bundle.submission_status.id == SUBMISSION_STATUS_ID
         assert bundle.submission_status.status == STATUS
         assert bundle.submission_status.entity_id == ENTITY_ID
-        assert bundle.submission_status.evaluation_id == EVALUATION_ID  # set from submission
+        assert (
+            bundle.submission_status.evaluation_id == EVALUATION_ID
+        )  # set from submission
 
         # Check submission annotations
         assert "score" in bundle.submission_status.submission_annotations
@@ -154,7 +158,7 @@ class TestSubmissionBundle:
         # THEN submission should be populated but submission_status should be None
         assert bundle.submission is not None
         assert bundle.submission_status is None
-        
+
         # Check submission fields
         assert bundle.submission.id == SUBMISSION_ID
         assert bundle.submission.entity_id == ENTITY_ID
@@ -184,7 +188,7 @@ class TestSubmissionBundle:
         status_dict = self.get_example_submission_status_dict()
         # Remove evaluation_id from status_dict to simulate API response
         status_dict.pop("evaluationId", None)
-        
+
         bundle_data = {
             "submission": submission_dict,
             "submissionStatus": status_dict,
@@ -259,15 +263,17 @@ class TestSubmissionBundle:
             # AND the result should contain SubmissionBundle objects
             assert len(result) == 2
             assert all(isinstance(bundle, SubmissionBundle) for bundle in result)
-            
+
             # Check first bundle
             assert result[0].submission is not None
             assert result[0].submission.id == "123"
             assert result[0].submission_status is not None
             assert result[0].submission_status.id == "123"
             assert result[0].submission_status.status == "RECEIVED"
-            assert result[0].submission_status.evaluation_id == EVALUATION_ID  # set from submission
-            
+            assert (
+                result[0].submission_status.evaluation_id == EVALUATION_ID
+            )  # set from submission
+
             # Check second bundle
             assert result[1].submission is not None
             assert result[1].submission.id == "456"
@@ -349,7 +355,7 @@ class TestSubmissionBundle:
             # AND the result should contain SubmissionBundle objects
             assert len(result) == 1
             assert isinstance(result[0], SubmissionBundle)
-            
+
             # Check bundle contents
             assert result[0].submission is not None
             assert result[0].submission.id == "789"
@@ -391,7 +397,7 @@ class TestSubmissionBundle:
         # GIVEN two SubmissionBundle objects with the same data
         submission = Submission(id=SUBMISSION_ID, entity_id=ENTITY_ID)
         status = SubmissionStatus(id=SUBMISSION_STATUS_ID, status=STATUS)
-        
+
         bundle1 = SubmissionBundle(submission=submission, submission_status=status)
         bundle2 = SubmissionBundle(submission=submission, submission_status=status)
 
