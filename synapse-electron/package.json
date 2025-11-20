@@ -58,13 +58,18 @@
           ]
         }
       ],
+      "bundleId": "com.sagebase.synapse-desktop-client",
       "icon": "assets/icon.icns",
       "artifactName": "${productName}-${version}-${arch}-${os}.${ext}",
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false
+    },
+    "dmg": {
+      "sign": false
     },
     "linux": {
       "target": [
