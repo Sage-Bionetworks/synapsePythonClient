@@ -143,6 +143,8 @@
     },
     "CheckRange": {
       "description": "TBD",
+      "maximum": 100.0,
+      "minimum": 50.0,
       "not": {
         "type": "null"
       },

@@ -50,6 +50,13 @@
       ],
       "title": "Enum Not Required"
     },
+    "InRange": {
+      "description": "TBD",
+      "maximum": 100.0,
+      "minimum": 50.0,
+      "title": "InRange",
+      "type": "number"
+    },
     "Integer": {
       "description": "TBD",
       "title": "Integer"
@@ -96,6 +103,16 @@
         "type": "string"
       },
       "title": "List Enum Not Required",
+      "type": "array"
+    },
+    "ListInRange": {
+      "description": "TBD",
+      "items": {
+        "maximum": 100.0,
+        "minimum": 50.0,
+        "type": "integer"
+      },
+      "title": "List InRange",
       "type": "array"
     },
     "ListNotRequired": {
@@ -153,9 +170,11 @@
     "Component",
     "Date",
     "Enum",
+    "InRange",
     "List",
     "ListBoolean",
     "ListEnum",
+    "ListInRange",
     "NoRules",
     "Regex",
     "String",

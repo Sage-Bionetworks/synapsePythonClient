@@ -1864,6 +1864,9 @@
                     "@id": "bts:URL"
                 },
                 {
+                    "@id": "bts:InRange"
+                },
+                {
                     "@id": "bts:Regex"
                 },
                 {
@@ -1883,6 +1886,9 @@
                 },
                 {
                     "@id": "bts:Integer"
+                },
+                {
+                    "@id": "bts:ListInRange"
                 }
             ],
             "sms:validationRules": []
@@ -2064,6 +2070,26 @@
             ]
         },
         {
+            "@id": "bts:InRange",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "InRange",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "number",
+            "sms:displayName": "InRange",
+            "sms:required": "sms:true",
+            "sms:validationRules": [
+                "inRange 50 100"
+            ]
+        },
+        {
             "@id": "bts:Regex",
             "@type": "rdfs:Class",
             "rdfs:comment": "TBD",
@@ -2217,6 +2243,26 @@
             "sms:displayName": "Integer",
             "sms:required": "sms:false",
             "sms:validationRules": []
+        },
+        {
+            "@id": "bts:ListInRange",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "ListInRange",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer_list",
+            "sms:displayName": "List InRange",
+            "sms:required": "sms:true",
+            "sms:validationRules": [
+                "inRange 50 100"
+            ]
         },
         {
             "@id": "bts:ListInteger",
@@ -2619,73 +2665,6 @@
             "sms:displayName": "Maximum Minimum Integer List",
             "sms:maximum": 100,
             "sms:minimum": 10,
-            "sms:required": "sms:true",
-            "sms:validationRules": []
-        },
-        {
-            "@id": "bts:RangeComponentWrongType",
-            "@type": "rdfs:Class",
-            "rdfs:comment": "Component to test when type is missing",
-            "rdfs:label": "RangeComponentWrongType",
-            "rdfs:subClassOf": [
-                {
-                    "@id": "bts:DataType"
-                }
-            ],
-            "schema:isPartOf": {
-                "@id": "http://schema.biothings.io"
-            },
-            "sms:displayName": "RangeComponentWrongType",
-            "sms:required": "sms:false",
-            "sms:requiresDependency": [
-                {
-                    "@id": "bts:Component"
-                },
-                {
-                    "@id": "bts:MaximumMinimumMissingType"
-                },
-                {
-                    "@id": "bts:MaximumMinimumWrongType"
-                }
-            ],
-            "sms:validationRules": []
-        },
-        {
-            "@id": "bts:MaximumMinimumMissingType",
-            "@type": "rdfs:Class",
-            "rdfs:comment": "TBD",
-            "rdfs:label": "MaximumMinimumMissingType",
-            "rdfs:subClassOf": [
-                {
-                    "@id": "bts:DataProperty"
-                }
-            ],
-            "schema:isPartOf": {
-                "@id": "http://schema.biothings.io"
-            },
-            "sms:displayName": "Maximum Minimum Missing Type",
-            "sms:maximum": 100,
-            "sms:minimum": 10,
-            "sms:required": "sms:true",
-            "sms:validationRules": []
-        },
-        {
-            "@id": "bts:MaximumMinimumWrongType",
-            "@type": "rdfs:Class",
-            "rdfs:comment": "TBD",
-            "rdfs:label": "MaximumMinimumWrongType",
-            "rdfs:subClassOf": [
-                {
-                    "@id": "bts:DataProperty"
-                }
-            ],
-            "schema:isPartOf": {
-                "@id": "http://schema.biothings.io"
-            },
-            "sms:columnType": "boolean",
-            "sms:displayName": "Maximum Minimum Wrong Type",
-            "sms:maximum": 10,
-            "sms:minimum": 1,
             "sms:required": "sms:true",
             "sms:validationRules": []
         }

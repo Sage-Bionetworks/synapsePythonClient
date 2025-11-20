@@ -4487,7 +4487,13 @@ def _get_validation_rule_based_fields(
     name: str,
     column_type: Optional[ColumnType],
     logger: Logger,
-) -> tuple[bool, Optional[JSONSchemaFormat], Optional[str],]:
+) -> tuple[
+    bool,
+    Optional[JSONSchemaFormat],
+    Optional[float],
+    Optional[float],
+    Optional[str],
+]:
     """
     Gets the fields for the Node class that are based on the validation rules
 
@@ -4496,6 +4502,7 @@ def _get_validation_rule_based_fields(
     Array: https://json-schema.org/understanding-json-schema/reference/array
     Format: https://json-schema.org/understanding-json-schema/reference/type#format
     Pattern: https://json-schema.org/understanding-json-schema/reference/string#regexp
+    Min/max: https://json-schema.org/understanding-json-schema/reference/numeric#range
 
     Arguments:
         validation_rules: A list of input validation rules
@@ -4516,10 +4523,14 @@ def _get_validation_rule_based_fields(
         A tuple containing fields for a Node object:
         - js_is_array: Whether or not the Node should be an array in JSON Schema
         - js_format: The JSON Schema format
+        - js_minimum: If the type is numeric the JSON Schema minimum
+        - js_maximum: If the type is numeric the JSON Schema maximum
         - js_pattern: If the type is string the JSON Schema pattern
     """
     js_is_array = False
     js_format = explicit_format
+    js_minimum = None
+    js_maximum = None
     js_pattern = None
 
     # If an array type is explicitly set then is_array can be set to True
@@ -4627,6 +4638,21 @@ def _get_validation_rule_based_fields(
                 )
                 logger.warning(msg)
 
+        in_range_rule = get_rule_from_inputted_rules(
+            ValidationRuleName.IN_RANGE, validation_rules
+        )
+        if in_range_rule:
+            js_minimum, js_maximum = get_in_range_parameters_from_inputted_rule(
+                in_range_rule
+            )
+            msg = (
+                f"An inRange validation rule is set for property: {name}, "
+                "setting minimum and maximum values accordingly. "
+                "This behavior is deprecated and validation rules will no longer "
+                "be used in the future. Please use minimum and maximum fields instead."
+            )
+            logger.warning(msg)
+
         regex_rule = get_rule_from_inputted_rules(
             ValidationRuleName.REGEX, validation_rules
         )
@@ -4636,6 +4662,8 @@ def _get_validation_rule_based_fields(
     return (
         js_is_array,
         js_format,
+        js_minimum,
+        js_maximum,
         js_pattern,
     )
 
@@ -4740,6 +4768,8 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         (
             self.is_array,
             self.format,
+            self.minimum,
+            self.maximum,
             self.pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,

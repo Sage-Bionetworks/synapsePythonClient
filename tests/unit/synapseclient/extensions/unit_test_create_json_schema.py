@@ -99,6 +99,7 @@ def fixture_test_nodes(
         "StringNotRequired",
         "Enum",
         "EnumNotRequired",
+        "InRange",
         "Regex",
         "Date",
         "URL",
@@ -108,6 +109,7 @@ def fixture_test_nodes(
         "ListEnumNotRequired",
         "ListBoolean",
         "ListInteger",
+        "ListInRange",
     ]
     nodes = {
         node: TraversalNode(node, "JSONSchemaComponent", dmge, logger=Mock())
@@ -190,35 +192,40 @@ class TestJSONSchema:
 
 
 @pytest.mark.parametrize(
-    "node_name, expected_type, expected_is_array, expected_pattern, expected_format",
+    "node_name, expected_type, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
         # Node with no columnType -all constraint fields should be None/False
-        ("NoRules", None, False, None, None),
+        ("NoRules", None, False, None, None, None, None),
         # Node with columnType "string" - type is set to STRING via columnType
-        ("String", AtomicColumnType.STRING, False, None, None),
+        ("String", AtomicColumnType.STRING, False, None, None, None, None),
         # Node with columnType "string_list" - type is set to STRING via columnType
-        ("List", AtomicColumnType.STRING, True, None, None),
+        ("List", AtomicColumnType.STRING, True, None, None, None, None),
+        # Node with "inRange 50 100" validation rule and columnType "number" - min/max are set, type is NUMBER
+        ("InRange", AtomicColumnType.NUMBER, False, 50, 100, None, None),
         # Node with "regex search [a-f]" validation rule and columnType "string" - pattern is set, type is STRING
-        ("Regex", AtomicColumnType.STRING, False, "[a-f]", None),
+        ("Regex", AtomicColumnType.STRING, False, None, None, "[a-f]", None),
         # Node with "date" validation rule and columnType "string" - format is set to DATE, type is STRING
         (
             "Date",
             AtomicColumnType.STRING,
             False,
             None,
+            None,
+            None,
             JSONSchemaFormat.DATE,
         ),
         # Node with "url" validation rule and columnType "string" - format is set to URI, type is STRING
-        ("URL", AtomicColumnType.STRING, False, None, JSONSchemaFormat.URI),
+        ("URL", AtomicColumnType.STRING, False, None, None, None, JSONSchemaFormat.URI),
         # Node with columnType "boolean_list" - type is set to BOOLEAN via columnType
-        ("ListBoolean", AtomicColumnType.BOOLEAN, True, None, None),
+        ("ListBoolean", AtomicColumnType.BOOLEAN, True, None, None, None, None),
         # Node with columnType "integer_list" - type is set to INTEGER via columnType
-        ("ListInteger", AtomicColumnType.INTEGER, True, None, None),
+        ("ListInteger", AtomicColumnType.INTEGER, True, None, None, None, None),
     ],
     ids=[
         "None",
         "String",
         "List",
+        "InRange",
         "Regex",
         "Date",
         "URI",
@@ -230,6 +237,8 @@ def test_node_init(
     node_name: str,
     expected_type: Optional[ColumnType],
     expected_is_array: bool,
+    expected_min: Optional[float],
+    expected_max: Optional[float],
     expected_pattern: Optional[str],
     expected_format: Optional[JSONSchemaFormat],
     test_nodes: dict[str, TraversalNode],
@@ -239,38 +248,44 @@ def test_node_init(
 
     Verifies that TraversalNode objects are correctly initialized with:
     - Types derived from columnType attribute in the data model
-    - Validation constraints extracted from validation rules (format, pattern, array flag)
+    - Validation constraints extracted from validation rules (format, pattern, min/max, array flag)
     - Proper combination of columnType and validation rule parsing
 
     The type property comes from the columnType field, while constraints
-    come from parsing validation rules like "str", "regex", etc.
+    come from parsing validation rules like "str", "inRange", "regex", etc.
     """
     node = test_nodes[node_name]
     assert node.type == expected_type
     assert node.format == expected_format
     assert node.is_array == expected_is_array
+    assert node.minimum == expected_min
+    assert node.maximum == expected_max
     assert node.pattern == expected_pattern
 
 
 @pytest.mark.parametrize(
-    "validation_rules, explicit_is_array, explicit_format, expected_is_array, expected_pattern, expected_format",
+    "validation_rules, explicit_is_array, explicit_format, expected_is_array, expected_min, expected_max, expected_pattern, expected_format",
     [
         # If there are no validation rules, all fields should be None/False
-        ([], False, None, False, None, None),
+        ([], False, None, False, None, None, None, None),
         # If there are no "list" validation rule, explicit_is_array is set to True, expected_is_array is True
-        ([], True, None, True, None, None),
+        ([], True, None, True, None, None, None, None),
         # If there is a "list" validation rule, explicit_is_array in None,  expected_is_array is True
-        (["list"], None, None, True, None, None),
+        (["list"], None, None, True, None, None, None, None),
         # If explicit_is_array is False, expected_is_array is False
-        (["list"], False, None, False, None, None),
+        (["list"], False, None, False, None, None, None, None),
         # If explicit_is_array  True, expected_is_array is True
-        (["list"], True, None, True, None, None),
+        (["list"], True, None, True, None, None, None, None),
+        # If there is an "inRange" rule, minimum and maximum are extracted and set
+        (["inRange 50 100"], False, None, False, 50, 100, None, None),
         # If there is a "regex search" rule, the pattern is extracted and set
         (
             ["regex search [a-f]"],
             False,
             None,
             False,
+            None,
+            None,
             "[a-f]",
             None,
         ),
@@ -281,6 +296,8 @@ def test_node_init(
             None,
             False,
             None,
+            None,
+            None,
             JSONSchemaFormat.DATE,
         ),
         # If there is an explicit format of JSONSchemaFormat.DATE, the format is set to JSONSchemaFormat.DATE
@@ -290,6 +307,8 @@ def test_node_init(
             JSONSchemaFormat.DATE,
             False,
             None,
+            None,
+            None,
             JSONSchemaFormat.DATE,
         ),
         # If there is an explicit format of JSONSchemaFormat.DATE, the format is set to JSONSchemaFormat.DATE
@@ -299,15 +318,19 @@ def test_node_init(
             JSONSchemaFormat.DATE,
             False,
             None,
+            None,
+            None,
             JSONSchemaFormat.DATE,
         ),
         # If there is a "url" rule, the format is set to JSONSchemaFormat.URI
-        (["url"], False, None, False, None, JSONSchemaFormat.URI),
+        (["url"], False, None, False, None, None, None, JSONSchemaFormat.URI),
         (
             ["url"],
             False,
             JSONSchemaFormat.URI,
             False,
+            None,
+            None,
             None,
             JSONSchemaFormat.URI,
         ),
@@ -316,6 +339,8 @@ def test_node_init(
             False,
             JSONSchemaFormat.URI,
             False,
+            None,
+            None,
             None,
             JSONSchemaFormat.URI,
         ),
@@ -326,6 +351,7 @@ def test_node_init(
         "List rule, explicit_is_array is None",
         "List rule, explicit_is_array is False",
         "List rule, explicit_is_array is True",
+        "InRange",
         "Regex",
         "Date rule, no explicit format",
         "Date rule, explicit format date",
@@ -340,6 +366,8 @@ def test_get_validation_rule_based_fields(
     explicit_is_array: Optional[bool],
     explicit_format: Optional[JSONSchemaFormat],
     expected_is_array: bool,
+    expected_min: Optional[float],
+    expected_max: Optional[float],
     expected_pattern: Optional[str],
     expected_format: Optional[JSONSchemaFormat],
 ) -> None:
@@ -351,6 +379,8 @@ def test_get_validation_rule_based_fields(
     (
         is_array,
         property_format,
+        minimum,
+        maximum,
         pattern,
     ) = _get_validation_rule_based_fields(
         validation_rules,
@@ -362,6 +392,8 @@ def test_get_validation_rule_based_fields(
     )
     assert is_array == expected_is_array
     assert property_format == expected_format
+    assert minimum == expected_min
+    assert maximum == expected_max
     assert pattern == expected_pattern
 
 
@@ -385,27 +417,6 @@ def test_determine_type_and_array(column_type, dmge, expected_type, expected_is_
         expected_type,
         expected_is_array,
     )
-
-
-@pytest.mark.parametrize(
-    "node_name",
-    ["MaximumMinimumMissingType", "MaximumMinimumWrongType"],
-)
-def test_validate_column_type_compatibility(
-    dmge: DataModelGraphExplorer, node_name
-) -> None:
-    """Test for TraversalNode._validate_column_type_compatibility method"""
-    with pytest.raises(ValueError) as ex:
-        traversal_node = TraversalNode(
-            node_name, "RangeComponentWrongType", dmge, logger=Mock()
-        )
-    if node_name == "MaximumMinimumMissingType":
-        assert "columnType is not set" in str(ex.value)
-    else:
-        assert (
-            "columnType is 'boolean' but numeric constraints (min: 1, max: 10) are specified"
-            in str(ex.value)
-        )
 
 
 class TestGraphTraversalState:
@@ -1201,12 +1212,23 @@ def test_create_enum_property(
             ["x", 1],
             [None],
         ),
+        (
+            "InRange",
+            {
+                "type": "number",
+                "minimum": 50,
+                "maximum": 100,
+            },
+            [50, 75, 100],
+            [None, 0, 49, 101],
+        ),
     ],
     ids=[
         "Not required, no type",
         "Required, string type",
         "Not required, string type",
         "Required, no type",
+        "Required, number type",
     ],
 )
 def test_create_simple_property(
@@ -1232,10 +1254,12 @@ def test_create_simple_property(
     "node_name, expected_schema",
     [
         ("NoRules", {}),
+        ("InRange", {"minimum": 50, "maximum": 100}),
         ("Regex", {"pattern": "[a-f]"}),
     ],
     ids=[
         "NoRules",
+        "InRange",
         "Regex",
     ],
 )

@@ -69,6 +69,8 @@ class TestDataModelRelationships2:
                 "validationRules": "Validation Rules",
                 "isPartOf": None,
                 "id": "Source",
+                "maximum": "Maximum",
+                "minimum": "Minimum",
             }
 
     def test_get_relationship_value(self, dmr: DataModelRelationships) -> None:
