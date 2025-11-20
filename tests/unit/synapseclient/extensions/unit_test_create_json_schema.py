@@ -20,6 +20,7 @@ from synapseclient.extensions.curator.schema_generation import (
     GraphTraversalState,
     JSONSchema,
     JSONSchemaFormat,
+    ListColumnType,
     TraversalNode,
     _create_array_property,
     _create_enum_array_property,
@@ -366,6 +367,28 @@ def test_get_validation_rule_based_fields(
     assert pattern == expected_pattern
 
 
+@pytest.mark.parametrize(
+    "column_type, expected_type, expected_is_array",
+    [
+        (AtomicColumnType.INTEGER, AtomicColumnType.INTEGER, False),
+        (AtomicColumnType.STRING, AtomicColumnType.STRING, False),
+        (AtomicColumnType.BOOLEAN, AtomicColumnType.BOOLEAN, False),
+        (ListColumnType.STRING_LIST, AtomicColumnType.STRING, True),
+        (ListColumnType.INTEGER_LIST, AtomicColumnType.INTEGER, True),
+        (ListColumnType.BOOLEAN_LIST, AtomicColumnType.BOOLEAN, True),
+    ],
+)
+def test_determine_type_and_array(column_type, dmge, expected_type, expected_is_array):
+    """Test for TraversalNode._determine_type_and_array method"""
+    traversal_node = TraversalNode(
+        "ListInteger", "JSONSchemaComponent", dmge, logger=Mock()
+    )
+    assert traversal_node._determine_type_and_array(column_type=column_type) == (
+        expected_type,
+        expected_is_array,
+    )
+
+
 class TestGraphTraversalState:
     """Tests for GraphTraversalState class"""
 
@@ -558,6 +581,7 @@ def test_create_json_schema_with_class_label(
     dmge: DataModelGraphExplorer, datatype: str, test_directory: str
 ) -> None:
     """Tests for JSONSchemaGenerator.create_json_schema"""
+    test_directory = "/Users/lpeng/code/synapsePythonClient/synapseclient/output"
     test_path = get_test_schema_path(test_directory, datatype)
     expected_path = get_expected_schema_path(datatype)
     logger = logging.getLogger(__name__)

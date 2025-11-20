@@ -4753,7 +4753,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
     def _determine_type_and_array(
         self, column_type: Optional[ColumnType]
     ) -> tuple[Optional[AtomicColumnType], Optional[bool]]:
-        """Determine the JSON Schema type and array flag from columnType
+        """Determine the JSON Schema type and array from columnType
 
         Args:
             column_type: The columnType from the data model
@@ -4771,11 +4771,18 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
     def _validate_column_type_compatibility(self) -> None:
         """Validate column type compatability if node has "Maximum" or "Minimum" constraints and the type is not numeric."""
         if self.maximum or self.minimum:
-            # If no type specified but numeric constraints exist, infer number type
             if not self.type:
-                self.type = AtomicColumnType.NUMBER
+                raise ValueError(
+                    f"For attribute '{self.display_name}': numeric constraints "
+                    f"(min: {self.minimum}, max: {self.maximum}) are specified, "
+                    f"but columnType is not set. Please set columnType to 'number', 'integer' or 'integer_list'."
+                )
             # If type is specified but not numeric, raise error
-            if self.type not in (AtomicColumnType.NUMBER, AtomicColumnType.INTEGER):
+            if self.type not in (
+                AtomicColumnType.NUMBER,
+                AtomicColumnType.INTEGER,
+                ListColumnType.INTEGER_LIST,
+            ):
                 if self.type == AtomicColumnType.STRING:
                     wrong_type = "string"
                 elif self.type == AtomicColumnType.BOOLEAN:
