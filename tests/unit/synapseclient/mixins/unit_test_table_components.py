@@ -2224,6 +2224,7 @@ class TestQueryMixin:
                 header=True,
                 download_location=None,
                 timeout=250,
+                synapse_client=self.syn,
             )
 
             # AND csv_to_pandas_df should be called with correct args
@@ -2313,6 +2314,7 @@ class TestQueryMixin:
                 header=True,
                 download_location=None,
                 timeout=250,
+                synapse_client=self.syn,
             )
 
             # AND csv_to_pandas_df should be called with date_columns and list_columns populated
@@ -2410,11 +2412,12 @@ class TestQueryMixin:
                 limit=None,
                 offset=None,
                 timeout=250,
+                synapse_client=self.syn,
             )
             # AND mock_rowset_to_pandas_df should be called with correct args
             mock_rowset_to_pandas_df.assert_called_once_with(
                 query_result_bundle=mock_query_result_bundle,
-                synapse=self.syn,
+                synapse_client=self.syn,
                 row_id_and_version_in_index=False,
             )
             # AND the result should be a QueryResultOutput with expected values
@@ -2493,11 +2496,12 @@ class TestQueryMixin:
                 limit=None,
                 offset=None,
                 timeout=250,
+                synapse_client=self.syn,
             )
 
             mock_rowset_to_pandas_df.assert_called_once_with(
                 query_result_bundle=mock_query_result_bundle,
-                synapse=self.syn,
+                synapse_client=self.syn,
                 row_id_and_version_in_index=False,
             )
 
@@ -2721,7 +2725,8 @@ class TestTableDeleteRowMixin:
                 pd.DataFrame(
                     {"ROW_ID": ["C", "D"], "ROW_VERSION": [2, 2]}
                 ),  # Both invalid
-                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: \\(C, 2\\), \\(D, 2\\).",  # Special characters must be escaped due to use with regex in test
+                # Special characters must be escaped due to use with regex in test
+                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: \\(C, 2\\), \\(D, 2\\).",
             ),
         ],
     )
@@ -2858,7 +2863,7 @@ class TestQueryTableCsv:
 
             # WHEN calling the function
             completed_query_job, file_path = await _query_table_csv(
-                query=sample_query, synapse=mock_synapse
+                query=sample_query, synapse_client=mock_synapse
             )
 
             # THEN ensure download file is correct
@@ -2905,7 +2910,7 @@ class TestQueryTableCsv:
             # WHEN calling the function with a download location
             result = await _query_table_csv(
                 query=sample_query,
-                synapse=mock_synapse,
+                synapse_client=mock_synapse,
                 download_location=download_location,
             )
 
@@ -3503,7 +3508,7 @@ class TestQueryTableRowSet:
             # WHEN calling _query_table_row_set
             result = await _query_table_row_set(
                 query=query,
-                synapse=mock_synapse_client,
+                synapse_client=mock_synapse_client,
             )
 
             # THEN verify the result
@@ -3559,7 +3564,7 @@ class TestQueryTableRowSet:
             # WHEN calling _query_table_row_set with parameters
             result = await _query_table_row_set(
                 query=query,
-                synapse=mock_synapse_client,
+                synapse_client=mock_synapse_client,
                 limit=limit,
                 offset=offset,
                 part_mask=part_mask,
@@ -3643,7 +3648,7 @@ class TestQueryTableNextPage:
             result = _query_table_next_page(
                 next_page_token=sample_next_page_token,
                 table_id=sample_table_id,
-                synapse=self.syn,
+                synapse_client=self.syn,
             )
             # Verify API call was made correctly
             mock_wait_for_async.assert_called_once_with(

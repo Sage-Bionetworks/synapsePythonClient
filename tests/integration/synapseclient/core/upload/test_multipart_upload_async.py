@@ -152,7 +152,7 @@ async def test_randomly_failing_parts(
         finally:
             try:
                 if "junk" in locals():
-                    await junk.delete_async()
+                    await junk.delete_async(synapse_client=syn)
             except Exception:
                 syn.logger.exception("Failed to cleanup")
             try:
@@ -213,7 +213,7 @@ async def test_multipart_upload_big_string(
     # AND I store a reference to the String in an Entity
     junk = await File(
         parent_id=project_model.id, data_file_handle_id=file_handle_id
-    ).store_async()
+    ).store_async(synapse_client=syn)
 
     (_, tmp_path) = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
@@ -246,7 +246,11 @@ async def _multipart_copy_test(
     dest_folder_name = "test_multipart_copy_{}".format(uuid.uuid4())
 
     # GIVEN A new folder with an S3 storage location that we can copy to
-    dest_folder, storage_location_setting, _ = syn.create_s3_storage_location(
+    (
+        dest_folder,
+        storage_location_setting,
+        _,
+    ) = await syn.create_s3_storage_location_async(
         parent=project_model.id, folder_name=dest_folder_name
     )
 

@@ -29,8 +29,6 @@ from synapseclient.core.constants.concrete_types import CREATE_SCHEMA_REQUEST
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
-SYNAPSE_SCHEMA_URL = f"{Synapse().repoEndpoint}/schema/type/registered/"
-
 
 class SchemaOrganizationProtocol(Protocol):
     """
@@ -38,7 +36,9 @@ class SchemaOrganizationProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def get(self, synapse_client: Optional["Synapse"] = None) -> "SchemaOrganization":
+    def get(
+        self, *, synapse_client: Optional["Synapse"] = None
+    ) -> "SchemaOrganization":
         """
         Gets the metadata from Synapse for this organization
 
@@ -68,7 +68,9 @@ class SchemaOrganizationProtocol(Protocol):
         """
         return self
 
-    def store(self, synapse_client: Optional["Synapse"] = None) -> "SchemaOrganization":
+    def store(
+        self, *, synapse_client: Optional["Synapse"] = None
+    ) -> "SchemaOrganization":
         """
         Stores this organization in Synapse
 
@@ -98,7 +100,7 @@ class SchemaOrganizationProtocol(Protocol):
         """
         return self
 
-    def delete(self, synapse_client: Optional["Synapse"] = None) -> None:
+    def delete(self, *, synapse_client: Optional["Synapse"] = None) -> None:
         """
         Deletes this organization in Synapse
 
@@ -124,7 +126,7 @@ class SchemaOrganizationProtocol(Protocol):
         return None
 
     def get_json_schemas(
-        self, synapse_client: Optional["Synapse"] = None
+        self, *, synapse_client: Optional["Synapse"] = None
     ) -> Generator["JSONSchema", None, None]:
         """
         Gets the JSON Schemas that are part of this organization
@@ -157,7 +159,7 @@ class SchemaOrganizationProtocol(Protocol):
             synapse_client=synapse_client,
         )
 
-    def get_acl(self, synapse_client: Optional["Synapse"] = None) -> dict[str, Any]:
+    def get_acl(self, *, synapse_client: Optional["Synapse"] = None) -> dict[str, Any]:
         """
         Gets the ACL for this organization
 
@@ -190,6 +192,7 @@ class SchemaOrganizationProtocol(Protocol):
         self,
         principal_id: int,
         access_type: list[str],
+        *,
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
         """
@@ -254,7 +257,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             _check_name(self.name)
 
     async def get_async(
-        self, synapse_client: Optional["Synapse"] = None
+        self, *, synapse_client: Optional["Synapse"] = None
     ) -> "SchemaOrganization":
         """
         Gets the metadata from Synapse for this organization
@@ -300,7 +303,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         return self
 
     async def store_async(
-        self, synapse_client: Optional["Synapse"] = None
+        self, *, synapse_client: Optional["Synapse"] = None
     ) -> "SchemaOrganization":
         """
         Stores this organization in Synapse
@@ -344,7 +347,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         self.fill_from_dict(response)
         return self
 
-    async def delete_async(self, synapse_client: Optional["Synapse"] = None) -> None:
+    async def delete_async(self, *, synapse_client: Optional["Synapse"] = None) -> None:
         """
         Deletes this organization in Synapse
 
@@ -393,11 +396,13 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         """
         if not self.id:
             await self.get_async(synapse_client=synapse_client)
-        await delete_organization(self.id, synapse_client=synapse_client)
+        await delete_organization(
+            organization_id=self.id, synapse_client=synapse_client
+        )
 
     @skip_async_to_sync
     async def get_json_schemas_async(
-        self, synapse_client: Optional["Synapse"] = None
+        self, *, synapse_client: Optional["Synapse"] = None
     ) -> AsyncGenerator["JSONSchema", None]:
         """
         Gets the JSONSchemas that are part of this organization
@@ -441,7 +446,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
             yield JSONSchema().fill_from_dict(item)
 
     async def get_acl_async(
-        self, synapse_client: Optional["Synapse"] = None
+        self, *, synapse_client: Optional["Synapse"] = None
     ) -> dict[str, Any]:
         """
         Gets the ACL for this organization
@@ -492,6 +497,7 @@ class SchemaOrganization(SchemaOrganizationProtocol):
         self,
         principal_id: int,
         access_type: list[str],
+        *,
         synapse_client: Optional["Synapse"] = None,
     ) -> None:
         """
@@ -575,7 +581,7 @@ class JSONSchemaProtocol(Protocol):
     have a synchronous counterpart that may also be called.
     """
 
-    def get(self, synapse_client: Optional["Synapse"] = None) -> "JSONSchema":
+    def get(self, *, synapse_client: Optional["Synapse"] = None) -> "JSONSchema":
         """
         Gets this JSONSchemas metadata
 
@@ -612,6 +618,7 @@ class JSONSchemaProtocol(Protocol):
         schema_body: dict[str, Any],
         version: Optional[str] = None,
         dry_run: bool = False,
+        *,
         synapse_client: Optional["Synapse"] = None,
     ) -> "JSONSchema":
         """
@@ -658,7 +665,10 @@ class JSONSchemaProtocol(Protocol):
         return self
 
     def delete(
-        self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
+        self,
+        version: Optional[str] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
     ) -> None:
         """
         Deletes this JSONSchema
@@ -702,7 +712,7 @@ class JSONSchemaProtocol(Protocol):
         return None
 
     def get_versions(
-        self, synapse_client: Optional["Synapse"] = None
+        self, *, synapse_client: Optional["Synapse"] = None
     ) -> Generator["JSONSchemaVersionInfo", None, None]:
         """
         Gets all versions of this JSONSchema
@@ -736,7 +746,10 @@ class JSONSchemaProtocol(Protocol):
         )
 
     def get_body(
-        self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
+        self,
+        version: Optional[str] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
     ) -> dict[str, Any]:
         """
         Gets the body of this JSONSchema.
@@ -822,7 +835,7 @@ class JSONSchema(JSONSchemaProtocol):
             self.uri = None
 
     async def get_async(
-        self, synapse_client: Optional["Synapse"] = None
+        self, *, synapse_client: Optional["Synapse"] = None
     ) -> "JSONSchema":
         """
         Gets the metadata for this JSONSchema from Synapse
@@ -890,6 +903,7 @@ class JSONSchema(JSONSchemaProtocol):
         schema_body: dict[str, Any],
         version: Optional[str] = None,
         dry_run: bool = False,
+        *,
         synapse_client: Optional["Synapse"] = None,
     ) -> "JSONSchema":
         """
@@ -943,12 +957,15 @@ class JSONSchema(JSONSchemaProtocol):
         if not self.organization_name:
             raise ValueError("JSONSchema must have a organization_name")
 
+        client = Synapse.get_client(synapse_client=synapse_client)
+
         request = CreateSchemaRequest(
             schema=schema_body,
             name=self.name,
             organization_name=self.organization_name,
             version=version,
             dry_run=dry_run,
+            synapse_schema_url=f"{client.repoEndpoint}/schema/type/registered/",
         )
         completed_request: CreateSchemaRequest = await request.send_job_and_wait_async(
             synapse_client=synapse_client
@@ -960,7 +977,10 @@ class JSONSchema(JSONSchemaProtocol):
         return self
 
     async def delete_async(
-        self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
+        self,
+        version: Optional[str] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
     ) -> None:
         """
         If a version is supplied the specific version is deleted from Synapse.
@@ -1026,7 +1046,7 @@ class JSONSchema(JSONSchemaProtocol):
 
     @skip_async_to_sync
     async def get_versions_async(
-        self, synapse_client: Optional["Synapse"] = None
+        self, *, synapse_client: Optional["Synapse"] = None
     ) -> AsyncGenerator[JSONSchemaVersionInfo, None]:
         """
         Gets all versions of this JSONSchema
@@ -1071,7 +1091,10 @@ class JSONSchema(JSONSchemaProtocol):
                 yield self._create_json_schema_version_from_response(schema)
 
     async def get_body_async(
-        self, version: Optional[str] = None, synapse_client: Optional["Synapse"] = None
+        self,
+        version: Optional[str] = None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
     ) -> dict[str, Any]:
         """
         Gets the body of this JSONSchema
@@ -1273,6 +1296,9 @@ class CreateSchemaRequest(AsynchronousCommunicator):
     dry_run: bool = False
     """Whether or not to do the request as a dry-run"""
 
+    synapse_schema_url: str = field(repr=False, default=None)
+    """The base URL for Synapse schemas"""
+
     concrete_type: str = field(init=False)
     """The concrete type of the request"""
 
@@ -1294,7 +1320,7 @@ class CreateSchemaRequest(AsynchronousCommunicator):
             self._check_semantic_version(self.version)
             uri = f"{uri}-{self.version}"
         self.uri = uri
-        self.id = f"{SYNAPSE_SCHEMA_URL}{uri}"
+        self.id = f"{self.synapse_schema_url}{uri}"
         self.schema["$id"] = self.id
 
     def to_synapse_request(self) -> dict[str, Any]:

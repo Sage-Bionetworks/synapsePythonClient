@@ -25,7 +25,7 @@ class TestAgentSession:
         else:
             self.AGENT_REGISTRATION_ID = "29"
 
-    async def test_start(self) -> None:
+    def test_start(self) -> None:
         # GIVEN an agent session with a valid agent registration id
         agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
 
@@ -45,7 +45,7 @@ class TestAgentSession:
         assert result_session.etag is not None
         assert result_session.chat_history == []
 
-    async def test_get(self) -> None:
+    def test_get(self) -> None:
         # GIVEN an agent session with a valid agent registration id
         agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I start a session
@@ -54,7 +54,7 @@ class TestAgentSession:
         new_session = AgentSession(id=agent_session.id).get(synapse_client=self.syn)
         assert new_session == agent_session
 
-    async def test_update(self) -> None:
+    def test_update(self) -> None:
         # GIVEN an agent session with a valid agent registration id and access level set
         agent_session = AgentSession(
             agent_registration_id=self.AGENT_REGISTRATION_ID,
@@ -72,7 +72,7 @@ class TestAgentSession:
             == AgentSessionAccessLevel.READ_YOUR_PRIVATE_DATA
         )
 
-    async def test_prompt(self) -> None:
+    def test_prompt(self) -> None:
         # GIVEN an agent session with a valid agent registration id
         agent_session = AgentSession(agent_registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I start a session
@@ -81,6 +81,7 @@ class TestAgentSession:
         agent_session.prompt(
             prompt="hello",
             enable_trace=True,
+            synapse_client=self.syn,
         )
         # AND I expect the chat history to be updated with the prompt and response
         assert len(agent_session.chat_history) == 1
@@ -113,7 +114,7 @@ class TestAgent:
             current_session=None,
         )
 
-    async def test_register(self) -> None:
+    def test_register(self) -> None:
         # GIVEN an Agent with a valid agent AWS id
         agent = Agent(cloud_agent_id=AGENT_AWS_ID)
         # WHEN I register the agent
@@ -122,7 +123,7 @@ class TestAgent:
         expected_agent = self.agent
         assert agent == expected_agent
 
-    async def test_get(self) -> None:
+    def test_get(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=self.AGENT_REGISTRATION_ID)
         # WHEN I get the agent
@@ -131,14 +132,14 @@ class TestAgent:
         expected_agent = self.agent
         assert agent == expected_agent
 
-    async def test_get_no_registration_id(self) -> None:
+    def test_get_no_registration_id(self) -> None:
         # GIVEN an Agent with no registration id
         agent = Agent()
         # WHEN I get the agent, I expect a ValueError to be raised
         with pytest.raises(ValueError, match="Registration ID is required"):
             agent.get(synapse_client=self.syn)
 
-    async def test_start_session(self) -> None:
+    def test_start_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=self.AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
@@ -150,7 +151,7 @@ class TestAgent:
         # AND I expect the session to be in the sessions dictionary
         assert agent.sessions[agent.current_session.id] == agent.current_session
 
-    async def test_get_session(self) -> None:
+    def test_get_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=self.AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
@@ -158,13 +159,15 @@ class TestAgent:
         # WHEN I start a session
         session = agent.start_session(synapse_client=self.syn)
         # THEN I expect to be able to get the session with its id
-        existing_session = agent.get_session(session_id=session.id)
+        existing_session = agent.get_session(
+            session_id=session.id, synapse_client=self.syn
+        )
         # AND I expect those sessions to be the same
         assert existing_session == session
         # AND I expect it to be the current session
         assert existing_session == agent.current_session
 
-    async def test_prompt_with_session(self) -> None:
+    def test_prompt_with_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=self.AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
@@ -174,7 +177,9 @@ class TestAgent:
             synapse_client=self.syn
         )
         # WHEN I prompt the agent with a session
-        agent.prompt(prompt="hello", enable_trace=True, session=session)
+        agent.prompt(
+            prompt="hello", enable_trace=True, session=session, synapse_client=self.syn
+        )
         test_session = agent.sessions[session.id]
         # THEN I expect the chat history to be updated with the prompt and response
         assert len(test_session.chat_history) == 1
@@ -184,14 +189,14 @@ class TestAgent:
         # AND I expect the current session to be the session provided
         assert agent.current_session.id == session.id
 
-    async def test_prompt_no_session(self) -> None:
+    def test_prompt_no_session(self) -> None:
         # GIVEN an Agent with a valid agent registration id
         agent = Agent(registration_id=self.AGENT_REGISTRATION_ID).get(
             synapse_client=self.syn
         )
         # WHEN I prompt the agent without a current session set
         # and no session provided
-        agent.prompt(prompt="hello", enable_trace=True)
+        agent.prompt(prompt="hello", enable_trace=True, synapse_client=self.syn)
         # THEN I expect a new session to be started and set as the current session
         assert agent.current_session is not None
         # AND I expect the chat history to be updated with the prompt and response

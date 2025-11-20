@@ -1978,8 +1978,8 @@ class RowSetTable(TableAbstractBaseClass):
         super(RowSetTable, self).__init__(schema, etag=rowset.get("etag", None))
         self.rowset = rowset
 
-    def _synapse_store(self, syn):
-        row_reference_set = syn.store(self.rowset)
+    async def _synapse_store_async(self, syn):
+        row_reference_set = await syn.store_async(self.rowset)
         return RowSetTable(self.schema, row_reference_set)
 
     def asDataFrame(self):
@@ -2544,17 +2544,17 @@ class CsvFileTable(TableAbstractBaseClass):
 
         self.setColumnHeaders(headers)
 
-    def _synapse_store(self, syn):
+    async def _synapse_store_async(self, syn: "Synapse"):
         copied_self = copy.copy(self)
-        return copied_self._update_self(syn)
+        return await copied_self._update_self_async(syn)
 
-    def _update_self(self, syn):
+    async def _update_self_async(self, syn: "Synapse"):
         if isinstance(self.schema, Schema) and self.schema.get("id", None) is None:
             # store schema
-            self.schema = syn.store(self.schema)
+            self.schema = await syn.store_async(self.schema)
             self.tableId = self.schema.id
 
-        result = syn._uploadCsv(
+        result = await syn._uploadCsv_async(
             self.filepath,
             self.schema if self.schema else self.tableId,
             updateEtag=self.etag,

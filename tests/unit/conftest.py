@@ -14,7 +14,7 @@ from pytest_socket import SocketBlockedError, disable_socket
 from synapseclient import Synapse
 from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
-Synapse.allow_client_caching = False
+Synapse.allow_client_caching(False)
 
 
 def pytest_runtest_setup():
@@ -49,7 +49,7 @@ def syn():
     """
     Create a Synapse instance that can be shared by all tests in the session.
     """
-    syn = Synapse(debug=False, skip_checks=True)
+    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
     Synapse.set_client(syn)
     return syn
