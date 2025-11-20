@@ -98,8 +98,18 @@ build_python_backend() {
 
         # Check if we're in a CI environment with signing credentials
         if [ -n "$APPLE_TEAM_ID" ]; then
+            # Determine the signing identity to use
+            # If SIGNING_IDENTITY is set (from CI), use it; otherwise use generic string
+            if [ -n "$SIGNING_IDENTITY" ]; then
+                SIGN_ID="$SIGNING_IDENTITY"
+                echo "Using signing identity from environment: $SIGN_ID"
+            else
+                SIGN_ID="Developer ID Application"
+                echo "Using default signing identity: $SIGN_ID"
+            fi
+
             # Sign with hardened runtime and backend-specific entitlements
-            codesign --sign "Developer ID Application" \
+            codesign --sign "$SIGN_ID" \
                 --force \
                 --options runtime \
                 --entitlements ../build/entitlements.backend.plist \
@@ -110,8 +120,11 @@ build_python_backend() {
             codesign --verify --verbose dist/synapse-backend
             if [ $? -eq 0 ]; then
                 echo "Python backend successfully signed"
+                # Display signature details
+                codesign -dv dist/synapse-backend
             else
                 echo "WARNING: Python backend signature verification failed"
+                exit 1
             fi
         else
             echo "Skipping code signing (not in CI environment or credentials not available)"

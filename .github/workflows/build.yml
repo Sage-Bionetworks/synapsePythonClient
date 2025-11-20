@@ -576,7 +576,15 @@ jobs:
           # 6. Partition List (Grant access to tools to prevent UI prompts)
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # 7. Clean up sensitive files
+          # 7. Find and store the signing identity for later use
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | grep -o '"[^"]*"' | tr -d '"')
+          echo "Found signing identity: $SIGNING_IDENTITY"
+          echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
+
+          # 8. Verify the identity is accessible
+          security find-identity -v "$KEYCHAIN_PATH"
+
+          # 9. Clean up sensitive files
           rm "$CERTIFICATE_PATH" "$CLEAN_CERT_PATH" temp-cert.pem temp-key.pem
 
       - name: Build Python backend (Windows)
