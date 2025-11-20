@@ -1,9 +1,9 @@
 """Integration tests for SchemaOrganization and JSONSchema classes"""
+import time
 import uuid
 from typing import Any, Optional
 
 import pytest
-import pytest_asyncio
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
@@ -21,7 +21,7 @@ def create_test_entity_name():
     return f"SYNPY.TEST.{random_string}"
 
 
-async def org_exists(name: str, synapse_client: Optional[Synapse] = None) -> bool:
+def org_exists(name: str, synapse_client: Optional[Synapse] = None) -> bool:
     """
     Checks if any organizations exists with the given name
 
@@ -41,17 +41,17 @@ async def org_exists(name: str, synapse_client: Optional[Synapse] = None) -> boo
 
 
 @pytest.fixture(name="module_organization", scope="module")
-def fixture_module_organization(request) -> SchemaOrganization:
+def fixture_module_organization(syn: Synapse, request) -> SchemaOrganization:
     """
     Returns a created organization at the module scope. Used to hold JSON Schemas created by tests.
     """
     org = SchemaOrganization(create_test_entity_name())
-    org.store()
+    org.store(synapse_client=syn)
 
     def delete_org():
-        for schema in org.get_json_schemas():
-            schema.delete()
-        org.delete()
+        for schema in org.get_json_schemas(synapse_client=syn):
+            schema.delete(synapse_client=syn)
+        org.delete(synapse_client=syn)
 
     request.addfinalizer(delete_org)
 
@@ -67,18 +67,18 @@ def fixture_json_schema(module_organization: SchemaOrganization) -> JSONSchema:
     return js
 
 
-@pytest_asyncio.fixture(name="organization", loop_scope="function", scope="function")
-async def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
+@pytest.fixture(name="organization", scope="function")
+def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
     """
     Returns a Synapse organization.
     """
     name = create_test_entity_name()
     org = SchemaOrganization(name)
 
-    async def delete_org():
-        exists = await org_exists(name, syn)
+    def delete_org():
+        exists = org_exists(name=name, synapse_client=syn)
         if exists:
-            org.delete()
+            org.delete(synapse_client=syn)
 
     request.addfinalizer(delete_org)
 
@@ -86,24 +86,24 @@ async def fixture_organization(syn: Synapse, request) -> SchemaOrganization:
 
 
 @pytest.fixture(name="organization_with_schema", scope="function")
-def fixture_organization_with_schema(request) -> SchemaOrganization:
+def fixture_organization_with_schema(syn: Synapse, request) -> SchemaOrganization:
     """
     Returns a Synapse organization.
     As Cleanup it checks for JSON Schemas and deletes them"""
     name = create_test_entity_name()
     org = SchemaOrganization(name)
-    org.store()
+    org.store(synapse_client=syn)
     js1 = JSONSchema("schema1", name)
     js2 = JSONSchema("schema2", name)
     js3 = JSONSchema("schema3", name)
-    js1.store({})
-    js2.store({})
-    js3.store({})
+    js1.store(schema_body={}, synapse_client=syn)
+    js2.store(schema_body={}, synapse_client=syn)
+    js3.store(schema_body={}, synapse_client=syn)
 
     def delete_org():
-        for schema in org.get_json_schemas():
-            schema.delete()
-        org.delete()
+        for schema in org.get_json_schemas(synapse_client=syn):
+            schema.delete(synapse_client=syn)
+        org.delete(synapse_client=syn)
 
     request.addfinalizer(delete_org)
 
@@ -117,7 +117,7 @@ class TestSchemaOrganization:
     def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    async def test_create_and_get(self, organization: SchemaOrganization) -> None:
+    def test_create_and_get(self, organization: SchemaOrganization) -> None:
         # GIVEN an initialized organization object that hasn't been stored in Synapse
         # THEN it shouldn't have any metadata besides it's name
         assert organization.name is not None
@@ -125,16 +125,17 @@ class TestSchemaOrganization:
         assert organization.created_by is None
         assert organization.created_on is None
         # AND it shouldn't exist in Synapse
-        exists = await org_exists(organization.name, synapse_client=self.syn)
+        exists = org_exists(organization.name, synapse_client=self.syn)
         assert not exists
         # WHEN I store the organization the metadata will be saved
         organization.store(synapse_client=self.syn)
+        time.sleep(10)
         assert organization.name is not None
         assert organization.id is not None
         assert organization.created_by is not None
         assert organization.created_on is not None
         # AND it should exist in Synapse
-        exists = await org_exists(organization.name, synapse_client=self.syn)
+        exists = org_exists(organization.name, synapse_client=self.syn)
         assert exists
         # AND it should be getable by future instances with the same name
         org2 = SchemaOrganization(organization.name)
@@ -146,15 +147,16 @@ class TestSchemaOrganization:
         # WHEN I try to store an organization that exists in Synapse
         # THEN I should get an exception
         with pytest.raises(SynapseHTTPError):
-            org2.store()
+            org2.store(synapse_client=self.syn)
 
-    async def test_get_json_schemas(
+    def test_get_json_schemas(
         self,
         organization: SchemaOrganization,
         organization_with_schema: SchemaOrganization,
     ) -> None:
         # GIVEN an organization with no schemas and one with 3 schemas
         organization.store(synapse_client=self.syn)
+        time.sleep(10)
         # THEN get_json_schema_list should return the correct list of schemas
         assert len(list(organization.get_json_schemas(synapse_client=self.syn))) == 0
         assert (
@@ -164,9 +166,7 @@ class TestSchemaOrganization:
             == 3
         )
 
-    async def test_get_acl_and_update_acl(
-        self, organization: SchemaOrganization
-    ) -> None:
+    def test_get_acl_and_update_acl(self, organization: SchemaOrganization) -> None:
         # GIVEN an organization that has been initialized, but not created
         # THEN get_acl should raise an error
         with pytest.raises(
@@ -175,6 +175,7 @@ class TestSchemaOrganization:
             organization.get_acl(synapse_client=self.syn)
         # GIVEN an organization that has been created
         organization.store(synapse_client=self.syn)
+        time.sleep(10)
         acl = organization.get_acl(synapse_client=self.syn)
         resource_access: list[dict[str, Any]] = acl["resourceAccess"]
         # THEN the resource access should be have one principal
@@ -194,7 +195,7 @@ class TestJSONSchema:
     def init(self, syn: Synapse) -> None:
         self.syn = syn
 
-    async def test_store_and_get(self, json_schema: JSONSchema) -> None:
+    def test_store_and_get(self, json_schema: JSONSchema) -> None:
         # GIVEN an initialized schema object that hasn't been stored in Synapse
         # THEN it shouldn't have any metadata besides it's name and organization name, and uri
         assert json_schema.name
@@ -224,41 +225,45 @@ class TestJSONSchema:
         assert js2.created_by
         assert js2.created_on
 
-    async def test_delete(self, organization_with_schema: SchemaOrganization) -> None:
+    def test_delete(self, organization_with_schema: SchemaOrganization) -> None:
         # GIVEN an organization with 3 schema
-        schemas = list(organization_with_schema.get_json_schemas())
+        schemas = list(
+            organization_with_schema.get_json_schemas(synapse_client=self.syn)
+        )
         assert len(schemas) == 3
         # WHEN deleting one of those schemas
         schema = schemas[0]
-        schema.delete()
+        schema.delete(synapse_client=self.syn)
         # THEN there should be only two left
-        schemas = list(organization_with_schema.get_json_schemas())
+        schemas = list(
+            organization_with_schema.get_json_schemas(synapse_client=self.syn)
+        )
         assert len(schemas) == 2
 
-    async def test_delete_version(self, json_schema: JSONSchema) -> None:
+    def test_delete_version(self, json_schema: JSONSchema) -> None:
         # GIVEN an organization and a JSONSchema
-        json_schema.store(schema_body={}, version="0.0.1")
+        json_schema.store(schema_body={}, version="0.0.1", synapse_client=self.syn)
         # THEN that schema should have one version
-        js_versions = list(json_schema.get_versions())
+        js_versions = list(json_schema.get_versions(synapse_client=self.syn))
         assert len(js_versions) == 1
         # WHEN storing a second version
-        json_schema.store(schema_body={}, version="0.0.2")
+        json_schema.store(schema_body={}, version="0.0.2", synapse_client=self.syn)
         # THEN that schema should have two versions
-        js_versions = list(json_schema.get_versions())
+        js_versions = list(json_schema.get_versions(synapse_client=self.syn))
         assert len(js_versions) == 2
         # AND they should be the ones stored
         versions = [js_version.semantic_version for js_version in js_versions]
         assert versions == ["0.0.1", "0.0.2"]
         # WHEN deleting the first schema version
-        json_schema.delete(version="0.0.1")
+        json_schema.delete(version="0.0.1", synapse_client=self.syn)
         # THEN there should only be one version left
-        js_versions = list(json_schema.get_versions())
+        js_versions = list(json_schema.get_versions(synapse_client=self.syn))
         assert len(js_versions) == 1
         # AND it should be the second version
         versions = [js_version.semantic_version for js_version in js_versions]
         assert versions == ["0.0.2"]
 
-    async def test_get_versions(self, json_schema: JSONSchema) -> None:
+    def test_get_versions(self, json_schema: JSONSchema) -> None:
         # GIVEN an schema that hasn't been created
         # THEN get_versions should return an empty list
         assert len(list(json_schema.get_versions(synapse_client=self.syn))) == 0
@@ -273,7 +278,7 @@ class TestJSONSchema:
         assert len(schemas) == 1
         assert schemas[0].semantic_version == "0.0.1"
 
-    async def test_get_body(self, json_schema: JSONSchema) -> None:
+    def test_get_body(self, json_schema: JSONSchema) -> None:
         # GIVEN an schema that hasn't been created
         # WHEN creating a schema with 2 version
         first_body = {}

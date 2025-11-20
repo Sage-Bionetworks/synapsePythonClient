@@ -1,6 +1,5 @@
 import os
 import uuid
-from unittest import skip
 
 import pytest
 from func_timeout import FunctionTimedOut, func_set_timeout
@@ -9,8 +8,10 @@ import synapseclient.core.utils as utils
 import synapseutils
 from synapseclient import File, Folder, Project
 
+# from unittest import skip
 
-@skip("Skip integration tests for soon to be removed code")
+
+# @skip("Skip integration tests for soon to be removed code")
 async def test_walk(syn, schedule_for_cleanup):
     try:
         execute_test_walk(syn, schedule_for_cleanup)

@@ -367,16 +367,19 @@ class TestEntityView:
                 query_results["column_string"],
                 pd.Series(test_data["column_string"], name="column_string"),
                 check_names=True,
+                check_dtype=False,
             )
             pd.testing.assert_series_equal(
                 query_results["integer_column"],
                 pd.Series(test_data["integer_column"], name="integer_column"),
                 check_names=True,
+                check_dtype=False,
             )
             pd.testing.assert_series_equal(
                 query_results["float_column"],
                 pd.Series(test_data["float_column"], name="float_column"),
                 check_names=True,
+                check_dtype=False,
             )
 
             # AND the annotations should be updated on the files

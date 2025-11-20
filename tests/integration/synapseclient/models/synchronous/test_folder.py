@@ -95,14 +95,14 @@ class TestFolderStore:
 
         assert isinstance(folder.annotations, dict)
 
-    async def test_store_folder_variations(
+    def test_store_folder_variations(
         self, project_model: Project, folder: Folder
     ) -> None:
         # Test Case 1: Simple folder storage
         # GIVEN a Folder object and a Project object
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -125,7 +125,7 @@ class TestFolderStore:
 
         # WHEN I store the Folder on Synapse
         stored_folder_with_annotations = folder_with_annotations.store(
-            parent=project_model
+            parent=project_model, synapse_client=self.syn
         )
         self.schedule_for_cleanup(folder_with_annotations.id)
 
@@ -136,7 +136,7 @@ class TestFolderStore:
             Folder(id=stored_folder_with_annotations.id).get(synapse_client=self.syn)
         ).annotations == annotations
 
-    async def test_store_folder_with_files(
+    def test_store_folder_with_files(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
         # Test Case 1: Folder with a single file
@@ -144,7 +144,7 @@ class TestFolderStore:
         folder.files.append(file)
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties and files
@@ -162,7 +162,7 @@ class TestFolderStore:
 
         # WHEN I store the Folder on Synapse
         stored_folder_with_multiple_files = folder_with_multiple_files.store(
-            parent=project_model
+            parent=project_model, synapse_client=self.syn
         )
         self.schedule_for_cleanup(folder_with_multiple_files.id)
 
@@ -171,7 +171,7 @@ class TestFolderStore:
             stored_folder_with_multiple_files, project_model.id, expected_files=files
         )
 
-    async def test_store_folder_with_files_and_folders(
+    def test_store_folder_with_files_and_folders(
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a folder with nested structure (files and sub-folders with files)
@@ -187,7 +187,7 @@ class TestFolderStore:
         folder.folders = folders
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties, files, and folders
@@ -212,11 +212,9 @@ class TestFolderGetDelete:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    async def test_get_folder_methods(
-        self, project_model: Project, folder: Folder
-    ) -> None:
+    def test_get_folder_methods(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object stored in Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # Test Case 1: Get folder by ID
@@ -259,17 +257,17 @@ class TestFolderGetDelete:
         assert folder.folders == []
         assert not folder.annotations and isinstance(folder.annotations, dict)
 
-    async def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
+    def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object stored in Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I delete the Folder from Synapse
-        stored_folder.delete()
+        stored_folder.delete(synapse_client=self.syn)
 
         # THEN I expect the folder to have been deleted
         with pytest.raises(SynapseHTTPError) as e:
-            stored_folder.get()
+            stored_folder.get(synapse_client=self.syn)
 
         assert f"404 Client Error: Entity {stored_folder.id} is in trash can." in str(
             e.value
@@ -363,27 +361,31 @@ class TestFolderCopy:
                         assert sub_file.name is not None
                         assert sub_file.parent_id == sub_folder.id
 
-    async def test_copy_folder_with_files_and_folders(
-        self, project_model: Project
-    ) -> None:
+    def test_copy_folder_with_files_and_folders(self, project_model: Project) -> None:
         # GIVEN a nested folder structure with files and folders
         source_folder = self.create_nested_folder()
         source_folder.annotations = {"test": ["test"]}
-        stored_source_folder = source_folder.store(parent=project_model)
+        stored_source_folder = source_folder.store(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(stored_source_folder.id)
 
         # Test Case 1: Copy folder with all contents
         # Create first destination folder
         destination_folder_1 = Folder(
             name=str(uuid.uuid4()), description="Destination for folder copy 1"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(destination_folder_1.id)
 
         # WHEN I copy the folder to the destination folder
-        copied_folder = stored_source_folder.copy(parent_id=destination_folder_1.id)
+        copied_folder = stored_source_folder.copy(
+            parent_id=destination_folder_1.id, synapse_client=self.syn
+        )
 
         # AND I sync the destination folder from Synapse
-        destination_folder_1.sync_from_synapse(recursive=False, download_file=False)
+        destination_folder_1.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
 
         # THEN I expect the copied Folder to have the expected properties
         assert len(destination_folder_1.folders) == 1
@@ -394,16 +396,20 @@ class TestFolderCopy:
         # Create a second destination folder for the second test case
         destination_folder_2 = Folder(
             name=str(uuid.uuid4()), description="Destination for folder copy 2"
-        ).store(parent=project_model)
+        ).store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(destination_folder_2.id)
 
         # WHEN I copy the folder to the destination folder excluding files
         copied_folder_no_files = stored_source_folder.copy(
-            parent_id=destination_folder_2.id, exclude_types=["file"]
+            parent_id=destination_folder_2.id,
+            exclude_types=["file"],
+            synapse_client=self.syn,
         )
 
         # AND I sync the destination folder from Synapse
-        destination_folder_2.sync_from_synapse(recursive=False, download_file=False)
+        destination_folder_2.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
 
         # THEN I expect the copied Folder to have the expected properties but no files
         assert len(destination_folder_2.folders) == 1
@@ -445,7 +451,7 @@ class TestFolderSyncFromSynapse:
         folder = Folder(name=str(uuid.uuid4()), description=DESCRIPTION_FOLDER)
         return folder
 
-    async def test_sync_from_synapse(
+    def test_sync_from_synapse(
         self, project_model: Project, file: File, folder: Folder
     ) -> None:
         # GIVEN a nested folder structure with files and folders
@@ -463,11 +469,13 @@ class TestFolderSyncFromSynapse:
         folder.folders = sub_folders
 
         # WHEN I store the Folder on Synapse
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # AND I sync the folder from Synapse
-        copied_folder = stored_folder.sync_from_synapse(path=root_directory_path)
+        copied_folder = stored_folder.sync_from_synapse(
+            path=root_directory_path, synapse_client=self.syn
+        )
 
         # THEN I expect that the folder and its contents are synced from Synapse to disk
         # Verify files in root folder
@@ -493,7 +501,7 @@ class TestFolderSyncFromSynapse:
                     == sub_file.file_handle.content_md5
                 )
 
-    async def test_sync_all_entity_types(self, project_model: Project) -> None:
+    def test_sync_all_entity_types(self, project_model: Project) -> None:
         """Test syncing a folder with all supported entity types."""
         # GIVEN a folder with one of each entity type
         from synapseclient.models import (
@@ -602,10 +610,12 @@ class TestFolderSyncFromSynapse:
             scope_ids=[folder.id],
         )
         submission_view = submission_view.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submission_view.id)
+        self.schedule_for_cleanup(submission_view)
 
         # WHEN I sync the folder from Synapse
-        synced_folder = folder.sync_from_synapse(recursive=False, download_file=False)
+        synced_folder = folder.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
 
         # THEN all entity types should be present
         assert len(synced_folder.files) == 1
@@ -646,7 +656,7 @@ class TestFolderSyncFromSynapse:
 
 
 class TestFolderWalk:
-    """Tests for the synapseclient.models.Folder.walk and walk_async methods."""
+    """Tests for the synapseclient.models.Folder.walk methods."""
 
     @pytest.fixture(autouse=True, scope="function")
     def init(
@@ -670,30 +680,30 @@ class TestFolderWalk:
         folder = Folder(
             name=f"test_walk_folder_{str(uuid.uuid4())}", parent_id=project_model.id
         )
-        folder = folder.store()
+        folder = folder.store(synapse_client=self.syn)
         self.schedule_for_cleanup(folder.id)
 
         # Create a file in the root folder
         root_file = self.create_file_instance(self.schedule_for_cleanup)
         root_file.parent_id = folder.id
-        root_file = root_file.store()
+        root_file = root_file.store(synapse_client=self.syn)
         self.schedule_for_cleanup(root_file.id)
 
         # Create nested folder and file
         nested_folder = Folder(name=f"nested_folder_{str(uuid.uuid4())[:8]}")
         nested_folder.parent_id = folder.id
-        nested_folder = nested_folder.store()
+        nested_folder = nested_folder.store(synapse_client=self.syn)
         self.schedule_for_cleanup(nested_folder.id)
 
         nested_file = self.create_file_instance(self.schedule_for_cleanup)
         nested_file.parent_id = nested_folder.id
-        nested_file = nested_file.store()
+        nested_file = nested_file.store(synapse_client=self.syn)
         self.schedule_for_cleanup(nested_file.id)
 
         # Create another nested folder with no files
         empty_folder = Folder(name=f"empty_folder_{str(uuid.uuid4())[:8]}")
         empty_folder.parent_id = folder.id
-        empty_folder = empty_folder.store()
+        empty_folder = empty_folder.store(synapse_client=self.syn)
         self.schedule_for_cleanup(empty_folder.id)
 
         return {
@@ -704,13 +714,15 @@ class TestFolderWalk:
             "empty_folder": empty_folder,
         }
 
-    async def test_walk_recursive_true(self, project_model: Project) -> None:
+    def test_walk_recursive_true(self, project_model: Project) -> None:
         """Test walk method with recursive=True."""
         # GIVEN: A folder with a hierarchical structure
         hierarchy = self.create_test_hierarchy(project_model)
 
         # WHEN: Walking through the folder with recursive=True
-        results = list(hierarchy["folder"].walk(recursive=True))
+        results = list(
+            hierarchy["folder"].walk(recursive=True, synapse_client=self.syn)
+        )
 
         # THEN: Should get 3 results (folder root, nested_folder, empty_folder)
         assert len(results) == 3
@@ -750,13 +762,15 @@ class TestFolderWalk:
         assert len(empty_dirs) == 0
         assert len(empty_nondirs) == 0
 
-    async def test_walk_recursive_false(self, project_model: Project) -> None:
+    def test_walk_recursive_false(self, project_model: Project) -> None:
         """Test walk method with recursive=False."""
         # GIVEN: A folder with a hierarchical structure
         hierarchy = self.create_test_hierarchy(project_model)
 
         # WHEN: Walking through the folder with recursive=False
-        results = list(hierarchy["folder"].walk(recursive=False))
+        results = list(
+            hierarchy["folder"].walk(recursive=False, synapse_client=self.syn)
+        )
 
         # THEN: Should get only 1 result (folder root only)
         assert len(results) == 1

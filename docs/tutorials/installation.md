@@ -21,7 +21,7 @@ The [synapseclient](https://pypi.python.org/pypi/synapseclient/) package is avai
 - conda: Please follow instructions [here](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) to manage environments:
 
 ```bash
-conda create -n synapseclient python=3.9
+conda create -n synapseclient python=3.14
 conda activate synapseclient
 
 # Here are a few ways to install the client. Choose the one that fits your use-case
@@ -43,8 +43,8 @@ to the `/usr/local/lib` directory. [See here](https://github.com/conda/conda/iss
 - pyenv: Use [virtualenv](https://virtualenv.pypa.io/en/latest/) to manage your python environment:
 
 ```bash
-pyenv install -v 3.9.13
-pyenv global 3.9.13
+pyenv install -v 3.14.0
+pyenv global 3.14.0
 python -m venv env
 source env/bin/activate
 
