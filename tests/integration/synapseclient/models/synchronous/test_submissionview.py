@@ -1,5 +1,5 @@
-import asyncio
 import tempfile
+import time
 import uuid
 from typing import Callable
 
@@ -26,9 +26,7 @@ class TestSubmissionViewCreation:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_create_submissionview_with_columns(
-        self, project_model: Project
-    ) -> None:
+    def test_create_submissionview_with_columns(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
@@ -53,7 +51,7 @@ class TestSubmissionViewCreation:
 
         # WHEN I store the submissionview
         submissionview = submissionview.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        self.schedule_for_cleanup(submissionview)
 
         # THEN the submissionview should be created
         assert submissionview.id is not None
@@ -85,7 +83,7 @@ class TestSubmissionViewCreation:
 
         # WHEN I store the submissionview
         submissionview2 = submissionview2.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview2.id)
+        self.schedule_for_cleanup(submissionview2)
 
         # THEN the submissionview should be created
         assert submissionview2.id is not None
@@ -121,7 +119,7 @@ class TestSubmissionViewCreation:
 
         # WHEN I store the submissionview
         submissionview3 = submissionview3.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview3.id)
+        self.schedule_for_cleanup(submissionview3)
 
         # THEN I can retrieve that submissionview with both columns
         new_submissionview_instance3 = SubmissionView(id=submissionview3.id).get(
@@ -138,9 +136,7 @@ class TestSubmissionViewCreation:
             == ColumnType.INTEGER
         )
 
-    async def test_create_submissionview_special_cases(
-        self, project_model: Project
-    ) -> None:
+    def test_create_submissionview_special_cases(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
@@ -190,7 +186,7 @@ class TestSubmissionViewCreation:
 
         # WHEN I store the submissionview
         submissionview2 = submissionview2.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview2.id)
+        self.schedule_for_cleanup(submissionview2)
 
         # THEN the submissionview should be created but with empty scope
         retrieved_view = SubmissionView(id=submissionview2.id).get(
@@ -217,7 +213,7 @@ class TestSubmissionViewCreation:
 
         # WHEN I store the submissionview
         submissionview3 = submissionview3.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview3.id)
+        self.schedule_for_cleanup(submissionview3)
 
         # THEN the submissionview should only contain our custom columns
         retrieved_view3 = SubmissionView(id=submissionview3.id).get(
@@ -237,7 +233,7 @@ class TestColumnAndScopeModifications:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_column_modifications(self, project_model: Project) -> None:
+    def test_column_modifications(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
@@ -263,7 +259,7 @@ class TestColumnAndScopeModifications:
             scope_ids=[evaluation.id],
         )
         submissionview = submissionview.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        self.schedule_for_cleanup(submissionview)
 
         # Test Case 1: Rename column
         # WHEN I rename the column
@@ -300,7 +296,7 @@ class TestColumnAndScopeModifications:
         assert new_column_name not in updated_view2.columns
         assert column_to_keep in updated_view2.columns
 
-    async def test_scope_modifications(self, project_model: Project) -> None:
+    def test_scope_modifications(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND two evaluations for testing scope changes
         evaluation1 = self.syn.store(
@@ -329,7 +325,7 @@ class TestColumnAndScopeModifications:
             scope_ids=[evaluation1.id],
         )
         submissionview = submissionview.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        self.schedule_for_cleanup(submissionview)
 
         # Test Case 1: Update scope to include multiple evaluations
         # WHEN I update the scope to include both evaluations
@@ -370,7 +366,7 @@ class TestQuerying:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_query_submissionview(self, project_model: Project) -> None:
+    def test_query_submissionview(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
@@ -390,7 +386,7 @@ class TestQuerying:
             scope_ids=[evaluation.id],
         )
         submissionview = submissionview.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        self.schedule_for_cleanup(submissionview)
 
         # Test Case 1: Simple query
         # WHEN I query the submissionview with a standard query
@@ -429,7 +425,7 @@ class TestSnapshotting:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_submissionview_snapshots(self, project_model: Project) -> None:
+    def test_submissionview_snapshots(self, project_model: Project) -> None:
         # GIVEN a project to work with
         # AND an evaluation to use in the scope
         evaluation = self.syn.store(
@@ -458,7 +454,7 @@ class TestSnapshotting:
 
         # AND the submissionview is stored in Synapse
         submissionview = submissionview.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        self.schedule_for_cleanup(submissionview)
 
         # WHEN I snapshot the submissionview
         snapshot = submissionview.snapshot(
@@ -525,7 +521,7 @@ class TestSubmissionViewWithSubmissions:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_submission_lifecycle(self, project_model: Project) -> None:
+    def test_submission_lifecycle(self, project_model: Project) -> None:
         """Test submission lifecycle in a submission view: adding and removing submissions."""
         # GIVEN an evaluation
         evaluation = self.syn.store(
@@ -545,7 +541,7 @@ class TestSubmissionViewWithSubmissions:
             scope_ids=[evaluation.id],
         )
         submissionview = submissionview.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        self.schedule_for_cleanup(submissionview)
 
         # AND a file for submission
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
@@ -580,7 +576,7 @@ class TestSubmissionViewWithSubmissions:
                 success = True
                 break
 
-            asyncio.sleep(wait_seconds)
+            time.sleep(wait_seconds)
             wait_seconds *= 1.5
 
         assert success, "Submission did not appear in the view"
@@ -604,12 +600,12 @@ class TestSubmissionViewWithSubmissions:
                 success = True
                 break
 
-            asyncio.sleep(wait_seconds)
+            time.sleep(wait_seconds)
             wait_seconds *= 1.5
 
         assert success, "Deleted submission still appears in the view"
 
-    async def test_multiple_submissions(self, project_model: Project) -> None:
+    def test_multiple_submissions(self, project_model: Project) -> None:
         """Test that multiple submissions to an evaluation appear in a submission view."""
         # GIVEN an evaluation
         evaluation = self.syn.store(
@@ -629,7 +625,7 @@ class TestSubmissionViewWithSubmissions:
             scope_ids=[evaluation.id],
         )
         submissionview = submissionview.store(synapse_client=self.syn)
-        self.schedule_for_cleanup(submissionview.id)
+        self.schedule_for_cleanup(submissionview)
 
         # WHEN I create and upload multiple test files for submission
         files = []
@@ -676,7 +672,7 @@ class TestSubmissionViewWithSubmissions:
                 success = True
                 break
 
-            asyncio.sleep(wait_seconds)
+            time.sleep(wait_seconds)
             wait_seconds *= 1.5
 
         assert (

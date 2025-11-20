@@ -55,7 +55,7 @@ jobs:
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         # Make sure that we are running the integration tests on the first and last versions of the matrix
-        python: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     runs-on: ${{ matrix.os }}
 
@@ -109,7 +109,7 @@ jobs:
           pytest -sv --cov-append --cov=. --cov-report xml tests/unit
       - name: Check for Secret availability
         id: secret-check
-        if: ${{ contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python) }}
+        if: ${{ contains(fromJSON('["3.10"]'), matrix.python) || contains(fromJSON('["3.14"]'), matrix.python) }}
         # perform secret check & put boolean result as an output
         shell: bash
         run: |
@@ -126,7 +126,7 @@ jobs:
           fi
 
       - name: Download Failed Tests from Previous Attempt
-        if: ${{ github.run_attempt > 1 && (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
+        if: ${{ github.run_attempt > 1 && (contains(fromJSON('["3.10"]'), matrix.python) || contains(fromJSON('["3.14"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
         uses: actions/download-artifact@v4
         with:
           name: failed-tests-${{ matrix.os }}-${{ matrix.python }}
@@ -142,25 +142,25 @@ jobs:
         shell: bash
 
         # keep versions consistent with the first and last from the strategy matrix
-        if: ${{ (contains(fromJSON('["3.9"]'), matrix.python) || contains(fromJSON('["3.13"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
+        if: ${{ (contains(fromJSON('["3.10"]'), matrix.python) || contains(fromJSON('["3.14"]'), matrix.python)) && steps.secret-check.outputs.secrets_available == 'true'}}
         run: |
           # Set SYNAPSE_PROFILE based on OS and Python version
           if [ "${{ startsWith(matrix.os, 'ubuntu') }}" == "true" ]; then
-            if [ "${{ matrix.python }}" == "3.9" ]; then
+            if [ "${{ matrix.python }}" == "3.10" ]; then
               export SYNAPSE_PROFILE="TestUbuntuMinimumPython"
-            elif [ "${{ matrix.python }}" == "3.13" ]; then
+            elif [ "${{ matrix.python }}" == "3.14" ]; then
               export SYNAPSE_PROFILE="TestUbuntuMaximumPython"
             fi
           elif [ "${{ startsWith(matrix.os, 'windows') }}" == "true" ]; then
-            if [ "${{ matrix.python }}" == "3.9" ]; then
+            if [ "${{ matrix.python }}" == "3.10" ]; then
               export SYNAPSE_PROFILE="TestWindowsMinimumPython"
-            elif [ "${{ matrix.python }}" == "3.13" ]; then
+            elif [ "${{ matrix.python }}" == "3.14" ]; then
               export SYNAPSE_PROFILE="TestWindowsMaximumPython"
             fi
           elif [ "${{ startsWith(matrix.os, 'macos') }}" == "true" ]; then
-            if [ "${{ matrix.python }}" == "3.9" ]; then
+            if [ "${{ matrix.python }}" == "3.10" ]; then
               export SYNAPSE_PROFILE="TestMacosMinimumPython"
-            elif [ "${{ matrix.python }}" == "3.13" ]; then
+            elif [ "${{ matrix.python }}" == "3.14" ]; then
               export SYNAPSE_PROFILE="TestMacosMaximumPython"
             fi
           fi
@@ -201,16 +201,6 @@ jobs:
 
           # Setup ignore patterns based on Python version
           IGNORE_FLAGS="--ignore=tests/integration/synapseclient/test_command_line_client.py"
-
-          if [ "${{ matrix.python }}" == "3.9" ]; then
-            # For min Python version, ignore async tests
-            IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/async/"
-            echo "Running integration tests for Min Python version (3.9) - ignoring async tests"
-          elif [ "${{ matrix.python }}" == "3.13" ]; then
-            # For max Python version, ignore synchronous tests
-            IGNORE_FLAGS="$IGNORE_FLAGS --ignore=tests/integration/synapseclient/models/synchronous/"
-            echo "Running integration tests for Max Python version (3.13) - ignoring synchronous tests"
-          fi
 
           # Check if we should run only failed tests from previous attempt
           if [[ -f failed_tests.txt && -s failed_tests.txt ]]; then
@@ -362,7 +352,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: 3.10
 
       - name: set-release-env
         shell: bash
@@ -459,7 +449,6 @@ jobs:
       #     asset_path: dist/${{ steps.build-package.outputs.bdist-package-name }}
       #     asset_content_type: application/zip
 
-
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.
   deploy:
@@ -500,7 +489,7 @@ jobs:
         os: [ubuntu-24.04, macos-13, windows-2022]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-        python: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     runs-on: ${{ matrix.os }}
 

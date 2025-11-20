@@ -1439,7 +1439,9 @@ class TestGet:
         self.schedule_for_cleanup(file_2.id)
 
         # AND I change the download name of the second file to the first file
-        await file_2.change_metadata_async(download_as=file.name)
+        await file_2.change_metadata_async(
+            download_as=file.name, synapse_client=self.syn
+        )
 
         # WHEN I get the file with the default collision of `overwrite.local`
         file_2 = await File(
@@ -1481,7 +1483,9 @@ class TestGet:
         self.schedule_for_cleanup(file_2.id)
 
         # AND I change the download name of the second file to the first file
-        await file_2.change_metadata_async(download_as=file.name)
+        await file_2.change_metadata_async(
+            download_as=file.name, synapse_client=self.syn
+        )
 
         # WHEN I get the file with the default collision of `keep.local`
         file_2 = await File(

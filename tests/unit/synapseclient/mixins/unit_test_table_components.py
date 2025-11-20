@@ -2,9 +2,11 @@ import os
 import re
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from io import BytesIO
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -16,7 +18,7 @@ from synapseclient.core.constants.concrete_types import (
     QUERY_TABLE_CSV_REQUEST,
 )
 from synapseclient.core.utils import MB
-from synapseclient.models import Activity, Column, ColumnType
+from synapseclient.models import Activity, Column
 from synapseclient.models.mixins.table_components import (
     ColumnMixin,
     DeleteMixin,
@@ -31,14 +33,17 @@ from synapseclient.models.mixins.table_components import (
     ViewSnapshotMixin,
     ViewStoreMixin,
     ViewUpdateMixin,
+    _construct_partial_rows_for_upsert,
     _query_table_csv,
     _query_table_next_page,
     _query_table_row_set,
+    csv_to_pandas_df,
 )
 from synapseclient.models.table_components import (
     ActionRequiredCount,
     ColumnType,
     CsvTableDescriptor,
+    PartialRow,
     Query,
     QueryBundleRequest,
     QueryJob,
@@ -68,6 +73,9 @@ DELETE_ENTITY_PATCH = "synapseclient.models.mixins.table_components.delete_entit
 _UPSERT_ROWS_ASYNC_PATCH = (
     "synapseclient.models.mixins.table_components._upsert_rows_async"
 )
+DEFAULT_QUOTE_CHARACTER = '"'
+DEFAULT_SEPARATOR = ","
+DEFAULT_ESCAPSE_CHAR = "\\"
 
 
 class TestTableStoreMixin:
@@ -950,6 +958,778 @@ class TestTableUpsertMixin:
                 synapse_client=self.syn,
             )
 
+    def test_construct_partial_rows_for_upsert_single_value_column_no_na_with_changes(
+        self,
+    ):
+        # GIVEN an entity with single value columns without NA values
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        # Results from Synapse query (existing rows)
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [1, 2],
+            }
+        )
+
+        # Data to upsert (with changes)
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [1, 20],  # Changed values
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect rows to be updated
+        assert len(rows_to_update) == 1
+        assert len(indexes_with_changes) == 1
+        assert len(indexes_without_changes) == 1
+        assert len(syn_id_and_etags) == 0
+
+        # Verify the second row update
+        assert rows_to_update[0].row_id == "row2"
+        assert rows_to_update[0].etag is None
+        assert len(rows_to_update[0].values) == 1
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == 20
+
+        # verify first row without changes
+        assert indexes_without_changes[0] == 0
+
+    def test_construct_partial_rows_for_upsert_single_value_column_no_na_without_changes(
+        self,
+    ):
+        # GIVEN an entity with single value columns without NA values where values don't change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [1, 2],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [1, 2],  # Same values, no changes
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect no rows to be updated
+        assert len(rows_to_update) == 0
+        assert len(indexes_with_changes) == 0
+        assert len(indexes_without_changes) == 2
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_single_value_no_na_with_etag(self):
+        # GIVEN an entity with single value columns without NA values and results containing ROW_ETAG
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "ROW_ETAG": ["etag1"],
+                "id": ["syn123"],
+                "col1": ["A"],
+                "col2": [1],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": [10],  # Changed value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = True
+        wait_for_eventually_consistent_view = True
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated with etag
+        assert len(rows_to_update) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].etag == "etag1"
+        assert len(indexes_with_changes) == 1
+        assert indexes_with_changes[0] == 0
+        assert len(indexes_without_changes) == 0
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == 10
+        assert len(syn_id_and_etags) == 1
+        assert syn_id_and_etags["syn123"] == "etag1"
+
+    def test_construct_partial_rows_for_upsert_single_value_column_with_na_values_changes(
+        self,
+    ):
+        # GIVEN an entity with columns and dataframes containing NA values and values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [1, pd.NA],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    pd.NA,
+                    pd.NA,
+                ],  # row2 shouldn't be updated since it both cell and row are NA
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # Verify the first row update
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].etag is None
+        assert len(rows_to_update[0].values) == 1
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == None
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_list_column__no_na_changes(self):
+        # GIVEN an entity with a list column without NA values where values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.STRING_LIST, id="id2"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [["item1", "item2"], ["item3", "item4"]],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [["item1", "item3"], ["item3", "item4"]],  # Changed list value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated
+        assert len(rows_to_update) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert len(indexes_with_changes) == 1
+        assert indexes_with_changes[0] == 0
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == ["item1", "item3"]
+
+        # Verify second row is not tracked since it has no changes
+        assert len(indexes_without_changes) == 1
+        assert indexes_without_changes[0] == 1
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_list_column_with_na_values_changes(
+        self,
+    ):
+        # GIVEN an entity with a List column with NA values where values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.STRING_LIST, id="id2"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [["item1", "item2"], [pd.NA, "item4"]],  # row2 has NA
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    ["item1", "item3"],
+                    ["item3", "item4"],
+                ],  # row 1 and 2 both change
+            }
+        )
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect both rows to be updated (value to NA, and NA to value)
+        assert len(rows_to_update) == 2
+        assert len(indexes_with_changes) == 2
+        assert len(indexes_without_changes) == 0
+        assert len(syn_id_and_etags) == 0
+
+        # Verify first row: list value changes to NA
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == ["item1", "item3"]
+
+        # Verify second row: NA changes to list value
+        assert rows_to_update[1].row_id == "row2"
+        assert rows_to_update[1].values[0]["key"] == "id2"
+        assert rows_to_update[1].values[0]["value"] == ["item3", "item4"]
+
+    def test_construct_partial_rows_for_upsert_with_list_column_with_na_values_no_changes(
+        self,
+    ):
+        # GIVEN an entity with a LIST column where values don't change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.STRING_LIST, id="id2"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "col1": ["A"],
+                "col2": [["item1", "item2", pd.NA]],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": [["item1", "item2", pd.NA]],  # Same list value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect no rows to be updated
+        assert len(rows_to_update) == 0
+        assert len(indexes_with_changes) == 0
+        assert len(indexes_without_changes) == 1
+        assert indexes_without_changes[0] == 0
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_list_column_changes_with_na_values_changes(
+        self,
+    ):
+        # GIVEN an entity with a List column with NA values where values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.STRING_LIST, id="id2"
+                ),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [["item1", "item2"], [pd.NA, "item4"]],  # row2 has NA
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    ["item1", "item3"],
+                    ["item3", "item4"],
+                ],  # row 1 and 2 both change
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect both rows to be updated (value to NA, and NA to value)
+        assert len(rows_to_update) == 2
+        assert len(indexes_with_changes) == 2
+        assert len(indexes_without_changes) == 0
+        assert len(syn_id_and_etags) == 0
+
+        # Verify first row: list value changes to NA
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == ["item1", "item3"]
+
+        # Verify second row: NA changes to list value
+        assert rows_to_update[1].row_id == "row2"
+        assert rows_to_update[1].values[0]["key"] == "id2"
+        assert rows_to_update[1].values[0]["value"] == ["item3", "item4"]
+
+    def test_construct_partial_rows_for_upsert_with_numpy_array_comparison_no_na_changes(
+        self,
+    ):
+        # GIVEN an entity where values might be numpy arrays without NA values where values change
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.INTEGER_LIST, id="id2"
+                ),
+            },
+        )
+
+        # Create dataframes with numpy arrays
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [np.array([1, 2, 3]), np.array([4, 5, 6])],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    np.array([1, 2, 4]),
+                    np.array([4, 5, 6]),
+                ],  # Changed array value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated (numpy array comparison should work)
+        assert len(rows_to_update) == 1
+        assert len(indexes_with_changes) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == [
+            np.int64(1),
+            np.int64(2),
+            np.int64(4),
+        ]
+        assert len(indexes_without_changes) == 1
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_numpy_array_comparison_with_na_changes(
+        self,
+    ):
+        # GIVEN an entity with numpy arrays that might contain NA values where values change
+        import numpy as np
+
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(
+                    name="col2", column_type=ColumnType.INTEGER_LIST, id="id2"
+                ),
+            },
+        )
+
+        # Test with arrays containing pd.NA where values change
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1", "row2"],
+                "col1": ["A", "B"],
+                "col2": [np.array([1, 2, pd.NA]), np.array([4, 5, 6])],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A", "B"],
+                "col2": [
+                    np.array([1, 2, pd.NA]),
+                    np.array([4, pd.NA, 6]),
+                ],  # row 2 changes
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        # This should handle the pd.NA comparison gracefully
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN the function should handle this without crashing
+        assert len(rows_to_update) == 2
+        assert len(indexes_with_changes) == 2
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id2"
+        assert rows_to_update[0].values[0]["value"] == [1, 2, pd.NA]
+        assert indexes_with_changes[0] == 0
+        assert rows_to_update[1].row_id == "row2"
+        assert rows_to_update[1].values[0]["key"] == "id2"
+        assert rows_to_update[1].values[0]["value"] == [4, pd.NA, 6]
+        assert len(indexes_without_changes) == 0
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_multiple_primary_keys(self):
+        # GIVEN an entity with columns and multiple primary keys
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.STRING, id="id2"),
+                "col3": Column(name="col3", column_type=ColumnType.INTEGER, id="id3"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "col1": ["A"],
+                "col2": ["B"],
+                "col3": [1],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": ["B"],
+                "col3": [10],  # Changed value
+            }
+        )
+
+        primary_keys = ["col1", "col2"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated
+        assert len(rows_to_update) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].values[0]["key"] == "id3"
+        assert rows_to_update[0].values[0]["value"] == 10
+        assert len(indexes_with_changes) == 1
+        assert indexes_with_changes[0] == 0
+        assert len(indexes_without_changes) == 0
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_column_not_in_entity(self):
+        # GIVEN an entity with columns and upsert data containing a column not in entity and changes to the column should be ignored
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "col1": ["A"],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": [10],  # Column not in entity.columns
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = False
+        wait_for_eventually_consistent_view = False
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect no rows to be updated (col2 is ignored)
+        assert len(rows_to_update) == 0
+        assert len(indexes_with_changes) == 0
+        assert len(indexes_without_changes) == 1
+        assert indexes_without_changes[0] == 0
+        assert len(syn_id_and_etags) == 0
+
+    def test_construct_partial_rows_for_upsert_with_wait_for_eventually_consistent_view(
+        self,
+    ):
+        # GIVEN an entity with columns and results containing id and ROW_ETAG
+        test_instance = self.ClassForTest(
+            id="syn123",
+            columns={
+                "col1": Column(name="col1", column_type=ColumnType.STRING, id="id1"),
+                "col2": Column(name="col2", column_type=ColumnType.INTEGER, id="id2"),
+            },
+        )
+
+        results = pd.DataFrame(
+            {
+                "ROW_ID": ["row1"],
+                "ROW_ETAG": ["etag1"],
+                "id": ["syn456"],
+                "col1": ["A"],
+                "col2": [1],
+            }
+        )
+
+        chunk_to_check_for_upsert = pd.DataFrame(
+            {
+                "col1": ["A"],
+                "col2": [10],  # Changed value
+            }
+        )
+
+        primary_keys = ["col1"]
+        contains_etag = True
+        wait_for_eventually_consistent_view = True
+
+        # WHEN I call _construct_partial_rows_for_upsert
+        (
+            rows_to_update,
+            indexes_with_changes,
+            indexes_without_changes,
+            syn_id_and_etags,
+        ) = _construct_partial_rows_for_upsert(
+            entity=test_instance,
+            results=results,
+            chunk_to_check_for_upsert=chunk_to_check_for_upsert,
+            primary_keys=primary_keys,
+            contains_etag=contains_etag,
+            wait_for_eventually_consistent_view=wait_for_eventually_consistent_view,
+        )
+
+        # THEN I expect the row to be updated and syn_id_and_etags to be populated
+        assert len(rows_to_update) == 1
+        assert rows_to_update[0].row_id == "row1"
+        assert rows_to_update[0].etag == "etag1"
+        assert len(syn_id_and_etags) == 1
+        assert syn_id_and_etags["syn456"] == "etag1"
+
 
 class TestQuery:
     """Test suite for the Query.to_synapse_request method."""
@@ -1444,6 +2224,7 @@ class TestQueryMixin:
                 header=True,
                 download_location=None,
                 timeout=250,
+                synapse_client=self.syn,
             )
 
             # AND csv_to_pandas_df should be called with correct args
@@ -1455,6 +2236,8 @@ class TestQueryMixin:
                 row_id_and_version_in_index=False,
                 date_columns=None,
                 list_columns=None,
+                dtype={"col1": str},
+                list_column_types=None,
             )
 
             # AND the result should match expected DataFrame
@@ -1531,6 +2314,7 @@ class TestQueryMixin:
                 header=True,
                 download_location=None,
                 timeout=250,
+                synapse_client=self.syn,
             )
 
             # AND csv_to_pandas_df should be called with date_columns and list_columns populated
@@ -1542,6 +2326,12 @@ class TestQueryMixin:
                 row_id_and_version_in_index=False,
                 date_columns=["date_col"],  # Should contain the DATE column
                 list_columns=["list_col"],  # Should contain the STRING_LIST column
+                dtype={
+                    "string_col": str,
+                },
+                list_column_types={
+                    "list_col": ColumnType.STRING_LIST,
+                },
             )
 
             # AND the result should match expected DataFrame
@@ -1622,11 +2412,12 @@ class TestQueryMixin:
                 limit=None,
                 offset=None,
                 timeout=250,
+                synapse_client=self.syn,
             )
             # AND mock_rowset_to_pandas_df should be called with correct args
             mock_rowset_to_pandas_df.assert_called_once_with(
                 query_result_bundle=mock_query_result_bundle,
-                synapse=self.syn,
+                synapse_client=self.syn,
                 row_id_and_version_in_index=False,
             )
             # AND the result should be a QueryResultOutput with expected values
@@ -1705,11 +2496,12 @@ class TestQueryMixin:
                 limit=None,
                 offset=None,
                 timeout=250,
+                synapse_client=self.syn,
             )
 
             mock_rowset_to_pandas_df.assert_called_once_with(
                 query_result_bundle=mock_query_result_bundle,
-                synapse=self.syn,
+                synapse_client=self.syn,
                 row_id_and_version_in_index=False,
             )
 
@@ -1933,7 +2725,8 @@ class TestTableDeleteRowMixin:
                 pd.DataFrame(
                     {"ROW_ID": ["C", "D"], "ROW_VERSION": [2, 2]}
                 ),  # Both invalid
-                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: \\(C, 2\\), \\(D, 2\\).",  # Special characters must be escaped due to use with regex in test
+                # Special characters must be escaped due to use with regex in test
+                "Rows with the following ROW_ID and ROW_VERSION pairs were not found in table syn123: \\(C, 2\\), \\(D, 2\\).",
             ),
         ],
     )
@@ -2070,7 +2863,7 @@ class TestQueryTableCsv:
 
             # WHEN calling the function
             completed_query_job, file_path = await _query_table_csv(
-                query=sample_query, synapse=mock_synapse
+                query=sample_query, synapse_client=mock_synapse
             )
 
             # THEN ensure download file is correct
@@ -2117,7 +2910,7 @@ class TestQueryTableCsv:
             # WHEN calling the function with a download location
             result = await _query_table_csv(
                 query=sample_query,
-                synapse=mock_synapse,
+                synapse_client=mock_synapse,
                 download_location=download_location,
             )
 
@@ -2715,7 +3508,7 @@ class TestQueryTableRowSet:
             # WHEN calling _query_table_row_set
             result = await _query_table_row_set(
                 query=query,
-                synapse=mock_synapse_client,
+                synapse_client=mock_synapse_client,
             )
 
             # THEN verify the result
@@ -2771,7 +3564,7 @@ class TestQueryTableRowSet:
             # WHEN calling _query_table_row_set with parameters
             result = await _query_table_row_set(
                 query=query,
-                synapse=mock_synapse_client,
+                synapse_client=mock_synapse_client,
                 limit=limit,
                 offset=offset,
                 part_mask=part_mask,
@@ -2855,7 +3648,7 @@ class TestQueryTableNextPage:
             result = _query_table_next_page(
                 next_page_token=sample_next_page_token,
                 table_id=sample_table_id,
-                synapse=self.syn,
+                synapse_client=self.syn,
             )
             # Verify API call was made correctly
             mock_wait_for_async.assert_called_once_with(
@@ -2892,3 +3685,286 @@ class TestQueryTableNextPage:
             assert result.select_columns[0].name == "column1"
             assert result.select_columns[0].column_type == "STRING"
             assert result.select_columns[0].id == "12345"
+
+
+class TestCsvToPandasDf:
+    """Test suite for csv_to_pandas_df function focusing on date and list columns."""
+
+    @pytest.fixture
+    def csv_with_date_columns(self):
+        """CSV content with date columns (epoch time in milliseconds)."""
+        return "id,name,created_date\n1,Alice,1609459200000\n2,Bob,1609545600000\n3,Charlie,1609632000000"
+
+    @pytest.fixture
+    def csv_with_list_columns(self):
+        """CSV content with integer, boolean, and string list columns with NAs."""
+        return 'name,age,city,number,bool,string,number_list,bool_list,string_list\nAlice,30,New York,42,"True","hello","[1, 2, 3]","[true, false, true]","[1, 2]"\nBob,25,Los Angeles,10,"False","world",,"[false, true]","[3]"\nCharlie,35,Chicago,99,"True","test","[6, 7, 8, 9]",,"[4, 5, 6]"'
+
+    @pytest.fixture
+    def csv_with_list_columns_with_na_in_items_and_date_columns(self):
+        """CSV content with list columns containing NA values within list items. Use null instead of None to avoid type errors for json.loads."""
+        return 'name,age,city,number,bool,string,created_date,number_list,bool_list,string_list,userid_list,entityid_list\nAlice,30,New York,42,"True","hello",1609459200000,"[1, null, 3]","[true, null, false]","[\\"tag1\\", null, \\"tag3\\"]","[123, null, 456]","[\\"syn123\\", null, \\"syn456\\"]"\nBob,25,Los Angeles,,"False","world",1609545600000,"[null, 5]","[null, true]","[null, \\"tag2\\"]","[null, 789]","[null, \\"syn789\\"]"\nCharlie,35,Chicago,99,"True","test",1609632000000,"[6, null, null, 9]","[null, null, false]","[null, \\"tag4\\", null]","[101, null, null, 202]","[\\"syn101\\", null, null, \\"syn202\\"]"'
+
+    @pytest.fixture
+    def csv_with_date_and_list_columns(self):
+        """CSV content with both date and list columns."""
+        return 'id,name,created_date,number,bool,string,number_list,bool_list,string_list\n1,Alice,1609459200000,42,"True","hello","[1, 2, 3]","[true, false, true]","[\\"tag1\\", \\"tag2\\"]"\n2,Bob,1609545600000,10,"False","world",,"[false, true]","[\\"tag3\\"]"\n3,Charlie,1609632000000,99,"True","test","[6, 7, 8, 9]",,"[\\"tag4\\", \\"tag5\\", \\"tag6\\"]"'
+
+    @pytest.fixture
+    def csv_with_row_id_and_version_and_etag_in_index(self):
+        """CSV content with row id, version, and etag in index."""
+        return 'ROW_ID,ROW_VERSION,ROW_ETAG,name,age,city,number,bool,string,created_date,number_list,bool_list,string_list,userid_list,entityid_list\n1,1,test-etag,Alice,30,New York,42,"True","hello",1609459200000,"[1, null, 3]","[true, null, false]","[\\"tag1\\", null, \\"tag3\\"]","[123, null, 456]","[\\"syn123\\", null, \\"syn456\\"]"\n2,1,test-etag,Bob,25,Los Angeles,,"False","world",1609545600000,,"[null, true]","[null, \\"tag2\\"]","[null, 789]","[null, \\"syn789\\"]"\n3,1,test-etag,Charlie,35,Chicago,99,"True","test",1609632000000,"[6, null, null, 9]","[null, null, false]","[null, \\"tag4\\", null]","[101, null, null, 202]","[\\"syn101\\", null, null, \\"syn202\\"]"'
+
+    def test_csv_to_pandas_df_with_date_columns(self, csv_with_date_columns):
+        """Test csv_to_pandas_df correctly converts date columns to datetime."""
+        # WHEN converting CSV with date columns
+        csv_file = BytesIO(csv_with_date_columns.encode("utf-8"))
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            date_columns=["created_date"],
+        )
+        # THEN assert the date column is converted to datetime
+        assert str(df["created_date"].dtype) == "datetime64[ns, UTC]"
+
+        expected_dates = pd.to_datetime(
+            [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
+        )
+        # THEN assert the create_date column is equal to the expected dates
+        pd.testing.assert_series_equal(
+            df["created_date"], pd.Series(expected_dates), check_names=False
+        )
+
+    def test_csv_to_pandas_df_with_all_list_columns(self, csv_with_list_columns):
+        """Test csv_to_pandas_df correctly parses all list column types together."""
+        # WHEN converting CSV with all list column types
+        csv_file = BytesIO(csv_with_list_columns.encode("utf-8"))
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            list_columns=["number_list", "bool_list", "string_list"],
+            list_column_types={
+                "number_list": "INTEGER_LIST",
+                "bool_list": "BOOLEAN_LIST",
+                "string_list": "STRING_LIST",
+            },
+        )
+        # expected dataframe content
+        expected_df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+                "number": [42, 10, 99],
+                "bool": [True, False, True],
+                "string": ["hello", "world", "test"],
+                "number_list": [[1, 2, 3], [], [6, 7, 8, 9]],
+                "bool_list": [[True, False, True], [False, True], []],
+                "string_list": [
+                    ["1", "2"],
+                    ["3"],
+                    ["4", "5", "6"],
+                ],  # integers are converted to strings
+            }
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
+
+    def test_csv_to_pandas_df_with_date_and_list_columns(
+        self, csv_with_date_and_list_columns
+    ):
+        """Test csv_to_pandas_df correctly handles both date and list columns together."""
+        # WHEN converting CSV with both date and list columns
+        csv_file = BytesIO(csv_with_date_and_list_columns.encode("utf-8"))
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            date_columns=["created_date"],
+            list_columns=["number_list", "bool_list", "string_list"],
+            list_column_types={
+                "number_list": "INTEGER_LIST",
+                "bool_list": "BOOLEAN_LIST",
+                "string_list": "STRING_LIST",
+            },
+        )
+        # expected dataframe content
+        expected_df = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "name": ["Alice", "Bob", "Charlie"],
+                "created_date": pd.to_datetime(
+                    [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
+                ),
+                "number": [42, 10, 99],
+                "bool": [True, False, True],
+                "string": ["hello", "world", "test"],
+                "number_list": [[1, 2, 3], [], [6, 7, 8, 9]],
+                "bool_list": [[True, False, True], [False, True], []],
+                "string_list": [["tag1", "tag2"], ["tag3"], ["tag4", "tag5", "tag6"]],
+            }
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
+
+    def test_csv_to_pandas_df_list_columns_without_types(self, csv_with_list_columns):
+        """Test csv_to_pandas_df handles list columns without explicit list_column_types. NAs are filled with empty lists."""
+        # WHEN converting CSV with list columns but no list_column_types
+        csv_file = BytesIO(csv_with_list_columns.encode("utf-8"))
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            list_columns=["number_list", "bool_list", "string_list"],
+        )
+        expected_df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+                "number": [42, 10, 99],
+                "bool": [True, False, True],
+                "string": ["hello", "world", "test"],
+                "number_list": [[1, 2, 3], [], [6, 7, 8, 9]],
+                "bool_list": [[True, False, True], [False, True], []],
+                "string_list": [
+                    [1, 2],
+                    [3],
+                    [4, 5, 6],
+                ],  # integers are not converted to strings since they are not in list_column_types
+            }
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
+
+    def test_csv_to_pandas_df_all_list_types_with_na_in_items_and_date_columns(
+        self, csv_with_list_columns_with_na_in_items_and_date_columns
+    ):
+        """Test csv_to_pandas_df handles NA values within all list column types and date columns."""
+        # WHEN converting CSV with all list types containing None values and date columns
+        csv_file = BytesIO(
+            csv_with_list_columns_with_na_in_items_and_date_columns.encode("utf-8")
+        )
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            date_columns=["created_date"],
+            list_columns=[
+                "number_list",
+                "bool_list",
+                "string_list",
+                "userid_list",
+                "entityid_list",
+            ],
+            list_column_types={
+                "number_list": "INTEGER_LIST",
+                "bool_list": "BOOLEAN_LIST",
+                "string_list": "STRING_LIST",
+                "userid_list": "USERID_LIST",
+                "entityid_list": "ENTITYID_LIST",
+            },
+        )
+        # expected dataframe content
+        expected_df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+                "number": [
+                    42,
+                    None,
+                    99,
+                ],  # Integers are converted to floats due to the presence of NaN values, but convert_dtypes converts them to int via convert_dtypes
+                "bool": [
+                    True,
+                    False,
+                    True,
+                ],  # Read as strings from CSV, and converted to booleans
+                "string": ["hello", "world", "test"],
+                "created_date": pd.to_datetime(
+                    [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
+                ),
+                "number_list": [
+                    [1, None, 3],
+                    [None, 5],
+                    [6, None, None, 9],
+                ],  # None values remain as None
+                "bool_list": [
+                    [True, None, False],
+                    [None, True],
+                    [None, None, False],
+                ],  # None values are preserved as None
+                "string_list": [
+                    ["tag1", "", "tag3"],
+                    ["", "tag2"],
+                    ["", "tag4", ""],
+                ],  # None values are preserved as ""
+                "userid_list": [
+                    ["123", "", "456"],
+                    ["", "789"],
+                    ["101", "", "", "202"],
+                ],  # None values are preserved as ""
+                "entityid_list": [
+                    ["syn123", "", "syn456"],
+                    ["", "syn789"],
+                    ["syn101", "", "", "syn202"],
+                ],  # None values are preserved as ""
+            }
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)
+
+    def test_csv_pandas_df_with_row_id_and_version_etag_in_index(
+        self, csv_with_row_id_and_version_and_etag_in_index
+    ):
+        """Test csv_to_pandas_df handles row id and version in index. NAs are filled with empty lists."""
+        # WHEN converting CSV with row id and version in index
+        csv_file = BytesIO(
+            csv_with_row_id_and_version_and_etag_in_index.encode("utf-8")
+        )
+        df = csv_to_pandas_df(
+            filepath=csv_file,
+            row_id_and_version_in_index=True,
+            date_columns=["created_date"],
+            list_columns=[
+                "number_list",
+                "bool_list",
+                "string_list",
+                "userid_list",
+                "entityid_list",
+            ],
+            list_column_types={
+                "number_list": "INTEGER_LIST",
+                "bool_list": "BOOLEAN_LIST",
+                "string_list": "STRING_LIST",
+                "userid_list": "USERID_LIST",
+                "entityid_list": "ENTITYID_LIST",
+            },
+        )
+        # expected dataframe content
+        expected_df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [30, 25, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+                "number": [
+                    42,
+                    None,
+                    99,
+                ],  # Integers are converted to floats due to the presence of NaN values, but convert_dtypes converts them to int via convert_dtypes
+                "bool": [True, False, True],
+                "string": ["hello", "world", "test"],
+                "created_date": pd.to_datetime(
+                    [1609459200000, 1609545600000, 1609632000000], unit="ms", utc=True
+                ),
+                "number_list": [[1, None, 3], [], [6, None, None, 9]],
+                "bool_list": [[True, None, False], [None, True], [None, None, False]],
+                "string_list": [["tag1", "", "tag3"], ["", "tag2"], ["", "tag4", ""]],
+                "userid_list": [
+                    ["123", "", "456"],
+                    ["", "789"],
+                    ["101", "", "", "202"],
+                ],
+                "entityid_list": [
+                    ["syn123", "", "syn456"],
+                    ["", "syn789"],
+                    ["syn101", "", "", "syn202"],
+                ],
+            },
+            index=["1_1_test-etag", "2_1_test-etag", "3_1_test-etag"],
+        ).convert_dtypes()  # resolve datatype issue such as StringDtype vs object
+        # THEN assert the dataframe is equal to the expected dataframe
+        pd.testing.assert_frame_equal(df, expected_df)

@@ -21,11 +21,11 @@ from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, SILENT_LOGGER_NAME
 from synapseclient.models import Project as Project_Model
-from synapseclient.models import Team
+from synapseclient.models import SubmissionView, Team
 
 tracer = trace.get_tracer("synapseclient")
 working_directory = tempfile.mkdtemp(prefix="someTestFolder")
-Synapse.allow_client_caching = False
+Synapse.allow_client_caching(False)
 
 
 def pytest_collection_modifyitems(items) -> None:
@@ -34,7 +34,7 @@ def pytest_collection_modifyitems(items) -> None:
 
     I want to run all tests, even if they are not explictly async, within the same event
     loop. This will allow our async_to_sync wrapper logic use the same event loop
-    for all tests. This implictly allows us to re-use the HTTP connection pooling for
+    for all tests. This implicitly allows us to re-use the HTTP connection pooling for
     all tests.
     """
     pytest_asyncio_tests = (item for item in items if is_async_test(item))
@@ -51,7 +51,7 @@ def syn(request) -> Synapse:
     """
     print("Python version:", sys.version)
 
-    syn = Synapse(debug=False, skip_checks=True)
+    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
     print("Testing against endpoints:")
     print("  " + syn.repoEndpoint)
     print("  " + syn.authEndpoint)
@@ -80,7 +80,7 @@ def syn_with_logger(request) -> Synapse:
     """
     print("Python version:", sys.version)
 
-    syn = Synapse(debug=False, skip_checks=True)
+    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
     print("Testing against endpoints:")
     print("  " + syn.repoEndpoint)
     print("  " + syn.authEndpoint)
@@ -103,7 +103,7 @@ async def project_model(request, syn: Synapse) -> Project_Model:
     # Make one project for all the tests to use
     proj = await Project_Model(
         name="integration_test_project" + str(uuid.uuid4())
-    ).store_async()
+    ).store_async(synapse_client=syn)
 
     def project_teardown() -> None:
         wrap_async_to_sync(_cleanup(syn, [working_directory, proj.id]))
@@ -114,7 +114,7 @@ async def project_model(request, syn: Synapse) -> Project_Model:
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
-async def project(request, syn: Synapse) -> Project:
+def project(request, syn: Synapse) -> Project:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
     a project is created for each worker node.
@@ -129,22 +129,6 @@ async def project(request, syn: Synapse) -> Project:
     request.addfinalizer(project_teardown)
 
     return proj
-
-
-@pytest.fixture(scope="function", autouse=True)
-def clear_cache() -> None:
-    """
-    Clear all LRU caches before each test to avoid any side effects.
-    """
-    from synapseclient.api.entity_services import get_upload_destination
-
-    # Clear the cache before each test
-    get_upload_destination.cache_clear()
-
-    yield
-
-    # Clear the cache after each test
-    get_upload_destination.cache_clear()
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -192,7 +176,15 @@ async def _cleanup(syn: Synapse, items):
                     print(ex)
         elif isinstance(item, Team):
             try:
-                item.delete()
+                await item.delete_async(synapse_client=syn)
+            except Exception as ex:
+                if hasattr(ex, "response") and ex.response.status_code in [404, 403]:
+                    pass
+                else:
+                    print("Error cleaning up entity: " + str(ex))
+        elif isinstance(item, SubmissionView):
+            try:
+                await item.delete_async(synapse_client=syn)
             except Exception as ex:
                 if hasattr(ex, "response") and ex.response.status_code in [404, 403]:
                     pass

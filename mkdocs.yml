@@ -144,6 +144,7 @@ nav:
       - Manifest TSV: explanations/manifest_tsv.md
       - Benchmarking: explanations/benchmarking.md
       - Structuring Your Project: explanations/structuring_your_project.md
+      - Asyncio Changes in Python 3.14: explanations/asyncio_in_python_3_14.md
   - News:
       - news.md
   - Contact Us: https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206

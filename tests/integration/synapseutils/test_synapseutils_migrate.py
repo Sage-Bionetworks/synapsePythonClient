@@ -54,7 +54,7 @@ def _assert_storage_location(file_handles, storage_location_id):
         assert fh["storageLocationId"] == storage_location_id
 
 
-async def test_migrate_project(
+def test_migrate_project(
     request, syn: Synapse, schedule_for_cleanup, storage_location_id
 ):
     test_name = request.node.name

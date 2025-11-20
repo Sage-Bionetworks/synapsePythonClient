@@ -48,18 +48,18 @@ class TestJSONSchema:
         entity_name = str(uuid.uuid4()) + name_suffix
 
         if entity_type == Project:
-            entity = Project(name=entity_name).store()
+            entity = Project(name=entity_name).store(synapse_client=self.syn)
         elif entity_type == Folder:
             folder = Folder(name=entity_name)
-            entity = folder.store(parent=project_model)
+            entity = folder.store(parent=project_model, synapse_client=self.syn)
         elif entity_type == File:
             file_fixture.name = entity_name
-            entity = file_fixture.store(parent=project_model)
+            entity = file_fixture.store(parent=project_model, synapse_client=self.syn)
         elif entity_type == Table:
             table_fixture.name = entity_name
-            entity = table_fixture.store()
+            entity = table_fixture.store(synapse_client=self.syn)
         elif entity_type == EntityView:
-            entity = entity_view_fixture.store()
+            entity = entity_view_fixture.store(synapse_client=self.syn)
         else:
             raise ValueError(f"Unsupported entity type: {entity_type}")
 
@@ -139,7 +139,7 @@ class TestJSONSchema:
         return entity_view
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    async def test_bind_schema(
+    def test_bind_schema(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -172,7 +172,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    async def test_get_schema(
+    def test_get_schema(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -207,7 +207,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    async def test_unbind_schema(
+    def test_unbind_schema(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -244,7 +244,7 @@ class TestJSONSchema:
             created_entity.get_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    async def test_get_schema_derived_keys(
+    def test_get_schema_derived_keys(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -282,7 +282,7 @@ class TestJSONSchema:
                 "productPrice": 100,
             }
 
-            created_entity.store()
+            created_entity.store(synapse_client=self.syn)
 
             response = created_entity.get_schema(synapse_client=self.syn)
             assert response.enable_derived_annotations == True
@@ -298,7 +298,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    async def test_validate_schema_invalid_annos(
+    def test_validate_schema_invalid_annos(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -331,7 +331,7 @@ class TestJSONSchema:
                 "productDescription": 1000,
                 "productQuantity": "invalid string",
             }
-            created_entity.store()
+            created_entity.store(synapse_client=self.syn)
             # Ensure annotations are stored
             time.sleep(2)
 
@@ -355,7 +355,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project, File, EntityView, Table])
-    async def test_validate_schema_valid_annos(
+    def test_validate_schema_valid_annos(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -387,7 +387,7 @@ class TestJSONSchema:
                 "productDescription": "This is a test product.",
                 "productQuantity": 100,
             }
-            created_entity.store()
+            created_entity.store(synapse_client=self.syn)
             # Ensure annotations are stored
             time.sleep(2)
             response = created_entity.validate_schema(synapse_client=self.syn)
@@ -397,7 +397,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project])
-    async def test_get_validation_statistics(
+    def test_get_validation_statistics(
         self,
         entity_type: Type[Union[Folder, Project, File, EntityView, Table]],
         project_model: Project,
@@ -457,8 +457,8 @@ class TestJSONSchema:
                 "productQuantity": "invalid string",
             }
 
-            file_1.store(parent=created_entity)
-            file_2.store(parent=created_entity)
+            file_1.store(parent=created_entity, synapse_client=self.syn)
+            file_2.store(parent=created_entity, synapse_client=self.syn)
             # Ensure annotations are stored
             time.sleep(2)
 
@@ -476,7 +476,7 @@ class TestJSONSchema:
             created_entity.unbind_schema(synapse_client=self.syn)
 
     @pytest.mark.parametrize("entity_type", [Folder, Project])
-    async def test_get_invalid_validation(
+    def test_get_invalid_validation(
         self,
         entity_type: Type[Union[Folder, Project]],
         project_model: Project,
@@ -532,8 +532,8 @@ class TestJSONSchema:
                 "productQuantity": "invalid string",
             }
 
-            file_1.store(parent=created_entity)
-            file_2.store(parent=created_entity)
+            file_1.store(parent=created_entity, synapse_client=self.syn)
+            file_2.store(parent=created_entity, synapse_client=self.syn)
             # Ensure annotations are stored
             time.sleep(2)
 

@@ -66,7 +66,7 @@ class TestFactoryOperationsGetAsync:
             ],
         )
 
-    async def test_get_project_by_id(self, project_model: Project) -> None:
+    def test_get_project_by_id(self, project_model: Project) -> None:
         """Test retrieving a Project entity by Synapse ID."""
         # GIVEN a project exists
         project_id = project_model.id
@@ -86,7 +86,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_project.created_by is not None
         assert retrieved_project.modified_by is not None
 
-    async def test_get_project_by_name(self, project_model: Project) -> None:
+    def test_get_project_by_name(self, project_model: Project) -> None:
         """Test retrieving a Project entity by name."""
         # GIVEN a project exists
         project_name = project_model.name
@@ -101,7 +101,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_project.id == project_model.id
         assert retrieved_project.name == project_name
 
-    async def test_get_folder_by_id(self, project_model: Project) -> None:
+    def test_get_folder_by_id(self, project_model: Project) -> None:
         """Test retrieving a Folder entity by Synapse ID."""
         # GIVEN a folder in a project
         folder = Folder(
@@ -124,7 +124,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_folder.etag is not None
         assert retrieved_folder.created_on is not None
 
-    async def test_get_folder_by_name(self, project_model: Project) -> None:
+    def test_get_folder_by_name(self, project_model: Project) -> None:
         """Test retrieving a Folder entity by name and parent ID."""
         # GIVEN a folder in a project
         folder_name = f"test_folder_{str(uuid.uuid4())[:8]}"
@@ -146,7 +146,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_folder.id == stored_folder.id
         assert retrieved_folder.name == folder_name
 
-    async def test_get_file_by_id_default_options(self, project_model: Project) -> None:
+    def test_get_file_by_id_default_options(self, project_model: Project) -> None:
         """Test retrieving a File entity by Synapse ID with default options."""
         # GIVEN a file in a project
         file = self.create_file_instance()
@@ -166,9 +166,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_file.data_file_handle_id is not None
         assert retrieved_file.file_handle is not None
 
-    async def test_get_file_by_id_with_file_options(
-        self, project_model: Project
-    ) -> None:
+    def test_get_file_by_id_with_file_options(self, project_model: Project) -> None:
         """Test retrieving a File entity by Synapse ID with custom FileOptions."""
         # GIVEN a file in a project
         file = self.create_file_instance()
@@ -200,7 +198,7 @@ class TestFactoryOperationsGetAsync:
                 retrieved_file.path
             )
 
-    async def test_get_file_by_id_metadata_only(self, project_model: Project) -> None:
+    def test_get_file_by_id_metadata_only(self, project_model: Project) -> None:
         """Test retrieving a File entity metadata without downloading."""
         # GIVEN a file in a project
         file = self.create_file_instance()
@@ -224,7 +222,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_file.download_file is False
         assert retrieved_file.data_file_handle_id is not None
 
-    async def test_get_file_by_id_with_activity(self, project_model: Project) -> None:
+    def test_get_file_by_id_with_activity(self, project_model: Project) -> None:
         """Test retrieving a File entity with activity information."""
         # GIVEN a file with activity in a project
         file = self.create_file_instance()
@@ -253,9 +251,7 @@ class TestFactoryOperationsGetAsync:
             == "Activity for testing factory operations"
         )
 
-    async def test_get_file_by_id_specific_version(
-        self, project_model: Project
-    ) -> None:
+    def test_get_file_by_id_specific_version(self, project_model: Project) -> None:
         """Test retrieving a specific version of a File entity."""
         # GIVEN a file in a project
         file = self.create_file_instance()
@@ -279,9 +275,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_file.version_number == 1
         assert retrieved_file.version_comment == "Version 1"
 
-    async def test_get_table_by_id_default_options(
-        self, project_model: Project
-    ) -> None:
+    def test_get_table_by_id_default_options(self, project_model: Project) -> None:
         """Test retrieving a Table entity by Synapse ID with default options."""
         # GIVEN a table in a project
         columns = [
@@ -308,9 +302,7 @@ class TestFactoryOperationsGetAsync:
         assert any(col.name == "col1" for col in retrieved_table.columns.values())
         assert any(col.name == "col2" for col in retrieved_table.columns.values())
 
-    async def test_get_table_by_id_with_table_options(
-        self, project_model: Project
-    ) -> None:
+    def test_get_table_by_id_with_table_options(self, project_model: Project) -> None:
         """Test retrieving a Table entity with custom TableOptions."""
         # GIVEN a table in a project
         columns = [
@@ -341,7 +333,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_table.id == stored_table.id
         assert len(retrieved_table.columns) == 0
 
-    async def test_get_table_by_id_with_activity(self, project_model: Project) -> None:
+    def test_get_table_by_id_with_activity(self, project_model: Project) -> None:
         """Test retrieving a Table entity with activity information."""
         # GIVEN a table with activity in a project
         columns = [
@@ -373,7 +365,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_table.activity is not None
         assert retrieved_table.activity.name == "Test Activity"
 
-    async def test_get_dataset_by_id(self, project_model: Project) -> None:
+    def test_get_dataset_by_id(self, project_model: Project) -> None:
         """Test retrieving a Dataset entity by Synapse ID."""
         # GIVEN a dataset in a project
         columns = [
@@ -399,7 +391,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_dataset.name == stored_dataset.name
         assert len(retrieved_dataset.columns) == 2
 
-    async def test_get_dataset_collection_by_id(self, project_model: Project) -> None:
+    def test_get_dataset_collection_by_id(self, project_model: Project) -> None:
         """Test retrieving a DatasetCollection entity by Synapse ID."""
         # GIVEN a dataset collection in a project
         dataset_collection = DatasetCollection(
@@ -421,7 +413,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_collection.id == stored_collection.id
         assert retrieved_collection.name == stored_collection.name
 
-    async def test_get_entity_view_by_id(self, project_model: Project) -> None:
+    def test_get_entity_view_by_id(self, project_model: Project) -> None:
         """Test retrieving an EntityView entity by Synapse ID."""
         # GIVEN an entity view in a project
         columns = [
@@ -449,7 +441,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_view.name == stored_view.name
         assert len(retrieved_view.columns) >= 2  # May include default columns
 
-    async def test_get_submission_view_by_id(self, project_model: Project) -> None:
+    def test_get_submission_view_by_id(self, project_model: Project) -> None:
         """Test retrieving a SubmissionView entity by Synapse ID."""
         # GIVEN a submission view in a project
         columns = [
@@ -475,7 +467,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_view.id == stored_view.id
         assert retrieved_view.name == stored_view.name
 
-    async def test_get_materialized_view_by_id(self, project_model: Project) -> None:
+    def test_get_materialized_view_by_id(self, project_model: Project) -> None:
         """Test retrieving a MaterializedView entity by Synapse ID."""
         # GIVEN a simple table to create materialized view from
         columns = [
@@ -509,7 +501,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_view.name == stored_view.name
         assert retrieved_view.defining_sql is not None
 
-    async def test_get_virtual_table_by_id(self, project_model: Project) -> None:
+    def test_get_virtual_table_by_id(self, project_model: Project) -> None:
         """Test retrieving a VirtualTable entity by Synapse ID."""
         # GIVEN a simple table to create virtual table from
         columns = [
@@ -543,9 +535,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_virtual.name == stored_virtual.name
         assert retrieved_virtual.defining_sql is not None
 
-    async def test_get_link_by_id_without_following(
-        self, project_model: Project
-    ) -> None:
+    def test_get_link_by_id_without_following(self, project_model: Project) -> None:
         """Test retrieving a Link entity by Synapse ID without following the link."""
         # GIVEN a file and a link to that file
         file = self.create_file_instance()
@@ -578,9 +568,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_link.name == stored_link.name
         assert retrieved_link.target_id == stored_file.id
 
-    async def test_get_link_by_id_default_follows_link(
-        self, project_model: Project
-    ) -> None:
+    def test_get_link_by_id_default_follows_link(self, project_model: Project) -> None:
         """Test that getting a Link by ID follows the link by default (no LinkOptions provided)."""
         # GIVEN a file and a link to that file
         file = self.create_file_instance()
@@ -608,7 +596,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_entity.id == stored_file.id
         assert retrieved_entity.name == stored_file.name
 
-    async def test_get_link_by_id_with_following(self, project_model: Project) -> None:
+    def test_get_link_by_id_with_following(self, project_model: Project) -> None:
         """Test retrieving a Link entity by Synapse ID and following to the target (default behavior)."""
         # GIVEN a file and a link to that file
         file = self.create_file_instance()
@@ -636,7 +624,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_entity.id == stored_file.id
         assert retrieved_entity.name == stored_file.name
 
-    async def test_get_link_by_id_with_following_explicit(
+    def test_get_link_by_id_with_following_explicit(
         self, project_model: Project
     ) -> None:
         """Test retrieving a Link entity by Synapse ID with explicit follow_link=True."""
@@ -670,9 +658,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_entity.id == stored_file.id
         assert retrieved_entity.name == stored_file.name
 
-    async def test_get_link_by_id_with_file_options(
-        self, project_model: Project
-    ) -> None:
+    def test_get_link_by_id_with_file_options(self, project_model: Project) -> None:
         """Test retrieving a Link entity that points to a File with custom file options."""
         # GIVEN a file and a link to that file
         file = self.create_file_instance()
@@ -715,7 +701,7 @@ class TestFactoryOperationsGetAsync:
             )
             assert retrieved_entity.download_file is True
 
-    async def test_get_with_entity_instance(self, project_model: Project) -> None:
+    def test_get_with_entity_instance(self, project_model: Project) -> None:
         """Test get when passing an entity instance directly."""
         # GIVEN an existing File entity instance
         file = self.create_file_instance()
@@ -736,7 +722,7 @@ class TestFactoryOperationsGetAsync:
         assert refreshed_file.id == stored_file.id
         assert refreshed_file.download_file is False
 
-    async def test_get_combined_options(self, project_model: Project) -> None:
+    def test_get_combined_options(self, project_model: Project) -> None:
         """Test get with multiple option types combined."""
         # GIVEN a file with activity
         file = self.create_file_instance()
@@ -764,7 +750,7 @@ class TestFactoryOperationsGetAsync:
         assert retrieved_file.activity is not None
         assert retrieved_file.activity.name == "Test Activity"
 
-    async def test_get_invalid_synapse_id_raises_error(self) -> None:
+    def test_get_invalid_synapse_id_raises_error(self) -> None:
         """Test that get raises appropriate error for invalid Synapse ID."""
         # GIVEN an invalid synapse ID
         invalid_id = "syn999999999999"
@@ -774,9 +760,7 @@ class TestFactoryOperationsGetAsync:
         with pytest.raises(Exception):  # Could be SynapseNotFoundError or similar
             get(synapse_id=invalid_id, synapse_client=self.syn)
 
-    async def test_get_invalid_entity_name_raises_error(
-        self, project_model: Project
-    ) -> None:
+    def test_get_invalid_entity_name_raises_error(self, project_model: Project) -> None:
         """Test that get raises appropriate error for invalid entity name."""
         # GIVEN an invalid entity name
         invalid_name = f"nonexistent_entity_{str(uuid.uuid4())}"
@@ -790,7 +774,7 @@ class TestFactoryOperationsGetAsync:
                 synapse_client=self.syn,
             )
 
-    async def test_get_validation_errors(self) -> None:
+    def test_get_validation_errors(self) -> None:
         """Test validation errors for invalid parameter combinations."""
         # WHEN I provide both synapse_id and entity_name
         # THEN ValueError is raised

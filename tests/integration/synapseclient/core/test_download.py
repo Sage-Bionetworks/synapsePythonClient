@@ -259,6 +259,7 @@ class TestDownloadFromUrl:
                 file_handle_associate_type="FileEntity",
                 file_handle_id=entity_bad_md5.data_file_handle_id,
                 expected_md5="2345a",
+                synapse_client=syn,
             )
 
     async def test_download_from_url_resume_partial_download(
@@ -340,6 +341,7 @@ class TestDownloadFromUrl:
             file_handle_associate_type="FileEntity",
             file_handle_id=file.data_file_handle_id,
             expected_md5=file.file_handle.content_md5,
+            synapse_client=syn,
         )
 
         # THEN the expired URL is refreshed
@@ -379,7 +381,7 @@ class TestDownloadFromUrl:
             SynapseError,
             match="The provided pre-signed URL has expired. Please provide a new pre-signed URL.",
         ):
-            path = download_from_url(
+            download_from_url(
                 url=expired_url,
                 destination=tempfile.gettempdir(),
                 entity_id=None,
@@ -387,6 +389,7 @@ class TestDownloadFromUrl:
                 file_handle_id=None,
                 expected_md5=file.file_handle.content_md5,
                 url_is_presigned=True,
+                synapse_client=syn,
             )
 
         # THEN the expired URL is refreshed
@@ -425,6 +428,7 @@ class TestDownloadFromUrl:
             file_handle_id=None,
             expected_md5=file.file_handle.content_md5,
             url_is_presigned=True,
+            synapse_client=syn,
         )
 
         # THEN the expired URL is refreshed
@@ -459,7 +463,7 @@ class TestDownloadFromUrl:
         spy_file_handle = mocker.spy(download_functions, "get_file_handle_for_download")
 
         with pytest.raises(SynapseMd5MismatchError):
-            path = download_from_url(
+            download_from_url(
                 url=url,
                 destination=tempfile.gettempdir(),
                 entity_id=None,
@@ -467,6 +471,7 @@ class TestDownloadFromUrl:
                 file_handle_id=None,
                 expected_md5="mismatchedmd5hash",
                 url_is_presigned=True,
+                synapse_client=syn,
             )
 
         # THEN the expired URL is refreshed
@@ -507,6 +512,7 @@ class TestDownloadFromUrl:
             file_handle_id=None,
             expected_md5=None,
             url_is_presigned=True,
+            synapse_client=syn,
         )
 
         # THEN the expired URL is refreshed
@@ -881,10 +887,11 @@ class TestDownloadFromUrlMultiThreaded:
                 SynapseError,
                 match="The provided pre-signed URL has expired. Please provide a new pre-signed URL.",
             ):
-                path = await download_from_url_multi_threaded(
+                await download_from_url_multi_threaded(
                     destination=file_path,
                     presigned_url=presigned_url_info,
                     expected_md5=file_md5,
+                    synapse_client=syn,
                 )
 
     async def test_download_from_url_multi_threaded_via_presigned_url_no_file_name(
@@ -946,10 +953,11 @@ class TestDownloadFromUrlMultiThreaded:
                 SynapseError,
                 match="The provided pre-signed URL is missing the file name.",
             ):
-                path = await download_from_url_multi_threaded(
+                await download_from_url_multi_threaded(
                     destination=file_path,
                     presigned_url=presigned_url_info,
                     expected_md5=file_md5,
+                    synapse_client=syn,
                 )
 
     async def test_download_from_url_multi_threaded_via_presigned_url_md5_matches(
@@ -1007,10 +1015,11 @@ class TestDownloadFromUrlMultiThreaded:
             ),
         ):
             # WHEN I attempt to download the file with multiple parts, it should raise an error due to the missing file name
-            path = await download_from_url_multi_threaded(
+            await download_from_url_multi_threaded(
                 destination=file_path,
                 presigned_url=presigned_url_info,
                 expected_md5=file_md5,
+                synapse_client=syn,
             )
 
         # THEN the file is downloaded to the given location AND matches the original
@@ -1073,10 +1082,11 @@ class TestDownloadFromUrlMultiThreaded:
         ):
             # WHEN I attempt to download the file with multiple parts, it should raise an error due to mismatched md5
             with pytest.raises(SynapseMd5MismatchError):
-                path = await download_from_url_multi_threaded(
+                await download_from_url_multi_threaded(
                     destination=file_path,
                     presigned_url=presigned_url_info,
                     expected_md5="mismatchedmd5hash",
+                    synapse_client=syn,
                 )
 
     async def test_download_from_url_multi_threaded_via_presigned_url_no_md5(
@@ -1138,10 +1148,11 @@ class TestDownloadFromUrlMultiThreaded:
             ),
         ):
             # WHEN I attempt to download the file with multiple parts, it should raise an error due to mismatched md5
-            path = await download_from_url_multi_threaded(
+            await download_from_url_multi_threaded(
                 destination=file_path,
                 presigned_url=presigned_url_info,
                 expected_md5=None,
+                synapse_client=syn,
             )
 
             # THEN the file is downloaded to the given location AND no MD5-related operations
