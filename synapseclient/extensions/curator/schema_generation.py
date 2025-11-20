@@ -728,13 +728,15 @@ class DataModelCSVParser:
 
         return {"ColumnType": column_type}
 
-    def parse_minimum_maximum(self, attr: dict, relationship: str) -> dict[str, float]:
+    def parse_minimum_maximum(
+        self, attr: dict, relationship: str
+    ) -> dict[str, Union[float, int]]:
         """Parse minimum/maximum value for a given attribute.
 
         Args:
-            attr, dict: single row of a csv model in dict form, where only the required
+            attr: single row of a csv model in dict form, where only the required
               headers are keys. Values are the entries under each header.
-            relationship, str: either "Minimum" or "Maximum"
+            relationship: either "Minimum" or "Maximum"
         Returns:
             dict[str, float]: A dictionary containing the parsed minimum/maximum value
             if present else an empty dict
@@ -1852,7 +1854,7 @@ class DataModelGraphExplorer:
         relationship_value: str,
         node_label: Optional[str] = None,
         node_display_name: Optional[str] = None,
-    ):
+    ) -> Union[int, float]:
         """Gets the maximum and minimum value of the node
 
         Args:
@@ -4718,7 +4720,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
         # https://sagebionetworks.jira.com/browse/SYNPY-1692
         self.type, explicit_is_array = self._determine_type_and_array(column_type)
-        self.override_type_if_needed()
+        self._validate_column_type_compatibility()
 
         # url and date rules are deprecated for adding format keyword
         # TODO: set self.format here instead of passing it to get_validation_rule_based_fields
@@ -4766,27 +4768,23 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         else:
             return None, None
 
-    def override_type_if_needed(self) -> None:
-        """Override the type of the node if node has "Maximum" or "Minimum" constraints and the type is not numeric.
-
-        Args:
-            new_type: The new type to set
-        """
+    def _validate_column_type_compatibility(self) -> None:
+        """Validate column type compatability if node has "Maximum" or "Minimum" constraints and the type is not numeric."""
         if self.maximum or self.minimum:
             # If no type specified but numeric constraints exist, infer number type
             if not self.type:
                 self.type = AtomicColumnType.NUMBER
+            # If type is specified but not numeric, raise error
             if self.type not in (AtomicColumnType.NUMBER, AtomicColumnType.INTEGER):
                 if self.type == AtomicColumnType.STRING:
                     wrong_type = "string"
                 elif self.type == AtomicColumnType.BOOLEAN:
                     wrong_type = "boolean"
-                self.logger.warning(
+                raise ValueError(
                     f"For attribute '{self.display_name}': columnType is '{wrong_type}' "
                     f"but numeric constraints (min: {self.minimum}, max: {self.maximum}) "
-                    f"are specified. Column type is being overridden to 'number'."
+                    f"are specified. Please set columnType to 'number' or 'integer'."
                 )
-                self.type = AtomicColumnType.NUMBER
 
 
 @dataclass
