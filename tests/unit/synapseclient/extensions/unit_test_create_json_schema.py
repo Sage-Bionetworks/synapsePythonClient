@@ -600,7 +600,6 @@ def test_create_json_schema_with_class_label(
     dmge: DataModelGraphExplorer, datatype: str, test_directory: str
 ) -> None:
     """Tests for JSONSchemaGenerator.create_json_schema"""
-    test_directory = "/Users/lpeng/code/synapsePythonClient/synapseclient/output"
     test_path = get_test_schema_path(test_directory, datatype)
     expected_path = get_expected_schema_path(datatype)
     logger = logging.getLogger(__name__)
