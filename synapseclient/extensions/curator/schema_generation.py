@@ -4790,7 +4790,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
                 raise ValueError(
                     f"For attribute '{self.display_name}': columnType is '{wrong_type}' "
                     f"but numeric constraints (min: {self.minimum}, max: {self.maximum}) "
-                    f"are specified. Please set columnType to 'number' or 'integer'."
+                    f"are specified. Please set columnType to 'number', 'integer', or 'integer_list'."
                 )
 
 

@@ -209,7 +209,6 @@ Generates JSON Schema validation files from JSON-LD data models, translating val
 - Type validation (string, number, integer, boolean)
 - Enum constraints from valid values
 - Required field enforcement (including component-specific requirements)
-- Range constraints (`inRange` → min/max)
 - Pattern matching (`regex` → JSON Schema patterns)
 - Format validation (`date`, `url`)
 - Array handling (`list` rules)

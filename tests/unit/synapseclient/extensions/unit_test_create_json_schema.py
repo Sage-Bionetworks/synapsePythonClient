@@ -99,7 +99,6 @@ def fixture_test_nodes(
         "StringNotRequired",
         "Enum",
         "EnumNotRequired",
-        "InRange",
         "Regex",
         "Date",
         "URL",
@@ -109,7 +108,6 @@ def fixture_test_nodes(
         "ListEnumNotRequired",
         "ListBoolean",
         "ListInteger",
-        "ListInRange",
     ]
     nodes = {
         node: TraversalNode(node, "JSONSchemaComponent", dmge, logger=Mock())
@@ -245,7 +243,7 @@ def test_node_init(
     - Proper combination of columnType and validation rule parsing
 
     The type property comes from the columnType field, while constraints
-    come from parsing validation rules like "str", "inRange", "regex", etc.
+    come from parsing validation rules like "str", "regex", etc.
     """
     node = test_nodes[node_name]
     assert node.type == expected_type
@@ -387,6 +385,27 @@ def test_determine_type_and_array(column_type, dmge, expected_type, expected_is_
         expected_type,
         expected_is_array,
     )
+
+
+@pytest.mark.parametrize(
+    "node_name",
+    ["MaximumMinimumMissingType", "MaximumMinimumWrongType"],
+)
+def test_validate_column_type_compatibility(
+    dmge: DataModelGraphExplorer, node_name
+) -> None:
+    """Test for TraversalNode._validate_column_type_compatibility method"""
+    with pytest.raises(ValueError) as ex:
+        traversal_node = TraversalNode(
+            node_name, "RangeComponentWrongType", dmge, logger=Mock()
+        )
+    if node_name == "MaximumMinimumMissingType":
+        assert "columnType is not set" in str(ex.value)
+    else:
+        assert (
+            "columnType is 'boolean' but numeric constraints (min: 1, max: 10) are specified"
+            in str(ex.value)
+        )
 
 
 class TestGraphTraversalState:

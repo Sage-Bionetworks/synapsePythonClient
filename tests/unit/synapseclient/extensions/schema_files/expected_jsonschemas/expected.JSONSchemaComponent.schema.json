@@ -50,13 +50,6 @@
       ],
       "title": "Enum Not Required"
     },
-    "InRange": {
-      "description": "TBD",
-      "maximum": 100.0,
-      "minimum": 50.0,
-      "title": "InRange",
-      "type": "number"
-    },
     "Integer": {
       "description": "TBD",
       "title": "Integer"
@@ -66,16 +59,16 @@
       "items": {
         "type": "string"
       },
-      "type": "array",
-      "title": "List"
+      "title": "List",
+      "type": "array"
     },
     "ListBoolean": {
       "description": "TBD",
       "items": {
         "type": "boolean"
       },
-      "type": "array",
-      "title": "List Boolean"
+      "title": "List Boolean",
+      "type": "array"
     },
     "ListEnum": {
       "description": "TBD",
@@ -88,8 +81,8 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "List Enum"
+      "title": "List Enum",
+      "type": "array"
     },
     "ListEnumNotRequired": {
       "description": "TBD",
@@ -102,26 +95,16 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "List Enum Not Required"
-    },
-    "ListInRange": {
-      "description": "TBD",
-      "items": {
-        "maximum": 100,
-        "minimum": 50,
-        "type": "integer"
-      },
-      "type": "array",
-      "title": "List InRange"
+      "title": "List Enum Not Required",
+      "type": "array"
     },
     "ListNotRequired": {
       "description": "TBD",
       "items": {
         "type": "string"
       },
-      "type": "array",
-      "title": "List Not Required"
+      "title": "List Not Required",
+      "type": "array"
     },
     "NoRules": {
       "description": "TBD",
@@ -170,11 +153,9 @@
     "Component",
     "Date",
     "Enum",
-    "InRange",
     "List",
     "ListBoolean",
     "ListEnum",
-    "ListInRange",
     "NoRules",
     "Regex",
     "String",
