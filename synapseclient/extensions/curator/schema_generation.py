@@ -729,15 +729,15 @@ class DataModelCSVParser:
         return {"ColumnType": column_type}
 
     def parse_minimum_maximum(self, attr: dict, relationship: str) -> dict[str, float]:
-        """Parse minimum/maximum value for inRange validation rule
+        """Parse minimum/maximum value for a given attribute.
 
         Args:
             attr, dict: single row of a csv model in dict form, where only the required
               headers are keys. Values are the entries under each header.
             relationship, str: either "Minimum" or "Maximum"
         Returns:
-            parsed_rel_entry, float: parsed minimum/maximum entry for downstream processing
-              based on the entry type.
+            dict[str, float]: A dictionary containing the parsed minimum/maximum value
+            if present else an empty dict
         """
         from numbers import Number
 
@@ -764,6 +764,10 @@ class DataModelCSVParser:
                 raise ValueError(
                     f"The Maximum value: {maximum} must be greater than the Minimum value: {minimum}"
                 )
+
+        # Convert float to int if it's a whole number
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
 
         return {relationship: value}
 
