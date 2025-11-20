@@ -644,6 +644,110 @@ class TestSubmissionStatusBulkOperations:
             assert converted_submission_annotations["batch_processed"] == ["true"]
 
 
+class TestSubmissionStatusCancellation:
+    """Tests for SubmissionStatus cancellation functionality async."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(self, syn: Synapse, schedule_for_cleanup: Callable[..., None]) -> None:
+        self.syn = syn
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    @pytest.fixture(scope="function")
+    async def test_evaluation(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Evaluation:
+        """Create a test evaluation for submission status tests."""
+        evaluation = Evaluation(
+            name=f"test_evaluation_{uuid.uuid4()}",
+            description="A test evaluation for submission status tests",
+            content_source=project_model.id,
+            submission_instructions_message="Please submit your results",
+            submission_receipt_message="Thank you!",
+        )
+        created_evaluation = await evaluation.store_async(synapse_client=syn)
+        schedule_for_cleanup(created_evaluation.id)
+        return created_evaluation
+
+    @pytest.fixture(scope="function")
+    async def test_file(
+        self,
+        project_model: Project,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> File:
+        """Create a test file for submission status tests."""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
+            temp_file.write("This is test content for submission status testing.")
+            temp_file_path = temp_file.name
+
+        try:
+            file = File(
+                path=temp_file_path,
+                name=f"test_file_{uuid.uuid4()}.txt",
+                parent_id=project_model.id,
+            )
+            stored_file = await file.store_async(synapse_client=syn)
+            schedule_for_cleanup(stored_file.id)
+            return stored_file
+        finally:
+            # Clean up the temporary file
+            os.unlink(temp_file_path)
+
+    @pytest.fixture(scope="function")
+    async def test_submission(
+        self,
+        test_evaluation: Evaluation,
+        test_file: File,
+        syn: Synapse,
+        schedule_for_cleanup: Callable[..., None],
+    ) -> Submission:
+        """Create a test submission for status tests."""
+        submission = Submission(
+            entity_id=test_file.id,
+            evaluation_id=test_evaluation.id,
+            name=f"Test Submission {uuid.uuid4()}",
+        )
+        created_submission = await submission.store_async(synapse_client=syn)
+        schedule_for_cleanup(created_submission.id)
+        return created_submission
+
+    async def test_submission_cancellation_workflow(
+        self, test_submission: Submission
+    ):
+        """Test the complete submission cancellation workflow async."""
+        # GIVEN a submission that exists
+        submission_id = test_submission.id
+        
+        # WHEN I get the initial submission status
+        initial_status = await SubmissionStatus(id=submission_id).get_async(synapse_client=self.syn)
+        
+        # THEN initially it should not be cancellable or cancelled
+        assert initial_status.can_cancel is False
+        assert initial_status.cancel_requested is False
+        
+        # WHEN I update the submission status to allow cancellation
+        initial_status.can_cancel = True
+        updated_status = await initial_status.store_async(synapse_client=self.syn)
+        
+        # THEN the submission should be marked as cancellable
+        assert updated_status.can_cancel is True
+        assert updated_status.cancel_requested is False
+        
+        # WHEN I cancel the submission
+        await test_submission.cancel_async()
+        
+        # THEN I should be able to retrieve the updated status showing cancellation was requested
+        final_status = await SubmissionStatus(id=submission_id).get_async(synapse_client=self.syn)
+        assert final_status.can_cancel is True
+        assert final_status.cancel_requested is True
+
+
 class TestSubmissionStatusValidation:
     """Tests for SubmissionStatus validation and error handling async."""
 
