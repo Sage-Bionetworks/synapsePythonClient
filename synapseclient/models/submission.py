@@ -699,7 +699,7 @@ class Submission(
         if not self.id:
             raise ValueError("The submission must have an ID to cancel.")
 
-        response = await evaluation_services.cancel_submission(
+        await evaluation_services.cancel_submission(
             submission_id=self.id, synapse_client=synapse_client
         )
 
@@ -707,8 +707,4 @@ class Submission(
 
         client = Synapse.get_client(synapse_client=synapse_client)
         logger = client.logger
-        logger.info(f"Submission {self.id} has successfully been cancelled.")
-
-        # Update this object with the response
-        self.fill_from_dict(response)
-        return self
+        logger.info(f"A request to cancel Submission {self.id} has been submitted.")

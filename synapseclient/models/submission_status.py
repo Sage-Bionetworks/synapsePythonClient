@@ -400,10 +400,10 @@ class SubmissionStatus(
     A version of the status, auto-generated and auto-incremented by the system and read-only to the client.
     """
 
-    can_cancel: Optional[bool] = field(default=False, compare=False)
+    can_cancel: Optional[bool] = field(default=False)
     """
-    Can this submission be cancelled? By default, this will be set to False. Users can read this value.
-    Only the queue's scoring application can change this value.
+    Can this submission be cancelled? By default, this will be set to False. Submission owner can read this value.
+    Only the queue's organizers can change this value.
     """
 
     cancel_requested: Optional[bool] = field(default=False, compare=False)
