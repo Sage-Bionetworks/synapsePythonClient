@@ -713,31 +713,29 @@ class TestSubmissionStatusCancellation:
         schedule_for_cleanup(created_submission.id)
         return created_submission
 
-    async def test_submission_cancellation_workflow(
-        self, test_submission: Submission
-    ):
+    async def test_submission_cancellation_workflow(self, test_submission: Submission):
         """Test the complete submission cancellation workflow."""
         # GIVEN a submission that exists
         submission_id = test_submission.id
-        
+
         # WHEN I get the initial submission status
         initial_status = SubmissionStatus(id=submission_id).get(synapse_client=self.syn)
-        
+
         # THEN initially it should not be cancellable or cancelled
         assert initial_status.can_cancel is False
         assert initial_status.cancel_requested is False
-        
+
         # WHEN I update the submission status to allow cancellation
         initial_status.can_cancel = True
         updated_status = initial_status.store(synapse_client=self.syn)
-        
+
         # THEN the submission should be marked as cancellable
         assert updated_status.can_cancel is True
         assert updated_status.cancel_requested is False
-        
+
         # WHEN I cancel the submission
         test_submission.cancel()
-        
+
         # THEN I should be able to retrieve the updated status showing cancellation was requested
         final_status = SubmissionStatus(id=submission_id).get(synapse_client=self.syn)
         assert final_status.can_cancel is True

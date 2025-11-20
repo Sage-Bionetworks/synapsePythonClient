@@ -7,7 +7,14 @@ import pytest
 
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import Evaluation, File, Project, Submission, SubmissionBundle, SubmissionStatus
+from synapseclient.models import (
+    Evaluation,
+    File,
+    Project,
+    Submission,
+    SubmissionBundle,
+    SubmissionStatus,
+)
 
 
 class TestSubmissionBundleRetrievalAsync:
@@ -52,7 +59,9 @@ class TestSubmissionBundleRetrievalAsync:
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        file_content = f"Test file content for submission bundle async tests {uuid.uuid4()}"
+        file_content = (
+            f"Test file content for submission bundle async tests {uuid.uuid4()}"
+        )
         with open("test_file_for_submission_bundle_async.txt", "w") as f:
             f.write(file_content)
 
@@ -192,9 +201,15 @@ class TestSubmissionBundleRetrievalAsync:
 
         # AND the bundle IDs should not overlap if we have enough submissions
         if len(bundles_page1) == 2 and len(bundles_page2) > 0:
-            page1_ids = {bundle.submission.id for bundle in bundles_page1 if bundle.submission}
-            page2_ids = {bundle.submission.id for bundle in bundles_page2 if bundle.submission}
-            assert page1_ids.isdisjoint(page2_ids), "Pages should not have overlapping submissions"
+            page1_ids = {
+                bundle.submission.id for bundle in bundles_page1 if bundle.submission
+            }
+            page2_ids = {
+                bundle.submission.id for bundle in bundles_page2 if bundle.submission
+            }
+            assert page1_ids.isdisjoint(
+                page2_ids
+            ), "Pages should not have overlapping submissions"
 
     async def test_get_evaluation_submission_bundles_invalid_evaluation_async(self):
         """Test getting submission bundles for invalid evaluation ID using async methods."""
@@ -267,9 +282,15 @@ class TestSubmissionBundleRetrievalAsync:
 
         # AND the bundle IDs should not overlap if we have enough submissions
         if len(bundles_page1) == 2 and len(bundles_page2) > 0:
-            page1_ids = {bundle.submission.id for bundle in bundles_page1 if bundle.submission}
-            page2_ids = {bundle.submission.id for bundle in bundles_page2 if bundle.submission}
-            assert page1_ids.isdisjoint(page2_ids), "Pages should not have overlapping submissions"
+            page1_ids = {
+                bundle.submission.id for bundle in bundles_page1 if bundle.submission
+            }
+            page2_ids = {
+                bundle.submission.id for bundle in bundles_page2 if bundle.submission
+            }
+            assert page1_ids.isdisjoint(
+                page2_ids
+            ), "Pages should not have overlapping submissions"
 
 
 class TestSubmissionBundleDataIntegrityAsync:
@@ -314,7 +335,9 @@ class TestSubmissionBundleDataIntegrityAsync:
         syn: Synapse,
         schedule_for_cleanup: Callable[..., None],
     ) -> File:
-        file_content = f"Test file content for data integrity async tests {uuid.uuid4()}"
+        file_content = (
+            f"Test file content for data integrity async tests {uuid.uuid4()}"
+        )
         with open("test_file_for_data_integrity_async.txt", "w") as f:
             f.write(file_content)
 
@@ -410,7 +433,9 @@ class TestSubmissionBundleDataIntegrityAsync:
         assert test_bundle.submission_status.status == "VALIDATED"
         assert test_bundle.submission_status.submission_annotations is not None
         assert "test_score" in test_bundle.submission_status.submission_annotations
-        assert test_bundle.submission_status.submission_annotations["test_score"] == [95.5]
+        assert test_bundle.submission_status.submission_annotations["test_score"] == [
+            95.5
+        ]
 
         # CLEANUP: Reset the status back to original
         submission_status.status = original_status

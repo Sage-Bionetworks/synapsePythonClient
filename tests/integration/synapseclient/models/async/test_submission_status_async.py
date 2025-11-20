@@ -221,7 +221,9 @@ class TestSubmissionStatusUpdates:
 
         # WHEN I update the status
         test_submission_status.status = "VALIDATED"
-        updated_status = await test_submission_status.store_async(synapse_client=self.syn)
+        updated_status = await test_submission_status.store_async(
+            synapse_client=self.syn
+        )
 
         # THEN the submission status should be updated
         assert updated_status.id == test_submission_status.id
@@ -239,7 +241,9 @@ class TestSubmissionStatusUpdates:
             "score": 85.5,
             "feedback": "Good work!",
         }
-        updated_status = await test_submission_status.store_async(synapse_client=self.syn)
+        updated_status = await test_submission_status.store_async(
+            synapse_client=self.syn
+        )
 
         # THEN the submission annotations should be saved
         assert updated_status.submission_annotations is not None
@@ -256,7 +260,9 @@ class TestSubmissionStatusUpdates:
             "internal_score": 92.3,
             "reviewer_notes": "Excellent submission",
         }
-        updated_status = await test_submission_status.store_async(synapse_client=self.syn)
+        updated_status = await test_submission_status.store_async(
+            synapse_client=self.syn
+        )
         assert updated_status.annotations is not None
 
         converted_annotations = from_submission_status_annotations(
@@ -281,7 +287,9 @@ class TestSubmissionStatusUpdates:
             "internal_review": True,
             "notes": "Needs minor improvements",
         }
-        updated_status = await test_submission_status.store_async(synapse_client=self.syn)
+        updated_status = await test_submission_status.store_async(
+            synapse_client=self.syn
+        )
 
         # THEN both types of annotations should be saved
         assert updated_status.submission_annotations is not None
@@ -307,7 +315,9 @@ class TestSubmissionStatusUpdates:
         test_submission_status.private_status_annotations = False
 
         # WHEN I store the submission status
-        updated_status = await test_submission_status.store_async(synapse_client=self.syn)
+        updated_status = await test_submission_status.store_async(
+            synapse_client=self.syn
+        )
 
         # THEN they should be properly stored
         assert updated_status.annotations is not None
@@ -340,7 +350,9 @@ class TestSubmissionStatusUpdates:
         )
 
         # WHEN I store the submission status
-        updated_status = await test_submission_status.store_async(synapse_client=self.syn)
+        updated_status = await test_submission_status.store_async(
+            synapse_client=self.syn
+        )
 
         # THEN they should be properly stored
         assert updated_status.annotations is not None
@@ -395,7 +407,9 @@ class TestSubmissionStatusUpdates:
         assert test_submission_status.has_changed
 
         # WHEN I store the changes
-        updated_status = await test_submission_status.store_async(synapse_client=self.syn)
+        updated_status = await test_submission_status.store_async(
+            synapse_client=self.syn
+        )
 
         # THEN has_changed should be False again
         assert not updated_status.has_changed
@@ -431,7 +445,9 @@ class TestSubmissionStatusUpdates:
         assert test_submission_status.has_changed
 
         # WHEN I store and get a fresh copy
-        updated_status = await test_submission_status.store_async(synapse_client=self.syn)
+        updated_status = await test_submission_status.store_async(
+            synapse_client=self.syn
+        )
         fresh_status = await SubmissionStatus(id=updated_status.id).get_async(
             synapse_client=self.syn
         )
@@ -510,7 +526,7 @@ class TestSubmissionStatusBulkOperations:
             finally:
                 # Clean up the temporary file
                 os.unlink(temp_file_path)
-                
+
         return files
 
     @pytest.fixture(scope="function")
@@ -611,7 +627,9 @@ class TestSubmissionStatusBulkOperations:
         # GIVEN multiple submission statuses
         statuses = []
         for submission in test_submissions:
-            status = await SubmissionStatus(id=submission.id).get_async(synapse_client=self.syn)
+            status = await SubmissionStatus(id=submission.id).get_async(
+                synapse_client=self.syn
+            )
             # Update each status
             status.status = "VALIDATED"
             status.submission_annotations = {
@@ -717,33 +735,35 @@ class TestSubmissionStatusCancellation:
         schedule_for_cleanup(created_submission.id)
         return created_submission
 
-    async def test_submission_cancellation_workflow(
-        self, test_submission: Submission
-    ):
+    async def test_submission_cancellation_workflow(self, test_submission: Submission):
         """Test the complete submission cancellation workflow async."""
         # GIVEN a submission that exists
         submission_id = test_submission.id
-        
+
         # WHEN I get the initial submission status
-        initial_status = await SubmissionStatus(id=submission_id).get_async(synapse_client=self.syn)
-        
+        initial_status = await SubmissionStatus(id=submission_id).get_async(
+            synapse_client=self.syn
+        )
+
         # THEN initially it should not be cancellable or cancelled
         assert initial_status.can_cancel is False
         assert initial_status.cancel_requested is False
-        
+
         # WHEN I update the submission status to allow cancellation
         initial_status.can_cancel = True
         updated_status = await initial_status.store_async(synapse_client=self.syn)
-        
+
         # THEN the submission should be marked as cancellable
         assert updated_status.can_cancel is True
         assert updated_status.cancel_requested is False
-        
+
         # WHEN I cancel the submission
         await test_submission.cancel_async()
-        
+
         # THEN I should be able to retrieve the updated status showing cancellation was requested
-        final_status = await SubmissionStatus(id=submission_id).get_async(synapse_client=self.syn)
+        final_status = await SubmissionStatus(id=submission_id).get_async(
+            synapse_client=self.syn
+        )
         assert final_status.can_cancel is True
         assert final_status.cancel_requested is True
 
