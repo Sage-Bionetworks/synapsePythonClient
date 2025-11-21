@@ -133,7 +133,7 @@ class TestGetJobAsync:
                     request_type=AGENT_CHAT_REQUEST,
                     synapse_client=self.syn,
                     sleep=1,
-                    timeout=60,
+                    timeout=120,
                     endpoint=None,
                 )
                 # AND rest_get_async should have been called once with the correct arguments
@@ -228,7 +228,7 @@ class TestSendJobAndWaitAsync:
                 request_type=self.request_type,
                 synapse_client=self.syn,
                 endpoint=None,
-                timeout=60,
+                timeout=120,
                 request=self.good_request,
             )
 

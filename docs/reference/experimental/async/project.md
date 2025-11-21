@@ -13,6 +13,7 @@ at your own risk.
         - get_async
         - store_async
         - delete_async
+        - walk_async
         - sync_from_synapse_async
         - flatten_file_list
         - map_directory_to_all_contained_files

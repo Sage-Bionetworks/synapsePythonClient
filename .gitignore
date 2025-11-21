@@ -6,6 +6,7 @@ virtualenvs
 examples_temp
 .DS_Store
 deploy.sh
+.venv/
 
 junk/
 nose.cfg
@@ -33,6 +34,7 @@ coverage.xml
 .ipynb_checkpoints
 *.ipynb
 .env
+test.synapseConfig
 *.spec
 
 synapse-electron/node_modules

@@ -329,8 +329,7 @@ class UploadAttemptAsync:
                     self._fetch_pre_signed_part_urls_async(
                         self._upload_id,
                         list(self._pre_signed_part_urls.keys()),
-                    ),
-                    syn=self._syn,
+                    )
                 )
 
                 refreshed_url = self._pre_signed_part_urls[part_number]

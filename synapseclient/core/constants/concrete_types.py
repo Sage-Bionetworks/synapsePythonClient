@@ -65,6 +65,7 @@ FILE_ENTITY = "org.sagebionetworks.repo.model.FileEntity"
 FOLDER_ENTITY = "org.sagebionetworks.repo.model.Folder"
 LINK_ENTITY = "org.sagebionetworks.repo.model.Link"
 PROJECT_ENTITY = "org.sagebionetworks.repo.model.Project"
+RECORD_SET_ENTITY = "org.sagebionetworks.repo.model.RecordSet"
 TABLE_ENTITY = "org.sagebionetworks.repo.model.table.TableEntity"
 DATASET_ENTITY = "org.sagebionetworks.repo.model.table.Dataset"
 DATASET_COLLECTION_ENTITY = "org.sagebionetworks.repo.model.table.DatasetCollection"
@@ -91,3 +92,38 @@ GET_VALIDATION_SCHEMA_REQUEST = (
     "org.sagebionetworks.repo.model.schema.GetValidationSchemaRequest"
 )
 CREATE_SCHEMA_REQUEST = "org.sagebionetworks.repo.model.schema.CreateSchemaRequest"
+
+# Query Table as a CSV
+# https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html
+QUERY_TABLE_CSV_REQUEST = (
+    "org.sagebionetworks.repo.model.table.DownloadFromTableRequest"
+)
+
+# Query Table Bundle Request
+# https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+QUERY_BUNDLE_REQUEST = "org.sagebionetworks.repo.model.table.QueryBundleRequest"
+
+QUERY_RESULT = "org.sagebionetworks.repo.model.table.QueryResult"
+
+QUERY_TABLE_CSV_RESULT = "org.sagebionetworks.repo.model.table.DownloadFromTableResult"
+
+# Curation Task Types
+CURATION_TASK = "org.sagebionetworks.repo.model.curation.CurationTask"
+FILE_BASED_METADATA_TASK_PROPERTIES = (
+    "org.sagebionetworks.repo.model.curation.metadata.FileBasedMetadataTaskProperties"
+)
+RECORD_BASED_METADATA_TASK_PROPERTIES = (
+    "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties"
+)
+
+# Grid Session Types
+CREATE_GRID_REQUEST = "org.sagebionetworks.repo.model.grid.CreateGridRequest"
+GRID_RECORD_SET_EXPORT_REQUEST = (
+    "org.sagebionetworks.repo.model.grid.GridRecordSetExportRequest"
+)
+LIST_GRID_SESSIONS_REQUEST = (
+    "org.sagebionetworks.repo.model.grid.ListGridSessionsRequest"
+)
+LIST_GRID_SESSIONS_RESPONSE = (
+    "org.sagebionetworks.repo.model.grid.ListGridSessionsResponse"
+)

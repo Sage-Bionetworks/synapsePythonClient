@@ -1,3 +1,4 @@
+import json
 import os
 from dataclasses import dataclass, field, replace
 from enum import Enum
@@ -17,7 +18,13 @@ from typing_extensions import Self
 from synapseclient import Column as Synapse_Column
 from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 from synapseclient.core.constants import concrete_types
-from synapseclient.core.utils import delete_none_keys
+from synapseclient.core.constants.concrete_types import (
+    QUERY_BUNDLE_REQUEST,
+    QUERY_RESULT,
+    QUERY_TABLE_CSV_REQUEST,
+    QUERY_TABLE_CSV_RESULT,
+)
+from synapseclient.core.utils import delete_none_keys, from_unix_epoch_time
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
 from synapseclient.models.protocols.table_protocol import ColumnSynchronousProtocol
 
@@ -29,23 +36,23 @@ DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 @dataclass
 class SumFileSizes:
-    sum_file_size_bytes: int
-    """The sum of the file size in bytes."""
+    """
+    A model for the sum of file sizes in a query result bundle.
 
-    greater_than: bool
-    """When true, the actual sum of the files sizes is greater than the value provided
-    with 'sum_file_size_bytes'. When false, the actual sum of the files sizes is equals
-    the value provided with 'sum_file_size_bytes'"""
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SumFileSizes.html>
+    """
+
+    sum_file_size_bytes: int = None
+    """The sum of the file size in bytes."""
+    greater_than: bool = None
+    """When true, the actual sum of the files sizes is greater than the value provided with 'sumFileSizesBytes'. When false, the actual sum of the files sizes is equals the value provided with 'sumFileSizesBytes'"""
 
 
 @dataclass
-class QueryResultBundle:
+class QueryResultOutput:
     """
     The result of querying Synapse with an included `part_mask`. This class contains a
     subnet of the available items that may be returned by specifying a `part_mask`.
-
-
-    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
     """
 
     result: "DATA_FRAME_TYPE"
@@ -65,6 +72,36 @@ class QueryResultBundle:
     updated. Use mask = 0x80 to include in the bundle. This is returned in the
     ISO8601 format like `2000-01-01T00:00:00.000Z`."""
 
+    @classmethod
+    def fill_from_dict(
+        cls, result: "DATA_FRAME_TYPE", data: Dict[str, Any]
+    ) -> "QueryResultOutput":
+        """
+        Create a QueryResultOutput from a result DataFrame and dictionary response.
+
+        Arguments:
+            result: The pandas DataFrame result from the query.
+            data: The dictionary response from the REST API containing metadata.
+
+        Returns:
+            A QueryResultOutput instance.
+        """
+        sum_file_sizes = (
+            SumFileSizes(
+                sum_file_size_bytes=data["sum_file_sizes"].sum_file_size_bytes,
+                greater_than=data["sum_file_sizes"].greater_than,
+            )
+            if data.get("sum_file_sizes")
+            else None
+        )
+
+        return cls(
+            result=result,
+            count=data.get("count", None),
+            sum_file_sizes=sum_file_sizes,
+            last_updated_on=data.get("last_updated_on", None),
+        )
+
 
 @dataclass
 class CsvTableDescriptor:
@@ -82,7 +119,7 @@ class CsvTableDescriptor:
     line_end: str = os.linesep
     """The line feed terminator to be used for the resulting file. The default value of '\n' will be used if this is not provided by the caller."""
 
-    is_file_line_header: bool = True
+    is_first_line_header: bool = True
     """Is the first line a header? The default value of 'true' will be used if this is not provided by the caller."""
 
     def to_synapse_request(self):
@@ -92,10 +129,21 @@ class CsvTableDescriptor:
             "quoteCharacter": self.quote_character,
             "escapeCharacter": self.escape_character,
             "lineEnd": self.line_end,
-            "isFirstLineHeader": self.is_file_line_header,
+            "isFirstLineHeader": self.is_first_line_header,
         }
         delete_none_keys(request)
         return request
+
+    def fill_from_dict(self, data: Dict[str, Any]) -> "Self":
+        """Converts a response from the REST API into this dataclass."""
+        self.separator = data.get("separator", self.separator)
+        self.quote_character = data.get("quoteCharacter", self.quote_character)
+        self.escape_character = data.get("escapeCharacter", self.escape_character)
+        self.line_end = data.get("lineEnd", self.line_end)
+        self.is_first_line_header = data.get(
+            "isFirstLineHeader", self.is_first_line_header
+        )
+        return self
 
 
 @dataclass
@@ -483,6 +531,527 @@ class ColumnType(str, Enum):
 
 
 @dataclass
+class Row:
+    """
+    Represents a single row of a TableEntity.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>
+    """
+
+    row_id: Optional[int] = None
+    """The immutable ID issued to a new row."""
+
+    version_number: Optional[int] = None
+    """The version number of this row. Each row version is immutable, so when a row
+    is updated a new version is created."""
+
+    etag: Optional[str] = None
+    """For queries against EntityViews with query.includeEntityEtag=true, this field
+    will contain the etag of the entity. Will be null for all other cases."""
+
+    values: Optional[List[str]] = None
+    """The values for each column of this row. To delete a row, set this to an empty list: []"""
+
+    def to_boolean(value):
+        """
+        Convert a string to boolean, case insensitively,
+        where true values are: true, t, and 1 and false values are: false, f, 0.
+        Raise a ValueError for all other values.
+        """
+        if value is None:
+            raise ValueError("Can't convert None to boolean.")
+
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            lower_value = value.lower()
+            if lower_value in ["true", "t", "1"]:
+                return True
+            if lower_value in ["false", "f", "0"]:
+                return False
+
+        raise ValueError(f"Can't convert {value} to boolean.")
+
+    @staticmethod
+    def cast_values(values, headers):
+        """
+        Convert a row of table query results from strings to the correct column type.
+
+        See: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html>
+        """
+        if len(values) != len(headers):
+            raise ValueError(
+                f"The number of columns in the csv file does not match the given headers. {len(values)} fields, {len(headers)} headers"
+            )
+
+        result = []
+        for header, field in zip(headers, values):  # noqa: F402
+            columnType = header.get("columnType", "STRING")
+
+            # convert field to column type
+            if field is None or field == "":
+                result.append(None)
+            elif columnType in {
+                "STRING",
+                "ENTITYID",
+                "FILEHANDLEID",
+                "LARGETEXT",
+                "USERID",
+                "LINK",
+            }:
+                result.append(field)
+            elif columnType == "DOUBLE":
+                result.append(float(field))
+            elif columnType == "INTEGER":
+                result.append(int(field))
+            elif columnType == "BOOLEAN":
+                result.append(Row.to_boolean(field))
+            elif columnType == "DATE":
+                result.append(from_unix_epoch_time(field))
+            elif columnType in {
+                "STRING_LIST",
+                "INTEGER_LIST",
+                "BOOLEAN_LIST",
+                "ENTITYID_LIST",
+                "USERID_LIST",
+            }:
+                result.append(json.loads(field))
+            elif columnType == "DATE_LIST":
+                result.append(json.loads(field, parse_int=from_unix_epoch_time))
+            else:
+                # default to string for unknown column type
+                result.append(field)
+
+        return result
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "Row":
+        """Create a Row from a dictionary response."""
+        return cls(
+            row_id=data.get("rowId"),
+            version_number=data.get("versionNumber"),
+            etag=data.get("etag"),
+            values=data.get("values"),
+        )
+
+
+@dataclass
+class ActionRequiredCount:
+    """
+    Represents a single action that the user will need to take in order to download one or more files.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/download/ActionRequiredCount.html>
+    """
+
+    action: Optional[Dict[str, Any]] = None
+    """An action that the user must take in order to download a file."""
+
+    count: Optional[int] = None
+    """The number of files that require this action."""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "ActionRequiredCount":
+        """Create an ActionRequiredCount from a dictionary response."""
+        return cls(
+            action=data.get("action", None),
+            count=data.get("count", None),
+        )
+
+
+@dataclass
+class SelectColumn:
+    """
+    A column model contains the metadata of a single column of a TableEntity.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/SelectColumn.html>
+    """
+
+    name: Optional[str] = None
+    """The required display name of the column"""
+
+    column_type: Optional[ColumnType] = None
+    """The column type determines the type of data that can be stored in a column.
+    Switching between types (using a transaction with TableUpdateTransactionRequest
+    in the "changes" list) is generally allowed except for switching to "_LIST"
+    suffixed types. In such cases, a new column must be created and data must be
+    copied over manually"""
+
+    id: Optional[str] = None
+    """The optional ID of the select column, if this is a direct column selected"""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "SelectColumn":
+        """Create a SelectColumn from a dictionary response."""
+        column_type = None
+        column_type_value = data.get("columnType")
+        if column_type_value:
+            try:
+                column_type = ColumnType(column_type_value)
+            except ValueError:
+                column_type = None
+        return cls(
+            name=data.get("name"),
+            column_type=column_type,
+            id=data.get("id"),
+        )
+
+
+@dataclass
+class QueryNextPageToken:
+    """
+    Token for retrieving the next page of query results.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryNextPageToken.html>
+    """
+
+    concrete_type: Optional[str] = None
+    """The concrete type of this object"""
+
+    entity_id: Optional[str] = None
+    """The ID of the entity (table/view) being queried"""
+
+    token: Optional[str] = None
+    """The token for the next page."""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryNextPageToken":
+        """Create a QueryNextPageToken from a dictionary response."""
+        return cls(
+            concrete_type=data.get("concreteType"),
+            entity_id=data.get("entityId"),
+            token=data.get("token"),
+        )
+
+
+@dataclass
+class RowSet:
+    """
+    Represents a set of row of a TableEntity.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>
+    """
+
+    concrete_type: Optional[str] = None
+    """The concrete type of this object"""
+
+    table_id: Optional[str] = None
+    """The ID of the TableEntity than owns these rows"""
+
+    etag: Optional[str] = None
+    """Any RowSet returned from Synapse will contain the current etag of the change set.
+    To update any rows from a RowSet the etag must be provided with the POST."""
+
+    headers: Optional[List[SelectColumn]] = None
+    """The list of SelectColumns that describes the rows of this set."""
+
+    rows: Optional[List[Row]] = field(default_factory=list)
+    """The Rows of this set. The index of each row value aligns with the index of each header."""
+
+    @classmethod
+    def cast_row(
+        cls, row: Dict[str, Any], headers: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Cast the values in a single row to their appropriate column types.
+
+        This method takes a row dictionary containing string values from a table query
+        response and converts them to the correct Python types based on the column
+        headers. For example, converts string "123" to integer 123 for INTEGER columns,
+        or string "true" to boolean True for BOOLEAN columns.
+
+        Arguments:
+            row: A dictionary representing a single table row with keys that need to be cast to proper types.
+            headers: A list of header dictionaries, each containing column metadata
+                including 'columnType' which determines how to cast the corresponding
+                value in the row.
+
+        Returns:
+            The same row dictionary with the 'values' field updated to contain
+            properly typed values instead of strings.
+        """
+        row["values"] = Row.cast_values(row["values"], headers)
+        return row
+
+    @classmethod
+    def cast_row_set(cls, rows: List[Row], headers: List[Dict[str, Any]]) -> List[Row]:
+        """
+        Cast the values in multiple rows to their appropriate column types.
+
+        This method takes a list of row dictionaries containing string values from a table query
+        response and converts them to the correct Python types based on the column headers.
+        It applies the same type casting logic as `cast_row` to each row in the collection.
+
+        Arguments:
+            rows: A list of row dictionaries, each representing a single table row with
+                field contains a list of string values that need to be cast to proper types.
+            headers: A list of header dictionaries, each containing column metadata
+                including 'columnType' which determines how to cast the corresponding
+                values in each row.
+
+        Returns:
+            A list of row dictionaries with the 'values' field in each row updated to
+            contain properly typed values instead of strings.
+        """
+        rows = [cls.cast_row(row, headers) for row in rows]
+        return rows
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "RowSet":
+        """Create a RowSet from a dictionary response."""
+        headers_data = data.get("headers")
+        rows_data = data.get("rows")
+
+        # Handle headers - convert to SelectColumn objects
+        headers = None
+        if headers_data and isinstance(headers_data, list):
+            headers = [SelectColumn.fill_from_dict(header) for header in headers_data]
+
+        # Handle rows - cast values and convert to Row objects
+        rows = None
+        if rows_data and isinstance(rows_data, list):
+            # Cast row values based on header types if headers are available
+            if headers_data and isinstance(headers_data, list):
+                rows_data = cls.cast_row_set(rows_data, headers_data)
+            # Convert to Row objects
+            rows = [Row.fill_from_dict(row) for row in rows_data]
+
+        return cls(
+            concrete_type=data.get("concreteType"),
+            table_id=data.get("tableId"),
+            etag=data.get("etag"),
+            headers=headers,
+            rows=rows,
+        )
+
+
+@dataclass
+class QueryResult:
+    """
+    A page of query result.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResult.html>
+    """
+
+    query_results: RowSet
+    """Represents a set of row of a TableEntity (RowSet)"""
+
+    concrete_type: str = QUERY_RESULT
+    """The concrete type of this object"""
+
+    next_page_token: Optional[QueryNextPageToken] = None
+    """Token for retrieving the next page of results, if available"""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResult":
+        """Create a QueryResult from a dictionary response."""
+        next_page_token = None
+        query_results = data.get("queryResults", None)
+
+        if data.get("nextPageToken", None):
+            next_page_token = QueryNextPageToken.fill_from_dict(data["nextPageToken"])
+
+        if data.get("queryResults", None):
+            query_results = RowSet.fill_from_dict(data["queryResults"])
+
+        return cls(
+            concrete_type=data.get("concreteType"),
+            query_results=query_results,
+            next_page_token=next_page_token,
+        )
+
+
+@dataclass
+class QueryJob(AsynchronousCommunicator):
+    """
+    A query job that can be submitted to Synapse and return a DownloadFromTableResult.
+
+    This class combines query request parameters with the ability to receive
+    query results through the AsynchronousCommunicator pattern.
+
+    Request modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>
+
+    Response modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>
+    """
+
+    # Request parameters
+    entity_id: str
+    """The ID of the entity (table/view) being queried"""
+
+    concrete_type: str = QUERY_TABLE_CSV_REQUEST
+    "The concrete type of the request (usually DownloadFromTableRequest)"
+
+    write_header: Optional[bool] = True
+    """Should the first line contain the columns names as a header in the resulting file? Set to 'true' to include the headers else, 'false'. The default value is 'true'."""
+
+    include_row_id_and_row_version: Optional[bool] = True
+    """Should the first two columns contain the row ID and row version? The default value is 'true'."""
+
+    csv_table_descriptor: Optional[CsvTableDescriptor] = None
+    """The description of a csv for upload or download."""
+
+    file_name: Optional[str] = None
+    """The optional name for the downloaded table."""
+
+    sql: Optional[str] = None
+    """The SQL query to execute"""
+
+    additional_filters: Optional[List[Dict[str, Any]]] = None
+    """Appends additional filters to the SQL query. These are applied before facets. Filters within the list have an AND relationship. If a WHERE clause already exists on the SQL query or facets are selected, it will also be ANDed with the query generated by these additional filters."""
+    """TODO: create QueryFilter dataclass: https://sagebionetworks.jira.com/browse/SYNPY-1651"""
+
+    selected_facets: Optional[List[Dict[str, Any]]] = None
+    """The selected facet filters."""
+    """TODO: create FacetColumnRequest dataclass: https://sagebionetworks.jira.com/browse/SYNPY-1651"""
+
+    include_entity_etag: Optional[bool] = False
+    """"Optional, default false. When true, a query results against views will include the Etag of each entity in the results. Note: The etag is necessary to update Entities in the view."""
+
+    select_file_column: Optional[int] = None
+    """The id of the column used to select file entities (e.g. to fetch the action required for download). The column needs to be an ENTITYID type column and be part of the schema of the underlying table/view."""
+
+    select_file_version_column: Optional[int] = None
+    """The id of the column used as the version for selecting file entities when required (e.g. to add a materialized view query to the download cart with version enabled). The column needs to be an INTEGER type column and be part of the schema of the underlying table/view."""
+
+    offset: Optional[int] = None
+    """The optional offset into the results"""
+
+    limit: Optional[int] = None
+    """The optional limit to the results"""
+
+    sort: Optional[List[Dict[str, Any]]] = None
+    """The sort order for the query results (ARRAY<SortItem>)"""
+    """TODO: Add SortItem dataclass: https://sagebionetworks.jira.com/browse/SYNPY-1651"""
+
+    # Response attributes (filled after job completion)
+    job_id: Optional[str] = None
+    """The job ID returned from the async job"""
+
+    results_file_handle_id: Optional[str] = None
+    """The file handle ID of the results CSV file"""
+
+    table_id: Optional[str] = None
+    """The ID of the table that was queried"""
+
+    etag: Optional[str] = None
+    """The etag of the table"""
+
+    headers: Optional[List[SelectColumn]] = None
+    """The column headers from the query result"""
+
+    response_concrete_type: Optional[str] = QUERY_TABLE_CSV_RESULT
+    """The concrete type of the response (usually DownloadFromTableResult)"""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """Convert to DownloadFromTableRequest format for async job submission."""
+
+        csv_table_descriptor = None
+        if self.csv_table_descriptor:
+            csv_table_descriptor = self.csv_table_descriptor.to_synapse_request()
+
+        synapse_request = {
+            "concreteType": QUERY_TABLE_CSV_REQUEST,
+            "entityId": self.entity_id,
+            "csvTableDescriptor": csv_table_descriptor,
+            "sql": self.sql,
+            "writeHeader": self.write_header,
+            "includeRowIdAndRowVersion": self.include_row_id_and_row_version,
+            "includeEntityEtag": self.include_entity_etag,
+            "fileName": self.file_name,
+            "additionalFilters": self.additional_filters,
+            "selectedFacet": self.selected_facets,
+            "selectFileColumns": self.select_file_column,
+            "selectFileVersionColumns": self.select_file_version_column,
+            "offset": self.offset,
+            "sort": self.sort,
+        }
+        delete_none_keys(synapse_request)
+        return synapse_request
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Self":
+        """Fill the job results from Synapse response."""
+        # Fill response attributes from DownloadFromTableResult
+        headers = None
+        headers_data = synapse_response.get("headers")
+        if headers_data and isinstance(headers_data, list):
+            headers = [SelectColumn.fill_from_dict(header) for header in headers_data]
+
+        self.job_id = synapse_response.get("jobId")
+        self.response_concrete_type = synapse_response.get("concreteType")
+        self.results_file_handle_id = synapse_response.get("resultsFileHandleId")
+        self.table_id = synapse_response.get("tableId")
+        self.etag = synapse_response.get("etag")
+        self.headers = headers
+
+        return self
+
+
+@dataclass
+class Query:
+    """
+    Represents a SQL query with optional parameters.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Query.html>
+    """
+
+    sql: str
+    """The SQL query string"""
+
+    additional_filters: Optional[List[Dict[str, Any]]] = None
+    """Appends additional filters to the SQL query. These are applied before facets.
+    Filters within the list have an AND relationship. If a WHERE clause already exists
+    on the SQL query or facets are selected, it will also be ANDed with the query
+    generated by these additional filters."""
+    """TODO: create QueryFilter dataclass: https://sagebionetworks.jira.com/browse/SYNPY-1651"""
+
+    selected_facets: Optional[List[Dict[str, Any]]] = None
+    """The selected facet filters"""
+    """TODO: create FacetColumnRequest dataclass: https://sagebionetworks.jira.com/browse/SYNPY-1651"""
+
+    include_entity_etag: Optional[bool] = False
+    """Optional, default false. When true, a query results against views will include
+    the Etag of each entity in the results. Note: The etag is necessary to update
+    Entities in the view."""
+
+    select_file_column: Optional[int] = None
+    """The id of the column used to select file entities (e.g. to fetch the action
+    required for download). The column needs to be an ENTITYID type column and be
+    part of the schema of the underlying table/view."""
+
+    select_file_version_column: Optional[int] = None
+    """The id of the column used as the version for selecting file entities when required
+    (e.g. to add a materialized view query to the download cart with version enabled).
+    The column needs to be an INTEGER type column and be part of the schema of the
+    underlying table/view."""
+
+    offset: Optional[int] = None
+    """The optional offset into the results"""
+
+    limit: Optional[int] = None
+    """The optional limit to the results"""
+
+    sort: Optional[List[Dict[str, Any]]] = None
+    """The sort order for the query results (ARRAY<SortItem>)"""
+    """TODO: Add SortItem dataclass: https://sagebionetworks.jira.com/browse/SYNPY-1651 """
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """Converts the Query object into a dictionary that can be passed into the REST API."""
+        result = {
+            "sql": self.sql,
+            "additionalFilters": self.additional_filters,
+            "selectedFacets": self.selected_facets,
+            "includeEntityEtag": self.include_entity_etag,
+            "selectFileColumn": self.select_file_column,
+            "selectFileVersionColumn": self.select_file_version_column,
+            "offset": self.offset,
+            "limit": self.limit,
+            "sort": self.sort,
+        }
+        delete_none_keys(result)
+        return result
+
+
+@dataclass
 class JsonSubColumn:
     """For column of type JSON that represents the combination of multiple
     sub-columns, this property is used to define each sub-column."""
@@ -781,6 +1350,215 @@ class Column(ColumnSynchronousProtocol):
         }
         delete_none_keys(result)
         return result
+
+
+@dataclass
+class QueryResultBundle:
+    """
+    A bundle of information about a query result.
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>
+    """
+
+    concrete_type: str = QUERY_TABLE_CSV_REQUEST
+    """The concrete type of this object"""
+
+    query_result: QueryResult = None
+    """A page of query result"""
+
+    query_count: Optional[int] = None
+    """The total number of rows that match the query. Use mask = 0x2 to include in the
+    bundle."""
+
+    select_columns: Optional[List[SelectColumn]] = None
+    """The list of SelectColumns from the select clause. Use mask = 0x4 to include in
+    the bundle."""
+
+    max_rows_per_page: Optional[int] = None
+    """The maximum number of rows that can be retrieved in a single call. This is a
+    function of the columns that are selected in the query. Use mask = 0x8 to include
+    in the bundle."""
+
+    column_models: Optional[List[Column]] = None
+    """The list of ColumnModels for the table. Use mask = 0x10 to include in the bundle."""
+
+    facets: Optional[List[Dict[str, Any]]] = None
+    """TODO: create facets dataclass"""
+    """The list of facets for the search results. Use mask = 0x20 to include in the bundle."""
+
+    sum_file_sizes: Optional[SumFileSizes] = None
+    """The sum of the file size for all files in the given view query. Use mask = 0x40
+    to include in the bundle."""
+
+    last_updated_on: Optional[str] = None
+    """The date-time when this table/view was last updated. Note: Since views are
+    eventually consistent a view might still be out-of-date even if it was recently
+    updated. Use mask = 0x80 to include in the bundle. This is returned in the
+    ISO8601 format like `2000-01-01T00:00:00.000Z`."""
+
+    combined_sql: Optional[str] = None
+    """The SQL that is combination of a the input SQL, FacetRequests, AdditionalFilters,
+    Sorting, and Pagination. Use mask = 0x100 to include in the bundle."""
+
+    actions_required: Optional[List[ActionRequiredCount]] = None
+    """The first 50 actions required to download the files that are part of the query.
+    Use mask = 0x200 to include them in the bundle."""
+
+    @classmethod
+    def fill_from_dict(cls, data: Dict[str, Any]) -> "QueryResultBundle":
+        """Create a QueryResultBundle from a dictionary response."""
+        # Handle sum_file_sizes
+        sum_file_sizes = None
+        sum_file_sizes_data = data.get("sumFileSizes")
+        if sum_file_sizes_data:
+            sum_file_sizes = SumFileSizes(
+                sum_file_size_bytes=sum_file_sizes_data.get("sumFileSizesBytes"),
+                greater_than=sum_file_sizes_data.get("greaterThan"),
+            )
+
+        # Handle query_result
+        query_result = None
+        query_result_data = data.get("queryResult")
+        if query_result_data:
+            query_result = QueryResult.fill_from_dict(query_result_data)
+
+        # Handle select_columns
+        select_columns = None
+        select_columns_data = data.get("selectColumns")
+        if select_columns_data and isinstance(select_columns_data, list):
+            select_columns = [
+                SelectColumn.fill_from_dict(col) for col in select_columns_data
+            ]
+
+        # Handle actions_required
+        actions_required = None
+        actions_required_data = data.get("actionsRequired")
+        if actions_required_data and isinstance(actions_required_data, list):
+            actions_required = [
+                ActionRequiredCount.fill_from_dict(action)
+                for action in actions_required_data
+            ]
+
+        # Handle column_models
+        column_models = None
+        column_models_data = data.get("columnModels")
+        if column_models_data and isinstance(column_models_data, list):
+            column_models = [Column().fill_from_dict(col) for col in column_models_data]
+
+        return cls(
+            concrete_type=data.get("concreteType"),
+            query_result=query_result,
+            query_count=data.get("queryCount"),
+            select_columns=select_columns,
+            max_rows_per_page=data.get("maxRowsPerPage"),
+            column_models=column_models,
+            facets=data.get("facets"),
+            sum_file_sizes=sum_file_sizes,
+            last_updated_on=data.get("lastUpdatedOn"),
+            combined_sql=data.get("combinedSql"),
+            actions_required=actions_required,
+        )
+
+
+@dataclass
+class QueryBundleRequest(AsynchronousCommunicator):
+    """
+    A query bundle request that can be submitted to Synapse to retrieve query results with metadata.
+
+    This class combines query request parameters with the ability to receive
+    a QueryResultBundle through the AsynchronousCommunicator pattern.
+
+    The partMask determines which parts of the result bundle are included:
+    - Query Results (queryResults) = 0x1
+    - Query Count (queryCount) = 0x2
+    - Select Columns (selectColumns) = 0x4
+    - Max Rows Per Page (maxRowsPerPage) = 0x8
+    - The Table Columns (columnModels) = 0x10
+    - Facet statistics for each faceted column (facetStatistics) = 0x20
+    - The sum of the file sizes (sumFileSizesBytes) = 0x40
+    - The last updated on date (lastUpdatedOn) = 0x80
+    - The combined SQL query including additional filters (combinedSql) = 0x100
+    - The list of actions required for any file in the query (actionsRequired) = 0x200
+
+    This result is modeled from: <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html>
+    """
+
+    # Request parameters
+    entity_id: str
+    """The ID of the entity (table/view) being queried"""
+
+    query: Query
+    """The SQL query with parameters"""
+
+    concrete_type: str = QUERY_BUNDLE_REQUEST
+    """The concrete type of this request"""
+
+    part_mask: Optional[int] = None
+    """Optional integer mask to request specific parts. Default includes all parts if not specified."""
+
+    # Response attributes (filled after job completion from QueryResultBundle)
+    query_result: Optional[QueryResult] = None
+    """A page of query result"""
+
+    query_count: Optional[int] = None
+    """The total number of rows that match the query"""
+
+    select_columns: Optional[List[SelectColumn]] = None
+    """The list of SelectColumns from the select clause"""
+
+    max_rows_per_page: Optional[int] = None
+    """The maximum number of rows that can be retrieved in a single call"""
+
+    column_models: Optional[List[Dict[str, Any]]] = None
+    """The list of ColumnModels for the table"""
+
+    facets: Optional[List[Dict[str, Any]]] = None
+    """The list of facets for the search results"""
+
+    sum_file_sizes: Optional[SumFileSizes] = None
+    """The sum of the file size for all files in the given view query"""
+
+    last_updated_on: Optional[str] = None
+    """The date-time when this table/view was last updated"""
+
+    combined_sql: Optional[str] = None
+    """The SQL that is combination of a the input SQL, FacetRequests, AdditionalFilters, Sorting, and Pagination"""
+
+    actions_required: Optional[List[ActionRequiredCount]] = None
+    """The first 50 actions required to download the files that are part of the query"""
+
+    def to_synapse_request(self) -> Dict[str, Any]:
+        """Convert to QueryBundleRequest format for async job submission."""
+        result = {
+            "concreteType": self.concrete_type,
+            "entityId": self.entity_id,
+            "query": self.query,
+        }
+
+        if self.part_mask is not None:
+            result["partMask"] = self.part_mask
+
+        delete_none_keys(result)
+        return result
+
+    def fill_from_dict(self, synapse_response: Dict[str, Any]) -> "Self":
+        """Fill the request results from Synapse response (QueryResultBundle)."""
+        # Use QueryResultBundle's fill_from_dict logic to populate response fields
+        bundle = QueryResultBundle.fill_from_dict(synapse_response)
+
+        # Copy all the result fields from the bundle
+        self.query_result = bundle.query_result
+        self.query_count = bundle.query_count
+        self.select_columns = bundle.select_columns
+        self.max_rows_per_page = bundle.max_rows_per_page
+        self.column_models = bundle.column_models
+        self.facets = bundle.facets
+        self.sum_file_sizes = bundle.sum_file_sizes
+        self.last_updated_on = bundle.last_updated_on
+        self.combined_sql = bundle.combined_sql
+        self.actions_required = bundle.actions_required
+
+        return self
 
 
 class SchemaStorageStrategy(str, Enum):

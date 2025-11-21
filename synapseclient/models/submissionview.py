@@ -183,6 +183,7 @@ class SubmissionViewSynchronousProtocol(Protocol):
         label: Optional[str] = None,
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the `SubmissionView` entity.
@@ -207,6 +208,8 @@ class SubmissionViewSynchronousProtocol(Protocol):
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the table. If False the activity will not be
                 associated with the new version of the table. Defaults to True.
+            timeout: The number of seconds to wait for the async job to complete.
+                Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -725,6 +728,7 @@ class SubmissionView(
         label: Optional[str] = None,
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> "TableUpdateTransaction":
         """Creates a snapshot of the `SubmissionView` entity.
@@ -749,6 +753,8 @@ class SubmissionView(
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the table. If False the activity will not be
                 associated with the new version of the table. Defaults to True.
+            timeout: The number of seconds to wait for the async job to complete.
+                Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -821,6 +827,7 @@ class SubmissionView(
             label=label,
             include_activity=include_activity,
             associate_activity_to_new_version=associate_activity_to_new_version,
+            timeout=timeout,
             synapse_client=synapse_client,
         )
 

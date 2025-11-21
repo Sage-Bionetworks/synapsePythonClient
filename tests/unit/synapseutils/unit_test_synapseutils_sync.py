@@ -165,7 +165,7 @@ def test_read_manifest_sync_order_with_home_directory(syn: Synapse) -> None:
     # mock syn.get() to return a project because the final check is making sure parent is a container
     # mock isfile() to always return true to avoid having to create files in the home directory
     # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
-    with patch.object(syn, "get", return_value=Project()), patch.object(
+    with patch.object(syn, "get_async", return_value=Project()), patch.object(
         os.path, "isfile", side_effect=[True, True, True, False]
     ), patch.object(sync, "_check_size_each_file", return_value=Mock()):
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
@@ -194,7 +194,7 @@ def test_read_manifest_file_synapse_store_values_not_set(syn: Synapse) -> None:
     }
 
     manifest = StringIO(header + row1 + row2)
-    with patch.object(syn, "get", return_value=Project()), patch.object(
+    with patch.object(syn, "get_async", return_value=Project()), patch.object(
         os.path, "isfile", return_value=True
     ), patch.object(
         sync, "_check_size_each_file", return_value=Mock()
@@ -233,7 +233,7 @@ def test_read_manifest_file_synapse_store_values_are_set(syn: Synapse) -> None:
     }
 
     manifest = StringIO(header + row1 + row2 + row3 + row4 + row5 + row6)
-    with patch.object(syn, "get", return_value=Project()), patch.object(
+    with patch.object(syn, "get_async", return_value=Project()), patch.object(
         sync, "_check_size_each_file", return_value=Mock()
     ), patch.object(
         os.path, "isfile", return_value=True
@@ -1419,7 +1419,7 @@ def test_check_size_each_file(mock_os: MagicMock, syn: Synapse) -> None:
     mock_stat.st_size = 5
 
     # mock syn.get() to return a project because the final check is making sure parent is a container
-    with patch.object(syn, "get", return_value=Project()):
+    with patch.object(syn, "get_async", return_value=Project()):
         sync.readManifestFile(syn, manifest)
         mock_os.stat.call_count == 4
 
@@ -1481,7 +1481,7 @@ def test_check_file_name(mock_os: MagicMock, syn: Synapse) -> None:
     mock_os.path.basename.return_value = "file3.txt"
 
     # mock syn.get() to return a project because the final check is making sure parent is a container
-    with patch.object(syn, "get", return_value=Project()):
+    with patch.object(syn, "get_async", return_value=Project()):
         sync.readManifestFile(syn, manifest)
 
 
