@@ -115,14 +115,15 @@ class TestSubmissionBundleRetrievalAsync:
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         """Test getting submission bundles for an evaluation using async methods."""
-        # WHEN I get submission bundles for an evaluation
-        bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        # WHEN I get submission bundles for an evaluation using async generator
+        bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN the bundles should be retrieved
-        assert bundles is not None
         assert len(bundles) >= 1  # At least our test submission
 
         # AND each bundle should have proper structure
@@ -133,10 +134,28 @@ class TestSubmissionBundleRetrievalAsync:
             assert bundle.submission.id is not None
             assert bundle.submission.evaluation_id == test_evaluation.id
 
-            if bundle.submission.id == test_submission.id:
-                found_test_bundle = True
-                assert bundle.submission.entity_id == test_submission.entity_id
-                assert bundle.submission.name == test_submission.name
+    async def test_get_evaluation_submission_bundles_async_generator_behavior(
+        self, test_evaluation: Evaluation, test_submission: Submission
+    ):
+        # WHEN I get submission bundles using the async generator
+        bundles_generator = SubmissionBundle.get_evaluation_submission_bundles_async(
+            evaluation_id=test_evaluation.id,
+            synapse_client=self.syn,
+        )
+
+        # THEN I should be able to iterate through the results
+        bundles = []
+        async for bundle in bundles_generator:
+            assert isinstance(bundle, SubmissionBundle)
+            bundles.append(bundle)
+            
+        # AND all bundles should be valid SubmissionBundle objects
+        assert all(isinstance(bundle, SubmissionBundle) for bundle in bundles)
+
+        if bundle.submission.id == test_submission.id:
+            found_test_bundle = True
+            assert bundle.submission.entity_id == test_submission.entity_id
+            assert bundle.submission.name == test_submission.name
 
         # AND our test submission should be found
         assert found_test_bundle, "Test submission should be found in bundles"
@@ -146,11 +165,13 @@ class TestSubmissionBundleRetrievalAsync:
     ):
         """Test getting submission bundles filtered by status using async methods."""
         # WHEN I get submission bundles filtered by "RECEIVED" status
-        bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             status="RECEIVED",
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN the bundles should be retrieved
         assert bundles is not None
@@ -162,63 +183,59 @@ class TestSubmissionBundleRetrievalAsync:
 
         # WHEN I attempt to get submission bundles with an invalid status
         with pytest.raises(SynapseHTTPError) as exc_info:
-            await SubmissionBundle.get_evaluation_submission_bundles_async(
+            bundles = []
+            async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
                 evaluation_id=test_evaluation.id,
                 status="NONEXISTENT_STATUS",
                 synapse_client=self.syn,
-            )
+            ):
+                bundles.append(bundle)
         # THEN it should raise a SynapseHTTPError (400 for invalid enum)
         assert exc_info.value.response.status_code == 400
         assert "No enum constant" in str(exc_info.value)
         assert "NONEXISTENT_STATUS" in str(exc_info.value)
 
-    async def test_get_evaluation_submission_bundles_with_pagination_async(
+    async def test_get_evaluation_submission_bundles_with_automatic_pagination_async(
         self, test_evaluation: Evaluation, multiple_submissions: list[Submission]
     ):
-        """Test pagination when getting submission bundles using async methods."""
-        # WHEN I get submission bundles with a limit
-        bundles_page1 = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        """Test automatic pagination when getting submission bundles using async generator methods."""
+        # WHEN I get submission bundles using async generator (handles pagination automatically)
+        all_bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
-            limit=2,
-            offset=0,
             synapse_client=self.syn,
-        )
+        ):
+            all_bundles.append(bundle)
 
-        # THEN I should get at most 2 bundles
-        assert bundles_page1 is not None
-        assert len(bundles_page1) <= 2
+        # THEN I should get all bundles for the evaluation
+        assert all_bundles is not None
+        assert len(all_bundles) >= len(multiple_submissions)  # At least our test submissions
 
-        # WHEN I get the next page
-        bundles_page2 = await SubmissionBundle.get_evaluation_submission_bundles_async(
-            evaluation_id=test_evaluation.id,
-            limit=2,
-            offset=2,
-            synapse_client=self.syn,
-        )
+        # AND each bundle should be valid
+        for bundle in all_bundles:
+            assert isinstance(bundle, SubmissionBundle)
+            assert bundle.submission is not None
+            assert bundle.submission.evaluation_id == test_evaluation.id
 
-        # THEN I should get different bundles (if there are more than 2 total)
-        assert bundles_page2 is not None
-
-        # AND the bundle IDs should not overlap if we have enough submissions
-        if len(bundles_page1) == 2 and len(bundles_page2) > 0:
-            page1_ids = {
-                bundle.submission.id for bundle in bundles_page1 if bundle.submission
-            }
-            page2_ids = {
-                bundle.submission.id for bundle in bundles_page2 if bundle.submission
-            }
-            assert page1_ids.isdisjoint(
-                page2_ids
-            ), "Pages should not have overlapping submissions"
+        # AND all our test submissions should be found
+        found_submission_ids = {
+            bundle.submission.id for bundle in all_bundles if bundle.submission
+        }
+        test_submission_ids = {submission.id for submission in multiple_submissions}
+        assert test_submission_ids.issubset(
+            found_submission_ids
+        ), "All test submissions should be found in the results"
 
     async def test_get_evaluation_submission_bundles_invalid_evaluation_async(self):
         """Test getting submission bundles for invalid evaluation ID using async methods."""
         # WHEN I try to get submission bundles for a non-existent evaluation
         with pytest.raises(SynapseHTTPError) as exc_info:
-            await SubmissionBundle.get_evaluation_submission_bundles_async(
+            bundles = []
+            async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
                 evaluation_id="syn999999999999",
                 synapse_client=self.syn,
-            )
+            ):
+                bundles.append(bundle)
 
         # THEN it should raise a SynapseHTTPError (likely 403 or 404)
         assert exc_info.value.response.status_code in [403, 404]
@@ -227,11 +244,13 @@ class TestSubmissionBundleRetrievalAsync:
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         """Test getting user submission bundles for an evaluation using async methods."""
-        # WHEN I get user submission bundles for an evaluation
-        bundles = await SubmissionBundle.get_user_submission_bundles_async(
+        # WHEN I get user submission bundles for an evaluation using async generator
+        bundles = []
+        async for bundle in SubmissionBundle.get_user_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN the bundles should be retrieved
         assert bundles is not None
@@ -253,44 +272,36 @@ class TestSubmissionBundleRetrievalAsync:
         # AND our test submission should be found
         assert found_test_bundle, "Test submission should be found in user bundles"
 
-    async def test_get_user_submission_bundles_with_pagination_async(
+    async def test_get_user_submission_bundles_with_automatic_pagination_async(
         self, test_evaluation: Evaluation, multiple_submissions: list[Submission]
     ):
-        """Test pagination when getting user submission bundles using async methods."""
-        # WHEN I get user submission bundles with a limit
-        bundles_page1 = await SubmissionBundle.get_user_submission_bundles_async(
+        """Test automatic pagination when getting user submission bundles using async generator methods."""
+        # WHEN I get user submission bundles using async generator (handles pagination automatically)
+        all_bundles = []
+        async for bundle in SubmissionBundle.get_user_submission_bundles_async(
             evaluation_id=test_evaluation.id,
-            limit=2,
-            offset=0,
             synapse_client=self.syn,
-        )
+        ):
+            all_bundles.append(bundle)
 
-        # THEN I should get at most 2 bundles
-        assert bundles_page1 is not None
-        assert len(bundles_page1) <= 2
+        # THEN I should get all bundles for the user in this evaluation
+        assert all_bundles is not None
+        assert len(all_bundles) >= len(multiple_submissions)  # At least our test submissions
 
-        # WHEN I get the next page
-        bundles_page2 = await SubmissionBundle.get_user_submission_bundles_async(
-            evaluation_id=test_evaluation.id,
-            limit=2,
-            offset=2,
-            synapse_client=self.syn,
-        )
+        # AND each bundle should be valid
+        for bundle in all_bundles:
+            assert isinstance(bundle, SubmissionBundle)
+            assert bundle.submission is not None
+            assert bundle.submission.evaluation_id == test_evaluation.id
 
-        # THEN I should get different bundles (if there are more than 2 total)
-        assert bundles_page2 is not None
-
-        # AND the bundle IDs should not overlap if we have enough submissions
-        if len(bundles_page1) == 2 and len(bundles_page2) > 0:
-            page1_ids = {
-                bundle.submission.id for bundle in bundles_page1 if bundle.submission
-            }
-            page2_ids = {
-                bundle.submission.id for bundle in bundles_page2 if bundle.submission
-            }
-            assert page1_ids.isdisjoint(
-                page2_ids
-            ), "Pages should not have overlapping submissions"
+        # AND all our test submissions should be found
+        found_submission_ids = {
+            bundle.submission.id for bundle in all_bundles if bundle.submission
+        }
+        test_submission_ids = {submission.id for submission in multiple_submissions}
+        assert test_submission_ids.issubset(
+            found_submission_ids
+        ), "All test submissions should be found in the user results"
 
 
 class TestSubmissionBundleDataIntegrityAsync:
@@ -370,11 +381,13 @@ class TestSubmissionBundleDataIntegrityAsync:
         self, test_evaluation: Evaluation, test_submission: Submission, test_file: File
     ):
         """Test that submission bundles maintain data consistency between submission and status using async methods."""
-        # WHEN I get submission bundles for the evaluation
-        bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        # WHEN I get submission bundles for the evaluation using async generator
+        bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN I should find our test submission
         test_bundle = None
@@ -415,11 +428,13 @@ class TestSubmissionBundleDataIntegrityAsync:
         }
         updated_status = await submission_status.store_async(synapse_client=self.syn)
 
-        # AND I get submission bundles again
-        bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        # AND I get submission bundles again using async generator
+        bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN the bundle should reflect the updated status
         test_bundle = None
@@ -446,11 +461,13 @@ class TestSubmissionBundleDataIntegrityAsync:
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         """Test that evaluation_id is properly propagated from submission to status using async methods."""
-        # WHEN I get submission bundles
-        bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        # WHEN I get submission bundles using async generator
+        bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN find our test bundle
         test_bundle = None
@@ -542,11 +559,13 @@ class TestSubmissionBundleEdgeCasesAsync:
         self, test_evaluation: Evaluation
     ):
         """Test getting submission bundles from an evaluation with no submissions using async methods."""
-        # WHEN I get submission bundles from an evaluation with no submissions
-        bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        # WHEN I get submission bundles from an evaluation with no submissions using async generator
+        bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN it should return an empty list (not None or error)
         assert bundles is not None
@@ -557,43 +576,47 @@ class TestSubmissionBundleEdgeCasesAsync:
         self, test_evaluation: Evaluation
     ):
         """Test getting user submission bundles from an evaluation with no submissions using async methods."""
-        # WHEN I get user submission bundles from an evaluation with no submissions
-        bundles = await SubmissionBundle.get_user_submission_bundles_async(
+        # WHEN I get user submission bundles from an evaluation with no submissions using async generator
+        bundles = []
+        async for bundle in SubmissionBundle.get_user_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN it should return an empty list (not None or error)
         assert bundles is not None
         assert isinstance(bundles, list)
         assert len(bundles) == 0
 
-    async def test_get_evaluation_submission_bundles_large_limit_async(
+    async def test_get_evaluation_submission_bundles_all_results_async(
         self, test_evaluation: Evaluation
     ):
-        """Test getting submission bundles with a very large limit using async methods."""
-        # WHEN I request bundles with a large limit (within API bounds)
-        bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        """Test getting all submission bundles using async generator methods."""
+        # WHEN I request all bundles using async generator (no limit needed)
+        bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
-            limit=100,  # Maximum allowed by API
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN it should work without error
         assert bundles is not None
         assert isinstance(bundles, list)
         # The actual count doesn't matter since the evaluation is empty
 
-    async def test_get_user_submission_bundles_large_offset_async(
+    async def test_get_user_submission_bundles_empty_results_async(
         self, test_evaluation: Evaluation
     ):
-        """Test getting user submission bundles with a large offset using async methods."""
-        # WHEN I request bundles with a large offset (beyond available data)
-        bundles = await SubmissionBundle.get_user_submission_bundles_async(
+        """Test getting user submission bundles when no results exist using async generator methods."""
+        # WHEN I request bundles from an evaluation with no user submissions using async generator
+        bundles = []
+        async for bundle in SubmissionBundle.get_user_submission_bundles_async(
             evaluation_id=test_evaluation.id,
-            offset=1000,  # Large offset beyond any real data
             synapse_client=self.syn,
-        )
+        ):
+            bundles.append(bundle)
 
         # THEN it should return an empty list (not error)
         assert bundles is not None
@@ -604,15 +627,20 @@ class TestSubmissionBundleEdgeCasesAsync:
         self, test_evaluation: Evaluation
     ):
         """Test that default parameters work correctly using async methods."""
-        # WHEN I call methods without optional parameters
-        eval_bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
+        # WHEN I call methods without optional parameters using async generators
+        eval_bundles = []
+        async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
-        user_bundles = await SubmissionBundle.get_user_submission_bundles_async(
+        ):
+            eval_bundles.append(bundle)
+        
+        user_bundles = []
+        async for bundle in SubmissionBundle.get_user_submission_bundles_async(
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
-        )
+        ):
+            user_bundles.append(bundle)
 
         # THEN both should work with default values
         assert eval_bundles is not None

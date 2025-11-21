@@ -651,7 +651,6 @@ class Submission(
 
         return self
 
-    # TODO: Have all staticmethods return generators for pagination
     @skip_async_to_sync
     @classmethod
     async def get_evaluation_submissions_async(

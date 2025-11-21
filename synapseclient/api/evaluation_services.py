@@ -783,29 +783,23 @@ async def batch_update_submission_statuses(
 async def get_evaluation_submission_bundles(
     evaluation_id: str,
     status: Optional[str] = None,
-    limit: int = 10,
-    offset: int = 0,
+    *,
     synapse_client: Optional["Synapse"] = None,
-) -> dict:
+) -> AsyncGenerator[Dict[str, Any], None]:
     """
-    Gets a collection of bundled Submissions and SubmissionStatuses to a given Evaluation.
+    Generator to get all bundled Submissions and SubmissionStatuses to a given Evaluation.
 
     <https://rest-docs.synapse.org/rest/GET/evaluation/evalId/submission/bundle/all.html>
 
     Arguments:
         evaluation_id: The ID of the specified Evaluation.
         status: Optionally filter submission bundles by status.
-        limit: Limits the number of entities that will be fetched for this page.
-               When null it will default to 10, max value 100. Default to 10.
-        offset: The offset index determines where this page will start from.
-                An index of 0 is the first entity. Default to 0.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
-    Returns:
-        A PaginatedResults<SubmissionBundle> object as a JSON dict containing
-        a paginated list of submission bundles for the evaluation queue.
+    Yields:
+        Individual SubmissionBundle objects from each page of the response.
 
     Note:
         The caller must be granted the ACCESS_TYPE.READ_PRIVATE_SUBMISSION on the specified Evaluation.
@@ -815,48 +809,44 @@ async def get_evaluation_submission_bundles(
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/bundle/all"
-    query_params = {"limit": limit, "offset": offset}
+    query_params = {}
 
     if status:
         query_params["status"] = status
 
-    response = await client.rest_get_async(uri, params=query_params)
-
-    return response
+    async for item in rest_get_paginated_async(
+        uri=uri, params=query_params, synapse_client=client
+    ):
+        yield item
 
 
 async def get_user_submission_bundles(
     evaluation_id: str,
-    limit: int = 10,
-    offset: int = 0,
+    *,
     synapse_client: Optional["Synapse"] = None,
-) -> dict:
+) -> AsyncGenerator[Dict[str, Any], None]:
     """
-    Gets the requesting user's bundled Submissions and SubmissionStatuses to a specified Evaluation.
+    Generator to get all user bundled Submissions and SubmissionStatuses for a specified Evaluation.
 
     <https://rest-docs.synapse.org/rest/GET/evaluation/evalId/submission/bundle.html>
 
     Arguments:
         evaluation_id: The ID of the specified Evaluation.
-        limit: Limits the number of entities that will be fetched for this page.
-               When null it will default to 10. Default to 10.
-        offset: The offset index determines where this page will start from.
-                An index of 0 is the first entity. Default to 0.
         synapse_client: If not passed in and caching was not disabled by
             `Synapse.allow_client_caching(False)` this will use the last created
             instance from the Synapse class constructor.
 
-    Returns:
-        A PaginatedResults<SubmissionBundle> object as a JSON dict containing
-        a paginated list of the requesting user's submission bundles for the evaluation queue.
+    Yields:
+        Individual SubmissionBundle objects from each page of the response.
     """
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/bundle"
-    query_params = {"limit": limit, "offset": offset}
+    query_params = {}
 
-    response = await client.rest_get_async(uri, params=query_params)
-
-    return response
+    async for item in rest_get_paginated_async(
+        uri=uri, params=query_params, synapse_client=client
+    ):
+        yield item
