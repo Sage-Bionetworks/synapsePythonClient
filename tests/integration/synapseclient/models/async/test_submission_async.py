@@ -245,52 +245,54 @@ class TestSubmissionRetrievalAsync:
     async def test_get_evaluation_submissions_async(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
-        # WHEN I get all submissions for an evaluation using async method
-        response = await Submission.get_evaluation_submissions_async(
+        # WHEN I get all submissions for an evaluation using async generator
+        submissions = []
+        async for submission in Submission.get_evaluation_submissions_async(
             evaluation_id=test_evaluation.id, synapse_client=self.syn
-        )
+        ):
+            submissions.append(submission)
 
-        # THEN I should get a response with submissions
-        assert "results" in response
-        assert len(response["results"]) > 0
+        # THEN I should get a list of submission objects
+        assert len(submissions) > 0
+        assert all(isinstance(sub, Submission) for sub in submissions)
 
-        # AND the submission should be in the results
-        submission_ids = [sub.get("id") for sub in response["results"]]
+        # AND the test submission should be in the results
+        submission_ids = [sub.id for sub in submissions]
         assert test_submission.id in submission_ids
 
     async def test_get_evaluation_submissions_with_status_filter_async(
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
-        # WHEN I get submissions filtered by status using async method
-        response = await Submission.get_evaluation_submissions_async(
+        # WHEN I get submissions filtered by status using async generator
+        submissions = []
+        async for submission in Submission.get_evaluation_submissions_async(
             evaluation_id=test_evaluation.id,
             status="RECEIVED",
             synapse_client=self.syn,
-        )
+        ):
+            submissions.append(submission)
 
-        # THEN I should get submissions with the specified status
-        assert "results" in response
-        for submission in response["results"]:
-            if submission.get("id") == test_submission.id:
-                # The submission should be in RECEIVED status initially
-                break
-        else:
-            pytest.fail("Test submission not found in filtered results")
+        # The test submission should be in the results (initially in RECEIVED status)
+        submission_ids = [sub.id for sub in submissions]
+        assert test_submission.id in submission_ids
 
-    async def test_get_evaluation_submissions_with_pagination_async(
+    async def test_get_evaluation_submissions_async_generator_behavior(
         self, test_evaluation: Evaluation
     ):
-        # WHEN I get submissions with pagination parameters using async method
-        response = await Submission.get_evaluation_submissions_async(
+        # WHEN I get submissions using the async generator
+        submissions_generator = Submission.get_evaluation_submissions_async(
             evaluation_id=test_evaluation.id,
-            limit=5,
-            offset=0,
             synapse_client=self.syn,
         )
 
-        # THEN the response should respect pagination
-        assert "results" in response
-        assert len(response["results"]) <= 5
+        # THEN I should be able to iterate through the results
+        submissions = []
+        async for submission in submissions_generator:
+            assert isinstance(submission, Submission)
+            submissions.append(submission)
+            
+        # AND all submissions should be valid Submission objects
+        assert all(isinstance(sub, Submission) for sub in submissions)
 
     async def test_get_user_submissions_async(self, test_evaluation: Evaluation):
         # WHEN I get submissions for the current user using async method

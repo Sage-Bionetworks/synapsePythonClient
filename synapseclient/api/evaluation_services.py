@@ -4,7 +4,9 @@ This module is responsible for exposing the services defined at:
 """
 
 import json
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
+
+from synapseclient.api.api_client import rest_get_paginated_async
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -448,12 +450,11 @@ async def get_submission(
 async def get_evaluation_submissions(
     evaluation_id: str,
     status: Optional[str] = None,
-    limit: int = 20,
-    offset: int = 0,
+    *,
     synapse_client: Optional["Synapse"] = None,
-) -> dict:
+) -> AsyncGenerator[Dict[str, Any], None]:
     """
-    Retrieves all Submissions for a specified Evaluation queue.
+    Generator to get all Submissions for a specified Evaluation queue.
 
     <https://rest-docs.synapse.org/rest/GET/evaluation/evalId/submission/all.html>
 
@@ -461,29 +462,26 @@ async def get_evaluation_submissions(
         evaluation_id: The ID of the evaluation queue.
         status: Optionally filter submissions by a submission status, such as SCORED, VALID,
                 INVALID, OPEN, CLOSED or EVALUATION_IN_PROGRESS.
-        limit: Limits the number of submissions in a single response. Default to 20.
-        offset: The offset index determines where this page will start from.
-                An index of 0 is the first submission. Default to 0.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)`
                         this will use the last created instance from the Synapse class constructor.
 
-    Returns:
-        # TODO: Support pagination in the return type.
-        A response JSON containing a paginated list of submissions for the evaluation queue.
+    Yields:
+        Individual Submission objects from each page of the response.
     """
     from synapseclient import Synapse
 
     client = Synapse.get_client(synapse_client=synapse_client)
 
     uri = f"/evaluation/{evaluation_id}/submission/all"
-    query_params = {"limit": limit, "offset": offset}
+    query_params = {}
 
     if status:
         query_params["status"] = status
 
-    response = await client.rest_get_async(uri, params=query_params)
-
-    return response
+    async for item in rest_get_paginated_async(
+        uri=uri, params=query_params, synapse_client=client
+    ):
+        yield item
 
 
 async def get_user_submissions(
