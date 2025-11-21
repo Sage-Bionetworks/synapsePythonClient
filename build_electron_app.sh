@@ -158,7 +158,12 @@ build_electron_app() {
             [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && echo "✓ APPLE_APP_SPECIFIC_PASSWORD is set" || echo "✗ APPLE_APP_SPECIFIC_PASSWORD is NOT set"
             [ -n "$APPLE_TEAM_ID" ] && echo "✓ APPLE_TEAM_ID is set" || echo "✗ APPLE_TEAM_ID is NOT set"
 
-            APPLE_ID="$APPLE_ID" APPLE_APP_SPECIFIC_PASSWORD="$APPLE_APP_SPECIFIC_PASSWORD" APPLE_TEAM_ID="$APPLE_TEAM_ID" npm run build -- --mac
+            # Export environment variables so they're available to npm and electron-builder
+            export APPLE_ID
+            export APPLE_APP_SPECIFIC_PASSWORD
+            export APPLE_TEAM_ID
+
+            npm run build -- --mac
             ;;
         "windows")
             npm run build -- --win
