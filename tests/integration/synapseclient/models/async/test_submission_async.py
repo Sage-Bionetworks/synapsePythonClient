@@ -295,14 +295,34 @@ class TestSubmissionRetrievalAsync:
         assert all(isinstance(sub, Submission) for sub in submissions)
 
     async def test_get_user_submissions_async(self, test_evaluation: Evaluation):
-        # WHEN I get submissions for the current user using async method
-        response = await Submission.get_user_submissions_async(
+        # WHEN I get submissions for the current user using async generator
+        submissions = []
+        async for submission in Submission.get_user_submissions_async(
             evaluation_id=test_evaluation.id, synapse_client=self.syn
+        ):
+            submissions.append(submission)
+
+        # THEN all submissions should be valid Submission objects
+        # Note: Could be empty if user hasn't made submissions to this evaluation
+        assert all(isinstance(sub, Submission) for sub in submissions)
+
+    async def test_get_user_submissions_async_generator_behavior(
+        self, test_evaluation: Evaluation
+    ):
+        # WHEN I get user submissions using the async generator
+        submissions_generator = Submission.get_user_submissions_async(
+            evaluation_id=test_evaluation.id,
+            synapse_client=self.syn,
         )
 
-        # THEN I should get a response with user submissions
-        assert "results" in response
-        # Note: Could be empty if user hasn't made submissions to this evaluation
+        # THEN I should be able to iterate through the results
+        submissions = []
+        async for submission in submissions_generator:
+            assert isinstance(submission, Submission)
+            submissions.append(submission)
+            
+        # AND all submissions should be valid Submission objects
+        assert all(isinstance(sub, Submission) for sub in submissions)
 
     async def test_get_submission_count_async(self, test_evaluation: Evaluation):
         # WHEN I get the submission count for an evaluation using async method

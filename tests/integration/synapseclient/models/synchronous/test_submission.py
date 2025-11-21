@@ -285,13 +285,32 @@ class TestSubmissionRetrieval:
 
     async def test_get_user_submissions(self, test_evaluation: Evaluation):
         # WHEN I get submissions for the current user
-        response = Submission.get_user_submissions(
+        submissions_generator = Submission.get_user_submissions(
             evaluation_id=test_evaluation.id, synapse_client=self.syn
         )
 
-        # THEN I should get a response with user submissions
-        assert "results" in response
+        # THEN I should get a generator that yields Submission objects
+        submissions = list(submissions_generator)
         # Note: Could be empty if user hasn't made submissions to this evaluation
+        assert all(isinstance(sub, Submission) for sub in submissions)
+
+    async def test_get_user_submissions_generator_behavior(
+        self, test_evaluation: Evaluation
+    ):
+        # WHEN I get user submissions using the generator
+        submissions_generator = Submission.get_user_submissions(
+            evaluation_id=test_evaluation.id,
+            synapse_client=self.syn,
+        )
+
+        # THEN I should be able to iterate through the results
+        submissions = []
+        for submission in submissions_generator:
+            assert isinstance(submission, Submission)
+            submissions.append(submission)
+            
+        # AND all submissions should be valid Submission objects
+        assert all(isinstance(sub, Submission) for sub in submissions)
 
     async def test_get_submission_count(self, test_evaluation: Evaluation):
         # WHEN I get the submission count for an evaluation
