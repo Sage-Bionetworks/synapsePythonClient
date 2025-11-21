@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, AsyncGenerator, Dict, Generator, List, Optional, Protocol, Union
 
 from synapseclient import Synapse
 from synapseclient.api import evaluation_services
-from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync, wrap_async_generator_to_sync_generator
 
 if TYPE_CHECKING:
     from synapseclient.models.submission import Submission
@@ -13,32 +13,26 @@ if TYPE_CHECKING:
 class SubmissionBundleSynchronousProtocol(Protocol):
     """Protocol defining the synchronous interface for SubmissionBundle operations."""
 
-    @staticmethod
+    @classmethod
     def get_evaluation_submission_bundles(
+        cls,
         evaluation_id: str,
         status: Optional[str] = None,
-        limit: int = 10,
-        offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> List["SubmissionBundle"]:
+    ) -> Generator["SubmissionBundle", None, None]:
         """
-        Gets a collection of bundled Submissions and SubmissionStatuses to a given Evaluation.
+        Retrieves bundled Submissions and SubmissionStatuses for a given Evaluation.
 
         Arguments:
             evaluation_id: The ID of the specified Evaluation.
             status: Optionally filter submission bundles by status.
-            limit: Limits the number of entities that will be fetched for this page.
-                   When null it will default to 10, max value 100. Default to 10.
-            offset: The offset index determines where this page will start from.
-                    An index of 0 is the first entity. Default to 0.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
-            A list of SubmissionBundle objects containing the submission bundles
-            for the evaluation queue.
+            SubmissionBundle objects as they are retrieved from the API.
 
         Note:
             The caller must be granted the ACCESS_TYPE.READ_PRIVATE_SUBMISSION on the specified Evaluation.
@@ -52,42 +46,40 @@ class SubmissionBundleSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            bundles = SubmissionBundle.get_evaluation_submission_bundles(
+            bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
                 evaluation_id="9614543",
-                status="SCORED",
-                limit=50
-            )
+                status="SCORED"
+            ))
             print(f"Found {len(bundles)} submission bundles")
             for bundle in bundles:
                 print(f"Submission ID: {bundle.submission.id if bundle.submission else 'N/A'}")
             ```
         """
-        return []
+        yield from wrap_async_generator_to_sync_generator(
+            async_gen_func=cls.get_evaluation_submission_bundles_async,
+            evaluation_id=evaluation_id,
+            status=status,
+            synapse_client=synapse_client,
+        )
 
-    @staticmethod
+    @classmethod
     def get_user_submission_bundles(
+        cls,
         evaluation_id: str,
-        limit: int = 10,
-        offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> List["SubmissionBundle"]:
+    ) -> Generator["SubmissionBundle", None, None]:
         """
-        Gets the requesting user's bundled Submissions and SubmissionStatuses to a specified Evaluation.
+        Retrieves all user bundled Submissions and SubmissionStatuses for a specified Evaluation.
 
         Arguments:
             evaluation_id: The ID of the specified Evaluation.
-            limit: Limits the number of entities that will be fetched for this page.
-                   When null it will default to 10. Default to 10.
-            offset: The offset index determines where this page will start from.
-                    An index of 0 is the first entity. Default to 0.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
-            A list of SubmissionBundle objects containing the requesting user's
-            submission bundles for the evaluation queue.
+            SubmissionBundle objects as they are retrieved from the API.
 
         Example: Getting user submission bundles
             &nbsp;
@@ -98,16 +90,19 @@ class SubmissionBundleSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            bundles = SubmissionBundle.get_user_submission_bundles(
-                evaluation_id="9999999",
-                limit=25
-            )
+            bundles = list(SubmissionBundle.get_user_submission_bundles(
+                evaluation_id="9999999"
+            ))
             print(f"Found {len(bundles)} user submission bundles")
             for bundle in bundles:
                 print(f"Submission ID: {bundle.submission.id}")
             ```
         """
-        return []
+        yield from wrap_async_generator_to_sync_generator(
+            async_gen_func=cls.get_user_submission_bundles_async,
+            evaluation_id=evaluation_id,
+            synapse_client=synapse_client,
+        )
 
 
 @dataclass
@@ -217,32 +212,27 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
 
         return self
 
-    @staticmethod
+    @skip_async_to_sync
+    @classmethod
     async def get_evaluation_submission_bundles_async(
+        cls,
         evaluation_id: str,
         status: Optional[str] = None,
-        limit: int = 10,
-        offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> List["SubmissionBundle"]:
+    ) -> AsyncGenerator["SubmissionBundle", None]:
         """
-        Gets a collection of bundled Submissions and SubmissionStatuses to a given Evaluation.
+        Generator to get all bundled Submissions and SubmissionStatuses for a given Evaluation.
 
         Arguments:
             evaluation_id: The ID of the specified Evaluation.
             status: Optionally filter submission bundles by status.
-            limit: Limits the number of entities that will be fetched for this page.
-                   When null it will default to 10, max value 100. Default to 10.
-            offset: The offset index determines where this page will start from.
-                    An index of 0 is the first entity. Default to 0.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
-        Returns:
-            A list of SubmissionBundle objects containing the submission bundles
-            for the evaluation queue.
+        Yields:
+            Individual SubmissionBundle objects from each page of the response.
 
         Note:
             The caller must be granted the ACCESS_TYPE.READ_PRIVATE_SUBMISSION on the specified Evaluation.
@@ -250,94 +240,84 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
         Example: Getting submission bundles for an evaluation
             &nbsp;
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import SubmissionBundle
 
             syn = Synapse()
             syn.login()
 
-            bundles = await SubmissionBundle.get_evaluation_submission_bundles_async(
-                evaluation_id="9999999",
-                status="SCORED",
-                limit=50
-            )
-            print(f"Found {len(bundles)} submission bundles")
-            for bundle in bundles:
-                print(f"Submission ID: {bundle.submission.id}")
+            async def get_submission_bundles_example():
+                bundles = []
+                async for bundle in SubmissionBundle.get_evaluation_submission_bundles_async(
+                    evaluation_id="9999999",
+                    status="SCORED"
+                ):
+                    bundles.append(bundle)
+                print(f"Found {len(bundles)} submission bundles")
+                for bundle in bundles:
+                    print(f"Submission ID: {bundle.submission.id}")
+
+            asyncio.run(get_submission_bundles_example())
             ```
         """
-        response = await evaluation_services.get_evaluation_submission_bundles(
+        async for bundle_data in evaluation_services.get_evaluation_submission_bundles(
             evaluation_id=evaluation_id,
             status=status,
-            limit=limit,
-            offset=offset,
             synapse_client=synapse_client,
-        )
+        ):
+            bundle = cls()
+            bundle.fill_from_dict(bundle_data)
+            yield bundle
 
-        bundles = []
-        for bundle_dict in response.get("results", []):
-            bundle = SubmissionBundle()
-            bundle.fill_from_dict(bundle_dict)
-            bundles.append(bundle)
-
-        return bundles
-
-    @staticmethod
+    @skip_async_to_sync
+    @classmethod
     async def get_user_submission_bundles_async(
+        cls,
         evaluation_id: str,
-        limit: int = 10,
-        offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> List["SubmissionBundle"]:
+    ) -> AsyncGenerator["SubmissionBundle", None]:
         """
-        Gets the requesting user's bundled Submissions and SubmissionStatuses to a specified Evaluation.
+        Generator to get all user bundled Submissions and SubmissionStatuses for a specified Evaluation.
 
         Arguments:
             evaluation_id: The ID of the specified Evaluation.
-            limit: Limits the number of entities that will be fetched for this page.
-                   When null it will default to 10. Default to 10.
-            offset: The offset index determines where this page will start from.
-                    An index of 0 is the first entity. Default to 0.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
-        Returns:
-            A list of SubmissionBundle objects containing the requesting user's
-            submission bundles for the evaluation queue.
+        Yields:
+            Individual SubmissionBundle objects from each page of the response.
 
         Example: Getting user submission bundles
             &nbsp;
 
             ```python
+            import asyncio
             from synapseclient import Synapse
             from synapseclient.models import SubmissionBundle
 
             syn = Synapse()
             syn.login()
 
-            bundles = await SubmissionBundle.get_user_submission_bundles_async(
-                evaluation_id="9999999",
-                limit=25
-            )
-            print(f"Found {len(bundles)} user submission bundles")
-            for bundle in bundles:
-                print(f"Submission ID: {bundle.submission.id}")
+            async def get_user_submission_bundles_example():
+                bundles = []
+                async for bundle in SubmissionBundle.get_user_submission_bundles_async(
+                    evaluation_id="9999999"
+                ):
+                    bundles.append(bundle)
+                print(f"Found {len(bundles)} user submission bundles")
+                for bundle in bundles:
+                    print(f"Submission ID: {bundle.submission.id}")
+
+            asyncio.run(get_user_submission_bundles_example())
             ```
         """
-        response = await evaluation_services.get_user_submission_bundles(
+        async for bundle_data in evaluation_services.get_user_submission_bundles(
             evaluation_id=evaluation_id,
-            limit=limit,
-            offset=offset,
             synapse_client=synapse_client,
-        )
-
-        # Convert response to list of SubmissionBundle objects
-        bundles = []
-        for bundle_dict in response.get("results", []):
-            bundle = SubmissionBundle()
-            bundle.fill_from_dict(bundle_dict)
-            bundles.append(bundle)
-
-        return bundles
+        ):
+            bundle = cls()
+            bundle.fill_from_dict(bundle_data)
+            yield bundle

@@ -239,24 +239,26 @@ class TestSubmissionBundleSync:
 
         # WHEN I call get_evaluation_submission_bundles (sync method)
         with patch(
-            "synapseclient.api.evaluation_services.get_evaluation_submission_bundles",
-            new_callable=AsyncMock,
-            return_value=mock_response,
+            "synapseclient.api.evaluation_services.get_evaluation_submission_bundles"
         ) as mock_get_bundles:
-            result = SubmissionBundle.get_evaluation_submission_bundles(
+            # Create an async generator function that yields bundle data
+            async def mock_async_gen(*args, **kwargs):
+                for bundle_data in mock_response["results"]:
+                    yield bundle_data
+
+            # Make the mock return our async generator when called
+            mock_get_bundles.side_effect = mock_async_gen
+
+            result = list(SubmissionBundle.get_evaluation_submission_bundles(
                 evaluation_id=EVALUATION_ID,
                 status="RECEIVED",
-                limit=50,
-                offset=0,
                 synapse_client=self.syn,
-            )
+            ))
 
             # THEN the service should be called with correct parameters
             mock_get_bundles.assert_called_once_with(
                 evaluation_id=EVALUATION_ID,
                 status="RECEIVED",
-                limit=50,
-                offset=0,
                 synapse_client=self.syn,
             )
 
@@ -288,21 +290,25 @@ class TestSubmissionBundleSync:
 
         # WHEN I call get_evaluation_submission_bundles (sync method)
         with patch(
-            "synapseclient.api.evaluation_services.get_evaluation_submission_bundles",
-            new_callable=AsyncMock,
-            return_value=mock_response,
+            "synapseclient.api.evaluation_services.get_evaluation_submission_bundles"
         ) as mock_get_bundles:
-            result = SubmissionBundle.get_evaluation_submission_bundles(
+            # Create an async generator function that yields no data
+            async def mock_async_gen(*args, **kwargs):
+                return
+                yield
+
+            # Make the mock return our async generator when called
+            mock_get_bundles.side_effect = mock_async_gen
+
+            result = list(SubmissionBundle.get_evaluation_submission_bundles(
                 evaluation_id=EVALUATION_ID,
                 synapse_client=self.syn,
-            )
+            ))
 
             # THEN the service should be called
             mock_get_bundles.assert_called_once_with(
                 evaluation_id=EVALUATION_ID,
                 status=None,
-                limit=10,
-                offset=0,
                 synapse_client=self.syn,
             )
 
@@ -333,22 +339,24 @@ class TestSubmissionBundleSync:
 
         # WHEN I call get_user_submission_bundles (sync method)
         with patch(
-            "synapseclient.api.evaluation_services.get_user_submission_bundles",
-            new_callable=AsyncMock,
-            return_value=mock_response,
+            "synapseclient.api.evaluation_services.get_user_submission_bundles"
         ) as mock_get_user_bundles:
-            result = SubmissionBundle.get_user_submission_bundles(
+            # Create an async generator function that yields bundle data
+            async def mock_async_gen(*args, **kwargs):
+                for bundle_data in mock_response["results"]:
+                    yield bundle_data
+
+            # Make the mock return our async generator when called
+            mock_get_user_bundles.side_effect = mock_async_gen
+
+            result = list(SubmissionBundle.get_user_submission_bundles(
                 evaluation_id=EVALUATION_ID,
-                limit=25,
-                offset=5,
                 synapse_client=self.syn,
-            )
+            ))
 
             # THEN the service should be called with correct parameters
             mock_get_user_bundles.assert_called_once_with(
                 evaluation_id=EVALUATION_ID,
-                limit=25,
-                offset=5,
                 synapse_client=self.syn,
             )
 
@@ -372,20 +380,24 @@ class TestSubmissionBundleSync:
 
         # WHEN I call get_user_submission_bundles with defaults (sync method)
         with patch(
-            "synapseclient.api.evaluation_services.get_user_submission_bundles",
-            new_callable=AsyncMock,
-            return_value=mock_response,
+            "synapseclient.api.evaluation_services.get_user_submission_bundles"
         ) as mock_get_user_bundles:
-            result = SubmissionBundle.get_user_submission_bundles(
+            # Create an async generator function that yields no data
+            async def mock_async_gen(*args, **kwargs):
+                return
+                yield  # This will never execute
+
+            # Make the mock return our async generator when called
+            mock_get_user_bundles.side_effect = mock_async_gen
+
+            result = list(SubmissionBundle.get_user_submission_bundles(
                 evaluation_id=EVALUATION_ID,
                 synapse_client=self.syn,
-            )
+            ))
 
             # THEN the service should be called with default parameters
             mock_get_user_bundles.assert_called_once_with(
                 evaluation_id=EVALUATION_ID,
-                limit=10,
-                offset=0,
                 synapse_client=self.syn,
             )
 
