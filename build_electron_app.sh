@@ -152,7 +152,13 @@ build_electron_app() {
             npm run build -- --linux
             ;;
         "macos")
-            npm run build -- --mac
+            # Ensure Apple notarization env vars are available to electron-builder
+            echo "Checking notarization environment variables..."
+            [ -n "$APPLE_ID" ] && echo "✓ APPLE_ID is set" || echo "✗ APPLE_ID is NOT set"
+            [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && echo "✓ APPLE_APP_SPECIFIC_PASSWORD is set" || echo "✗ APPLE_APP_SPECIFIC_PASSWORD is NOT set"
+            [ -n "$APPLE_TEAM_ID" ] && echo "✓ APPLE_TEAM_ID is set" || echo "✗ APPLE_TEAM_ID is NOT set"
+
+            APPLE_ID="$APPLE_ID" APPLE_APP_SPECIFIC_PASSWORD="$APPLE_APP_SPECIFIC_PASSWORD" APPLE_TEAM_ID="$APPLE_TEAM_ID" npm run build -- --mac
             ;;
         "windows")
             npm run build -- --win
