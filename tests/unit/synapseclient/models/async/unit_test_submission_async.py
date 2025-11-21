@@ -488,7 +488,7 @@ class TestSubmissionAsync:
             async def mock_async_gen(*args, **kwargs):
                 submission_data = self.get_example_submission_response()
                 yield submission_data
-            
+
             # Make the mock return our async generator when called
             mock_get_submissions.side_effect = mock_async_gen
 

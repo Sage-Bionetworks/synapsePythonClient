@@ -239,9 +239,11 @@ class TestSubmissionRetrieval:
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         # WHEN I get all submissions for an evaluation
-        submissions = list(Submission.get_evaluation_submissions(
-            evaluation_id=test_evaluation.id, synapse_client=self.syn
-        ))
+        submissions = list(
+            Submission.get_evaluation_submissions(
+                evaluation_id=test_evaluation.id, synapse_client=self.syn
+            )
+        )
 
         # THEN I should get a list of submission objects
         assert len(submissions) > 0
@@ -255,11 +257,13 @@ class TestSubmissionRetrieval:
         self, test_evaluation: Evaluation, test_submission: Submission
     ):
         # WHEN I get submissions filtered by status
-        submissions = list(Submission.get_evaluation_submissions(
-            evaluation_id=test_evaluation.id,
-            status="RECEIVED",
-            synapse_client=self.syn,
-        ))
+        submissions = list(
+            Submission.get_evaluation_submissions(
+                evaluation_id=test_evaluation.id,
+                status="RECEIVED",
+                synapse_client=self.syn,
+            )
+        )
 
         # The test submission should be in the results (initially in RECEIVED status)
         submission_ids = [sub.id for sub in submissions]
@@ -279,7 +283,7 @@ class TestSubmissionRetrieval:
         for submission in submissions_generator:
             assert isinstance(submission, Submission)
             submissions.append(submission)
-            
+
         # AND all submissions should be valid Submission objects
         assert all(isinstance(sub, Submission) for sub in submissions)
 
@@ -308,7 +312,7 @@ class TestSubmissionRetrieval:
         for submission in submissions_generator:
             assert isinstance(submission, Submission)
             submissions.append(submission)
-            
+
         # AND all submissions should be valid Submission objects
         assert all(isinstance(sub, Submission) for sub in submissions)
 

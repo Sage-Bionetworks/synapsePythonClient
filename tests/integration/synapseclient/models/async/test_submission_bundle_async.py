@@ -148,7 +148,7 @@ class TestSubmissionBundleRetrievalAsync:
         async for bundle in bundles_generator:
             assert isinstance(bundle, SubmissionBundle)
             bundles.append(bundle)
-            
+
         # AND all bundles should be valid SubmissionBundle objects
         assert all(isinstance(bundle, SubmissionBundle) for bundle in bundles)
 
@@ -209,7 +209,9 @@ class TestSubmissionBundleRetrievalAsync:
 
         # THEN I should get all bundles for the evaluation
         assert all_bundles is not None
-        assert len(all_bundles) >= len(multiple_submissions)  # At least our test submissions
+        assert len(all_bundles) >= len(
+            multiple_submissions
+        )  # At least our test submissions
 
         # AND each bundle should be valid
         for bundle in all_bundles:
@@ -286,7 +288,9 @@ class TestSubmissionBundleRetrievalAsync:
 
         # THEN I should get all bundles for the user in this evaluation
         assert all_bundles is not None
-        assert len(all_bundles) >= len(multiple_submissions)  # At least our test submissions
+        assert len(all_bundles) >= len(
+            multiple_submissions
+        )  # At least our test submissions
 
         # AND each bundle should be valid
         for bundle in all_bundles:
@@ -634,7 +638,7 @@ class TestSubmissionBundleEdgeCasesAsync:
             synapse_client=self.syn,
         ):
             eval_bundles.append(bundle)
-        
+
         user_bundles = []
         async for bundle in SubmissionBundle.get_user_submission_bundles_async(
             evaluation_id=test_evaluation.id,

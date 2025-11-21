@@ -5,7 +5,12 @@ from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient.api import evaluation_services
-from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync, otel_trace_method, wrap_async_generator_to_sync_generator
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    otel_trace_method,
+    skip_async_to_sync,
+    wrap_async_generator_to_sync_generator,
+)
 from synapseclient.models.mixins.access_control import AccessControllable
 
 
@@ -340,7 +345,7 @@ class Submission(
 
     version_number: Optional[int] = field(default=None, compare=False)
     """
-    The version number of the entity at submission. If not provided, it will be automatically retrieved from the entity.
+    The version number of the entity at submission. If not provided, it will be automatically retrieved from the entity. If entity is a Docker repository, this attribute should be ignored in favor of `docker_digest` or `docker_tag`.
     """
 
     evaluation_id: Optional[str] = None
@@ -387,6 +392,11 @@ class Submission(
     docker_digest: Optional[str] = None
     """
     For Docker repositories, the digest of the submitted Docker image.
+    """
+
+    docker_tag: Optional[str] = None
+    """
+    For Docker repositories, the tag of the submitted Docker image.
     """
 
     etag: Optional[str] = None
@@ -580,11 +590,11 @@ class Submission(
                 entity_info.get("concreteType")
                 == "org.sagebionetworks.repo.model.docker.DockerRepository"
             ):
-                self.version_number = (
-                    1  # TODO: Docker repositories do not have version numbers
-                )
                 self.docker_repository_name = entity_info.get("repositoryName")
                 self.docker_digest = entity_info.get("digest")
+                self.docker_tag = entity_info.get("tag")
+                # All docker repositories are assigned version number 1, even if they have multiple tags
+                self.version_number = 1
         else:
             raise ValueError("entity_id is required to create a submission")
 
