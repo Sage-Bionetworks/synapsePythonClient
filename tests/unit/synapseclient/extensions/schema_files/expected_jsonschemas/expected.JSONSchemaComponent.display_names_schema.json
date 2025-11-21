@@ -1,0 +1,211 @@
+{
+  "$id": "http://example.com/JSONSchemaComponent_validation",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Component to hold attributes for testing JSON Schemas",
+  "properties": {
+    "Component": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "Component"
+    },
+    "Date": {
+      "description": "TBD",
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+    },
+    "Enum": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "enum": [
+            "ab",
+            "cd",
+            "ef",
+            "gh"
+          ],
+          "title": "enum"
+        }
+      ],
+      "title": "Enum"
+    },
+    "EnumNotRequired": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "enum": [
+            "ab",
+            "cd",
+            "ef",
+            "gh"
+          ],
+          "title": "enum"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "Enum Not Required"
+    },
+    "InRange": {
+      "description": "TBD",
+      "maximum": 100.0,
+      "minimum": 50.0,
+      "title": "InRange",
+      "type": "number"
+    },
+    "List": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "title": "array",
+          "type": "array"
+        }
+      ],
+      "title": "List"
+    },
+    "ListEnum": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "items": {
+            "enum": [
+              "ab",
+              "cd",
+              "ef",
+              "gh"
+            ]
+          },
+          "title": "array",
+          "type": "array"
+        }
+      ],
+      "title": "List Enum"
+    },
+    "ListEnumNotRequired": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "items": {
+            "enum": [
+              "ab",
+              "cd",
+              "ef",
+              "gh"
+            ]
+          },
+          "title": "array",
+          "type": "array"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "List Enum Not Required"
+    },
+    "ListInRange": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "items": {
+            "maximum": 100.0,
+            "minimum": 50.0,
+            "type": "number"
+          },
+          "title": "array",
+          "type": "array"
+        }
+      ],
+      "title": "List InRange"
+    },
+    "ListNotRequired": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "title": "array",
+          "type": "array"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "List Not Required"
+    },
+    "ListString": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "title": "array",
+          "type": "array"
+        }
+      ],
+      "title": "List String"
+    },
+    "NoRules": {
+      "description": "TBD",
+      "not": {
+        "type": "null"
+      },
+      "title": "No Rules"
+    },
+    "NoRulesNotRequired": {
+      "description": "TBD",
+      "title": "No Rules Not Required"
+    },
+    "Regex": {
+      "description": "TBD",
+      "pattern": "[a-f]",
+      "title": "Regex",
+      "type": "string"
+    },
+    "String": {
+      "description": "TBD",
+      "title": "String",
+      "type": "string"
+    },
+    "StringNotRequired": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "title": "string",
+          "type": "string"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "String Not Required"
+    },
+    "URL": {
+      "description": "TBD",
+      "format": "uri",
+      "title": "URL",
+      "type": "string"
+    }
+  },
+  "required": [
+    "Component",
+    "Date",
+    "Enum",
+    "InRange",
+    "List",
+    "ListEnum",
+    "ListInRange",
+    "ListString",
+    "NoRules",
+    "Regex",
+    "String",
+    "URL"
+  ],
+  "title": "JSONSchemaComponent_validation",
+  "type": "object"
+}

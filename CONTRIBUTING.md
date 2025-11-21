@@ -93,7 +93,7 @@ copied to forks).
 #### Installing the Python Client in a virtual environment with pipenv
 Perform the following one-time steps to set up your local environment.
 
-1. This package uses Python, if you have not already, please install [pyenv](https://github.com/pyenv/pyenv#installation) to manage your Python versions. Versions supported by this package are all versions >=3.9 and <=3.13. If you do not install `pyenv` make sure that Python and `pip` are installed correctly and have been added to your PATH by running `python3 --version` and `pip3 --version`. If your installation was successful, your terminal will return the versions of Python and `pip` that you installed.  **Note**: If you have `pyenv` it will install a specific version of Python for you.
+1. This package uses Python, if you have not already, please install [pyenv](https://github.com/pyenv/pyenv#installation) to manage your Python versions. Versions supported by this package are all versions >=3.10 and <=3.14. If you do not install `pyenv` make sure that Python and `pip` are installed correctly and have been added to your PATH by running `python3 --version` and `pip3 --version`. If your installation was successful, your terminal will return the versions of Python and `pip` that you installed.  **Note**: If you have `pyenv` it will install a specific version of Python for you.
 
 2. Install `pipenv` by running `pip install pipenv`.
     - If you already have `pipenv` installed, ensure that the version is >=2023.9.8 to avoid compatibility issues.
@@ -222,6 +222,64 @@ When integration tests are ran in the Github CI/CD pipeline it will upload the t
 
 #### Integration testing for external collaborators
 As an external collaborator you will not have access to a development account and environment to run the integration tests against. Either request that a Sage Bionetworks staff member run your integration tests via a pull request, or, contact us via the [Service Desk](https://sagebionetworks.jira.com/servicedesk/customer/portal/9) to requisition a development account for integration testing only.
+
+### Managing Python version changes
+
+When adding support for a new Python version or dropping support for an old version, several files across the codebase and CI/CD pipelines must be updated to ensure consistency and proper testing coverage.
+
+#### Adding a new Python version
+
+When adding support for a new Python version (e.g., adding Python 3.15), update the following:
+
+**Code configuration files:**
+1. **`setup.cfg`**:
+   - Add the new version to the `classifiers` list under `[metadata]` (e.g., `Programming Language :: Python :: 3.15`)
+   - Update the `python_requires` constraint under `[options]` to include the new version (e.g., `>=3.10, <3.16`)
+
+2. **`pyproject.toml`**:
+   - Update the `target-version` list in the `[tool.black]` section to include the new version if needed
+
+3. **`Dockerfile`**:
+   - Update the base image to use the new Python version (e.g., `FROM python:3.15-slim`)
+
+**CI/CD configuration files:**
+1. **`.github/workflows/build.yml`**:
+   - Add the new version to the `python` matrix under the `test` job strategy
+   - Ensure the new version is included in integration test runs (typically the latest version should be tested)
+   - Update any Python version comments or documentation within the workflow
+
+**Testing:**
+- Run the full test suite (both unit and integration tests) on the new Python version locally before submitting a PR
+- Verify that all CI/CD pipelines pass with the new version included
+
+#### Dropping an old Python version
+
+When dropping support for an old Python version (e.g., removing Python 3.10), update the following:
+
+**Code configuration files:**
+1. **`setup.cfg`**:
+   - Remove the old version from the `classifiers` list under `[metadata]`
+   - Update the `python_requires` constraint under `[options]` to reflect the new minimum version (e.g., `>=3.11, <3.15`)
+
+2. **`pyproject.toml`**:
+   - Update the `target-version` list in the `[tool.black]` section to remove the old version
+
+3. **`Dockerfile`**:
+   - Ensure the base image uses a supported Python version
+
+**CI/CD configuration files:**
+1. **`.github/workflows/build.yml`**:
+   - Remove the old version from the `python` matrix under the `test` job strategy
+   - Update the cache key version (e.g., increment `v28` to `v29`) to invalidate old caches
+
+**Documentation:**
+- Update the README.md and any getting started documentation to reflect the new supported Python version range
+- Update CONTRIBUTING.md (this file) if it mentions specific Python versions in examples
+
+**Important considerations:**
+- Python version changes should be coordinated with a release and clearly communicated in release notes
+- Breaking compatibility with a Python version is a significant change and should typically coincide with a major or minor version bump
+- Always test thoroughly on the minimum and maximum supported Python versions before release
 
 ### Asynchronous methods
 [Asyncio](https://docs.python.org/3/library/asyncio.html) is the future of the Synapse

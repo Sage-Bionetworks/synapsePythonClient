@@ -176,7 +176,7 @@ class TestExernalStorage:
         )
 
         return (
-            self.syn.get(entity=folder_id),
+            await self.syn.get_async(entity=folder_id),
             destination,
             upload_destination["keyPrefixUUID"],
         )
@@ -208,7 +208,7 @@ class TestExernalStorage:
                     folder,
                     storage_location_setting,
                     _,
-                ) = self.syn.create_s3_storage_location(
+                ) = await self.syn.create_s3_storage_location_async(
                     parent=self.project.id,
                     folder_name=folder_name,
                     bucket_name=bucket_name,

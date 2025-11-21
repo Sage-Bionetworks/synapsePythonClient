@@ -19,6 +19,7 @@ service catalog EC2 instance. Mainly because this will purge your local Synapse 
 
 import asyncio
 import datetime
+import logging
 import os
 import shutil
 import subprocess  # nosec
@@ -38,10 +39,14 @@ from synapseclient.models import File, Folder, Project
 # from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 # from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-# trace.set_tracer_provider(
-#     TracerProvider(resource=Resource(attributes={SERVICE_NAME: "upload_benchmarking"}))
-# )
-# trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+# os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "https://ingest.us.signoz.cloud"
+# os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = "signoz-ingestion-key=<your key>"
+# os.environ["OTEL_SERVICE_INSTANCE_ID"] = "local"
+
+trace.set_tracer_provider(
+    TracerProvider(resource=Resource(attributes={SERVICE_NAME: "upload_benchmarking"}))
+)
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 tracer = trace.get_tracer("my_tracer")
 
 PARENT_PROJECT = "syn$FILL_ME_IN"
@@ -158,7 +163,7 @@ def cleanup(
             ["aws", "s3", "rm", S3_BUCKET, "--recursive", "--profile", S3_PROFILE]
         )  # nosec
     if delete_synapse:
-        for child in syn.getChildren(PARENT_PROJECT, includeTypes=["folder"]):
+        for child in syn.getChildren(PARENT_PROJECT, includeTypes=["folder", "file"]):
             syn.delete(child["id"])
         syn.cache.purge(after_date=datetime.datetime(2021, 1, 1))
 
@@ -212,6 +217,7 @@ def execute_synapseutils_test(
             manifestFile=manifest_path,
             sendMessages=False,
         )
+
         print(
             f"\nTime to sync to Synapse: {perf_counter() - time_before_syncToSynapse}"
         )
@@ -274,6 +280,78 @@ def execute_walk_test(
                 # Finish storing annotations on the file ---------------------------------
         print(
             f"\nTime to walk and sync tree: {perf_counter() - time_before_walking_tree}"
+        )
+
+
+def execute_walk_file_sequential(
+    path: str,
+    test_name: str,
+) -> None:
+    """Execute the test that uses os.walk to upload files/folders to Synapse sequentially.
+
+    This function uploads files one-by-one in a sequential pattern. Each file is uploaded
+    immediately after creation using asyncio.run(File.store_async()).
+
+    Arguments:
+        path: The path to the root directory containing files to upload
+        test_name: The name of the test to add to the span name and log file
+    """
+    with tracer.start_as_current_span(f"manual_walk__{test_name}"):
+        time_before_walking_tree = perf_counter()
+
+        # Create descriptive log file name with timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file_path = os.path.expanduser(
+            f"~/upload_benchmark_{test_name}_{timestamp}.log"
+        )
+        with open(log_file_path, "a") as log_file:
+            log_file.write(f"Test: {test_name}\n")
+            start_time = datetime.datetime.now()
+            log_file.write(f"Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+        # Create a simple parent lookup
+        parents = {path: PARENT_PROJECT}
+
+        for directory_path, directory_names, file_names in os.walk(path):
+            # Create folders on Synapse first
+            for directory_name in directory_names:
+                folder_path = os.path.join(directory_path, directory_name)
+                parent_id = parents[directory_path]
+
+                new_folder = Folder(name=directory_name, parent_id=parent_id)
+                # Store each folder immediately and save its Synapse ID
+                stored_folder = asyncio.run(new_folder.store_async())
+                parents[folder_path] = stored_folder.id
+
+            # Upload files one by one
+            for filename in file_names:
+                filepath = os.path.join(directory_path, filename)
+                parent_id = parents[directory_path]
+
+                new_file = File(
+                    path=filepath,
+                    parent_id=parent_id,
+                    annotations={
+                        "annot1": "value1",
+                        "annot2": 1,
+                        "annot3": 1.2,
+                        "annot4": True,
+                        "annot5": "2020-01-01",
+                    },
+                    description="This is a Test File",
+                )
+                # Upload this single file immediately
+                asyncio.run(new_file.store_async())
+
+        # Write end time and duration to log file
+        with open(log_file_path, "a") as log_file:
+            end_time = datetime.datetime.now()
+            duration = perf_counter() - time_before_walking_tree
+            log_file.write(f"End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            log_file.write(f"Duration: {duration:.2f} seconds\n")
+            log_file.write("-" * 50 + "\n")
+        print(
+            f"\nTime to walk and sync tree sequentially: {perf_counter() - time_before_walking_tree}"
         )
 
 
@@ -369,7 +447,13 @@ def execute_test_suite(
         num_files_per_directory=num_files_per_directory,
         total_size_of_files_mib=total_size_of_files_mib,
     )
-    test_name = f"{total_files}_files_{total_size_of_files_mib}MiB"
+
+    if total_size_of_files_mib >= 1024:
+        test_name = f"{total_files}_files_{total_size_of_files_mib // 1024}GiB"
+    else:
+        test_name = f"{total_files}_files_{total_size_of_files_mib}MiB"
+
+    # execute_walk_file_sequential(path, test_name)
 
     # execute_synapseutils_test(path, test_name)
 
@@ -380,8 +464,10 @@ def execute_test_suite(
     # execute_sync_to_s3(path, test_name)
 
 
-syn = synapseclient.Synapse(debug=False)
+syn = synapseclient.Synapse(debug=True, http_timeout_seconds=600)
+synapseclient.Synapse.enable_open_telemetry()
 root_path = os.path.expanduser("~/benchmarking")
+
 # Log-in with ~.synapseConfig `authToken`
 syn.login()
 
@@ -527,6 +613,21 @@ execute_test_suite(
 # sub_directories = 1
 # files_per_directory = 1
 # size_mib = 102400
+
+# execute_test_suite(
+#     path=root_path,
+#     depth_of_directory_tree=depth,
+#     num_sub_directories=sub_directories,
+#     num_files_per_directory=files_per_directory,
+#     total_size_of_files_mib=size_mib,
+# )
+
+# print("45 File - 100GB")
+# # 45 File - 100GB -----------------------------------------------------------------------
+# depth = 1
+# sub_directories = 1
+# files_per_directory = 45
+# size_mib = 45 * 100 * 1024
 
 # execute_test_suite(
 #     path=root_path,

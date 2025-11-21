@@ -78,8 +78,8 @@ async def test_synStore_sftpIntegration(syn, project, schedule_for_cleanup):
     """Creates a File Entity on an sftp server and add the external url."""
     filepath = utils.make_bogus_binary_file(1 * utils.MB - 777771)
     try:
-        file = syn.store(File(filepath, parent=project))
-        file2 = syn.get(file)
+        file = await syn.store_async(File(filepath, parent=project))
+        file2 = await syn.get_async(file)
         assert file.externalURL == file2.externalURL
         assert urlparse(file2.externalURL).scheme == "sftp"
 
@@ -114,9 +114,9 @@ async def test_synGet_sftpIntegration(syn, project):
     url = SFTPWrapper.upload_file(
         filepath, url=server_url, username=username, password=password
     )
-    file = syn.store(File(path=url, parent=project, synapseStore=False))
+    file = await syn.store_async(File(path=url, parent=project, synapseStore=False))
 
-    junk = syn.get(file, downloadLocation=os.getcwd(), downloadFile=True)
+    junk = await syn.get_async(file, downloadLocation=os.getcwd(), downloadFile=True)
     filecmp.cmp(filepath, junk.path)
 
 

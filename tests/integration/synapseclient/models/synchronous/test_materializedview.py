@@ -1,4 +1,4 @@
-import asyncio
+import time
 import uuid
 from typing import Callable
 
@@ -16,7 +16,7 @@ class TestMaterializedViewBasics:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def test_empty_defining_sql_validation(self, project_model: Project) -> None:
+    def test_empty_defining_sql_validation(self, project_model: Project) -> None:
         # GIVEN a MaterializedView with an empty defining SQL
         materialized_view = MaterializedView(
             name=str(uuid.uuid4()),
@@ -35,9 +35,7 @@ class TestMaterializedViewBasics:
             "and must not be the empty string." in str(e.value)
         )
 
-    async def test_table_without_columns_validation(
-        self, project_model: Project
-    ) -> None:
+    def test_table_without_columns_validation(self, project_model: Project) -> None:
         # GIVEN a table with no columns
         table_name = str(uuid.uuid4())
         table = Table(
@@ -63,7 +61,7 @@ class TestMaterializedViewBasics:
 
         assert f"400 Client Error: Schema for {table.id} is empty." in str(e.value)
 
-    async def test_invalid_sql_validation(self, project_model: Project) -> None:
+    def test_invalid_sql_validation(self, project_model: Project) -> None:
         # GIVEN a materialized view with invalid SQL
         materialized_view = MaterializedView(
             name=str(uuid.uuid4()),
@@ -82,7 +80,7 @@ class TestMaterializedViewBasics:
             "at line 1, column 1.\nWas expecting one of:" in str(e.value)
         )
 
-    async def test_create_and_retrieve_materialized_view(
+    def test_create_and_retrieve_materialized_view(
         self, project_model: Project
     ) -> None:
         # GIVEN a table with columns
@@ -124,7 +122,7 @@ class TestMaterializedViewBasics:
         assert new_materialized_view.id == materialized_view.id
         assert new_materialized_view.description == materialized_view_description
 
-    async def test_update_materialized_view(self, project_model: Project) -> None:
+    def test_update_materialized_view(self, project_model: Project) -> None:
         # GIVEN a table with columns
         table_name = str(uuid.uuid4())
         table = Table(
@@ -168,7 +166,7 @@ class TestMaterializedViewBasics:
         assert retrieved_materialized_view.description == new_description
         assert retrieved_materialized_view.defining_sql == new_sql
 
-    async def test_delete_materialized_view(self, project_model: Project) -> None:
+    def test_delete_materialized_view(self, project_model: Project) -> None:
         # GIVEN a table with columns
         table_name = str(uuid.uuid4())
         table = Table(
@@ -207,7 +205,7 @@ class TestMaterializedViewWithData:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def setup_table_with_data(self, project_model: Project) -> Table:
+    def setup_table_with_data(self, project_model: Project) -> Table:
         """Helper method to create a table with data for testing"""
         table_name = str(uuid.uuid4())
         table = Table(
@@ -227,9 +225,9 @@ class TestMaterializedViewWithData:
 
         return table
 
-    async def test_query_materialized_view(self, project_model: Project) -> None:
+    def test_query_materialized_view(self, project_model: Project) -> None:
         # GIVEN a table with data
-        table = await self.setup_table_with_data(project_model)
+        table = self.setup_table_with_data(project_model)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -250,9 +248,9 @@ class TestMaterializedViewWithData:
         assert query_result["name"].tolist() == ["Alice", "Bob"]
         assert query_result["age"].tolist() == [30, 25]
 
-    async def test_update_defining_sql(self, project_model: Project) -> None:
+    def test_update_defining_sql(self, project_model: Project) -> None:
         # GIVEN a table with data
-        table = await self.setup_table_with_data(project_model)
+        table = self.setup_table_with_data(project_model)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -268,7 +266,7 @@ class TestMaterializedViewWithData:
         materialized_view = materialized_view.store(synapse_client=self.syn)
 
         # AND querying the materialized view (with delay for eventual consistency)
-        asyncio.sleep(5)
+        time.sleep(5)
         query_result = materialized_view.query(
             f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
         )
@@ -285,7 +283,7 @@ class TestMaterializedViewWithData:
         assert "age" not in retrieved_view.columns.keys()
         assert "name" in retrieved_view.columns.keys()
 
-    async def test_materialized_view_reflects_table_updates(
+    def test_materialized_view_reflects_table_updates(
         self, project_model: Project
     ) -> None:
         # GIVEN a table with columns but no data
@@ -323,11 +321,11 @@ class TestMaterializedViewWithData:
         table.store_rows(data, synapse_client=self.syn)
 
         # AND querying again (with delay for eventual consistency)
-        asyncio.sleep(5)
+        time.sleep(5)
         query_result = materialized_view.query(
             f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
         )
-        await asyncio.sleep(5)
+        time.sleep(5)
         query_result = materialized_view.query(
             f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
         )
@@ -337,11 +335,11 @@ class TestMaterializedViewWithData:
         assert query_result["name"].tolist() == ["Alice", "Bob"]
         assert query_result["age"].tolist() == [30, 25]
 
-    async def test_materialized_view_reflects_table_data_removal(
+    def test_materialized_view_reflects_table_data_removal(
         self, project_model: Project
     ) -> None:
         # GIVEN a table with data
-        table = await self.setup_table_with_data(project_model)
+        table = self.setup_table_with_data(project_model)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -358,7 +356,7 @@ class TestMaterializedViewWithData:
         )
 
         # AND querying the materialized view (with delay for eventual consistency)
-        asyncio.sleep(5)
+        time.sleep(5)
         query_result = materialized_view.query(
             f"SELECT * FROM {materialized_view.id}", synapse_client=self.syn
         )
@@ -369,9 +367,9 @@ class TestMaterializedViewWithData:
         # THEN the query results should reflect the removed data
         assert len(query_result) == 0
 
-    async def test_query_part_mask(self, project_model: Project) -> None:
+    def test_query_part_mask(self, project_model: Project) -> None:
         # GIVEN a table with data
-        table = await self.setup_table_with_data(project_model)
+        table = self.setup_table_with_data(project_model)
 
         # AND a materialized view based on the table
         materialized_view = MaterializedView(
@@ -402,9 +400,7 @@ class TestMaterializedViewWithData:
         assert query_result.count == 2
         assert query_result.last_updated_on is not None
 
-    async def test_materialized_view_with_left_join(
-        self, project_model: Project
-    ) -> None:
+    def test_materialized_view_with_left_join(self, project_model: Project) -> None:
         # GIVEN two tables with related data
         table1 = Table(
             name=str(uuid.uuid4()),
@@ -459,9 +455,7 @@ class TestMaterializedViewWithData:
         assert result["age"][0] == 30
         assert pd.isna(result["age"][1])
 
-    async def test_materialized_view_with_right_join(
-        self, project_model: Project
-    ) -> None:
+    def test_materialized_view_with_right_join(self, project_model: Project) -> None:
         # GIVEN two tables with related data
         table1 = Table(
             name=str(uuid.uuid4()),
@@ -516,9 +510,7 @@ class TestMaterializedViewWithData:
         assert pd.isna(result["name"][1])
         assert result["age"].tolist() == [30, 40]
 
-    async def test_materialized_view_with_inner_join(
-        self, project_model: Project
-    ) -> None:
+    def test_materialized_view_with_inner_join(self, project_model: Project) -> None:
         # GIVEN two tables with related data
         table1 = Table(
             name=str(uuid.uuid4()),
@@ -572,7 +564,7 @@ class TestMaterializedViewWithData:
         assert result["name"].tolist() == ["Alice"]
         assert result["age"].tolist() == [30]
 
-    async def test_materialized_view_with_union(self, project_model: Project) -> None:
+    def test_materialized_view_with_union(self, project_model: Project) -> None:
         # GIVEN two tables with data
         table1 = Table(
             name=str(uuid.uuid4()),

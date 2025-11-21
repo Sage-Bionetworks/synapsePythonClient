@@ -10,4 +10,4 @@ synapseclient = {file = ".", path = "."}
 python_version = "3.12.6"
 
 [dev-packages]
-synapseclient = {file = ".", editable = true, path = ".", extras = ["dev", "tests", "pandas", "pysftp", "boto3", "docs"]}
+synapseclient = {file = ".", editable = true, path = ".", extras = ["dev", "tests", "pandas", "pysftp", "boto3", "docs", "curator"]}

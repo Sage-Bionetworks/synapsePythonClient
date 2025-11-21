@@ -73,6 +73,10 @@ RETRYABLE_CONNECTION_EXCEPTIONS = [
     "SSLZeroReturnError",
 ]
 
+NON_RETRYABLE_ERRORS = [
+    "is not a table or view",
+]
+
 DEBUG_EXCEPTION = "calling %s resulted in an Exception"
 
 
@@ -242,6 +246,7 @@ def _assign_default_values(
     retry_errors: List[str] = None,
     retry_exceptions: List[Union[Exception, str]] = None,
     verbose: bool = False,
+    non_retryable_errors: List[str] = None,
 ) -> Tuple[List[int], List[int], List[str], List[Union[Exception, str]], Logger]:
     """Assigns default values to the retry parameters."""
     if not retry_status_codes:
@@ -252,6 +257,8 @@ def _assign_default_values(
         retry_errors = []
     if not retry_exceptions:
         retry_exceptions = []
+    if not non_retryable_errors:
+        non_retryable_errors = NON_RETRYABLE_ERRORS
 
     if verbose:
         logger = logging.getLogger(DEBUG_LOGGER_NAME)
@@ -263,6 +270,7 @@ def _assign_default_values(
         retry_errors,
         retry_exceptions,
         logger,
+        non_retryable_errors,
     )
 
 
@@ -280,6 +288,7 @@ async def with_retry_time_based_async(
     retry_max_back_off: float = DEFAULT_MAX_BACK_OFF_ASYNC,
     retry_max_wait_before_failure: float = DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC,
     read_response_content: bool = True,
+    non_retryable_errors: List[str] = None,
 ) -> Union[Exception, httpx.Response, Any, None]:
     """
     Retries the given function under certain conditions. This is created such that it
@@ -306,6 +315,8 @@ async def with_retry_time_based_async(
         retry_max_back_off: The maximum wait time.
         retry_max_wait_before_failure: The maximum wait time before failure.
         read_response_content: Whether to read the response content for HTTP requests.
+        non_retryable_errors: List of strings that if found in the response or exception
+            message will prevent a retry from occurring.
 
     Example: Using with_retry
         Using ``with_retry_time_based_async`` to consolidate inputs into a list.
@@ -321,12 +332,14 @@ async def with_retry_time_based_async(
         retry_errors,
         retry_exceptions,
         logger,
+        non_retry_errors,
     ) = _assign_default_values(
         retry_status_codes=retry_status_codes,
         expected_status_codes=expected_status_codes,
         retry_errors=retry_errors,
         retry_exceptions=retry_exceptions,
         verbose=verbose,
+        non_retryable_errors=non_retryable_errors,
     )
 
     # Retry until we succeed or run past the maximum wait time
@@ -356,6 +369,7 @@ async def with_retry_time_based_async(
             retry_status_codes=retry_status_codes,
             retry_exceptions=retry_exceptions,
             retry_errors=retry_errors,
+            non_retryable_errors=non_retry_errors,
         )
 
         # Wait then retry
@@ -408,6 +422,7 @@ def with_retry_time_based(
     retry_max_back_off: float = DEFAULT_MAX_BACK_OFF_ASYNC,
     retry_max_wait_before_failure: float = DEFAULT_MAX_WAIT_BEFORE_FAIL_ASYNC,
     read_response_content: bool = True,
+    non_retryable_errors: List[str] = None,
 ) -> Union[Exception, httpx.Response, Any, None]:
     """
     Retries the given function under certain conditions. This is created such that it
@@ -434,6 +449,8 @@ def with_retry_time_based(
         retry_max_back_off: The maximum wait time.
         retry_max_wait_before_failure: The maximum wait time before failure.
         read_response_content: Whether to read the response content for HTTP requests.
+        non_retryable_errors: List of strings that if found in the response or exception
+            message will prevent a retry from occurring.
 
     Example: Using with_retry
         Using ``with_retry_time_based`` to consolidate inputs into a list.
@@ -449,12 +466,14 @@ def with_retry_time_based(
         retry_errors,
         retry_exceptions,
         logger,
+        non_retry_errors,
     ) = _assign_default_values(
         retry_status_codes=retry_status_codes,
         expected_status_codes=expected_status_codes,
         retry_errors=retry_errors,
         retry_exceptions=retry_exceptions,
         verbose=verbose,
+        non_retryable_errors=non_retryable_errors,
     )
 
     # Retry until we succeed or run past the maximum wait time
@@ -484,6 +503,7 @@ def with_retry_time_based(
             retry_status_codes=retry_status_codes,
             retry_exceptions=retry_exceptions,
             retry_errors=retry_errors,
+            non_retryable_errors=non_retry_errors,
         )
 
         # Wait then retry
@@ -530,6 +550,7 @@ def _is_retryable(
     retry_status_codes: List[int],
     retry_exceptions: List[Union[Exception, str]],
     retry_errors: List[str],
+    non_retryable_errors: List[str],
 ) -> bool:
     """Determines if a request should be retried based on the response and caught
     exception.
@@ -542,12 +563,23 @@ def _is_retryable(
         retry_status_codes: The status codes that should be retried.
         retry_exceptions: The exceptions that should be retried.
         retry_errors: The errors that should be retried.
+        non_retryable_errors: The errors that should not be retried.
 
     Returns:
         True if the request should be retried, False otherwise.
     """
+    response_message = None
     # Check if we got a retry-able HTTP error
     if response is not None and hasattr(response, "status_code"):
+        # First check for non-retryable error patterns even in retry status codes
+        if response.status_code in retry_status_codes:
+            response_message = response_message or _get_message(response)
+            # Check for non-retryable error patterns that should never be retried
+            if response_message and any(
+                [pattern in response_message for pattern in non_retryable_errors]
+            ):
+                return False
+
         if (
             expected_status_codes and response.status_code not in expected_status_codes
         ) or (response.status_code in retry_status_codes):
@@ -555,7 +587,7 @@ def _is_retryable(
 
         elif response.status_code not in range(200, 299):
             # For all other non 200 messages look for retryable errors in the body or reason field
-            response_message = _get_message(response)
+            response_message = response_message or _get_message(response)
             if (
                 any([msg.lower() in response_message.lower() for msg in retry_errors])
                 # special case for message throttling

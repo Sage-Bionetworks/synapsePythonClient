@@ -3,9 +3,12 @@ This file contains integration tests for methods in the :py:class:`Synapse` clas
 requests to the Synapse backend
 """
 
+# from unittest import skip
+
 from synapseclient import Column
 
 
+# @skip("Skip integration tests for soon to be removed code")
 async def test_createColumns(syn):
     columns_to_create = [
         Column(name="FirstTestColumn", columnType="INTEGER"),

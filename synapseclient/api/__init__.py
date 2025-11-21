@@ -16,6 +16,15 @@ from .configuration_services import (
     get_config_section_dict,
     get_transfer_config,
 )
+from .curation_services import (
+    create_curation_task,
+    delete_curation_task,
+    delete_grid_session,
+    get_curation_task,
+    list_curation_tasks,
+    list_grid_sessions,
+    update_curation_task,
+)
 from .entity_bundle_services_v2 import (
     get_entity_id_bundle2,
     get_entity_id_version_bundle2,
@@ -31,6 +40,7 @@ from .entity_services import (
     delete_entity_generated_by,
     delete_entity_provenance,
     get_activity,
+    get_child,
     get_children,
     get_entities_by_md5,
     get_entity,
@@ -52,6 +62,17 @@ from .entity_services import (
     set_entity_provenance,
     update_activity,
     update_entity_acl,
+)
+from .evaluation_services import (
+    create_or_update_evaluation,
+    delete_evaluation,
+    get_all_evaluations,
+    get_available_evaluations,
+    get_evaluation,
+    get_evaluation_acl,
+    get_evaluation_permissions,
+    get_evaluations_by_project,
+    update_evaluation_acl,
 )
 from .file_services import (
     AddPartResponse,
@@ -167,6 +188,7 @@ __all__ = [
     "get_activity",
     "create_activity",
     "update_activity",
+    "get_child",
     "get_children",
     "post_entity_acl",
     "put_entity_acl",
@@ -233,6 +255,14 @@ __all__ = [
     "get_membership_status",
     "delete_membership_invitation",
     "invite_to_team",
+    # curation_services
+    "create_curation_task",
+    "delete_curation_task",
+    "delete_grid_session",
+    "get_curation_task",
+    "list_curation_tasks",
+    "list_grid_sessions",
+    "update_curation_task",
     # user_services
     "get_user_bundle",
     "get_user_by_principal_id_or_name",
@@ -242,4 +272,14 @@ __all__ = [
     "is_user_certified",
     # table_services
     "create_table_snapshot",
+    # evaluation_services
+    "create_or_update_evaluation",
+    "get_evaluation",
+    "get_evaluations_by_project",
+    "get_all_evaluations",
+    "get_available_evaluations",
+    "delete_evaluation",
+    "get_evaluation_acl",
+    "update_evaluation_acl",
+    "get_evaluation_permissions",
 ]

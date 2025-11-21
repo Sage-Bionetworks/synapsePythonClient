@@ -149,7 +149,7 @@ class TestAsyncRetry:
         fail_and_succeed = [3, 2, 1]
 
         def fail_then_succeed(x):
-            if x == 503:
+            if x == 503 and fail_and_succeed:
                 count = fail_and_succeed.pop()
                 return count != 3
             return x == 503

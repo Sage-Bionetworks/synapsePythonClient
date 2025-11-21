@@ -74,15 +74,21 @@ class TestAcl:
         entity_name = str(uuid.uuid4()) + name_suffix
 
         if entity_type == Project:
-            entity = await Project(name=entity_name).store_async()
+            entity = await Project(name=entity_name).store_async(
+                synapse_client=self.syn
+            )
         elif entity_type == Folder:
-            entity = await Folder(name=entity_name).store_async(parent=project_model)
+            entity = await Folder(name=entity_name).store_async(
+                parent=project_model, synapse_client=self.syn
+            )
         elif entity_type == File:
             file_fixture.name = entity_name
-            entity = await file_fixture.store_async(parent=project_model)
+            entity = await file_fixture.store_async(
+                parent=project_model, synapse_client=self.syn
+            )
         elif entity_type == Table:
             table_fixture.name = entity_name
-            entity = await table_fixture.store_async()
+            entity = await table_fixture.store_async(synapse_client=self.syn)
         else:
             raise ValueError(f"Unsupported entity type: {entity_type}")
 
@@ -92,7 +98,9 @@ class TestAcl:
     async def create_team(self, description: str = DESCRIPTION_FAKE_TEAM) -> Team:
         """Helper to create a team with cleanup handling"""
         name = TEAM_PREFIX + str(uuid.uuid4())
-        team = await Team(name=name, description=description).create_async()
+        team = await Team(name=name, description=description).create_async(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(team)
         return team
 
@@ -109,7 +117,9 @@ class TestAcl:
         user = await UserProfile().get_async(synapse_client=self.syn)
 
         # WHEN getting the permissions for the user on the entity
-        permissions = await entity.get_acl_async(principal_id=user.id)
+        permissions = await entity.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
 
         # THEN the expected default admin permissions should be present
         expected_permissions = [
@@ -147,10 +157,13 @@ class TestAcl:
         await entity.set_permissions_async(
             principal_id=user.id,
             access_type=limited_permissions,
+            synapse_client=self.syn,
         )
 
         # WHEN getting the permissions for the user on the entity
-        permissions = await entity.get_acl_async(principal_id=user.id)
+        permissions = await entity.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
 
         # THEN only the limited permissions should be present
         assert set(limited_permissions) == set(permissions)
@@ -183,13 +196,18 @@ class TestAcl:
         await entity.set_permissions_async(
             principal_id=team.id,
             access_type=team_permissions,
+            synapse_client=self.syn,
         )
 
         # AND the user has no direct permissions
-        await entity.set_permissions_async(principal_id=user.id, access_type=[])
+        await entity.set_permissions_async(
+            principal_id=user.id, access_type=[], synapse_client=self.syn
+        )
 
         # WHEN getting the permissions for the user on the entity
-        permissions = await entity.get_acl_async(principal_id=user.id)
+        permissions = await entity.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
 
         # THEN the permissions should match the team's permissions
         assert set(team_permissions) == set(permissions)
@@ -227,19 +245,26 @@ class TestAcl:
         await entity.set_permissions_async(
             principal_id=team_1.id,
             access_type=team_1_permissions,
+            synapse_client=self.syn,
         )
 
         # AND the second team has only READ and DOWNLOAD permissions
         team_2_permissions = ["READ", "DOWNLOAD"]
         await entity.set_permissions_async(
-            principal_id=team_2.id, access_type=team_2_permissions
+            principal_id=team_2.id,
+            access_type=team_2_permissions,
+            synapse_client=self.syn,
         )
 
         # AND the user has no direct permissions
-        await entity.set_permissions_async(principal_id=user.id, access_type=[])
+        await entity.set_permissions_async(
+            principal_id=user.id, access_type=[], synapse_client=self.syn
+        )
 
         # WHEN getting the permissions for the user on the entity
-        permissions = await entity.get_acl_async(principal_id=user.id)
+        permissions = await entity.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
 
         # THEN the permissions should be the combined set from both teams
         expected_permissions = [
@@ -271,11 +296,15 @@ class TestAcl:
         user = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND public users have READ permission
-        await entity.set_permissions_async(principal_id=PUBLIC, access_type=["READ"])
+        await entity.set_permissions_async(
+            principal_id=PUBLIC, access_type=["READ"], synapse_client=self.syn
+        )
 
         # AND authenticated users have READ and DOWNLOAD permissions
         await entity.set_permissions_async(
-            principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
+            principal_id=AUTHENTICATED_USERS,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the user has specific permissions (excluding DOWNLOAD)
@@ -291,16 +320,19 @@ class TestAcl:
         await entity.set_permissions_async(
             principal_id=user.id,
             access_type=user_permissions,
+            synapse_client=self.syn,
         )
 
         # WHEN getting public permissions (no principal_id)
-        public_permissions = await entity.get_acl_async()
+        public_permissions = await entity.get_acl_async(synapse_client=self.syn)
 
         # THEN only public permissions should be present
         assert set(["READ"]) == set(public_permissions)
 
         # WHEN getting the permissions for the authenticated user
-        user_permissions = await entity.get_acl_async(principal_id=user.id)
+        user_permissions = await entity.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
 
         # THEN the permissions should include direct user permissions plus
         # permissions from authenticated users and public users
@@ -322,13 +354,13 @@ class TestAcl:
         # GIVEN a parent folder with default permissions
         parent_folder = await Folder(
             name=str(uuid.uuid4()) + "_parent_folder_test"
-        ).store_async(parent=project_model)
+        ).store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(parent_folder.id)
 
         # AND a subfolder created inside the parent folder
         subfolder = await Folder(
             name=str(uuid.uuid4()) + "_subfolder_test"
-        ).store_async(parent=parent_folder)
+        ).store_async(parent=parent_folder, synapse_client=self.syn)
         self.schedule_for_cleanup(subfolder.id)
 
         # AND the user that created the folders
@@ -345,13 +377,18 @@ class TestAcl:
         await subfolder.set_permissions_async(
             principal_id=user.id,
             access_type=limited_permissions,
+            synapse_client=self.syn,
         )
 
         # WHEN getting permissions for the subfolder
-        subfolder_permissions = await subfolder.get_acl_async(principal_id=user.id)
+        subfolder_permissions = await subfolder.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
 
         # AND getting permissions for the parent folder
-        parent_permissions = await parent_folder.get_acl_async(principal_id=user.id)
+        parent_permissions = await parent_folder.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
 
         # THEN the subfolder should have the limited permissions
         assert set(limited_permissions) == set(subfolder_permissions)
@@ -390,24 +427,30 @@ class TestAcl:
         await entity.set_permissions_async(
             principal_id=team.id,
             access_type=initial_team_permissions,
+            synapse_client=self.syn,
         )
 
         # WHEN verifying the team has the initial permissions
-        team_acl_before = await entity.get_acl_async(principal_id=team.id)
+        team_acl_before = await entity.get_acl_async(
+            principal_id=team.id, synapse_client=self.syn
+        )
         assert set(initial_team_permissions) == set(team_acl_before)
 
         # AND WHEN removing the team's permissions by setting access_type to empty list
         await entity.set_permissions_async(
             principal_id=team.id,
             access_type=[],  # Empty list to remove permissions
+            synapse_client=self.syn,
         )
 
         # THEN the team should have no permissions
-        team_acl_after = await entity.get_acl_async(principal_id=team.id)
+        team_acl_after = await entity.get_acl_async(
+            principal_id=team.id, synapse_client=self.syn
+        )
         assert team_acl_after == []
 
         # AND the team should not appear in the full ACL list with any permissions
-        all_acls = await entity.list_acl_async()
+        all_acls = await entity.list_acl_async(synapse_client=self.syn)
         team_acl_entries = [
             acl
             for acl in all_acls.entity_acl
@@ -419,7 +462,9 @@ class TestAcl:
 
         # AND other entities should still maintain their permissions (verify no side effects)
         user = await UserProfile().get_async(synapse_client=self.syn)
-        user_acl = await entity.get_acl_async(principal_id=user.id)
+        user_acl = await entity.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
         assert len(user_acl) > 0, "User permissions should remain intact"
 
     async def test_table_permissions(self, project_model: Project) -> None:
@@ -434,7 +479,7 @@ class TestAcl:
             columns=columns,
             parent_id=project_model.id,
         )
-        table = await table.store_async()
+        table = await table.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(table.id)
 
         # AND a test team
@@ -447,27 +492,35 @@ class TestAcl:
         await table.set_permissions_async(
             principal_id=team.id,
             access_type=team_permissions,
+            synapse_client=self.syn,
         )
 
         # Set authenticated users permissions
         await table.set_permissions_async(
             principal_id=AUTHENTICATED_USERS,
             access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         await asyncio.sleep(random.randint(1, 5))
 
         # THEN listing permissions should show all set permissions
         # Check team permissions
-        team_acl = await table.get_acl_async(principal_id=team.id)
+        team_acl = await table.get_acl_async(
+            principal_id=team.id, synapse_client=self.syn
+        )
         assert set(team_permissions) == set(team_acl)
 
         # Check authenticated users permissions
-        auth_acl = await table.get_acl_async(principal_id=AUTHENTICATED_USERS)
+        auth_acl = await table.get_acl_async(
+            principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
+        )
         assert set(["READ", "DOWNLOAD"]) == set(auth_acl)
 
         # Check user effective permissions (should include permissions from all sources)
-        user_effective_acl = await table.get_acl_async(principal_id=user.id)
+        user_effective_acl = await table.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
         expected_user_permissions = {
             "READ",
             "DELETE",
@@ -481,21 +534,27 @@ class TestAcl:
         assert expected_user_permissions.issubset(set(user_effective_acl))
 
         # AND listing all ACLs should return complete ACL information
-        all_acls = await table.list_acl_async()
+        all_acls = await table.list_acl_async(synapse_client=self.syn)
         assert isinstance(all_acls, AclListResult)
         assert len(all_acls.entity_acl) >= 3  # User, team, authenticated_users
 
         # WHEN deleting specific permissions for the team
-        await table.set_permissions_async(principal_id=team.id, access_type=[])
+        await table.set_permissions_async(
+            principal_id=team.id, access_type=[], synapse_client=self.syn
+        )
 
         await asyncio.sleep(random.randint(1, 5))
 
         # THEN team should no longer have permissions
-        team_acl_after_delete = await table.get_acl_async(principal_id=team.id)
+        team_acl_after_delete = await table.get_acl_async(
+            principal_id=team.id, synapse_client=self.syn
+        )
         assert team_acl_after_delete == []
 
         # BUT other permissions should remain
-        auth_acl_after = await table.get_acl_async(principal_id=AUTHENTICATED_USERS)
+        auth_acl_after = await table.get_acl_async(
+            principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
+        )
         assert set(["READ", "DOWNLOAD"]) == set(auth_acl_after)
 
     async def test_entity_view_permissions(self, project_model: Project) -> None:
@@ -507,7 +566,7 @@ class TestAcl:
             scope_ids=[project_model.id],
             view_type_mask=0x01,  # File view
         )
-        entity_view = await entity_view.store_async()
+        entity_view = await entity_view.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(entity_view.id)
 
         # AND test subjects
@@ -520,12 +579,14 @@ class TestAcl:
         await entity_view.set_permissions_async(
             principal_id=team.id,
             access_type=team_permissions,
+            synapse_client=self.syn,
         )
 
         # Set authenticated users permissions
         await entity_view.set_permissions_async(
             principal_id=AUTHENTICATED_USERS,
             access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # Set limited user permissions (remove some admin permissions)
@@ -540,50 +601,61 @@ class TestAcl:
         await entity_view.set_permissions_async(
             principal_id=user.id,
             access_type=limited_user_permissions,
+            synapse_client=self.syn,
         )
 
         await asyncio.sleep(random.randint(1, 5))
 
         # THEN listing permissions should reflect all changes
         # Verify team permissions
-        team_acl = await entity_view.get_acl_async(principal_id=team.id)
+        team_acl = await entity_view.get_acl_async(
+            principal_id=team.id, synapse_client=self.syn
+        )
         assert set(team_permissions) == set(team_acl)
 
         # Verify authenticated users permissions
-        auth_acl = await entity_view.get_acl_async(principal_id=AUTHENTICATED_USERS)
+        auth_acl = await entity_view.get_acl_async(
+            principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
+        )
         assert set(["READ", "DOWNLOAD"]) == set(auth_acl)
 
         # Verify user permissions include both direct and inherited permissions
-        user_acl = await entity_view.get_acl_async(principal_id=user.id)
+        user_acl = await entity_view.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
         expected_user_permissions = set(
             limited_user_permissions + ["DOWNLOAD"]
         )  # Includes auth users perm
         assert expected_user_permissions == set(user_acl)
 
         # Verify complete ACL listing
-        all_acls = await entity_view.list_acl_async()
+        all_acls = await entity_view.list_acl_async(synapse_client=self.syn)
         assert isinstance(all_acls, AclListResult)
         assert len(all_acls.entity_acl) >= 3  # User, team, authenticated_users
 
         # WHEN deleting authenticated users permissions
         await entity_view.set_permissions_async(
-            principal_id=AUTHENTICATED_USERS, access_type=[]
+            principal_id=AUTHENTICATED_USERS, access_type=[], synapse_client=self.syn
         )
 
         await asyncio.sleep(random.randint(1, 5))
 
         # THEN authenticated users should lose permissions
         auth_acl_after = await entity_view.get_acl_async(
-            principal_id=AUTHENTICATED_USERS
+            principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
         )
         assert auth_acl_after == []
 
         # AND user permissions should no longer include DOWNLOAD
-        user_acl_after = await entity_view.get_acl_async(principal_id=user.id)
+        user_acl_after = await entity_view.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
         assert set(limited_user_permissions) == set(user_acl_after)
 
         # BUT team permissions should remain
-        team_acl_after = await entity_view.get_acl_async(principal_id=team.id)
+        team_acl_after = await entity_view.get_acl_async(
+            principal_id=team.id, synapse_client=self.syn
+        )
         assert set(team_permissions) == set(team_acl_after)
 
     async def test_submission_view_permissions(self, project_model: Project) -> None:
@@ -594,8 +666,8 @@ class TestAcl:
             parent_id=project_model.id,
             scope_ids=[project_model.id],
         )
-        submission_view = await submission_view.store_async()
-        self.schedule_for_cleanup(submission_view.id)
+        submission_view = await submission_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submission_view)
 
         # AND test subjects
         team1 = await self.create_team(description=f"{DESCRIPTION_FAKE_TEAM} - team1")
@@ -608,6 +680,7 @@ class TestAcl:
         await submission_view.set_permissions_async(
             principal_id=team1.id,
             access_type=team1_permissions,
+            synapse_client=self.syn,
         )
 
         # Team2 gets read-only access with download
@@ -615,12 +688,14 @@ class TestAcl:
         await submission_view.set_permissions_async(
             principal_id=team2.id,
             access_type=team2_permissions,
+            synapse_client=self.syn,
         )
 
         # Public gets read access
         await submission_view.set_permissions_async(
             principal_id=PUBLIC,
             access_type=["READ"],
+            synapse_client=self.syn,
         )
 
         # User gets minimal direct permissions
@@ -628,58 +703,75 @@ class TestAcl:
         await submission_view.set_permissions_async(
             principal_id=user.id,
             access_type=user_direct_permissions,
+            synapse_client=self.syn,
         )
 
         await asyncio.sleep(random.randint(1, 5))
 
         # THEN listing permissions should show proper aggregation
         # Check individual team permissions
-        team1_acl = await submission_view.get_acl_async(principal_id=team1.id)
+        team1_acl = await submission_view.get_acl_async(
+            principal_id=team1.id, synapse_client=self.syn
+        )
         assert set(team1_permissions) == set(team1_acl)
 
-        team2_acl = await submission_view.get_acl_async(principal_id=team2.id)
+        team2_acl = await submission_view.get_acl_async(
+            principal_id=team2.id, synapse_client=self.syn
+        )
         assert set(team2_permissions) == set(team2_acl)
 
         # Check public permissions
-        public_acl = await submission_view.get_acl_async()
+        public_acl = await submission_view.get_acl_async(synapse_client=self.syn)
         assert set(["READ"]) == set(public_acl)
 
         # Check user effective permissions (should aggregate from all teams)
-        user_effective_acl = await submission_view.get_acl_async(principal_id=user.id)
+        user_effective_acl = await submission_view.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
         expected_effective = set(
             user_direct_permissions + team1_permissions + team2_permissions
         )
         assert expected_effective == set(user_effective_acl)
 
         # Verify complete ACL structure
-        all_acls = await submission_view.list_acl_async()
+        all_acls = await submission_view.list_acl_async(synapse_client=self.syn)
         assert isinstance(all_acls, AclListResult)
         assert len(all_acls.entity_acl) >= 4  # User, team1, team2, public
 
         # WHEN selectively deleting permissions
         # Remove PUBLIC and team permissions
-        await submission_view.set_permissions_async(principal_id=PUBLIC, access_type=[])
         await submission_view.set_permissions_async(
-            principal_id=team1.id, access_type=[]
+            principal_id=PUBLIC, access_type=[], synapse_client=self.syn
+        )
+        await submission_view.set_permissions_async(
+            principal_id=team1.id, access_type=[], synapse_client=self.syn
         )
 
         await asyncio.sleep(random.randint(1, 5))
 
         # THEN PUBLIC should lose all permissions
-        public_acl_after = await submission_view.get_acl_async(principal_id=PUBLIC)
+        public_acl_after = await submission_view.get_acl_async(
+            principal_id=PUBLIC, synapse_client=self.syn
+        )
         assert public_acl_after == []
 
         # AND team should lose all permissions
-        team_acl_after = await submission_view.get_acl_async(principal_id=team1.id)
+        team_acl_after = await submission_view.get_acl_async(
+            principal_id=team1.id, synapse_client=self.syn
+        )
         assert team_acl_after == []
 
         # AND user effective permissions should no longer include team1 permissions
-        user_effective_after = await submission_view.get_acl_async(principal_id=user.id)
+        user_effective_after = await submission_view.get_acl_async(
+            principal_id=user.id, synapse_client=self.syn
+        )
         expected_after = set(user_direct_permissions + team2_permissions)
         assert expected_after == set(user_effective_after)
 
         # BUT other permissions should remain unchanged
-        team2_acl_after = await submission_view.get_acl_async(principal_id=team2.id)
+        team2_acl_after = await submission_view.get_acl_async(
+            principal_id=team2.id, synapse_client=self.syn
+        )
         assert set(team2_permissions) == set(team2_acl_after)
 
 
@@ -694,7 +786,9 @@ class TestPermissionsForCaller:
     async def create_team(self, description: str = DESCRIPTION_FAKE_TEAM) -> Team:
         """Helper to create a team with cleanup handling"""
         name = TEAM_PREFIX + str(uuid.uuid4())
-        team = await Team(name=name, description=description).create_async()
+        team = await Team(name=name, description=description).create_async(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(team)
         return team
 
@@ -702,11 +796,11 @@ class TestPermissionsForCaller:
         # GIVEN a project created with default permissions
         project = await Project(
             name=str(uuid.uuid4()) + "_test_get_permissions_default"
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # WHEN getting the permissions for the current user
-        permissions = await project.get_permissions_async()
+        permissions = await project.get_permissions_async(synapse_client=self.syn)
 
         # THEN all default permissions should be present
         expected_permissions = [
@@ -725,17 +819,19 @@ class TestPermissionsForCaller:
         # GIVEN a project created with default permissions
         project = await Project(
             name=str(uuid.uuid4()) + "_test_get_permissions_limited"
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # AND the current user that created the project
         user = await UserProfile().get_async(synapse_client=self.syn)
 
         # AND the permissions for the user are set to READ only
-        await project.set_permissions_async(principal_id=user.id, access_type=["READ"])
+        await project.set_permissions_async(
+            principal_id=user.id, access_type=["READ"], synapse_client=self.syn
+        )
 
         # WHEN getting the permissions for the current user
-        permissions = await project.get_permissions_async()
+        permissions = await project.get_permissions_async(synapse_client=self.syn)
 
         # THEN READ and CHANGE_SETTINGS permissions should be present
         # Note: CHANGE_SETTINGS is bound to ownerId and can't be removed
@@ -750,7 +846,7 @@ class TestPermissionsForCaller:
         # AND a project created with default permissions
         project = await Project(
             name=str(uuid.uuid4()) + "_test_get_permissions_through_teams"
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # AND the current user that created the project
@@ -769,18 +865,23 @@ class TestPermissionsForCaller:
         await project.set_permissions_async(
             principal_id=team_1.id,
             access_type=team_1_permissions,
+            synapse_client=self.syn,
         )
 
         # AND team 2 has only READ and DOWNLOAD permissions
         await project.set_permissions_async(
-            principal_id=team_2.id, access_type=["READ", "DOWNLOAD"]
+            principal_id=team_2.id,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the user has no direct permissions
-        await project.set_permissions_async(principal_id=user.id, access_type=[])
+        await project.set_permissions_async(
+            principal_id=user.id, access_type=[], synapse_client=self.syn
+        )
 
         # WHEN getting the permissions for the current user
-        permissions = await project.get_permissions_async()
+        permissions = await project.get_permissions_async(synapse_client=self.syn)
 
         # THEN the effective permissions should be the combined permissions from both teams
         expected_permissions = [
@@ -799,7 +900,7 @@ class TestPermissionsForCaller:
         # GIVEN a project created with default permissions
         project = await Project(
             name=str(uuid.uuid4()) + "_test_get_permissions_authenticated"
-        ).store_async()
+        ).store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # AND the current user that created the project
@@ -807,7 +908,9 @@ class TestPermissionsForCaller:
 
         # AND authenticated users have READ and DOWNLOAD permissions
         await project.set_permissions_async(
-            principal_id=AUTHENTICATED_USERS, access_type=["READ", "DOWNLOAD"]
+            principal_id=AUTHENTICATED_USERS,
+            access_type=["READ", "DOWNLOAD"],
+            synapse_client=self.syn,
         )
 
         # AND the current user has specific permissions (without DOWNLOAD)
@@ -823,10 +926,11 @@ class TestPermissionsForCaller:
         await project.set_permissions_async(
             principal_id=user.id,
             access_type=user_permissions,
+            synapse_client=self.syn,
         )
 
         # WHEN getting the permissions for the current user
-        permissions = await project.get_permissions_async()
+        permissions = await project.get_permissions_async(synapse_client=self.syn)
 
         # THEN the permissions should include user permissions plus
         # the DOWNLOAD permission from authenticated users
@@ -874,11 +978,15 @@ class TestDeletePermissions:
         """Helper to set custom permissions on an entity so we can verify deletion."""
         # Set custom permissions for authenticated users
         await entity.set_permissions_async(
-            principal_id=AUTHENTICATED_USERS, access_type=["READ"]
+            principal_id=AUTHENTICATED_USERS,
+            access_type=["READ"],
+            synapse_client=self.syn,
         )
 
         # Verify permissions were set
-        acl = await entity.get_acl_async(principal_id=AUTHENTICATED_USERS)
+        acl = await entity.get_acl_async(
+            principal_id=AUTHENTICATED_USERS, synapse_client=self.syn
+        )
         assert "READ" in acl
 
         return acl
@@ -891,7 +999,9 @@ class TestDeletePermissions:
             await asyncio.sleep(random.randint(1, 5))
 
             acl = await entity.get_acl_async(
-                principal_id=AUTHENTICATED_USERS, check_benefactor=False
+                principal_id=AUTHENTICATED_USERS,
+                check_benefactor=False,
+                synapse_client=self.syn,
             )
 
             if not acl:
@@ -910,7 +1020,9 @@ class TestDeletePermissions:
         for attempt in range(self.verification_attempts):
             await asyncio.sleep(random.randint(1, 5))
             acl = await entity.get_acl_async(
-                principal_id=AUTHENTICATED_USERS, check_benefactor=False
+                principal_id=AUTHENTICATED_USERS,
+                check_benefactor=False,
+                synapse_client=self.syn,
             )
             if "READ" in acl:
                 return True
@@ -1297,7 +1409,9 @@ class TestDeletePermissions:
         caplog.set_level(logging.DEBUG)
 
         # GIVEN a newly created project with custom permissions
-        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async()
+        project = await Project(name=f"test_project_{uuid.uuid4()}").store_async(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(project.id)
 
         # AND custom permissions are set for authenticated users
@@ -1305,7 +1419,7 @@ class TestDeletePermissions:
         await asyncio.sleep(random.randint(1, 5))
 
         # WHEN I delete permissions on the project
-        await project.delete_permissions_async()
+        await project.delete_permissions_async(synapse_client=self.syn)
 
         # THEN the permissions should not be deleted
         # Check either for the log message or verify the permissions still exist

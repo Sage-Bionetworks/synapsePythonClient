@@ -6,8 +6,6 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Union
 
-from async_lru import alru_cache
-
 from synapseclient.api.api_client import rest_post_paginated_async
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import get_synid_and_version
@@ -180,7 +178,6 @@ async def get_entity(
         )
 
 
-@alru_cache(ttl=60)
 async def get_upload_destination(
     entity_id: str, *, synapse_client: Optional["Synapse"] = None
 ) -> Dict[str, Union[str, int]]:
@@ -1262,6 +1259,99 @@ async def get_children(
 
     async for child in response:
         yield child
+
+
+async def get_child(
+    entity_name: str,
+    parent_id: Optional[str] = None,
+    *,
+    synapse_client: Optional["Synapse"] = None,
+) -> Optional[str]:
+    """
+    Retrieve an entityId for a given parent ID and entity name.
+
+    This service can also be used to lookup projectId by setting the parentId to None.
+
+    This calls to the REST API found here: <https://rest-docs.synapse.org/rest/POST/entity/child.html>
+
+    Arguments:
+        entity_name: The name of the entity to find
+        parent_id: The parent ID. Set to None when looking up a project by name.
+        synapse_client: If not passed in and caching was not disabled by
+                       `Synapse.allow_client_caching(False)` this will use the last created
+                       instance from the Synapse class constructor.
+
+    Returns:
+        The entity ID if found, None if not found.
+
+    Raises:
+        SynapseHTTPError: If there's an error other than "not found" (404).
+
+    Example: Getting a child entity ID
+        Find a file by name within a folder:
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_child
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            entity_id = await get_child(
+                entity_name="my_file.txt",
+                parent_id="syn123456"
+            )
+            if entity_id:
+                print(f"Found entity: {entity_id}")
+            else:
+                print("Entity not found")
+
+        asyncio.run(main())
+        ```
+
+    Example: Getting a project by name
+        Find a project by name:
+
+        ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.api import get_child
+
+        syn = Synapse()
+        syn.login()
+
+        async def main():
+            project_id = await get_child(
+                entity_name="My Project",
+                parent_id=None  # None for projects
+            )
+            if project_id:
+                print(f"Found project: {project_id}")
+
+        asyncio.run(main())
+        ```
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    entity_lookup_request = {
+        "parentId": parent_id,
+        "entityName": entity_name,
+    }
+
+    try:
+        response = await client.rest_post_async(
+            uri="/entity/child", body=json.dumps(entity_lookup_request)
+        )
+        return response.get("id")
+    except SynapseHTTPError as e:
+        if e.response.status_code == 404:
+            # Entity not found
+            return None
+        raise
 
 
 async def set_entity_permissions(

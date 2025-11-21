@@ -8,10 +8,11 @@ from synapseclient import Project, Synapse, Wiki
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
 
+# from unittest import skip
 
-async def test_wikiAttachment(
-    syn: Synapse, project: Project, schedule_for_cleanup
-) -> None:
+
+# @skip("Skip integration tests for soon to be removed code")
+def test_wikiAttachment(syn: Synapse, project: Project, schedule_for_cleanup) -> None:
     # Upload a file to be attached to a Wiki
     filename = utils.make_bogus_data_file()
     attachname = utils.make_bogus_data_file()
@@ -81,7 +82,8 @@ async def test_wikiAttachment(
     pytest.raises(SynapseHTTPError, syn.getWiki, project)
 
 
-async def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
+# @skip("Skip integration tests for soon to be removed code")
+def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
     # create wiki once
     syn.store(
         Wiki(
@@ -104,7 +106,8 @@ async def test_create_or_update_wiki(syn: Synapse, project: Project) -> None:
     assert new_title == syn.getWiki(wiki.ownerId)["title"]
 
 
-async def test_wiki_version(syn: Synapse, project: Project) -> None:
+# @skip("Skip integration tests for soon to be removed code")
+def test_wiki_version(syn: Synapse, project: Project) -> None:
     # create a new project to avoid artifacts from previous tests
     project = syn.store(Project(name=str(uuid.uuid4())))
     wiki = syn.store(
@@ -129,9 +132,8 @@ async def test_wiki_version(syn: Synapse, project: Project) -> None:
     assert "version 2" in w2.markdown
 
 
-async def test_wiki_with_empty_string_parent_wiki_id(
-    syn: Synapse, project: Project
-) -> None:
+# @skip("Skip integration tests for soon to be removed code")
+def test_wiki_with_empty_string_parent_wiki_id(syn: Synapse, project: Project) -> None:
     # GIVEN a wiki is created with an empty string parentWikiId
     # WHEN it is stored
     wiki_stored = syn.store(

@@ -10,6 +10,7 @@ from synapseclient.models.agent import (
     AgentSession,
     AgentSessionAccessLevel,
 )
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC
 
 # These are the ID values for a "Hello World" agent registered on Synapse.
 # The Bedrock agent is hosted on Sage Bionetworks AWS infrastructure.
@@ -124,6 +125,8 @@ class TestAgentSession:
         await agent_session.prompt_async(
             prompt="hello",
             enable_trace=True,
+            timeout=ASYNC_JOB_TIMEOUT_SEC,
+            synapse_client=self.syn,
         )
         # AND I expect the chat history to be updated with the prompt and response
         assert len(agent_session.chat_history) == 1
@@ -198,7 +201,7 @@ class TestAgent:
         await agent.start_session_async(synapse_client=self.syn)
         # THEN I expect to be able to get the session with its id
         existing_session = await agent.get_session_async(
-            session_id=agent.current_session.id
+            session_id=agent.current_session.id, synapse_client=self.syn
         )
         # AND I expect those sessions to be the same
         assert existing_session == agent.current_session
@@ -213,7 +216,13 @@ class TestAgent:
             agent_registration_id=self.AGENT_REGISTRATION_ID
         ).start_async(synapse_client=self.syn)
         # WHEN I prompt the agent with a session
-        await agent.prompt_async(prompt="hello", enable_trace=True, session=session)
+        await agent.prompt_async(
+            prompt="hello",
+            enable_trace=True,
+            session=session,
+            timeout=ASYNC_JOB_TIMEOUT_SEC,
+            synapse_client=self.syn,
+        )
         test_session = agent.sessions[session.id]
         # THEN I expect the chat history to be updated with the prompt and response
         assert len(test_session.chat_history) == 1
@@ -230,7 +239,12 @@ class TestAgent:
         )
         # WHEN I prompt the agent without a current session set
         # and no session provided
-        await agent.prompt_async(prompt="hello", enable_trace=True)
+        await agent.prompt_async(
+            prompt="hello",
+            enable_trace=True,
+            timeout=ASYNC_JOB_TIMEOUT_SEC,
+            synapse_client=self.syn,
+        )
         # THEN I expect a new session to be started and set as the current session
         assert agent.current_session is not None
         # AND I expect the chat history to be updated with the prompt and response
