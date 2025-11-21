@@ -1,9 +1,21 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, AsyncGenerator, Dict, Generator, List, Optional, Protocol, Union
+from typing import (
+    TYPE_CHECKING,
+    AsyncGenerator,
+    Dict,
+    Generator,
+    Optional,
+    Protocol,
+    Union,
+)
 
 from synapseclient import Synapse
 from synapseclient.api import evaluation_services
-from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync, wrap_async_generator_to_sync_generator
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    skip_async_to_sync,
+    wrap_async_generator_to_sync_generator,
+)
 
 if TYPE_CHECKING:
     from synapseclient.models.submission import Submission

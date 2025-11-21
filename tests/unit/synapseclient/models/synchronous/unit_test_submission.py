@@ -614,9 +614,7 @@ class TestSubmission:
             # Mock the logger
             self.syn.logger = MagicMock()
 
-            await submission.cancel_async(
-                synapse_client=self.syn
-            )
+            await submission.cancel_async(synapse_client=self.syn)
 
             # THEN it should call the API, log the cancellation, and update the object
             mock_cancel_submission.assert_called_once_with(

@@ -112,10 +112,12 @@ class TestSubmissionBundleRetrieval:
     ):
         """Test getting submission bundles for an evaluation."""
         # WHEN I get submission bundles for an evaluation using generator
-        bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN I should get at least our test submission
         assert len(bundles) >= 1  # At least our test submission
@@ -151,7 +153,7 @@ class TestSubmissionBundleRetrieval:
         for bundle in bundles_generator:
             assert isinstance(bundle, SubmissionBundle)
             bundles.append(bundle)
-            
+
         # AND all bundles should be valid SubmissionBundle objects
         assert all(isinstance(bundle, SubmissionBundle) for bundle in bundles)
 
@@ -160,11 +162,13 @@ class TestSubmissionBundleRetrieval:
     ):
         """Test getting submission bundles filtered by status."""
         # WHEN I get submission bundles filtered by "RECEIVED" status
-        bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            status="RECEIVED",
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                status="RECEIVED",
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN the bundles should be retrieved
         assert bundles is not None
@@ -176,11 +180,13 @@ class TestSubmissionBundleRetrieval:
 
         # WHEN I attempt to get submission bundles with an invalid status
         with pytest.raises(SynapseHTTPError) as exc_info:
-            list(SubmissionBundle.get_evaluation_submission_bundles(
-                evaluation_id=test_evaluation.id,
-                status="NONEXISTENT_STATUS",
-                synapse_client=self.syn,
-            ))
+            list(
+                SubmissionBundle.get_evaluation_submission_bundles(
+                    evaluation_id=test_evaluation.id,
+                    status="NONEXISTENT_STATUS",
+                    synapse_client=self.syn,
+                )
+            )
         # THEN it should raise a SynapseHTTPError (400 for invalid enum)
         assert exc_info.value.response.status_code == 400
         assert "No enum constant" in str(exc_info.value)
@@ -191,10 +197,12 @@ class TestSubmissionBundleRetrieval:
     ):
         """Test generator behavior when getting submission bundles with multiple submissions."""
         # WHEN I get submission bundles using the generator
-        bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN I should get all available bundles (at least the ones we created)
         assert bundles is not None
@@ -206,27 +214,30 @@ class TestSubmissionBundleRetrieval:
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
         )
-        
+
         # THEN I should get the same bundles when iterating again
         bundles_second_iteration = list(bundles_generator)
         assert len(bundles_second_iteration) == len(bundles)
-        
+
         # AND all created submissions should be found
         bundle_submission_ids = {
             bundle.submission.id for bundle in bundles if bundle.submission
         }
         created_submission_ids = {sub.id for sub in multiple_submissions}
-        assert created_submission_ids.issubset(bundle_submission_ids), \
-            "All created submissions should be found in bundles"
+        assert created_submission_ids.issubset(
+            bundle_submission_ids
+        ), "All created submissions should be found in bundles"
 
     async def test_get_evaluation_submission_bundles_invalid_evaluation(self):
         """Test getting submission bundles for invalid evaluation ID."""
         # WHEN I try to get submission bundles for a non-existent evaluation
         with pytest.raises(SynapseHTTPError) as exc_info:
-            list(SubmissionBundle.get_evaluation_submission_bundles(
-                evaluation_id="syn999999999999",
-                synapse_client=self.syn,
-            ))
+            list(
+                SubmissionBundle.get_evaluation_submission_bundles(
+                    evaluation_id="syn999999999999",
+                    synapse_client=self.syn,
+                )
+            )
 
         # THEN it should raise a SynapseHTTPError (likely 403 or 404)
         assert exc_info.value.response.status_code in [403, 404]
@@ -236,10 +247,12 @@ class TestSubmissionBundleRetrieval:
     ):
         """Test getting user submission bundles for an evaluation."""
         # WHEN I get user submission bundles for an evaluation
-        bundles = list(SubmissionBundle.get_user_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_user_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN the bundles should be retrieved
         assert bundles is not None
@@ -266,10 +279,12 @@ class TestSubmissionBundleRetrieval:
     ):
         """Test generator behavior when getting user submission bundles with multiple submissions."""
         # WHEN I get user submission bundles using the generator
-        bundles = list(SubmissionBundle.get_user_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_user_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN I should get all available bundles (at least the ones we created)
         assert bundles is not None
@@ -281,18 +296,19 @@ class TestSubmissionBundleRetrieval:
             evaluation_id=test_evaluation.id,
             synapse_client=self.syn,
         )
-        
+
         # THEN I should get the same bundles when iterating again
         bundles_second_iteration = list(bundles_generator)
         assert len(bundles_second_iteration) == len(bundles)
-        
+
         # AND all created submissions should be found
         bundle_submission_ids = {
             bundle.submission.id for bundle in bundles if bundle.submission
         }
         created_submission_ids = {sub.id for sub in multiple_submissions}
-        assert created_submission_ids.issubset(bundle_submission_ids), \
-            "All created submissions should be found in user bundles"
+        assert created_submission_ids.issubset(
+            bundle_submission_ids
+        ), "All created submissions should be found in user bundles"
 
 
 class TestSubmissionBundleDataIntegrity:
@@ -369,10 +385,12 @@ class TestSubmissionBundleDataIntegrity:
     ):
         """Test that submission bundles maintain data consistency between submission and status."""
         # WHEN I get submission bundles for the evaluation
-        bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN I should find our test submission
         test_bundle = None
@@ -414,10 +432,12 @@ class TestSubmissionBundleDataIntegrity:
         updated_status = submission_status.store(synapse_client=self.syn)
 
         # AND I get submission bundles again
-        bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN the bundle should reflect the updated status
         test_bundle = None
@@ -445,10 +465,12 @@ class TestSubmissionBundleDataIntegrity:
     ):
         """Test that evaluation_id is properly propagated from submission to status."""
         # WHEN I get submission bundles
-        bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN find our test bundle
         test_bundle = None
@@ -503,10 +525,12 @@ class TestSubmissionBundleEdgeCases:
     ):
         """Test getting submission bundles from an evaluation with no submissions."""
         # WHEN I get submission bundles from an evaluation with no submissions
-        bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN it should return an empty list (not None or error)
         assert bundles is not None
@@ -518,10 +542,12 @@ class TestSubmissionBundleEdgeCases:
     ):
         """Test getting user submission bundles from an evaluation with no submissions."""
         # WHEN I get user submission bundles from an evaluation with no submissions
-        bundles = list(SubmissionBundle.get_user_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_user_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN it should return an empty list (not None or error)
         assert bundles is not None
@@ -533,10 +559,12 @@ class TestSubmissionBundleEdgeCases:
     ):
         """Test that the generator produces consistent results across multiple iterations."""
         # WHEN I request bundles using the generator
-        bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN it should work without error
         assert bundles is not None
@@ -548,10 +576,12 @@ class TestSubmissionBundleEdgeCases:
     ):
         """Test that user submission bundles generator handles empty results correctly."""
         # WHEN I request bundles from an empty evaluation
-        bundles = list(SubmissionBundle.get_user_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        bundles = list(
+            SubmissionBundle.get_user_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN it should return an empty list (not error)
         assert bundles is not None
@@ -563,14 +593,18 @@ class TestSubmissionBundleEdgeCases:
     ):
         """Test that default parameters work correctly."""
         # WHEN I call methods without optional parameters
-        eval_bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
-        user_bundles = list(SubmissionBundle.get_user_submission_bundles(
-            evaluation_id=test_evaluation.id,
-            synapse_client=self.syn,
-        ))
+        eval_bundles = list(
+            SubmissionBundle.get_evaluation_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
+        user_bundles = list(
+            SubmissionBundle.get_user_submission_bundles(
+                evaluation_id=test_evaluation.id,
+                synapse_client=self.syn,
+            )
+        )
 
         # THEN both should work with default values
         assert eval_bundles is not None

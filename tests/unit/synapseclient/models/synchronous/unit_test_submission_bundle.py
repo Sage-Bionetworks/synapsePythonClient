@@ -249,11 +249,13 @@ class TestSubmissionBundleSync:
             # Make the mock return our async generator when called
             mock_get_bundles.side_effect = mock_async_gen
 
-            result = list(SubmissionBundle.get_evaluation_submission_bundles(
-                evaluation_id=EVALUATION_ID,
-                status="RECEIVED",
-                synapse_client=self.syn,
-            ))
+            result = list(
+                SubmissionBundle.get_evaluation_submission_bundles(
+                    evaluation_id=EVALUATION_ID,
+                    status="RECEIVED",
+                    synapse_client=self.syn,
+                )
+            )
 
             # THEN the service should be called with correct parameters
             mock_get_bundles.assert_called_once_with(
@@ -300,10 +302,12 @@ class TestSubmissionBundleSync:
             # Make the mock return our async generator when called
             mock_get_bundles.side_effect = mock_async_gen
 
-            result = list(SubmissionBundle.get_evaluation_submission_bundles(
-                evaluation_id=EVALUATION_ID,
-                synapse_client=self.syn,
-            ))
+            result = list(
+                SubmissionBundle.get_evaluation_submission_bundles(
+                    evaluation_id=EVALUATION_ID,
+                    synapse_client=self.syn,
+                )
+            )
 
             # THEN the service should be called
             mock_get_bundles.assert_called_once_with(
@@ -349,10 +353,12 @@ class TestSubmissionBundleSync:
             # Make the mock return our async generator when called
             mock_get_user_bundles.side_effect = mock_async_gen
 
-            result = list(SubmissionBundle.get_user_submission_bundles(
-                evaluation_id=EVALUATION_ID,
-                synapse_client=self.syn,
-            ))
+            result = list(
+                SubmissionBundle.get_user_submission_bundles(
+                    evaluation_id=EVALUATION_ID,
+                    synapse_client=self.syn,
+                )
+            )
 
             # THEN the service should be called with correct parameters
             mock_get_user_bundles.assert_called_once_with(
@@ -390,10 +396,12 @@ class TestSubmissionBundleSync:
             # Make the mock return our async generator when called
             mock_get_user_bundles.side_effect = mock_async_gen
 
-            result = list(SubmissionBundle.get_user_submission_bundles(
-                evaluation_id=EVALUATION_ID,
-                synapse_client=self.syn,
-            ))
+            result = list(
+                SubmissionBundle.get_user_submission_bundles(
+                    evaluation_id=EVALUATION_ID,
+                    synapse_client=self.syn,
+                )
+            )
 
             # THEN the service should be called with default parameters
             mock_get_user_bundles.assert_called_once_with(

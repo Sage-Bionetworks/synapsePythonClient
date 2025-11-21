@@ -290,7 +290,7 @@ class TestSubmissionRetrievalAsync:
         async for submission in submissions_generator:
             assert isinstance(submission, Submission)
             submissions.append(submission)
-            
+
         # AND all submissions should be valid Submission objects
         assert all(isinstance(sub, Submission) for sub in submissions)
 
@@ -320,7 +320,7 @@ class TestSubmissionRetrievalAsync:
         async for submission in submissions_generator:
             assert isinstance(submission, Submission)
             submissions.append(submission)
-            
+
         # AND all submissions should be valid Submission objects
         assert all(isinstance(sub, Submission) for sub in submissions)
 
