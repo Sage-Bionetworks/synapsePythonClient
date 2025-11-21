@@ -192,32 +192,28 @@ class SubmissionSynchronousProtocol(Protocol):
             synapse_client=synapse_client,
         )
 
-    @staticmethod
+    @classmethod
     def get_user_submissions(
+        cls,
         evaluation_id: str,
         user_id: Optional[str] = None,
-        limit: int = 20,
-        offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> Generator["Submission", None, None]:
         """
-        Retrieves Submissions for a specified Evaluation queue and user.
+        Retrieves all user Submissions for a specified Evaluation queue.
         If user_id is omitted, this returns the submissions of the caller.
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
             user_id: Optionally specify the ID of the user whose submissions will be returned.
                     If omitted, this returns the submissions of the caller.
-            limit: Limits the number of submissions in a single response. Default to 20.
-            offset: The offset index determines where this page will start from.
-                    An index of 0 is the first submission. Default to 0.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
         Returns:
-            A response JSON containing a paginated list of user submissions for the evaluation queue.
+            Submission objects as they are retrieved from the API.
 
         Example: Getting user submissions
             ```python
@@ -227,15 +223,19 @@ class SubmissionSynchronousProtocol(Protocol):
             syn = Synapse()
             syn.login()
 
-            response = Submission.get_user_submissions(
+            submissions = list(Submission.get_user_submissions(
                 evaluation_id="9999999",
-                user_id="123456",
-                limit=10
-            )
-            print(f"Found {len(response['results'])} user submissions")
+                user_id="123456"
+            ))
+            print(f"Found {len(submissions)} user submissions")
             ```
         """
-        return {}
+        yield from wrap_async_generator_to_sync_generator(
+            async_gen_func=cls.get_user_submissions_async,
+            evaluation_id=evaluation_id,
+            user_id=user_id,
+            synapse_client=synapse_client,
+        )
 
     @staticmethod
     def get_submission_count(
@@ -706,32 +706,29 @@ class Submission(
             submission_object = cls().fill_from_dict(synapse_submission=submission_data)
             yield submission_object
 
-    @staticmethod
+    @skip_async_to_sync
+    @classmethod
     async def get_user_submissions_async(
+        cls,
         evaluation_id: str,
         user_id: Optional[str] = None,
-        limit: int = 20,
-        offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> AsyncGenerator["Submission", None]:
         """
-        Retrieves Submissions for a specified Evaluation queue and user.
+        Generator to get all user Submissions for a specified Evaluation queue.
         If user_id is omitted, this returns the submissions of the caller.
 
         Arguments:
             evaluation_id: The ID of the evaluation queue.
             user_id: Optionally specify the ID of the user whose submissions will be returned.
                     If omitted, this returns the submissions of the caller.
-            limit: Limits the number of submissions in a single response. Default to 20.
-            offset: The offset index determines where this page will start from.
-                    An index of 0 is the first submission. Default to 0.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
 
-        Returns:
-            A response JSON containing a paginated list of user submissions for the evaluation queue.
+        Yields:
+            Individual Submission objects from each page of the response.
 
         Example: Getting user submissions
             ```python
@@ -743,23 +740,24 @@ class Submission(
             syn.login()
 
             async def get_user_submissions_example():
-                response = await Submission.get_user_submissions_async(
+                submissions = []
+                async for submission in Submission.get_user_submissions_async(
                     evaluation_id="9999999",
-                    user_id="123456",
-                    limit=10
-                )
-                print(f"Found {len(response['results'])} user submissions")
+                    user_id="123456"
+                ):
+                    submissions.append(submission)
+                print(f"Found {len(submissions)} user submissions")
 
             asyncio.run(get_user_submissions_example())
             ```
         """
-        return await evaluation_services.get_user_submissions(
+        async for submission_data in evaluation_services.get_user_submissions(
             evaluation_id=evaluation_id,
             user_id=user_id,
-            limit=limit,
-            offset=offset,
             synapse_client=synapse_client,
-        )
+        ):
+            submission_object = cls().fill_from_dict(synapse_submission=submission_data)
+            yield submission_object
 
     @staticmethod
     async def get_submission_count_async(
