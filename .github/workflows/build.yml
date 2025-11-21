@@ -310,13 +310,13 @@ jobs:
           echo "::error::Integration tests failed after ${{ github.run_attempt }} attempt(s)"
           exit 1
 
-  #     - name: Upload coverage report
-  #       id: upload_coverage_report
-  #       uses: actions/upload-artifact@v4
-  #       if: ${{ contains(fromJSON('["3.13"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
-  #       with:
-  #         name: coverage-report
-  #         path: coverage.xml
+      - name: Upload coverage report
+        id: upload_coverage_report
+        uses: actions/upload-artifact@v4
+        if: ${{ contains(fromJSON('["3.13"]'), matrix.python) && contains(fromJSON('["ubuntu-22.04"]'), matrix.os)}}
+        with:
+          name: coverage-report
+          path: coverage.xml
 
   sonarcloud:
     needs: [test]
@@ -469,10 +469,8 @@ jobs:
 
   # build standalone desktop client artifacts for Windows and macOS on release
   build-electron-desktop-clients:
-    # TODO: Revert me
-    # needs: [test, pre-commit]
-    needs: [pre-commit]
-    # if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'synapsedesktopclient')
+    needs: [test, pre-commit]
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'synapsedesktopclient')
 
     strategy:
       matrix:
