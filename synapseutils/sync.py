@@ -9,16 +9,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from typing import (
-    TYPE_CHECKING,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Dict, Iterable, List, NamedTuple, Tuple, Union
 
 from deprecated import deprecated
 from tqdm import tqdm
@@ -39,6 +30,7 @@ from synapseclient.core.exceptions import (
     SynapseProvenanceError,
 )
 from synapseclient.core.transfer_bar import shared_download_progress_bar
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 from synapseclient.core.upload.multipart_upload_async import (
     shared_progress_bar as upload_shared_progress_bar,
 )
@@ -57,9 +49,6 @@ from .monitor import notify_me_async
 
 if TYPE_CHECKING:
     from synapseclient.models import Folder, Project
-
-
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 # When new fields are added to the manifest they will also need to be added to
 # file.py#_determine_fields_to_ignore_in_merge

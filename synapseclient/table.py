@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 from builtins import zip
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.exceptions import SynapseError
@@ -51,6 +51,8 @@ from .evaluation import Evaluation
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
+
+from synapseclient.core.typing_utils import DataFrame as DataFrameType
 
 aggregate_pattern = re.compile(r"(count|max|min|avg|sum)\((.+)\)")
 
@@ -82,8 +84,6 @@ MAX_NUM_TABLE_COLUMNS = 152
 DEFAULT_QUOTE_CHARACTER = '"'
 DEFAULT_SEPARATOR = ","
 DEFAULT_ESCAPSE_CHAR = "\\"
-
-DataFrameType = TypeVar("pd.DataFrame")
 
 
 # This Enum is used to help users determine which Entity types they want in their view

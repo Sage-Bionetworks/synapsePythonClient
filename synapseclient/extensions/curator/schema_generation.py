@@ -14,6 +14,7 @@ from logging import Logger
 from pathlib import Path
 from string import whitespace
 from typing import (
+    TYPE_CHECKING,
     AbstractSet,
     Any,
     Callable,
@@ -59,12 +60,19 @@ except ImportError:
     Namespace = None  # type: ignore
 
 from synapseclient import Synapse
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.typing_utils import np, nx
 
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
-NUMPY_INT_64 = TypeVar("np.int64")
-MULTI_GRAPH_TYPE = TypeVar("nx.MultiDiGraph")
-GRAPH_TYPE = TypeVar("nx.Graph")
-DI_GRAPH_TYPE = TypeVar("nx.DiGraph")
+if TYPE_CHECKING:
+    NUMPY_INT_64 = np.int64
+    MULTI_GRAPH_TYPE = nx.MultiDiGraph
+    GRAPH_TYPE = nx.Graph
+    DI_GRAPH_TYPE = nx.DiGraph
+else:
+    NUMPY_INT_64 = object
+    MULTI_GRAPH_TYPE = object
+    GRAPH_TYPE = object
+    DI_GRAPH_TYPE = object
 
 X = TypeVar("X")
 

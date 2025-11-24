@@ -11,7 +11,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Protocol, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -35,6 +35,8 @@ from synapseclient.core.download.download_functions import (
     ensure_download_location_is_directory,
 )
 from synapseclient.core.exceptions import SynapseTimeoutError
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.typing_utils import Series as SERIES_TYPE
 from synapseclient.core.upload.multipart_upload_async import (
     multipart_upload_dataframe_async,
     multipart_upload_file_async,
@@ -107,9 +109,6 @@ RESERVED_COLUMN_NAMES = [
     "ROW_SEARCH_CONTENT",
     "ROW_HASH_CODE",
 ]
-
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
-SERIES_TYPE = TypeVar("pd.Series")
 
 LIST_COLUMN_TYPES = {
     "STRING_LIST",

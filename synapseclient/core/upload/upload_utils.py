@@ -3,9 +3,9 @@
 import math
 import re
 from io import BytesIO, StringIO
-from typing import Any, Dict, Optional, TypeVar, Union
+from typing import Any, Dict, Optional, Union
 
-DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
+from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
 
 
 def get_partial_dataframe_chunk(
