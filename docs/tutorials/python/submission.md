@@ -33,6 +33,36 @@ As an organizer of a Synapse challenge, you will
 1. Delete submissions
 
 ## Prerequisites
-*
+* You have completed the [Evaluation](./evaluation.md) tutorial, or have an existing Evaluation on Synapse to work from
+* You have an existing entity with which to make a submission (can be a File or Docker Repository)
+* You have the correct permissions on the Evaluation queue for your desired tutorial section (participant or organizer)
 
-## 1.
+## 1. Participating in a Synapse challenge
+
+### 1. Make a submission to an existing evaluation queue on Synapse
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission.py!lines=5-46}
+```
+
+### 2. Fetch your existing submission
+
+### 3. Count your submissions
+
+### 4. Fetch all of your submissions from an existing evaluation queue on Synapse
+
+### 5. Check the status of your submission
+
+### 6. Cancel your submission
+
+## 2. Organizing a Synapse challenge
+
+### 1. Annotate a submission to score it
+
+### 2. Batch-update submission statuses
+
+### 3. Fetch the submission bundle for a given submission
+
+### 4. Allow cancellation of submissions
+
+### 5. Delete submissions
