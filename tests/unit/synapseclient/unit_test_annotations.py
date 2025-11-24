@@ -485,3 +485,47 @@ def test_check_annotations_changed():
     }
     mock_new_annotations = {"boo": 456, "far": 789}
     assert check_annotations_changed(mock_bundle_annotations, mock_new_annotations)
+
+
+def test_from_synapse_annotations__boolean_mixed_case():
+    """Test that boolean values with random mixed cases are correctly parsed"""
+    # Test various mixed case combinations of 'true' and 'false'
+    raw_annotations = {
+        "id": "syn123",
+        "etag": "7bdb83e9-a50a-46e4-987a-4962559f090f",
+        "annotations": {
+            "bool1": {"type": "BOOLEAN", "value": ["True"]},
+            "bool2": {"type": "BOOLEAN", "value": ["TRUE"]},
+            "bool3": {"type": "BOOLEAN", "value": ["true"]},
+            "bool4": {"type": "BOOLEAN", "value": ["TrUe"]},
+            "bool5": {"type": "BOOLEAN", "value": ["False"]},
+            "bool6": {"type": "BOOLEAN", "value": ["FALSE"]},
+            "bool7": {"type": "BOOLEAN", "value": ["false"]},
+            "bool8": {"type": "BOOLEAN", "value": ["FaLsE"]},
+            "bool9": {
+                "type": "BOOLEAN",
+                "value": ["true", "FALSE", "TrUe", "false"],
+            },
+        },
+    }
+
+    result = from_synapse_annotations(raw_annotations)
+
+    # All variations of 'true' should be parsed as True
+    assert result["bool1"] == [True]
+    assert result["bool2"] == [True]
+    assert result["bool3"] == [True]
+    assert result["bool4"] == [True]
+
+    # All variations of 'false' should be parsed as False
+    assert result["bool5"] == [False]
+    assert result["bool6"] == [False]
+    assert result["bool7"] == [False]
+    assert result["bool8"] == [False]
+
+    # Mixed list should be parsed correctly
+    assert result["bool9"] == [True, False, True, False]
+
+    # Verify id and etag are preserved
+    assert result.id == "syn123"
+    assert result.etag == "7bdb83e9-a50a-46e4-987a-4962559f090f"
