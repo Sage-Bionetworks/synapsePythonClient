@@ -28,6 +28,7 @@ nav:
           - Folder: tutorials/python/folder.md
           - File: tutorials/python/file.md
           - Evaluation: tutorials/python/evaluation.md
+          - Submission: tutorials/python/submission.md
           - Annotation: tutorials/python/annotation.md
           # - Versions: tutorials/python/versions.md
           # - Activity/Provenance: tutorials/python/activity.md
@@ -89,6 +90,9 @@ nav:
           - Folder: reference/experimental/sync/folder.md
           - File: reference/experimental/sync/file.md
           - Evaluation: reference/experimental/sync/evaluation.md
+          - Submission: reference/experimental/sync/submission.md
+          - SubmissionStatus: reference/experimental/sync/submission_status.md
+          - SubmissionBundle: reference/experimental/sync/submission_bundle.md
           - Table: reference/experimental/sync/table.md
           - VirtualTable: reference/experimental/sync/virtualtable.md
           - Dataset: reference/experimental/sync/dataset.md
@@ -113,6 +117,9 @@ nav:
               - Folder: reference/experimental/async/folder.md
               - File: reference/experimental/async/file.md
               - Evaluation: reference/experimental/async/evaluation.md
+              - Submission: reference/experimental/async/submission.md
+              - SubmissionStatus: reference/experimental/async/submission_status.md
+              - SubmissionBundle: reference/experimental/async/submission_bundle.md
               - Table: reference/experimental/async/table.md
               - VirtualTable: reference/experimental/async/virtualtable.md
               - Dataset: reference/experimental/async/dataset.md

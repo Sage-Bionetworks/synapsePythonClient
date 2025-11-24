@@ -10,5 +10,5 @@ at your own risk.
     options:
         inherited_members: true
         members:
-            - get_evaluation_submission_bundles 
-            - get_user_submission_bundles 
+            - get_evaluation_submission_bundles
+            - get_user_submission_bundles
