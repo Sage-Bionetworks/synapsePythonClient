@@ -659,6 +659,7 @@ class DataModelCSVParser:
         # Check for presence of optional columns
         model_includes_column_type = "columnType" in model_df.columns
         model_includes_format = "Format" in model_df.columns
+        model_includes_pattern = "Pattern" in model_df.columns
 
         # Build attribute/relationship dictionary
         relationship_types = self.required_headers
@@ -696,6 +697,10 @@ class DataModelCSVParser:
                 maximum_dict = self.parse_minimum_maximum(attr, "Maximum")
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     maximum_dict
+            if model_includes_pattern:
+                pattern_dict = self.parse_pattern(attr)
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    pattern_dict
                 )
         return attr_rel_dictionary
 
@@ -797,6 +802,26 @@ class DataModelCSVParser:
         )
 
         return {"Format": format_string}
+
+    def parse_pattern(self, attribute_dict: dict) -> dict[str, str]:
+        """Finds the pattern value if it exists and returns it as a dictionary.
+
+        Args:
+            attribute_dict: The attribute dictionary.
+        Returns:
+            A dictionary containing the pattern value if it exists
+            else an empty dict
+        """
+        from pandas import isna
+
+        pattern_value = attribute_dict.get("Pattern")
+
+        if isna(pattern_value):
+            return {}
+
+        pattern_string = str(pattern_value).strip()
+
+        return {"Pattern": pattern_string}
 
     def parse_csv_model(
         self,
@@ -3012,6 +3037,11 @@ class DataModelRelationships:
                 "csv_header": "Minimum",
                 "node_label": "minimum",
                 "type": Union[float, int],
+            "pattern": {
+                "jsonld_key": "sms:pattern",
+                "csv_header": "Pattern",
+                "node_label": "pattern",
+                "type": str,
                 "required_header": False,
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
