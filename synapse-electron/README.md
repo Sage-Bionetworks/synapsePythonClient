@@ -264,3 +264,128 @@ When incrementing the desktop application for a release, there are **2 versions*
    - **IMPORTANT**: Check the "Set as a pre-release" checkbox
 
 **Note**: Replace `X.Y.Z` with the actual semantic version numbers (e.g., `1.2.3`).
+
+
+
+# macOS Code Signing: Artifact Generation Guide
+
+**Focus:** Developer ID Application Certificate (for signing `.app` bundles)
+
+## Phase 1: Generating the Request (CSR)
+
+*Context:* You must generate a certificate signing request on your local Mac to create the Private Key.
+
+1.  **Open Keychain Access** and go to **Certificate Assistant** \> **Request a Certificate From a Certificate Authority...**
+2.  **Generate Request:**
+      * **User Email:** Your Apple ID email.
+      * **Common Name:** `[Company] App Signer` (Use a distinct name).
+      * **Request is:** Saved to disk.
+      * **Save as:** `Application_Request.csr`.
+
+> **Crucial:** Do not delete the new **Private Key** (named `[Company] App Signer`) that appears in your Keychain. This is the "lock" waiting for the certificate.
+
+-----
+
+## Phase 2: The Apple Portal Handoff
+
+*Context:* The Account Holder must use the specific file generated above.
+
+**Instructions for Account Holder:**
+
+1.  **Revoke** any previous/failed certificates to prevent confusion.
+2.  Go to **Certificates**, click **(+)**.
+3.  Select **Developer ID Application**.
+4.  Upload `Application_Request.csr`.
+5.  **Download and send back** the resulting `.cer` file (e.g., `developerID_application.cer`).
+
+-----
+
+## Phase 3: Import & Export (The Keychain Step)
+
+*Context:* You must pair the downloaded certificate with your local private key and export it.
+
+1.  **Import:** Double-click the `.cer` file to install it into your **login** keychain.
+2.  **Force Combine & Export:**
+      * Select the **"All Items"** tab in Keychain Access.
+      * Search for your Common Name (e.g., "App Signer").
+      * Hold **Command (⌘)** and select **BOTH** the **Developer ID Application Certificate** AND the matching **Private Key**.
+      * **Right-click** on the highlighted selection \> **Export 2 items...**.
+      * **File Format:** `.p12`.
+      * **Save as:** `certificate-application.p12`.
+      * **Password:** Set a temporary password (e.g., `temp123`). *You will need this in the next step.*
+
+-----
+
+## Phase 4: Re-encrypt for CI/CD (The OpenSSL Step)
+
+*Context:* Legacy `.p12` files exported from macOS often use RC2-40-CBC encryption, which causes "MAC verification failed" errors in modern GitHub Actions runners. You must re-encrypt the file using AES-256.
+
+**Run the following commands in your terminal where you saved `certificate-application.p12`:**
+
+### Step 1: Extract Certificate and Private Key
+
+*Note: Replace `OLD_COMPLEX_PASSWORD` with the password you set in Phase 3.*
+
+```bash
+# Extract certificate (use -legacy flag to handle macOS RC2-40-CBC encryption)
+openssl pkcs12 -legacy -in certificate-application.p12 -clcerts -nokeys -out cert.pem -passin pass:'OLD_COMPLEX_PASSWORD'
+
+# Extract private key
+openssl pkcs12 -legacy -in certificate-application.p12 -nocerts -out key.pem -passin pass:'OLD_COMPLEX_PASSWORD' -passout pass:temppass
+```
+
+### Step 2: Re-encrypt with Modern AES-256-CBC
+
+*Note: Replace `NEW_SIMPLE_PASSWORD` with a strong, simple password (avoid special characters like $ or \! to prevent shell escaping issues in CI).*
+
+```bash
+# Create new p12 with AES-256-CBC encryption and SHA256 MAC
+openssl pkcs12 -export \
+  -out certificate-new.p12 \
+  -inkey key.pem \
+  -in cert.pem \
+  -passin pass:temppass \
+  -passout pass:'NEW_SIMPLE_PASSWORD' \
+  -keypbe AES-256-CBC \
+  -certpbe AES-256-CBC \
+  -macalg sha256
+```
+
+### Step 3: Verify and Encode
+
+Validate the file before uploading to GitHub.
+
+```bash
+# 1. Test that the new password works
+openssl pkcs12 -in certificate-new.p12 -nokeys -passin pass:'NEW_SIMPLE_PASSWORD' -passout pass:dummy -info -nodes
+
+# 2. Clean up temp files
+rm key.pem cert.pem
+
+# 3. Create the Base64 String for GitHub Secrets (No newlines)
+base64 -i certificate-new.p12 | tr -d '\n' > cert_single_line.b64
+```
+
+> **Expected Verification Output:**
+> You should see `PKCS7 Encrypted data: PBES2, PBKDF2, AES-256-CBC` and `MAC: sha256`.
+
+-----
+
+## Phase 5: Final Artifact Checklist
+
+You are ready to configure GitHub Actions. Ensure you have these items saved:
+
+1.  [ ] **`cert_single_line.b64`** (The file content to paste into GitHub Secret `MACOS_CERTIFICATE`)
+2.  [ ] **`NEW_SIMPLE_PASSWORD`** (The string to paste into GitHub Secret `MACOS_CERTIFICATE_PASSWORD`)
+3.  [ ] **Team ID** (e.g., `A1B2C3D4E5`)
+4.  [ ] **App-Specific Password** (for Notarization)
+
+-----
+
+## Troubleshooting
+
+| Issue | Cause | Solution |
+| :--- | :--- | :--- |
+| **"MAC verification failed"** | The .p12 uses legacy RC2 encryption or the password has special characters escaping in shell. | Perform **Phase 4** exactly as written. Ensure `NEW_SIMPLE_PASSWORD` does not contain complex shell characters. |
+| **Orphaned Key** | Certificate and Key exist but won't export together. | Use the **"Force Combine"** method in Phase 3 (Select both items manually + Right Click). |
+| **"Attribute specified more than once"** | Reusing an old CSR file on Apple's portal. | Generate a fresh CSR in Phase 1. |

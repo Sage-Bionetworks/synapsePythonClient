@@ -81,6 +81,13 @@ pyinstaller ^
     --collect-all=starlette ^
     --collect-all=pydantic ^
     --collect-all=websockets ^
+    --collect-all=pandas ^
+    --collect-all=numpy ^
+    --collect-all=pandarallel ^
+    --collect-all=inflection ^
+    --collect-all=networkx ^
+    --collect-all=dataclasses_json ^
+    --collect-all=rdflib ^
     --paths "..\.." ^
     --paths "..\..\synapseclient" ^
     --console ^

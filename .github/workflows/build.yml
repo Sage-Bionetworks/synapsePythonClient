@@ -43,6 +43,15 @@ jobs:
           python-version: '3.13'
       - uses: pre-commit/action@v3.0.1
 
+      # Uncomment this job and comment out the main `test` job below when debugging
+      # to allow dependent jobs to run without waiting for full test suite
+  # test:
+  #   needs: [pre-commit]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Stub test job for debugging
+  #       run: echo "Using stub test job - remember to re-enable full tests before merging"
+
   # run unit (and integration tests if account secrets available) on our build matrix
   test:
     needs: [pre-commit]
@@ -507,7 +516,66 @@ jobs:
           cd synapse-electron
           npm install
 
-      - name: Build using build scripts (Windows)
+      # macOS code signing setup - manual import
+      - name: Import Code Signing Certificates (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          # Pass secrets as env vars to prevent special character errors
+          CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          CERT_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
+        run: |
+          # Define paths
+          CERTIFICATE_PATH="${RUNNER_TEMP}/certificate.p12"
+          CLEAN_CERT_PATH="${RUNNER_TEMP}/clean_certificate.p12"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          # 1. Decode the raw certificate
+          echo "$CERT_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+
+          # 2. Re-encode the P12 to ensure compatibility
+          # We strip the encryption (-nodes) and repackage it.
+          # This fixes "MAC verification failed" caused by modern macOS export formats.
+
+          # Extract Private Key (No legacy flag needed for this version of OpenSSL)
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -nocerts -out temp-key.pem -passin env:CERT_PASSWORD
+
+          # Extract Certificate
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -nokeys -out temp-cert.pem -passin env:CERT_PASSWORD
+
+          # Re-combine into a clean P12
+          openssl pkcs12 -export -in temp-cert.pem -inkey temp-key.pem -out "$CLEAN_CERT_PATH" -passout env:CERT_PASSWORD
+
+          # 3. Create and Unlock Keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # 4. Import the CLEANED certificate
+          # -T /usr/bin/codesign grants permission to the codesign tool
+          # -A allows any application to access (useful for CI)
+          security import "$CLEAN_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign -A
+
+          # 5. Set Search List and Default
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          # 6. Partition List (Grant access to tools to prevent UI prompts)
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # 7. Find and store the signing identity for later use
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | grep -o '"[^"]*"' | tr -d '"')
+          echo "Found signing identity: $SIGNING_IDENTITY"
+          echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
+
+          # 8. Verify the identity is accessible
+          security find-identity -v "$KEYCHAIN_PATH"
+
+          # 9. Clean up sensitive files
+          rm "$CERTIFICATE_PATH" "$CLEAN_CERT_PATH" temp-cert.pem temp-key.pem
+
+      - name: Build Python backend (Windows)
         if: matrix.platform == 'windows'
         shell: bash
         run: |
@@ -520,9 +588,24 @@ jobs:
       - name: Build using build scripts (macOS)
         if: matrix.platform == 'macos'
         shell: bash
+        env:
+          APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.MACOS_APPLE_TEAM_ID }}
         run: |
           # Set environment variable to skip dependency installation in build script
           export SKIP_DEPENDENCY_INSTALL=1
+
+          # Debug: Print env var status (not values for security)
+          echo "Environment variables status before export:"
+          [ -n "$APPLE_ID" ] && echo "✓ APPLE_ID is set" || echo "✗ APPLE_ID is NOT set"
+          [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && echo "✓ APPLE_APP_SPECIFIC_PASSWORD is set" || echo "✗ APPLE_APP_SPECIFIC_PASSWORD is NOT set"
+          [ -n "$APPLE_TEAM_ID" ] && echo "✓ APPLE_TEAM_ID is set" || echo "✗ APPLE_TEAM_ID is NOT set"
+
+          # Export Apple credentials for notarization (electron-builder requires these exact names)
+          export APPLE_ID="${{ secrets.MACOS_APPLE_ID }}"
+          export APPLE_APP_SPECIFIC_PASSWORD="${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}"
+          export APPLE_TEAM_ID="${{ secrets.MACOS_APPLE_TEAM_ID }}"
 
           chmod +x build_electron_app.sh
           ./build_electron_app.sh macos
