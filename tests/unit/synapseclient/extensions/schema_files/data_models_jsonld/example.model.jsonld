@@ -2548,6 +2548,9 @@
                 },
                 {
                     "@id": "bts:MaximumMinimumIntegerList"
+                },
+                {
+                    "@id": "bts:MaximumMinimumValidationRule"
                 }
             ],
             "sms:validationRules": []

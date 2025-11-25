@@ -82,7 +82,7 @@ Nan type,,,,,TRUE,DataProperty,,,,nan,,,
 Missing type,,,,,TRUE,DataProperty,,,,,,,
 Boolean type,,,,,TRUE,DataProperty,,,,boolean,,,
 Boolean type caps,,,,,TRUE,DataProperty,,,,BOOLEAN,,,
-RangeComponent,Component to ensure maximum and minimum can be set correctly,,"Component, Maximum Integer, Minimum Integer, Maximum Float, Minimum Float, Maximum Minimum, Maximum Minimum Integer List",,FALSE,DataType,,,,,,,
+RangeComponent,Component to ensure maximum and minimum can be set correctly,,"Component, Maximum Integer, Minimum Integer, Maximum Float, Minimum Float, Maximum Minimum, Maximum Minimum Integer List, Maximum Minimum Validation Rule",,FALSE,DataType,,,,,,,
 Maximum Integer,,,,,TRUE,DataProperty,,,,integer,,100,
 Minimum Integer,,,,,TRUE,DataProperty,,,,integer,,,10
 Maximum Float,,,,,TRUE,DataProperty,,,,number,,100.5,

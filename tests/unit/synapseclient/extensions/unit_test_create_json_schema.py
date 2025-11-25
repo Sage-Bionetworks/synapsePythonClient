@@ -185,10 +185,10 @@ class TestTraversalNodeColumnTypeCompatibility:
         assert "max: 100" in error_message
 
     def test_string_type_with_minimum_raises_error(self, mock_dmge):
-        """Test that string columnType with maximum constraint raises ValueError"""
+        """Test that string columnType with minimum constraint raises ValueError"""
         mock_dmge.get_node_column_type.return_value = AtomicColumnType.STRING
         # Mock the get_node_maximum_minimum_value method to return:
-        # - 100 when relationship_value is "maximum"
+        # - 100 when relationship_value is "minimum"
         # - None when relationship_value is "minimum" (via .get() default)
         mock_dmge.get_node_maximum_minimum_value.side_effect = (
             lambda relationship_value, **kwargs: (
@@ -211,6 +211,7 @@ class TestTraversalNodeColumnTypeCompatibility:
         assert "columnType is 'string'" in error_message
         assert "numeric constraints" in error_message
         assert "min: 1" in error_message
+        assert "max: None" in error_message
 
     def test_string_type_with_both_constraints_raises_error(self, mock_dmge):
         """Test that string columnType with maximum and minimum constraints raises ValueError"""
@@ -565,7 +566,10 @@ def test_get_validation_rule_based_fields(
 
 def test_get_validation_rule_based_fields_inrange_warning(caplog) -> None:
     """
-    Test that _get_validation_rule_based_fields logs a warning when inRange rule is malformed
+    Test that _get_validation_rule_based_fields logs a deprecation warning when inRange rule is used.
+
+    The inRange validation rule is deprecated in favor of using explicit Minimum and Maximum
+    columns in the data model. This test verifies that a warning is logged when inRange is used.
     """
     logger = logging.getLogger(__name__)
     with caplog.at_level(logging.WARNING):
