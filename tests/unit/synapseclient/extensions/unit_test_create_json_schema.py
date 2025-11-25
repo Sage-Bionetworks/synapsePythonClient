@@ -397,6 +397,25 @@ def test_get_validation_rule_based_fields(
     assert pattern == expected_pattern
 
 
+def test_get_validation_rule_based_fields_inrange_warning(caplog) -> None:
+    """
+    Test that _get_validation_rule_based_fields logs a warning when inRange rule is malformed
+    """
+    logger = logging.getLogger(__name__)
+    with caplog.at_level(logging.WARNING):
+        _get_validation_rule_based_fields(
+            validation_rules=["inRange 50 100"],
+            explicit_is_array=False,
+            explicit_format=None,
+            name="name",
+            column_type=AtomicColumnType.NUMBER,
+            logger=logger,
+        )
+    assert len(caplog.records) == 1
+    warning_message = caplog.records[0].message
+    assert "An inRange validation rule is set for property: name" in warning_message
+
+
 @pytest.mark.parametrize(
     "column_type, expected_type, expected_is_array",
     [
