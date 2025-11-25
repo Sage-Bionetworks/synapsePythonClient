@@ -101,7 +101,7 @@ ANNO_TYPE_TO_FUNC: typing.Dict[
     raise_anno_type_error,
     {
         "STRING": _identity,
-        "BOOLEAN": lambda bool_str: bool_str == "true",
+        "BOOLEAN": lambda bool_str: bool_str and bool_str.lower() == "true",
         "LONG": int,
         "DOUBLE": float,
         "TIMESTAMP_MS": lambda time_str: from_unix_epoch_time(int(time_str)),
