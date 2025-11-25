@@ -88,6 +88,7 @@ def test_get_node_format(
         ("MinimumFloat", None, 10.8),
         ("MaximumMinimum", 100, 10),
         ("MaximumMinimumIntegerList", 100, 10),
+        ("MaximumMinimumValidationRule", 200, 10),
     ],
 )
 def test_get_node_maximum_minimum_value(

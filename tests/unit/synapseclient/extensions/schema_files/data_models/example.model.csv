@@ -89,3 +89,4 @@ Maximum Float,,,,,TRUE,DataProperty,,,,number,,100.5,
 Minimum Float,,,,,TRUE,DataProperty,,,,number,,,10.8
 Maximum Minimum,,,,,TRUE,DataProperty,,,,integer,,100,10
 Maximum Minimum Integer List,,,,,TRUE,DataProperty,,,,integer_list,,100,10
+Maximum Minimum Validation Rule,,,,,TRUE,DataProperty,,,inRange 50 100,integer,,200,10

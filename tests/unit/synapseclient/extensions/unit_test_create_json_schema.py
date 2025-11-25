@@ -118,6 +118,128 @@ def fixture_test_nodes(
     return nodes
 
 
+@pytest.fixture(name="test_range_nodes")
+def fixture_test_range_nodes(
+    dmge: DataModelGraphExplorer,
+) -> dict[str, TraversalNode]:
+    """Yields dict of Nodes"""
+    nodes = [
+        "MaximumInteger",
+        "MinimumInteger",
+        "MaximumFloat",
+        "MinimumFloat",
+        "MaximumMinimum",
+        "MaximumMinimumIntegerList",
+        "MaximumMinimumValidationRule",
+    ]
+    nodes = {
+        node: TraversalNode(node, "RangeComponent", dmge, logger=Mock())
+        for node in nodes
+    }
+    return nodes
+
+
+class TestTraversalNodeColumnTypeCompatibility:
+    """Tests for TraversalNode column type compatibility validation"""
+
+    @pytest.fixture
+    def mock_dmge(self):
+        """Fixture to create a mock DataModelGraphExplorer"""
+        dmge = Mock(spec=DataModelGraphExplorer)
+        dmge.get_nodes_display_names.return_value = ["Test Node"]
+        dmge.get_component_node_validation_rules.return_value = []
+        dmge.get_component_node_required.return_value = False
+        dmge.get_node_dependencies.return_value = []
+        dmge.get_node_comment.return_value = "Test description"
+        dmge.get_node_range.return_value = []
+        dmge.get_node_format.return_value = None
+        return dmge
+
+    def test_string_type_with_maximum_raises_error(self, mock_dmge):
+        """Test that string columnType with maximum constraint raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.STRING
+        # Mock the get_node_maximum_minimum_value method to return:
+        # - 100 when relationship_value is "maximum"
+        # - None when relationship_value is "minimum" (via .get() default)
+        mock_dmge.get_node_maximum_minimum_value.side_effect = (
+            lambda relationship_value, **kwargs: (
+                {"maximum": 100}.get(relationship_value)
+            )
+        )
+        logger = logging.getLogger(__name__)
+
+        with pytest.raises(
+            ValueError,
+        ) as exc_info:
+            TraversalNode(
+                name="TestNode",
+                source_node="TestComponent",
+                dmge=mock_dmge,
+                logger=logger,
+            )
+        # Then assert on the error message
+        error_message = str(exc_info.value)
+        assert "columnType is 'string'" in error_message
+        assert "numeric constraints" in error_message
+        assert "min: None" in error_message
+        assert "max: 100" in error_message
+
+    def test_string_type_with_minimum_raises_error(self, mock_dmge):
+        """Test that string columnType with maximum constraint raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.STRING
+        # Mock the get_node_maximum_minimum_value method to return:
+        # - 100 when relationship_value is "maximum"
+        # - None when relationship_value is "minimum" (via .get() default)
+        mock_dmge.get_node_maximum_minimum_value.side_effect = (
+            lambda relationship_value, **kwargs: (
+                {"minimum": 1}.get(relationship_value)
+            )
+        )
+        logger = logging.getLogger(__name__)
+
+        with pytest.raises(
+            ValueError,
+        ) as exc_info:
+            TraversalNode(
+                name="TestNode",
+                source_node="TestComponent",
+                dmge=mock_dmge,
+                logger=logger,
+            )
+        # Then assert on the error message
+        error_message = str(exc_info.value)
+        assert "columnType is 'string'" in error_message
+        assert "numeric constraints" in error_message
+        assert "min: 1" in error_message
+
+    def test_string_type_with_both_constraints_raises_error(self, mock_dmge):
+        """Test that string columnType with maximum and minimum constraints raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.STRING
+        # Mock the get_node_maximum_minimum_value method to return:
+        # - 100 when relationship_value is "maximum"
+        # - 10 when relationship_value is "minimum"
+        mock_dmge.get_node_maximum_minimum_value.side_effect = (
+            lambda relationship_value, **kwargs: (
+                {"maximum": 100, "minimum": 10}.get(relationship_value)
+            )
+        )
+        logger = logging.getLogger(__name__)
+
+        with pytest.raises(ValueError) as exc_info:
+            TraversalNode(
+                name="TestNode",
+                source_node="TestComponent",
+                dmge=mock_dmge,
+                logger=logger,
+            )
+        # Then assert on the error message
+        error_message = str(exc_info.value)
+        assert "columnType is 'string'" in error_message
+        assert "numeric constraints" in error_message
+        assert "min: 10" in error_message
+        assert "max: 100" in error_message
+
+
 class TestJSONSchema:
     """Tests for JSONSchema class - validates JSON schema object creation and manipulation."""
 
@@ -261,6 +383,50 @@ def test_node_init(
     assert node.minimum == expected_min
     assert node.maximum == expected_max
     assert node.pattern == expected_pattern
+
+
+@pytest.mark.parametrize(
+    "node_name, expected_node_type, expected_max, expected_min",
+    [
+        ("MaximumInteger", AtomicColumnType.INTEGER, 100, None),
+        ("MinimumInteger", AtomicColumnType.INTEGER, None, 10),
+        ("MaximumFloat", AtomicColumnType.NUMBER, 100.5, None),
+        ("MinimumFloat", AtomicColumnType.NUMBER, None, 10.8),
+        ("MaximumMinimum", AtomicColumnType.INTEGER, 100, 10),
+        ("MaximumMinimumIntegerList", AtomicColumnType.INTEGER, 100, 10),
+        ("MaximumMinimumValidationRule", AtomicColumnType.INTEGER, 200, 10),
+    ],
+    ids=[
+        "MaximumInteger",
+        "MinimumInteger",
+        "MaximumFloat",
+        "MinimumFloat",
+        "MaximumMinimum",
+        "MaximumMinimumIntegerList",
+        "MaximumMinimumValidationRule",
+    ],
+)
+def test_node_range_component_init(
+    node_name: str,
+    expected_node_type: Optional[ColumnType],
+    expected_max: Optional[float],
+    expected_min: Optional[float],
+    test_range_nodes: dict[str, TraversalNode],
+) -> None:
+    """
+    Tests for TraversalNode class initialization for RangeComponent nodes.
+
+    Verifies that TraversalNode objects are correctly initialized with:
+    - Maximum and Minimum values extracted from the data model
+    - The expected node type based on columnType
+
+    The maximum and minimum properties come from the Maximum and Minimum fields in the data model if present.
+
+    """
+    node = test_range_nodes[node_name]
+    assert node.maximum == expected_max
+    assert node.minimum == expected_min
+    assert node.type == expected_node_type
 
 
 @pytest.mark.parametrize(
