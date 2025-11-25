@@ -691,7 +691,8 @@ class DataModelCSVParser:
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     minimum_dict
                 )
-            if "Maximum" in model_df.columns:
+
+            if "Maximum" in model_df.columns is not None:
                 maximum_dict = self.parse_minimum_maximum(attr, "Maximum")
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     maximum_dict
@@ -767,7 +768,8 @@ class DataModelCSVParser:
                     f"The Maximum value: {maximum} must be greater than the Minimum value: {minimum}"
                 )
 
-        # Convert float to int if it's a whole number
+        # Convert float (i.e. 10.0) to int if it's a whole number
+        # Keep as float otherwise
         if isinstance(value, float) and value.is_integer():
             value = int(value)
 
@@ -4649,7 +4651,7 @@ def _get_validation_rule_based_fields(
                 f"An inRange validation rule is set for property: {name}, "
                 "setting minimum and maximum values accordingly. "
                 "This behavior is deprecated and validation rules will no longer "
-                "be used in the future. Please use minimum and maximum fields instead."
+                "be used in the future. Please use minimum, maximum fields instead. To use minimum and/or maximum values, you must set columnType to one of: 'integer', 'number', or 'integer_list'."
             )
             logger.warning(msg)
 
@@ -4737,10 +4739,10 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         column_type = self.dmge.get_node_column_type(
             node_display_name=self.display_name
         )
-        self.maximum = self.dmge.get_node_maximum_minimum_value(
+        explicit_maximum = self.dmge.get_node_maximum_minimum_value(
             relationship_value="maximum", node_display_name=self.display_name
         )
-        self.minimum = self.dmge.get_node_maximum_minimum_value(
+        explicit_minimum = self.dmge.get_node_maximum_minimum_value(
             relationship_value="minimum", node_display_name=self.display_name
         )
 
@@ -4748,7 +4750,11 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
         # https://sagebionetworks.jira.com/browse/SYNPY-1692
         self.type, explicit_is_array = self._determine_type_and_array(column_type)
-        self._validate_column_type_compatibility()
+
+        # Validate column type compatibility with min/max constraints
+        self._validate_column_type_compatibility(
+            explicit_maximum=explicit_maximum, explicit_minimum=explicit_minimum
+        )
 
         # url and date rules are deprecated for adding format keyword
         # TODO: set self.format here instead of passing it to get_validation_rule_based_fields
@@ -4768,8 +4774,8 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         (
             self.is_array,
             self.format,
-            self.minimum,
-            self.maximum,
+            implicit_minimum,
+            implicit_maximum,
             self.pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
@@ -4778,6 +4784,15 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             name=self.name,
             column_type=self.type,
             logger=self.logger,
+        )
+
+        # Priority: explicit values from data model take precedence over validation rules
+        # Only use validation rule values if explicit values are not set
+        self.minimum = (
+            explicit_minimum if explicit_minimum is not None else implicit_minimum
+        )
+        self.maximum = (
+            explicit_maximum if explicit_maximum is not None else implicit_maximum
         )
 
     def _determine_type_and_array(
@@ -4798,9 +4813,11 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         else:
             return None, None
 
-    def _validate_column_type_compatibility(self) -> None:
+    def _validate_column_type_compatibility(
+        self, explicit_maximum, explicit_minimum
+    ) -> None:
         """Validate column type compatability if node has "Maximum" or "Minimum" constraints and the type is not numeric."""
-        if self.maximum or self.minimum:
+        if explicit_maximum or explicit_minimum:
             if not self.type:
                 raise ValueError(
                     f"For attribute '{self.display_name}': numeric constraints "
