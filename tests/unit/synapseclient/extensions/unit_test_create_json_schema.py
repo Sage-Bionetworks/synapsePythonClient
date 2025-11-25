@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from typing import Any, Optional
+from unittest import mock
 from unittest.mock import Mock
 
 import pytest
@@ -101,6 +102,8 @@ def fixture_test_nodes(
         "EnumNotRequired",
         "InRange",
         "Regex",
+        "CheckRegexSingle",
+        "CheckRegexFormat",
         "Date",
         "URL",
         "List",
@@ -327,6 +330,18 @@ class TestJSONSchema:
         ("InRange", AtomicColumnType.NUMBER, False, 50, 100, None, None),
         # Node with "regex search [a-f]" validation rule and columnType "string" - pattern is set, type is STRING
         ("Regex", AtomicColumnType.STRING, False, None, None, "[a-f]", None),
+        # Node with "[a-f]" pattern column specification and columnType "string" - pattern is set, type is STRING
+        ("CheckRegexSingle", AtomicColumnType.STRING, False, None, None, "[a-b]", None),
+        # Node with "regex search [a-f]" validation rule, "^[a-b]" pattern column specification, and columnType "string" - pattern is set, type is STRING
+        (
+            "CheckRegexFormat",
+            AtomicColumnType.STRING,
+            False,
+            None,
+            None,
+            "^[a-b]",
+            None,
+        ),
         # Node with "date" validation rule and columnType "string" - format is set to DATE, type is STRING
         (
             "Date",
@@ -350,6 +365,8 @@ class TestJSONSchema:
         "List",
         "InRange",
         "Regex",
+        "CheckRegexSingle",
+        "CheckRegexFormat",
         "Date",
         "URI",
         "ListBoolean",
@@ -365,6 +382,7 @@ def test_node_init(
     expected_pattern: Optional[str],
     expected_format: Optional[JSONSchemaFormat],
     test_nodes: dict[str, TraversalNode],
+    caplog,
 ) -> None:
     """
     Tests for TraversalNode class initialization.
@@ -377,6 +395,7 @@ def test_node_init(
     The type property comes from the columnType field, while constraints
     come from parsing validation rules like "str", "inRange", "regex", etc.
     """
+
     node = test_nodes[node_name]
     assert node.type == expected_type
     assert node.format == expected_format
@@ -384,6 +403,9 @@ def test_node_init(
     assert node.minimum == expected_min
     assert node.maximum == expected_max
     assert node.pattern == expected_pattern
+    if node_name == "Regex":
+        warning_message = "A regex validation rule is set for property: Regex, but the pattern is not set in the data model."
+        assert warning_message in test_nodes[node_name].logger.mock_calls[0][1][0]
 
 
 @pytest.mark.parametrize(
@@ -542,26 +564,29 @@ def test_get_validation_rule_based_fields(
     Test for _get_validation_rule_based_fields
     Tests that output is expected based on the input validation rules
     """
-    logger = Mock()
-    (
-        is_array,
-        property_format,
-        minimum,
-        maximum,
-        pattern,
-    ) = _get_validation_rule_based_fields(
-        validation_rules,
-        explicit_is_array=explicit_is_array,
-        explicit_format=explicit_format,
-        name="name",
-        column_type=AtomicColumnType.STRING,
-        logger=logger,
-    )
-    assert is_array == expected_is_array
-    assert property_format == expected_format
-    assert minimum == expected_min
-    assert maximum == expected_max
-    assert pattern == expected_pattern
+    logger = logging.getLogger("synapseclient.extensions.curator.schema_generation")
+    with mock.patch.object(logger, "warning") as mock_logger:
+        (
+            is_array,
+            property_format,
+            minimum,
+            maximum,
+            pattern,
+        ) = _get_validation_rule_based_fields(
+            validation_rules,
+            explicit_is_array=explicit_is_array,
+            explicit_format=explicit_format,
+            name="name",
+            column_type=AtomicColumnType.STRING,
+            logger=mock_logger,
+        )
+        assert is_array == expected_is_array
+        assert property_format == expected_format
+        assert minimum == expected_min
+        assert maximum == expected_max
+        assert pattern == expected_pattern
+        if expected_pattern:
+            print(expected_pattern)
 
 
 def test_get_validation_rule_based_fields_inrange_warning(caplog) -> None:
