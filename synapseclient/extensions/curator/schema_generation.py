@@ -1840,6 +1840,27 @@ class DataModelGraphExplorer:
                 raise ValueError(msg)
         return column_type
 
+    def get_node_column_pattern(
+        self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
+    ) -> Optional[ColumnType]:
+        """Gets the regex pattern of the node
+
+        Args:
+            node_label: The label of the node to get the type from
+            node_display_name: The display name of the node to get the type from
+
+        Raises:
+            ValueError: If the value from the node is not allowed
+
+        Returns:
+            The column pattern of the node if it has one, otherwise None
+        """
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value("pattern", "node_label")
+        pattern = self.graph.nodes[node_label][rel_node_label]
+
+        return pattern
+
     def get_node_format(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
     ) -> Optional[JSONSchemaFormat]:
@@ -1967,6 +1988,9 @@ class PropertyTemplate:
     magic_validationRules: list = field(
         default_factory=list, metadata=config(field_name="sms:validationRules")
     )
+    magic_pattern: list = field(
+        default_factory=list, metadata=config(field_name="sms:pattern")
+    )
 
 
 @dataclass_json
@@ -2000,6 +2024,9 @@ class ClassTemplate:
     )
     magic_validationRules: list = field(
         default_factory=list, metadata=config(field_name="sms:validationRules")
+    )
+    magic_pattern: list = field(
+        default_factory=list, metadata=config(field_name="sms:pattern")
     )
 
 
@@ -4771,6 +4798,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             relationship_value="minimum", node_display_name=self.display_name
         )
 
+        column_pattern = self.dmge.get_node_column_pattern(
+            node_display_name=self.display_name
+        )
         # list validation rule is been deprecated for use in deciding type
         # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
         # https://sagebionetworks.jira.com/browse/SYNPY-1692
@@ -4801,7 +4831,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             self.format,
             implicit_minimum,
             implicit_maximum,
-            self.pattern,
+            rule_pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
             explicit_is_array=explicit_is_array,
@@ -4819,6 +4849,22 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.maximum = (
             explicit_maximum if explicit_maximum is not None else implicit_maximum
         )
+        
+        if column_pattern and column_type.value != "string":
+            raise ValueError(
+                "Column type must be set to 'string' to use column pattern specification for regex validation."
+            )
+
+        self.pattern = column_pattern if column_pattern else rule_pattern
+
+        if rule_pattern:
+            msg = (
+                f"A regex validation rule is set for property: {self.name}, but the pattern is not set in the data model. "
+                f"The regex pattern will be set to {self.pattern}, but the regex rule is deprecated and validation "
+                "rules will no longer be used in the future."
+                "Please explicitly set the regex pattern in the 'Pattern' column in the data model."
+            )
+            self.logger.warning(msg)
 
     def _determine_type_and_array(
         self, column_type: Optional[ColumnType]
@@ -5121,6 +5167,7 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
     properties: dict[str, Property] = field(default_factory=dict)
     required: list[str] = field(default_factory=list)
     all_of: list[AllOf] = field(default_factory=list)
+    pattern: str = ""
 
     def as_json_schema_dict(
         self,
@@ -5399,13 +5446,16 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> 
         schema: The schema to set keywords on
         node (Node): The node the corresponds to the property which is being set in the JSON Schema
     """
-    for attr in ["minimum", "maximum", "pattern"]:
+    for attr in ["minimum", "maximum"]:
         value = getattr(node, attr)
         if value is not None:
             schema[attr] = value
 
     if node.format is not None:
         schema["format"] = node.format.value
+
+    if hasattr(node, "pattern") and node.pattern is not None:
+        schema["pattern"] = node.pattern
 
 
 def _set_property(
