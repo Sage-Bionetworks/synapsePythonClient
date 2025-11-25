@@ -47,6 +47,7 @@ from synapseclient.core.utils import (
     extract_synapse_id_from_query,
     log_dataclass_diff,
     merge_dataclass_entities,
+    test_import_pandas,
 )
 from synapseclient.models import Activity
 from synapseclient.models.services.search import get_id
@@ -118,25 +119,6 @@ LIST_COLUMN_TYPES = {
     "ENTITYID_LIST",
     "USERID_LIST",
 }
-
-
-def test_import_pandas() -> None:
-    """This function is called within other functions and methods to ensure that pandas is installed."""
-    try:
-        import pandas as pd  # noqa F401
-    # used to catch when pandas isn't installed
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            """\n\nThe pandas package is required for this function!\n
-        Most functions in the synapseclient package don't require the
-        installation of pandas, but some do. Please refer to the installation
-        instructions at: http://pandas.pydata.org/ or
-        https://python-docs.synapse.org/tutorials/installation/#installation-guide-for-pypi-users.
-        \n\n\n"""
-        )
-    # catch other errors (see SYNPY-177)
-    except:  # noqa
-        raise
 
 
 def row_labels_from_id_and_version(rows):

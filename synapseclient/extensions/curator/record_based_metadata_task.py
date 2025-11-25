@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from synapseclient import Synapse
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
+from synapseclient.core.utils import test_import_pandas
 from synapseclient.models import (
     CurationTask,
     Grid,
@@ -49,6 +50,7 @@ def create_dataframe_from_titles(titles: List[str]) -> DATA_FRAME_TYPE:
     Returns:
         Empty DataFrame with titles as columns
     """
+    test_import_pandas()
     import pandas as pd
 
     if not titles:

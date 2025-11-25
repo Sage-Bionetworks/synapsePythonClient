@@ -13,7 +13,7 @@ from synapseclient.api import create_table_snapshot
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.typing_utils import DataFrame as DATA_FRAME_TYPE
-from synapseclient.core.utils import MB, delete_none_keys
+from synapseclient.core.utils import MB, delete_none_keys, test_import_pandas
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
 from synapseclient.models.mixins.table_components import (
@@ -837,6 +837,7 @@ class TableSynchronousProtocol(Protocol):
             Table(id="syn1234").delete_rows(query="SELECT ROW_ID, ROW_VERSION FROM syn1234 WHERE foo is null")
             ```
         """
+        test_import_pandas()
         from pandas import DataFrame
 
         return DataFrame()

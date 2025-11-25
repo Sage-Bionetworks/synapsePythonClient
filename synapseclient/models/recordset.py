@@ -25,6 +25,7 @@ from synapseclient.core.utils import (
     delete_none_keys,
     guess_file_name,
     merge_dataclass_entities,
+    test_import_pandas,
 )
 from synapseclient.models import Activity, Annotations
 from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
@@ -1374,6 +1375,7 @@ class RecordSet(RecordSetSynchronousProtocol, AccessControllable, BaseJSONSchema
             asyncio.run(main())
             ```
         """
+        test_import_pandas()
         import pandas as pd
 
         client = Synapse.get_client(synapse_client=synapse_client)

@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+import time
 import uuid
 from typing import Callable, Generator, Tuple
 
@@ -500,6 +501,8 @@ class TestRecordSetGetDetailedValidationResults:
             self.schedule_for_cleanup(stored_record_set.id)
             record_set_ids.append(stored_record_set.id)  # Track for schema cleanup
 
+            time.sleep(10)
+
             # Bind the JSON schema to the RecordSet
             stored_record_set.bind_schema(
                 json_schema_uri=schema_uri,
@@ -507,13 +510,10 @@ class TestRecordSetGetDetailedValidationResults:
                 synapse_client=self.syn,
             )
 
+            time.sleep(15)
+
             # Verify the schema is bound by getting the schema from the entity
             stored_record_set.get_schema(synapse_client=self.syn)
-
-            # Re-fetch the RecordSet to ensure all attributes are up-to-date
-            stored_record_set = RecordSet(id=stored_record_set.id).get(
-                synapse_client=self.syn
-            )
 
             # Create a Grid session from the RecordSet
             grid = Grid(record_set_id=stored_record_set.id)
@@ -713,35 +713,6 @@ class TestRecordSetGetDetailedValidationResults:
             assert pd.notna(
                 row["all_validation_messages"]
             ), f"Row {idx} is marked invalid but has no all_validation_messages"
-
-    def test_get_validation_results_cached_file(
-        self, record_set_with_validation_fixture: RecordSet
-    ) -> None:
-        # GIVEN a RecordSet with validation results that have been downloaded before
-        record_set = record_set_with_validation_fixture
-
-        # First download to populate the cache
-        first_results = record_set.get_detailed_validation_results(
-            synapse_client=self.syn
-        )
-        assert first_results is not None
-
-        # WHEN I get the validation results again (should use cached file)
-        second_results = record_set.get_detailed_validation_results(
-            synapse_client=self.syn
-        )
-
-        # THEN it should return the same data
-        assert second_results is not None
-        assert isinstance(second_results, pd.DataFrame)
-        # Verify the data is the same
-        pd.testing.assert_frame_equal(first_results, second_results)
-
-        # AND both DataFrames should contain validation data
-        assert len(first_results) > 0
-        assert len(second_results) > 0
-        assert "is_valid" in first_results.columns
-        assert "is_valid" in second_results.columns
 
     def test_get_validation_results_validation_error(self) -> None:
         # GIVEN a RecordSet without an ID

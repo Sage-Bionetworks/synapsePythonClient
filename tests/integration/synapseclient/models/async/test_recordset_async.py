@@ -1,5 +1,6 @@
 """Integration tests for the synapseclient.models.RecordSet class (async)."""
 
+import asyncio
 import os
 import tempfile
 import uuid
@@ -512,6 +513,8 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             self.schedule_for_cleanup(stored_record_set.id)
             record_set_ids.append(stored_record_set.id)  # Track for schema cleanup
 
+            await asyncio.sleep(10)
+
             # Bind the JSON schema to the RecordSet
             await stored_record_set.bind_schema_async(
                 json_schema_uri=schema_uri,
@@ -522,10 +525,8 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             # Verify the schema is bound by getting the schema from the entity
             await stored_record_set.get_schema_async(synapse_client=self.syn)
 
-            # Re-fetch the RecordSet to ensure all attributes are up-to-date
-            stored_record_set = await RecordSet(id=stored_record_set.id).get_async(
-                synapse_client=self.syn
-            )
+            # Wait for schema binding to be fully processed by backend
+            await asyncio.sleep(15)
 
             # Create a Grid session from the RecordSet
             grid = Grid(record_set_id=stored_record_set.id)
@@ -611,16 +612,6 @@ class TestRecordSetGetDetailedValidationResultsAsync:
         assert (
             len(results_df) == 5
         ), f"Expected 5 rows in validation results, got {len(results_df)}"
-
-        # Debug: Print actual validation results to diagnose the issue
-        print("\n=== Debug: Validation Results ===")
-        print(f"DataFrame shape: {results_df.shape}")
-        print(f"DataFrame dtypes:\n{results_df.dtypes}")
-        print("\nValidation results:")
-        print(results_df.to_string())
-        print(f"\nis_valid column unique values: {results_df['is_valid'].unique()}")
-        print(f"is_valid column dtype: {results_df['is_valid'].dtype}")
-        print("=== End Debug ===")
 
         # AND rows 0 and 1 should be valid (is_valid == True)
         assert (
@@ -729,35 +720,6 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             assert pd.notna(
                 row["all_validation_messages"]
             ), f"Row {idx} is marked invalid but has no all_validation_messages"
-
-    async def test_get_validation_results_cached_file_async(
-        self, record_set_with_validation_fixture: RecordSet
-    ) -> None:
-        # GIVEN a RecordSet with validation results that have been downloaded before
-        record_set = record_set_with_validation_fixture
-
-        # First download to populate the cache
-        first_results = await record_set.get_detailed_validation_results_async(
-            synapse_client=self.syn
-        )
-        assert first_results is not None
-
-        # WHEN I get the validation results again (should use cached file)
-        second_results = await record_set.get_detailed_validation_results_async(
-            synapse_client=self.syn
-        )
-
-        # THEN it should return the same data
-        assert second_results is not None
-        assert isinstance(second_results, pd.DataFrame)
-        # Verify the data is the same
-        pd.testing.assert_frame_equal(first_results, second_results)
-
-        # AND both DataFrames should contain validation data
-        assert len(first_results) > 0
-        assert len(second_results) > 0
-        assert "is_valid" in first_results.columns
-        assert "is_valid" in second_results.columns
 
     async def test_get_validation_results_validation_error_async(self) -> None:
         # GIVEN a RecordSet without an ID

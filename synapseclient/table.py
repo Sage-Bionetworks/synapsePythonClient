@@ -44,6 +44,7 @@ from synapseclient.core.utils import (
     from_unix_epoch_time,
     id_of,
     itersubclasses,
+    test_import_pandas,
 )
 
 from .entity import Entity, Folder, Project, entity_type_to_class
@@ -128,23 +129,6 @@ def _get_view_type_mask_for_deprecated_type(type):
     if type == "file_and_table":
         return EntityViewType.FILE.value | EntityViewType.TABLE.value
     raise ValueError("The provided value is not a valid type: %s", type)
-
-
-def test_import_pandas():
-    try:
-        import pandas as pd  # noqa F401
-    # used to catch when pandas isn't installed
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            """\n\nThe pandas package is required for this function!\n
-        Most functions in the synapseclient package don't require the
-        installation of pandas, but some do. Please refer to the installation
-        instructions at: http://pandas.pydata.org/.
-        \n\n\n"""
-        )
-    # catch other errors (see SYNPY-177)
-    except:  # noqa
-        raise
 
 
 def as_table_columns(values: Union[str, DataFrameType]):
