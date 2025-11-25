@@ -692,7 +692,7 @@ class DataModelCSVParser:
                     minimum_dict
                 )
 
-            if "Maximum" in model_df.columns is not None:
+            if "Maximum" in model_df.columns:
                 maximum_dict = self.parse_minimum_maximum(attr, "Maximum")
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     maximum_dict
