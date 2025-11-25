@@ -2667,6 +2667,28 @@
             "sms:minimum": 10,
             "sms:required": "sms:true",
             "sms:validationRules": []
+        },
+        {
+            "@id": "bts:MaximumMinimumValidationRule",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "MaximumMinimumValidationRule",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer",
+            "sms:displayName": "Maximum Minimum Validation Rule",
+            "sms:maximum": 200,
+            "sms:minimum": 10,
+            "sms:required": "sms:true",
+            "sms:validationRules": [
+                "inRange 50 100"
+            ]
         }
     ],
     "@id": "http://schema.biothings.io/#0.1"
