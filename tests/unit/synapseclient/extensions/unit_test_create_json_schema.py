@@ -654,29 +654,26 @@ def test_get_validation_rule_based_fields(
     Test for _get_validation_rule_based_fields
     Tests that output is expected based on the input validation rules
     """
-    logger = logging.getLogger("synapseclient.extensions.curator.schema_generation")
-    with mock.patch.object(logger, "warning") as mock_logger:
-        (
-            is_array,
-            property_format,
-            minimum,
-            maximum,
-            pattern,
-        ) = _get_validation_rule_based_fields(
-            validation_rules,
-            explicit_is_array=explicit_is_array,
-            explicit_format=explicit_format,
-            name="name",
-            column_type=AtomicColumnType.STRING,
-            logger=mock_logger,
-        )
-        assert is_array == expected_is_array
-        assert property_format == expected_format
-        assert minimum == expected_min
-        assert maximum == expected_max
-        assert pattern == expected_pattern
-        if expected_pattern:
-            print(expected_pattern)
+    logger = Mock()
+    (
+        is_array,
+        property_format,
+        minimum,
+        maximum,
+        pattern,
+    ) = _get_validation_rule_based_fields(
+        validation_rules,
+        explicit_is_array=explicit_is_array,
+        explicit_format=explicit_format,
+        name="name",
+        column_type=AtomicColumnType.STRING,
+        logger=logger,
+    )
+    assert is_array == expected_is_array
+    assert property_format == expected_format
+    assert minimum == expected_min
+    assert maximum == expected_max
+    assert pattern == expected_pattern
 
 
 def test_get_validation_rule_based_fields_inrange_warning(caplog) -> None:
