@@ -2893,6 +2893,7 @@ class DataModelRelationships:
             allowed_values: A list of values the entry must be  one of
             edge_dir: str, 'in'/'out' is the edge an in or out edge. Define for edge relationships
             jsonld_dir: str, 'in'/out is the direction in or out in the JSONLD.
+            pattern: regex pattern that the entry must match
         """
         map_data_model_relationships = {
             "displayName": {
@@ -4865,6 +4866,14 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
                 "Please explicitly set the regex pattern in the 'Pattern' column in the data model."
             )
             self.logger.warning(msg)
+
+        if self.pattern:
+            try:
+                re.compile(self.pattern)
+            except re.error as e:
+                raise ValueError(
+                    f"The regex pattern '{self.pattern}' for property '{self.name}' is invalid."
+                ) from e
 
     def _determine_type_and_array(
         self, column_type: Optional[ColumnType]
