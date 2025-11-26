@@ -456,6 +456,48 @@ def test_invalid_regex_columntype_traversalnode(
         )
 
 
+def test_invalid_regex_traversalnode(
+    helpers,
+) -> None:
+    """
+    Tests for TraversalNode class initialization.
+
+    Verifies that when TransversalNode objects are initialized with a patter specified and an incompatible column type, a ValueError is raised.
+    """
+    node = "Check Regex Single"
+
+    path_to_data_model = helpers.get_schema_file_path("data_models/example.model.csv")
+
+    fullpath = helpers.get_schema_file_path(path_to_data_model)
+
+    # Instantiate DataModelParser
+    data_model_parser = DataModelParser(path_to_data_model=fullpath, logger=Mock())
+
+    # Parse Model
+    parsed_data_model = data_model_parser.parse_model()
+
+    # Change column type to imcompatible type
+    parsed_data_model[node]["Relationships"]["Pattern"] = "\\u"
+
+    # Instantiate DataModelGraph
+    data_model_grapher = DataModelGraph(
+        parsed_data_model, data_model_labels="class_label", logger=Mock()
+    )
+
+    # Generate graph
+    graph_data_model = data_model_grapher.graph
+
+    # Instantiate DataModelGraphExplorer
+    dmge = DataModelGraphExplorer(graph_data_model, logger=Mock())
+
+    # A value error should be raised when using pattern specification with non-string column type
+    error_message = "Column type must be set to 'string' to use column pattern specification for regex validation."
+    with pytest.raises(SyntaxError, match="The regex pattern.*is invalid"):
+        node = TraversalNode(
+            node.replace(" ", ""), "JSONSchemaComponent", dmge, logger=Mock()
+        )
+
+
 @pytest.mark.parametrize(
     "node_name, expected_node_type, expected_max, expected_min",
     [
