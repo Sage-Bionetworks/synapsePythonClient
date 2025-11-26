@@ -510,7 +510,7 @@ class TestRecordSetGetDetailedValidationResults:
                 synapse_client=self.syn,
             )
 
-            time.sleep(15)
+            time.sleep(10)
 
             # Verify the schema is bound by getting the schema from the entity
             stored_record_set.get_schema(synapse_client=self.syn)
@@ -520,6 +520,8 @@ class TestRecordSetGetDetailedValidationResults:
             created_grid = grid.create(
                 timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
             )
+
+            time.sleep(10)
 
             # Export the Grid back to RecordSet to generate validation results
             exported_grid = created_grid.export_to_record_set(

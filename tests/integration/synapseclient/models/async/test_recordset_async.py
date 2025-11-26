@@ -526,13 +526,15 @@ class TestRecordSetGetDetailedValidationResultsAsync:
             await stored_record_set.get_schema_async(synapse_client=self.syn)
 
             # Wait for schema binding to be fully processed by backend
-            await asyncio.sleep(15)
+            await asyncio.sleep(10)
 
             # Create a Grid session from the RecordSet
             grid = Grid(record_set_id=stored_record_set.id)
             created_grid = await grid.create_async(
                 timeout=ASYNC_JOB_TIMEOUT_SEC, synapse_client=self.syn
             )
+
+            await asyncio.sleep(10)
 
             # Export the Grid back to RecordSet to generate validation results
             exported_grid = await created_grid.export_to_record_set_async(
