@@ -418,9 +418,9 @@ def test_invalid_regex_columntype_traversalnode(
     helpers,
 ) -> None:
     """
-    Tests for TraversalNode class initialization.
+    Tests for matching pattern and columnType specification.
 
-    Verifies that when TransversalNode objects are initialized with a patter specified and an incompatible column type, a ValueError is raised.
+    Verifies that when TransversalNode objects are initialized with a pattern specified and an incompatible column type, a ValueError is raised.
     """
     node = "Check Regex Single"
 
@@ -460,9 +460,9 @@ def test_invalid_regex_traversalnode(
     helpers,
 ) -> None:
     """
-    Tests for TraversalNode class initialization.
+    Tests for invalid regex pattern specification.
 
-    Verifies that when TransversalNode objects are initialized with a patter specified and an incompatible column type, a ValueError is raised.
+    Verifies that only valid regex patterns are specified.
     """
     node = "Check Regex Single"
 
