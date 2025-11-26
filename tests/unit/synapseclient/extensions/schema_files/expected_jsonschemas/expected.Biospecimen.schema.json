@@ -2,6 +2,7 @@
   "$id": "http://example.com/Biospecimen_validation",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "TBD",
+  "pattern": "",
   "properties": {
     "Component": {
       "description": "TBD",

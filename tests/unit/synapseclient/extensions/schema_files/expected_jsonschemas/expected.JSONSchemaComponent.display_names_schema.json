@@ -58,71 +58,97 @@
       "title": "InRange",
       "type": "number"
     },
-    "Integer": {
-      "description": "TBD",
-      "title": "Integer"
-    },
     "List": {
       "description": "TBD",
-      "items": {
-        "type": "string"
-      },
-      "title": "List",
-      "type": "array"
-    },
-    "ListBoolean": {
-      "description": "TBD",
-      "items": {
-        "type": "boolean"
-      },
-      "title": "List Boolean",
-      "type": "array"
+      "oneOf": [
+        {
+          "title": "array",
+          "type": "array"
+        }
+      ],
+      "title": "List"
     },
     "ListEnum": {
       "description": "TBD",
-      "items": {
-        "enum": [
-          "ab",
-          "cd",
-          "ef",
-          "gh"
-        ],
-        "type": "string"
-      },
-      "title": "List Enum",
-      "type": "array"
+      "oneOf": [
+        {
+          "items": {
+            "enum": [
+              "ab",
+              "cd",
+              "ef",
+              "gh"
+            ]
+          },
+          "title": "array",
+          "type": "array"
+        }
+      ],
+      "title": "List Enum"
     },
     "ListEnumNotRequired": {
       "description": "TBD",
-      "items": {
-        "enum": [
-          "ab",
-          "cd",
-          "ef",
-          "gh"
-        ],
-        "type": "string"
-      },
-      "title": "List Enum Not Required",
-      "type": "array"
+      "oneOf": [
+        {
+          "items": {
+            "enum": [
+              "ab",
+              "cd",
+              "ef",
+              "gh"
+            ]
+          },
+          "title": "array",
+          "type": "array"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "List Enum Not Required"
     },
     "ListInRange": {
       "description": "TBD",
-      "items": {
-        "maximum": 100.0,
-        "minimum": 50.0,
-        "type": "integer"
-      },
-      "title": "List InRange",
-      "type": "array"
+      "oneOf": [
+        {
+          "items": {
+            "maximum": 100.0,
+            "minimum": 50.0,
+            "type": "number"
+          },
+          "title": "array",
+          "type": "array"
+        }
+      ],
+      "title": "List InRange"
     },
     "ListNotRequired": {
       "description": "TBD",
-      "items": {
-        "type": "string"
-      },
-      "title": "List Not Required",
-      "type": "array"
+      "oneOf": [
+        {
+          "title": "array",
+          "type": "array"
+        },
+        {
+          "title": "null",
+          "type": "null"
+        }
+      ],
+      "title": "List Not Required"
+    },
+    "ListString": {
+      "description": "TBD",
+      "oneOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "title": "array",
+          "type": "array"
+        }
+      ],
+      "title": "List String"
     },
     "NoRules": {
       "description": "TBD",
@@ -173,9 +199,9 @@
     "Enum",
     "InRange",
     "List",
-    "ListBoolean",
     "ListEnum",
     "ListInRange",
+    "ListString",
     "NoRules",
     "Regex",
     "String",

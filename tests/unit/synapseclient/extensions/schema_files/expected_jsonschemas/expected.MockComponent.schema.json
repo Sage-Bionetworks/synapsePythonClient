@@ -2,6 +2,7 @@
   "$id": "http://example.com/MockComponent_validation",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Component to hold mock attributes for testing all validation rules",
+  "pattern": "",
   "properties": {
     "CheckAges": {
       "description": "TBD",
@@ -159,7 +160,7 @@
       "not": {
         "type": "null"
       },
-      "pattern": "^[a-f]",
+      "pattern": "^[a-b]",
       "title": "Check Regex Format"
     },
     "CheckRegexInteger": {
@@ -190,7 +191,7 @@
       "not": {
         "type": "null"
       },
-      "pattern": "[a-f]",
+      "pattern": "[a-b]",
       "title": "Check Regex Single"
     },
     "CheckString": {
