@@ -1218,11 +1218,11 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "Check Regex Single",
+            "sms:pattern": "[a-b]",
             "sms:required": "sms:true",
-            "sms:validationRules": [
-                "regex search [a-f]"
-            ]
+            "sms:validationRules": []
         },
         {
             "@id": "bts:CheckRegexFormat",
@@ -1237,7 +1237,9 @@
             "schema:isPartOf": {
                 "@id": "http://schema.biothings.io"
             },
+            "sms:columnType": "string",
             "sms:displayName": "Check Regex Format",
+            "sms:pattern": "^[a-b]",
             "sms:required": "sms:true",
             "sms:validationRules": [
                 "regex match [a-f]"
