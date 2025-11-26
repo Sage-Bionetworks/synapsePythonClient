@@ -161,7 +161,8 @@
         "type": "null"
       },
       "pattern": "^[a-b]",
-      "title": "Check Regex Format"
+      "title": "Check Regex Format",
+      "type": "string"
     },
     "CheckRegexInteger": {
       "description": "TBD",
@@ -192,7 +193,8 @@
         "type": "null"
       },
       "pattern": "[a-b]",
-      "title": "Check Regex Single"
+      "title": "Check Regex Single",
+      "type": "string"
     },
     "CheckString": {
       "description": "TBD",
