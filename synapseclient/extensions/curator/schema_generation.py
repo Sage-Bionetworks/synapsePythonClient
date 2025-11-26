@@ -4871,7 +4871,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             try:
                 re.compile(self.pattern)
             except re.error as e:
-                raise ValueError(
+                raise SyntaxError(
                     f"The regex pattern '{self.pattern}' for property '{self.name}' is invalid."
                 ) from e
 
