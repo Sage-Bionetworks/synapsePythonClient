@@ -271,6 +271,7 @@ class TestJSONSchema:
             "$id": "",
             "$schema": "http://json-schema.org/draft-07/schema#",
             "description": "TBD",
+            "pattern": "",
             "properties": {},
             "required": [],
             "title": "",
