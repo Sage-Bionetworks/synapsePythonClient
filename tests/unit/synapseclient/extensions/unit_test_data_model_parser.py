@@ -1,6 +1,9 @@
+import tempfile
+from time import sleep
 from typing import Any, Union
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from synapseclient.extensions.curator.schema_generation import (
@@ -88,6 +91,23 @@ class TestDataModelCsvParser:
         assert csv_dmp.parse_format(attribute_dict) == expected_dict
 
     @pytest.mark.parametrize(
+        "attribute_dict, expected_dict",
+        [
+            ({}, {}),
+            ({"Pattern": np.nan}, {}),
+            ({"Pattern": "^[a-b]"}, {"Pattern": "^[a-b]"}),
+            ({"Pattern": "  [a-b]  "}, {"Pattern": "[a-b]"}),
+        ],
+    )
+    def test_parse_regex_pattern(
+        self,
+        csv_dmp: DataModelCSVParser,
+        attribute_dict: dict[str, Any],
+        expected_dict: dict[str, str],
+    ) -> None:
+        assert csv_dmp.parse_pattern(attribute_dict) == expected_dict
+
+    @pytest.mark.parametrize(
         "attribute_dict, relationship, expected_dict",
         [
             ({"Minimum": 10.0}, "Minimum", {"Minimum": 10.0}),
@@ -132,7 +152,6 @@ class TestDataModelCsvParser:
                 == expected_dict
             )
 
-
 class TestDataModelJsonLdParser:
     def test_gather_jsonld_attributes_relationships(
         self,
@@ -143,8 +162,6 @@ class TestDataModelJsonLdParser:
         assert csv_dmp.parse_minimum_maximum(attribute_dict, "Minimum") == expected_dict
         assert csv_dmp.parse_minimum_maximum(attribute_dict, "Maximum") == expected_dict
 
-
-class TestDataModelJsonLdParser:
     def test_gather_jsonld_attributes_relationships(
         self,
         helpers,

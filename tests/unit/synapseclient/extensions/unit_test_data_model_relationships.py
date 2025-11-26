@@ -71,6 +71,7 @@ class TestDataModelRelationships2:
                 "id": "Source",
                 "maximum": "Maximum",
                 "minimum": "Minimum",
+                "pattern": "Pattern",
             }
 
     def test_get_relationship_value(self, dmr: DataModelRelationships) -> None:

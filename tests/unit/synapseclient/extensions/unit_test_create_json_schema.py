@@ -6,10 +6,13 @@ The helper classes tested are JSONSchema, Node, GraphTraversalState,
 import json
 import logging
 import os
+import tempfile
+from time import sleep
 from typing import Any, Optional
 from unittest import mock
 from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
@@ -17,7 +20,9 @@ from jsonschema.exceptions import ValidationError
 from synapseclient.extensions.curator.schema_generation import (
     AtomicColumnType,
     ColumnType,
+    DataModelGraph,
     DataModelGraphExplorer,
+    DataModelParser,
     GraphTraversalState,
     JSONSchema,
     JSONSchemaFormat,
@@ -406,6 +411,48 @@ def test_node_init(
     if node_name == "Regex":
         warning_message = "A regex validation rule is set for property: Regex, but the pattern is not set in the data model."
         assert warning_message in test_nodes[node_name].logger.mock_calls[0][1][0]
+
+
+def test_invalid_regex_columntype_traversalnode(
+    helpers,
+) -> None:
+    """
+    Tests for TraversalNode class initialization.
+
+    Verifies that when TransversalNode objects are initialized with a patter specified and an incompatible column type, a ValueError is raised.
+    """
+    node = "Check Regex Single"
+
+    path_to_data_model = helpers.get_schema_file_path("data_models/example.model.csv")
+
+    fullpath = helpers.get_schema_file_path(path_to_data_model)
+
+    # Instantiate DataModelParser
+    data_model_parser = DataModelParser(path_to_data_model=fullpath, logger=Mock())
+
+    # Parse Model
+    parsed_data_model = data_model_parser.parse_model()
+
+    # Change column type to imcompatible type
+    parsed_data_model[node]["Relationships"]["ColumnType"] = "integer"
+
+    # Instantiate DataModelGraph
+    data_model_grapher = DataModelGraph(
+        parsed_data_model, data_model_labels="class_label", logger=Mock()
+    )
+
+    # Generate graph
+    graph_data_model = data_model_grapher.graph
+
+    # Instantiate DataModelGraphExplorer
+    dmge = DataModelGraphExplorer(graph_data_model, logger=Mock())
+
+    # A value error should be raised when using pattern specification with non-string column type
+    error_message = "Column type must be set to 'string' to use column pattern specification for regex validation."
+    with pytest.raises(ValueError, match=error_message):
+        node = TraversalNode(
+            node.replace(" ", ""), "JSONSchemaComponent", dmge, logger=Mock()
+        )
 
 
 @pytest.mark.parametrize(
