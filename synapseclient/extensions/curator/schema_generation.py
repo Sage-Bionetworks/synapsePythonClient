@@ -4855,7 +4855,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
 
         self.pattern = column_pattern if column_pattern else rule_pattern
 
-        if rule_pattern:
+        if rule_pattern and not column_pattern:
             msg = (
                 f"A regex validation rule is set for property: {self.name}, but the pattern is not set in the data model. "
                 f"The regex pattern will be set to {self.pattern}, but the regex rule is deprecated and validation "
