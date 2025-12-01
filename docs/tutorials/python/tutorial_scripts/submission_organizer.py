@@ -82,20 +82,15 @@ if statuses_to_update:
         }
     
     # Perform batch update
-    try:
-        batch_response = SubmissionStatus.batch_update_submission_statuses(
-            evaluation_id=EVALUATION_ID,
-            statuses=statuses_to_update,
-            is_first_batch=True,
-            is_last_batch=True
-        )
-        
-        print(f"Batch update completed successfully!")
-        print(f"Batch response: {batch_response}")
-        
-    except Exception as e:
-        print(f"Batch update failed: {e}")
-        print("This may be due to permissions or invalid submission states")
+    batch_response = SubmissionStatus.batch_update_submission_statuses(
+        evaluation_id=EVALUATION_ID,
+        statuses=statuses_to_update,
+        is_first_batch=True,
+        is_last_batch=True
+    )
+    
+    print(f"Batch update completed successfully!")
+    print(f"Batch response: {batch_response}")
 else:
     print("No submissions found with 'RECEIVED' status to update")
 
@@ -108,37 +103,32 @@ print("\n=== 3. Fetching submission bundle ===")
 # Get all submission bundles for the evaluation
 print("Fetching all submission bundles for the evaluation...")
 
-try:
-    bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-        evaluation_id=EVALUATION_ID,
-        status="SCORED"  # Only get scored submissions
-    ))
-    
-    print(f"Found {len(bundles)} scored submission bundles")
-    
-    for i, bundle in enumerate(bundles[:5]):  # Show first 5
-        submission = bundle.submission
-        status = bundle.submission_status
-        
-        print(f"\nBundle {i + 1}:")
-        if submission:
-            print(f"  Submission ID: {submission.id}")
-            print(f"  Submitter: {submission.submitter_alias}")
-            print(f"  Entity ID: {submission.entity_id}")
-            print(f"  Created: {submission.created_on}")
-        
-        if status:
-            print(f"  Status: {status.status}")
-            print(f"  Modified: {status.modified_on}")
-            if status.submission_annotations:
-                print(f"  Scores:")
-                for key, value in status.submission_annotations.items():
-                    if key in ['accuracy', 'f1_score', 'precision', 'recall']:
-                        print(f"    {key}: {value}")
+bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
+    evaluation_id=EVALUATION_ID,
+    status="SCORED"  # Only get scored submissions
+))
 
-except Exception as e:
-    print(f"Could not fetch submission bundles: {e}")
-    print("This requires READ_PRIVATE_SUBMISSION permissions on the evaluation")
+print(f"Found {len(bundles)} scored submission bundles")
+
+for i, bundle in enumerate(bundles[:5]):  # Show first 5
+    submission = bundle.submission
+    status = bundle.submission_status
+    
+    print(f"\nBundle {i + 1}:")
+    if submission:
+        print(f"  Submission ID: {submission.id}")
+        print(f"  Submitter: {submission.submitter_alias}")
+        print(f"  Entity ID: {submission.entity_id}")
+        print(f"  Created: {submission.created_on}")
+    
+    if status:
+        print(f"  Status: {status.status}")
+        print(f"  Modified: {status.modified_on}")
+        if status.submission_annotations:
+            print(f"  Scores:")
+            for key, value in status.submission_annotations.items():
+                if key in ['accuracy', 'f1_score', 'precision', 'recall']:
+                    print(f"    {key}: {value}")
 
 # ==============================================================================
 # 4. Allow cancellation of submissions
@@ -147,51 +137,41 @@ except Exception as e:
 print("\n=== 4. Managing submission cancellation ===")
 
 # First, check if any submissions have requested cancellation
-try:
-    all_statuses = SubmissionStatus.get_all_submission_statuses(
-        evaluation_id=EVALUATION_ID,
-        limit=100
-    )
-    
-    cancellation_requests = [
-        status for status in all_statuses 
-        if status.cancel_requested
-    ]
-    
-    print(f"Found {len(cancellation_requests)} submissions with cancellation requests")
-    
-    # Process cancellation requests
-    for status in cancellation_requests:
-        print(f"Processing cancellation request for submission {status.id}")
-        
-        # Update to allow cancellation (organizer decision)
-        status.can_cancel = True
-        status.status = "CANCELLED"
-        status.submission_annotations.update({
-            "cancellation_reason": ["User requested cancellation"],
-            "cancelled_by": ["organizer"],
-            "cancellation_date": ["2024-11-24"]
-        })
-        
-        # Store the update
-        try:
-            updated_status = status.store()
-            print(f"  Approved cancellation for submission {updated_status.id}")
-        except Exception as e:
-            print(f"  Could not process cancellation: {e}")
+all_statuses = SubmissionStatus.get_all_submission_statuses(
+    evaluation_id=EVALUATION_ID,
+    limit=100
+)
 
-except Exception as e:
-    print(f"Could not check for cancellation requests: {e}")
+cancellation_requests = [
+    status for status in all_statuses 
+    if status.cancel_requested
+]
+
+print(f"Found {len(cancellation_requests)} submissions with cancellation requests")
+
+# Process cancellation requests
+for status in cancellation_requests:
+    print(f"Processing cancellation request for submission {status.id}")
+    
+    # Update to allow cancellation (organizer decision)
+    status.can_cancel = True
+    status.status = "CANCELLED"
+    status.submission_annotations.update({
+        "cancellation_reason": ["User requested cancellation"],
+        "cancelled_by": ["organizer"],
+        "cancellation_date": ["2024-11-24"]
+    })
+    
+    # Store the update
+    updated_status = status.store()
+    print(f"  Approved cancellation for submission {updated_status.id}")
 
 # Example: Proactively allow cancellation for a specific submission
 print("\nEnabling cancellation for a specific submission...")
-try:
-    target_status = SubmissionStatus(id=SUBMISSION_ID).get()
-    target_status.can_cancel = True
-    target_status = target_status.store()
-    print(f"Cancellation enabled for submission {SUBMISSION_ID}")
-except Exception as e:
-    print(f"Could not enable cancellation: {e}")
+target_status = SubmissionStatus(id=SUBMISSION_ID).get()
+target_status.can_cancel = True
+target_status = target_status.store()
+print(f"Cancellation enabled for submission {SUBMISSION_ID}")
 
 # ==============================================================================
 # 5. Delete submissions

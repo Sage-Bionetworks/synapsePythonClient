@@ -42,27 +42,90 @@ As an organizer of a Synapse challenge, you will
 ### 1. Make a submission to an existing evaluation queue on Synapse
 
 ```python
-{!docs/tutorials/python/tutorial_scripts/submission.py!lines=5-46}
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=30-51}
 ```
 
 ### 2. Fetch your existing submission
 
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=56-71}
+```
+
 ### 3. Count your submissions
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=72-92}
+```
 
 ### 4. Fetch all of your submissions from an existing evaluation queue on Synapse
 
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=93-107}
+```
+
 ### 5. Check the status of your submission
 
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=108-130}
+```
+
 ### 6. Cancel your submission
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!lines=131-157}
+```
 
 ## 2. Organizing a Synapse challenge
 
 ### 1. Annotate a submission to score it
 
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=29-57}
+```
+
 ### 2. Batch-update submission statuses
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=58-101}
+```
 
 ### 3. Fetch the submission bundle for a given submission
 
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=102-142}
+```
+
 ### 4. Allow cancellation of submissions
 
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=143-195}
+```
+
 ### 5. Delete submissions
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!lines=196-229}
+```
+
+## Source code for this tutorial
+
+<details class="quote">
+  <summary>Click to show me (source code for Participant)</summary>
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_participant.py!}
+```
+</details>
+
+<details class="quote">
+  <summary>Click to show me (source code for Organizer)</summary>
+
+```python
+{!docs/tutorials/python/tutorial_scripts/submission_organizer.py!}
+```
+</details>
+
+## References
+- [Evaluation][synapseclient.models.Evaluation]
+- [Project][synapseclient.models.Project]
+- [syn.login][synapseclient.Synapse.login]

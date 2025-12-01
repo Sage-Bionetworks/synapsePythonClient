@@ -137,16 +137,12 @@ print("\n=== 6. Cancelling submission ===")
 # Note: Only cancel if the submission allows it
 # Uncomment the following lines if you want to test cancellation:
 
-# try:
-#     cancelled_submission = submission.cancel()
-#     print(f"Submission {cancelled_submission.id} has been requested for cancellation")
-#     
-#     # Check the updated status
-#     updated_status = SubmissionStatus(id=submission_id).get()
-#     print(f"Cancel requested: {updated_status.cancel_requested}")
-# except Exception as e:
-#     print(f"Could not cancel submission: {e}")
-#     print("This may be because cancellation is not allowed for this submission")
+# cancelled_submission = submission.cancel()
+# print(f"Submission {cancelled_submission.id} has been requested for cancellation")
+# 
+# # Check the updated status
+# updated_status = SubmissionStatus(id=submission_id).get()
+# print(f"Cancel requested: {updated_status.cancel_requested}")
 
 print(f"\nCancellation is commented out by default.")
 print(f"Uncomment the cancellation code if you want to test this functionality.")
