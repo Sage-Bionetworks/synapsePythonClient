@@ -2,7 +2,6 @@
   "$id": "http://example.com/JSONSchemaComponent_validation",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Component to hold attributes for testing JSON Schemas",
-  "pattern": "",
   "properties": {
     "Component": {
       "description": "TBD",

@@ -2025,9 +2025,6 @@ class ClassTemplate:
     magic_validationRules: list = field(
         default_factory=list, metadata=config(field_name="sms:validationRules")
     )
-    magic_pattern: list = field(
-        default_factory=list, metadata=config(field_name="sms:pattern")
-    )
 
 
 class DataModelJsonLD:
@@ -5176,7 +5173,6 @@ class JSONSchema:  # pylint: disable=too-many-instance-attributes
     properties: dict[str, Property] = field(default_factory=dict)
     required: list[str] = field(default_factory=list)
     all_of: list[AllOf] = field(default_factory=list)
-    pattern: str = ""
 
     def as_json_schema_dict(
         self,
