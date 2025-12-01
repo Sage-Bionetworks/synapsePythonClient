@@ -34,7 +34,7 @@ As an organizer of a Synapse challenge, you will
 
 ## Prerequisites
 * You have completed the [Evaluation](./evaluation.md) tutorial, or have an existing Evaluation on Synapse to work from
-* You have an existing entity with which to make a submission (can be a File or Docker Repository)
+* You have an existing entity with which to make a submission (can be a [File](./file.md) or Docker Repository)
 * You have the correct permissions on the Evaluation queue for your desired tutorial section (participant or organizer)
 
 ## 1. Participating in a Synapse challenge
@@ -127,5 +127,5 @@ As an organizer of a Synapse challenge, you will
 
 ## References
 - [Evaluation][synapseclient.models.Evaluation]
-- [Project][synapseclient.models.Project]
+- [File][synapseclient.models.File]
 - [syn.login][synapseclient.Synapse.login]
