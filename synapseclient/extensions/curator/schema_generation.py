@@ -4651,7 +4651,7 @@ def _get_validation_rule_based_fields(
                 f"An inRange validation rule is set for property: {name}, "
                 "setting minimum and maximum values accordingly. "
                 "This behavior is deprecated and validation rules will no longer "
-                "be used in the future. Please use minimum, maximum fields instead. To use minimum and/or maximum values, you must set columnType to one of: 'integer', 'number', or 'integer_list'."
+                "be used in the future. Please use Minimum and Maximum columns in the data model instead. To use minimum and/or maximum values, you must set columnType to one of: 'integer', 'number', or 'integer_list'."
             )
             logger.warning(msg)
 
