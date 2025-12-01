@@ -193,7 +193,7 @@ plugins:
       default_handler: python
       handlers:
         python:
-          imports:
+          import:
           - https://docs.python.org/3/objects.inv
           - https://python-markdown.github.io/objects.inv
           options:
