@@ -10,7 +10,7 @@ This tutorial demonstrates how to:
 """
 
 from synapseclient import Synapse
-from synapseclient.models import Submission, SubmissionStatus, SubmissionBundle
+from synapseclient.models import Submission, SubmissionBundle, SubmissionStatus
 
 syn = Synapse()
 syn.login()
@@ -20,8 +20,12 @@ syn.login()
 EVALUATION_ID = None  # Replace with the evaluation queue ID you manage
 SUBMISSION_ID = None  # Replace with a submission ID from your evaluation
 
-assert EVALUATION_ID is not None, "EVALUATION_ID must be set to the evaluation queue ID you manage"
-assert SUBMISSION_ID is not None, "SUBMISSION_ID must be set to a submission ID from your evaluation"
+assert (
+    EVALUATION_ID is not None
+), "EVALUATION_ID must be set to the evaluation queue ID you manage"
+assert (
+    SUBMISSION_ID is not None
+), "SUBMISSION_ID must be set to a submission ID from your evaluation"
 
 print(f"Working with Evaluation: {EVALUATION_ID}")
 print(f"Managing Submission: {SUBMISSION_ID}")
@@ -41,10 +45,10 @@ print(f"Current status: {status.status}")
 status.status = "SCORED"
 status.submission_annotations = {
     "accuracy": [0.85],
-    "precision": [0.82], 
+    "precision": [0.82],
     "feedback": ["Good performance!"],
     "validation_errors": "None detected",
-    "score_errors": "None detected"
+    "score_errors": "None detected",
 }
 
 # Store the updated status
@@ -65,7 +69,7 @@ print("\n=== 2. Batch updating submission statuses ===")
 statuses_to_update = SubmissionStatus.get_all_submission_statuses(
     evaluation_id=EVALUATION_ID,
     status="RECEIVED",  # Get submissions that haven't been scored yet
-    limit=50  # Limit to 50 for this example (max is 500 for batch operations)
+    limit=50,  # Limit to 50 for this example (max is 500 for batch operations)
 )
 
 print(f"Found {len(statuses_to_update)} submissions to batch update")
@@ -78,17 +82,17 @@ if statuses_to_update:
             "validation_status": ["PASSED"],
             "validation_timestamp": ["2024-11-24T10:30:00Z"],
             "batch_number": [i + 1],
-            "validator": ["automated_system"]
+            "validator": ["automated_system"],
         }
-    
+
     # Perform batch update
     batch_response = SubmissionStatus.batch_update_submission_statuses(
         evaluation_id=EVALUATION_ID,
         statuses=statuses_to_update,
         is_first_batch=True,
-        is_last_batch=True
+        is_last_batch=True,
     )
-    
+
     print(f"Batch update completed successfully!")
     print(f"Batch response: {batch_response}")
 else:
@@ -103,31 +107,32 @@ print("\n=== 3. Fetching submission bundle ===")
 # Get all submission bundles for the evaluation
 print("Fetching all submission bundles for the evaluation...")
 
-bundles = list(SubmissionBundle.get_evaluation_submission_bundles(
-    evaluation_id=EVALUATION_ID,
-    status="SCORED"  # Only get scored submissions
-))
+bundles = list(
+    SubmissionBundle.get_evaluation_submission_bundles(
+        evaluation_id=EVALUATION_ID, status="SCORED"  # Only get scored submissions
+    )
+)
 
 print(f"Found {len(bundles)} scored submission bundles")
 
 for i, bundle in enumerate(bundles[:5]):  # Show first 5
     submission = bundle.submission
     status = bundle.submission_status
-    
+
     print(f"\nBundle {i + 1}:")
     if submission:
         print(f"  Submission ID: {submission.id}")
         print(f"  Submitter: {submission.submitter_alias}")
         print(f"  Entity ID: {submission.entity_id}")
         print(f"  Created: {submission.created_on}")
-    
+
     if status:
         print(f"  Status: {status.status}")
         print(f"  Modified: {status.modified_on}")
         if status.submission_annotations:
             print(f"  Scores:")
             for key, value in status.submission_annotations.items():
-                if key in ['accuracy', 'f1_score', 'precision', 'recall']:
+                if key in ["accuracy", "f1_score", "precision", "recall"]:
                     print(f"    {key}: {value}")
 
 # ==============================================================================
@@ -138,30 +143,28 @@ print("\n=== 4. Managing submission cancellation ===")
 
 # First, check if any submissions have requested cancellation
 all_statuses = SubmissionStatus.get_all_submission_statuses(
-    evaluation_id=EVALUATION_ID,
-    limit=100
+    evaluation_id=EVALUATION_ID, limit=100
 )
 
-cancellation_requests = [
-    status for status in all_statuses 
-    if status.cancel_requested
-]
+cancellation_requests = [status for status in all_statuses if status.cancel_requested]
 
 print(f"Found {len(cancellation_requests)} submissions with cancellation requests")
 
 # Process cancellation requests
 for status in cancellation_requests:
     print(f"Processing cancellation request for submission {status.id}")
-    
+
     # Update to allow cancellation (organizer decision)
     status.can_cancel = True
     status.status = "CANCELLED"
-    status.submission_annotations.update({
-        "cancellation_reason": ["User requested cancellation"],
-        "cancelled_by": ["organizer"],
-        "cancellation_date": ["2024-11-24"]
-    })
-    
+    status.submission_annotations.update(
+        {
+            "cancellation_reason": ["User requested cancellation"],
+            "cancelled_by": ["organizer"],
+            "cancellation_date": ["2024-11-24"],
+        }
+    )
+
     # Store the update
     updated_status = status.store()
     print(f"  Approved cancellation for submission {updated_status.id}")

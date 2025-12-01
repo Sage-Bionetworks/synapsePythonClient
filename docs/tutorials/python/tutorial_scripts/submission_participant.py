@@ -4,7 +4,7 @@ Submission Participant Tutorial - Code for working with Submissions as a challen
 This tutorial demonstrates how to:
 1. Make a submission to an existing evaluation queue
 2. Fetch your existing submission
-3. Count your submissions 
+3. Count your submissions
 4. Fetch all of your submissions from an evaluation queue
 5. Check the status of your submission
 6. Cancel your submission
@@ -22,7 +22,9 @@ EVALUATION_ID = "9617645"  # Replace with the evaluation queue ID you want to su
 ENTITY_ID = "syn59211514"  # Replace with the entity ID you want to submit
 
 assert EVALUATION_ID is not None, "EVALUATION_ID must be set to the evaluation queue ID"
-assert ENTITY_ID is not None, "ENTITY_ID must be set to the entity ID you want to submit"
+assert (
+    ENTITY_ID is not None
+), "ENTITY_ID must be set to the entity ID you want to submit"
 
 print(f"Working with Evaluation: {EVALUATION_ID}")
 print(f"Submitting Entity: {ENTITY_ID}")
@@ -35,9 +37,7 @@ print("\n=== 1. Making a submission ===")
 
 # Create a new Submission object
 submission = Submission(
-    entity_id=ENTITY_ID,
-    evaluation_id=EVALUATION_ID,
-    name="My Tutorial Submission"
+    entity_id=ENTITY_ID, evaluation_id=EVALUATION_ID, name="My Tutorial Submission"
 )
 
 # Submit the entity to the evaluation queue
@@ -76,16 +76,13 @@ print(f"  Created On: {retrieved_submission.created_on}")
 print("\n=== 3. Counting submissions ===")
 
 # Get the total count of submissions for this evaluation
-submission_count = Submission.get_submission_count(
-    evaluation_id=EVALUATION_ID
-)
+submission_count = Submission.get_submission_count(evaluation_id=EVALUATION_ID)
 
 print(f"Total submissions in evaluation: {submission_count}")
 
 # Get count of submissions with specific status (optional)
 scored_count = Submission.get_submission_count(
-    evaluation_id=EVALUATION_ID,
-    status="SCORED"
+    evaluation_id=EVALUATION_ID, status="SCORED"
 )
 
 print(f"SCORED submissions in evaluation: {scored_count}")
@@ -97,9 +94,7 @@ print(f"SCORED submissions in evaluation: {scored_count}")
 print("\n=== 4. Fetching all your submissions ===")
 
 # Get all of your submissions for this evaluation
-user_submissions = list(Submission.get_user_submissions(
-    evaluation_id=EVALUATION_ID
-))
+user_submissions = list(Submission.get_user_submissions(evaluation_id=EVALUATION_ID))
 
 print(f"Found {len(user_submissions)} submissions from the current user:")
 for i, sub in enumerate(user_submissions, 1):
@@ -139,7 +134,7 @@ print("\n=== 6. Cancelling submission ===")
 
 # cancelled_submission = submission.cancel()
 # print(f"Submission {cancelled_submission.id} has been requested for cancellation")
-# 
+#
 # # Check the updated status
 # updated_status = SubmissionStatus(id=submission_id).get()
 # print(f"Cancel requested: {updated_status.cancel_requested}")
