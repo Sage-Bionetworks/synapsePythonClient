@@ -4817,28 +4817,29 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self, explicit_maximum, explicit_minimum
     ) -> None:
         """Validate column type compatability if node has "Maximum" or "Minimum" constraints and the type is not numeric."""
-        if explicit_maximum or explicit_minimum:
-            if not self.type:
-                raise ValueError(
-                    f"For attribute '{self.display_name}': numeric constraints "
-                    f"(min: {explicit_minimum}, max: {explicit_maximum}) are specified, "
-                    f"but columnType is not set. Please set columnType to 'number', 'integer' or 'integer_list'."
-                )
-            # If type is specified but not numeric, raise error
-            if self.type not in (
-                AtomicColumnType.NUMBER,
-                AtomicColumnType.INTEGER,
-                ListColumnType.INTEGER_LIST,
-            ):
-                if self.type == AtomicColumnType.STRING:
-                    wrong_type = "string"
-                elif self.type == AtomicColumnType.BOOLEAN:
-                    wrong_type = "boolean"
-                raise ValueError(
-                    f"For attribute '{self.display_name}': columnType is '{wrong_type}' "
-                    f"but numeric constraints (min: {explicit_minimum}, max: {explicit_maximum}) "
-                    f"are specified. Please set columnType to 'number', 'integer', or 'integer_list'."
-                )
+        if not explicit_maximum and not explicit_minimum:
+            return
+        if not self.type:
+            raise ValueError(
+                f"For attribute '{self.display_name}': numeric constraints "
+                f"(min: {explicit_minimum}, max: {explicit_maximum}) are specified, "
+                f"but columnType is not set. Please set columnType to 'number', 'integer' or 'integer_list'."
+            )
+        # If type is specified but not numeric, raise error
+        if self.type not in (
+            AtomicColumnType.NUMBER,
+            AtomicColumnType.INTEGER,
+            ListColumnType.INTEGER_LIST,
+        ):
+            if self.type == AtomicColumnType.STRING:
+                wrong_type = "string"
+            elif self.type == AtomicColumnType.BOOLEAN:
+                wrong_type = "boolean"
+            raise ValueError(
+                f"For attribute '{self.display_name}': columnType is '{wrong_type}' "
+                f"but numeric constraints (min: {explicit_minimum}, max: {explicit_maximum}) "
+                f"are specified. Please set columnType to 'number', 'integer', or 'integer_list'."
+            )
 
 
 @dataclass
