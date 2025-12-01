@@ -208,9 +208,16 @@ class Evaluation(DictObject):
         return "/evaluation/acl"
 
 
+@deprecated(
+    version="4.11.0",
+    reason="To be removed in 5.0.0. "
+    "Use the Submission model from synapseclient.models.submission instead.",
+)
 class Submission(DictObject):
     """
     Builds a Synapse submission object.
+
+    WARNING - This class is deprecated and will no longer be maintained. Please use the Submission model from synapseclient.models.submission instead.
 
     Arguments:
         name: Name of submission
