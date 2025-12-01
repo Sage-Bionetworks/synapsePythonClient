@@ -1842,7 +1842,7 @@ class DataModelGraphExplorer:
 
     def get_node_column_pattern(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
-    ) -> Optional[ColumnType]:
+    ) -> Optional[str]:
         """Gets the regex pattern of the node
 
         Args:
