@@ -4831,12 +4831,8 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             AtomicColumnType.INTEGER,
             ListColumnType.INTEGER_LIST,
         ):
-            if self.type == AtomicColumnType.STRING:
-                wrong_type = "string"
-            elif self.type == AtomicColumnType.BOOLEAN:
-                wrong_type = "boolean"
             raise ValueError(
-                f"For attribute '{self.display_name}': columnType is '{wrong_type}' "
+                f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
                 f"but numeric constraints (min: {explicit_minimum}, max: {explicit_maximum}) "
                 f"are specified. Please set columnType to 'number', 'integer', or 'integer_list'."
             )
