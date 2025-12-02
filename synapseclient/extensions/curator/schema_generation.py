@@ -5358,7 +5358,6 @@ def _create_simple_property(node: TraversalNode) -> Property:
         prop["not"] = {"type": "null"}
 
     _set_type_specific_keywords(prop, node)
-    _set_node_max_min(prop, node)
 
     return prop
 
@@ -5377,19 +5376,6 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> 
 
     if node.format is not None:
         schema["format"] = node.format.value
-
-
-def _set_node_max_min(schema: dict[str, Any], node: TraversalNode) -> None:
-    """Sets the maximum and minimum keywords for a node in the JSON Schema
-
-    Arguments:
-        schema: The schema to set keywords on
-        node (Node): The node the corresponds to the property which is being set in the JSON Schema
-    """
-    if node.minimum is not None:
-        schema["minimum"] = node.minimum
-    if node.maximum is not None:
-        schema["maximum"] = node.maximum
 
 
 def _set_property(
