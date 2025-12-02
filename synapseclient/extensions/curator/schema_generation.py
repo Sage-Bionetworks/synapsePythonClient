@@ -697,7 +697,46 @@ class DataModelCSVParser:
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     maximum_dict
                 )
+            if "Minimum" in model_df.columns and "Maximum" in model_df.columns:
+                minimum_value = attr_rel_dictionary[attribute_name][
+                    "Relationships"
+                ].get("Minimum")
+                maximum_value = attr_rel_dictionary[attribute_name][
+                    "Relationships"
+                ].get("Maximum")
+                self.validate_minimum_maximum_type_compatibility(
+                    minimum_value=minimum_value,
+                    maximum_value=maximum_value,
+                    attribute_name=attribute_name,
+                )
         return attr_rel_dictionary
+
+    def validate_minimum_maximum_type_compatibility(
+        self,
+        minimum_value: Union[int, float, None],
+        maximum_value: Union[int, float, None],
+        attribute_name: str,
+    ) -> None:
+        """Validate that minimum and maximum values are of compatible types.
+
+        Args:
+            minimum_value: The minimum value to validate.
+            maximum_value: The maximum value to validate.
+            attribute_name: The name of the attribute being validated.
+        Raises:
+            ValueError: If minimum and maximum values are of incompatible types.
+        """
+        if minimum_value is None or maximum_value is None:
+            return
+
+        if type(minimum_value) != type(maximum_value):
+            raise ValueError(
+                f"For attribute '{attribute_name}': Minimum and Maximum values must have the same type. "
+                f"Found Minimum={minimum_value} (type: {type(minimum_value).__name__}), "
+                f"Maximum={maximum_value} (type: {type(maximum_value).__name__}). "
+                f"Both values should be either integers or floats. "
+                f"Please ensure consistency in your data model."
+            )
 
     def parse_column_type(self, attr: dict) -> dict:
         """Parse the attribute type for a given attribute.
@@ -739,7 +778,7 @@ class DataModelCSVParser:
               headers are keys. Values are the entries under each header.
             relationship: either "Minimum" or "Maximum"
         Returns:
-            dict[str, float]: A dictionary containing the parsed minimum/maximum value
+            dict[str, Union[float, int]]: A dictionary containing the parsed minimum/maximum value
             if present else an empty dict
         """
         from numbers import Number

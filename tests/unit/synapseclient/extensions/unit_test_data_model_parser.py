@@ -130,6 +130,45 @@ class TestDataModelCsvParser:
                 == expected_dict
             )
 
+    @pytest.mark.parametrize(
+        "minimum, maximum, expected",
+        [
+            # Valid cases - both integers
+            (10, 100, None),
+            (-10, 100, None),
+            # Valid cases - both floats
+            (10.5, 100.5, None),
+            (-10000.5, 100000.2, None),
+            # Cases with None (should not validate)
+            (None, 100, None),
+            (10.5, None, None),
+            (None, None, None),
+            # Invalid cases - mixed types
+            (10, 100.5, ValueError),
+            (10.5, 100, ValueError),
+        ],
+    )
+    def test_validate_minimum_maximum_type_compatibility(
+        self, csv_dmp: DataModelCSVParser, minimum, maximum, expected
+    ) -> None:
+        """Test that decimal float and integer are incompatible"""
+
+        if expected == ValueError:
+            with pytest.raises(ValueError) as exc_info:
+                csv_dmp.validate_minimum_maximum_type_compatibility(
+                    minimum, maximum, "TestAttr"
+                )
+
+            error_message = str(exc_info.value)
+            assert "TestAttr" in error_message
+            assert str(minimum) in error_message
+            assert str(maximum) in error_message
+            assert "Please ensure consistency in your data model." in error_message
+        else:
+            csv_dmp.validate_minimum_maximum_type_compatibility(
+                minimum, maximum, "TestAttr"
+            )
+
 
 class TestDataModelJsonLdParser:
     def test_gather_jsonld_attributes_relationships(
