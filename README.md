@@ -1,4 +1,4 @@
-Python Synapse Client
+Synapse Python Client
 =====================
 
 Branch  | Build Status
