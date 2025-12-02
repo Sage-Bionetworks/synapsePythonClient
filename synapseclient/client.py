@@ -1833,7 +1833,6 @@ class Synapse(object):
         Raises:
             SynapseUnmetAccessRestrictions: Warning for unmet access requirements.
         """
-        self.logger.warning("Warning Raised")
         restriction_information = bundle.get("restrictionInformation", None)
         if restriction_information and restriction_information.get(
             "hasUnmetAccessRequirement", None
