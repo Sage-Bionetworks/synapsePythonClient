@@ -807,9 +807,6 @@ class DataModelCSVParser:
                     f"The Maximum value: {maximum} must be greater than the Minimum value: {minimum}"
                 )
 
-        # if isinstance(value, float) and value.is_integer():
-        #     value = int(value)
-
         return {relationship: value}
 
     def parse_format(self, attribute_dict: dict) -> dict[str, str]:
