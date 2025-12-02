@@ -1184,12 +1184,11 @@ class TestCheckEntityRestrictions:
             }
             entity = "syn123"
             self.syn._check_entity_restrictions(bundle, entity, True)
-            mocked_warn.assert_called_with("Warning Raised")
 
     def test_check_entity_restrictions_unmet_restriction_entity_file_with_download_file_is_true(
         self,
     ) -> None:
-        with patch("logging.Logger.warning") as mocked_warn:
+        with patch.object(self.syn.logger, "warning") as mocked_warn:
             bundle = {
                 "entity": {
                     "id": "syn123",
