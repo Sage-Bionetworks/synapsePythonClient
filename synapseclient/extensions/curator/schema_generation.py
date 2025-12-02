@@ -4809,9 +4809,31 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             return None, None
 
     def _validate_column_type_compatibility(
-        self, explicit_maximum, explicit_minimum
+        self,
+        explicit_maximum: Union[int, float, None],
+        explicit_minimum: Union[int, float, None],
     ) -> None:
-        """Validate column type compatability if node has "Maximum" or "Minimum" constraints and the type is not numeric."""
+        """Validate that columnType is compatible with Maximum/Minimum constraints.
+
+        This method ensures that if Maximum and/or Minimum values are specified for an attribute,
+        the columnType must be set to a numeric type.
+
+        Arguments:
+            explicit_maximum: The maximum value constraint from the data model.
+            explicit_minimum: The minimum value constraint from the data model.
+
+        Raises:
+            ValueError: If Maximum or Minimum is specified but columnType is not set.
+                Error message indicates that columnType must be set to a numeric type.
+
+            ValueError: If Maximum or Minimum is specified but columnType is set to
+                a non-numeric type (e.g., 'string', 'boolean', 'string_list', 'boolean_list').
+                Error message indicates which columnType was set and suggests valid numeric types.
+
+        Returns:
+            None: This method performs validation only and doesn't return a value.
+                It raises ValueError if validation fails.
+        """
         if not explicit_maximum and not explicit_minimum:
             return
         if not self.type:
