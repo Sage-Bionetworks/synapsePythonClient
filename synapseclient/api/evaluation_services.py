@@ -403,6 +403,9 @@ async def create_submission(
         etag: The current eTag of the Entity being submitted.
         synapse_client: If not passed in and caching was not disabled by `Synapse.allow_client_caching(False)` this will use the last created
                         instance from the Synapse class constructor.
+
+    Returns:
+        A response JSON containing the created Submission model's attributes.
     """
     from synapseclient import Synapse
 
