@@ -90,8 +90,9 @@ class TestDataModelCsvParser:
     @pytest.mark.parametrize(
         "attribute_dict, relationship, expected_dict",
         [
-            ({"Minimum": 10.0}, "Minimum", {"Minimum": 10}),
-            ({"Maximum": 10.0}, "Maximum", {"Maximum": 10}),
+            ({"Minimum": 10.0}, "Minimum", {"Minimum": 10.0}),
+            ({"Minimum": 0.0}, "Minimum", {"Minimum": 0.0}),
+            ({"Maximum": 10.0}, "Maximum", {"Maximum": 10.0}),
             ({"Minimum": 10.5}, "Minimum", {"Minimum": 10.5}),
             ({"Maximum": 10.5}, "Maximum", {"Maximum": 10.5}),
             ({"Minimum": "random_string"}, "Minimum", ValueError),
@@ -99,10 +100,11 @@ class TestDataModelCsvParser:
             ({"Maximum": True}, "Maximum", ValueError),
             ({"Minimum": False}, "Minimum", ValueError),
             ({"Maximum": 10, "Minimum": 200}, "Maximum", ValueError),
-            ({"Maximum": 200, "Minimum": 2000}, "Minimum", ValueError),
+            ({"Maximum": 20, "Minimum": 2000}, "Minimum", ValueError),
         ],
         ids=[
             "minimum_integer",
+            "minimum_zero",
             "maximum_integer",
             "minimum_float",
             "maximum_float",
@@ -139,6 +141,7 @@ class TestDataModelCsvParser:
             # Valid cases - both floats
             (10.5, 100.5, None),
             (-10000.5, 100000.2, None),
+            (0.0, 0.9, None),
             # Cases with None (should not validate)
             (None, 100, None),
             (10.5, None, None),

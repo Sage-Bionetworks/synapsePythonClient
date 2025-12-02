@@ -807,10 +807,8 @@ class DataModelCSVParser:
                     f"The Maximum value: {maximum} must be greater than the Minimum value: {minimum}"
                 )
 
-        # Convert float (i.e. 10.0) to int if it's a whole number
-        # Keep as float otherwise
-        if isinstance(value, float) and value.is_integer():
-            value = int(value)
+        # if isinstance(value, float) and value.is_integer():
+        #     value = int(value)
 
         return {relationship: value}
 
