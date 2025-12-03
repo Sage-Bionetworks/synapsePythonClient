@@ -2511,6 +2511,187 @@
             "sms:displayName": "Boolean type caps",
             "sms:required": "sms:true",
             "sms:validationRules": []
+        },
+        {
+            "@id": "bts:RangeComponent",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "Component to ensure maximum and minimum can be set correctly",
+            "rdfs:label": "RangeComponent",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataType"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:displayName": "RangeComponent",
+            "sms:required": "sms:false",
+            "sms:requiresDependency": [
+                {
+                    "@id": "bts:Component"
+                },
+                {
+                    "@id": "bts:MaximumInteger"
+                },
+                {
+                    "@id": "bts:MinimumInteger"
+                },
+                {
+                    "@id": "bts:MaximumFloat"
+                },
+                {
+                    "@id": "bts:MinimumFloat"
+                },
+                {
+                    "@id": "bts:MaximumMinimum"
+                },
+                {
+                    "@id": "bts:MaximumMinimumIntegerList"
+                },
+                {
+                    "@id": "bts:MaximumMinimumValidationRule"
+                }
+            ],
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:MaximumInteger",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "MaximumInteger",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer",
+            "sms:displayName": "Maximum Integer",
+            "sms:maximum": 100,
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:MinimumInteger",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "MinimumInteger",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer",
+            "sms:displayName": "Minimum Integer",
+            "sms:minimum": 10,
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:MaximumFloat",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "MaximumFloat",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "number",
+            "sms:displayName": "Maximum Float",
+            "sms:maximum": 100.5,
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:MinimumFloat",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "MinimumFloat",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "number",
+            "sms:displayName": "Minimum Float",
+            "sms:minimum": 10.8,
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:MaximumMinimum",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "MaximumMinimum",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer",
+            "sms:displayName": "Maximum Minimum",
+            "sms:maximum": 100,
+            "sms:minimum": 10,
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:MaximumMinimumIntegerList",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "MaximumMinimumIntegerList",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer_list",
+            "sms:displayName": "Maximum Minimum Integer List",
+            "sms:maximum": 100,
+            "sms:minimum": 10,
+            "sms:required": "sms:true",
+            "sms:validationRules": []
+        },
+        {
+            "@id": "bts:MaximumMinimumValidationRule",
+            "@type": "rdfs:Class",
+            "rdfs:comment": "TBD",
+            "rdfs:label": "MaximumMinimumValidationRule",
+            "rdfs:subClassOf": [
+                {
+                    "@id": "bts:DataProperty"
+                }
+            ],
+            "schema:isPartOf": {
+                "@id": "http://schema.biothings.io"
+            },
+            "sms:columnType": "integer",
+            "sms:displayName": "Maximum Minimum Validation Rule",
+            "sms:maximum": 200,
+            "sms:minimum": 10,
+            "sms:required": "sms:true",
+            "sms:validationRules": [
+                "inRange 50 100"
+            ]
         }
     ],
     "@id": "http://schema.biothings.io/#0.1"

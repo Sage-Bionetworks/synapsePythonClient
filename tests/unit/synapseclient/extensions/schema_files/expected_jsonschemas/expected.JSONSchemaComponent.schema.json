@@ -66,16 +66,16 @@
       "items": {
         "type": "string"
       },
-      "type": "array",
-      "title": "List"
+      "title": "List",
+      "type": "array"
     },
     "ListBoolean": {
       "description": "TBD",
       "items": {
         "type": "boolean"
       },
-      "type": "array",
-      "title": "List Boolean"
+      "title": "List Boolean",
+      "type": "array"
     },
     "ListEnum": {
       "description": "TBD",
@@ -88,8 +88,8 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "List Enum"
+      "title": "List Enum",
+      "type": "array"
     },
     "ListEnumNotRequired": {
       "description": "TBD",
@@ -102,26 +102,26 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "List Enum Not Required"
+      "title": "List Enum Not Required",
+      "type": "array"
     },
     "ListInRange": {
       "description": "TBD",
       "items": {
-        "maximum": 100,
-        "minimum": 50,
+        "maximum": 100.0,
+        "minimum": 50.0,
         "type": "integer"
       },
-      "type": "array",
-      "title": "List InRange"
+      "title": "List InRange",
+      "type": "array"
     },
     "ListNotRequired": {
       "description": "TBD",
       "items": {
         "type": "string"
       },
-      "type": "array",
-      "title": "List Not Required"
+      "title": "List Not Required",
+      "type": "array"
     },
     "NoRules": {
       "description": "TBD",

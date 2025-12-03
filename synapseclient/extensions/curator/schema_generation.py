@@ -685,6 +685,18 @@ class DataModelCSVParser:
             if model_includes_format:
                 format_dict = self.parse_format(attr)
                 attr_rel_dictionary[attribute_name]["Relationships"].update(format_dict)
+
+            if "Minimum" in model_df.columns:
+                minimum_dict = self.parse_minimum_maximum(attr, "Minimum")
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    minimum_dict
+                )
+
+            if "Maximum" in model_df.columns:
+                maximum_dict = self.parse_minimum_maximum(attr, "Maximum")
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    maximum_dict
+                )
         return attr_rel_dictionary
 
     def parse_column_type(self, attr: dict) -> dict:
@@ -716,6 +728,47 @@ class DataModelCSVParser:
         )
 
         return {"ColumnType": column_type}
+
+    def parse_minimum_maximum(
+        self, attr: dict, relationship: str
+    ) -> dict[str, Union[float, int]]:
+        """Parse minimum/maximum value for a given attribute.
+
+        Args:
+            attr: single row of a csv model in dict form, where only the required
+              headers are keys. Values are the entries under each header.
+            relationship: either "Minimum" or "Maximum"
+        Returns:
+            dict[str, Union[float, int]]: A dictionary containing the parsed minimum/maximum value
+            if present else an empty dict
+        """
+        from numbers import Number
+
+        from pandas import isna
+
+        value = attr.get(relationship)
+
+        # If maximum and minimum are not specified, we don't want to add any entry to the dictionary
+        if isna(value):
+            return {}
+
+        # Validate that the value is numeric
+        if not isinstance(value, Number) or isinstance(value, bool):
+            raise ValueError(
+                f"The {relationship} value: {attr[relationship]} is not numeric, "
+                "please correct this value in the data model."
+            )
+
+        # if both maximum and minimum are present, check if maximum > minimum
+        if attr.get("Minimum") and attr.get("Maximum"):
+            maximum = attr.get("Maximum")
+            minimum = attr.get("Minimum")
+            if maximum < minimum:
+                raise ValueError(
+                    f"The Maximum value: {maximum} must be greater than the Minimum value: {minimum}"
+                )
+
+        return {relationship: value}
 
     def parse_format(self, attribute_dict: dict) -> dict[str, str]:
         """Finds the format value if it exists and returns it as a dictionary.
@@ -1792,6 +1845,30 @@ class DataModelGraphExplorer:
             )
             raise ValueError(msg) from exc
         return column_type
+
+    def get_node_maximum_minimum_value(
+        self,
+        relationship_value: str,
+        node_label: Optional[str] = None,
+        node_display_name: Optional[str] = None,
+    ) -> Union[int, float]:
+        """Gets the maximum and minimum value of the node
+
+        Args:
+            relationship_value: The relationship value (either maximum or minimum) to get the maximum or minimum from
+            node_label: The label of the node to get the format from
+            node_display_name: The display name of the node to get the format from
+
+        Returns:
+            The maximum or minimum value of the node
+        """
+
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value(
+            relationship_value, "node_label"
+        )
+        value = self.graph.nodes[node_label][rel_node_label]
+        return value
 
     def _get_node_label(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
@@ -2920,6 +2997,24 @@ class DataModelRelationships:
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
                 "allowed_values": [member.value for member in JSONSchemaFormat],
+            },
+            "maximum": {
+                "jsonld_key": "sms:maximum",
+                "csv_header": "Maximum",
+                "node_label": "maximum",
+                "type": Union[float, int],
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+            },
+            "minimum": {
+                "jsonld_key": "sms:minimum",
+                "csv_header": "Minimum",
+                "node_label": "minimum",
+                "type": Union[float, int],
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
             },
         }
 
@@ -4547,6 +4642,13 @@ def _get_validation_rule_based_fields(
             js_minimum, js_maximum = get_in_range_parameters_from_inputted_rule(
                 in_range_rule
             )
+            msg = (
+                f"An inRange validation rule is set for property: {name}, "
+                "setting minimum and maximum values accordingly. "
+                "This behavior is deprecated and validation rules will no longer "
+                "be used in the future. Please use Minimum and Maximum columns in the data model instead. To use minimum and/or maximum values, you must set columnType to one of: 'integer', 'number', or 'integer_list'."
+            )
+            logger.warning(msg)
 
         regex_rule = get_rule_from_inputted_rules(
             ValidationRuleName.REGEX, validation_rules
@@ -4632,18 +4734,22 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         column_type = self.dmge.get_node_column_type(
             node_display_name=self.display_name
         )
+        explicit_maximum = self.dmge.get_node_maximum_minimum_value(
+            relationship_value="maximum", node_display_name=self.display_name
+        )
+        explicit_minimum = self.dmge.get_node_maximum_minimum_value(
+            relationship_value="minimum", node_display_name=self.display_name
+        )
+
         # list validation rule is been deprecated for use in deciding type
         # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
         # https://sagebionetworks.jira.com/browse/SYNPY-1692
-        if isinstance(column_type, AtomicColumnType):
-            self.type = column_type
-            explicit_is_array = False
-        elif isinstance(column_type, ListColumnType):
-            self.type = LIST_TYPE_DICT[column_type]
-            explicit_is_array = True
-        else:
-            self.type = None
-            explicit_is_array = None
+        self.type, explicit_is_array = self._determine_type_and_array(column_type)
+
+        # Validate column type compatibility with min/max constraints
+        self._validate_column_type_compatibility(
+            explicit_maximum=explicit_maximum, explicit_minimum=explicit_minimum
+        )
 
         # url and date rules are deprecated for adding format keyword
         # TODO: set self.format here instead of passing it to get_validation_rule_based_fields
@@ -4663,8 +4769,8 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         (
             self.is_array,
             self.format,
-            self.minimum,
-            self.maximum,
+            implicit_minimum,
+            implicit_maximum,
             self.pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
@@ -4674,6 +4780,79 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             column_type=self.type,
             logger=self.logger,
         )
+
+        # Priority: explicit values from data model take precedence over validation rules
+        # Only use validation rule values if explicit values are not set
+        self.minimum = (
+            explicit_minimum if explicit_minimum is not None else implicit_minimum
+        )
+        self.maximum = (
+            explicit_maximum if explicit_maximum is not None else implicit_maximum
+        )
+
+    def _determine_type_and_array(
+        self, column_type: Optional[ColumnType]
+    ) -> tuple[Optional[AtomicColumnType], Optional[bool]]:
+        """Determine the JSON Schema type and array from columnType
+
+        Args:
+            column_type: The columnType from the data model
+
+        Returns:
+            Tuple of (type, explicit_is_array)
+        """
+        if isinstance(column_type, AtomicColumnType):
+            return column_type, False
+        elif isinstance(column_type, ListColumnType):
+            return LIST_TYPE_DICT[column_type], True
+        else:
+            return None, None
+
+    def _validate_column_type_compatibility(
+        self,
+        explicit_maximum: Union[int, float, None],
+        explicit_minimum: Union[int, float, None],
+    ) -> None:
+        """Validate that columnType is compatible with Maximum/Minimum constraints.
+
+        This method ensures that if Maximum and/or Minimum values are specified for an attribute,
+        the columnType must be set to a numeric type.
+
+        Arguments:
+            explicit_maximum: The maximum value constraint from the data model.
+            explicit_minimum: The minimum value constraint from the data model.
+
+        Raises:
+            ValueError: If Maximum or Minimum is specified but columnType is not set.
+                Error message indicates that columnType must be set to a numeric type.
+
+            ValueError: If Maximum or Minimum is specified but columnType is set to
+                a non-numeric type (e.g., 'string', 'boolean', 'string_list', 'boolean_list').
+                Error message indicates which columnType was set and suggests valid numeric types.
+
+        Returns:
+            None: This method performs validation only and doesn't return a value.
+                It raises ValueError if validation fails.
+        """
+        if not explicit_maximum and not explicit_minimum:
+            return
+        if not self.type:
+            raise ValueError(
+                f"For attribute '{self.display_name}': numeric constraints "
+                f"(min: {explicit_minimum}, max: {explicit_maximum}) are specified, "
+                f"but columnType is not set. Please set columnType to 'number', 'integer' or 'integer_list'."
+            )
+        # If type is specified but not numeric, raise error
+        if self.type not in (
+            AtomicColumnType.NUMBER,
+            AtomicColumnType.INTEGER,
+            ListColumnType.INTEGER_LIST,
+        ):
+            raise ValueError(
+                f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
+                f"but numeric constraints (min: {explicit_minimum}, max: {explicit_maximum}) "
+                f"are specified. Please set columnType to 'number', 'integer', or 'integer_list'."
+            )
 
 
 @dataclass
@@ -5236,7 +5415,6 @@ def _set_property(
     prop["description"] = node.description
     prop["title"] = node.display_name
     schema_property = {node_name: prop}
-
     json_schema.update_property(schema_property)
 
     if node.is_required:

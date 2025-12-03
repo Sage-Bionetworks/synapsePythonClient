@@ -77,3 +77,34 @@ def test_get_node_format(
     dmge: DataModelGraphExplorer, node_label: str, column_type: JSONSchemaFormat
 ) -> None:
     assert dmge.get_node_format(node_label) == column_type
+
+
+@pytest.mark.parametrize(
+    "node_label, maximum, minimum",
+    [
+        ("MaximumInteger", 100, None),
+        ("MinimumInteger", None, 10),
+        ("MaximumFloat", 100.5, None),
+        ("MinimumFloat", None, 10.8),
+        ("MaximumMinimum", 100, 10),
+        ("MaximumMinimumIntegerList", 100, 10),
+        ("MaximumMinimumValidationRule", 200, 10),
+    ],
+)
+def test_get_node_maximum_minimum_value(
+    dmge: DataModelGraphExplorer, node_label: str, maximum: float, minimum: float
+) -> None:
+    if maximum:
+        assert (
+            dmge.get_node_maximum_minimum_value(
+                relationship_value="maximum", node_label=node_label
+            )
+            == maximum
+        )
+    if minimum:
+        assert (
+            dmge.get_node_maximum_minimum_value(
+                relationship_value="minimum", node_label=node_label
+            )
+            == minimum
+        )
