@@ -1184,6 +1184,7 @@ class TestCheckEntityRestrictions:
             }
             entity = "syn123"
             self.syn._check_entity_restrictions(bundle, entity, True)
+            mocked_warn.assert_not_called()
 
     def test_check_entity_restrictions_unmet_restriction_entity_file_with_download_file_is_true(
         self,
