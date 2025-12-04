@@ -156,9 +156,6 @@
     },
     "CheckRegexFormat": {
       "description": "TBD",
-      "not": {
-        "type": "null"
-      },
       "pattern": "^[a-b]",
       "title": "Check Regex Format",
       "type": "string"
@@ -188,9 +185,6 @@
     },
     "CheckRegexSingle": {
       "description": "TBD",
-      "not": {
-        "type": "null"
-      },
       "pattern": "[a-b]",
       "title": "Check Regex Single",
       "type": "string"

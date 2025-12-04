@@ -50,7 +50,6 @@
     }
   ],
   "description": "TBD",
-  "pattern": "",
   "properties": {
     "CancerType": {
       "description": "TBD",
