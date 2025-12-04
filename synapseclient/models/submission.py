@@ -583,27 +583,27 @@ class Submission(
             ```
         """
 
-        if self.entity_id:
-            entity_info = await self._fetch_latest_entity(synapse_client=synapse_client)
-
-            self.entity_etag = entity_info.get("etag")
-
-            if (
-                entity_info.get("concreteType")
-                == "org.sagebionetworks.repo.model.FileEntity"
-            ):
-                self.version_number = entity_info.get("versionNumber")
-            elif (
-                entity_info.get("concreteType")
-                == "org.sagebionetworks.repo.model.docker.DockerRepository"
-            ):
-                self.docker_repository_name = entity_info.get("repositoryName")
-                self.docker_digest = entity_info.get("digest")
-                self.docker_tag = entity_info.get("tag")
-                # All docker repositories are assigned version number 1, even if they have multiple tags
-                self.version_number = 1
-        else:
+        if not self.entity_id:
             raise ValueError("entity_id is required to create a submission")
+
+        entity_info = await self._fetch_latest_entity(synapse_client=synapse_client)
+
+        self.entity_etag = entity_info.get("etag")
+
+        if (
+            entity_info.get("concreteType")
+            == "org.sagebionetworks.repo.model.FileEntity"
+        ):
+            self.version_number = entity_info.get("versionNumber")
+        elif (
+            entity_info.get("concreteType")
+            == "org.sagebionetworks.repo.model.docker.DockerRepository"
+        ):
+            self.docker_repository_name = entity_info.get("repositoryName")
+            self.docker_digest = entity_info.get("digest")
+            self.docker_tag = entity_info.get("tag")
+            # All docker repositories are assigned version number 1, even if they have multiple tags
+            self.version_number = 1
 
         if not self.entity_etag:
             raise ValueError("Unable to fetch etag for entity")
@@ -615,6 +615,7 @@ class Submission(
             request_body, self.entity_etag, synapse_client=synapse_client
         )
         self.fill_from_dict(response)
+
         return self
 
     @otel_trace_method(
