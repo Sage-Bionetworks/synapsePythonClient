@@ -18,7 +18,7 @@ from synapseclient.models.entityview import EntityView, ViewTypeMask
 from synapseclient.models.evaluation import Evaluation
 from synapseclient.models.file import File, FileHandle
 from synapseclient.models.folder import Folder
-from synapseclient.models.form import FormGroup
+from synapseclient.models.form import FormData, FormGroup
 from synapseclient.models.link import Link
 from synapseclient.models.materializedview import MaterializedView
 from synapseclient.models.mixins.table_components import QueryMixin
@@ -135,6 +135,7 @@ __all__ = [
     "JSONSchema",
     # Form models
     "FormGroup",
+    "FormData",
 ]
 
 # Static methods to expose as functions
