@@ -29,8 +29,8 @@ Check List Enum Strict,,"ab, cd, ef, gh",,,TRUE,DataProperty,,,list strict,,,,,
 Check Regex List,,,,,TRUE,DataProperty,,,list::regex match [a-f],,,,,
 Check Regex List Strict,,,,,TRUE,DataProperty,,,list strict::regex match [a-f],,,,,
 Check Regex List Like,,,,,TRUE,DataProperty,,,list like::regex match [a-f],,,,,
-Check Regex Single,,,,,TRUE,DataProperty,,,,,,,[a-b],
-Check Regex Format,,,,,TRUE,DataProperty,,,regex match [a-f],,,,^[a-b],
+Check Regex Single,,,,,TRUE,DataProperty,,,,,,,,[a-b]
+Check Regex Format,,,,,TRUE,DataProperty,,,regex match [a-f],,,,,^[a-b]
 Check Regex Integer,,,,,TRUE,DataProperty,,,regex search ^\d+$,,,,,
 Check Num,,,,,TRUE,DataProperty,,,num error,,,,,
 Check Float,,,,,TRUE,DataProperty,,,float error,number,,,,
