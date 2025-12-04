@@ -4854,7 +4854,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             explicit_maximum if explicit_maximum is not None else implicit_maximum
         )
 
-        if column_pattern and column_type.value != "string":
+        if column_pattern and column_type and column_type.value != "string":
             raise ValueError(
                 "Column type must be set to 'string' to use column pattern specification for regex validation."
             )
