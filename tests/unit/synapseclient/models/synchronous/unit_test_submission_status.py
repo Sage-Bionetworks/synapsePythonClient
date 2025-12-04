@@ -396,17 +396,9 @@ class TestSubmissionStatusSync:
         # GIVEN a list of SubmissionStatus objects
         statuses = [
             SubmissionStatus(
-                id="123",
-                etag="etag1",
-                status_version=1,
-                status="VALIDATED"
+                id="123", etag="etag1", status_version=1, status="VALIDATED"
             ),
-            SubmissionStatus(
-                id="456",
-                etag="etag2",
-                status_version=1,
-                status="SCORED"
-            ),
+            SubmissionStatus(id="456", etag="etag2", status_version=1, status="SCORED"),
         ]
 
         # AND mock response
@@ -447,10 +439,7 @@ class TestSubmissionStatusSync:
         # GIVEN a list of SubmissionStatus objects and a batch token
         statuses = [
             SubmissionStatus(
-                id="123",
-                etag="etag1",
-                status_version=1,
-                status="VALIDATED"
+                id="123", etag="etag1", status_version=1, status="VALIDATED"
             )
         ]
         batch_token = "previous_batch_token"

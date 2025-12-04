@@ -1,12 +1,5 @@
 from dataclasses import dataclass
-from typing import (
-    TYPE_CHECKING,
-    AsyncGenerator,
-    Generator,
-    Optional,
-    Protocol,
-    Union,
-)
+from typing import TYPE_CHECKING, AsyncGenerator, Generator, Optional, Protocol, Union
 
 from synapseclient import Synapse
 from synapseclient.api import evaluation_services

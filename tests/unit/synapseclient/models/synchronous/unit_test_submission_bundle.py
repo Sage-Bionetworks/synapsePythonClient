@@ -178,7 +178,6 @@ class TestSubmissionBundleSync:
         assert bundle.submission_status.id == SUBMISSION_STATUS_ID
         assert bundle.submission_status.status == STATUS
 
-    
     def test_get_evaluation_submission_bundles(self) -> None:
         """Test getting submission bundles for an evaluation using sync method."""
         # GIVEN mock response data
