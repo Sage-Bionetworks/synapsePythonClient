@@ -68,7 +68,7 @@ async def list_form_reviewer_async(
 ) -> AsyncGenerator[dict[str, Any], None]:
     """
     <https://rest-docs.synapse.org/rest/POST/form/data/list/reviewer.html>
-    List FormData objects in a FormGroup that are awaiting review.
+    List FormData objects and their associated status that match the filters of the provided request for the entire group. This is used by service accounts to review submissions. Filtering by WAITING_FOR_SUBMISSION is not allowed for this call.
 
     Arguments:
         synapse_client: The Synapse client to use for the request.
@@ -108,7 +108,7 @@ def list_form_reviewer_sync(
 ) -> Generator[dict[str, Any], None, None]:
     """
     <https://rest-docs.synapse.org/rest/POST/form/data/list/reviewer.html>
-    List FormData objects in a FormGroup that are awaiting review.
+    List FormData objects and their associated status that match the filters of the provided request for the entire group. This is used by service accounts to review submissions. Filtering by WAITING_FOR_SUBMISSION is not allowed for this call.
 
     Arguments:
         synapse_client: The Synapse client to use for the request.
@@ -132,6 +132,69 @@ def list_form_reviewer_sync(
 
     for item in client._POST_paginated(
         uri="/form/data/list/reviewer",
+        body={
+            "groupId": group_id,
+            "filterByState": filter_by_state,
+        },
+    ):
+        yield item
+
+
+async def list_form_data_async(
+    synapse_client: "Synapse",
+    group_id: str,
+    filter_by_state: Optional[list["StateEnum"]] = None,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """
+    <https://rest-docs.synapse.org/rest/POST/form/data/list.html>
+    List FormData objects and their associated status that match the filters of the provided request that are owned by the caller. Note: Only objects owned by the caller will be returned.
+
+    Arguments:
+        synapse_client: The Synapse client to use for the request.
+        group_id: The ID of the form group.
+
+    Yields:
+        A single page of result matching the request
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/form/ListResponse.html>
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    async for item in rest_post_paginated_async(
+        uri="/form/data/list",
+        body={
+            "groupId": group_id,
+            "filterByState": filter_by_state,
+        },
+        synapse_client=client,
+    ):
+        yield item
+
+
+def list_form_data_sync(
+    synapse_client: "Synapse",
+    group_id: str,
+    filter_by_state: Optional[list["StateEnum"]] = None,
+) -> Generator[dict[str, Any], None, None]:
+    """
+    <https://rest-docs.synapse.org/rest/POST/form/data/list.html>
+    List FormData objects and their associated status that match the filters of the provided request that are owned by the caller. Note: Only objects owned by the caller will be returned.
+
+    Arguments:
+        synapse_client: The Synapse client to use for the request.
+        group_id: The ID of the form group.
+
+    Yields:
+        A single page of result matching the request
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/form/ListResponse.html>
+    """
+    from synapseclient import Synapse
+
+    client = Synapse.get_client(synapse_client=synapse_client)
+
+    for item in client._POST_paginated(
+        uri="/form/data/list",
         body={
             "groupId": group_id,
             "filterByState": filter_by_state,

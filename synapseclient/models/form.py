@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, AsyncGenerator, Generator, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, Generator, List, Optional
 
 from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 
@@ -64,6 +64,47 @@ class FormGroup(FormGroupMixin):
 @dataclass
 @async_to_sync
 class FormData(FormDataMixin):
+    def _validate_filter_by_state(
+        self,
+        filter_by_state: Optional[List["StateEnum"]] = None,
+        allow_waiting_submission: bool = True,
+    ) -> None:
+        """
+        Validate filter_by_state values.
+
+        Arguments:
+            filter_by_state: List of StateEnum values to validate.
+            allow_waiting_submission: If False, raises error if WAITING_FOR_SUBMISSION is present.
+
+        Raises:
+            ValueError: If filter_by_state contains invalid values.
+        """
+        if not filter_by_state:
+            return
+
+        # Define valid states based on whether WAITING_FOR_SUBMISSION is allowed
+        valid_states = {
+            StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
+            StateEnum.ACCEPTED,
+            StateEnum.REJECTED,
+        }
+        if allow_waiting_submission:
+            valid_states.add(StateEnum.WAITING_FOR_SUBMISSION)
+
+        # Check each state
+        for state in filter_by_state:
+            if not isinstance(state, StateEnum):
+                valid_values = ", ".join(s.value for s in valid_states)
+                raise ValueError(
+                    f"Invalid state type. Expected StateEnum. Valid values are: {valid_values}"
+                )
+
+            if state not in valid_states:
+                valid_values = ", ".join(s.value for s in valid_states)
+                raise ValueError(
+                    f"StateEnum.{state.value} is not allowed. Valid values are: {valid_values}"
+                )
+
     async def create_async(
         self,
         *,
@@ -136,7 +177,7 @@ class FormData(FormDataMixin):
         self,
         *,
         synapse_client: Optional["Synapse"] = None,
-        filter_by_state: Optional[list["StateEnum"]] = None,
+        filter_by_state: Optional[List["StateEnum"]] = None,
     ) -> AsyncGenerator["FormData", None]:
         """
         List FormData objects in a FormGroup for review.
@@ -176,6 +217,10 @@ class FormData(FormDataMixin):
         if not self.group_id:
             raise ValueError("'group_id' must be provided to list FormData.")
 
+        self._validate_filter_by_state(
+            filter_by_state=filter_by_state, allow_waiting_submission=False
+        )
+
         if filter_by_state is None:
             filter_by_state = [StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
 
@@ -187,11 +232,122 @@ class FormData(FormDataMixin):
         async for item in gen:
             yield self.fill_from_dict(item)
 
+    @skip_async_to_sync
+    async def list_async(
+        self,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+        filter_by_state: Optional[List["StateEnum"]] = None,
+    ) -> AsyncGenerator["FormData", None]:
+        """
+        List FormData objects in a FormGroup.
+
+        Arguments:
+            synapse_client: The Synapse client to use for the request.
+            filter_by_state: Optional list of StateEnum to filter the results.
+                Must include at least one element. Valid values are:
+                - StateEnum.WAITING_FOR_SUBMISSION
+                - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
+                - StateEnum.ACCEPTED
+                - StateEnum.REJECTED
+
+        Yields:
+            A page of FormData objects matching the request
+
+        Examples: List all form data in a group
+
+        ```python
+            async def list_form_data():
+                syn = Synapse()
+                syn.login()
+
+                async for form_data in FormData(group_id="123").list_async(
+                    filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.ACCEPTED, StateEnum.REJECTED, StateEnum.WAITING_FOR_SUBMISSION]
+                ):
+                    status = form_data.submission_status
+                    print(f"Form name: {form_data.name}")
+                    print(f"State: {status.state.value}")
+                    print(f"Submitted on: {status.submitted_on}")
+            asyncio.run(list_form_data())
+        ```
+        """
+        from synapseclient.api.form_services import list_form_data_async
+
+        if not self.group_id:
+            raise ValueError("'group_id' must be provided to list FormData.")
+
+        self._validate_filter_by_state(
+            filter_by_state=filter_by_state, allow_waiting_submission=True
+        )
+
+        gen = list_form_data_async(
+            synapse_client=synapse_client,
+            group_id=self.group_id,
+            filter_by_state=filter_by_state,
+        )
+        async for item in gen:
+            yield self.fill_from_dict(item)
+
+    def list(
+        self,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+        filter_by_state: Optional[List["StateEnum"]] = None,
+    ) -> Generator["FormData", None, None]:
+        """
+        List FormData objects in a FormGroup.
+
+        Arguments:
+            synapse_client: The Synapse client to use for the request.
+            filter_by_state: Optional list of StateEnum to filter the results.
+                Must include at least one element. Valid values are:
+                - StateEnum.WAITING_FOR_SUBMISSION
+                - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
+                - StateEnum.ACCEPTED
+                - StateEnum.REJECTED
+
+        Yields:
+            A page of FormData objects matching the request
+
+        Examples: List all form data in a group
+
+        ```python
+            def list_form_data():
+                syn = Synapse()
+                syn.login()
+
+                for form_data in FormData(group_id="123").list(
+                    filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.ACCEPTED, StateEnum.REJECTED, StateEnum.WAITING_FOR_SUBMISSION]
+                ):
+                    status = form_data.submission_status
+                    print(f"Form name: {form_data.name}")
+                    print(f"State: {status.state.value}")
+                    print(f"Submitted on: {status.submitted_on}")
+            list_form_data()
+        ```
+        """
+        from synapseclient.api.form_services import list_form_data_sync
+
+        if not self.group_id:
+            raise ValueError("'group_id' must be provided to list FormData.")
+
+        self._validate_filter_by_state(
+            filter_by_state=filter_by_state, allow_waiting_submission=True
+        )
+
+        gen = list_form_data_sync(
+            synapse_client=synapse_client,
+            group_id=self.group_id,
+            filter_by_state=filter_by_state,
+        )
+        for item in gen:
+            yield self.fill_from_dict(item)
+
     def list_reviewer(
         self,
         *,
         synapse_client: Optional["Synapse"] = None,
-        filter_by_state: Optional[list["StateEnum"]] = None,
+        filter_by_state: Optional[List["StateEnum"]] = None,
     ) -> Generator["FormData", None, None]:
         """
         List FormData objects in a FormGroup for review.
@@ -232,21 +388,12 @@ class FormData(FormDataMixin):
                 "'group_id' must be provided to list form data and their associated status."
             )
 
+        self._validate_filter_by_state(
+            filter_by_state=filter_by_state, allow_waiting_submission=False
+        )
+
         if filter_by_state is None:
             filter_by_state = [StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
-
-        # Validate filter_by_state values
-        for state in filter_by_state:
-            if not isinstance(state, StateEnum):
-                raise ValueError(
-                    "Not a valid instance of stateEnum. Valid values for states are: SUBMITTED_WAITING_FOR_REVIEW, ACCEPTED, or REJECTED."
-                )
-
-            if state == StateEnum.WAITING_FOR_SUBMISSION:
-                raise ValueError(
-                    "StateEnum.WAITING_FOR_SUBMISSION is not allowed for reviewer list. "
-                    "Valid values are: SUBMITTED_WAITING_FOR_REVIEW, ACCEPTED, or REJECTED."
-                )
 
         gen = list_form_reviewer_sync(
             synapse_client=synapse_client,
