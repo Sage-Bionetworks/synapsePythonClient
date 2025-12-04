@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Dict, List, Optional, Protocol, Union
+from typing import Optional, Protocol, Union
 
 from typing_extensions import Self
 
@@ -105,7 +105,7 @@ class SubmissionStatusSynchronousProtocol(Protocol):
         offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> List["SubmissionStatus"]:
+    ) -> list["SubmissionStatus"]:
         """
         Gets a collection of SubmissionStatuses to a specified Evaluation.
 
@@ -148,13 +148,13 @@ class SubmissionStatusSynchronousProtocol(Protocol):
     @staticmethod
     def batch_update_submission_statuses(
         evaluation_id: str,
-        statuses: List["SubmissionStatus"],
+        statuses: list["SubmissionStatus"],
         is_first_batch: bool = True,
         is_last_batch: bool = True,
         batch_token: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Update multiple SubmissionStatuses. The maximum batch size is 500.
 
@@ -346,30 +346,30 @@ class SubmissionStatus(
     """
 
     annotations: Optional[
-        Dict[
+        dict[
             str,
             Union[
-                List[str],
-                List[bool],
-                List[float],
-                List[int],
-                List[date],
-                List[datetime],
+                list[str],
+                list[bool],
+                list[float],
+                list[int],
+                list[date],
+                list[datetime],
             ],
         ]
     ] = field(default_factory=dict)
     """Primary container object for Annotations on a Synapse object."""
 
     submission_annotations: Optional[
-        Dict[
+        dict[
             str,
             Union[
-                List[str],
-                List[bool],
-                List[float],
-                List[int],
-                List[date],
-                List[datetime],
+                list[str],
+                list[bool],
+                list[float],
+                list[int],
+                list[date],
+                list[datetime],
             ],
         ]
     ] = field(default_factory=dict)
@@ -439,7 +439,7 @@ class SubmissionStatus(
 
     def fill_from_dict(
         self,
-        synapse_submission_status: Dict[str, Union[bool, str, int, float, List]],
+        synapse_submission_status: dict[str, Union[bool, str, int, float, list]],
     ) -> "SubmissionStatus":
         """
         Converts a response from the REST API into this dataclass.
@@ -478,7 +478,7 @@ class SubmissionStatus(
 
         return self
 
-    def to_synapse_request(self, synapse_client: Optional[Synapse] = None) -> Dict:
+    def to_synapse_request(self, synapse_client: Optional[Synapse] = None) -> dict:
         """
         Creates a request body expected by the Synapse REST API for the SubmissionStatus model.
 
@@ -681,7 +681,7 @@ class SubmissionStatus(
         offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> List["SubmissionStatus"]:
+    ) -> list["SubmissionStatus"]:
         """
         Gets a collection of SubmissionStatuses to a specified Evaluation.
 
@@ -739,13 +739,13 @@ class SubmissionStatus(
     @staticmethod
     async def batch_update_submission_statuses_async(
         evaluation_id: str,
-        statuses: List["SubmissionStatus"],
+        statuses: list["SubmissionStatus"],
         is_first_batch: bool = True,
         is_last_batch: bool = True,
         batch_token: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Update multiple SubmissionStatuses. The maximum batch size is 500.
 

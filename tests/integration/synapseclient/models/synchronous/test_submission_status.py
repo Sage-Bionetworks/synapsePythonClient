@@ -2,7 +2,6 @@
 
 import os
 import tempfile
-import test
 import uuid
 from typing import Callable
 

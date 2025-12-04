@@ -4,7 +4,7 @@ This module is responsible for exposing the services defined at:
 """
 
 import json
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional
 
 from synapseclient.api.api_client import rest_get_paginated_async
 
@@ -105,12 +105,12 @@ async def get_evaluations_by_project(
     project_id: str,
     access_type: Optional[str] = None,
     active_only: Optional[bool] = None,
-    evaluation_ids: Optional[List[str]] = None,
+    evaluation_ids: Optional[list[str]] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> List[dict]:
+) -> list[dict]:
     """
     Gets Evaluations tied to a project.
     Note: The response will contain only those Evaluations on which the caller is granted the ACCESS_TYPE.READ permission, unless specified otherwise with the accessType parameter.
@@ -159,12 +159,12 @@ async def get_evaluations_by_project(
 async def get_all_evaluations(
     access_type: Optional[str] = None,
     active_only: Optional[bool] = None,
-    evaluation_ids: Optional[List[str]] = None,
+    evaluation_ids: Optional[list[str]] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> List[dict]:
+) -> list[dict]:
     """
     Get a list of all Evaluations, within a given range.
     Note: The response will contain only those Evaluations on which the caller is granted the ACCESS_TYPE.READ permission, unless specified otherwise with the accessType parameter.
@@ -211,12 +211,12 @@ async def get_all_evaluations(
 
 async def get_available_evaluations(
     active_only: Optional[bool] = None,
-    evaluation_ids: Optional[List[str]] = None,
+    evaluation_ids: Optional[list[str]] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> List[dict]:
+) -> list[dict]:
     """
     Get a list of Evaluations to which the user has SUBMIT permission, within a given range.
     Note: The response will contain only those Evaluations on which the caller is granted the ACCESS_TYPE.SUBMIT permission.
@@ -455,7 +455,7 @@ async def get_evaluation_submissions(
     status: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> AsyncGenerator[Dict[str, Any], None]:
+) -> AsyncGenerator[dict[str, Any], None]:
     """
     Generator to get all Submissions for a specified Evaluation queue.
 
@@ -492,7 +492,7 @@ async def get_user_submissions(
     user_id: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> AsyncGenerator[Dict[str, Any], None]:
+) -> AsyncGenerator[dict[str, Any], None]:
     """
     Generator to get all user Submissions for a specified Evaluation queue.
     If user_id is omitted, this returns the submissions of the caller.
@@ -788,7 +788,7 @@ async def get_evaluation_submission_bundles(
     status: Optional[str] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> AsyncGenerator[Dict[str, Any], None]:
+) -> AsyncGenerator[dict[str, Any], None]:
     """
     Generator to get all bundled Submissions and SubmissionStatuses to a given Evaluation.
 
@@ -827,7 +827,7 @@ async def get_user_submission_bundles(
     evaluation_id: str,
     *,
     synapse_client: Optional["Synapse"] = None,
-) -> AsyncGenerator[Dict[str, Any], None]:
+) -> AsyncGenerator[dict[str, Any], None]:
     """
     Generator to get all user bundled Submissions and SubmissionStatuses for a specified Evaluation.
 

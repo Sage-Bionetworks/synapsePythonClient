@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import AsyncGenerator, Dict, Generator, List, Optional, Protocol, Union
+from typing import AsyncGenerator, Generator, Optional, Protocol, Union
 
 from typing_extensions import Self
 
@@ -248,7 +248,7 @@ class SubmissionSynchronousProtocol(Protocol):
         status: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Gets the number of Submissions for a specified Evaluation queue, optionally filtered by submission status.
 
@@ -368,12 +368,12 @@ class Submission(
     The ID of the team that submitted this submission (if it's a team submission).
     """
 
-    contributors: List[str] = field(default_factory=list)
+    contributors: list[str] = field(default_factory=list)
     """
     User IDs of team members who contributed to this submission (if it's a team submission).
     """
 
-    submission_status: Optional[Dict] = None
+    submission_status: Optional[dict] = None
     """
     The status of this Submission.
     """
@@ -403,7 +403,7 @@ class Submission(
     """The current eTag of the Entity being submitted. If not provided, it will be automatically retrieved."""
 
     def fill_from_dict(
-        self, synapse_submission: Dict[str, Union[bool, str, int, List]]
+        self, synapse_submission: dict[str, Union[bool, str, int, list]]
     ) -> "Submission":
         """
         Converts a response from the REST API into this dataclass.
@@ -435,7 +435,7 @@ class Submission(
 
     async def _fetch_latest_entity(
         self, *, synapse_client: Optional[Synapse] = None
-    ) -> Dict:
+    ) -> dict:
         """
         Fetch the latest entity information from Synapse.
 
@@ -491,7 +491,7 @@ class Submission(
                 f"Unable to fetch entity information for {self.entity_id}: {e}"
             )
 
-    def to_synapse_request(self) -> Dict:
+    def to_synapse_request(self) -> dict:
         """Creates a request body expected of the Synapse REST API for the Submission model.
 
         Returns:
@@ -774,7 +774,7 @@ class Submission(
         status: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Gets the number of Submissions for a specified Evaluation queue, optionally filtered by submission status.
 

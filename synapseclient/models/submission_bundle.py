@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     AsyncGenerator,
-    Dict,
     Generator,
     Optional,
     Protocol,
@@ -187,7 +186,7 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
 
     def fill_from_dict(
         self,
-        synapse_submission_bundle: Dict[str, Union[bool, str, int, Dict]],
+        synapse_submission_bundle: dict[str, Union[bool, str, int, dict]],
     ) -> "SubmissionBundle":
         """
         Converts a response from the REST API into this dataclass.
