@@ -72,7 +72,7 @@ See also:
 
 import collections
 import datetime
-import typing
+from typing import Any, Callable, Mapping, Optional, Union
 
 from deprecated import deprecated
 
@@ -95,8 +95,8 @@ def raise_anno_type_error(anno_type: str):
     raise ValueError(f"Unknown type in annotations response: {anno_type}")
 
 
-ANNO_TYPE_TO_FUNC: typing.Dict[
-    str, typing.Callable[[str], typing.Union[str, int, float, datetime.datetime]]
+ANNO_TYPE_TO_FUNC: dict[
+    str, Callable[[str], Union[str, int, float, datetime.datetime]]
 ] = collections.defaultdict(
     raise_anno_type_error,
     {
@@ -109,7 +109,7 @@ ANNO_TYPE_TO_FUNC: typing.Dict[
 )
 
 
-def is_synapse_annotations(annotations: typing.Mapping) -> bool:
+def is_synapse_annotations(annotations: Mapping) -> bool:
     """Tests if the given object is a Synapse-style Annotations object.
 
     Arguments:
@@ -125,7 +125,7 @@ def is_synapse_annotations(annotations: typing.Mapping) -> bool:
     return annotations.keys() >= {"id", "etag", "annotations"}
 
 
-def _annotation_value_list_element_type(annotation_values: typing.List):
+def _annotation_value_list_element_type(annotation_values: list):
     if not annotation_values:
         raise ValueError("annotations value list can not be empty")
 
@@ -229,11 +229,11 @@ def to_submission_status_annotations(annotations, is_private=True):
 
 
 def to_submission_annotations(
-    id: typing.Union[str, int],
+    id: Union[str, int],
     etag: str,
-    annotations: typing.Dict[str, typing.Any],
-    logger: typing.Optional[typing.Any] = None,
-) -> typing.Dict[str, typing.Any]:
+    annotations: dict[str, Any],
+    logger: Optional[Any] = None,
+) -> dict[str, Any]:
     """
     Converts a normal dictionary to the format used for submission annotations, which is different from the format
     used to annotate entities.
@@ -468,9 +468,9 @@ class Annotations(dict):
 
     def __init__(
         self,
-        id: typing.Union[str, int, Entity],
+        id: Union[str, int, Entity],
         etag: str,
-        values: typing.Dict = None,
+        values: dict = None,
         **kwargs,
     ):
         """
@@ -525,7 +525,7 @@ class Annotations(dict):
         self._etag = str(value)
 
 
-def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.Any]:
+def to_synapse_annotations(annotations: Annotations) -> dict[str, Any]:
     """Transforms a simple flat dictionary to a Synapse-style Annotation object. See
     the [Synapse API](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html)
     documentation for more information on Synapse-style Annotation objects.
@@ -581,7 +581,7 @@ def _convert_to_annotations_list(annotations):
 
 
 def from_synapse_annotations(
-    raw_annotations: typing.Dict[str, typing.Any]
+    raw_annotations: dict[str, Any]
 ) -> Annotations:
     """Transforms a Synapse-style Annotation object to a simple flat dictionary.
 
