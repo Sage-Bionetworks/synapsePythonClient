@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, Generator, Optional
 
-from synapseclient.core.async_utils import async_to_sync
+from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 
 if TYPE_CHECKING:
     from synapseclient import Synapse
@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from synapseclient.models.mixins.form import FormChangeRequest
 from synapseclient.models.mixins.form import FormData as FormDataMixin
 from synapseclient.models.mixins.form import FormGroup as FormGroupMixin
+from synapseclient.models.mixins.form import StateEnum
 
 
 @dataclass
@@ -129,3 +130,128 @@ class FormData(FormDataMixin):
             form_change_request=form_change_request,
         )
         return self.fill_from_dict(response)
+
+    @skip_async_to_sync
+    async def list_reviewer_async(
+        self,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+        filter_by_state: Optional[list["StateEnum"]] = None,
+    ) -> AsyncGenerator["FormData", None]:
+        """
+        List FormData objects in a FormGroup for review.
+
+        Arguments:
+            synapse_client: The Synapse client to use for the request.
+            filter_by_state: Optional list of StateEnum to filter the results.
+                Must include at least one element. Valid values are:
+                - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
+                - StateEnum.ACCEPTED
+                - StateEnum.REJECTED
+
+        Examples: List all reviewed forms (accepted and rejected)
+
+        Yields:
+            A page of FormData objects matching the request
+
+        ```python
+        async def list_reviewed_forms():
+            syn = Synapse()
+            syn.login()
+
+            async for form_data in FormData(group_id="123").list_reviewer_async(
+                filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
+            ):
+                status = form_data.submission_status
+                print(f"Form name: {form_data.name}")
+                print(f"State: {status.state.value}")
+                print(f"Submitted on: {status.submitted_on}")
+
+        asyncio.run(list_reviewed_forms())
+        ```
+        """
+        from synapseclient.api.form_services import list_form_reviewer_async
+        from synapseclient.models.mixins.form import StateEnum
+
+        if not self.group_id:
+            raise ValueError("'group_id' must be provided to list FormData.")
+
+        if filter_by_state is None:
+            filter_by_state = [StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
+
+        gen = list_form_reviewer_async(
+            synapse_client=synapse_client,
+            group_id=self.group_id,
+            filter_by_state=filter_by_state,
+        )
+        async for item in gen:
+            yield self.fill_from_dict(item)
+
+    def list_reviewer(
+        self,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+        filter_by_state: Optional[list["StateEnum"]] = None,
+    ) -> Generator["FormData", None, None]:
+        """
+        List FormData objects in a FormGroup for review.
+
+        Arguments:
+            synapse_client: The Synapse client to use for the request.
+            filter_by_state: Optional list of StateEnum to filter the results. Defaults to [StateEnum.SUBMITTED_WAITING_FOR_REVIEW].
+                Must include at least one element. Valid values are:
+                - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
+                - StateEnum.ACCEPTED
+                - StateEnum.REJECTED
+
+        Yields:
+            A page of FormData objects matching the request
+
+        Examples: List all reviewed forms (accepted and rejected)
+
+        ```python
+        def list_reviewed_forms():
+            syn = Synapse()
+            syn.login()
+
+            for form_data in FormData(group_id="123").list_reviewer(
+                filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
+            ):
+                status = form_data.submission_status
+                print(f"Form name: {form_data.name}")
+                print(f"State: {status.state.value}")
+                print(f"Submitted on: {status.submitted_on}")
+
+        list_reviewed_forms()
+        ```
+        """
+        from synapseclient.api.form_services import list_form_reviewer_sync
+
+        if not self.group_id:
+            raise ValueError(
+                "'group_id' must be provided to list form data and their associated status."
+            )
+
+        if filter_by_state is None:
+            filter_by_state = [StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
+
+        # Validate filter_by_state values
+        for state in filter_by_state:
+            if not isinstance(state, StateEnum):
+                raise ValueError(
+                    "Not a valid instance of stateEnum. Valid values for states are: SUBMITTED_WAITING_FOR_REVIEW, ACCEPTED, or REJECTED."
+                )
+
+            if state == StateEnum.WAITING_FOR_SUBMISSION:
+                raise ValueError(
+                    "StateEnum.WAITING_FOR_SUBMISSION is not allowed for reviewer list. "
+                    "Valid values are: SUBMITTED_WAITING_FOR_REVIEW, ACCEPTED, or REJECTED."
+                )
+
+        gen = list_form_reviewer_sync(
+            synapse_client=synapse_client,
+            group_id=self.group_id,
+            filter_by_state=filter_by_state,
+        )
+        for item in gen:
+            yield self.fill_from_dict(item)
