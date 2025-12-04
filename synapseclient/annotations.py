@@ -580,9 +580,7 @@ def _convert_to_annotations_list(annotations):
     return nested_annos
 
 
-def from_synapse_annotations(
-    raw_annotations: dict[str, Any]
-) -> Annotations:
+def from_synapse_annotations(raw_annotations: dict[str, Any]) -> Annotations:
     """Transforms a Synapse-style Annotation object to a simple flat dictionary.
 
     Arguments:
