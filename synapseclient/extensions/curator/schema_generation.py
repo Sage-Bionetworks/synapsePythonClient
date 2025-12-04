@@ -697,6 +697,8 @@ class DataModelCSVParser:
                 maximum_dict = self.parse_minimum_maximum(attr, "Maximum")
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     maximum_dict
+                )
+
             if model_includes_pattern:
                 pattern_dict = self.parse_pattern(attr)
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
@@ -3062,14 +3064,15 @@ class DataModelRelationships:
                 "csv_header": "Minimum",
                 "node_label": "minimum",
                 "type": Union[float, int],
-            "pattern": {
-                "jsonld_key": "sms:pattern",
-                "csv_header": "Pattern",
-                "node_label": "pattern",
-                "type": str,
-                "required_header": False,
-                "edge_rel": False,
-                "node_attr_dict": {"default": None},
+                "pattern": {
+                    "jsonld_key": "sms:pattern",
+                    "csv_header": "Pattern",
+                    "node_label": "pattern",
+                    "type": str,
+                    "required_header": False,
+                    "edge_rel": False,
+                    "node_attr_dict": {"default": None},
+                },
             },
         }
 
@@ -4847,7 +4850,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.maximum = (
             explicit_maximum if explicit_maximum is not None else implicit_maximum
         )
-        
+
         if column_pattern and column_type.value != "string":
             raise ValueError(
                 "Column type must be set to 'string' to use column pattern specification for regex validation."

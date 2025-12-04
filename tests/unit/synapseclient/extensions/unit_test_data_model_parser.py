@@ -152,6 +152,7 @@ class TestDataModelCsvParser:
                 == expected_dict
             )
 
+
 class TestDataModelJsonLdParser:
     def test_gather_jsonld_attributes_relationships(
         self,
