@@ -231,8 +231,6 @@ class SubmissionStatus(
         private_status_annotations: Indicates whether the annotations (not to be confused with submission annotations) are private (True) or public (False).
             Default is True. This controls the visibility of the 'annotations' field.
         entity_id: The Synapse ID of the Entity in this Submission.
-        evaluation_id: The ID of the Evaluation to which this Submission belongs. This field is automatically
-            populated when retrieving a SubmissionStatus via get() and is required when updating annotations.
         version_number: The version number of the Entity in this Submission.
         status_version: A version of the status, auto-generated and auto-incremented by the system and read-only to the client.
         can_cancel: Can this submission be cancelled? By default, this will be set to False. Users can read this value.
@@ -385,11 +383,6 @@ class SubmissionStatus(
     The Synapse ID of the Entity in this Submission.
     """
 
-    evaluation_id: Optional[str] = None
-    """
-    The ID of the Evaluation to which this Submission belongs.
-    """
-
     version_number: Optional[int] = field(default=None, compare=False)
     """
     The version number of the Entity in this Submission.
@@ -537,20 +530,8 @@ class SubmissionStatus(
             request_body["cancelRequested"] = self.cancel_requested
 
         if self.annotations and len(self.annotations) > 0:
-            # evaluation_id is required when annotations are provided for scopeId
-            if self.evaluation_id is None:
-                raise ValueError(
-                    "Your submission status object is missing the 'evaluation_id' attribute. This attribute is required when submissions are updated with annotations. Please retrieve your submission status with .get() to populate this field."
-                )
-
-            # Add required objectId and scopeId to annotations dict as per Synapse API requirements
-            # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html
-            annotations_with_metadata = self.annotations.copy()
-            annotations_with_metadata["objectId"] = self.id
-            annotations_with_metadata["scopeId"] = self.evaluation_id
-
             request_body["annotations"] = to_submission_status_annotations(
-                annotations_with_metadata, self.private_status_annotations
+                self.annotations, self.private_status_annotations
             )
 
         if self.submission_annotations and len(self.submission_annotations) > 0:
@@ -605,13 +586,6 @@ class SubmissionStatus(
             submission_id=self.id, synapse_client=synapse_client
         )
         self.fill_from_dict(response)
-
-        # Fetch evaluation_id from the associated submission since it's not in the SubmissionStatus response
-        if not self.evaluation_id:
-            submission_response = await evaluation_services.get_submission(
-                submission_id=self.id, synapse_client=synapse_client
-            )
-            self.evaluation_id = submission_response.get("evaluationId", None)
 
         self._set_last_persistent_instance()
         return self
@@ -757,8 +731,6 @@ class SubmissionStatus(
         for status_dict in response.get("results", []):
             submission_status = SubmissionStatus()
             submission_status.fill_from_dict(status_dict)
-            # Manually set evaluation_id since it's not in the SubmissionStatus response
-            submission_status.evaluation_id = evaluation_id
             submission_status._set_last_persistent_instance()
             submission_statuses.append(submission_status)
 
