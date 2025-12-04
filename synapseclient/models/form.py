@@ -1,12 +1,9 @@
-from typing import TYPE_CHECKING, AsyncGenerator, Generator, List, Optional
-
-from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
-
-if TYPE_CHECKING:
-    from synapseclient import Synapse
-
+import os
 from dataclasses import dataclass
+from typing import AsyncGenerator, Generator, List, Optional
 
+from synapseclient import Synapse
+from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
 from synapseclient.models.mixins.form import FormChangeRequest
 from synapseclient.models.mixins.form import FormData as FormDataMixin
 from synapseclient.models.mixins.form import FormGroup as FormGroupMixin
@@ -402,3 +399,51 @@ class FormData(FormDataMixin):
         )
         for item in gen:
             yield self.fill_from_dict(item)
+
+    async def download_async(
+        self,
+        synapse_id,
+        download_location=None,
+        *,
+        synapse_client: Optional["Synapse"] = None,
+    ) -> "FormData":
+        """
+        Download the data file associated with this FormData object.
+
+        Arguments:
+            download_location: The directory where the file should be downloaded.
+            synapse_id: The Synapse ID of the FileEntity associated with this FormData.
+
+        Returns:
+            The path to the downloaded file.
+        """
+
+        from synapseclient.core.download.download_functions import (
+            download_by_file_handle,
+            ensure_download_location_is_directory,
+        )
+
+        client = Synapse.get_client(synapse_client=synapse_client)
+
+        if not self.data_file_handle_id:
+            raise ValueError("data_file_handle_id must be set to download the file.")
+
+        if download_location:
+            download_dir = ensure_download_location_is_directory(
+                download_location=download_location
+            )
+        else:
+            download_dir = client.cache.get_cache_dir(
+                file_handle_id=self.data_file_handle_id
+            )
+
+        filename = f"SYNAPSE_FORM_{self.data_file_handle_id}.csv"
+
+        path = await download_by_file_handle(
+            file_handle_id=self.data_file_handle_id,
+            synapse_id=synapse_id,
+            entity_type="FileEntity",
+            destination=os.path.join(download_dir, filename),
+            synapse_client=client,
+        )
+        return path
