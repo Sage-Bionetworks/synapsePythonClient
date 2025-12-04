@@ -72,8 +72,8 @@ See also:
 
 import collections
 import datetime
-from typing import Any, Callable, Mapping, Optional, Union
 from logging import Logger
+from typing import Any, Callable, Mapping, Optional, Union
 
 from deprecated import deprecated
 
