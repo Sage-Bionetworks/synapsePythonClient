@@ -139,9 +139,6 @@ class TestSubmissionBundle:
         assert bundle.submission_status.id == SUBMISSION_STATUS_ID
         assert bundle.submission_status.status == STATUS
         assert bundle.submission_status.entity_id == ENTITY_ID
-        assert (
-            bundle.submission_status.evaluation_id == EVALUATION_ID
-        )  # set from submission
 
         # Check submission annotations
         assert "score" in bundle.submission_status.submission_annotations
@@ -201,7 +198,6 @@ class TestSubmissionBundle:
         assert bundle.submission is not None
         assert bundle.submission_status is not None
         assert bundle.submission.evaluation_id == EVALUATION_ID
-        assert bundle.submission_status.evaluation_id == EVALUATION_ID
 
     async def test_get_evaluation_submission_bundles_async(self) -> None:
         """Test getting submission bundles for an evaluation."""
@@ -274,9 +270,6 @@ class TestSubmissionBundle:
             assert result[0].submission_status is not None
             assert result[0].submission_status.id == "123"
             assert result[0].submission_status.status == "RECEIVED"
-            assert (
-                result[0].submission_status.evaluation_id == EVALUATION_ID
-            )  # set from submission
 
             # Check second bundle
             assert result[1].submission is not None
@@ -377,7 +370,6 @@ class TestSubmissionBundle:
             assert result[0].submission_status is not None
             assert result[0].submission_status.id == "789"
             assert result[0].submission_status.status == "VALIDATED"
-            assert result[0].submission_status.evaluation_id == EVALUATION_ID
 
     async def test_get_user_submission_bundles_async_default_params(self) -> None:
         """Test getting user submission bundles with default parameters."""

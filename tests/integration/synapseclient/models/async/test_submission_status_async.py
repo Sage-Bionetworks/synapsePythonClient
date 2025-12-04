@@ -98,7 +98,6 @@ class TestSubmissionStatusRetrieval:
         # THEN the submission status should be retrieved correctly
         assert submission_status.id == test_submission.id
         assert submission_status.entity_id == test_submission.entity_id
-        assert submission_status.evaluation_id == test_evaluation.id
         assert (
             submission_status.status is not None
         )  # Should have some status (e.g., "RECEIVED")
@@ -571,7 +570,6 @@ class TestSubmissionStatusBulkOperations:
         # AND each status should have proper attributes
         for status in statuses:
             assert status.id is not None
-            assert status.evaluation_id == test_evaluation.id
             assert status.status is not None
             assert status.etag is not None
 
@@ -589,7 +587,6 @@ class TestSubmissionStatusBulkOperations:
         # THEN I should only get statuses with the specified status
         for status in statuses:
             assert status.status == "RECEIVED"
-            assert status.evaluation_id == test_evaluation.id
 
     async def test_get_all_submission_statuses_with_pagination(
         self, test_evaluation: Evaluation, test_submissions: list[Submission]
@@ -792,17 +789,6 @@ class TestSubmissionStatusValidation:
         with pytest.raises(ValueError, match="missing the 'status_version' attribute"):
             submission_status.to_synapse_request(synapse_client=self.syn)
 
-    async def test_to_synapse_request_with_annotations_missing_evaluation_id(self):
-        """Test that annotations require evaluation_id async."""
-        # WHEN I try to create a request with annotations but no evaluation_id
-        submission_status = SubmissionStatus(
-            id="123", etag="some-etag", status_version=1, annotations={"test": "value"}
-        )
-
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
-            submission_status.to_synapse_request(synapse_client=self.syn)
-
     async def test_to_synapse_request_valid_attributes(self):
         """Test that to_synapse_request works with valid attributes async."""
         # WHEN I create a request with all required attributes
@@ -811,7 +797,6 @@ class TestSubmissionStatusValidation:
             etag="some-etag",
             status_version=1,
             status="SCORED",
-            evaluation_id="eval123",
             submission_annotations={"score": 85.5},
         )
 

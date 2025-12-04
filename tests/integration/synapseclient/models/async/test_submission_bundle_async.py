@@ -412,7 +412,6 @@ class TestSubmissionBundleDataIntegrityAsync:
         if test_bundle.submission_status:
             assert test_bundle.submission_status.id == test_submission.id
             assert test_bundle.submission_status.entity_id == test_file.id
-            assert test_bundle.submission_status.evaluation_id == test_evaluation.id
 
     async def test_submission_bundle_status_updates_reflected_async(
         self, test_evaluation: Evaluation, test_submission: Submission
@@ -482,10 +481,9 @@ class TestSubmissionBundleDataIntegrityAsync:
 
         assert test_bundle is not None
 
-        # AND both submission and status should have the correct evaluation_id
+        # AND submission should have the correct evaluation_id
         assert test_bundle.submission.evaluation_id == test_evaluation.id
-        if test_bundle.submission_status:
-            assert test_bundle.submission_status.evaluation_id == test_evaluation.id
+        # submission_status no longer has evaluation_id attribute
 
 
 class TestSubmissionBundleEdgeCasesAsync:
