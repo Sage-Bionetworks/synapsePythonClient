@@ -72,8 +72,8 @@ See also:
 
 import collections
 import datetime
-import logging
 from typing import Any, Callable, Mapping, Optional, Union
+from logging import Logger
 
 from deprecated import deprecated
 
@@ -233,7 +233,7 @@ def to_submission_annotations(
     id: Union[str, int],
     etag: str,
     annotations: dict[str, Any],
-    logger: Optional[logging.Logger] = None,
+    logger: Optional[Logger] = None,
 ) -> dict[str, Any]:
     """
     Converts a normal dictionary to the format used for submission annotations, which is different from the format
