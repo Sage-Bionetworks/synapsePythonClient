@@ -439,6 +439,13 @@ class Submission(
         """
         Fetch the latest entity information from Synapse.
 
+        <https://rest-docs.synapse.org/rest/GET/entity/id.html>
+
+        If the object is a DockerRepository, this will also fetch the DockerCommit object with the latest createdOn value
+        and attach it to the final dictionary:
+
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/docker/DockerCommit.html>
+
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
