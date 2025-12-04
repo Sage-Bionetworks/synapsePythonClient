@@ -3064,15 +3064,18 @@ class DataModelRelationships:
                 "csv_header": "Minimum",
                 "node_label": "minimum",
                 "type": Union[float, int],
-                "pattern": {
-                    "jsonld_key": "sms:pattern",
-                    "csv_header": "Pattern",
-                    "node_label": "pattern",
-                    "type": str,
-                    "required_header": False,
-                    "edge_rel": False,
-                    "node_attr_dict": {"default": None},
-                },
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+            },
+            "pattern": {
+                "jsonld_key": "sms:pattern",
+                "csv_header": "Pattern",
+                "node_label": "pattern",
+                "type": str,
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
             },
         }
 
