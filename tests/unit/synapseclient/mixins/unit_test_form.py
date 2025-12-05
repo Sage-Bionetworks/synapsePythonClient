@@ -140,3 +140,21 @@ class TestFormDataMixin:
             form_data.submission_status.state == StateEnum.SUBMITTED_WAITING_FOR_REVIEW
         )
         assert form_data.submission_status.rejection_message is None
+
+    def test_fill_from_dict_missing_fields(self) -> None:
+        """Test fill_from_dict with some missing fields"""
+        response_dict = {
+            "formDataId": "54321",
+            # 'groupId' is missing
+            "name": "Test Form Data",
+            # 'dataFileHandleId' is missing
+            # 'submissionStatus' is missing
+        }
+
+        form_data = FormData().fill_from_dict(response_dict)
+
+        assert form_data.form_data_id == "54321"
+        assert form_data.group_id is None
+        assert form_data.name == "Test Form Data"
+        assert form_data.data_file_handle_id is None
+        assert form_data.submission_status is None
