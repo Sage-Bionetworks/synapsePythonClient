@@ -127,6 +127,7 @@ class TestSubmissionCreation:
 
         # WHEN I create a submission for a Docker repository entity
         # TODO: This would require a real Docker repository entity in a full integration test
+        # Jira: https://sagebionetworks.jira.com/browse/SYNPY-1720
         submission = Submission(
             entity_id="syn123456789",  # Would be a Docker repository ID
             evaluation_id=test_evaluation.id,
