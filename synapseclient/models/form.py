@@ -259,7 +259,7 @@ class FormData(FormDataMixin, FormDataProtocol):
         asyncio.run(list_for_review())
         ```
         """
-        from synapseclient.api import list_form_data_async, list_form_reviewer_async
+        from synapseclient.api import list_form_data_async
 
         if not self.group_id:
             raise ValueError("'group_id' must be provided to list FormData.")
@@ -269,26 +269,25 @@ class FormData(FormDataMixin, FormDataProtocol):
             self._validate_filter_by_state(
                 filter_by_state=filter_by_state, allow_waiting_submission=False
             )
-            # Default to SUBMITTED_WAITING_FOR_REVIEW for reviewer mode
             if filter_by_state is None:
                 filter_by_state = [StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
 
-            # Use reviewer endpoint
-            gen = list_form_reviewer_async(
+            gen = list_form_data_async(
                 synapse_client=synapse_client,
                 group_id=self.group_id,
                 filter_by_state=filter_by_state,
+                as_reviewer=True,
             )
         else:
             self._validate_filter_by_state(
                 filter_by_state=filter_by_state, allow_waiting_submission=True
             )
 
-            # Use regular endpoint
             gen = list_form_data_async(
                 synapse_client=synapse_client,
                 group_id=self.group_id,
                 filter_by_state=filter_by_state,
+                as_reviewer=False,
             )
 
         async for item in gen:
