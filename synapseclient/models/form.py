@@ -169,6 +169,7 @@ class FormData(FormDataMixin, FormDataProtocol):
             name=self.name, file_handle_id=self.data_file_handle_id
         ).to_dict()
 
+        print(form_change_request)
         response = await create_form_data_async(
             synapse_client=synapse_client,
             group_id=self.group_id,
