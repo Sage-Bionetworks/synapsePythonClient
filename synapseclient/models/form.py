@@ -8,10 +8,10 @@ from synapseclient.core.async_utils import (
     skip_async_to_sync,
     wrap_async_generator_to_sync_generator,
 )
-from synapseclient.models.mixins.form import FormChangeRequest
-from synapseclient.models.mixins.form import FormData as FormDataMixin
-from synapseclient.models.mixins.form import FormGroup as FormGroupMixin
-from synapseclient.models.mixins.form import StateEnum
+from synapseclient.models.mixins import FormChangeRequest
+from synapseclient.models.mixins import FormData as FormDataMixin
+from synapseclient.models.mixins import FormGroup as FormGroupMixin
+from synapseclient.models.mixins import StateEnum
 from synapseclient.models.protocols.form_protocol import (
     FormDataProtocol,
     FormGroupProtocol,
@@ -200,6 +200,7 @@ class FormData(FormDataMixin, FormDataProtocol):
             A page of FormData objects matching the request
 
         ```python
+
         async def list_reviewed_forms():
             syn = Synapse()
             syn.login()
@@ -261,6 +262,11 @@ class FormData(FormDataMixin, FormDataProtocol):
         Examples: List all form data in a group
 
         ```python
+        from synapseclient import Synapse
+        from synapseclient.models import FormData
+        from synapseclient.models.mixins import StateEnum
+        import asyncio
+
         async def list_form_data():
             syn = Synapse()
             syn.login()
@@ -316,6 +322,12 @@ class FormData(FormDataMixin, FormDataProtocol):
         Examples: List all form data in a group
 
         ```python
+
+        from synapseclient import Synapse
+        from synapseclient.models import FormData
+        from synapseclient.models.mixins import StateEnum
+        import asyncio
+
         def list_form_data():
             syn = Synapse()
             syn.login()
@@ -359,6 +371,11 @@ class FormData(FormDataMixin, FormDataProtocol):
         Examples: List all reviewed forms (accepted and rejected)
 
         ```python
+        from synapseclient import Synapse
+        from synapseclient.models import FormData
+        from synapseclient.models.mixins import StateEnum
+        import asyncio
+
         def list_reviewed_forms():
             syn = Synapse()
             syn.login()
