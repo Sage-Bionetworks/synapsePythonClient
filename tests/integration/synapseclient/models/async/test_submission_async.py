@@ -472,24 +472,6 @@ class TestSubmissionCancelAsync:
         finally:
             os.unlink(temp_file_path)
 
-    # async def test_cancel_submission_successfully_async(
-    #     self, test_evaluation: Evaluation, test_file: File
-    # ):
-    #     # GIVEN a submission created with async method
-    #     submission = Submission(
-    #         entity_id=test_file.id,
-    #         evaluation_id=test_evaluation.id,
-    #         name=f"Test Submission for Cancellation {uuid.uuid4()}",
-    #     )
-    #     created_submission = await submission.store_async(synapse_client=self.syn)
-    #     self.schedule_for_cleanup(created_submission.id)
-
-    #     # WHEN I cancel the submission using async method
-    #     cancelled_submission = await created_submission.cancel_async(synapse_client=self.syn)
-
-    #     # THEN the submission should be cancelled
-    #     assert cancelled_submission.id == created_submission.id
-
     async def test_cancel_submission_without_id_async(self):
         # WHEN I try to cancel a submission without an ID using async method
         submission = Submission(entity_id="syn123", evaluation_id="456")
