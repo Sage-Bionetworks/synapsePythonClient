@@ -399,12 +399,12 @@ class FormData(FormDataMixin, FormDataProtocol):
             syn = Synapse()
             syn.login()
 
-            form_data = await FormData(form_data_id="123").get_async()  # Step 1: Get FormData
-            path = await form_data.download_async(  # Step 2: Download file
+            form_data = await FormData(form_data_id="123").get_async()
+            path = await form_data.download_async(
                 synapse_id="syn12345678",
                 download_location="/tmp"
             )
-            print(f"Downloaded to: {path}")  # Print the path
+            print(f"Downloaded to: {path}")
 
 
         asyncio.run(download_form_data())
