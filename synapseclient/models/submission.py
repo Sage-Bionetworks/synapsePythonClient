@@ -590,6 +590,9 @@ class Submission(
 
         self.entity_etag = entity_info.get("etag")
 
+        if not self.entity_etag:
+            raise ValueError("Unable to fetch etag for entity")
+
         if (
             entity_info.get("concreteType")
             == "org.sagebionetworks.repo.model.FileEntity"
@@ -604,9 +607,6 @@ class Submission(
             self.docker_tag = entity_info.get("tag")
             # All docker repositories are assigned version number 1, even if they have multiple tags
             self.version_number = 1
-
-        if not self.entity_etag:
-            raise ValueError("Unable to fetch etag for entity")
 
         # Build the request body now that all the necessary dataclass attributes are set
         request_body = self.to_synapse_request()
