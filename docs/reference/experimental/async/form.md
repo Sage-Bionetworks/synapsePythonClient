@@ -19,5 +19,4 @@ at your own risk.
         members:
         - create_async
         - list_async
-        - list_reviewer_async
         - download_async

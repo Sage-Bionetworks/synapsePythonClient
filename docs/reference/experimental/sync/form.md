@@ -19,5 +19,4 @@ at your own risk.
         members:
         - create
         - list
-        - list_reviewer
         - download

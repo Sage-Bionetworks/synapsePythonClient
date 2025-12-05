@@ -100,6 +100,7 @@ class FormDataProtocol(Protocol):
         *,
         synapse_client: Optional["Synapse"] = None,
         filter_by_state: Optional[List["StateEnum"]] = None,
+        as_reviewer: bool = False,
     ) -> Generator["FormData", None, None]:
         """
         List FormData objects in a FormGroup.
@@ -107,83 +108,75 @@ class FormDataProtocol(Protocol):
         Arguments:
             synapse_client: The Synapse client to use for the request.
             filter_by_state: Optional list of StateEnum to filter the results.
-                Must include at least one element. Valid values are:
+                When as_reviewer=False (default), valid values are:
                 - StateEnum.WAITING_FOR_SUBMISSION
                 - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
                 - StateEnum.ACCEPTED
                 - StateEnum.REJECTED
 
-        Yields:
-            A page of FormData objects matching the request
+                When as_reviewer=True, valid values are:
+                - StateEnum.SUBMITTED_WAITING_FOR_REVIEW (default if None)
+                - StateEnum.ACCEPTED
+                - StateEnum.REJECTED
+                Note: WAITING_FOR_SUBMISSION is NOT allowed when as_reviewer=True.
 
-        Examples: List all form data in a group
+            as_reviewer: If True, uses the reviewer endpoint (requires READ_PRIVATE_SUBMISSION
+                permission). If False (default), lists only FormData owned by the caller.
+
+        Yields:
+            FormData objects matching the request.
+
+        Raises:
+            ValueError: If group_id is not set or filter_by_state contains invalid values.
+
+        Examples: List your own form data
 
         ```python
-            def list_form_data():
-                syn = Synapse()
-                syn.login()
+        from synapseclient import Synapse
+        from synapseclient.models import FormData
+        from synapseclient.models.mixins.form import StateEnum
 
-                for form_data in FormData(group_id="123").list(
-                    filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.ACCEPTED, StateEnum.REJECTED, StateEnum.WAITING_FOR_SUBMISSION]
-                ):
-                    status = form_data.submission_status
-                    print(f"Form name: {form_data.name}")
-                    print(f"State: {status.state.value}")
-                    print(f"Submitted on: {status.submitted_on}")
-            list_form_data()
+        syn = Synapse()
+        syn.login()
+
+        for form_data in FormData(group_id="123").list(
+            filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
+        ):
+            status = form_data.submission_status
+            print(f"Form name: {form_data.name}")
+            print(f"State: {status.state.value}")
+            print(f"Submitted on: {status.submitted_on}")
+        ```
+
+        Examples: List all form data as a reviewer
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import FormData
+        from synapseclient.models.mixins.form import StateEnum
+
+        syn = Synapse()
+        syn.login()
+
+        # List all submissions waiting for review (reviewer mode)
+        for form_data in FormData(group_id="123").list(
+            as_reviewer=True,
+            filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
+        ):
+            status = form_data.submission_status
+            print(f"Form name: {form_data.name}")
+            print(f"State: {status.state.value}")
+            print(f"Submitted on: {status.submitted_on}")
         ```
         """
         yield from wrap_async_generator_to_sync_generator(
             async_gen_func=self.list_async,
-            filter_by_state=filter_by_state,
             synapse_client=synapse_client,
+            filter_by_state=filter_by_state,
+            as_reviewer=as_reviewer,
         )
 
-    def list_reviewer(
-        self,
-        *,
-        synapse_client: Optional["Synapse"] = None,
-        filter_by_state: Optional[List["StateEnum"]] = None,
-    ) -> Generator["FormData", None, None]:
-        """
-        List FormData objects in a FormGroup for review.
-
-        Arguments:
-            synapse_client: The Synapse client to use for the request.
-            filter_by_state: Optional list of StateEnum to filter the results. Defaults to [StateEnum.SUBMITTED_WAITING_FOR_REVIEW].
-                Must include at least one element. Valid values are:
-                - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
-                - StateEnum.ACCEPTED
-                - StateEnum.REJECTED
-
-        Yields:
-            A page of FormData objects matching the request
-
-        Examples: List all reviewed forms (accepted and rejected)
-
-        ```python
-        def list_reviewed_forms():
-            syn = Synapse()
-            syn.login()
-
-            for form_data in FormData(group_id="123").list_reviewer(
-                filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
-            ):
-                status = form_data.submission_status
-                print(f"Form name: {form_data.name}")
-                print(f"State: {status.state.value}")
-                print(f"Submitted on: {status.submitted_on}")
-
-        list_reviewed_forms()
-        ```
-        """
-        yield from wrap_async_generator_to_sync_generator(
-            async_gen_func=self.list_reviewer_async,
-            filter_by_state=filter_by_state,
-            synapse_client=synapse_client,
-        )
-
-    async def download(
+    def download(
         self,
         synapse_id: str,
         download_location: Optional[str] = None,
@@ -195,7 +188,8 @@ class FormDataProtocol(Protocol):
 
         Arguments:
             download_location: The directory where the file should be downloaded.
-            synapse_id: The Synapse ID of the FileEntity associated with this FormData.
+            synapse_id: The Synapse ID of the entity that owns the file handle (e.g., "syn12345678").
+            synapse_client: The Synapse client to use for the request.
 
         Returns:
             The path to the downloaded file.
@@ -205,16 +199,16 @@ class FormDataProtocol(Protocol):
         ```python
         from synapseclient import Synapse
         from synapseclient.models import FormData
-        import asyncio
 
-        def get_form_data():
-            syn = Synapse()
-            syn.login()
+        syn = Synapse()
+        syn.login()
 
-            form_data = FormData(data_file_handle_id="123456").download(synapse_id="syn12345678")
-            print(form_data)
-
-        get_form_data()
+        form_data = FormData(form_data_id="123").get()  # First get the FormData
+        path = form_data.download(  # Then download
+            synapse_id="syn12345678",
+            download_location="/tmp"
+        )
+        print(f"Downloaded to: {path}")
         ```
         """
         return str()
