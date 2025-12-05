@@ -64,7 +64,7 @@ class StateEnum(str, Enum):
 
 
 @dataclass
-class SubmissionStatus:
+class FormSubmissionStatus:
     """
     The status of a submitted FormData object.
     """
@@ -84,7 +84,9 @@ class SubmissionStatus:
     rejection_message: Optional[str] = None
     """The message provided by the reviewer when a submission is rejected."""
 
-    def fill_from_dict(self, synapse_response: dict[str, Any]) -> "SubmissionStatus":
+    def fill_from_dict(
+        self, synapse_response: dict[str, Any]
+    ) -> "FormSubmissionStatus":
         """
         Converts a response from the REST API into this dataclass.
 
@@ -92,7 +94,7 @@ class SubmissionStatus:
             synapse_response: The response dictionary from the Synapse REST API.
 
         Returns:
-            This SubmissionStatus object with populated fields.
+            This FormSubmissionStatus object with populated fields.
         """
         self.submitted_on = synapse_response.get("submittedOn", None)
         self.reviewed_on = synapse_response.get("reviewedOn", None)
@@ -139,7 +141,7 @@ class FormData:
     data_file_handle_id: Optional[str] = None
     """The identifier of the data FileHandle for this object."""
 
-    submission_status: Optional[SubmissionStatus] = None
+    submission_status: Optional[FormSubmissionStatus] = None
     """The status of a submitted FormData object."""
 
     def fill_from_dict(self, synapse_response: dict[str, Any]) -> "FormData":
@@ -165,7 +167,7 @@ class FormData:
             "submissionStatus" in synapse_response
             and synapse_response["submissionStatus"] is not None
         ):
-            self.submission_status = SubmissionStatus().fill_from_dict(
+            self.submission_status = FormSubmissionStatus().fill_from_dict(
                 synapse_response["submissionStatus"]
             )
 

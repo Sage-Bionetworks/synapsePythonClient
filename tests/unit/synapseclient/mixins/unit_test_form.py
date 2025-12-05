@@ -2,8 +2,8 @@ from synapseclient.models.mixins import (
     FormChangeRequest,
     FormData,
     FormGroup,
+    FormSubmissionStatus,
     StateEnum,
-    SubmissionStatus,
 )
 
 
@@ -67,12 +67,12 @@ class TestFormChangeRequest:
         assert result == {"name": "my_form_name", "fileHandleId": "123456"}
 
 
-class TestSubmissionStatus:
+class TestFormSubmissionStatus:
     """Unit tests for SubmissionStatus dataclass"""
 
-    def test_submission_status_initialization(self) -> None:
-        """Test initialization of SubmissionStatus with all fields"""
-        status = SubmissionStatus(
+    def test_form_submission_status_initialization(self) -> None:
+        """Test initialization of FormSubmissionStatus with all fields"""
+        status = FormSubmissionStatus(
             submitted_on="2024-01-01T00:00:00.000Z",
             reviewed_on="2024-01-02T00:00:00.000Z",
             reviewed_by="user_123",
@@ -83,14 +83,14 @@ class TestSubmissionStatus:
         assert status.reviewed_by == "user_123"
 
     def test_fill_from_dict(self) -> None:
-        """Test fill_from_dict method of SubmissionStatus"""
+        """Test fill_from_dict method of FormSubmissionStatus"""
         response_dict = {
             "submittedOn": "2024-01-01T00:00:00.000Z",
             "reviewedOn": "2024-01-02T00:00:00.000Z",
             "reviewedBy": "user_123",
         }
 
-        status = SubmissionStatus().fill_from_dict(response_dict)
+        status = FormSubmissionStatus().fill_from_dict(response_dict)
 
         assert status.submitted_on == "2024-01-01T00:00:00.000Z"
         assert status.reviewed_on == "2024-01-02T00:00:00.000Z"
@@ -103,7 +103,7 @@ class TestSubmissionStatus:
             # 'reviewedOn' and 'reviewedBy' are missing
         }
 
-        status = SubmissionStatus().fill_from_dict(response_dict)
+        status = FormSubmissionStatus().fill_from_dict(response_dict)
 
         assert status.submitted_on == "2024-01-01T00:00:00.000Z"
         assert status.reviewed_on is None

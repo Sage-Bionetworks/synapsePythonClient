@@ -6,8 +6,8 @@ from synapseclient.models.mixins.form import (
     FormChangeRequest,
     FormData,
     FormGroup,
+    FormSubmissionStatus,
     StateEnum,
-    SubmissionStatus,
 )
 from synapseclient.models.mixins.json_schema import (
     BaseJSONSchema,
@@ -38,6 +38,6 @@ __all__ = [
     "FormGroup",
     "FormData",
     "FormChangeRequest",
-    "SubmissionStatus",
+    "FormSubmissionStatus",
     "StateEnum",
 ]
