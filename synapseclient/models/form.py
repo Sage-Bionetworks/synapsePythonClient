@@ -402,8 +402,8 @@ class FormData(FormDataMixin):
 
     async def download_async(
         self,
-        synapse_id,
-        download_location=None,
+        synapse_id: str,
+        download_location: Optional[str] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
     ) -> "FormData":
@@ -416,6 +416,23 @@ class FormData(FormDataMixin):
 
         Returns:
             The path to the downloaded file.
+
+        Examples: Download form data file
+
+        ```python
+        from synapseclient import Synapse
+        from synapseclient.models import FormData
+        import asyncio
+
+        async def get_form_data():
+            syn = Synapse()
+            syn.login()
+
+            form_data = await FormData(data_file_handle_id="123456").download_async(synapse_id="syn12345678")
+            print(form_data)
+
+        asyncio.run(get_form_data())
+        ```
         """
 
         from synapseclient.core.download.download_functions import (
