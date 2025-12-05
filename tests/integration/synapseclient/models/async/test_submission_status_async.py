@@ -385,6 +385,10 @@ class TestSubmissionStatusUpdates:
         """Test that storing a submission status without changes shows warning async."""
         # GIVEN a submission status that hasn't been modified
         # (it already has _last_persistent_instance set from get())
+        assert (
+            test_submission_status._last_persistent_instance == test_submission_status
+        )
+        assert not test_submission_status.has_changed
 
         # WHEN I try to store it without making changes
         result = await test_submission_status.store_async(synapse_client=self.syn)
