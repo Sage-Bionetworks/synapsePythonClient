@@ -261,18 +261,18 @@ class FormData(FormDataMixin, FormDataProtocol):
         Examples: List all form data in a group
 
         ```python
-            async def list_form_data():
-                syn = Synapse()
-                syn.login()
+        async def list_form_data():
+            syn = Synapse()
+            syn.login()
 
-                async for form_data in FormData(group_id="123").list_async(
-                    filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.ACCEPTED, StateEnum.REJECTED, StateEnum.WAITING_FOR_SUBMISSION]
-                ):
-                    status = form_data.submission_status
-                    print(f"Form name: {form_data.name}")
-                    print(f"State: {status.state.value}")
-                    print(f"Submitted on: {status.submitted_on}")
-            asyncio.run(list_form_data())
+            async for form_data in FormData(group_id="123").list_async(
+                filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.ACCEPTED, StateEnum.REJECTED, StateEnum.WAITING_FOR_SUBMISSION]
+            ):
+                status = form_data.submission_status
+                print(f"Form name: {form_data.name}")
+                print(f"State: {status.state.value}")
+                print(f"Submitted on: {status.submitted_on}")
+        asyncio.run(list_form_data())
         ```
         """
         from synapseclient.api.form_services import list_form_data_async
@@ -316,18 +316,18 @@ class FormData(FormDataMixin, FormDataProtocol):
         Examples: List all form data in a group
 
         ```python
-            def list_form_data():
-                syn = Synapse()
-                syn.login()
+        def list_form_data():
+            syn = Synapse()
+            syn.login()
 
-                for form_data in FormData(group_id="123").list(
-                    filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.ACCEPTED, StateEnum.REJECTED, StateEnum.WAITING_FOR_SUBMISSION]
-                ):
-                    status = form_data.submission_status
-                    print(f"Form name: {form_data.name}")
-                    print(f"State: {status.state.value}")
-                    print(f"Submitted on: {status.submitted_on}")
-            list_form_data()
+            for form_data in FormData(group_id="123").list(
+                filter_by_state=[StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.ACCEPTED, StateEnum.REJECTED, StateEnum.WAITING_FOR_SUBMISSION]
+            ):
+                status = form_data.submission_status
+                print(f"Form name: {form_data.name}")
+                print(f"State: {status.state.value}")
+                print(f"Submitted on: {status.submitted_on}")
+        list_form_data()
         ```
         """
         yield from wrap_async_generator_to_sync_generator(
