@@ -3,16 +3,24 @@ from dataclasses import dataclass
 from typing import AsyncGenerator, Generator, List, Optional
 
 from synapseclient import Synapse
-from synapseclient.core.async_utils import async_to_sync, skip_async_to_sync
+from synapseclient.core.async_utils import (
+    async_to_sync,
+    skip_async_to_sync,
+    wrap_async_generator_to_sync_generator,
+)
 from synapseclient.models.mixins.form import FormChangeRequest
 from synapseclient.models.mixins.form import FormData as FormDataMixin
 from synapseclient.models.mixins.form import FormGroup as FormGroupMixin
 from synapseclient.models.mixins.form import StateEnum
+from synapseclient.models.protocols.form_protocol import (
+    FormDataProtocol,
+    FormGroupProtocol,
+)
 
 
 @dataclass
 @async_to_sync
-class FormGroup(FormGroupMixin):
+class FormGroup(FormGroupMixin, FormGroupProtocol):
     async def create_async(
         self,
         *,
@@ -22,7 +30,6 @@ class FormGroup(FormGroupMixin):
         Create a FormGroup with the provided name. This method is idempotent. If a group with the provided name already exists and the caller has ACCESS_TYPE.READ permission the existing FormGroup will be returned.
 
         Arguments:
-            name: A globally unique name for the group. Required. Between 3 and 256 characters.
             synapse_client: Optional Synapse client instance for authentication.
 
         Returns:
@@ -60,7 +67,7 @@ class FormGroup(FormGroupMixin):
 
 @dataclass
 @async_to_sync
-class FormData(FormDataMixin):
+class FormData(FormDataMixin, FormDataProtocol):
     def _validate_filter_by_state(
         self,
         filter_by_state: Optional[List["StateEnum"]] = None,
@@ -127,7 +134,7 @@ class FormData(FormDataMixin):
             syn = Synapse()
             syn.login()
 
-            file = File(id="syn123", download_file=True).get()
+            file = File(id="syn123", download_file=True).get_async()
             file_handle_id = file.file_handle.id
 
             form_data = FormData(
@@ -323,22 +330,11 @@ class FormData(FormDataMixin):
             list_form_data()
         ```
         """
-        from synapseclient.api.form_services import list_form_data_sync
-
-        if not self.group_id:
-            raise ValueError("'group_id' must be provided to list FormData.")
-
-        self._validate_filter_by_state(
-            filter_by_state=filter_by_state, allow_waiting_submission=True
-        )
-
-        gen = list_form_data_sync(
-            synapse_client=synapse_client,
-            group_id=self.group_id,
+        yield from wrap_async_generator_to_sync_generator(
+            async_gen_func=self.list_async,
             filter_by_state=filter_by_state,
+            synapse_client=synapse_client,
         )
-        for item in gen:
-            yield self.fill_from_dict(item)
 
     def list_reviewer(
         self,
@@ -378,27 +374,11 @@ class FormData(FormDataMixin):
         list_reviewed_forms()
         ```
         """
-        from synapseclient.api.form_services import list_form_reviewer_sync
-
-        if not self.group_id:
-            raise ValueError(
-                "'group_id' must be provided to list form data and their associated status."
-            )
-
-        self._validate_filter_by_state(
-            filter_by_state=filter_by_state, allow_waiting_submission=False
-        )
-
-        if filter_by_state is None:
-            filter_by_state = [StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
-
-        gen = list_form_reviewer_sync(
-            synapse_client=synapse_client,
-            group_id=self.group_id,
+        yield from wrap_async_generator_to_sync_generator(
+            async_gen_func=self.list_reviewer_async,
             filter_by_state=filter_by_state,
+            synapse_client=synapse_client,
         )
-        for item in gen:
-            yield self.fill_from_dict(item)
 
     async def download_async(
         self,
@@ -406,7 +386,7 @@ class FormData(FormDataMixin):
         download_location: Optional[str] = None,
         *,
         synapse_client: Optional["Synapse"] = None,
-    ) -> "FormData":
+    ) -> str:
         """
         Download the data file associated with this FormData object.
 
