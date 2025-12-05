@@ -124,25 +124,6 @@ class TestSubmissionCreationAsync:
         with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
             await submission.store_async(synapse_client=self.syn)
 
-    # async def test_store_submission_with_docker_repository_async(
-    #     self, test_evaluation: Evaluation
-    # ):
-    #     # GIVEN we would need a Docker repository entity (mocked for this test)
-    #     # This test demonstrates the expected behavior for Docker repository submissions
-
-    #     # WHEN I create a submission for a Docker repository entity using async method
-    #     # TODO: This would require a real Docker repository entity in a full integration test
-    #     submission = Submission(
-    #         entity_id="syn123456789",  # Would be a Docker repository ID
-    #         evaluation_id=test_evaluation.id,
-    #         name=f"Docker Submission {uuid.uuid4()}",
-    #     )
-
-    #     # THEN the submission should handle Docker-specific attributes
-    #     # (This test would need to be expanded with actual Docker repository setup)
-    #     assert submission.entity_id == "syn123456789"
-    #     assert submission.evaluation_id == test_evaluation.id
-
 
 class TestSubmissionRetrievalAsync:
     @pytest.fixture(autouse=True, scope="function")
