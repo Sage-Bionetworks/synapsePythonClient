@@ -81,10 +81,10 @@ class FormData(FormDataMixin, FormDataProtocol):
             allow_waiting_submission: If False, raises error if WAITING_FOR_SUBMISSION is present.
 
         Raises:
-            ValueError: If filter_by_state contains invalid values.
+            ValueError: If filter_by_state is empty or contains invalid values.
         """
         if not filter_by_state:
-            return
+            raise ValueError("filter_by_state cannot be None or empty.")
 
         # Define valid states based on whether WAITING_FOR_SUBMISSION is allowed
         valid_states = {
