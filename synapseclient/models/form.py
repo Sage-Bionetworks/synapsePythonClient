@@ -158,7 +158,7 @@ class FormData(FormDataMixin, FormDataProtocol):
         ```
 
         """
-        from synapseclient.api.form_services import create_form_data_async
+        from synapseclient.api import create_form_data_async
 
         if not self.group_id or not self.name or not self.data_file_handle_id:
             raise ValueError(
@@ -215,7 +215,7 @@ class FormData(FormDataMixin, FormDataProtocol):
         asyncio.run(list_reviewed_forms())
         ```
         """
-        from synapseclient.api.form_services import list_form_reviewer_async
+        from synapseclient.api import list_form_reviewer_async
         from synapseclient.models.mixins.form import StateEnum
 
         if not self.group_id:
@@ -275,7 +275,7 @@ class FormData(FormDataMixin, FormDataProtocol):
         asyncio.run(list_form_data())
         ```
         """
-        from synapseclient.api.form_services import list_form_data_async
+        from synapseclient.api import list_form_data_async
 
         if not self.group_id:
             raise ValueError("'group_id' must be provided to list FormData.")
