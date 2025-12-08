@@ -4865,7 +4865,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             msg = (
                 f"A regex validation rule is set for property: {self.name}, but the pattern is not set in the data model. "
                 f"The regex pattern will be set to {self.pattern}, but the regex rule is deprecated and validation "
-                "rules will no longer be used in the future."
+                "rules will no longer be used in the future. "
                 "Please explicitly set the regex pattern in the 'Pattern' column in the data model."
             )
             self.logger.warning(msg)
@@ -5499,6 +5499,9 @@ def _set_property(
             prop = _create_array_property(node)
         else:
             prop = _create_simple_property(node)
+
+    if node.pattern:
+        prop["pattern"] = node.pattern
 
     prop["description"] = node.description
     prop["title"] = node.display_name
