@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from synapseclient.models.mixins.form import StateEnum
 
 
-async def create_form_group_async(
+async def create_form_group(
     synapse_client: "Synapse",
     name: str,
 ) -> dict[str, Any]:
@@ -32,7 +32,7 @@ async def create_form_group_async(
     return await client.rest_post_async(uri=f"/form/group?name={name}", body={})
 
 
-async def create_form_data_async(
+async def create_form_data(
     synapse_client: "Synapse",
     group_id: str,
     form_change_request: dict[str, Any],
@@ -62,7 +62,7 @@ async def create_form_data_async(
     )
 
 
-async def list_form_data_async(
+async def list_form_data(
     synapse_client: "Synapse",
     group_id: str,
     filter_by_state: Optional[list["StateEnum"]] = None,
@@ -164,7 +164,7 @@ def list_form_data_sync(
         Object matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/form/ListResponse.html>
     """
     return wrap_async_generator_to_sync_generator(
-        list_form_data_async(
+        list_form_data(
             synapse_client=synapse_client,
             group_id=group_id,
             filter_by_state=filter_by_state,

@@ -1,9 +1,8 @@
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from synapseclient import Synapse
 from synapseclient.models import FormData, FormGroup
 from synapseclient.models.mixins import StateEnum
 
@@ -29,7 +28,7 @@ class TestFormGroup:
 
         # WHEN creating the form group
         with patch(
-            "synapseclient.api.form_services.create_form_group_async",
+            "synapseclient.api.form_services.create_form_group",
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create:
@@ -64,7 +63,7 @@ class TestFormData:
 
     @pytest.fixture
     def mock_response(self):
-        """Mock API response from create_form_data_async"""
+        """Mock API response from create_form_data"""
         return {
             "formDataId": "67890",
             "groupId": "12345",
@@ -93,7 +92,7 @@ class TestFormData:
 
         # WHEN creating the form data
         with patch(
-            "synapseclient.api.create_form_data_async",
+            "synapseclient.api.create_form_data",
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create_form:
@@ -193,7 +192,7 @@ class TestFormData:
 
         # WHEN listing the form data
         with patch(
-            "synapseclient.api.list_form_data_async",
+            "synapseclient.api.list_form_data",
             return_value=mock_async_generator(),
         ) as mock_list_form:
             results = []
@@ -267,7 +266,7 @@ class TestFormData:
             ) = "/tmp/download"
             mock_file_name = f"SYNAPSE_FORM_{form_data.data_file_handle_id}.csv"
 
-            result = await form_data.download_async(
+            await form_data.download_async(
                 synapse_client=syn, synapse_id="mock synapse_id"
             )
 

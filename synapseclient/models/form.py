@@ -56,9 +56,9 @@ class FormGroup(FormGroupMixin, FormGroupProtocol):
         if not self.name:
             raise ValueError("FormGroup 'name' must be provided to create a FormGroup.")
 
-        from synapseclient.api.form_services import create_form_group_async
+        from synapseclient.api.form_services import create_form_group
 
-        response = await create_form_group_async(
+        response = await create_form_group(
             synapse_client=synapse_client,
             name=self.name,
         )
@@ -158,7 +158,7 @@ class FormData(FormDataMixin, FormDataProtocol):
         ```
 
         """
-        from synapseclient.api import create_form_data_async
+        from synapseclient.api import create_form_data
 
         if not self.group_id or not self.name or not self.data_file_handle_id:
             raise ValueError(
@@ -168,7 +168,7 @@ class FormData(FormDataMixin, FormDataProtocol):
         form_change_request = FormChangeRequest(
             name=self.name, file_handle_id=self.data_file_handle_id
         ).to_dict()
-        response = await create_form_data_async(
+        response = await create_form_data(
             synapse_client=synapse_client,
             group_id=self.group_id,
             form_change_request=form_change_request,
@@ -258,7 +258,7 @@ class FormData(FormDataMixin, FormDataProtocol):
         asyncio.run(list_for_review())
         ```
         """
-        from synapseclient.api import list_form_data_async
+        from synapseclient.api import list_form_data
 
         if not self.group_id:
             raise ValueError("'group_id' must be provided to list FormData.")
@@ -274,7 +274,7 @@ class FormData(FormDataMixin, FormDataProtocol):
             allow_waiting_submission=allow_waiting_submission,
         )
 
-        gen = list_form_data_async(
+        gen = list_form_data(
             synapse_client=synapse_client,
             group_id=self.group_id,
             filter_by_state=filter_by_state,
