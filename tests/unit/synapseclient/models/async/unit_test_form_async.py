@@ -1,3 +1,4 @@
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -9,12 +10,6 @@ from synapseclient.models.mixins import StateEnum
 
 class TestFormGroup:
     """Unit tests for the FormGroup model."""
-
-    @pytest.fixture
-    def syn(self):
-        """Mock Synapse client"""
-        mock_syn = MagicMock(spec=Synapse)
-        return mock_syn
 
     @pytest.fixture
     def mock_response(self):
@@ -64,22 +59,8 @@ class TestFormGroup:
             await form_group.create_async(synapse_client=syn)
 
 
-class AsyncIteratorMock(MagicMock):
-    async def __aiter__(self):
-        # Simulate yielding items
-        yield 1
-        yield 2
-        yield 3
-
-
 class TestFormData:
     """Unit tests for the FormData model."""
-
-    @pytest.fixture
-    def syn(self):
-        """Mock Synapse client"""
-        mock_syn = MagicMock(spec=Synapse)
-        return mock_syn
 
     @pytest.fixture
     def mock_response(self):
@@ -267,3 +248,48 @@ class TestFormData:
                     filter_by_state=filter_by_state,
                     allow_waiting_submission=not as_reviewer,
                 )
+
+    async def test_download_async(self, syn):
+        """Test downloading form data asynchronously"""
+        # GIVEN a FormData with a form_data_id
+        form_data = FormData(form_data_id="67890", data_file_handle_id="54321")
+
+        # WHEN downloading the form data
+        with patch(
+            "synapseclient.core.download.download_functions.download_by_file_handle",
+            new_callable=AsyncMock,
+        ) as mock_download_file_handle, patch.object(syn, "cache") as mock_cache, patch(
+            "synapseclient.core.download.download_functions.ensure_download_location_is_directory",
+        ) as mock_ensure_dir:
+            mock_cache.get.side_effect = "/tmp/foo"
+            mock_ensure_dir.return_value = (
+                mock_cache.get_cache_dir.return_value
+            ) = "/tmp/download"
+            mock_file_name = f"SYNAPSE_FORM_{form_data.data_file_handle_id}.csv"
+
+            result = await form_data.download_async(
+                synapse_client=syn, synapse_id="mock synapse_id"
+            )
+
+            # THEN the API should be called with correct parameters
+            mock_download_file_handle.assert_called_once_with(
+                file_handle_id=form_data.data_file_handle_id,
+                synapse_id="mock synapse_id",
+                entity_type="FileEntity",
+                destination=os.path.join(mock_ensure_dir.return_value, mock_file_name),
+                synapse_client=syn,
+            )
+
+    async def test_download_async_without_form_data_id_raises_error(self, syn):
+        """Test that downloading without form_data_id raises ValueError"""
+        # GIVEN a FormData without a form_data_id
+        form_data = FormData(form_data_id="67890")
+
+        # WHEN downloading the form data
+        # THEN it should raise ValueError
+        with pytest.raises(
+            ValueError, match="data_file_handle_id must be set to download the file."
+        ):
+            await form_data.download_async(
+                synapse_client=syn, synapse_id="mock synapse_id"
+            )
