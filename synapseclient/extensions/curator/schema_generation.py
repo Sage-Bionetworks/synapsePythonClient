@@ -4812,7 +4812,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
 
         # Validate column type compatibility with min/max constraints
         self._validate_column_type_compatibility(
-            explicit_maximum=explicit_maximum, explicit_minimum=explicit_minimum
+            explicit_maximum=explicit_maximum,
+            explicit_minimum=explicit_minimum,
+            column_pattern=column_pattern,
         )
 
         # url and date rules are deprecated for adding format keyword
@@ -4853,11 +4855,6 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.maximum = (
             explicit_maximum if explicit_maximum is not None else implicit_maximum
         )
-
-        if column_pattern and column_type and column_type.value != "string":
-            raise ValueError(
-                "Column type must be set to 'string' to use column pattern specification for regex validation."
-            )
 
         self.pattern = column_pattern if column_pattern else rule_pattern
 
@@ -4900,6 +4897,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self,
         explicit_maximum: Union[int, float, None],
         explicit_minimum: Union[int, float, None],
+        column_pattern: Optional[str] = None,
     ) -> None:
         """Validate that columnType is compatible with Maximum/Minimum constraints.
 
@@ -4922,7 +4920,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             None: This method performs validation only and doesn't return a value.
                 It raises ValueError if validation fails.
         """
-        if not explicit_maximum and not explicit_minimum:
+        if not explicit_maximum and not explicit_minimum and not column_pattern:
             return
         if not self.type:
             raise ValueError(
@@ -4930,8 +4928,14 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
                 f"(min: {explicit_minimum}, max: {explicit_maximum}) are specified, "
                 f"but columnType is not set. Please set columnType to 'number', 'integer' or 'integer_list'."
             )
+
+        if column_pattern and self.type and self.type.value != "string":
+            raise ValueError(
+                "Column type must be set to 'string' to use column pattern specification for regex validation."
+            )
+
         # If type is specified but not numeric, raise error
-        if self.type not in (
+        if (explicit_maximum or explicit_minimum) and self.type not in (
             AtomicColumnType.NUMBER,
             AtomicColumnType.INTEGER,
             ListColumnType.INTEGER_LIST,
