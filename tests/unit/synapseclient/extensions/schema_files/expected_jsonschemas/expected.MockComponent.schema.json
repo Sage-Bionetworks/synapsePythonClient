@@ -170,16 +170,19 @@
     },
     "CheckRegexList": {
       "description": "TBD",
+      "pattern": "^[a-f]",
       "title": "Check Regex List",
       "type": "array"
     },
     "CheckRegexListLike": {
       "description": "TBD",
+      "pattern": "^[a-f]",
       "title": "Check Regex List Like",
       "type": "array"
     },
     "CheckRegexListStrict": {
       "description": "TBD",
+      "pattern": "^[a-f]",
       "title": "Check Regex List Strict",
       "type": "array"
     },
