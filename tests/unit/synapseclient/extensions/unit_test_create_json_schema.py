@@ -6,9 +6,13 @@ The helper classes tested are JSONSchema, Node, GraphTraversalState,
 import json
 import logging
 import os
+import tempfile
+from time import sleep
 from typing import Any, Optional
+from unittest import mock
 from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
@@ -16,7 +20,9 @@ from jsonschema.exceptions import ValidationError
 from synapseclient.extensions.curator.schema_generation import (
     AtomicColumnType,
     ColumnType,
+    DataModelGraph,
     DataModelGraphExplorer,
+    DataModelParser,
     GraphTraversalState,
     JSONSchema,
     JSONSchemaFormat,
@@ -101,6 +107,8 @@ def fixture_test_nodes(
         "EnumNotRequired",
         "InRange",
         "Regex",
+        "CheckRegexSingle",
+        "CheckRegexFormat",
         "Date",
         "URL",
         "List",
@@ -327,6 +335,18 @@ class TestJSONSchema:
         ("InRange", AtomicColumnType.NUMBER, False, 50, 100, None, None),
         # Node with "regex search [a-f]" validation rule and columnType "string" - pattern is set, type is STRING
         ("Regex", AtomicColumnType.STRING, False, None, None, "[a-f]", None),
+        # Node with "[a-f]" pattern column specification and columnType "string" - pattern is set, type is STRING
+        ("CheckRegexSingle", AtomicColumnType.STRING, False, None, None, "[a-b]", None),
+        # Node with "regex search [a-f]" validation rule, "^[a-b]" pattern column specification, and columnType "string" - pattern is set, type is STRING
+        (
+            "CheckRegexFormat",
+            AtomicColumnType.STRING,
+            False,
+            None,
+            None,
+            "^[a-b]",
+            None,
+        ),
         # Node with "date" validation rule and columnType "string" - format is set to DATE, type is STRING
         (
             "Date",
@@ -350,6 +370,8 @@ class TestJSONSchema:
         "List",
         "InRange",
         "Regex",
+        "CheckRegexSingle",
+        "CheckRegexFormat",
         "Date",
         "URI",
         "ListBoolean",
@@ -365,6 +387,7 @@ def test_node_init(
     expected_pattern: Optional[str],
     expected_format: Optional[JSONSchemaFormat],
     test_nodes: dict[str, TraversalNode],
+    caplog,
 ) -> None:
     """
     Tests for TraversalNode class initialization.
@@ -377,6 +400,7 @@ def test_node_init(
     The type property comes from the columnType field, while constraints
     come from parsing validation rules like "str", "inRange", "regex", etc.
     """
+
     node = test_nodes[node_name]
     assert node.type == expected_type
     assert node.format == expected_format
@@ -384,6 +408,93 @@ def test_node_init(
     assert node.minimum == expected_min
     assert node.maximum == expected_max
     assert node.pattern == expected_pattern
+    if node_name == "Regex":
+        warning_message = "A regex validation rule is set for property: Regex, but the pattern is not set in the data model."
+        assert warning_message in test_nodes[node_name].logger.mock_calls[0][1][0]
+
+
+def test_invalid_regex_columntype_traversalnode(
+    helpers,
+) -> None:
+    """
+    Tests for matching pattern and columnType specification.
+
+    Verifies that when TransversalNode objects are initialized with a pattern specified and an incompatible column type, a ValueError is raised.
+    """
+    node = "Check Regex Single"
+
+    path_to_data_model = helpers.get_schema_file_path("data_models/example.model.csv")
+
+    fullpath = helpers.get_schema_file_path(path_to_data_model)
+
+    # Instantiate DataModelParser
+    data_model_parser = DataModelParser(path_to_data_model=fullpath, logger=Mock())
+
+    # Parse Model
+    parsed_data_model = data_model_parser.parse_model()
+
+    # Change column type to imcompatible type
+    parsed_data_model[node]["Relationships"]["ColumnType"] = "integer"
+
+    # Instantiate DataModelGraph
+    data_model_grapher = DataModelGraph(
+        parsed_data_model, data_model_labels="class_label", logger=Mock()
+    )
+
+    # Generate graph
+    graph_data_model = data_model_grapher.graph
+
+    # Instantiate DataModelGraphExplorer
+    dmge = DataModelGraphExplorer(graph_data_model, logger=Mock())
+
+    # A value error should be raised when using pattern specification with non-string column type
+    error_message = "Column type must be set to 'string' to use column pattern specification for regex validation."
+    with pytest.raises(ValueError, match=error_message):
+        node = TraversalNode(
+            node.replace(" ", ""), "JSONSchemaComponent", dmge, logger=Mock()
+        )
+
+
+def test_invalid_regex_traversalnode(
+    helpers,
+) -> None:
+    """
+    Tests for invalid regex pattern specification.
+
+    Verifies that only valid regex patterns are specified.
+    """
+    node = "Check Regex Single"
+
+    path_to_data_model = helpers.get_schema_file_path("data_models/example.model.csv")
+
+    fullpath = helpers.get_schema_file_path(path_to_data_model)
+
+    # Instantiate DataModelParser
+    data_model_parser = DataModelParser(path_to_data_model=fullpath, logger=Mock())
+
+    # Parse Model
+    parsed_data_model = data_model_parser.parse_model()
+
+    # Change column type to imcompatible type
+    parsed_data_model[node]["Relationships"]["Pattern"] = "\\u"
+
+    # Instantiate DataModelGraph
+    data_model_grapher = DataModelGraph(
+        parsed_data_model, data_model_labels="class_label", logger=Mock()
+    )
+
+    # Generate graph
+    graph_data_model = data_model_grapher.graph
+
+    # Instantiate DataModelGraphExplorer
+    dmge = DataModelGraphExplorer(graph_data_model, logger=Mock())
+
+    # A value error should be raised when using pattern specification with non-string column type
+    error_message = "Column type must be set to 'string' to use column pattern specification for regex validation."
+    with pytest.raises(SyntaxError, match="The regex pattern.*is invalid"):
+        node = TraversalNode(
+            node.replace(" ", ""), "JSONSchemaComponent", dmge, logger=Mock()
+        )
 
 
 @pytest.mark.parametrize(

@@ -156,11 +156,9 @@
     },
     "CheckRegexFormat": {
       "description": "TBD",
-      "not": {
-        "type": "null"
-      },
-      "pattern": "^[a-f]",
-      "title": "Check Regex Format"
+      "pattern": "^[a-b]",
+      "title": "Check Regex Format",
+      "type": "string"
     },
     "CheckRegexInteger": {
       "description": "TBD",
@@ -172,26 +170,27 @@
     },
     "CheckRegexList": {
       "description": "TBD",
+      "pattern": "^[a-f]",
       "title": "Check Regex List",
       "type": "array"
     },
     "CheckRegexListLike": {
       "description": "TBD",
+      "pattern": "^[a-f]",
       "title": "Check Regex List Like",
       "type": "array"
     },
     "CheckRegexListStrict": {
       "description": "TBD",
+      "pattern": "^[a-f]",
       "title": "Check Regex List Strict",
       "type": "array"
     },
     "CheckRegexSingle": {
       "description": "TBD",
-      "not": {
-        "type": "null"
-      },
-      "pattern": "[a-f]",
-      "title": "Check Regex Single"
+      "pattern": "[a-b]",
+      "title": "Check Regex Single",
+      "type": "string"
     },
     "CheckString": {
       "description": "TBD",

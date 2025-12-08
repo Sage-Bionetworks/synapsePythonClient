@@ -70,6 +70,20 @@ def test_get_node_column_type(
 
 
 @pytest.mark.parametrize(
+    "node_label, pattern",
+    [
+        ("CheckRegexSingle", "[a-b]"),
+        ("CheckRegexFormat", "^[a-b]"),
+        ("CheckRegexInteger", None),
+    ],
+)
+def test_get_node_pattern(
+    dmge: DataModelGraphExplorer, node_label: str, pattern: str
+) -> None:
+    assert dmge.get_node_column_pattern(node_label) == pattern
+
+
+@pytest.mark.parametrize(
     "node_label, column_type",
     [("String", None), ("Date", JSONSchemaFormat.DATE), ("URL", JSONSchemaFormat.URI)],
 )
