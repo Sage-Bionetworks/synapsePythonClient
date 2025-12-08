@@ -5457,16 +5457,13 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> 
         schema: The schema to set keywords on
         node (Node): The node the corresponds to the property which is being set in the JSON Schema
     """
-    for attr in ["minimum", "maximum"]:
+    for attr in ["minimum", "maximum", "pattern"]:
         value = getattr(node, attr)
         if value is not None:
             schema[attr] = value
 
     if node.format is not None:
         schema["format"] = node.format.value
-
-    if hasattr(node, "pattern") and node.pattern is not None:
-        schema["pattern"] = node.pattern
 
 
 def _set_property(
