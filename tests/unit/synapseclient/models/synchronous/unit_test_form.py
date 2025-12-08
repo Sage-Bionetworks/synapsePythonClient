@@ -1,8 +1,9 @@
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
+from synapseclient import Synapse
 from synapseclient.models import FormData, FormGroup
 from synapseclient.models.mixins import StateEnum
 
@@ -12,7 +13,7 @@ class TestFormGroup:
 
     @pytest.fixture
     def mock_response(self):
-        """Mock API response from create_form_group_async"""
+        """Mock API response from create_form_group"""
         return {
             "groupId": "12345",
             "name": "my_test_form_group",
@@ -21,7 +22,7 @@ class TestFormGroup:
             "modifiedOn": "2023-12-01T10:00:00.000Z",
         }
 
-    async def test_create_async_success(self, syn, mock_response):
+    def test_create_success(self, syn, mock_response):
         """Test successful form group creation"""
         # GIVEN a FormGroup with a name
         form_group = FormGroup(name="my_test_form_group")
@@ -29,10 +30,9 @@ class TestFormGroup:
         # WHEN creating the form group
         with patch(
             "synapseclient.api.form_services.create_form_group",
-            new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create:
-            result = await form_group.create_async(synapse_client=syn)
+            result = form_group.create(synapse_client=syn)
 
             # THEN the API should be called with correct parameters
             mock_create.assert_called_once_with(
@@ -47,7 +47,7 @@ class TestFormGroup:
             assert result.created_by == "3350396"
             assert result.created_on == "2023-12-01T10:00:00.000Z"
 
-    async def test_create_async_without_name_raises_error(self, syn):
+    def test_create_without_name_raises_error(self, syn):
         """Test that creating without a name raises ValueError"""
         # GIVEN a FormGroup without a name
         form_group = FormGroup()
@@ -55,7 +55,7 @@ class TestFormGroup:
         # WHEN creating the form group
         # THEN it should raise ValueError
         with pytest.raises(ValueError, match="FormGroup 'name' must be provided"):
-            await form_group.create_async(synapse_client=syn)
+            form_group.create(synapse_client=syn)
 
 
 class TestFormData:
@@ -81,7 +81,7 @@ class TestFormData:
             },
         }
 
-    async def test_create_async_success(self, syn, mock_response):
+    def test_create_success(self, syn, mock_response):
         """Test successful form data creation"""
         # GIVEN a FormData with required fields
         form_data = FormData(
@@ -93,10 +93,9 @@ class TestFormData:
         # WHEN creating the form data
         with patch(
             "synapseclient.api.create_form_data",
-            new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_create_form:
-            result = await form_data.create_async(synapse_client=syn)
+            result = form_data.create(synapse_client=syn)
 
             # THEN the API should be called with correct parameters
             mock_create_form.assert_called_once_with(
@@ -119,7 +118,7 @@ class TestFormData:
                 result.submission_status.state.value == "SUBMITTED_WAITING_FOR_REVIEW"
             )
 
-    async def test_create_async_without_required_fields_raises_error(self, syn):
+    def test_create_without_required_fields_raises_error(self, syn):
         """Test that creating without required fields raises ValueError"""
         # GIVEN a FormData missing required fields
         form_data = FormData(name="incomplete_form_data")
@@ -130,7 +129,7 @@ class TestFormData:
             ValueError,
             match="'group_id', 'name', and 'data_file_handle_id' must be provided",
         ):
-            await form_data.create_async(synapse_client=syn)
+            form_data.create(synapse_client=syn)
 
     @pytest.mark.parametrize(
         "as_reviewer,filter_by_state",
@@ -160,8 +159,8 @@ class TestFormData:
             (True, [StateEnum.SUBMITTED_WAITING_FOR_REVIEW, StateEnum.REJECTED]),
         ],
     )
-    async def test_list_async(self, syn, as_reviewer, filter_by_state):
-        """Test listing form data asynchronously"""
+    def test_list(self, syn, as_reviewer, filter_by_state):
+        """Test listing form data"""
         # GIVEN a FormData with a group_id
         form_data = FormData(group_id="12345")
 
@@ -196,7 +195,7 @@ class TestFormData:
         ) as mock_list_form:
             results = []
 
-            async for item in form_data.list_async(
+            for item in form_data.list(
                 synapse_client=syn,
                 filter_by_state=filter_by_state,
                 as_reviewer=as_reviewer,
@@ -230,7 +229,7 @@ class TestFormData:
             (True, [StateEnum.WAITING_FOR_SUBMISSION], ValueError),
         ],
     )
-    async def test_validate_filter_by_state_raises_error_for_invalid_states(
+    def test_validate_filter_by_state_raises_error_for_invalid_states(
         self, as_reviewer, filter_by_state, expected
     ):
         """Test that invalid state filters raise ValueError"""
@@ -247,15 +246,14 @@ class TestFormData:
                     allow_waiting_submission=not as_reviewer,
                 )
 
-    async def test_download_async(self, syn):
-        """Test downloading form data asynchronously"""
+    def test_download(self, syn):
+        """Test downloading form data"""
         # GIVEN a FormData with a form_data_id
         form_data = FormData(form_data_id="67890", data_file_handle_id="54321")
 
         # WHEN downloading the form data
         with patch(
             "synapseclient.core.download.download_functions.download_by_file_handle",
-            new_callable=AsyncMock,
         ) as mock_download_file_handle, patch.object(syn, "cache") as mock_cache, patch(
             "synapseclient.core.download.download_functions.ensure_download_location_is_directory",
         ) as mock_ensure_dir:
@@ -265,9 +263,7 @@ class TestFormData:
             ) = "/tmp/download"
             mock_file_name = f"SYNAPSE_FORM_{form_data.data_file_handle_id}.csv"
 
-            await form_data.download_async(
-                synapse_client=syn, synapse_id="mock synapse_id"
-            )
+            form_data.download(synapse_client=syn, synapse_id="mock synapse_id")
 
             # THEN the API should be called with correct parameters
             mock_download_file_handle.assert_called_once_with(
@@ -278,7 +274,7 @@ class TestFormData:
                 synapse_client=syn,
             )
 
-    async def test_download_async_without_form_data_id_raises_error(self, syn):
+    def test_download_without_form_data_id_raises_error(self, syn):
         """Test that downloading without form_data_id raises ValueError"""
         # GIVEN a FormData without a form_data_id
         form_data = FormData(form_data_id="67890")
@@ -288,6 +284,4 @@ class TestFormData:
         with pytest.raises(
             ValueError, match="data_file_handle_id must be set to download the file."
         ):
-            await form_data.download_async(
-                synapse_client=syn, synapse_id="mock synapse_id"
-            )
+            form_data.download(synapse_client=syn, synapse_id="mock synapse_id")
