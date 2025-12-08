@@ -168,7 +168,6 @@ class FormData(FormDataMixin, FormDataProtocol):
         form_change_request = FormChangeRequest(
             name=self.name, file_handle_id=self.data_file_handle_id
         ).to_dict()
-
         response = await create_form_data_async(
             synapse_client=synapse_client,
             group_id=self.group_id,
@@ -266,32 +265,23 @@ class FormData(FormDataMixin, FormDataProtocol):
 
         # Validate filter_by_state based on reviewer mode
         if as_reviewer:
-            self._validate_filter_by_state(
-                filter_by_state=filter_by_state, allow_waiting_submission=False
-            )
-            if filter_by_state is None:
-                filter_by_state = [StateEnum.SUBMITTED_WAITING_FOR_REVIEW]
-
-            gen = list_form_data_async(
-                synapse_client=synapse_client,
-                group_id=self.group_id,
-                filter_by_state=filter_by_state,
-                as_reviewer=True,
-            )
+            allow_waiting_submission = False
         else:
-            self._validate_filter_by_state(
-                filter_by_state=filter_by_state, allow_waiting_submission=True
-            )
+            allow_waiting_submission = True
 
-            gen = list_form_data_async(
-                synapse_client=synapse_client,
-                group_id=self.group_id,
-                filter_by_state=filter_by_state,
-                as_reviewer=False,
-            )
+        self._validate_filter_by_state(
+            filter_by_state=filter_by_state,
+            allow_waiting_submission=allow_waiting_submission,
+        )
 
+        gen = list_form_data_async(
+            synapse_client=synapse_client,
+            group_id=self.group_id,
+            filter_by_state=filter_by_state,
+            as_reviewer=as_reviewer,
+        )
         async for item in gen:
-            yield self.fill_from_dict(item)
+            yield FormData().fill_from_dict(item)
 
     def list(
         self,
