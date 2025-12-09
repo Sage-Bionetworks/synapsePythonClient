@@ -4921,10 +4921,11 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
                 keyword_dict["value"] is not None
                 and self.type.value not in keyword_dict["types"]
             ):
+                types = keyword_dict["types"]
                 msg = (
                     f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
                     f"but {keyword} constraint (value: {keyword_dict['value']}) "
-                    f"is specified. Please set columnType to one of: ."
+                    f"is specified. Please set columnType to one of: {types}."
                 )
                 raise ValueError(msg)
 
