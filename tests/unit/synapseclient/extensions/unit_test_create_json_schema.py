@@ -1489,17 +1489,11 @@ def test_create_enum_property(
             [""],
             [1, None],
         ),
-        # If property_type is given, and is_required is False,
-        # type is set to given property_type and "null"
+        # If property_type is given, and is_required is False, null type is not added (see SYNPY-1699)
         (
             "StringNotRequired",
-            {
-                "oneOf": [
-                    {"type": "string", "title": "string"},
-                    {"type": "null", "title": "null"},
-                ],
-            },
-            [None, "x"],
+            {"type": "string"},
+            ["x"],
             [1],
         ),
         # If is_required is True '"not": {"type":"null"}' is added to schema if
@@ -1538,6 +1532,9 @@ def test_create_simple_property(
 ) -> None:
     """Test for _create_simple_property"""
     schema = _create_simple_property(test_nodes[node_name])
+    if schema != expected_schema:
+        print("Schema does not match expected schema:")
+        print("Actual:  ", schema)
     assert schema == expected_schema
     full_schema = {"type": "object", "properties": {"name": schema}, "required": []}
     validator = Draft7Validator(full_schema)

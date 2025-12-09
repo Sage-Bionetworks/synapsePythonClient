@@ -133,17 +133,8 @@
     },
     "StringNotRequired": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "string",
-          "type": "string"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
-      ],
-      "title": "String Not Required"
+      "title": "String Not Required",
+      "type": "string"
     },
     "URL": {
       "description": "TBD",

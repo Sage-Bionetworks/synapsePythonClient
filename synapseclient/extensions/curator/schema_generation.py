@@ -5420,10 +5420,8 @@ def _create_simple_property(node: TraversalNode) -> Property:
 
     Example:
         {
-            "oneOf": [
-                {"type": "string", "title": "string"},
-                {"type": "null", "title": "null"},
-            ],
+            "title": "String",
+            "type": "string"
         }
 
     Arguments:
@@ -5435,13 +5433,7 @@ def _create_simple_property(node: TraversalNode) -> Property:
     prop: Property = {}
 
     if node.type:
-        if node.is_required:
-            prop["type"] = node.type.value
-        else:
-            prop["oneOf"] = [
-                {"type": node.type.value, "title": node.type.value},
-                {"type": "null", "title": "null"},
-            ]
+        prop["type"] = node.type.value
     elif node.is_required:
         prop["not"] = {"type": "null"}
 
