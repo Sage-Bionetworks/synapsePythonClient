@@ -5392,10 +5392,8 @@ def _create_enum_property(
 
     Example:
         {
-            "oneOf": [
-                {"enum": ["enum1"], "title": "enum"},
-                {"type": "null", "title": "null"},
-            ],
+            "enum": ["enum1", "enum2"],
+            "title": "enum"
         }
 
     Arguments:
@@ -5410,10 +5408,8 @@ def _create_enum_property(
         valid_values = node.valid_values
 
     enum_property: Property = {}
-    one_of_list = [{"enum": valid_values, "title": "enum"}]
-    if not node.is_required:
-        one_of_list += [{"type": "null", "title": "null"}]
-    enum_property["oneOf"] = one_of_list
+    enum_property["enum"] = valid_values
+    enum_property["title"] = "enum"
 
     return enum_property
 

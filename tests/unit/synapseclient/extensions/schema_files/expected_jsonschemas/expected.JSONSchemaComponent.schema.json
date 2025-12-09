@@ -18,35 +18,21 @@
     },
     "Enum": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "ab",
-            "cd",
-            "ef",
-            "gh"
-          ],
-          "title": "enum"
-        }
+      "enum": [
+        "ab",
+        "cd",
+        "ef",
+        "gh"
       ],
       "title": "Enum"
     },
     "EnumNotRequired": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "ab",
-            "cd",
-            "ef",
-            "gh"
-          ],
-          "title": "enum"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
+      "enum": [
+        "ab",
+        "cd",
+        "ef",
+        "gh"
       ],
       "title": "Enum Not Required"
     },

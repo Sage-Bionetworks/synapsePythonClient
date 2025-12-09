@@ -53,21 +53,12 @@
   "properties": {
     "Cancer Type": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "Breast",
-            "Colorectal",
-            "Lung",
-            "Prostate",
-            "Skin"
-          ],
-          "title": "enum"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
+      "enum": [
+        "Breast",
+        "Colorectal",
+        "Lung",
+        "Prostate",
+        "Skin"
       ],
       "title": "Cancer Type"
     },
@@ -80,14 +71,9 @@
     },
     "Diagnosis": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "Cancer",
-            "Healthy"
-          ],
-          "title": "enum"
-        }
+      "enum": [
+        "Cancer",
+        "Healthy"
       ],
       "title": "Diagnosis"
     },
@@ -103,8 +89,8 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "Family History"
+      "title": "Family History",
+      "type": "array"
     },
     "Patient ID": {
       "description": "TBD",
@@ -115,15 +101,10 @@
     },
     "Sex": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "Female",
-            "Male",
-            "Other"
-          ],
-          "title": "enum"
-        }
+      "enum": [
+        "Female",
+        "Male",
+        "Other"
       ],
       "title": "Sex"
     },

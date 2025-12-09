@@ -1289,7 +1289,7 @@ def test_set_conditional_dependencies(
                     "Enum": {
                         "description": "TBD",
                         "title": "Enum",
-                        "oneOf": [{"enum": ["ab", "cd", "ef", "gh"], "title": "enum"}],
+                        "enum": ["ab", "cd", "ef", "gh"],
                     }
                 },
                 required=["Enum"],
@@ -1442,20 +1442,18 @@ def test_create_array_property(
         # If is_required is True, no type is added
         (
             "Enum",
-            {"oneOf": [{"enum": ["ab", "cd", "ef", "gh"], "title": "enum"}]},
+            {"enum": ["ab", "cd", "ef", "gh"], "title": "enum"},
             ["ab"],
             [1, "x", None],
         ),
-        # If is_required is False, "null" is added as a type
+        # SYNPY 1699: If is_required is False, null type is no longer added
         (
             "EnumNotRequired",
             {
-                "oneOf": [
-                    {"enum": ["ab", "cd", "ef", "gh"], "title": "enum"},
-                    {"type": "null", "title": "null"},
-                ],
+                "enum": ["ab", "cd", "ef", "gh"],
+                "title": "enum",
             },
-            ["ab", None],
+            ["ab"],
             [1, "x"],
         ),
     ],
