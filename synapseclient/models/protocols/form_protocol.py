@@ -63,7 +63,7 @@ class FormDataProtocol(Protocol):
             A FormData object containing the details of the created form data.
 
         Note:
-            The `name` attribute must be set on the FormGroup instance before calling `create()`.
+            The `name` attribute must be set on the FormData instance before calling `create()`.
 
         Examples: create a form data
 
@@ -200,16 +200,16 @@ class FormDataProtocol(Protocol):
 
         ```python
         from synapseclient import Synapse
-        from synapseclient.models import FormData
+        from synapseclient.models import File, FormData
 
         syn = Synapse()
         syn.login()
 
-        form_data = FormData(form_data_id="123").get()  # First get the FormData
-        path = form_data.download(  # Then download
-            synapse_id="syn12345678",
-            download_location="/tmp"
-        )
+        file = File(id="syn123", download_file=True).get()
+        file_handle_id = file.file_handle.id
+
+        path = FormData(data_file_handle_id=file_handle_id).download(synapse_id="syn123")
+
         print(f"Downloaded to: {path}")
         ```
         """

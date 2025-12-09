@@ -87,7 +87,7 @@ async def list_form_data(
             - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
             - StateEnum.ACCEPTED
             - StateEnum.REJECTED
-            If None, returns all FormData objects.
+            Note: filter_by_state cannot be None
 
             When as_reviewer=True, valid values are:
             - StateEnum.SUBMITTED_WAITING_FOR_REVIEW (default if None)
@@ -148,7 +148,7 @@ def list_form_data_sync(
             - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
             - StateEnum.ACCEPTED
             - StateEnum.REJECTED
-            If None, returns all FormData objects.
+            Note: filter_by_state cannot be None or empty
 
             When as_reviewer=True, valid values are:
             - StateEnum.SUBMITTED_WAITING_FOR_REVIEW (default if None)

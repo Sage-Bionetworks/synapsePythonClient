@@ -42,7 +42,7 @@ class TestFormData:
     @pytest.fixture(autouse=True, scope="session")
     async def test_form_group(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> str:
+    ) -> FormGroup:
         """Create a test form group for use in form data tests."""
         unique_name = "test_form_group_" + str(uuid.uuid4())
         form_group = FormGroup(name=unique_name)
@@ -55,7 +55,7 @@ class TestFormData:
     @pytest.fixture(autouse=True, scope="session")
     async def test_file(
         self, syn: Synapse, schedule_for_cleanup: Callable[..., None]
-    ) -> str:
+    ) -> File:
         """Create a test file for use in form data tests."""
         # Create a test project and a test file to get a file handle ID
         project_name = str(uuid.uuid4())

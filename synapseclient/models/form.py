@@ -385,15 +385,19 @@ class FormData(FormDataMixin, FormDataProtocol):
         Examples: Download form data file
 
         ```python
+        import asyncio
+        from synapseclient import Synapse
+        from synapseclient.models import File, FormData
+
         async def download_form_data():
             syn = Synapse()
             syn.login()
 
-            form_data = await FormData(form_data_id="123").get_async()
-            path = await form_data.download_async(
-                synapse_id="syn12345678",
-                download_location="/tmp"
-            )
+            file = await File(id="syn123", download_file=True).get_async()
+            file_handle_id = file.file_handle.id
+
+            path = await FormData(data_file_handle_id=file_handle_id).download_async(synapse_id="syn123")
+
             print(f"Downloaded to: {path}")
 
 

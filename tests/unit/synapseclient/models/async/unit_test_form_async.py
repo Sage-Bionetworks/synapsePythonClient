@@ -278,7 +278,7 @@ class TestFormData:
                 synapse_client=syn,
             )
 
-    async def test_download_async_without_data_file_id_raises_error(self, syn):
+    async def test_download_async_without_data_file_handle_id_raises_error(self, syn):
         """Test that downloading without data_file_handle_id raises ValueError"""
         # GIVEN a FormData without data_file_handle_id
         form_data = FormData(form_data_id="67890")
