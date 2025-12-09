@@ -23,7 +23,6 @@ class FormGroupProtocol(Protocol):
         Create a FormGroup with the provided name. This method is idempotent. If a group with the provided name already exists and the caller has ACCESS_TYPE.READ permission the existing FormGroup will be returned.
 
         Arguments:
-            name: A globally unique name for the group. Required. Between 3 and 256 characters.
             synapse_client: Optional Synapse client instance for authentication.
 
         Returns:
@@ -62,6 +61,9 @@ class FormDataProtocol(Protocol):
 
         Returns:
             A FormData object containing the details of the created form data.
+
+        Note:
+            The `name` attribute must be set on the FormGroup instance before calling `create()`.
 
         Examples: create a form data
 
@@ -187,8 +189,8 @@ class FormDataProtocol(Protocol):
         Download the data file associated with this FormData object.
 
         Arguments:
-            download_location: The directory where the file should be downloaded.
             synapse_id: The Synapse ID of the entity that owns the file handle (e.g., "syn12345678").
+            download_location: The directory where the file should be downloaded.
             synapse_client: The Synapse client to use for the request.
 
         Returns:
