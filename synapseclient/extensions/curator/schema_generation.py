@@ -143,22 +143,18 @@ class JSONSchemaFormat(Enum):
     RELATIVE_JSON_POINTER = "relative-json-pointer"
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 class ValidationRuleName(Enum):
     """Names of validation rules that are used to create JSON Schema"""
 
-    # list validation rule is been deprecated for use in deciding type
-    # TODO: remove list:
-    # https://sagebionetworks.jira.com/browse/SYNPY-1692
     LIST = "list"
-    # url and date rules are deprecated for adding format keyword
-    # TODO: remove url and date
-    # https://sagebionetworks.jira.com/browse/SYNPY-1685
     DATE = "date"
     URL = "url"
     REGEX = "regex"
     IN_RANGE = "inRange"
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 class RegexModule(Enum):
     """This enum are allowed modules for the regex validation rule"""
 
@@ -166,6 +162,7 @@ class RegexModule(Enum):
     MATCH = "match"
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 @dataclass
 class ValidationRule:
     """
@@ -182,17 +179,12 @@ class ValidationRule:
     parameters: Optional[list[str]] = None
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 _VALIDATION_RULES = {
-    # list validation rule is been deprecated for use in deciding type
-    # TODO: remove list:
-    # https://sagebionetworks.jira.com/browse/SYNPY-1692
     "list": ValidationRule(
         name=ValidationRuleName.LIST,
         incompatible_rules=[],
     ),
-    # url and date rules are deprecated for adding format keyword
-    # TODO: remove url and date
-    # https://sagebionetworks.jira.com/browse/SYNPY-1685
     "date": ValidationRule(
         name=ValidationRuleName.DATE,
         incompatible_rules=[
@@ -4360,6 +4352,10 @@ def check_for_conflicting_inputted_rules(inputted_rules: list[str]) -> None:
             raise ValueError(msg)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_rule_from_inputted_rules(
     rule_name: ValidationRuleName, inputted_rules: list[str]
 ) -> Optional[str]:
@@ -4385,6 +4381,10 @@ def get_rule_from_inputted_rules(
     return inputted_rules[0]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_in_range_parameters_from_inputted_rule(
     inputted_rule: str,
 ) -> tuple[Optional[float], Optional[float]]:
@@ -4416,6 +4416,10 @@ def get_in_range_parameters_from_inputted_rule(
     return (minimum, maximum)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_regex_parameters_from_inputted_rule(
     inputted_rule: str,
 ) -> Optional[str]:
@@ -4485,6 +4489,10 @@ def get_names_from_inputted_rules(inputted_rules: list[str]) -> list[str]:
     return [_get_name_from_inputted_rule(rule) for rule in inputted_rules]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_parameters_from_inputted_rule(inputted_rule: str) -> Optional[dict[str, str]]:
     """Creates a dictionary of parameters and values from an input rule string
 
@@ -4505,6 +4513,10 @@ def _get_parameters_from_inputted_rule(inputted_rule: str) -> Optional[dict[str,
     return None
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_name_from_inputted_rule(inputted_rule: str) -> str:
     """Gets the name from an inputted rule
 
@@ -4517,6 +4529,10 @@ def _get_name_from_inputted_rule(inputted_rule: str) -> str:
     return inputted_rule.split(" ")[0]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
     """Gets a list of ValidationRules by name if they exist
 
@@ -4538,6 +4554,10 @@ def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
     return [rule for rule in rule_dict.values() if rule is not None]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_validation_rule_based_fields(
     validation_rules: list[str],
     explicit_is_array: Optional[bool],
@@ -4801,13 +4821,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         explicit_minimum = self.dmge.get_node_maximum_minimum_value(
             relationship_value="minimum", node_display_name=self.display_name
         )
-
         column_pattern = self.dmge.get_node_column_pattern(
             node_display_name=self.display_name
         )
-        # list validation rule is been deprecated for use in deciding type
-        # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
-        # https://sagebionetworks.jira.com/browse/SYNPY-1692
         self.type, explicit_is_array = self._determine_type_and_array(column_type)
 
         # Validate column type compatibility with min/max constraints
@@ -4816,10 +4832,6 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             explicit_minimum=explicit_minimum,
             column_pattern=column_pattern,
         )
-
-        # url and date rules are deprecated for adding format keyword
-        # TODO: set self.format here instead of passing it to get_validation_rule_based_fields
-        # https://sagebionetworks.jira.com/browse/SYNPY-1685
         explicit_format = self.dmge.get_node_format(node_display_name=self.display_name)
         if explicit_format:
             if column_type not in (ListColumnType.STRING_LIST, AtomicColumnType.STRING):
@@ -4832,6 +4844,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
                 )
                 raise ValueError(msg)
 
+        # TODO: refactor to not use _get_validation_rule_based_fields https://sagebionetworks.jira.com/browse/SYNPY-1724
         (
             self.is_array,
             self.format,
