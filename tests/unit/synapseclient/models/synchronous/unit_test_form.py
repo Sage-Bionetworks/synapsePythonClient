@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 
-from synapseclient import Synapse
 from synapseclient.models import FormData, FormGroup
 from synapseclient.models.mixins import StateEnum
 
