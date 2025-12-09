@@ -1872,9 +1872,6 @@ class DataModelGraphExplorer:
             node_label: The label of the node to get the format from
             node_display_name: The display name of the node to get the format from
 
-        Raises:
-            ValueError: If the value from the node is not allowed
-
         Returns:
             The format of the node if it has one, otherwise None
         """
@@ -1884,14 +1881,7 @@ class DataModelGraphExplorer:
         if format_value is None:
             return format_value
         format_string = str(format_value).lower()
-        try:
-            column_type = JSONSchemaFormat(format_string)
-        except ValueError as exc:
-            msg = (
-                f"Node: '{node_label}' had illegal format value: '{format_value}'. "
-                f"Allowed values are: [{[member.value for member in JSONSchemaFormat]}]"
-            )
-            raise ValueError(msg) from exc
+        column_type = JSONSchemaFormat(format_string)
         return column_type
 
     def get_node_maximum_minimum_value(
@@ -4795,42 +4785,23 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         column_type = self.dmge.get_node_column_type(
             node_display_name=self.display_name
         )
-        explicit_maximum = self.dmge.get_node_maximum_minimum_value(
+        maximum = self.dmge.get_node_maximum_minimum_value(
             relationship_value="maximum", node_display_name=self.display_name
         )
-        explicit_minimum = self.dmge.get_node_maximum_minimum_value(
+        minimum = self.dmge.get_node_maximum_minimum_value(
             relationship_value="minimum", node_display_name=self.display_name
         )
+        pattern = self.dmge.get_node_column_pattern(node_display_name=self.display_name)
+        format = self.dmge.get_node_format(node_display_name=self.display_name)
 
-        column_pattern = self.dmge.get_node_column_pattern(
-            node_display_name=self.display_name
-        )
         # list validation rule is been deprecated for use in deciding type
         # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
         # https://sagebionetworks.jira.com/browse/SYNPY-1692
         self.type, explicit_is_array = self._determine_type_and_array(column_type)
 
-        # Validate column type compatibility with min/max constraints
         self._validate_column_type_compatibility(
-            explicit_maximum=explicit_maximum,
-            explicit_minimum=explicit_minimum,
-            column_pattern=column_pattern,
+            maximum=maximum, minimum=minimum, pattern=pattern, format=format
         )
-
-        # url and date rules are deprecated for adding format keyword
-        # TODO: set self.format here instead of passing it to get_validation_rule_based_fields
-        # https://sagebionetworks.jira.com/browse/SYNPY-1685
-        explicit_format = self.dmge.get_node_format(node_display_name=self.display_name)
-        if explicit_format:
-            if column_type not in (ListColumnType.STRING_LIST, AtomicColumnType.STRING):
-                msg = (
-                    f"A format value (current value: {explicit_format.value}) "
-                    f"is set for property: {self.name}, but columnType is not a string type "
-                    f"(current value: {column_type.value}). "
-                    "To use a format value the columnType must be set to one of: "
-                    "[string, string_list] "
-                )
-                raise ValueError(msg)
 
         (
             self.is_array,
@@ -4841,7 +4812,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
             explicit_is_array=explicit_is_array,
-            explicit_format=explicit_format,
+            explicit_format=format,
             name=self.name,
             column_type=self.type,
             logger=self.logger,
@@ -4849,16 +4820,12 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
 
         # Priority: explicit values from data model take precedence over validation rules
         # Only use validation rule values if explicit values are not set
-        self.minimum = (
-            explicit_minimum if explicit_minimum is not None else implicit_minimum
-        )
-        self.maximum = (
-            explicit_maximum if explicit_maximum is not None else implicit_maximum
-        )
+        self.minimum = minimum if minimum is not None else implicit_minimum
+        self.maximum = maximum if maximum is not None else implicit_maximum
 
-        self.pattern = column_pattern if column_pattern else rule_pattern
+        self.pattern = pattern if pattern else rule_pattern
 
-        if rule_pattern and not column_pattern:
+        if rule_pattern and not pattern:
             msg = (
                 f"A regex validation rule is set for property: {self.name}, but the pattern is not set in the data model. "
                 f"The regex pattern will be set to {self.pattern}, but the regex rule is deprecated and validation "
@@ -4895,56 +4862,71 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
 
     def _validate_column_type_compatibility(
         self,
-        explicit_maximum: Union[int, float, None],
-        explicit_minimum: Union[int, float, None],
-        column_pattern: Optional[str] = None,
+        maximum: Union[int, float, None],
+        minimum: Union[int, float, None],
+        pattern: Optional[str] = None,
+        format: Optional[JSONSchemaFormat] = None,
     ) -> None:
-        """Validate that columnType is compatible with Maximum/Minimum constraints.
+        """Validate that columnType is compatible with JSONSchema constraints.
 
-        This method ensures that if Maximum and/or Minimum values are specified for an attribute,
-        the columnType must be set to a numeric type.
 
         Arguments:
-            explicit_maximum: The maximum value constraint from the data model.
-            explicit_minimum: The minimum value constraint from the data model.
+            maximum: The maximum value constraint from the data model.
+            minimum: The minimum value constraint from the data model.
+            pattern: The regex pattern constraint from the data model.
+            format: The format constraint from the data model.
 
         Raises:
-            ValueError: If Maximum or Minimum is specified but columnType is not set.
-                Error message indicates that columnType must be set to a numeric type.
-
-            ValueError: If Maximum or Minimum is specified but columnType is set to
-                a non-numeric type (e.g., 'string', 'boolean', 'string_list', 'boolean_list').
-                Error message indicates which columnType was set and suggests valid numeric types.
+            ValueError: If a constraint is set, but the columnType is incompatible with that constraint.
 
         Returns:
             None: This method performs validation only and doesn't return a value.
                 It raises ValueError if validation fails.
         """
-        if not explicit_maximum and not explicit_minimum and not column_pattern:
-            return
-        if not self.type:
-            raise ValueError(
-                f"For attribute '{self.display_name}': numeric constraints "
-                f"(min: {explicit_minimum}, max: {explicit_maximum}) are specified, "
-                f"but columnType is not set. Please set columnType to 'number', 'integer' or 'integer_list'."
-            )
+        keyword_types_dict = {
+            "pattern": {
+                "value": pattern,
+                "types": [
+                    AtomicColumnType.STRING.value,
+                    ListColumnType.STRING_LIST.value,
+                ],
+            },
+            "format": {
+                "value": format.value if format else None,
+                "types": [
+                    AtomicColumnType.STRING.value,
+                    ListColumnType.STRING_LIST.value,
+                ],
+            },
+            "minimum": {
+                "value": minimum,
+                "types": [
+                    AtomicColumnType.NUMBER.value,
+                    AtomicColumnType.INTEGER.value,
+                    ListColumnType.INTEGER_LIST.value,
+                ],
+            },
+            "maximum": {
+                "value": maximum,
+                "types": [
+                    AtomicColumnType.NUMBER.value,
+                    AtomicColumnType.INTEGER.value,
+                    ListColumnType.INTEGER_LIST.value,
+                ],
+            },
+        }
 
-        if column_pattern and self.type and self.type.value != "string":
-            raise ValueError(
-                "Column type must be set to 'string' to use column pattern specification for regex validation."
-            )
-
-        # If type is specified but not numeric, raise error
-        if (explicit_maximum or explicit_minimum) and self.type not in (
-            AtomicColumnType.NUMBER,
-            AtomicColumnType.INTEGER,
-            ListColumnType.INTEGER_LIST,
-        ):
-            raise ValueError(
-                f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
-                f"but numeric constraints (min: {explicit_minimum}, max: {explicit_maximum}) "
-                f"are specified. Please set columnType to 'number', 'integer', or 'integer_list'."
-            )
+        for keyword, keyword_dict in keyword_types_dict.items():
+            if (
+                keyword_dict["value"] is not None
+                and self.type.value not in keyword_dict["types"]
+            ):
+                msg = (
+                    f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
+                    f"but {keyword} constraint (value: {keyword_dict['value']}) "
+                    f"is specified. Please set columnType to one of: ."
+                )
+                raise ValueError(msg)
 
 
 @dataclass

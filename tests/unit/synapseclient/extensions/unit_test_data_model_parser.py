@@ -152,6 +152,19 @@ class TestDataModelCsvParser:
                 == expected_dict
             )
 
+    def test_malformed_csv(self, helpers, csv_dmp: DataModelCSVParser):
+        """Check that a malformed format value raises the appropriate error."""
+        path_to_data_model = helpers.get_schema_file_path(
+            "data_models/malformed_format.csv"
+        )
+        model_df = load_df(path_to_data_model, data_model=True)
+
+        with pytest.raises(
+            ValueError,
+            match="For entry: 'not_a_format', 'not_a_format' not in allowed values",
+        ):
+            csv_dmp.gather_csv_attributes_relationships(model_df=model_df)
+
 
 class TestDataModelJsonLdParser:
     def test_gather_jsonld_attributes_relationships(
