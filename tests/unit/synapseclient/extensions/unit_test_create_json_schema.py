@@ -1532,9 +1532,6 @@ def test_create_simple_property(
 ) -> None:
     """Test for _create_simple_property"""
     schema = _create_simple_property(test_nodes[node_name])
-    if schema != expected_schema:
-        print("Schema does not match expected schema:")
-        print("Actual:  ", schema)
     assert schema == expected_schema
     full_schema = {"type": "object", "properties": {"name": schema}, "required": []}
     validator = Draft7Validator(full_schema)
