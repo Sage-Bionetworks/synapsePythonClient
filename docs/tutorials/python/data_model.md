@@ -301,6 +301,6 @@ Data Model:
 | Cancer Type    |                                | "Brain, Lung, Skin"          | True     |
 | Family History |                                |                              | True     |
 
- To demonstrate this, see the above example with the `Patient` and `Cancer` data types. Because we want to also know the `Cancer Type` and `Family History` for cancer patients (but not for healthy patients), `Healthy, Cancer` are valid values for `Diagnosis`. (Note `Cancer` is both a valid value and a data type.) `Cancer` has two optional attributes.
+ To demonstrate this, see the above example with the `Patient` and `Cancer` data types. Because we want to also know the `Cancer Type` and `Family History` for cancer patients (but not for healthy patients), `Healthy, Cancer` are valid values for `Diagnosis`. (Note `Cancer` is both a valid value and a data type.) `Cancer` has two required attributes, `Cancer Type`, and `Family History`.
 
  As a result `Patient` data should include the columns `Diagnosis`, `Cancer Type`, and `Family History`, but the last two columns would only be required if `Diagnosis` is set to `Cancer` in a given patient record/rows (and if the ‘Required’ column is set to true for these two attributes). The conditional logic may define an arbitrary number of branching paths. For instance, in the above example, we could require a `Brain Biopsy Site` attribute if `Cancer Type` is set to `Brain`.
