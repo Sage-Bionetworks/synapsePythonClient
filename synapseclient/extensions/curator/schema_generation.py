@@ -5393,10 +5393,8 @@ def _create_enum_property(
 
     Example:
         {
-            "oneOf": [
-                {"enum": ["enum1"], "title": "enum"},
-                {"type": "null", "title": "null"},
-            ],
+            "enum": ["enum1", "enum2"],
+            "title": "enum"
         }
 
     Arguments:
@@ -5411,10 +5409,8 @@ def _create_enum_property(
         valid_values = node.valid_values
 
     enum_property: Property = {}
-    one_of_list = [{"enum": valid_values, "title": "enum"}]
-    if not node.is_required:
-        one_of_list += [{"type": "null", "title": "null"}]
-    enum_property["oneOf"] = one_of_list
+    enum_property["enum"] = valid_values
+    enum_property["title"] = "enum"
 
     return enum_property
 
@@ -5425,10 +5421,8 @@ def _create_simple_property(node: TraversalNode) -> Property:
 
     Example:
         {
-            "oneOf": [
-                {"type": "string", "title": "string"},
-                {"type": "null", "title": "null"},
-            ],
+            "title": "String",
+            "type": "string"
         }
 
     Arguments:
@@ -5440,13 +5434,7 @@ def _create_simple_property(node: TraversalNode) -> Property:
     prop: Property = {}
 
     if node.type:
-        if node.is_required:
-            prop["type"] = node.type.value
-        else:
-            prop["oneOf"] = [
-                {"type": node.type.value, "title": node.type.value},
-                {"type": "null", "title": "null"},
-            ]
+        prop["type"] = node.type.value
     elif node.is_required:
         prop["not"] = {"type": "null"}
 

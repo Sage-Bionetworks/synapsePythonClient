@@ -18,35 +18,21 @@
     },
     "Enum": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "ab",
-            "cd",
-            "ef",
-            "gh"
-          ],
-          "title": "enum"
-        }
+      "enum": [
+        "ab",
+        "cd",
+        "ef",
+        "gh"
       ],
       "title": "Enum"
     },
     "EnumNotRequired": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "ab",
-            "cd",
-            "ef",
-            "gh"
-          ],
-          "title": "enum"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
+      "enum": [
+        "ab",
+        "cd",
+        "ef",
+        "gh"
       ],
       "title": "Enum Not Required"
     },
@@ -147,17 +133,8 @@
     },
     "StringNotRequired": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "string",
-          "type": "string"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
-      ],
-      "title": "String Not Required"
+      "title": "String Not Required",
+      "type": "string"
     },
     "URL": {
       "description": "TBD",

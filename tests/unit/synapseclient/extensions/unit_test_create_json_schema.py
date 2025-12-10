@@ -1291,7 +1291,7 @@ def test_set_conditional_dependencies(
                     "Enum": {
                         "description": "TBD",
                         "title": "Enum",
-                        "oneOf": [{"enum": ["ab", "cd", "ef", "gh"], "title": "enum"}],
+                        "enum": ["ab", "cd", "ef", "gh"],
                     }
                 },
                 required=["Enum"],
@@ -1444,20 +1444,18 @@ def test_create_array_property(
         # If is_required is True, no type is added
         (
             "Enum",
-            {"oneOf": [{"enum": ["ab", "cd", "ef", "gh"], "title": "enum"}]},
+            {"enum": ["ab", "cd", "ef", "gh"], "title": "enum"},
             ["ab"],
             [1, "x", None],
         ),
-        # If is_required is False, "null" is added as a type
+        # SYNPY 1699: If is_required is False, null type is no longer added
         (
             "EnumNotRequired",
             {
-                "oneOf": [
-                    {"enum": ["ab", "cd", "ef", "gh"], "title": "enum"},
-                    {"type": "null", "title": "null"},
-                ],
+                "enum": ["ab", "cd", "ef", "gh"],
+                "title": "enum",
             },
-            ["ab", None],
+            ["ab"],
             [1, "x"],
         ),
     ],
@@ -1493,17 +1491,11 @@ def test_create_enum_property(
             [""],
             [1, None],
         ),
-        # If property_type is given, and is_required is False,
-        # type is set to given property_type and "null"
+        # SYNPY 1699: If is_required is False, null type is no longer added
         (
             "StringNotRequired",
-            {
-                "oneOf": [
-                    {"type": "string", "title": "string"},
-                    {"type": "null", "title": "null"},
-                ],
-            },
-            [None, "x"],
+            {"type": "string"},
+            ["x"],
             [1],
         ),
         # If is_required is True '"not": {"type":"null"}' is added to schema if

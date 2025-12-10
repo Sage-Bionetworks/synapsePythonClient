@@ -26,15 +26,10 @@
     },
     "TissueStatus": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "Healthy",
-            "Malignant",
-            "None"
-          ],
-          "title": "enum"
-        }
+      "enum": [
+        "Healthy",
+        "Malignant",
+        "None"
       ],
       "title": "Tissue Status"
     }
