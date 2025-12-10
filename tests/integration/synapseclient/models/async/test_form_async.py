@@ -106,7 +106,7 @@ class TestFormData:
             await form_data.create_async(synapse_client=syn)
         assert (
             str(e.value)
-            == "'group_id', 'name', and 'data_file_handle_id' must be provided to create a FormData."
+            == "Missing required fields: 'group_id', 'name', and 'data_file_handle_id' are required to create a FormData."
         )
 
     async def test_list_form_data_reviewer_false(
