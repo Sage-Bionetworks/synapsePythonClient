@@ -159,19 +159,19 @@ JSON Schema output:
 
 The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will be appear as the `format` of this attribute in the JSON Schema. Must be one of:
 
-- "date-time"
-- "email"
-- "hostname"
-- "ipv4"
-- "ipv6"
-- "uri"
-- "uri-reference"
-- "uri-template"
-- "json-pointer"
-- "date"
-- "time"
-- "regex"
-- "relative-json-pointer"
+- `date-time`
+- `email`
+- `hostname`
+- `ipv4`
+- `ipv6`
+- `uri`
+- `uri-reference`
+- `uri-template`
+- `json-pointer`
+- `date`
+- `time`
+- `regex`
+- `relative-json-pointer`
 
 Data Model:
 
