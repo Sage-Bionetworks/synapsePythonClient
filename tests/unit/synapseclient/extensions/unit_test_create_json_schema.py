@@ -6,13 +6,10 @@ The helper classes tested are JSONSchema, Node, GraphTraversalState,
 import json
 import logging
 import os
-import tempfile
-from time import sleep
 from typing import Any, Optional
 from unittest import mock
 from unittest.mock import Mock
 
-import pandas as pd
 import pytest
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
@@ -39,11 +36,6 @@ from synapseclient.extensions.curator.schema_generation import (
     _write_data_model,
     create_json_schema,
 )
-
-# pylint: disable=protected-access
-# pylint: disable=too-many-arguments
-# pylint: disable=too-many-positional-arguments
-
 
 # Test data paths
 TEST_DATA_BASE_PATH = "tests/unit/synapseclient/extensions"
@@ -161,6 +153,7 @@ class TestTraversalNodeColumnTypeCompatibility:
         dmge.get_node_comment.return_value = "Test description"
         dmge.get_node_range.return_value = []
         dmge.get_node_format.return_value = None
+        dmge.get_node_column_pattern.return_value = None
         return dmge
 
     def test_string_type_with_maximum_raises_error(self, mock_dmge):
@@ -188,9 +181,8 @@ class TestTraversalNodeColumnTypeCompatibility:
         # Then assert on the error message
         error_message = str(exc_info.value)
         assert "columnType is 'string'" in error_message
-        assert "numeric constraints" in error_message
-        assert "min: None" in error_message
-        assert "max: 100" in error_message
+        assert "maximum constraint" in error_message
+        assert "value: 100" in error_message
 
     def test_string_type_with_minimum_raises_error(self, mock_dmge):
         """Test that string columnType with minimum constraint raises ValueError"""
@@ -217,23 +209,15 @@ class TestTraversalNodeColumnTypeCompatibility:
         # Then assert on the error message
         error_message = str(exc_info.value)
         assert "columnType is 'string'" in error_message
-        assert "numeric constraints" in error_message
-        assert "min: 1" in error_message
-        assert "max: None" in error_message
+        assert "minimum constraint" in error_message
+        assert "value: 1" in error_message
 
-    def test_string_type_with_both_constraints_raises_error(self, mock_dmge):
-        """Test that string columnType with maximum and minimum constraints raises ValueError"""
-        mock_dmge.get_node_column_type.return_value = AtomicColumnType.STRING
-        # Mock the get_node_maximum_minimum_value method to return:
-        # - 100 when relationship_value is "maximum"
-        # - 10 when relationship_value is "minimum"
-        mock_dmge.get_node_maximum_minimum_value.side_effect = (
-            lambda relationship_value, **kwargs: (
-                {"maximum": 100, "minimum": 10}.get(relationship_value)
-            )
-        )
+    def test_int_type_with_format_constraint_raises_error(self, mock_dmge):
+        """Test that int columnType with format constraint raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.INTEGER
+        mock_dmge.get_node_format.return_value = JSONSchemaFormat.DATE
+
         logger = logging.getLogger(__name__)
-
         with pytest.raises(ValueError) as exc_info:
             TraversalNode(
                 name="TestNode",
@@ -243,10 +227,28 @@ class TestTraversalNodeColumnTypeCompatibility:
             )
         # Then assert on the error message
         error_message = str(exc_info.value)
-        assert "columnType is 'string'" in error_message
-        assert "numeric constraints" in error_message
-        assert "min: 10" in error_message
-        assert "max: 100" in error_message
+        assert "columnType is 'integer'" in error_message
+        assert "format constraint" in error_message
+        assert "value: date" in error_message
+
+    def test_int_type_with_pattern_constraint_raises_error(self, mock_dmge):
+        """Test that int columnType with pattern constraint raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.INTEGER
+        mock_dmge.get_node_column_pattern.return_value = "[a-z]+"
+
+        logger = logging.getLogger(__name__)
+        with pytest.raises(ValueError) as exc_info:
+            TraversalNode(
+                name="TestNode",
+                source_node="TestComponent",
+                dmge=mock_dmge,
+                logger=logger,
+            )
+        # Then assert on the error message
+        error_message = str(exc_info.value)
+        assert "columnType is 'integer'" in error_message
+        assert "pattern constraint" in error_message
+        assert "value: [a-z]+" in error_message
 
 
 class TestJSONSchema:
@@ -448,7 +450,7 @@ def test_invalid_regex_columntype_traversalnode(
     dmge = DataModelGraphExplorer(graph_data_model, logger=Mock())
 
     # A value error should be raised when using pattern specification with non-string column type
-    error_message = "Column type must be set to 'string' to use column pattern specification for regex validation."
+    error_message = "For attribute 'Check Regex Single': columnType is 'integer' but pattern constraint"
     with pytest.raises(ValueError, match=error_message):
         node = TraversalNode(
             node.replace(" ", ""), "JSONSchemaComponent", dmge, logger=Mock()
