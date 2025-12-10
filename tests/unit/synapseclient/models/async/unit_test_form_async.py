@@ -242,7 +242,7 @@ class TestFormData:
                 # Call the private method directly for testing
                 form_data._validate_filter_by_state(
                     filter_by_state=filter_by_state,
-                    allow_waiting_submission=not as_reviewer,
+                    as_reviewer=as_reviewer,
                 )
 
     async def test_download_async(self, syn):

@@ -75,23 +75,29 @@ class FormData(FormDataMixin, FormDataProtocol):
     def _validate_filter_by_state(
         self,
         filter_by_state: List["StateEnum"],
-        allow_waiting_submission: bool = True,
+        as_reviewer: bool = False,
     ) -> None:
         """
         Validate filter_by_state values.
 
         Arguments:
             filter_by_state: List of StateEnum values to validate.
-            allow_waiting_submission: If False, raises error if WAITING_FOR_SUBMISSION is present.
+            as_reviewer: If True, uses the POST POST /form/data/list/reviewer endpoint to review submission. If False (default), use POST /form/data/list endpoint to list only FormData owned by the caller.
         """
-        # Define valid states based on whether WAITING_FOR_SUBMISSION is allowed
-        valid_states = {
-            StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
-            StateEnum.ACCEPTED,
-            StateEnum.REJECTED,
-        }
-        if allow_waiting_submission:
-            valid_states.add(StateEnum.WAITING_FOR_SUBMISSION)
+        # Define valid states based on as_reviewer
+        if as_reviewer:
+            valid_states = {
+                StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
+                StateEnum.ACCEPTED,
+                StateEnum.REJECTED,
+            }
+        else:
+            valid_states = {
+                StateEnum.WAITING_FOR_SUBMISSION,
+                StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
+                StateEnum.ACCEPTED,
+                StateEnum.REJECTED,
+            }
 
         # Check each state
         for state in filter_by_state:
@@ -199,8 +205,7 @@ class FormData(FormDataMixin, FormDataProtocol):
                 Note: WAITING_FOR_SUBMISSION is NOT allowed when as_reviewer=True.
             synapse_client: The Synapse client to use for the request.
 
-            as_reviewer: If True, uses the reviewer endpoint (requires READ_PRIVATE_SUBMISSION
-                permission). If False (default), lists only FormData owned by the caller.
+            as_reviewer: If True, uses the POST POST /form/data/list/reviewer endpoint to review submission. If False (default), use POST /form/data/list endpoint to list only FormData owned by the caller.
 
         Yields:
             FormData objects matching the request.
@@ -262,14 +267,9 @@ class FormData(FormDataMixin, FormDataProtocol):
             raise ValueError("'group_id' must be provided to list FormData.")
 
         # Validate filter_by_state based on reviewer mode
-        if as_reviewer:
-            allow_waiting_submission = False
-        else:
-            allow_waiting_submission = True
-
         self._validate_filter_by_state(
             filter_by_state=filter_by_state,
-            allow_waiting_submission=allow_waiting_submission,
+            as_reviewer=as_reviewer,
         )
 
         gen = list_form_data(
