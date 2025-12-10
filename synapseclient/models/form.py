@@ -21,6 +21,8 @@ from synapseclient.models.protocols.form_protocol import (
 @dataclass
 @async_to_sync
 class FormGroup(FormGroupMixin, FormGroupProtocol):
+    """Dataclass representing a FormGroup."""
+
     async def create_async(
         self,
         *,
@@ -68,9 +70,11 @@ class FormGroup(FormGroupMixin, FormGroupProtocol):
 @dataclass
 @async_to_sync
 class FormData(FormDataMixin, FormDataProtocol):
+    """Dataclass representing a FormData."""
+
     def _validate_filter_by_state(
         self,
-        filter_by_state: Optional[List["StateEnum"]] = None,
+        filter_by_state: List["StateEnum"],
         allow_waiting_submission: bool = True,
     ) -> None:
         """
@@ -79,13 +83,7 @@ class FormData(FormDataMixin, FormDataProtocol):
         Arguments:
             filter_by_state: List of StateEnum values to validate.
             allow_waiting_submission: If False, raises error if WAITING_FOR_SUBMISSION is present.
-
-        Raises:
-            ValueError: If filter_by_state is empty or contains invalid values.
         """
-        if not filter_by_state:
-            raise ValueError("filter_by_state cannot be None or empty.")
-
         # Define valid states based on whether WAITING_FOR_SUBMISSION is allowed
         valid_states = {
             StateEnum.SUBMITTED_WAITING_FOR_REVIEW,
@@ -179,16 +177,15 @@ class FormData(FormDataMixin, FormDataProtocol):
     async def list_async(
         self,
         *,
+        filter_by_state: List["StateEnum"],
         synapse_client: Optional["Synapse"] = None,
-        filter_by_state: Optional[List["StateEnum"]] = None,
         as_reviewer: bool = False,
     ) -> AsyncGenerator["FormData", None]:
         """
         List FormData objects in a FormGroup.
 
         Arguments:
-            synapse_client: The Synapse client to use for the request.
-            filter_by_state: Optional list of StateEnum to filter the results.
+            filter_by_state: list of StateEnum to filter the results.
                 When as_reviewer=False (default), valid values are:
                 - StateEnum.WAITING_FOR_SUBMISSION
                 - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
@@ -200,6 +197,7 @@ class FormData(FormDataMixin, FormDataProtocol):
                 - StateEnum.ACCEPTED
                 - StateEnum.REJECTED
                 Note: WAITING_FOR_SUBMISSION is NOT allowed when as_reviewer=True.
+            synapse_client: The Synapse client to use for the request.
 
             as_reviewer: If True, uses the reviewer endpoint (requires READ_PRIVATE_SUBMISSION
                 permission). If False (default), lists only FormData owned by the caller.
@@ -286,15 +284,14 @@ class FormData(FormDataMixin, FormDataProtocol):
     def list(
         self,
         *,
+        filter_by_state: List["StateEnum"],
         synapse_client: Optional["Synapse"] = None,
-        filter_by_state: Optional[List["StateEnum"]] = None,
         as_reviewer: bool = False,
     ) -> Generator["FormData", None, None]:
         """
         List FormData objects in a FormGroup.
 
         Arguments:
-            synapse_client: The Synapse client to use for the request.
             filter_by_state: Optional list of StateEnum to filter the results.
                 When as_reviewer=False (default), valid values are:
                 - StateEnum.WAITING_FOR_SUBMISSION
@@ -310,6 +307,7 @@ class FormData(FormDataMixin, FormDataProtocol):
 
             as_reviewer: If True, uses the reviewer endpoint (requires READ_PRIVATE_SUBMISSION
                 permission). If False (default), lists only FormData owned by the caller.
+            synapse_client: The Synapse client to use for the request.
 
         Yields:
             FormData objects matching the request.

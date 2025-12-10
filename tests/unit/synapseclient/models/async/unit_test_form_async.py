@@ -222,10 +222,8 @@ class TestFormData:
     @pytest.mark.parametrize(
         "as_reviewer,filter_by_state, expected",
         [
-            # Test for non-reviewers - empty filter
-            (False, [], ValueError),
-            # Test for reviewers - empty filter
-            (True, [], ValueError),
+            # Test for non-reviewers - WAITING_FOR_SUBMISSION is allowed
+            (False, [StateEnum.WAITING_FOR_SUBMISSION, StateEnum.ACCEPTED], None),
             # Test for reviewers - invalid state filter
             (True, [StateEnum.WAITING_FOR_SUBMISSION], ValueError),
         ],

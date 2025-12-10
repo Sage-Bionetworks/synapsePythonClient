@@ -5,6 +5,8 @@ from typing import Any, Optional
 
 @dataclass
 class FormGroup:
+    """Dataclass representing a FormGroup.s"""
+
     group_id: Optional[str] = None
     """Unique identifier provided by the system."""
 
@@ -29,6 +31,8 @@ class FormGroup:
 
 @dataclass
 class FormChangeRequest:
+    """Dataclass representing a FormChangeRequest."""
+
     name: Optional[str] = None
     """The name of the form. Required for FormData create. Optional for FormData update. Between 3 and 256 characters"""
 
