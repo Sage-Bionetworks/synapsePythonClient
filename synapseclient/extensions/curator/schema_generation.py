@@ -4820,18 +4820,6 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             maximum=maximum, minimum=minimum, pattern=pattern, format=format
         )
 
-        explicit_format = self.dmge.get_node_format(node_display_name=self.display_name)
-        if explicit_format:
-            if column_type not in (ListColumnType.STRING_LIST, AtomicColumnType.STRING):
-                msg = (
-                    f"A format value (current value: {explicit_format.value}) "
-                    f"is set for property: {self.name}, but columnType is not a string type "
-                    f"(current value: {column_type.value}). "
-                    "To use a format value the columnType must be set to one of: "
-                    "[string, string_list] "
-                )
-                raise ValueError(msg)
-
         # TODO: refactor to not use _get_validation_rule_based_fields https://sagebionetworks.jira.com/browse/SYNPY-1724
         (
             self.is_array,
