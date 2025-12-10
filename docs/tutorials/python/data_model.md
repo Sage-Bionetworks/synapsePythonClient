@@ -2,6 +2,8 @@
 
 The Curator-Extension (formerly Schematic) data model is used to create JSON Schemas for Curator. See [JSON Schema documentation](https://json-schema.org/). This is used for the DCCs that prefer working in a tabular format (CSV) over JSON or LinkML. A data model is created in the format specified below. Then the Curator-Extension in the Synapse Python Client can be used to convert to JSON Schema.
 
+A link will be provided here to documentation for converting CSV data models to JSON Schema in the near future.
+
 ## Data model columns
 
 A JSON Schema is made up of one data type(for example a person) and the attributes that describe the data type (for example age and gender). The CSV data model will describe one or more data types. Each row describes either a data type, or an attribute.
@@ -40,19 +42,19 @@ Converting the above data model to JSON Schema results in:
 
 ### Attribute
 
-This is used to name the data type/attribute being described on this line. This should be a unique identifier in the file. For attributes this will be translated as the title in the JSON Schema.
+The name of the data type or attribute being described on this line. This should be a unique identifier in the file. For attributes this will be translated as the title in the JSON Schema.
 
 ### DependsOn
 
-The set of of attributes this data type has. These must be attributes elsewhere in the file. Example: "Patient ID, Sex, Year of Birth, Diagnosis" Each attribute will appear in the properties of the JSON Schema.
+The set of of attributes this data type has. These must be attributes that exists in this data model. Each attribute will appear in the properties of the JSON Schema. This should be a comma-separated list in quotes. Example: "Patient ID, Sex, Year of Birth, Diagnosis"
 
 ### Description
 
-Optional Description of the datatype/attribute. This will be translated as description in the JSON Schema. If left blank, this will be filled with ‘TBD’.
+A description of the datatype or attribute. This will be appear as a description in the JSON Schema. If left blank, this will be filled with ‘TBD’.
 
 ### Valid Values
 
-Set of possible values for the current attribute. This attribute be an enum in the JSON Schema, with the values here as the enum values. See [enum](https://json-schema.org/understanding-json-schema/reference/enum#enumerated-values).
+Set of possible values for the current attribute. This attribute be an enum in the JSON Schema, with the values here as the enum values. See [enum](https://json-schema.org/understanding-json-schema/reference/enum#enumerated-values). This should be a comma-separated list in quotes. Example: "Female, Male, Other"
 
 Data Model:
 
@@ -78,7 +80,7 @@ JSON Schema output:
 
 ### Required
 
-Whether a value must be set for the current attribute. This field is boolean, i.e. valid values are ‘TRUE’ and ‘FALSE’. If set to ‘TRUE’, a value must be provided for this attribute. If set to ‘FALSE’, providing a value is considered optional. All attributes that are required will appear in the required list in the JSON Schema. See [required](https://json-schema.org/understanding-json-schema/reference/object#required).
+Whether a value must be set for this attribute. This field is boolean, i.e. valid values are ‘TRUE’ and ‘FALSE’. All attributes that are required will appear in the required list in the JSON Schema. See [required](https://json-schema.org/understanding-json-schema/reference/object#required).
 
 Data Model:
 
@@ -110,7 +112,9 @@ JSON Schema output:
 
 ### columnType
 
-The data type this of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type). Must be one of:
+The data type this of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type).
+
+Must be one of:
 
 - "string"
 - "number"
@@ -153,7 +157,7 @@ JSON Schema output:
 
 ### Format
 
-The format of this attribute. The type of this attribute must be "string" or "string_list". The value of this column will be the [format](https://json-schema.org/understanding-json-schema/reference/type#format) of this attribute in the JSON Schema. Must be one of:
+The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will be appear as the `format` of this attribute in the JSON Schema. Must be one of:
 
 - "date-time"
 - "email"
@@ -200,7 +204,7 @@ JSON Schema output:
 
 ### Pattern
 
-The regex pattern this attribute match. The type of this attribute must be "string" or "string_list". The value of this column will be the [pattern](https://json-schema.org/understanding-json-schema/reference/https://json-schema.org/understanding-json-schema/reference/regular_expressions#regular-expressions) of this attribute in the JSON Schema. Must be one a legal regex as determined by the python re library.
+The regex pattern this attribute match. The type of this attribute must be `string` or `string_list`. See [pattern](https://json-schema.org/understanding-json-schema/reference/https://json-schema.org/understanding-json-schema/reference/regular_expressions#regular-expressions) The value of this column will be appear as the `pattern` of this attribute in the JSON Schema. Must be a legal regex pattern as determined by the python `re` library.
 
 Data Model:
 
@@ -233,7 +237,7 @@ JSON Schema output:
 
 ### Minimum/Maximum
 
-The range of numeric values this attribute must be in. The type of this attribute must be "integer", "number", or "integer_list". The values in these columns will be the [range]The type of this attribute must be "string" or "string_list" in the JSON Schema. Both must be numeric values.
+The range of numeric values this attribute must be in.  The type of this attribute must be "integer", "number", or "integer_list". See [range](https://json-schema.org/understanding-json-schema/reference/numeric#range)  The value of these columns will be appear as the `minimum` and `maximum` of this attribute in the JSON Schema. Both must be numeric values.
 
 Data Model:
 
@@ -278,8 +282,8 @@ JSON Schema output:
 
 This a remnant from Schematic. t is still used(for now) to translate certain validation rules to other JSONSchema key words. If you are starting a new data model do not use it. If you have an existing data model using any of the following validation rules, follow these instructions to update it:
 
-- list: Make sure you are using one of the list-types in the columnType column.
-- regex: "regex module pattern", move the pattern part to the Pattern column.
-- inRange: "inRange minimum maximum", move the minimum and the maximum to the Minimum and Maximum columns respectively.
-- date: Use the Format column with value 'date'
-- url: Use the Format column with value 'uri'
+- `list`: Make sure you are using one of the list-types in the `columnType` column.
+- `regex`: `regex <module> <pattern>`, move the `<pattern>` to the `Pattern` column.
+- `inRange`: `inRange <minimum> <maximum>`, move the `<minimum>` and/or the `<maximum>` to the `Minimum` and `Maximum` columns respectively.
+- `date`: Use the `Format` column with value `date`
+- `url`: Use the `Format` column with value `uri`
