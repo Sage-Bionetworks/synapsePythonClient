@@ -1489,7 +1489,7 @@ def test_create_enum_property(
             [""],
             [1, None],
         ),
-        # If property_type is given, and is_required is False, null type is not added (see SYNPY-1699)
+        # SYNPY 1699: If is_required is False, null type is no longer added
         (
             "StringNotRequired",
             {"type": "string"},
