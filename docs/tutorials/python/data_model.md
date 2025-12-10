@@ -1,6 +1,6 @@
 # CSV data model description
 
-The Curator-Extension (formerly Schematic) data model is used to create JSON Schemas for Curator. See [JSON Schema documentation](https://json-schema.org/). This is used for the DCCs that prefer working in a tabular format (CSV) over JSON. Data mangers will create their data model(s) in the CSV format specified below, and then use the Curator-Extension in the Synapse Python Client to convert to JSON Schema.A JSON Schema is made up of one data type(for example a person) and the attributes that describe the data type (for example age and gender).
+The Curator-Extension (formerly Schematic) data model is used to create JSON Schemas for Curator. See [JSON Schema documentation](https://json-schema.org/). This is used for the DCCs that prefer working in a tabular format (CSV) over JSON. Data mangers will create their data model(s) in the CSV format specified below, and then use the Curator-Extension in the Synapse Python Client to convert to JSON Schema. A JSON Schema is made up of one data type(for example a person) and the attributes that describe the data type (for example age and gender).
 
 ## Data model columns
 
@@ -8,16 +8,16 @@ The CSV data model will describe one or more data types. Each row describes eith
 
 Data types:
 
-- must have a unique name in the Attribute column
-- must have at least one attribute in the DependsOn column
-- may have a description
+- must have a unique name in the `Attribute` column
+- must have at least one attribute in the `DependsOn` column
+- may have a value in the `Description` column
 
 Attributes:
 
-- must have a unique name in the Attribute column
-- may have all other columns besides DependsOn
+- must have a unique name in the `Attribute` column
+- may have all values  for all other columns besides `DependsOn`
 
-The following data model has one data type, Person, and that data type has one attribute, Gender.
+The following data model has one data type, `Person`, and that data type has one attribute, `Gender`.
 
 | Attribute | DependsOn |
 |---|---|
