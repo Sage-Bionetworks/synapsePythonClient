@@ -267,7 +267,7 @@ JSON Schema output:
 This a remnant from Schematic. t is still used(for now) to translate certain validation rules to other JSONSchema key words. If you are starting a new data model do not use it. If you have an existing data model using any of the following validation rules, follow these instructions to update it:
 
 - list: Make sure you are using one of the list-types in the columnType column.
-- regex: "regex module pattern" for the regex rule. Move the pattern part to the Pattern column.
-- inRange: "inRange minimum maximum" Move the minimum and the maximum to the Minimum and Maximum columns respectively.
+- regex: "regex module pattern", move the pattern part to the Pattern column.
+- inRange: "inRange minimum maximum", move the minimum and the maximum to the Minimum and Maximum columns respectively.
 - date: Use the Format column with value 'date'
 - url: Use the Format column with value 'uri'
