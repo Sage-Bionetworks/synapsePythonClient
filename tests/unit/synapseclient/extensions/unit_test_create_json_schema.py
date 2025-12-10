@@ -450,7 +450,6 @@ def test_invalid_regex_columntype_traversalnode(
     dmge = DataModelGraphExplorer(graph_data_model, logger=Mock())
 
     # A value error should be raised when using pattern specification with non-string column type
-    error_message = "Column type must be set to 'string' to use column pattern specification for regex validation."
     error_message = "For attribute 'Check Regex Single': columnType is 'integer' but pattern constraint"
     with pytest.raises(ValueError, match=error_message):
         node = TraversalNode(
