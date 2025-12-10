@@ -1,10 +1,10 @@
 # CSV data model description
 
-The Curator-Extension (formerly Schematic) data model is used to create JSON Schemas for Curator. See [JSON Schema documentation](https://json-schema.org/). This is used for the DCCs that prefer working in a tabular format (CSV) over JSON. Data mangers will create their data model(s) in the CSV format specified below, and then use the Curator-Extension in the Synapse Python Client to convert to JSON Schema. A JSON Schema is made up of one data type(for example a person) and the attributes that describe the data type (for example age and gender).
+The Curator-Extension (formerly Schematic) data model is used to create JSON Schemas for Curator. See [JSON Schema documentation](https://json-schema.org/). This is used for the DCCs that prefer working in a tabular format (CSV) over JSON or LinkML. A data model is created in the format specified below. Then the Curator-Extension in the Synapse Python Client can be used to convert to JSON Schema.
 
 ## Data model columns
 
-The CSV data model will describe one or more data types. Each row describes either a data type, or an attribute.
+A JSON Schema is made up of one data type(for example a person) and the attributes that describe the data type (for example age and gender). The CSV data model will describe one or more data types. Each row describes either a data type, or an attribute.
 
 Data types:
 
