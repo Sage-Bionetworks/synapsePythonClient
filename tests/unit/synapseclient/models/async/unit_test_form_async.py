@@ -128,7 +128,7 @@ class TestFormData:
         # THEN it should raise ValueError
         with pytest.raises(
             ValueError,
-            match="'group_id', 'name', and 'data_file_handle_id' must be provided",
+            match="'group_id', 'name', and 'data_file_handle_id' are required",
         ):
             await form_data.create_async(synapse_client=syn)
 
