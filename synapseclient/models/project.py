@@ -2,7 +2,7 @@ import asyncio
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from opentelemetry import trace
 
@@ -13,19 +13,40 @@ from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.entity import Project as Synapse_Project
 from synapseclient.models import Annotations, File, Folder
-from synapseclient.models.mixins import AccessControllable, StorableContainer
+from synapseclient.models.mixins import (
+    AccessControllable,
+    ContainerEntityJSONSchema,
+    StorableContainer,
+)
 from synapseclient.models.protocols.project_protocol import ProjectSynchronousProtocol
 from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity import store_entity
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
 )
 from synapseutils.copy_functions import copy
 
+if TYPE_CHECKING:
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        MaterializedView,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
+
 
 @dataclass()
 @async_to_sync
-class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer):
+class Project(
+    ProjectSynchronousProtocol,
+    AccessControllable,
+    StorableContainer,
+    ContainerEntityJSONSchema,
+):
     """A Project is a top-level container for organizing data in Synapse.
 
     Attributes:
@@ -46,6 +67,13 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
         alias: The project alias for use in friendly project urls.
         files: Any files that are at the root directory of the project.
         folders: Any folders that are at the root directory of the project.
+        tables: Any tables that are at the root directory of the project.
+        entityviews: Any entity views that are at the root directory of the project.
+        submissionviews: Any submission views that are at the root directory of the project.
+        datasets: Any datasets that are at the root directory of the project.
+        datasetcollections: Any dataset collections that are at the root directory of the project.
+        materializedviews: Any materialized views that are at the root directory of the project.
+        virtualtables: Any virtual tables that are at the root directory of the project.
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -140,6 +168,31 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
     folders: List["Folder"] = field(default_factory=list, compare=False)
     """Any folders that are at the root directory of the project."""
 
+    tables: List["Table"] = field(default_factory=list, compare=False)
+    """Any tables that are at the root directory of the project."""
+
+    entityviews: List["EntityView"] = field(default_factory=list, compare=False)
+    """Any entity views that are at the root directory of the project."""
+
+    submissionviews: List["SubmissionView"] = field(default_factory=list, compare=False)
+    """Any submission views that are at the root directory of the project."""
+
+    datasets: List["Dataset"] = field(default_factory=list, compare=False)
+    """Any datasets that are at the root directory of the project."""
+
+    datasetcollections: List["DatasetCollection"] = field(
+        default_factory=list, compare=False
+    )
+    """Any dataset collections that are at the root directory of the project."""
+
+    materializedviews: List["MaterializedView"] = field(
+        default_factory=list, compare=False
+    )
+    """Any materialized views that are at the root directory of the project."""
+
+    virtualtables: List["VirtualTable"] = field(default_factory=list, compare=False)
+    """Any virtual tables that are at the root directory of the project."""
+
     annotations: Optional[
         Dict[
             str,
@@ -182,6 +235,12 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
     )
     """The last persistent instance of this object. This is used to determine if the
     object has been changed and needs to be updated in Synapse."""
+
+    _synced_from_synapse: Optional[bool] = field(
+        default=False, repr=False, compare=False
+    )
+    """Whether this object has been synced from Synapse. This is used to determine if
+    `.sync_from_synapse_async` has already been called on this instance."""
 
     @property
     def has_changed(self) -> bool:
@@ -288,7 +347,11 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
                 )
             )
         ):
-            merge_dataclass_entities(source=existing_project, destination=self)
+            # Get logger from client
+            client = Synapse.get_client(synapse_client=synapse_client)
+            merge_dataclass_entities(
+                source=existing_project, destination=self, logger=client.logger
+            )
         trace.get_current_span().set_attributes(
             {
                 "synapse.name": self.name or "",
@@ -296,7 +359,6 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
             }
         )
         if self.has_changed:
-            loop = asyncio.get_event_loop()
             synapse_project = Synapse_Project(
                 id=self.id,
                 etag=self.etag,
@@ -306,13 +368,10 @@ class Project(ProjectSynchronousProtocol, AccessControllable, StorableContainer)
                 parentId=self.parent_id,
             )
             delete_none_keys(synapse_project)
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_project,
-                    set_annotations=False,
-                    createOrUpdate=False,
-                ),
+            entity = await store_entity(
+                resource=self,
+                entity=synapse_project,
+                synapse_client=synapse_client,
             )
             self.fill_from_dict(synapse_project=entity, set_annotations=False)
 

@@ -9,7 +9,21 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import File, Folder, Project
+from synapseclient.models import (
+    Column,
+    ColumnType,
+    Dataset,
+    DatasetCollection,
+    EntityRef,
+    EntityView,
+    File,
+    Folder,
+    MaterializedView,
+    Project,
+    Table,
+    ViewTypeMask,
+    VirtualTable,
+)
 
 CONTENT_TYPE = "text/plain"
 DESCRIPTION_FILE = "This is an example file."
@@ -102,12 +116,12 @@ class TestProjectStore:
         ):
             assert not project.annotations and isinstance(project.annotations, dict)
 
-    async def test_store_project_basic(self, project: Project) -> None:
+    def test_store_project_basic(self, project: Project) -> None:
         # Test Case 1: Basic project storage
         # GIVEN a Project object
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties
@@ -128,7 +142,9 @@ class TestProjectStore:
         project_with_annotations.annotations = annotations
 
         # WHEN I store the Project on Synapse
-        stored_project_with_annotations = project_with_annotations.store()
+        stored_project_with_annotations = project_with_annotations.store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(project_with_annotations.id)
 
         # THEN I expect the stored Project to have the expected properties and annotations
@@ -138,13 +154,13 @@ class TestProjectStore:
             Project(id=stored_project_with_annotations.id).get(synapse_client=self.syn)
         ).annotations == annotations
 
-    async def test_store_project_with_files(self, file: File, project: Project) -> None:
+    def test_store_project_with_files(self, file: File, project: Project) -> None:
         # Test Case 1: Project with a single file
         # GIVEN a File on the project
         project.files.append(file)
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties and files
@@ -159,7 +175,9 @@ class TestProjectStore:
         project_multiple_files.files = files
 
         # WHEN I store the Project on Synapse
-        stored_project_multiple_files = project_multiple_files.store()
+        stored_project_multiple_files = project_multiple_files.store(
+            synapse_client=self.syn
+        )
         self.schedule_for_cleanup(project_multiple_files.id)
 
         # THEN I expect the stored Project to have the expected properties and files
@@ -167,7 +185,7 @@ class TestProjectStore:
             stored_project_multiple_files, expected_files=files
         )
 
-    async def test_store_project_with_nested_structure(
+    def test_store_project_with_nested_structure(
         self, file: File, project: Project
     ) -> None:
         # GIVEN a project with files and folders
@@ -185,7 +203,7 @@ class TestProjectStore:
         project.folders = folders
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # THEN I expect the stored Project to have the expected properties, files, and folders
@@ -198,7 +216,7 @@ class TestProjectStore:
         existing_project = Project(
             name=str(uuid.uuid4()), description=DESCRIPTION_PROJECT
         )
-        existing_project = existing_project.store()
+        existing_project = existing_project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(existing_project.id)
 
         # AND a Folder with a File under the project
@@ -207,7 +225,7 @@ class TestProjectStore:
         existing_project.folders.append(folder)
 
         # WHEN I store the Project on Synapse
-        stored_existing_project = existing_project.store()
+        stored_existing_project = existing_project.store(synapse_client=self.syn)
 
         # THEN I expect the stored Project to have the expected properties
         self.verify_project_properties(
@@ -254,9 +272,9 @@ class TestProjectGetDelete:
         assert project.folders == []
         assert not project.annotations and isinstance(project.annotations, dict)
 
-    async def test_get_project_methods(self, project: Project) -> None:
+    def test_get_project_methods(self, project: Project) -> None:
         # GIVEN a Project object stored in Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # Test Case 1: Get project by ID
@@ -273,13 +291,13 @@ class TestProjectGetDelete:
         # THEN I expect the retrieved Project to have the expected properties
         self.verify_project_properties(project_by_name)
 
-    async def test_delete_project(self, project: Project) -> None:
+    def test_delete_project(self, project: Project) -> None:
         # GIVEN a Project object stored in Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # WHEN I delete the Project from Synapse
-        stored_project.delete()
+        stored_project.delete(synapse_client=self.syn)
 
         # THEN I expect the project to have been deleted
         with pytest.raises(SynapseHTTPError) as e:
@@ -381,26 +399,28 @@ class TestProjectCopySync:
                     assert sub_file.name is not None
                     assert sub_file.parent_id == folder.id
 
-    async def test_copy_project_variations(self) -> None:
+    def test_copy_project_variations(self) -> None:
         # GIVEN a nested source project and a destination project
         source_project = self.create_nested_project()
-        stored_source_project = source_project.store()
+        stored_source_project = source_project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(stored_source_project.id)
 
         # Test Case 1: Copy project with all contents
         # Create first destination project
         destination_project_1 = Project(
             name=str(uuid.uuid4()), description="Destination for project copy 1"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(destination_project_1.id)
 
         # WHEN I copy the project to the destination project
         copied_project = stored_source_project.copy(
-            destination_id=destination_project_1.id
+            destination_id=destination_project_1.id, synapse_client=self.syn
         )
 
         # AND I sync the destination project from Synapse
-        destination_project_1.sync_from_synapse(recursive=False, download_file=False)
+        destination_project_1.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
 
         # THEN I expect the copied Project to have the expected properties
         assert len(destination_project_1.files) == 3
@@ -411,12 +431,14 @@ class TestProjectCopySync:
         # Create a second destination project for the second test case
         destination_project_2 = Project(
             name=str(uuid.uuid4()), description="Destination for project copy 2"
-        ).store()
+        ).store(synapse_client=self.syn)
         self.schedule_for_cleanup(destination_project_2.id)
 
         # WHEN I copy the project to the destination project excluding files
         copied_project_no_files = stored_source_project.copy(
-            destination_id=destination_project_2.id, exclude_types=["file"]
+            destination_id=destination_project_2.id,
+            exclude_types=["file"],
+            synapse_client=self.syn,
         )
 
         # THEN I expect the copied Project to have the expected properties but no files
@@ -424,18 +446,20 @@ class TestProjectCopySync:
             copied_project_no_files, stored_source_project, expected_files_empty=True
         )
 
-    async def test_sync_from_synapse(self, file: File) -> None:
+    def test_sync_from_synapse(self, file: File) -> None:
         # GIVEN a nested project structure
         root_directory_path = os.path.dirname(file.path)
 
         project = self.create_nested_project()
 
         # WHEN I store the Project on Synapse
-        stored_project = project.store()
+        stored_project = project.store(synapse_client=self.syn)
         self.schedule_for_cleanup(project.id)
 
         # AND I sync the project from Synapse
-        copied_project = stored_project.sync_from_synapse(path=root_directory_path)
+        copied_project = stored_project.sync_from_synapse(
+            path=root_directory_path, synapse_client=self.syn
+        )
 
         # THEN I expect that the project and its contents are synced from Synapse to disk
         # Verify files in root folder
@@ -460,3 +484,247 @@ class TestProjectCopySync:
                     utils.md5_for_file(sub_file.path).hexdigest()
                     == sub_file.file_handle.content_md5
                 )
+
+    def test_sync_all_entity_types(self) -> None:
+        """Test syncing a project with all supported entity types."""
+        # GIVEN a project with one of each entity type
+
+        # Create a unique project for this test
+        project_model = Project(
+            name=f"test_sync_project_{str(uuid.uuid4())}",
+            description="Test project for sync all entity types",
+        )
+        project_model = project_model.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_model.id)
+
+        # Create and store a Table
+        table = Table(
+            name=f"test_table_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            columns=[
+                Column(name="test_column", column_type=ColumnType.STRING),
+                Column(name="test_column2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = table.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Create and store an EntityView
+        entity_view = EntityView(
+            name=f"test_entityview_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            scope_ids=[project_model.id],
+            view_type_mask=ViewTypeMask.FILE,
+            include_default_columns=True,
+        )
+        entity_view = entity_view.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(entity_view.id)
+
+        # Create and store a MaterializedView
+        materialized_view = MaterializedView(
+            name=f"test_materializedview_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        materialized_view = materialized_view.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(materialized_view.id)
+
+        # Create and store a VirtualTable
+        virtual_table = VirtualTable(
+            name=f"test_virtualtable_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        virtual_table = virtual_table.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table.id)
+
+        # Create and store a File for the dataset
+        file = File(
+            name=f"test_file_{str(uuid.uuid4())}.txt",
+            parent_id=project_model.id,
+            path=utils.make_bogus_uuid_file(),
+        )
+        file = file.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(file.id)
+
+        # Create and store a Dataset
+        dataset = Dataset(
+            name=f"test_dataset_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            items=[EntityRef(id=file.id, version=1)],
+        )
+        dataset = dataset.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset.id)
+
+        # Create and store a DatasetCollection
+        dataset_collection = DatasetCollection(
+            name=f"test_datasetcollection_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+            items=[EntityRef(id=dataset.id, version=1)],
+        )
+        dataset_collection = dataset_collection.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # WHEN I sync the project from Synapse
+        synced_project = project_model.sync_from_synapse(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
+
+        # THEN all entity types should be present
+        assert len(synced_project.tables) == 1
+        assert synced_project.tables[0].id == table.id
+        assert synced_project.tables[0].name == table.name
+
+        assert len(synced_project.entityviews) == 1
+        assert synced_project.entityviews[0].id == entity_view.id
+        assert synced_project.entityviews[0].name == entity_view.name
+
+        assert len(synced_project.materializedviews) == 1
+        assert synced_project.materializedviews[0].id == materialized_view.id
+        assert synced_project.materializedviews[0].name == materialized_view.name
+
+        assert len(synced_project.virtualtables) == 1
+        assert synced_project.virtualtables[0].id == virtual_table.id
+        assert synced_project.virtualtables[0].name == virtual_table.name
+
+        assert len(synced_project.datasets) == 1
+        assert synced_project.datasets[0].id == dataset.id
+        assert synced_project.datasets[0].name == dataset.name
+
+        assert len(synced_project.datasetcollections) == 1
+        assert synced_project.datasetcollections[0].id == dataset_collection.id
+        assert synced_project.datasetcollections[0].name == dataset_collection.name
+
+        # Verify that submission views are empty (since we didn't create any evaluation queues)
+        assert len(synced_project.submissionviews) == 0
+
+
+class TestProjectWalk:
+    """Tests for the synapseclient.models.Project.walk methods."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(
+        self, syn_with_logger: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
+        self.syn = syn_with_logger
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    def create_file_instance(self, schedule_for_cleanup: Callable[..., None]) -> File:
+        filename = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(filename)
+        return File(
+            path=filename,
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
+        )
+
+    def create_test_hierarchy(self, project: Project) -> dict:
+        """Create a test hierarchy for walk testing."""
+        # Create root level folder and file
+        root_folder = Folder(
+            name=f"root_folder_{str(uuid.uuid4())[:8]}", parent_id=project.id
+        )
+        root_folder = root_folder.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_folder.id)
+
+        root_file = self.create_file_instance(self.schedule_for_cleanup)
+        root_file.parent_id = project.id
+        root_file = root_file.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_file.id)
+
+        # Create nested folder and file
+        nested_folder = Folder(
+            name=f"nested_folder_{str(uuid.uuid4())[:8]}", parent_id=root_folder.id
+        )
+        nested_folder = nested_folder.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(nested_folder.id)
+
+        nested_file = self.create_file_instance(self.schedule_for_cleanup)
+        nested_file.parent_id = nested_folder.id
+        nested_file = nested_file.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(nested_file.id)
+
+        return {
+            "project": project,
+            "root_folder": root_folder,
+            "root_file": root_file,
+            "nested_folder": nested_folder,
+            "nested_file": nested_file,
+        }
+
+    def test_walk_recursive_true(self) -> None:
+        """Test walk method with recursive=True."""
+        # GIVEN: A unique project with a hierarchical structure
+        project_model = Project(
+            name=f"integration_test_project{str(uuid.uuid4())}",
+            description=DESCRIPTION_PROJECT,
+        )
+        project_model = project_model.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_model.id)
+        hierarchy = self.create_test_hierarchy(project_model)
+
+        # WHEN: Walking through the project with recursive=True
+        results = list(project_model.walk(recursive=True, synapse_client=self.syn))
+
+        # THEN: Should get 3 results (project root, root_folder, nested_folder)
+        assert len(results) == 3
+
+        # AND: Project root result should contain correct structure
+        project_result = results[0]
+        dirpath, dirs, nondirs = project_result
+        assert dirpath[0] == hierarchy["project"].name
+        assert dirpath[1] == hierarchy["project"].id
+        assert len(dirs) == 1  # root_folder
+        assert len(nondirs) == 1  # root_file
+
+        # AND: All returned objects should be EntityHeader instances
+        assert hasattr(dirs[0], "name")
+        assert hasattr(dirs[0], "id")
+        assert hasattr(dirs[0], "type")
+        assert hasattr(nondirs[0], "name")
+        assert hasattr(nondirs[0], "id")
+        assert hasattr(nondirs[0], "type")
+
+        # AND: Should be able to find nested content
+        nested_results = [r for r in results if "nested_folder" in r[0][0]]
+        assert len(nested_results) == 1
+        _, nested_dirs, nested_nondirs = nested_results[0]
+        assert len(nested_dirs) == 0
+        assert len(nested_nondirs) == 1  # nested_file
+
+        # AND: Nested objects should also be EntityHeader instances
+        assert hasattr(nested_nondirs[0], "name")
+        assert hasattr(nested_nondirs[0], "id")
+        assert hasattr(nested_nondirs[0], "type")
+
+    def test_walk_recursive_false(self) -> None:
+        """Test walk method with recursive=False."""
+        # GIVEN: A unique project with a hierarchical structure
+        project_model = Project(
+            name=f"integration_test_project{str(uuid.uuid4())}",
+            description=DESCRIPTION_PROJECT,
+        )
+        project_model = project_model.store(synapse_client=self.syn)
+        self.schedule_for_cleanup(project_model.id)
+        hierarchy = self.create_test_hierarchy(project_model)
+
+        # WHEN: Walking through the project with recursive=False
+        results = list(project_model.walk(recursive=False, synapse_client=self.syn))
+
+        # THEN: Should get only 1 result (project root only)
+        assert len(results) == 1
+
+        # AND: Project root should contain direct children only
+        dirpath, dirs, nondirs = results[0]
+        assert dirpath[0] == hierarchy["project"].name
+        assert dirpath[1] == hierarchy["project"].id
+        assert len(dirs) == 1  # root_folder
+        assert len(nondirs) == 1  # root_file
+
+        # AND: All returned objects should be EntityHeader instances
+        assert hasattr(dirs[0], "name")
+        assert hasattr(dirs[0], "id")
+        assert hasattr(dirs[0], "type")
+        assert hasattr(nondirs[0], "name")
+        assert hasattr(nondirs[0], "id")
+        assert hasattr(nondirs[0], "type")

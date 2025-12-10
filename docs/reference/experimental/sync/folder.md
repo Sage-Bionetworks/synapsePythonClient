@@ -25,8 +25,19 @@ at your own risk.
         - store
         - delete
         - copy
+        - walk
         - sync_from_synapse
+        - flatten_file_list
+        - map_directory_to_all_contained_files
         - get_permissions
         - get_acl
+        - list_acl
         - set_permissions
         - delete_permissions
+        - bind_schema
+        - get_schema
+        - unbind_schema
+        - validate_schema
+        - get_schema_derived_keys
+        - get_schema_validation_statistics
+        - get_invalid_validation

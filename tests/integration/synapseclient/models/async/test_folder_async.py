@@ -9,7 +9,22 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core import utils
 from synapseclient.core.exceptions import SynapseHTTPError
-from synapseclient.models import File, Folder, Project
+from synapseclient.models import (
+    Column,
+    ColumnType,
+    Dataset,
+    DatasetCollection,
+    EntityRef,
+    EntityView,
+    File,
+    Folder,
+    MaterializedView,
+    Project,
+    SubmissionView,
+    Table,
+    ViewTypeMask,
+    VirtualTable,
+)
 
 DESCRIPTION_FOLDER = "This is an example folder."
 DESCRIPTION_FILE = "This is an example file."
@@ -102,7 +117,9 @@ class TestFolderStore:
         # GIVEN a Folder object and a Project object
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store_async(parent=project_model)
+        stored_folder = await folder.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties
@@ -125,7 +142,7 @@ class TestFolderStore:
 
         # WHEN I store the Folder on Synapse
         stored_folder_with_annotations = await folder_with_annotations.store_async(
-            parent=project_model
+            parent=project_model, synapse_client=self.syn
         )
         self.schedule_for_cleanup(folder_with_annotations.id)
 
@@ -146,7 +163,9 @@ class TestFolderStore:
         folder.files.append(file)
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store_async(parent=project_model)
+        stored_folder = await folder.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties and files
@@ -164,7 +183,9 @@ class TestFolderStore:
 
         # WHEN I store the Folder on Synapse
         stored_folder_with_multiple_files = (
-            await folder_with_multiple_files.store_async(parent=project_model)
+            await folder_with_multiple_files.store_async(
+                parent=project_model, synapse_client=self.syn
+            )
         )
         self.schedule_for_cleanup(folder_with_multiple_files.id)
 
@@ -189,7 +210,9 @@ class TestFolderStore:
         folder.folders = folders
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store_async(parent=project_model)
+        stored_folder = await folder.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
         # THEN I expect the stored Folder to have the expected properties, files, and folders
@@ -218,7 +241,9 @@ class TestFolderGetDelete:
         self, project_model: Project, folder: Folder
     ) -> None:
         # GIVEN a Folder object stored in Synapse
-        stored_folder = await folder.store_async(parent=project_model)
+        stored_folder = await folder.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
         # Test Case 1: Get folder by ID
@@ -265,15 +290,17 @@ class TestFolderGetDelete:
 
     async def test_delete_folder(self, project_model: Project, folder: Folder) -> None:
         # GIVEN a Folder object stored in Synapse
-        stored_folder = await folder.store_async(parent=project_model)
+        stored_folder = await folder.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
         # WHEN I delete the Folder from Synapse
-        await stored_folder.delete_async()
+        await stored_folder.delete_async(synapse_client=self.syn)
 
         # THEN I expect the folder to have been deleted
         with pytest.raises(SynapseHTTPError) as e:
-            await stored_folder.get()
+            await stored_folder.get_async(synapse_client=self.syn)
 
         assert f"404 Client Error: Entity {stored_folder.id} is in trash can." in str(
             e.value
@@ -373,24 +400,26 @@ class TestFolderCopy:
         # GIVEN a nested folder structure with files and folders
         source_folder = self.create_nested_folder()
         source_folder.annotations = {"test": ["test"]}
-        stored_source_folder = await source_folder.store_async(parent=project_model)
+        stored_source_folder = await source_folder.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(stored_source_folder.id)
 
         # Test Case 1: Copy folder with all contents
         # Create first destination folder
         destination_folder_1 = await Folder(
             name=str(uuid.uuid4()), description="Destination for folder copy 1"
-        ).store_async(parent=project_model)
+        ).store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(destination_folder_1.id)
 
         # WHEN I copy the folder to the destination folder
         copied_folder = await stored_source_folder.copy_async(
-            parent_id=destination_folder_1.id
+            parent_id=destination_folder_1.id, synapse_client=self.syn
         )
 
         # AND I sync the destination folder from Synapse
         await destination_folder_1.sync_from_synapse_async(
-            recursive=False, download_file=False
+            recursive=False, download_file=False, synapse_client=self.syn
         )
 
         # THEN I expect the copied Folder to have the expected properties
@@ -402,17 +431,19 @@ class TestFolderCopy:
         # Create a second destination folder for the second test case
         destination_folder_2 = await Folder(
             name=str(uuid.uuid4()), description="Destination for folder copy 2"
-        ).store_async(parent=project_model)
+        ).store_async(parent=project_model, synapse_client=self.syn)
         self.schedule_for_cleanup(destination_folder_2.id)
 
         # WHEN I copy the folder to the destination folder excluding files
         copied_folder_no_files = await stored_source_folder.copy_async(
-            parent_id=destination_folder_2.id, exclude_types=["file"]
+            parent_id=destination_folder_2.id,
+            exclude_types=["file"],
+            synapse_client=self.syn,
         )
 
         # AND I sync the destination folder from Synapse
         await destination_folder_2.sync_from_synapse_async(
-            recursive=False, download_file=False
+            recursive=False, download_file=False, synapse_client=self.syn
         )
 
         # THEN I expect the copied Folder to have the expected properties but no files
@@ -473,12 +504,14 @@ class TestFolderSyncFromSynapse:
         folder.folders = sub_folders
 
         # WHEN I store the Folder on Synapse
-        stored_folder = await folder.store_async(parent=project_model)
+        stored_folder = await folder.store_async(
+            parent=project_model, synapse_client=self.syn
+        )
         self.schedule_for_cleanup(folder.id)
 
         # AND I sync the folder from Synapse
         copied_folder = await stored_folder.sync_from_synapse_async(
-            path=root_directory_path
+            path=root_directory_path, synapse_client=self.syn
         )
 
         # THEN I expect that the folder and its contents are synced from Synapse to disk
@@ -504,3 +537,277 @@ class TestFolderSyncFromSynapse:
                     utils.md5_for_file(sub_file.path).hexdigest()
                     == sub_file.file_handle.content_md5
                 )
+
+    async def test_sync_all_entity_types(self, project_model: Project) -> None:
+        """Test syncing a folder with all supported entity types."""
+        # GIVEN a folder with one of each entity type
+
+        # Create the folder first
+        folder = Folder(
+            name=f"test_folder_{str(uuid.uuid4())}",
+            parent_id=project_model.id,
+        )
+        folder = await folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(folder.id)
+
+        # Create and store a File
+        file = File(
+            name=f"test_file_{str(uuid.uuid4())}.txt",
+            parent_id=folder.id,
+            path=utils.make_bogus_uuid_file(),
+        )
+        file = await file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(file.id)
+
+        # Create and store a nested Folder
+        nested_folder = Folder(
+            name=f"test_nested_folder_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+        )
+        nested_folder = await nested_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(nested_folder.id)
+
+        # Create and store a Table
+        table = Table(
+            name=f"test_table_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            columns=[
+                Column(name="test_column", column_type=ColumnType.STRING),
+                Column(name="test_column2", column_type=ColumnType.INTEGER),
+            ],
+        )
+        table = await table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(table.id)
+
+        # Create and store an EntityView
+        entity_view = EntityView(
+            name=f"test_entityview_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            scope_ids=[folder.id],
+            view_type_mask=ViewTypeMask.FILE,
+            include_default_columns=True,
+        )
+        entity_view = await entity_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(entity_view.id)
+
+        # Create and store a MaterializedView
+        materialized_view = MaterializedView(
+            name=f"test_materializedview_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        materialized_view = await materialized_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(materialized_view.id)
+
+        # Create and store a VirtualTable
+        virtual_table = VirtualTable(
+            name=f"test_virtualtable_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            defining_sql=f"SELECT * FROM {table.id}",
+        )
+        virtual_table = await virtual_table.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(virtual_table.id)
+
+        # Create and store a Dataset (reusing the existing file)
+        dataset = Dataset(
+            name=f"test_dataset_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            items=[EntityRef(id=file.id, version=1)],
+        )
+        dataset = await dataset.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(dataset.id)
+
+        # Create and store a DatasetCollection
+        dataset_collection = DatasetCollection(
+            name=f"test_datasetcollection_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            items=[EntityRef(id=dataset.id, version=1)],
+        )
+        dataset_collection = await dataset_collection.store_async(
+            synapse_client=self.syn
+        )
+        self.schedule_for_cleanup(dataset_collection.id)
+
+        # Create and store a SubmissionView
+        submission_view = SubmissionView(
+            name=f"test_submissionview_{str(uuid.uuid4())}",
+            parent_id=folder.id,
+            scope_ids=[folder.id],
+        )
+        submission_view = await submission_view.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(submission_view)
+
+        # WHEN I sync the folder from Synapse
+        synced_folder = await folder.sync_from_synapse_async(
+            recursive=False, download_file=False, synapse_client=self.syn
+        )
+
+        # THEN all entity types should be present
+        assert len(synced_folder.files) == 1
+        assert synced_folder.files[0].id == file.id
+        assert synced_folder.files[0].name == file.name
+
+        assert len(synced_folder.folders) == 1
+        assert synced_folder.folders[0].id == nested_folder.id
+        assert synced_folder.folders[0].name == nested_folder.name
+
+        assert len(synced_folder.tables) == 1
+        assert synced_folder.tables[0].id == table.id
+        assert synced_folder.tables[0].name == table.name
+
+        assert len(synced_folder.entityviews) == 1
+        assert synced_folder.entityviews[0].id == entity_view.id
+        assert synced_folder.entityviews[0].name == entity_view.name
+
+        assert len(synced_folder.materializedviews) == 1
+        assert synced_folder.materializedviews[0].id == materialized_view.id
+        assert synced_folder.materializedviews[0].name == materialized_view.name
+
+        assert len(synced_folder.virtualtables) == 1
+        assert synced_folder.virtualtables[0].id == virtual_table.id
+        assert synced_folder.virtualtables[0].name == virtual_table.name
+
+        assert len(synced_folder.datasets) == 1
+        assert synced_folder.datasets[0].id == dataset.id
+        assert synced_folder.datasets[0].name == dataset.name
+
+        assert len(synced_folder.datasetcollections) == 1
+        assert synced_folder.datasetcollections[0].id == dataset_collection.id
+        assert synced_folder.datasetcollections[0].name == dataset_collection.name
+
+        assert len(synced_folder.submissionviews) == 1
+        assert synced_folder.submissionviews[0].id == submission_view.id
+        assert synced_folder.submissionviews[0].name == submission_view.name
+
+
+class TestFolderWalk:
+    """Tests for the walk_async methods."""
+
+    @pytest.fixture(autouse=True, scope="function")
+    def init(
+        self, syn_with_logger: Synapse, schedule_for_cleanup: Callable[..., None]
+    ) -> None:
+        self.syn = syn_with_logger
+        self.schedule_for_cleanup = schedule_for_cleanup
+
+    def create_file_instance(self, schedule_for_cleanup: Callable[..., None]) -> File:
+        filename = utils.make_bogus_uuid_file()
+        schedule_for_cleanup(filename)
+        return File(
+            path=filename,
+            description=DESCRIPTION_FILE,
+            content_type=CONTENT_TYPE,
+        )
+
+    async def create_test_hierarchy(self, project_model: Project) -> dict:
+        """Create a test hierarchy for walk testing."""
+        # Store the parent folder first
+        folder = Folder(
+            name=f"test_walk_folder_{str(uuid.uuid4())}", parent_id=project_model.id
+        )
+        folder = await folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(folder.id)
+
+        # Create a file in the root folder
+        root_file = self.create_file_instance(self.schedule_for_cleanup)
+        root_file.parent_id = folder.id
+        root_file = await root_file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(root_file.id)
+
+        # Create nested folder and file
+        nested_folder = Folder(name=f"nested_folder_{str(uuid.uuid4())[:8]}")
+        nested_folder.parent_id = folder.id
+        nested_folder = await nested_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(nested_folder.id)
+
+        nested_file = self.create_file_instance(self.schedule_for_cleanup)
+        nested_file.parent_id = nested_folder.id
+        nested_file = await nested_file.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(nested_file.id)
+
+        # Create another nested folder with no files
+        empty_folder = Folder(name=f"empty_folder_{str(uuid.uuid4())[:8]}")
+        empty_folder.parent_id = folder.id
+        empty_folder = await empty_folder.store_async(synapse_client=self.syn)
+        self.schedule_for_cleanup(empty_folder.id)
+
+        return {
+            "folder": folder,
+            "root_file": root_file,
+            "nested_folder": nested_folder,
+            "nested_file": nested_file,
+            "empty_folder": empty_folder,
+        }
+
+    async def test_walk_async_recursive_true(self, project_model: Project) -> None:
+        """Test walk_async method with recursive=True."""
+        # GIVEN: A folder with a hierarchical structure
+        hierarchy = await self.create_test_hierarchy(project_model)
+
+        # WHEN: Walking through the folder asynchronously with recursive=True
+        results = []
+        async for result in hierarchy["folder"].walk_async(
+            recursive=True, synapse_client=self.syn
+        ):
+            results.append(result)
+
+        # THEN: Should get 3 results (folder root, nested_folder, empty_folder)
+        assert len(results) == 3
+
+        # AND: Folder root result should contain correct structure
+        folder_result = results[0]
+        dirpath, dirs, nondirs = folder_result
+        assert dirpath[0] == hierarchy["folder"].name
+        assert dirpath[1] == hierarchy["folder"].id
+        assert len(dirs) == 2  # nested_folder and empty_folder
+        assert len(nondirs) == 1  # root_file
+
+        # AND: All returned objects should be EntityHeader instances
+        assert hasattr(dirs[0], "name")
+        assert hasattr(dirs[0], "id")
+        assert hasattr(dirs[0], "type")
+        assert hasattr(nondirs[0], "name")
+        assert hasattr(nondirs[0], "id")
+        assert hasattr(nondirs[0], "type")
+
+        # AND: Should be able to find nested content
+        nested_results = [r for r in results if "nested_folder" in r[0][0]]
+        assert len(nested_results) == 1
+        _, nested_dirs, nested_nondirs = nested_results[0]
+        assert len(nested_dirs) == 0
+        assert len(nested_nondirs) == 1  # nested_file
+
+        # AND: Nested objects should also be EntityHeader instances
+        assert hasattr(nested_nondirs[0], "name")
+        assert hasattr(nested_nondirs[0], "id")
+        assert hasattr(nested_nondirs[0], "type")
+
+    async def test_walk_async_recursive_false(self, project_model: Project) -> None:
+        """Test walk_async method with recursive=False."""
+        # GIVEN: A folder with a hierarchical structure
+        hierarchy = await self.create_test_hierarchy(project_model)
+
+        # WHEN: Walking through the folder asynchronously with recursive=False
+        results = []
+        async for result in hierarchy["folder"].walk_async(
+            recursive=False, synapse_client=self.syn
+        ):
+            results.append(result)
+
+        # THEN: Should get only 1 result (folder root only)
+        assert len(results) == 1
+
+        # AND: Folder root should contain direct children only
+        dirpath, dirs, nondirs = results[0]
+        assert dirpath[0] == hierarchy["folder"].name
+        assert dirpath[1] == hierarchy["folder"].id
+        assert len(dirs) == 2  # nested_folder and empty_folder
+        assert len(nondirs) == 1  # root_file
+
+        # AND: All returned objects should be EntityHeader instances
+        assert hasattr(dirs[0], "name")
+        assert hasattr(dirs[0], "id")
+        assert hasattr(dirs[0], "type")
+        assert hasattr(nondirs[0], "name")
+        assert hasattr(nondirs[0], "id")
+        assert hasattr(nondirs[0], "type")

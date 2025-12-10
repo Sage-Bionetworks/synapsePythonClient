@@ -383,6 +383,7 @@ class AgentSession(AgentSessionSynchronousProtocol):
         print_response: bool = False,
         newer_than: Optional[int] = None,
         *,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> AgentPrompt:
         """Sends a prompt to the agent and adds the response to the AgentSession's
@@ -394,6 +395,8 @@ class AgentSession(AgentSessionSynchronousProtocol):
             print_response: Whether to print the response to the console.
             newer_than: The timestamp to get trace results newer than.
                 Defaults to None (all results).
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
@@ -422,7 +425,9 @@ class AgentSession(AgentSessionSynchronousProtocol):
         agent_prompt = await AgentPrompt(
             prompt=prompt, session_id=self.id, enable_trace=enable_trace
         ).send_job_and_wait_async(
-            synapse_client=synapse_client, post_exchange_args={"newer_than": newer_than}
+            timeout=timeout,
+            synapse_client=synapse_client,
+            post_exchange_args={"newer_than": newer_than},
         )
         self.chat_history.append(agent_prompt)
         if print_response:
@@ -811,6 +816,7 @@ class Agent(AgentSynchronousProtocol):
         session: Optional[AgentSession] = None,
         newer_than: Optional[int] = None,
         *,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> AgentPrompt:
         """Sends a prompt to the agent for the current session.
@@ -823,6 +829,8 @@ class Agent(AgentSynchronousProtocol):
             session_id: The ID of the session to send the prompt to.
                 If None, the current session will be used.
             newer_than: The timestamp to get trace results newer than. Defaults to None (all results).
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
@@ -914,6 +922,7 @@ class Agent(AgentSynchronousProtocol):
             enable_trace=enable_trace,
             newer_than=newer_than,
             print_response=print_response,
+            timeout=timeout,
             synapse_client=synapse_client,
         )
 

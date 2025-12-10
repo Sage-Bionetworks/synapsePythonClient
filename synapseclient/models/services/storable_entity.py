@@ -13,11 +13,11 @@ from synapseclient.api import (
 from synapseclient.core.utils import get_properties
 
 if TYPE_CHECKING:
-    from synapseclient.models import File, Folder, Project
+    from synapseclient.models import File, Folder, Link, Project
 
 
 async def store_entity(
-    resource: Union["File", "Folder", "Project"],
+    resource: Union["File", "Folder", "Project", "Link"],
     entity: Dict[str, Union[str, bool, int, float]],
     *,
     synapse_client: Optional[Synapse] = None,
@@ -65,27 +65,6 @@ async def store_entity(
             synapse_client=synapse_client,
         )
     else:
-        # TODO - When Link is implemented this needs to be completed
-        # If Link, get the target name, version number and concrete type and store in link properties
-        # if properties["concreteType"] == "org.sagebionetworks.repo.model.Link":
-        #     target_properties = self._getEntity(
-        #         properties["linksTo"]["targetId"],
-        #         version=properties["linksTo"].get("targetVersionNumber"),
-        #     )
-        #     if target_properties["parentId"] == properties["parentId"]:
-        #         raise ValueError(
-        #             "Cannot create a Link to an entity under the same parent."
-        #         )
-        #     properties["linksToClassName"] = target_properties["concreteType"]
-        #     if (
-        #         target_properties.get("versionNumber") is not None
-        #         and properties["linksTo"].get("targetVersionNumber") is not None
-        #     ):
-        #         properties["linksTo"]["targetVersionNumber"] = target_properties[
-        #             "versionNumber"
-        #         ]
-        #     properties["name"] = target_properties["name"]
-
         updated_entity = await post_entity(
             request=get_properties(entity),
             synapse_client=synapse_client,

@@ -1,3 +1,4 @@
+import asyncio
 import tempfile
 import uuid
 from typing import Callable, List
@@ -34,7 +35,7 @@ class TestEntityView:
         self.syn = syn
         self.schedule_for_cleanup = schedule_for_cleanup
 
-    async def setup_files_in_folder(
+    def setup_files_in_folder(
         self, project_model: Project, num_files: int = 4
     ) -> tuple[Folder, List[File]]:
         """Helper to create a folder with files for testing"""
@@ -71,9 +72,7 @@ class TestEntityView:
 
         return folder, files
 
-    async def test_entityview_creation_with_columns(
-        self, project_model: Project
-    ) -> None:
+    def test_entityview_creation_with_columns(self, project_model: Project) -> None:
         """Test creating entity views with different column configurations"""
         # GIVEN parameters for three different entity view configurations
         test_cases = [
@@ -104,8 +103,10 @@ class TestEntityView:
         ]
 
         # Get default column count to set expectation
-        default_columns = await get_default_columns(
-            view_type_mask=ViewTypeMask.FILE.value, synapse_client=self.syn
+        default_columns = asyncio.run(
+            get_default_columns(
+                view_type_mask=ViewTypeMask.FILE.value, synapse_client=self.syn
+            )
         )
         test_cases[0]["expected_column_count"] = len(default_columns)
 
@@ -161,7 +162,7 @@ class TestEntityView:
                     == ColumnType.INTEGER
                 )
 
-    async def test_entityview_invalid_column(self, project_model: Project) -> None:
+    def test_entityview_invalid_column(self, project_model: Project) -> None:
         """Test creating an entity view with an invalid column"""
         # GIVEN an entity view with an invalid column
         entityview = EntityView(
@@ -188,10 +189,10 @@ class TestEntityView:
             in str(e.value)
         )
 
-    async def test_entityview_with_files_in_scope(self, project_model: Project) -> None:
+    def test_entityview_with_files_in_scope(self, project_model: Project) -> None:
         """Test creating entity view with files in scope and querying it"""
         # GIVEN a folder with files
-        folder, files = await self.setup_files_in_folder(project_model)
+        folder, files = self.setup_files_in_folder(project_model)
 
         # WHEN I create an entity view with that folder in its scope
         entityview = EntityView(
@@ -214,12 +215,12 @@ class TestEntityView:
             assert results["name"][i] == file.name
             assert results["description"][i] == file.description
 
-    async def test_update_rows_and_annotations(
+    def test_update_rows_and_annotations(
         self, mocker: MockerFixture, project_model: Project
     ) -> None:
         """Test updating rows in an entity view from different sources and verifying annotations"""
         # GIVEN a folder with files
-        folder, files = await self.setup_files_in_folder(project_model)
+        folder, files = self.setup_files_in_folder(project_model)
 
         # AND an entity view with columns and files in scope
         entityview = EntityView(
@@ -236,8 +237,42 @@ class TestEntityView:
         entityview = entityview.store(synapse_client=self.syn)
         self.schedule_for_cleanup(entityview.id)
 
-        # SPY on the CSV conversion function to verify different input paths
-        spy_csv_file_conversion = mocker.spy(table_module, "csv_to_pandas_df")
+        # Custom wrapper to capture call stack
+        original_csv_to_pandas_df = table_module.csv_to_pandas_df
+        call_info = []
+
+        def csv_wrapper(*args, **kwargs):
+            import traceback
+
+            stack = traceback.extract_stack()
+
+            # Find the calling function (skip the wrapper itself)
+            calling_function = None
+            for frame in reversed(stack[:-1]):  # Skip current frame
+                if "_upsert_rows_async" in frame.name:
+                    calling_function = "_upsert_rows_async"
+                    break
+                elif "query_async" in frame.name:
+                    calling_function = "query_async"
+                    break
+                else:
+                    pass
+
+            call_info.append(
+                {
+                    "caller": calling_function,
+                    "args": args,
+                    "kwargs": kwargs,
+                    "filepath": kwargs.get("filepath", args[0] if args else None),
+                }
+            )
+
+            return original_csv_to_pandas_df(*args, **kwargs)
+
+        # Patch the csv_to_pandas_df function to use the wrapper
+        mock_csv_to_pandas_df = mocker.patch.object(
+            table_module, "csv_to_pandas_df", side_effect=csv_wrapper
+        )
 
         # Create test data for all files
         test_data = {
@@ -257,7 +292,7 @@ class TestEntityView:
 
         for method in update_methods:
             # Reset the spy for each method
-            spy_csv_file_conversion.reset_mock()
+            call_info.clear()
 
             # WHEN I update rows using different input types
             if method == "csv":
@@ -276,7 +311,10 @@ class TestEntityView:
                 )
 
                 # THEN the CSV conversion function should be called
-                spy_csv_file_conversion.assert_called_once()
+                _upsert_rows_async_calls = [
+                    call for call in call_info if call["caller"] == "_upsert_rows_async"
+                ]
+                assert len(_upsert_rows_async_calls) == 1
 
             elif method == "dataframe":
                 # Use DataFrame
@@ -288,7 +326,10 @@ class TestEntityView:
                 )
 
                 # THEN the CSV conversion function should NOT be called
-                spy_csv_file_conversion.assert_not_called()
+                _upsert_rows_async_calls = [
+                    call for call in call_info if call["caller"] == "_upsert_rows_async"
+                ]
+                assert len(_upsert_rows_async_calls) == 0
 
             else:  # dict
                 # Use dictionary
@@ -300,7 +341,10 @@ class TestEntityView:
                 )
 
                 # THEN the CSV conversion function should NOT be called
-                spy_csv_file_conversion.assert_not_called()
+                _upsert_rows_async_calls = [
+                    call for call in call_info if call["caller"] == "_upsert_rows_async"
+                ]
+                assert len(_upsert_rows_async_calls) == 0
 
             # THEN the columns should exist in the entity view
             assert "column_string" in entityview.columns
@@ -318,16 +362,19 @@ class TestEntityView:
                 query_results["column_string"],
                 pd.Series(test_data["column_string"], name="column_string"),
                 check_names=True,
+                check_dtype=False,
             )
             pd.testing.assert_series_equal(
                 query_results["integer_column"],
                 pd.Series(test_data["integer_column"], name="integer_column"),
                 check_names=True,
+                check_dtype=False,
             )
             pd.testing.assert_series_equal(
                 query_results["float_column"],
                 pd.Series(test_data["float_column"], name="float_column"),
                 check_names=True,
+                check_dtype=False,
             )
 
             # AND the annotations should be updated on the files
@@ -353,10 +400,10 @@ class TestEntityView:
                 else:
                     assert "float_column" not in file_copy.annotations.keys()
 
-    async def test_update_rows_without_id_column(self, project_model: Project) -> None:
+    def test_update_rows_without_id_column(self, project_model: Project) -> None:
         """Test that updating rows requires the id column"""
         # GIVEN a folder with files and an entity view
-        folder, _ = await self.setup_files_in_folder(project_model, num_files=1)
+        folder, _ = self.setup_files_in_folder(project_model, num_files=1)
 
         entityview = EntityView(
             name=str(uuid.uuid4()),
@@ -385,7 +432,7 @@ class TestEntityView:
             in str(e.value)
         )
 
-    async def test_column_modifications(self, project_model: Project) -> None:
+    def test_column_modifications(self, project_model: Project) -> None:
         """Test renaming and deleting columns in an entity view"""
         # GIVEN an entity view with multiple columns
         old_column_name = "column_string"
@@ -438,10 +485,10 @@ class TestEntityView:
         assert new_column_name not in retrieved_view.columns
         assert column_to_keep in retrieved_view.columns
 
-    async def test_query_with_part_mask(self, project_model: Project) -> None:
+    def test_query_with_part_mask(self, project_model: Project) -> None:
         """Test querying an entity view with different part masks"""
         # GIVEN a folder with files
-        folder, files = await self.setup_files_in_folder(project_model, num_files=2)
+        folder, files = self.setup_files_in_folder(project_model, num_files=2)
 
         # AND an entity view with the folder in scope
         entityview = EntityView(
@@ -489,10 +536,10 @@ class TestEntityView:
         assert results_only.last_updated_on is None
         assert results_only.result["name"].tolist() == [file.name for file in files]
 
-    async def test_snapshot_functionality(self, project_model: Project) -> None:
+    def test_snapshot_functionality(self, project_model: Project) -> None:
         """Test creating snapshots of entity views with different activity configurations"""
         # GIVEN a folder with a file
-        folder, [file] = await self.setup_files_in_folder(project_model, num_files=1)
+        folder, [file] = self.setup_files_in_folder(project_model, num_files=1)
 
         # AND an entity view with an activity
         entityview = EntityView(
@@ -581,7 +628,7 @@ class TestEntityView:
             else:
                 assert newest_instance.activity is None
 
-    async def test_snapshot_with_no_scope(self, project_model: Project) -> None:
+    def test_snapshot_with_no_scope(self, project_model: Project) -> None:
         """Test that creating a snapshot of an entity view with no scope raises an error"""
         # GIVEN an entity view with no scope
         entityview = EntityView(

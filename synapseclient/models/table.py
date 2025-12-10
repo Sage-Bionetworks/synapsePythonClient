@@ -1,4 +1,3 @@
-import asyncio
 import dataclasses
 from collections import OrderedDict
 from copy import deepcopy
@@ -10,11 +9,12 @@ from typing_extensions import Self
 
 from synapseclient import Synapse
 from synapseclient import Table as Synapse_Table
+from synapseclient.api import create_table_snapshot
 from synapseclient.core.async_utils import async_to_sync
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.utils import MB, delete_none_keys
 from synapseclient.models import Activity, Annotations
-from synapseclient.models.mixins.access_control import AccessControllable
+from synapseclient.models.mixins import AccessControllable, BaseJSONSchema
 from synapseclient.models.mixins.table_components import (
     AppendableRowSetRequest,
     ColumnExpansionStrategy,
@@ -39,7 +39,11 @@ DATA_FRAME_TYPE = TypeVar("pd.DataFrame")
 
 class TableSynchronousProtocol(Protocol):
     def store(
-        self, dry_run: bool = False, *, synapse_client: Optional[Synapse] = None
+        self,
+        dry_run: bool = False,
+        *,
+        job_timeout: int = 600,
+        synapse_client: Optional[Synapse] = None,
     ) -> "Self":
         """Store non-row information about a table including the columns and annotations.
 
@@ -75,7 +79,7 @@ class TableSynchronousProtocol(Protocol):
 
     def get(
         self,
-        include_columns: bool = False,
+        include_columns: bool = True,
         include_activity: bool = False,
         *,
         synapse_client: Optional[Synapse] = None,
@@ -845,6 +849,7 @@ class TableSynchronousProtocol(Protocol):
         include_activity: bool = True,
         associate_activity_to_new_version: bool = True,
         *,
+        timeout: int = 120,
         synapse_client: Optional[Synapse] = None,
     ) -> Dict[str, Any]:
         """
@@ -866,6 +871,8 @@ class TableSynchronousProtocol(Protocol):
             associate_activity_to_new_version: If True the activity will be associated
                 with the new version of the table. If False the activity will not be
                 associated with the new version of the table.
+            timeout: The number of seconds to wait for the job to complete or progress
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -929,6 +936,7 @@ class Table(
     TableUpsertMixin,
     TableStoreMixin,
     TableSynchronousProtocol,
+    BaseJSONSchema,
 ):
     """A Table represents the metadata of a table.
 
@@ -1507,17 +1515,14 @@ class Table(
             f"[{self.id}:{self.name}]: Creating a snapshot of the table."
         )
 
-        loop = asyncio.get_event_loop()
-        snapshot_response = await loop.run_in_executor(
-            None,
-            lambda: client._create_table_snapshot(
-                table=self.id,
-                comment=comment,
-                label=label,
-                activity=(
-                    self.activity.id if self.activity and include_activity else None
-                ),
+        snapshot_response = await create_table_snapshot(
+            table_id=self.id,
+            comment=comment,
+            label=label,
+            activity_id=(
+                self.activity.id if self.activity and include_activity else None
             ),
+            synapse_client=synapse_client,
         )
 
         if associate_activity_to_new_version and self.activity:

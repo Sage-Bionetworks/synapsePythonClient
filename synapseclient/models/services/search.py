@@ -48,6 +48,7 @@ async def get_id(
             return None
         raise ValueError("Entity ID or Name/Parent is required")
 
+    # TODO: Remove this deprecated code with replacement method created in https://sagebionetworks.jira.com/browse/SYNPY-1623
     loop = asyncio.get_event_loop()
     entity_id = entity.id or await loop.run_in_executor(
         None,

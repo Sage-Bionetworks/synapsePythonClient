@@ -89,9 +89,9 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch.object(
-            self.syn,
-            "store",
+        with patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_client_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
@@ -108,15 +108,18 @@ class TestFolder:
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                isRestricted=False,
-                createOrUpdate=False,
+            mocked_client_call.assert_called_once()
+            call_args = mocked_client_call.call_args
+            assert call_args.kwargs["entity_id"] == folder.id
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the folder properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Folder"
             )
+            assert request_dict["id"] == folder.id
+            assert request_dict["description"] == description
 
             # AND we should call the get method
             mocked_get.assert_called_once()
@@ -244,9 +247,9 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch.object(
-            self.syn,
-            "store",
+        with patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_store, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
@@ -255,15 +258,18 @@ class TestFolder:
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should  call store because there are changes
-            mocked_store.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                isRestricted=False,
-                createOrUpdate=False,
+            mocked_store.assert_called_once()
+            call_args = mocked_store.call_args
+            assert call_args.kwargs["entity_id"] == folder.id
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the folder properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Folder"
             )
+            assert request_dict["id"] == folder.id
+            assert request_dict["description"] == description
 
             # AND we should not call get as we already have
             mocked_get.assert_not_called()
@@ -300,9 +306,9 @@ class TestFolder:
         with patch(
             "synapseclient.models.folder.store_entity_components",
             return_value=(None),
-        ) as mocked_store_entity_components, patch.object(
-            self.syn,
-            "store",
+        ) as mocked_store_entity_components, patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_client_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
@@ -319,15 +325,18 @@ class TestFolder:
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
-                    description=description,
-                ),
-                set_annotations=False,
-                isRestricted=False,
-                createOrUpdate=False,
+            mocked_client_call.assert_called_once()
+            call_args = mocked_client_call.call_args
+            assert call_args.kwargs["entity_id"] == folder.id
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the folder properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Folder"
             )
+            assert request_dict["id"] == folder.id
+            assert request_dict["description"] == description
 
             # AND we should call the get method
             mocked_get.assert_called_once()
@@ -362,9 +371,9 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch.object(
-            self.syn,
-            "store",
+        with patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_client_call, patch.object(
             self.syn,
@@ -385,17 +394,19 @@ class TestFolder:
             result = await folder.store_async(synapse_client=self.syn)
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
-                    name=folder.name,
-                    parent=folder.parent_id,
-                    description=description,
-                ),
-                set_annotations=False,
-                isRestricted=False,
-                createOrUpdate=False,
+            mocked_client_call.assert_called_once()
+            call_args = mocked_client_call.call_args
+            assert call_args.kwargs["entity_id"] == SYN_123  # From findEntityId mock
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the folder properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Folder"
             )
+            assert request_dict["name"] == folder.name
+            assert request_dict["parentId"] == folder.parent_id
+            assert request_dict["description"] == description
 
             # AND we should call the get method
             mocked_get.assert_called_once()
@@ -425,9 +436,9 @@ class TestFolder:
         folder.description = description
 
         # WHEN I call `store` with the Folder object
-        with patch.object(
-            self.syn,
-            "store",
+        with patch(
+            "synapseclient.models.services.storable_entity.put_entity",
+            new_callable=AsyncMock,
             return_value=(self.get_example_synapse_folder_output()),
         ) as mocked_client_call, patch.object(
             self.syn,
@@ -450,17 +461,19 @@ class TestFolder:
             )
 
             # THEN we should call the method with this data
-            mocked_client_call.assert_called_once_with(
-                obj=Synapse_Folder(
-                    id=folder.id,
-                    name=folder.name,
-                    parent=folder.parent_id,
-                    description=description,
-                ),
-                set_annotations=False,
-                isRestricted=False,
-                createOrUpdate=False,
+            mocked_client_call.assert_called_once()
+            call_args = mocked_client_call.call_args
+            assert call_args.kwargs["entity_id"] == SYN_123  # From findEntityId mock
+            assert call_args.kwargs["new_version"] is False
+            assert call_args.kwargs["synapse_client"] == self.syn
+            # The request should be a dict with the folder properties
+            request_dict = call_args.kwargs["request"]
+            assert (
+                request_dict["concreteType"] == "org.sagebionetworks.repo.model.Folder"
             )
+            assert request_dict["name"] == folder.name
+            assert request_dict["parentId"] == PARENT_ID
+            assert request_dict["description"] == description
 
             # AND we should call the get method
             mocked_get.assert_called_once()
@@ -737,10 +750,13 @@ class TestFolder:
         ]
 
         # WHEN I call `sync_from_synapse` with the Folder object
-        with patch.object(
-            self.syn,
-            "getChildren",
-            return_value=(children),
+        async def mock_get_children(*args, **kwargs):
+            for child in children:
+                yield child
+
+        with patch(
+            "synapseclient.models.mixins.storable_container.get_children",
+            side_effect=mock_get_children,
         ) as mocked_children_call, patch(
             "synapseclient.api.entity_factory.get_entity_id_bundle2",
             new_callable=AsyncMock,

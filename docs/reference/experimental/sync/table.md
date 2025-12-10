@@ -36,13 +36,22 @@ at your own risk.
         - reorder_column
         - get_permissions
         - get_acl
+        - list_acl
         - set_permissions
+        - bind_schema
+        - get_schema
+        - unbind_schema
+        - validate_schema
+        - get_schema_derived_keys
         - delete_permissions
 
 [](){ #column-reference-sync }
 ::: synapseclient.models.Column
     options:
+        inherited_members: true
         members:
+        - get
+        - list
 
 [](){ #schema-storage-strategy-reference-sync }
 ::: synapseclient.models.SchemaStorageStrategy
@@ -55,6 +64,30 @@ at your own risk.
 ::: synapseclient.models.ColumnType
 [](){ #json-sub-column-reference-sync }
 ::: synapseclient.models.JsonSubColumn
+[](){ #sumfilesize-reference-sync }
+::: synapseclient.models.SumFileSizes
+[](){ #query-reference-sync }
+::: synapseclient.models.Query
+[](){ #query-bundle-request-reference-sync }
+::: synapseclient.models.QueryBundleRequest
+[](){ #query-job-reference-sync }
+::: synapseclient.models.QueryJob
+[](){ #query-next-page-token-reference-sync }
+::: synapseclient.models.QueryNextPageToken
+[](){ #query-result-reference-sync }
+::: synapseclient.models.QueryResult
+[](){ #query-result-bundle-reference-sync }
+::: synapseclient.models.QueryResultBundle
+[](){ #query-result-output-reference-sync }
+::: synapseclient.models.QueryResultOutput
+[](){ #row-reference-sync }
+::: synapseclient.models.Row
+[](){ #rowset-reference-sync }
+::: synapseclient.models.RowSet
+[](){ #select-column-reference-sync }
+::: synapseclient.models.SelectColumn
+
+
 
 
 [](){ #column-change-reference-sync }

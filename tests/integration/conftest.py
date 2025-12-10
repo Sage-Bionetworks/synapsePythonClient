@@ -12,27 +12,20 @@ import uuid
 import pytest
 import pytest_asyncio
 from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import OS_DESCRIPTION, OS_TYPE, SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (
-    BatchSpanProcessor,
-    ConsoleSpanExporter,
-    SimpleSpanProcessor,
-)
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 from pytest_asyncio import is_async_test
 
 from synapseclient import Entity, Project, Synapse
 from synapseclient.core import utils
 from synapseclient.core.async_utils import wrap_async_to_sync
-from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, SILENT_LOGGER_NAME
 from synapseclient.models import Project as Project_Model
-from synapseclient.models import Team
+from synapseclient.models import SubmissionView, Team
 
 tracer = trace.get_tracer("synapseclient")
 working_directory = tempfile.mkdtemp(prefix="someTestFolder")
-Synapse.allow_client_caching = False
+Synapse.allow_client_caching(False)
 
 
 def pytest_collection_modifyitems(items) -> None:
@@ -41,7 +34,7 @@ def pytest_collection_modifyitems(items) -> None:
 
     I want to run all tests, even if they are not explictly async, within the same event
     loop. This will allow our async_to_sync wrapper logic use the same event loop
-    for all tests. This implictly allows us to re-use the HTTP connection pooling for
+    for all tests. This implicitly allows us to re-use the HTTP connection pooling for
     all tests.
     """
     pytest_asyncio_tests = (item for item in items if is_async_test(item))
@@ -58,7 +51,7 @@ def syn(request) -> Synapse:
     """
     print("Python version:", sys.version)
 
-    syn = Synapse(debug=False, skip_checks=True)
+    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
     print("Testing against endpoints:")
     print("  " + syn.repoEndpoint)
     print("  " + syn.authEndpoint)
@@ -80,6 +73,27 @@ def syn(request) -> Synapse:
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
+def syn_with_logger(request) -> Synapse:
+    """
+    Create a logged in Synapse instance that can be shared by all tests in the session.
+    If xdist is being used a syn is created for each worker node.
+    """
+    print("Python version:", sys.version)
+
+    syn = Synapse(debug=False, skip_checks=True, cache_client=False)
+    print("Testing against endpoints:")
+    print("  " + syn.repoEndpoint)
+    print("  " + syn.authEndpoint)
+    print("  " + syn.fileHandleEndpoint)
+    print("  " + syn.portalEndpoint + "\n")
+
+    syn.logger = logging.getLogger(DEFAULT_LOGGER_NAME)
+    syn.login(profile=os.getenv("SYNAPSE_PROFILE", "default"))
+
+    return syn
+
+
+@pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def project_model(request, syn: Synapse) -> Project_Model:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
@@ -89,10 +103,10 @@ async def project_model(request, syn: Synapse) -> Project_Model:
     # Make one project for all the tests to use
     proj = await Project_Model(
         name="integration_test_project" + str(uuid.uuid4())
-    ).store_async()
+    ).store_async(synapse_client=syn)
 
     def project_teardown() -> None:
-        wrap_async_to_sync(_cleanup(syn, [working_directory, proj.id]), syn)
+        wrap_async_to_sync(_cleanup(syn, [working_directory, proj.id]))
 
     request.addfinalizer(project_teardown)
 
@@ -100,7 +114,7 @@ async def project_model(request, syn: Synapse) -> Project_Model:
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
-async def project(request, syn: Synapse) -> Project:
+def project(request, syn: Synapse) -> Project:
     """
     Create a project to be shared by all tests in the session. If xdist is being used
     a project is created for each worker node.
@@ -110,27 +124,11 @@ async def project(request, syn: Synapse) -> Project:
     proj = syn.store(Project(name="integration_test_project" + str(uuid.uuid4())))
 
     def project_teardown():
-        wrap_async_to_sync(_cleanup(syn, [working_directory, proj]), syn)
+        wrap_async_to_sync(_cleanup(syn, [working_directory, proj]))
 
     request.addfinalizer(project_teardown)
 
     return proj
-
-
-@pytest.fixture(scope="function", autouse=True)
-def clear_cache() -> None:
-    """
-    Clear all LRU caches before each test to avoid any side effects.
-    """
-    from synapseclient.api.entity_services import get_upload_destination
-
-    # Clear the cache before each test
-    get_upload_destination.cache_clear()
-
-    yield
-
-    # Clear the cache after each test
-    get_upload_destination.cache_clear()
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -145,7 +143,7 @@ async def schedule_for_cleanup(request, syn: Synapse):
         items.append(item)
 
     def cleanup_scheduled_items():
-        wrap_async_to_sync(_cleanup(syn, items), syn)
+        wrap_async_to_sync(_cleanup(syn, items))
 
     request.addfinalizer(cleanup_scheduled_items)
 
@@ -178,7 +176,15 @@ async def _cleanup(syn: Synapse, items):
                     print(ex)
         elif isinstance(item, Team):
             try:
-                item.delete()
+                await item.delete_async(synapse_client=syn)
+            except Exception as ex:
+                if hasattr(ex, "response") and ex.response.status_code in [404, 403]:
+                    pass
+                else:
+                    print("Error cleaning up entity: " + str(ex))
+        elif isinstance(item, SubmissionView):
+            try:
+                await item.delete_async(synapse_client=syn)
             except Exception as ex:
                 if hasattr(ex, "response") and ex.response.status_code in [404, 403]:
                     pass
@@ -188,21 +194,6 @@ async def _cleanup(syn: Synapse, items):
             sys.stderr.write("Don't know how to clean: %s" % str(item))
 
 
-class FileSpanExporter(ConsoleSpanExporter):
-    """Create an exporter for OTEL data to a file."""
-
-    def __init__(self, file_path) -> None:
-        """Init with a path."""
-        self.file_path = file_path
-
-    def export(self, spans) -> None:
-        """Export the spans to the file."""
-        with open(self.file_path, "a", encoding="utf-8") as f:
-            for span in spans:
-                span_json_one_line = span.to_json().replace("\n", "") + "\n"
-                f.write(span_json_one_line)
-
-
 active_span_processors = []
 
 
@@ -210,41 +201,11 @@ active_span_processors = []
 def setup_otel():
     """
     Handles setting up the OpenTelemetry tracer provider for integration tests.
-    Depending on the environment variables set, the provider will be configured
-    to export to the console, a file, or to an OTLP endpoint.
     """
     # Setup
-    exporter_type = os.environ.get("SYNAPSE_OTEL_INTEGRATION_TEST_EXPORTER", None)
-    if exporter_type:
-        Synapse.enable_open_telemetry(True)
-        trace.set_tracer_provider(
-            TracerProvider(
-                resource=Resource(
-                    attributes={
-                        SERVICE_NAME: "syn_int_tests",
-                        OS_DESCRIPTION: platform.release(),
-                        OS_TYPE: platform.system(),
-                    }
-                ),
-            )
-        )
-        if exporter_type == "otlp":
-            processor = BatchSpanProcessor(OTLPSpanExporter())
-            active_span_processors.append(processor)
-            trace.get_tracer_provider().add_span_processor(processor)
-        elif exporter_type == "console":
-            processor = BatchSpanProcessor(ConsoleSpanExporter())
-            active_span_processors.append(processor)
-            trace.get_tracer_provider().add_span_processor(processor)
-        elif exporter_type == "file":
-            timestamp_millis = int(time.time() * 1000)
-            file_name = f"otel_spans_integration_testing_{timestamp_millis}.ndjson"
-            file_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), file_name
-            )
-            processor = SimpleSpanProcessor(FileSpanExporter(file_path))
-            active_span_processors.append(processor)
-            trace.get_tracer_provider().add_span_processor(processor)
+    tests_enabled = os.environ.get("SYNAPSE_INTEGRATION_TEST_OTEL_ENABLED", False)
+    if tests_enabled:
+        Synapse.enable_open_telemetry()
     else:
         trace.set_tracer_provider(TracerProvider(sampler=ALWAYS_OFF))
 

@@ -4,7 +4,8 @@ JSON Schema
 ***********
 
 !!! warning
-    This is a beta implementation and is subject to change.  Use at your own risk.
+    Everything in this module has been deprecated.
+    Use synapseclient.models.SchemaOrganization and synapseclient.models.JSONSchema instead.
 """
 
 from __future__ import annotations
@@ -12,6 +13,8 @@ from __future__ import annotations
 import json
 from functools import wraps
 from typing import Mapping, Optional, Sequence, Union
+
+from deprecated import deprecated
 
 from synapseclient.client import Synapse
 from synapseclient.core.exceptions import SynapseAuthenticationError, SynapseHTTPError
@@ -21,6 +24,10 @@ from synapseclient.entity import Entity
 DEFAULT_ACCESS = ("CHANGE_PERMISSIONS", "DELETE", "READ", "CREATE", "UPDATE")
 
 
+@deprecated(
+    version="4.11.0",
+    reason="To be removed in 5.0.0. Use synapseclient.models.JSONSchema instead.",
+)
 class JsonSchemaVersion:
     """Json schema version response object
 
@@ -149,6 +156,10 @@ class JsonSchemaVersion:
         return response
 
 
+@deprecated(
+    version="4.11.0",
+    reason="To be removed in 5.0.0. Use synapseclient.models.JSONSchema instead.",
+)
 class JsonSchema:
     """Json schema response object
 
@@ -272,6 +283,10 @@ class JsonSchema:
         return version
 
 
+@deprecated(
+    version="4.11.0",
+    reason="To be removed in 5.0.0. Use synapseclient.models.SchemaOrganization instead.",
+)
 class JsonSchemaOrganization:
     """Json Schema Organization
 
@@ -484,6 +499,10 @@ class JsonSchemaOrganization:
         return json_schema
 
 
+@deprecated(
+    version="4.11.0",
+    reason="To be removed in 5.0.0.",
+)
 class JsonSchemaService:
     """Json Schema Service
 
@@ -686,14 +705,21 @@ class JsonSchemaService:
         return response
 
     @authentication_required
-    def bind_json_schema_to_entity(self, synapse_id: str, json_schema_uri: str):
+    def bind_json_schema_to_entity(
+        self,
+        synapse_id: str,
+        json_schema_uri: str,
+    ):
         """Bind a JSON schema to an entity
 
         Arguments:
             synapse_id:      Synapse Id
             json_schema_uri: JSON schema URI
         """
-        request_body = {"entityId": synapse_id, "schema$id": json_schema_uri}
+        request_body = {
+            "entityId": synapse_id,
+            "schema$id": json_schema_uri,
+        }
         response = self.synapse.restPUT(
             f"/entity/{synapse_id}/schema/binding", body=json.dumps(request_body)
         )

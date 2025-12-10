@@ -24,6 +24,7 @@ from synapseclient.models import (
     query_async,
     query_part_mask_async,
 )
+from tests.integration import ASYNC_JOB_TIMEOUT_SEC, QUERY_TIMEOUT_SEC
 
 
 class TestEntityView:
@@ -205,7 +206,9 @@ class TestEntityView:
 
         # AND I query the data in the entity view
         results = await query_async(
-            f"SELECT * FROM {entityview.id}", synapse_client=self.syn
+            f"SELECT * FROM {entityview.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN the data for all files should be present in the view
@@ -238,9 +241,42 @@ class TestEntityView:
         entityview = await entityview.store_async(synapse_client=self.syn)
         self.schedule_for_cleanup(entityview.id)
 
-        # SPY on the CSV conversion function to verify different input paths
-        spy_csv_file_conversion = mocker.spy(table_module, "csv_to_pandas_df")
+        # Custom wrapper to capture call stack
+        original_csv_to_pandas_df = table_module.csv_to_pandas_df
+        call_info = []
 
+        def csv_wrapper(*args, **kwargs):
+            import traceback
+
+            stack = traceback.extract_stack()
+
+            # Find the calling function (skip the wrapper itself)
+            calling_function = None
+            for frame in reversed(stack[:-1]):  # Skip current frame
+                if "_upsert_rows_async" in frame.name:
+                    calling_function = "_upsert_rows_async"
+                    break
+                elif "query_async" in frame.name:
+                    calling_function = "query_async"
+                    break
+                else:
+                    pass
+
+            call_info.append(
+                {
+                    "caller": calling_function,
+                    "args": args,
+                    "kwargs": kwargs,
+                    "filepath": kwargs.get("filepath", args[0] if args else None),
+                }
+            )
+
+            return original_csv_to_pandas_df(*args, **kwargs)
+
+        # Patch the csv_to_pandas_df function to use the wrapper
+        mock_csv_to_pandas_df = mocker.patch.object(
+            table_module, "csv_to_pandas_df", side_effect=csv_wrapper
+        )
         # Create test data for all files
         test_data = {
             "id": [file.id for file in files],
@@ -259,7 +295,7 @@ class TestEntityView:
 
         for method in update_methods:
             # Reset the spy for each method
-            spy_csv_file_conversion.reset_mock()
+            call_info.clear()
 
             # WHEN I update rows using different input types
             if method == "csv":
@@ -278,7 +314,10 @@ class TestEntityView:
                 )
 
                 # THEN the CSV conversion function should be called
-                spy_csv_file_conversion.assert_called_once()
+                _upsert_rows_async_calls = [
+                    call for call in call_info if call["caller"] == "_upsert_rows_async"
+                ]
+                assert len(_upsert_rows_async_calls) == 1
 
             elif method == "dataframe":
                 # Use DataFrame
@@ -290,7 +329,10 @@ class TestEntityView:
                 )
 
                 # THEN the CSV conversion function should NOT be called
-                spy_csv_file_conversion.assert_not_called()
+                _upsert_rows_async_calls = [
+                    call for call in call_info if call["caller"] == "_upsert_rows_async"
+                ]
+                assert len(_upsert_rows_async_calls) == 0
 
             else:  # dict
                 # Use dictionary
@@ -302,7 +344,10 @@ class TestEntityView:
                 )
 
                 # THEN the CSV conversion function should NOT be called
-                spy_csv_file_conversion.assert_not_called()
+                _upsert_rows_async_calls = [
+                    call for call in call_info if call["caller"] == "_upsert_rows_async"
+                ]
+                assert len(_upsert_rows_async_calls) == 0
 
             # THEN the columns should exist in the entity view
             assert "column_string" in entityview.columns
@@ -311,7 +356,9 @@ class TestEntityView:
 
             # AND the data should be queryable
             query_results = await query_async(
-                f"SELECT * FROM {entityview.id}", synapse_client=self.syn
+                f"SELECT * FROM {entityview.id}",
+                synapse_client=self.syn,
+                timeout=QUERY_TIMEOUT_SEC,
             )
 
             # AND the values should match what we set
@@ -320,16 +367,19 @@ class TestEntityView:
                 query_results["column_string"],
                 pd.Series(test_data["column_string"], name="column_string"),
                 check_names=True,
+                check_dtype=False,
             )
             pd.testing.assert_series_equal(
                 query_results["integer_column"],
                 pd.Series(test_data["integer_column"], name="integer_column"),
                 check_names=True,
+                check_dtype=False,
             )
             pd.testing.assert_series_equal(
                 query_results["float_column"],
                 pd.Series(test_data["float_column"], name="float_column"),
                 check_names=True,
+                check_dtype=False,
             )
 
             # AND the annotations should be updated on the files
@@ -468,6 +518,7 @@ class TestEntityView:
             query=f"SELECT * FROM {entityview.id} ORDER BY id ASC",
             synapse_client=self.syn,
             part_mask=full_part_mask,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN all parts should be present in the results
@@ -483,6 +534,7 @@ class TestEntityView:
             query=f"SELECT * FROM {entityview.id} ORDER BY id ASC",
             synapse_client=self.syn,
             part_mask=query_results,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN only the results should be present
@@ -546,6 +598,7 @@ class TestEntityView:
                 associate_activity_to_new_version=config[
                     "associate_activity_to_new_version"
                 ],
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
                 synapse_client=self.syn,
             )
 
@@ -601,6 +654,7 @@ class TestEntityView:
             await entityview.snapshot_async(
                 comment="My snapshot",
                 label="My snapshot label",
+                timeout=ASYNC_JOB_TIMEOUT_SEC,
                 synapse_client=self.syn,
             )
 

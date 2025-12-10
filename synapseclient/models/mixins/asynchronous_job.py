@@ -12,6 +12,12 @@ from typing_extensions import Self
 from synapseclient import Synapse
 from synapseclient.core.constants.concrete_types import (
     AGENT_CHAT_REQUEST,
+    CREATE_GRID_REQUEST,
+    CREATE_SCHEMA_REQUEST,
+    GET_VALIDATION_SCHEMA_REQUEST,
+    GRID_RECORD_SET_EXPORT_REQUEST,
+    QUERY_BUNDLE_REQUEST,
+    QUERY_TABLE_CSV_REQUEST,
     TABLE_UPDATE_TRANSACTION_REQUEST,
 )
 from synapseclient.core.exceptions import (
@@ -22,7 +28,13 @@ from synapseclient.core.exceptions import (
 
 ASYNC_JOB_URIS = {
     AGENT_CHAT_REQUEST: "/agent/chat/async",
+    CREATE_GRID_REQUEST: "/grid/session/async",
+    GRID_RECORD_SET_EXPORT_REQUEST: "/grid/export/recordset/async",
     TABLE_UPDATE_TRANSACTION_REQUEST: "/entity/{entityId}/table/transaction/async",
+    GET_VALIDATION_SCHEMA_REQUEST: "/schema/type/validation/async",
+    CREATE_SCHEMA_REQUEST: "/schema/type/create/async",
+    QUERY_TABLE_CSV_REQUEST: "/entity/{entityId}/table/download/csv/async",
+    QUERY_BUNDLE_REQUEST: "/entity/{entityId}/table/query/async",
 }
 
 
@@ -59,7 +71,7 @@ class AsynchronousCommunicator:
     async def send_job_and_wait_async(
         self,
         post_exchange_args: Optional[Dict[str, Any]] = None,
-        timeout: int = 60,
+        timeout: int = 120,
         *,
         synapse_client: Optional[Synapse] = None,
     ) -> "Self":
@@ -73,7 +85,7 @@ class AsynchronousCommunicator:
         Arguments:
             post_exchange_args: Additional arguments to pass to the request.
             timeout: The number of seconds to wait for the job to complete or progress
-                before raising a SynapseTimeoutError. Defaults to 60.
+                before raising a SynapseTimeoutError. Defaults to 120.
             synapse_client: If not passed in and caching was not disabled by
                     `Synapse.allow_client_caching(False)` this will use the last created
                     instance from the Synapse class constructor.
@@ -287,7 +299,7 @@ async def send_job_and_wait_async(
     request: Dict[str, Any],
     request_type: str,
     endpoint: str = None,
-    timeout: int = 60,
+    timeout: int = 120,
     *,
     synapse_client: Optional["Synapse"] = None,
 ) -> Dict[str, Any]:
@@ -299,7 +311,7 @@ async def send_job_and_wait_async(
         request: A request matching <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousRequestBody.html>.
         endpoint: The endpoint to use for the request. Defaults to None.
         timeout: The number of seconds to wait for the job to complete or progress
-            before raising a SynapseTimeoutError. Defaults to 60.
+            before raising a SynapseTimeoutError. Defaults to 120.
         synapse_client: If not passed in and caching was not disabled by
                 `Synapse.allow_client_caching(False)` this will use the last created
                 instance from the Synapse class constructor.
@@ -394,7 +406,7 @@ async def get_job_async(
     request_type: str,
     endpoint: str = None,
     sleep: int = 1,
-    timeout: int = 60,
+    timeout: int = 120,
     request: Dict[str, Any] = None,
     *,
     synapse_client: Optional["Synapse"] = None,
@@ -408,7 +420,7 @@ async def get_job_async(
         endpoint: The endpoint to use for the request. Defaults to None.
         sleep: The number of seconds to wait between requests. Defaults to 1.
         timeout: The number of seconds to wait for the job to complete or progress
-            before raising a SynapseTimeoutError. Defaults to 60.
+            before raising a SynapseTimeoutError. Defaults to 120.
         request: The original request that was sent to the server that created the job.
             Required if the request type is one that requires additional information.
         synapse_client: If not passed in and caching was not disabled by

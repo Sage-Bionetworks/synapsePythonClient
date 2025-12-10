@@ -66,7 +66,7 @@ class TestDataset:
             content_type=CONTENT_TYPE,
         )
 
-    async def create_dataset_with_items(
+    def create_dataset_with_items(
         self,
         project_model: Project,
         files: Optional[List[File]] = None,
@@ -86,13 +86,15 @@ class TestDataset:
         # Add files if provided
         if files:
             for file in files:
-                stored_file = file.store(parent=project_model)
+                stored_file = file.store(parent=project_model, synapse_client=self.syn)
                 dataset.add_item(stored_file)
 
         # Add folders if provided
         if folders:
             for folder in folders:
-                stored_folder = folder.store(parent=project_model)
+                stored_folder = folder.store(
+                    parent=project_model, synapse_client=self.syn
+                )
                 dataset.add_item(stored_folder)
 
         # Store the dataset
@@ -101,7 +103,7 @@ class TestDataset:
 
         return dataset
 
-    async def test_dataset_basic_operations(self, project_model: Project) -> None:
+    def test_dataset_basic_operations(self, project_model: Project) -> None:
         """Test dataset creation, retrieval, updating and deletion"""
         # GIVEN a name and description for a dataset
         dataset_name = str(uuid.uuid4())
@@ -151,7 +153,7 @@ class TestDataset:
         ):
             Dataset(id=dataset.id).get(synapse_client=self.syn)
 
-    async def test_dataset_with_items(self, project_model: Project) -> None:
+    def test_dataset_with_items(self, project_model: Project) -> None:
         """Test creating and managing a dataset with various items (files, folders)"""
         # GIVEN 3 files and a folder with 2 files
         files = [self.create_file_instance() for _ in range(3)]
@@ -161,11 +163,11 @@ class TestDataset:
         # WHEN I store the files and folder
         stored_files = []
         for file in files:
-            stored_file = file.store(parent=project_model)
+            stored_file = file.store(parent=project_model, synapse_client=self.syn)
             stored_files.append(stored_file)
 
         folder.files = folder_files
-        stored_folder = folder.store(parent=project_model)
+        stored_folder = folder.store(parent=project_model, synapse_client=self.syn)
 
         # AND create a dataset with these items
         dataset = Dataset(
@@ -176,10 +178,10 @@ class TestDataset:
 
         # Add individual files
         for file in stored_files:
-            dataset.add_item(file)
+            dataset.add_item(file, synapse_client=self.syn)
 
         # Add folder
-        dataset.add_item(stored_folder)
+        dataset.add_item(stored_folder, synapse_client=self.syn)
 
         # Store the dataset
         dataset = dataset.store(synapse_client=self.syn)
@@ -201,7 +203,7 @@ class TestDataset:
             assert item in retrieved_dataset.items
 
         # WHEN I remove one file from the dataset
-        dataset.remove_item(stored_files[0])
+        dataset.remove_item(stored_files[0], synapse_client=self.syn)
         dataset.store(synapse_client=self.syn)
 
         # THEN that file should no longer be in the dataset
@@ -212,11 +214,11 @@ class TestDataset:
         )
         assert len(updated_dataset.items) == len(expected_items) - 1
 
-    async def test_dataset_query_operations(self, project_model: Project) -> None:
+    def test_dataset_query_operations(self, project_model: Project) -> None:
         """Test querying a dataset and different query modes"""
         # GIVEN a dataset with a file and custom column
         file = self.create_file_instance()
-        stored_file = file.store(parent=project_model)
+        stored_file = file.store(parent=project_model, synapse_client=self.syn)
 
         dataset = Dataset(
             name=str(uuid.uuid4()),
@@ -224,7 +226,7 @@ class TestDataset:
             parent_id=project_model.id,
             columns=[Column(name="my_annotation", column_type=ColumnType.STRING)],
         )
-        dataset.add_item(stored_file)
+        dataset.add_item(stored_file, synapse_client=self.syn)
         dataset = dataset.store(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset.id)
 
@@ -240,11 +242,13 @@ class TestDataset:
             primary_keys=["id"],
             wait_for_eventually_consistent_view=True,
             dry_run=False,
+            synapse_client=self.syn,
         )
 
         # THEN I can query the data
         row = Dataset.query(
-            query=f"SELECT * FROM {dataset.id} WHERE id = '{stored_file.id}'"
+            query=f"SELECT * FROM {dataset.id} WHERE id = '{stored_file.id}'",
+            synapse_client=self.syn,
         )
 
         # AND the query results should match the expected values
@@ -285,10 +289,10 @@ class TestDataset:
         assert results_only.sum_file_sizes is None
         assert results_only.last_updated_on is None
 
-    async def test_dataset_column_operations(self, project_model: Project) -> None:
+    def test_dataset_column_operations(self, project_model: Project) -> None:
         """Test operations on dataset columns: add, rename, reorder, delete"""
         # GIVEN a dataset with no custom columns
-        dataset = await self.create_dataset_with_items(project_model)
+        dataset = self.create_dataset_with_items(project_model)
 
         # WHEN I add a column to the dataset
         column_name = "test_column"
@@ -337,14 +341,14 @@ class TestDataset:
         assert second_column not in updated_dataset.columns
         assert new_name in updated_dataset.columns
 
-    async def test_dataset_versioning(self, project_model: Project) -> None:
+    def test_dataset_versioning(self, project_model: Project) -> None:
         """Test creating snapshots and versioning of datasets"""
         # GIVEN a dataset and two files
         file1 = self.create_file_instance()
         file2 = self.create_file_instance()
 
-        file1 = file1.store(parent=project_model)
-        file2 = file2.store(parent=project_model)
+        file1 = file1.store(parent=project_model, synapse_client=self.syn)
+        file2 = file2.store(parent=project_model, synapse_client=self.syn)
 
         dataset = Dataset(
             name=str(uuid.uuid4()),
@@ -355,12 +359,12 @@ class TestDataset:
         self.schedule_for_cleanup(dataset.id)
 
         # WHEN I add the first file and create a snapshot
-        dataset.add_item(file1)
+        dataset.add_item(file1, synapse_client=self.syn)
         dataset.store(synapse_client=self.syn)
         dataset.snapshot(synapse_client=self.syn)
 
         # AND I add the second file and create another snapshot
-        dataset.add_item(file2)
+        dataset.add_item(file2, synapse_client=self.syn)
         dataset.store(synapse_client=self.syn)
         dataset.snapshot(synapse_client=self.syn)
 
@@ -400,9 +404,7 @@ class TestDatasetCollection:
             content_type=CONTENT_TYPE,
         )
 
-    async def create_dataset(
-        self, project_model: Project, has_file: bool = False
-    ) -> Dataset:
+    def create_dataset(self, project_model: Project, has_file: bool = False) -> Dataset:
         """Helper to create a dataset"""
         dataset = Dataset(
             name=str(uuid.uuid4()),
@@ -412,18 +414,18 @@ class TestDatasetCollection:
 
         if has_file:
             file = self.create_file_instance()
-            stored_file = file.store(parent=project_model)
-            dataset.add_item(stored_file)
+            stored_file = file.store(parent=project_model, synapse_client=self.syn)
+            dataset.add_item(stored_file, synapse_client=self.syn)
 
         dataset = dataset.store(synapse_client=self.syn)
         self.schedule_for_cleanup(dataset.id)
         return dataset
 
-    async def test_dataset_collection_lifecycle(self, project_model: Project) -> None:
+    def test_dataset_collection_lifecycle(self, project_model: Project) -> None:
         """Test creating, updating, and deleting a DatasetCollection"""
         # GIVEN two datasets
-        dataset1 = await self.create_dataset(project_model, has_file=True)
-        dataset2 = await self.create_dataset(project_model, has_file=True)
+        dataset1 = self.create_dataset(project_model, has_file=True)
+        dataset2 = self.create_dataset(project_model, has_file=True)
 
         # WHEN I create a DatasetCollection with the first dataset
         collection = DatasetCollection(
@@ -480,10 +482,10 @@ class TestDatasetCollection:
         ):
             DatasetCollection(id=collection.id).get(synapse_client=self.syn)
 
-    async def test_dataset_collection_queries(self, project_model: Project) -> None:
+    def test_dataset_collection_queries(self, project_model: Project) -> None:
         """Test querying DatasetCollections with various part masks"""
         # GIVEN a dataset and a collection with that dataset
-        dataset = await self.create_dataset(project_model, has_file=True)
+        dataset = self.create_dataset(project_model, has_file=True)
 
         collection = DatasetCollection(
             name=str(uuid.uuid4()),
@@ -507,11 +509,13 @@ class TestDatasetCollection:
             primary_keys=["id"],
             wait_for_eventually_consistent_view=True,
             dry_run=False,
+            synapse_client=self.syn,
         )
 
         # THEN I can query and get the updated data
         row = DatasetCollection.query(
-            query=f"SELECT * FROM {collection.id} WHERE id = '{dataset.id}'"
+            query=f"SELECT * FROM {collection.id} WHERE id = '{dataset.id}'",
+            synapse_client=self.syn,
         )
         assert row["id"][0] == dataset.id
         assert row["name"][0] == dataset.name
@@ -544,7 +548,9 @@ class TestDatasetCollection:
 
         # WHEN I query with only results
         results_only = DatasetCollection.query_part_mask(
-            query=f"SELECT * FROM {collection.id}", part_mask=QUERY_RESULTS
+            query=f"SELECT * FROM {collection.id}",
+            part_mask=QUERY_RESULTS,
+            synapse_client=self.syn,
         )
         # THEN the data in the columns should match
         assert results_only.result["id"][0] == dataset.id
@@ -556,7 +562,7 @@ class TestDatasetCollection:
         assert results_only.sum_file_sizes is None
         assert results_only.last_updated_on is None
 
-    async def test_dataset_collection_columns(self, project_model: Project) -> None:
+    def test_dataset_collection_columns(self, project_model: Project) -> None:
         """Test column operations on DatasetCollections"""
         # GIVEN a DatasetCollection
         collection = DatasetCollection(
@@ -608,11 +614,12 @@ class TestDatasetCollection:
         assert second_col not in updated.columns
         assert new_name in updated.columns
 
-    async def test_dataset_collection_versioning(self, project_model: Project) -> None:
+    def test_dataset_collection_versioning(self, project_model: Project) -> None:
         """Test versioning of DatasetCollections"""
+
         # GIVEN a DatasetCollection and datasets
-        dataset1 = await self.create_dataset(project_model)
-        dataset2 = await self.create_dataset(project_model)
+        dataset1 = self.create_dataset(project_model)
+        dataset2 = self.create_dataset(project_model)
 
         collection = DatasetCollection(
             name=str(uuid.uuid4()),
@@ -627,7 +634,7 @@ class TestDatasetCollection:
         collection.snapshot(synapse_client=self.syn)
 
         # AND I update the collection and make version 2
-        collection.name = "Updated collection"
+        collection.name = f"Updated collection {uuid.uuid4()}"
         collection.add_item(dataset2)
         collection.store(synapse_client=self.syn)
         collection.snapshot(synapse_client=self.syn)
@@ -644,6 +651,6 @@ class TestDatasetCollection:
             synapse_client=self.syn
         )
         assert len(v2.items) == 2
-        assert v2.name == "Updated collection"
+        assert v2.name == collection.name
         assert EntityRef(id=dataset1.id, version=dataset1.version_number) in v2.items
         assert EntityRef(id=dataset2.id, version=dataset2.version_number) in v2.items

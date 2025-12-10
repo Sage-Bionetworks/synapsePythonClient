@@ -67,6 +67,7 @@ import gc
 import mimetypes
 import os
 import threading
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import (
@@ -104,6 +105,7 @@ from synapseclient.core.exceptions import (
     SynapseUploadFailedException,
     _raise_for_status_httpx,
 )
+from synapseclient.core.otel_config import get_tracer
 from synapseclient.core.retry import with_retry_time_based
 from synapseclient.core.upload.upload_utils import (
     copy_md5_fn,
@@ -132,6 +134,7 @@ DEFAULT_PART_SIZE = 8 * MB
 MAX_RETRIES = 7
 
 _thread_local = threading.local()
+tracer = get_tracer()
 
 
 @contextmanager
@@ -199,6 +202,8 @@ class UploadAttemptAsync:
         self._upload_id: Optional[str] = None
         self._pre_signed_part_urls: Optional[Mapping[int, str]] = None
         self._progress_bar = None
+        self._current_span = trace.get_current_span()
+        self._current_span.set_attribute("synapse.file.name", dest_file_name or "")
 
     async def __call__(self) -> Dict[str, str]:
         """Orchestrate the upload of a file to Synapse."""
@@ -222,7 +227,32 @@ class UploadAttemptAsync:
                 await self._upload_parts(part_count, remaining_part_numbers)
             upload_status_response = await self._complete_upload()
 
+        trace.get_current_span().set_attributes(
+            {
+                "synapse.file_handle_id": upload_status_response.get(
+                    "resultFileHandleId", ""
+                ),
+            }
+        )
+
         return upload_status_response
+
+    def record_span_event(
+        self, event_name: str, attributes: Optional[dict] = None
+    ) -> None:
+        """
+        Record an event in the current span with the given name and attributes.
+
+        Arguments:
+            event_name: The name of the event to record.
+            attributes: Optional dictionary of attributes to attach to the event.
+        """
+        if not event_name or not attributes:
+            return
+
+        with self._thread_lock:
+            if self._current_span and self._current_span.is_recording():
+                self._current_span.add_event(event_name, attributes)
 
     @classmethod
     def _get_remaining_part_numbers(
@@ -299,8 +329,7 @@ class UploadAttemptAsync:
                     self._fetch_pre_signed_part_urls_async(
                         self._upload_id,
                         list(self._pre_signed_part_urls.keys()),
-                    ),
-                    syn=self._syn,
+                    )
                 )
 
                 refreshed_url = self._pre_signed_part_urls[part_number]
@@ -571,6 +600,8 @@ class UploadAttemptAsync:
             SynapseHTTPError: If the put fails.
         """
         response = None
+        chunk_transfer_start_time = time.time()
+        start = (part_number - 1) * self._part_size
         for retry in range(2):
             try:
                 # use our backoff mechanism here, we have encountered 500s on puts to AWS signed urls
@@ -609,6 +640,18 @@ class UploadAttemptAsync:
 
                 else:
                     raise
+
+        self.record_span_event(
+            event_name="upload_chunk_completed",
+            attributes={
+                "chunk_number": part_number - 1,
+                "start_byte": start,
+                "end_byte": start + (len(body) if body else 1) - 1,
+                "file_handle_id": self._upload_request_payload.get("fileHandleId", ""),
+                "synapse_id": self._upload_request_payload.get("entityId", ""),
+                "time_to_transfer_seconds": time.time() - chunk_transfer_start_time,
+            },
+        )
         return response
 
 
@@ -851,6 +894,7 @@ async def multipart_upload_file_async(
         raise IOError(f'File "{file_path}" is a directory.')
 
     file_size = os.path.getsize(file_path)
+    trace.get_current_span().set_attribute("synapse.file.size_bytes", file_size)
     if not dest_file_name:
         dest_file_name = os.path.basename(file_path)
 
@@ -949,6 +993,7 @@ async def _multipart_upload_async(
                 raise
 
 
+@tracer.start_as_current_span("synapse.transfer.upload")
 async def multipart_upload_string_async(
     syn: "Synapse",
     text: str,
@@ -983,6 +1028,11 @@ async def multipart_upload_string_async(
     data = text.encode("utf-8")
     file_size = len(data)
     md5_hex = md5_fn_util(data, None)
+
+    span = trace.get_current_span()
+    span.set_attribute("synapse.transfer.direction", "upload")
+    span.set_attribute("synapse.operation.category", "file_transfer")
+    span.set_attribute("synapse.file.size_bytes", file_size)
 
     if not dest_file_name:
         dest_file_name = "message.txt"

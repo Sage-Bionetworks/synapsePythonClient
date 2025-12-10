@@ -33,6 +33,8 @@ from synapseclient import (
 )
 from tests.integration import QUERY_TIMEOUT_SEC
 
+# from unittest import skip
+
 
 @pytest.fixture(scope="module", autouse=True)
 def _init_query_timeout(request, syn):
@@ -45,7 +47,8 @@ def _init_query_timeout(request, syn):
     request.addfinalizer(revert_timeout)
 
 
-async def test_create_and_update_file_view(
+# @skip("Skip integration tests for soon to be removed code")
+def test_create_and_update_file_view(
     syn: Synapse, project: Project, schedule_for_cleanup
 ):
     # Create a folder
@@ -164,7 +167,8 @@ async def test_create_and_update_file_view(
     assert new_view_dict[0]["fileFormat"] == "PNG"
 
 
-async def test_entity_view_add_annotation_columns(syn, project, schedule_for_cleanup):
+# @skip("Skip integration tests for soon to be removed code")
+def test_entity_view_add_annotation_columns(syn, project, schedule_for_cleanup):
     folder1 = syn.store(
         Folder(
             name=str(uuid.uuid4()) + "test_entity_view_add_annotation_columns_proj1",
@@ -218,7 +222,8 @@ async def test_entity_view_add_annotation_columns(syn, project, schedule_for_cle
     syn.store(entity_view)
 
 
-async def test_rowset_tables(syn, project):
+# @skip("Skip integration tests for soon to be removed code")
+def test_rowset_tables(syn, project):
     cols = [
         Column(name="name", columnType="STRING", maximumSize=1000),
         Column(name="foo", columnType="STRING", enumValues=["foo", "bar", "bat"]),
@@ -242,7 +247,8 @@ async def test_rowset_tables(syn, project):
     assert len(row_reference_set1["rows"]) == 4
 
 
-async def test_materialized_view(syn, project):
+# @skip("Skip integration tests for soon to be removed code")
+def test_materialized_view(syn, project):
     """Test creation of materialized view"""
     # Define schema
     cols = [
@@ -307,7 +313,8 @@ async def test_materialized_view(syn, project):
     )
 
 
-async def test_dataset(syn, project):
+# @skip("Skip integration tests for soon to be removed code")
+def test_dataset(syn, project):
     cols = [
         Column(name="id", columnType="ENTITYID"),
         Column(name="name", columnType="STRING"),
@@ -326,7 +333,8 @@ async def test_dataset(syn, project):
     assert all(dataset_df.columns == ["id", "name"])
 
 
-async def test_tables_csv(syn, project):
+# @skip("Skip integration tests for soon to be removed code")
+def test_tables_csv(syn, project):
     # Define schema
     cols = [
         Column(name="Name", columnType="STRING"),
@@ -363,7 +371,8 @@ async def test_tables_csv(syn, project):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
 
-async def test_tables_pandas(syn, project):
+# @skip("Skip integration tests for soon to be removed code")
+def test_tables_pandas(syn, project):
     # create a pandas DataFrame
     df = pd.DataFrame(
         {
@@ -504,7 +513,8 @@ def dontruntest_big_csvs(syn, project, schedule_for_cleanup):
     CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
 
 
-async def test_synapse_integer_columns_with_missing_values_from_dataframe(
+# @skip("Skip integration tests for soon to be removed code")
+def test_synapse_integer_columns_with_missing_values_from_dataframe(
     syn, project, schedule_for_cleanup
 ):
     # SYNPY-267
@@ -543,7 +553,8 @@ async def test_synapse_integer_columns_with_missing_values_from_dataframe(
     assert_frame_equal(df, df2)
 
 
-async def test_store_table_datetime(syn, project):
+# @skip("Skip integration tests for soon to be removed code")
+def test_store_table_datetime(syn, project):
     current_datetime = datetime.fromtimestamp(round(time.time(), 3)).replace(
         tzinfo=timezone.utc
     )
@@ -627,7 +638,8 @@ def partial_rowset_test_state(
 class TestPartialRowSet:
     """Testing for Partial Rows."""
 
-    async def test_partial_row_view_csv_query_table(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_partial_row_view_csv_query_table(
         self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         """
@@ -636,7 +648,7 @@ class TestPartialRowSet:
         test_state = partial_rowset_test_state(
             syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
         )
-        await self._test_method(
+        self._test_method(
             syn,
             test_state.table_schema,
             "csv",
@@ -644,7 +656,8 @@ class TestPartialRowSet:
             test_state.expected_table_cells,
         )
 
-    async def test_partial_row_view_csv_query_entity_view(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_partial_row_view_csv_query_entity_view(
         self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         """
@@ -653,7 +666,7 @@ class TestPartialRowSet:
         test_state = partial_rowset_test_state(
             syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
         )
-        await self._test_method(
+        self._test_method(
             syn,
             test_state.view_schema,
             "csv",
@@ -661,7 +674,8 @@ class TestPartialRowSet:
             test_state.expected_view_cells,
         )
 
-    async def test_parital_row_rowset_query_table(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_parital_row_rowset_query_table(
         self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         """
@@ -670,7 +684,7 @@ class TestPartialRowSet:
         test_state = partial_rowset_test_state(
             syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
         )
-        await self._test_method(
+        self._test_method(
             syn,
             test_state.table_schema,
             "rowset",
@@ -678,7 +692,8 @@ class TestPartialRowSet:
             test_state.expected_table_cells,
         )
 
-    async def test_parital_row_rowset_query_entity_view(
+    # @skip("Skip integration tests for soon to be removed code")
+    def test_parital_row_rowset_query_entity_view(
         self, syn: Synapse, project: Project, schedule_for_cleanup: Callable[..., None]
     ) -> None:
         """
@@ -687,7 +702,7 @@ class TestPartialRowSet:
         test_state = partial_rowset_test_state(
             syn=syn, project=project, schedule_for_cleanup=schedule_for_cleanup
         )
-        await self._test_method(
+        self._test_method(
             syn,
             test_state.view_schema,
             "rowset",
@@ -695,9 +710,7 @@ class TestPartialRowSet:
             test_state.expected_view_cells,
         )
 
-    async def _test_method(
-        self, syn, schema, resultsAs, partial_changes, expected_results
-    ):
+    def _test_method(self, syn, schema, resultsAs, partial_changes, expected_results):
         query_results = self._query_with_retry(
             syn,
             "SELECT * FROM %s" % utils.id_of(schema),

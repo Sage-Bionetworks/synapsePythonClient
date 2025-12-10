@@ -1,4 +1,4 @@
-import asyncio
+import time
 import uuid
 from typing import Callable
 
@@ -32,9 +32,7 @@ class TestVirtualTableCreationAndManagement:
         self.schedule_for_cleanup(table.id)
         return table
 
-    async def test_virtual_table_validation_scenarios(
-        self, project_model: Project
-    ) -> None:
+    def test_virtual_table_validation_scenarios(self, project_model: Project) -> None:
         # GIVEN different virtual table scenarios with validation issues
 
         # Test case 1: Empty defining SQL
@@ -47,9 +45,8 @@ class TestVirtualTableCreationAndManagement:
 
         # WHEN/THEN empty SQL should be rejected
         with pytest.raises(
-            SynapseHTTPError,
-            match="400 Client Error: The definingSQL of the virtual table is required "
-            "and must not be the empty string.",
+            ValueError,
+            match="The defining_sql attribute must be set for a",
         ):
             empty_sql_virtual_table.store(synapse_client=self.syn)
 
@@ -90,9 +87,7 @@ class TestVirtualTableCreationAndManagement:
         ):
             invalid_sql_virtual_table.store(synapse_client=self.syn)
 
-    async def test_virtual_table_lifecycle(
-        self, base_table_with_columns: Table
-    ) -> None:
+    def test_virtual_table_lifecycle(self, base_table_with_columns: Table) -> None:
         # GIVEN a table with columns and a new virtual table
         table = base_table_with_columns
         virtual_table_name = str(uuid.uuid4())
@@ -159,7 +154,7 @@ class TestVirtualTableWithDataOperations:
         self.schedule_for_cleanup = schedule_for_cleanup
 
     @pytest.fixture(scope="function")
-    async def base_table_with_data(self, project_model: Project) -> Table:
+    def base_table_with_data(self, project_model: Project) -> Table:
         # Create a table with columns and data
         table_name = str(uuid.uuid4())
         table = Table(
@@ -186,7 +181,7 @@ class TestVirtualTableWithDataOperations:
 
         return table
 
-    async def test_virtual_table_data_queries(
+    def test_virtual_table_data_queries(
         self, project_model: Project, base_table_with_data: Table
     ) -> None:
         # GIVEN a table with data and various virtual tables with different SQL transformations
@@ -229,7 +224,7 @@ class TestVirtualTableWithDataOperations:
         self.schedule_for_cleanup(virtual_table_ordered.id)
 
         # Wait for the virtual tables to be ready
-        await asyncio.sleep(2)
+        time.sleep(2)
 
         # WHEN querying the full-data virtual table
         all_result = virtual_table_all.query(
@@ -275,9 +270,7 @@ class TestVirtualTableWithDataOperations:
         assert ordered_result["age"].tolist() == [35, 30, 25]
         assert ordered_result["name"].tolist() == ["Charlie", "Alice", "Bob"]
 
-    async def test_virtual_table_data_synchronization(
-        self, project_model: Project
-    ) -> None:
+    def test_virtual_table_data_synchronization(self, project_model: Project) -> None:
         # GIVEN a table with columns but no initial data
         table_name = str(uuid.uuid4())
         table = Table(
@@ -301,7 +294,7 @@ class TestVirtualTableWithDataOperations:
         self.schedule_for_cleanup(virtual_table.id)
 
         # Wait for the virtual table to be ready
-        await asyncio.sleep(2)
+        time.sleep(2)
 
         # WHEN querying the virtual table with empty source table
         empty_result = virtual_table.query(
@@ -316,7 +309,7 @@ class TestVirtualTableWithDataOperations:
         table.store_rows(data, synapse_client=self.syn)
 
         # Wait for the updates to propagate
-        await asyncio.sleep(2)
+        time.sleep(2)
 
         # AND querying the virtual table again
         added_data_result = virtual_table.query(
@@ -334,7 +327,7 @@ class TestVirtualTableWithDataOperations:
         )
 
         # Wait for changes to propagate
-        await asyncio.sleep(2)
+        time.sleep(2)
 
         # AND querying the virtual table again
         removed_data_result = virtual_table.query(
@@ -344,7 +337,7 @@ class TestVirtualTableWithDataOperations:
         # THEN the virtual table should reflect the removed data
         assert len(removed_data_result) == 0
 
-    async def test_virtual_table_sql_updates(
+    def test_virtual_table_sql_updates(
         self, project_model: Project, base_table_with_data: Table
     ) -> None:
         # GIVEN a table with data and a virtual table with initial SQL
@@ -358,7 +351,7 @@ class TestVirtualTableWithDataOperations:
         self.schedule_for_cleanup(virtual_table.id)
 
         # Wait for the virtual table to be ready
-        await asyncio.sleep(2)
+        time.sleep(2)
 
         # WHEN querying the virtual table with initial SQL
         initial_result = virtual_table.query(
@@ -376,7 +369,7 @@ class TestVirtualTableWithDataOperations:
         virtual_table = virtual_table.store(synapse_client=self.syn)
 
         # Wait for the update to propagate
-        await asyncio.sleep(2)
+        time.sleep(2)
 
         # AND querying the virtual table again
         updated_result = virtual_table.query(
@@ -397,7 +390,7 @@ class TestVirtualTableWithDataOperations:
         assert "city" in retrieved_virtual_table.columns.keys()
         assert "age" not in retrieved_virtual_table.columns.keys()
 
-    async def test_virtual_table_with_aggregation(self, project_model: Project) -> None:
+    def test_virtual_table_with_aggregation(self, project_model: Project) -> None:
         # GIVEN a table with data suitable for aggregation
         table_name = str(uuid.uuid4())
         table = Table(
@@ -436,7 +429,7 @@ class TestVirtualTableWithDataOperations:
         self.schedule_for_cleanup(virtual_table.id)
 
         # Wait for virtual table to be ready
-        await asyncio.sleep(3)
+        time.sleep(3)
 
         # WHEN querying the aggregation virtual table
         query_result = virtual_table.query(

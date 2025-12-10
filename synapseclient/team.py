@@ -2,13 +2,49 @@
 Functions that interact with Synapse Teams
 """
 
-
 from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.utils import deprecated
 
 
+@deprecated(
+    version="4.9.0",
+    reason="To be removed in 5.0.0. "
+    "Moved to the `from synapseclient.models import UserProfile` class. "
+    "Check the docstring for the replacement function example.",
+)
 class UserProfile(DictObject):
     """
+    **Deprecated with replacement.** This class will be removed in 5.0.0.
+    Use `from synapseclient.models import UserProfile` instead.
+
     Information about a Synapse user.  In practice the constructor is not called directly by the client.
+
+    Example: Migration to new method
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient.team import UserProfile
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import UserProfile
+
+        syn = Synapse()
+        syn.login()
+
+        # Get your own profile
+        my_profile = UserProfile().get()
+        print(f"My profile: {my_profile.username}")
+
+        # Get another user's profile by username
+        profile_by_username = UserProfile.from_username(username='synapse-service-dpe-team')
+        print(f"Profile by username: {profile_by_username.username}")
+
+        # Get another user's profile by ID
+        profile_by_id = UserProfile.from_id(user_id=3485485)
+        print(f"Profile by id: {profile_by_id.username}")
+        ```
 
     Attributes:
         ownerId: A foreign key to the ID of the 'principal' object for the user.
@@ -36,10 +72,28 @@ class UserProfile(DictObject):
         super(UserProfile, self).__init__(kwargs)
 
 
+@deprecated(
+    version="4.9.0",
+    reason="To be removed in 5.0.0. "
+    "Moved to the `from synapseclient.models import UserGroupHeader` class. "
+    "Check the docstring for the replacement function example.",
+)
 class UserGroupHeader(DictObject):
     """
+    **Deprecated with replacement.** This class will be removed in 5.0.0.
+    Use `from synapseclient.models import UserGroupHeader` instead.
+
     Select metadata about a Synapse principal.
     In practice the constructor is not called directly by the client.
+
+    Example: Migration to new method
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient.team import UserGroupHeader
+
+        # New approach (RECOMMENDED)
+        from synapseclient.models import UserGroupHeader
+        ```
 
     Attributes:
         ownerId A foreign key to the ID of the 'principal' object for the user.
@@ -54,10 +108,51 @@ class UserGroupHeader(DictObject):
         super(UserGroupHeader, self).__init__(kwargs)
 
 
+@deprecated(
+    version="4.9.0",
+    reason="To be removed in 5.0.0. "
+    "Moved to the `from synapseclient.models import Team` class. "
+    "Check the docstring for the replacement function example.",
+)
 class Team(DictObject):
     """
+    **Deprecated with replacement.** This class will be removed in 5.0.0.
+    Use `from synapseclient.models import Team` instead.
+
     Represents a [Synapse Team](https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html).
     User definable fields are:
+
+    Example: Migration to new method
+        &nbsp;
+
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient.team import Team
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Team
+
+        syn = Synapse()
+        syn.login()
+
+        # Create a new team
+        new_team = Team(name="My Team", description="A sample team")
+        created_team = new_team.create()
+        print(f"Created team: {created_team.name}")
+
+        # Get a team by ID
+        team_by_id = Team.from_id(id=12345)
+        print(f"Team by ID: {team_by_id.name}")
+
+        # Get a team by name
+        team_by_name = Team.from_name(name="My Team")
+        print(f"Team by name: {team_by_name.name}")
+
+        # Get team members
+        members = team_by_id.members()
+        print(f"Team has {len(members)} members")
+        ```
 
     Attributes:
         icon: The fileHandleId for icon image of the Team
@@ -89,10 +184,38 @@ class Team(DictObject):
         return "/team/acl"
 
 
+@deprecated(
+    version="4.9.0",
+    reason="To be removed in 5.0.0. "
+    "Moved to the `from synapseclient.models import TeamMember` class. "
+    "Check the docstring for the replacement function example.",
+)
 class TeamMember(DictObject):
     """
+    **Deprecated with replacement.** This class will be removed in 5.0.0.
+    Use `from synapseclient.models import TeamMember` instead.
+
     Contains information about a user's membership in a Team.
     In practice the constructor is not called directly by the client.
+
+    Example: Migration to new method
+        ```python
+        # Old approach (DEPRECATED)
+        # from synapseclient.team import TeamMember
+
+        # New approach (RECOMMENDED)
+        from synapseclient import Synapse
+        from synapseclient.models import Team, TeamMember
+
+        syn = Synapse()
+        syn.login()
+
+        # Get team members using the new Team model
+        team = Team.from_id(id=12345)
+        members = team.members()
+        for member in members:
+            print(f"Member: {member.member.user_name}")
+        ```
 
     Attributes:
         teamId: The ID of the team

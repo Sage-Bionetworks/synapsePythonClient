@@ -45,7 +45,7 @@ class TestTeam:
         # GIVEN a team object
 
         # WHEN I create the team on Synapse
-        test_team = await self.team.create_async()
+        test_team = await self.team.create_async(synapse_client=self.syn)
 
         # THEN I expect the created team to be returned with correct properties
         assert test_team.id is not None
@@ -68,7 +68,9 @@ class TestTeam:
         await self.verify_team_properties(id_team, test_team)
 
         # WHEN I retrieve the team using the static from_id method
-        from_id_team = await Team.from_id_async(id=test_team.id)
+        from_id_team = await Team.from_id_async(
+            id=test_team.id, synapse_client=self.syn
+        )
 
         # THEN the retrieved team should match the created team
         await self.verify_team_properties(from_id_team, test_team)
@@ -84,30 +86,32 @@ class TestTeam:
         await self.verify_team_properties(name_team, test_team)
 
         # WHEN I retrieve the team using the static from_name method
-        from_name_team = await Team.from_name_async(name=test_team.name)
+        from_name_team = await Team.from_name_async(
+            name=test_team.name, synapse_client=self.syn
+        )
 
         # THEN the retrieved team should match the created team
         await self.verify_team_properties(from_name_team, test_team)
 
         # WHEN I delete the team
-        await test_team.delete_async()
+        await test_team.delete_async(synapse_client=self.syn)
 
         # THEN the team should no longer exist
         with pytest.raises(
             SynapseHTTPError,
-            match=f"404 Client Error: \nTeam id: '{test_team.id}' does not exist",
+            match=f"404 Client Error: Team id: '{test_team.id}' does not exist",
         ):
-            await Team.from_id_async(id=test_team.id)
+            await Team.from_id_async(id=test_team.id, synapse_client=self.syn)
 
     async def test_team_membership_and_invitations(self) -> None:
         """Test team membership and invitation functionality"""
         # GIVEN a team object
 
         # WHEN I create the team on Synapse
-        test_team = await self.team.create_async()
+        test_team = await self.team.create_async(synapse_client=self.syn)
 
         # AND check the team members
-        members = await test_team.members_async()
+        members = await test_team.members_async(synapse_client=self.syn)
 
         # THEN the team should have exactly one member (the creator), who is an admin
         assert len(members) == 1
@@ -117,8 +121,7 @@ class TestTeam:
 
         # WHEN I invite a user to the team
         invite = await test_team.invite_async(
-            user=self.TEST_USER,
-            message=self.TEST_MESSAGE,
+            user=self.TEST_USER, message=self.TEST_MESSAGE, synapse_client=self.syn
         )
 
         # THEN the invite should be created successfully
@@ -130,7 +133,7 @@ class TestTeam:
         assert invite["createdBy"] is not None
 
         # WHEN I check the open invitations
-        invitations = await test_team.open_invitations_async()
+        invitations = await test_team.open_invitations_async(synapse_client=self.syn)
 
         # THEN I should see the invitation I just created
         assert len(invitations) == 1
@@ -142,4 +145,50 @@ class TestTeam:
         assert invitations[0]["createdBy"] is not None
 
         # Clean up
-        await test_team.delete_async()
+        await test_team.delete_async(synapse_client=self.syn)
+
+    async def test_get_user_membership_status(self) -> None:
+        """Test getting user membership status for a team"""
+        # WHEN I create the team on Synapse
+        test_team = await self.team.create_async(synapse_client=self.syn)
+
+        try:
+            # AND I get the membership status for the creator (who should be a member)
+            creator_status = await test_team.get_user_membership_status_async(
+                user_id=self.syn.getUserProfile().ownerId, synapse_client=self.syn
+            )
+
+            # THEN the creator should have membership status indicating they are a member
+            assert creator_status.is_member is True
+            assert creator_status.team_id == str(test_team.id)
+            assert creator_status.has_open_invitation is False
+            assert creator_status.has_open_request is False
+            assert creator_status.can_join is True
+            assert creator_status.membership_approval_required is False
+            assert creator_status.has_unmet_access_requirement is False
+            assert creator_status.can_send_email is True
+
+            # WHEN I invite a test user to the team
+            await test_team.invite_async(
+                user=self.TEST_USER,
+                message=self.TEST_MESSAGE,
+                synapse_client=self.syn,
+            )
+
+            # Check the invited user's status
+            invited_status = await test_team.get_user_membership_status_async(
+                user_id=self.syn.getUserProfile(self.TEST_USER).ownerId,
+                synapse_client=self.syn,
+            )
+
+            # THEN the invited user should show they have an open invitation
+            assert invited_status is not None
+            assert invited_status.team_id == str(test_team.id)
+            assert invited_status.has_open_invitation is True
+            assert invited_status.membership_approval_required is True
+            assert invited_status.can_send_email is True
+            assert invited_status.is_member is False
+
+        finally:
+            # Clean up
+            await test_team.delete_async(synapse_client=self.syn)

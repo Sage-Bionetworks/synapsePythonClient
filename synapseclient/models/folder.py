@@ -13,9 +13,14 @@ from synapseclient.core.exceptions import SynapseError
 from synapseclient.core.utils import delete_none_keys, merge_dataclass_entities
 from synapseclient.entity import Folder as Synapse_Folder
 from synapseclient.models import Annotations, File
-from synapseclient.models.mixins import AccessControllable, StorableContainer
+from synapseclient.models.mixins import (
+    AccessControllable,
+    ContainerEntityJSONSchema,
+    StorableContainer,
+)
 from synapseclient.models.protocols.folder_protocol import FolderSynchronousProtocol
 from synapseclient.models.services.search import get_id
+from synapseclient.models.services.storable_entity import store_entity
 from synapseclient.models.services.storable_entity_components import (
     FailureStrategy,
     store_entity_components,
@@ -23,12 +28,26 @@ from synapseclient.models.services.storable_entity_components import (
 from synapseutils import copy
 
 if TYPE_CHECKING:
-    from synapseclient.models import Project
+    from synapseclient.models import (
+        Dataset,
+        DatasetCollection,
+        EntityView,
+        MaterializedView,
+        Project,
+        SubmissionView,
+        Table,
+        VirtualTable,
+    )
 
 
 @dataclass()
 @async_to_sync
-class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
+class Folder(
+    FolderSynchronousProtocol,
+    AccessControllable,
+    StorableContainer,
+    ContainerEntityJSONSchema,
+):
     """Folder is a hierarchical container for organizing data in Synapse.
 
     Attributes:
@@ -50,6 +69,13 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
         modified_by: (Read Only) The ID of the user that last modified this entity.
         files: Files that exist within this folder.
         folders: Folders that exist within this folder.
+        tables: Tables that exist within this folder.
+        entityviews: Entity views that exist within this folder.
+        submissionviews: Submission views that exist within this folder.
+        datasets: Datasets that exist within this folder.
+        datasetcollections: Dataset collections that exist within this folder.
+        materializedviews: Materialized views that exist within this folder.
+        virtualtables: Virtual tables that exist within this folder.
         annotations: Additional metadata associated with the folder. The key is the name
             of your desired annotations. The value is an object containing a list of
             values (use empty list to represent no values for key) and the value type
@@ -107,6 +133,31 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
     folders: List["Folder"] = field(default_factory=list, compare=False)
     """Folders that exist within this folder."""
 
+    tables: List["Table"] = field(default_factory=list, compare=False)
+    """Tables that exist within this folder."""
+
+    entityviews: List["EntityView"] = field(default_factory=list, compare=False)
+    """Entity views that exist within this folder."""
+
+    submissionviews: List["SubmissionView"] = field(default_factory=list, compare=False)
+    """Submission views that exist within this folder."""
+
+    datasets: List["Dataset"] = field(default_factory=list, compare=False)
+    """Datasets that exist within this folder."""
+
+    datasetcollections: List["DatasetCollection"] = field(
+        default_factory=list, compare=False
+    )
+    """Dataset collections that exist within this folder."""
+
+    materializedviews: List["MaterializedView"] = field(
+        default_factory=list, compare=False
+    )
+    """Materialized views that exist within this folder."""
+
+    virtualtables: List["VirtualTable"] = field(default_factory=list, compare=False)
+    """Virtual tables that exist within this folder."""
+
     annotations: Optional[
         Dict[
             str,
@@ -155,6 +206,12 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
     )
     """The last persistent instance of this object. This is used to determine if the
     object has been changed and needs to be updated in Synapse."""
+
+    _synced_from_synapse: Optional[bool] = field(
+        default=False, repr=False, compare=False
+    )
+    """Whether this object has been synced from Synapse. This is used to determine if
+    `.sync_from_synapse_async` has already been called on this instance."""
 
     @property
     def has_changed(self) -> bool:
@@ -257,7 +314,11 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
                 )
             )
         ):
-            merge_dataclass_entities(source=existing_folder, destination=self)
+            # Get logger from client
+            client = Synapse.get_client(synapse_client=synapse_client)
+            merge_dataclass_entities(
+                source=existing_folder, destination=self, logger=client.logger
+            )
         trace.get_current_span().set_attributes(
             {
                 "synapse.name": self.name or "",
@@ -265,7 +326,6 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
             }
         )
         if self.has_changed:
-            loop = asyncio.get_event_loop()
             synapse_folder = Synapse_Folder(
                 id=self.id,
                 name=self.name,
@@ -274,14 +334,10 @@ class Folder(FolderSynchronousProtocol, AccessControllable, StorableContainer):
                 description=self.description,
             )
             delete_none_keys(synapse_folder)
-            entity = await loop.run_in_executor(
-                None,
-                lambda: Synapse.get_client(synapse_client=synapse_client).store(
-                    obj=synapse_folder,
-                    set_annotations=False,
-                    isRestricted=self.is_restricted,
-                    createOrUpdate=False,
-                ),
+            entity = await store_entity(
+                resource=self,
+                entity=synapse_folder,
+                synapse_client=synapse_client,
             )
 
             self.fill_from_dict(synapse_folder=entity, set_annotations=False)

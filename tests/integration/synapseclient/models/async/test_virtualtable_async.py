@@ -8,6 +8,7 @@ import pytest
 from synapseclient import Synapse
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Column, ColumnType, Project, Table, VirtualTable
+from tests.integration import QUERY_TIMEOUT_SEC
 
 
 class TestVirtualTableBasicOperations:
@@ -31,8 +32,8 @@ class TestVirtualTableBasicOperations:
 
         # WHEN/THEN: Empty SQL should be rejected
         with pytest.raises(
-            SynapseHTTPError,
-            match="400 Client Error: The definingSQL of the virtual table is required and must not be the empty string.",
+            ValueError,
+            match="The defining_sql attribute must be set for a",
         ):
             await empty_sql_virtual_table.store_async(synapse_client=self.syn)
 
@@ -235,7 +236,9 @@ class TestVirtualTableWithDataOperations:
 
         # WHEN querying the full-data virtual table
         all_result = await virtual_table_all.query_async(
-            f"SELECT * FROM {virtual_table_all.id}", synapse_client=self.syn
+            f"SELECT * FROM {virtual_table_all.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN all data should be returned
@@ -246,7 +249,9 @@ class TestVirtualTableWithDataOperations:
 
         # WHEN querying the column-selection virtual table
         columns_result = await virtual_table_columns.query_async(
-            f"SELECT * FROM {virtual_table_columns.id}", synapse_client=self.syn
+            f"SELECT * FROM {virtual_table_columns.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN only specified columns should be returned
@@ -257,7 +262,9 @@ class TestVirtualTableWithDataOperations:
 
         # WHEN querying the filtered virtual table
         filtered_result = await virtual_table_filtered.query_async(
-            f"SELECT * FROM {virtual_table_filtered.id}", synapse_client=self.syn
+            f"SELECT * FROM {virtual_table_filtered.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN only filtered rows should be returned
@@ -267,7 +274,9 @@ class TestVirtualTableWithDataOperations:
 
         # WHEN querying the ordered virtual table
         ordered_result = await virtual_table_ordered.query_async(
-            f"SELECT * FROM {virtual_table_ordered.id}", synapse_client=self.syn
+            f"SELECT * FROM {virtual_table_ordered.id}",
+            synapse_client=self.syn,
+            timeout=QUERY_TIMEOUT_SEC,
         )
 
         # THEN data should be in the specified order

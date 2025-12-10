@@ -12,5 +12,15 @@ favor of an auto-generated client derived from the
 [Synapse Open API Spec](https://rest-docs.synapse.org/rest/openapi/openapispecification.json).
 
 
-::: synapseclient.api.entity_bundle_services_v2
+::: synapseclient.api.agent_services
 ::: synapseclient.api.annotations
+::: synapseclient.api.api_client
+::: synapseclient.api.configuration_services
+::: synapseclient.api.entity_bundle_services_v2
+::: synapseclient.api.entity_factory
+::: synapseclient.api.entity_services
+::: synapseclient.api.file_services
+::: synapseclient.api.json_schema_services
+::: synapseclient.api.table_services
+::: synapseclient.api.team_services
+::: synapseclient.api.user_services

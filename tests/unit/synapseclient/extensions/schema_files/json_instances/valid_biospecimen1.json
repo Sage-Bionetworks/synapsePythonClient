@@ -1,0 +1,6 @@
+{
+    "Component": "Bioscpeimen",
+    "PatientID": "Patient1",
+    "SampleID":  "Sample1",
+    "TissueStatus": "Healthy"
+}

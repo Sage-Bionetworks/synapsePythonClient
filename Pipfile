@@ -4,10 +4,10 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-synapseclient = {file = ".", editable = true, path = "."}
+synapseclient = {file = ".", path = "."}
 
 [requires]
 python_version = "3.12.6"
 
 [dev-packages]
-synapseclient = {file = ".", editable = true, path = ".", extras = ["dev", "tests", "pandas", "pysftp", "boto3", "docs"]}
+synapseclient = {file = ".", editable = true, path = ".", extras = ["dev", "tests", "pandas", "pysftp", "boto3", "docs", "curator"]}

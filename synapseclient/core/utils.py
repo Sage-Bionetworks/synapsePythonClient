@@ -36,7 +36,7 @@ from tqdm import tqdm
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME
 
 if TYPE_CHECKING:
-    from synapseclient.models import Column, File, Folder, Project, Table
+    from synapseclient.models import Column, Evaluation, File, Folder, Project, Table
     from synapseclient.models.dataset import EntityRef
 
 R = TypeVar("R")
@@ -58,11 +58,13 @@ LOGGER_NAME = DEFAULT_LOGGER_NAME
 LOGGER = logging.getLogger(LOGGER_NAME)
 
 
+@tracer.start_as_current_span("synapse.util.md5")
 def md5_for_file(
     filename: str,
     block_size: int = 2 * MB,
     callback: typing.Callable = None,
     progress_bar: Optional[tqdm] = None,
+    file_name: Optional[str] = None,
 ):
     """
     Calculates the MD5 of the given file.
@@ -74,11 +76,14 @@ def md5_for_file(
                     Defaults to 2 MB
         callback: The callback function that help us show loading spinner on terminal.
                     Defaults to None
+        progress_bar: An optional TQDM progress bar to update
+        file_name: An optional name for the file, used in tracing attributes
 
     Returns:
         The MD5 Checksum
     """
     loop_iteration = 0
+    data_read = 0
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     with open(filename, "rb") as f:
         while True:
@@ -93,12 +98,20 @@ def md5_for_file(
                     progress_bar.close()
                 break
             md5.update(data)
+            data_length = len(data)
+            data_read += data_length
             if progress_bar:
-                progress_bar.update(len(data))
+                progress_bar.update(data_length)
             del data
             # Garbage collect every 100 iterations
             if loop_iteration % 100 == 0:
                 gc.collect()
+
+    trace.get_current_span().set_attribute("synapse.md5.size", data_read)
+    trace.get_current_span().set_attribute(
+        "synapse.file.name", file_name or os.path.basename(filename) or "unknown_file"
+    )
+
     return md5
 
 
@@ -123,7 +136,7 @@ def md5_for_file_hex(
     return md5_for_file(filename, block_size, callback).hexdigest()
 
 
-@tracer.start_as_current_span("Utils::md5_fn")
+@tracer.start_as_current_span("synapse.util.md5")
 def md5_fn(part, _) -> str:
     """Calculate the MD5 of a file-like object.
 
@@ -135,6 +148,8 @@ def md5_fn(part, _) -> str:
     """
     md5 = hashlib.new("md5", usedforsecurity=False)  # nosec
     md5.update(part)
+    trace.get_current_span().set_attribute("synapse.md5.size", len(part))
+    trace.get_current_span().set_attribute("synapse.file.name", "partial_file_md5")
     return md5.hexdigest()
 
 
@@ -1412,10 +1427,14 @@ def delete_none_keys(incoming_object: typing.Dict) -> None:
 
 
 def merge_dataclass_entities(
-    source: typing.Union["Project", "Folder", "File", "Table", "Column"],
-    destination: typing.Union["Project", "Folder", "File", "Table", "Column"],
+    source: typing.Union["Project", "Folder", "File", "Table", "Column", "Evaluation"],
+    destination: typing.Union[
+        "Project", "Folder", "File", "Table", "Column", "Evaluation"
+    ],
     fields_to_ignore: typing.List[str] = None,
-) -> typing.Union["Project", "Folder", "File", "Table"]:
+    fields_to_preserve_from_source: typing.List[str] = None,
+    logger: logging.Logger = None,
+) -> typing.Union["Project", "Folder", "File", "Table", "Column", "Evaluation"]:
     """
     Utility function to merge two dataclass entities together. This is used when we are
     upserting an entity from the Synapse service with the requested changes.
@@ -1423,9 +1442,11 @@ def merge_dataclass_entities(
     Arguments:
         source: The source entity to merge from.
         destination: The destination entity to merge into.
-        fields_to_ignore: A list of fields to ignore when merging.
-        fields_to_persist_to_last_instance: A list of fields to persist to the last
-            instance attribute of the destination entity if it exists.
+        fields_to_ignore: A list of fields to ignore when merging. These fields will automatically
+            take the value from the destination entity.
+        fields_to_preserve_from_source: A list of fields from the source that should be
+            preserved in the destination, overriding any changes made in the destination.
+        logger: An optional logger instance. If not provided, a default logger will be used.
 
     Returns:
         The destination entity with the merged values.
@@ -1444,7 +1465,11 @@ def merge_dataclass_entities(
                 setattr(destination, key, getattr(source, key))
             else:
                 modified_items[key] = merge_dataclass_entities(
-                    getattr(source, key), destination=getattr(destination, key)
+                    getattr(source, key),
+                    destination=getattr(destination, key),
+                    fields_to_ignore=fields_to_ignore,
+                    fields_to_preserve_from_source=fields_to_preserve_from_source,
+                    logger=logger,
                 )
         elif key not in destination_dict or destination_dict[key] is None:
             modified_items[key] = value
@@ -1465,6 +1490,8 @@ def merge_dataclass_entities(
                         source=source_column_value,
                         destination=destination_columns[source_column_key],
                         fields_to_ignore=["id"],
+                        fields_to_preserve_from_source=fields_to_preserve_from_source,
+                        logger=logger,
                     )
         elif key == "items":
             source_items: List["EntityRef"] = getattr(source, key)
@@ -1478,6 +1505,26 @@ def merge_dataclass_entities(
     # Update destination's fields with the merged dictionary
     for key, value in modified_items.items():
         setattr(destination, key, value)
+
+    # Override any specified fields in destination with values from source
+    if fields_to_preserve_from_source:
+        # Use provided logger or fall back to default
+        log = logger
+        if not log:
+            import logging
+
+            log = logging.getLogger(LOGGER_NAME)
+
+        # Warn if any preserved fields were modified in destination
+        for field_name in fields_to_preserve_from_source:
+            if hasattr(source, field_name) and hasattr(destination, field_name):
+                source_value = getattr(source, field_name)
+                destination_value = getattr(destination, field_name)
+                if destination_value != source_value:
+                    log.warning(
+                        f"Field '{field_name}' cannot be modified. Changes will be ignored."
+                    )
+                setattr(destination, field_name, source_value)
 
     return destination
 
