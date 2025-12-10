@@ -4826,7 +4826,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
             self.format,
             implicit_minimum,
             implicit_maximum,
-            rule_pattern,
+            implicit_pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
             explicit_is_array=explicit_is_array,
@@ -4841,9 +4841,9 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.minimum = minimum if minimum is not None else implicit_minimum
         self.maximum = maximum if maximum is not None else implicit_maximum
 
-        self.pattern = pattern if pattern else rule_pattern
+        self.pattern = pattern if pattern else implicit_pattern
 
-        if rule_pattern and not pattern:
+        if implicit_pattern and not pattern:
             msg = (
                 f"A regex validation rule is set for property: {self.name}, but the pattern is not set in the data model. "
                 f"The regex pattern will be set to {self.pattern}, but the regex rule is deprecated and validation "
