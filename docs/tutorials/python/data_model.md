@@ -301,6 +301,47 @@ Data Model:
 | Cancer Type    |                                | "Brain, Lung, Skin"          | True     |
 | Family History |                                |                              | True     |
 
- To demonstrate this, see the above example with the `Patient` and `Cancer` data types. Because we want to also know the `Cancer Type` and `Family History` for cancer patients (but not for healthy patients), `Healthy, Cancer` are valid values for `Diagnosis`. (Note `Cancer` is both a valid value and a data type.) `Cancer` has two required attributes, `Cancer Type`, and `Family History`.
+To demonstrate this, see the above example with the `Patient` and `Cancer` data types. Because we want to also know the `Cancer Type` and `Family History` for cancer patients (but not for healthy patients), `Healthy, Cancer` are valid values for `Diagnosis`. (Note `Cancer` is both a valid value and a data type.) `Cancer` has two required attributes, `Cancer Type`, and `Family History`.
 
- As a result `Patient` data should include the columns `Diagnosis`, `Cancer Type`, and `Family History`, but the last two columns would only be required if `Diagnosis` is set to `Cancer` for a given patient. (and if the ‘Required’ column is set to true for these two attributes). The conditional logic may define an arbitrary number of branching paths. For instance, in the above example, we could require a `Brain Biopsy Site` attribute if `Cancer Type` is set to `Brain`.
+As a result `Patient` data should include the columns `Diagnosis`, `Cancer Type`, and `Family History`, but the last two columns would only be required if `Diagnosis` is set to `Cancer` for a given patient. (and if the ‘Required’ column is set to true for these two attributes). The conditional logic may define an arbitrary number of branching paths. For instance, in the above example, we could require a `Brain Biopsy Site` attribute if `Cancer Type` is set to `Brain`.
+
+The resulting JSON Schema:
+
+```JSON
+{
+  "description": "TBD",
+  "properties": {
+    "Diagnosis": {
+      "description": "TBD",
+      "enum": ["Cancer", "Healthy"],
+      "title": "Diagnosis"
+    },
+    "Cancer Type": {
+      "description": "TBD",
+      "enum": ["Breast","Lung","Skin"],
+      "title": "Cancer Type"
+    },
+    "Family History": {
+      "description": "TBD",
+      "title": "Family History"
+    }
+  },
+  "required": ["Diagnosis"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "Diagnosis": {
+            "enum": [
+              "Cancer"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": ["Cancer Type", "FamilyHistory"]
+      }
+    },
+  ]
+}
+```
