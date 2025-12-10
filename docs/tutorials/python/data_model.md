@@ -109,7 +109,6 @@ JSON Schema output:
 }
 ```
 
-
 ### columnType
 
 The data type this of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type).
@@ -287,3 +286,21 @@ This a remnant from Schematic. t is still used(for now) to translate certain val
 - `inRange`: `inRange <minimum> <maximum>`, move the `<minimum>` and/or the `<maximum>` to the `Minimum` and `Maximum` columns respectively.
 - `date`: Use the `Format` column with value `date`
 - `url`: Use the `Format` column with value `uri`
+
+## Conditional dependencies
+
+The ‘DependsOn’ and ‘Valid Values’ columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
+
+Data Model:
+
+| Attribute      | DependsOn                      | Valid Values                 | Required |
+|---|---|---|---|
+| Patient        | "Diagnosis, Cancer"            |                              |          |
+| Diagnosis      |                                | "Healthy, Cancer"            | True     |
+| Cancer         | "Cancer Type, Family History"  | "Cancer Type, Family History"|          |
+| Cancer Type    |                                | "Brain, Lung, Skin"          | True     |
+| Family History |                                |                              | True     |
+
+ To demonstrate this, see the above example with the `Patient` and `Cancer` data types. Because we want to also know the `Cancer Type` and `Family History` for cancer patients (but not for healthy patients), `Healthy, Cancer` are valid values for `Diagnosis`. (Note `Cancer` is both a valid value and a data type.) `Cancer` has two optional attributes.
+
+ As a result `Patient` data should include the columns `Diagnosis`, `Cancer Type`, and `Family History`, but the last two columns would only be required if `Diagnosis` is set to `Cancer` in a given patient record/rows (and if the ‘Required’ column is set to true for these two attributes). The conditional logic may define an arbitrary number of branching paths. For instance, in the above example, we could require a `Brain Biopsy Site` attribute if `Cancer Type` is set to `Brain`.
