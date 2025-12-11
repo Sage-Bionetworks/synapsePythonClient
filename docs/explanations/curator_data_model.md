@@ -8,22 +8,25 @@ A link will be provided here to documentation for converting CSV data models to 
 
 A JSON Schema is made up of one data type(for example a person) and the attributes that describe the data type (for example age and gender). The CSV data model will describe one or more data types. Each row describes either a data type, or an attribute.
 
-Data types:
+Note: Individual columns are covered later on this page.
 
-- must have a unique name in the `Attribute` column
-- must have at least one attribute in the `DependsOn` column
-- may have a value in the `Description` column
+Defining data types:
 
-Attributes:
+- Put a unique data type name in the `Attribute` column
+- List its attributes (minimum 1) in the `DependsOn` column (comma-separated)
+- Optionally add a description to the `Description` column.
 
-- must have a unique name in the `Attribute` column
-- may have all values  for all other columns besides `DependsOn`
+Defining attributes:
 
-The following data model has one data type, `Person`, and that data type has one attribute, `Gender`.
+- Put a unique attribute name in the `Attribute` column
+- Leave the `DependsOn` column empty
+- All other columns are optional
+
+Below is a simple data model with one data type (Patient) that has one attribute (Gender)
 
 | Attribute | DependsOn |
 |---|---|
-| Person    | "Gender"  |
+| Patient    | "Gender"  |
 | Gender    |           |
 
 Converting the above data model to JSON Schema results in:
@@ -60,7 +63,7 @@ Data Model:
 
 | Attribute | DependsOn | Valid Values          |
 |---|---|---|
-| Person    | "Gender"  |                       |
+| Patient    | "Gender"  |                       |
 | Gender    |           | "Female, Male, Other" |
 
 JSON Schema output:
@@ -80,13 +83,15 @@ JSON Schema output:
 
 ### Required
 
-Whether a value must be set for this attribute. This field is boolean, i.e. valid values are ‘TRUE’ and ‘FALSE’. All attributes that are required will appear in the required list in the JSON Schema. See [required](https://json-schema.org/understanding-json-schema/reference/object#required).
+Whether a value must be set for this attribute. This field is boolean, i.e. valid values are `TRUE` and `FALSE`. All attributes that are required will appear in the required list in the JSON Schema. See [required](https://json-schema.org/understanding-json-schema/reference/object#required).
+
+Note: Leaving this empty is the equivalent of `False`.
 
 Data Model:
 
 | Attribute | DependsOn      | Required |
 |---|---|---|
-| Person    | "Gender, Age"  |          |
+| Patient    | "Gender, Age"  |          |
 | Gender    |                | True     |
 | Age       |                | False    |
 
@@ -111,7 +116,7 @@ JSON Schema output:
 
 ### columnType
 
-The data type this of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type).
+The data type of this of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type).
 
 Must be one of:
 
@@ -127,7 +132,7 @@ Data Model:
 
 | Attribute | DependsOn         | columnType  |
 |---|---|---|
-| Person    | "Gender, Assays"  |             |
+| Patient    | "Gender, Assays"  |             |
 | Gender    |                   | string      |
 | Assays    |                   | string_list |
 
@@ -174,11 +179,11 @@ The format of this attribute. See [format](https://json-schema.org/understanding
 
 Data Model:
 
-| Attribute | DependsOn       | columnType  | Format |
+| Attribute       | DependsOn       | columnType  | Format |
 |---|---|---|---|
-| Person    | "Gender, Date"  |             |        |
-| Gender    |                 | string      |        |
-| Date      |                 | string      | date   |
+| Patient         | "Gender, Date"  |             |        |
+| Gender          |                 | string      |        |
+| Birth Date      |                 | string      | date   |
 
 JSON Schema output:
 
@@ -191,9 +196,9 @@ JSON Schema output:
       "title": "Gender",
       "type": "string"
     },
-    "Date": {
+    "Birth Date": {
       "description": "TBD",
-      "title": "Date",
+      "title": "Birth Date",
       "type": "string",
       "format": "date"
     }
@@ -209,7 +214,7 @@ Data Model:
 
 | Attribute | DependsOn     | columnType  | Pattern |
 |---|---|---|---|
-| Person    | "Gender, ID"  |             |         |
+| Patient    | "Gender, ID"  |             |         |
 | Gender    |               | string      |         |
 | ID        |               | string      | [a-f]   |
 
@@ -240,12 +245,12 @@ The range of numeric values this attribute must be in.  The type of this attribu
 
 Data Model:
 
-| Attribute  | DependsOn                  | columnType  | Minimum | Maximum |
+| Attribute    | DependsOn                  | columnType  | Minimum | Maximum |
 |---|---|---|---|---|
-| Person     | "Age, Weight, Expression"  |             |         |         |
-| Age        |                            | integer     | 0       | 120     |
-| Weight     |                            | number      | 0.0     |         |
-| Expression |                            | number      | 0.0     | 1.0     |
+| Patient      | "Age, Weight, Expression"  |             |         |         |
+| Age          |                            | integer     | 0       | 120     |
+| Weight       |                            | number      | 0.0     |         |
+| Health Score |                            | number      | 0.0     | 1.0     |
 
 JSON Schema output:
 
@@ -266,9 +271,9 @@ JSON Schema output:
       "type": "number",
       "minimum": 0.0
     },
-    "Expression": {
+    "Health Score": {
       "description": "TBD",
-      "title": "Expression",
+      "title": "Health Score",
       "type": "number",
       "minimum": 0.0,
       "maximum": 1.0
@@ -279,7 +284,11 @@ JSON Schema output:
 
 ### Validation Rules (deprecated)
 
-This a remnant from Schematic. t is still used(for now) to translate certain validation rules to other JSONSchema key words. If you are starting a new data model do not use it. If you have an existing data model using any of the following validation rules, follow these instructions to update it:
+This is a remnant from Schematic. It is still used (for now) to translate certain validation rules to other JSON Schema keywords.
+
+If you are starting a new data model, DO NOT use this column.
+
+If you have an existing data model using any of the following validation rules, follow these instructions to update it:
 
 - `list`: Make sure you are using one of the list-types in the `columnType` column.
 - `regex`: `regex <module> <pattern>`, move the `<pattern>` to the `Pattern` column.
@@ -289,23 +298,32 @@ This a remnant from Schematic. t is still used(for now) to translate certain val
 
 ## Conditional dependencies
 
-The ‘DependsOn’ and ‘Valid Values’ columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
+The `DependsOn` and `Valid Values` columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
+
+In this example we have the `Patient` data type. In this case the `Patient` can dbe diagnosed as healthy or with cancer. For Patients with cancer we also want to collect info about their cancer type, and any cancers in their family history.
 
 Data Model:
 
-| Attribute      | DependsOn                      | Valid Values                 | Required |
-|---|---|---|---|
-| Patient        | "Diagnosis, Cancer"            |                              |          |
-| Diagnosis      |                                | "Healthy, Cancer"            | True     |
-| Cancer         | "Cancer Type, Family History"  | "Cancer Type, Family History"|          |
-| Cancer Type    |                                | "Brain, Lung, Skin"          | True     |
-| Family History |                                |                              | True     |
+| Attribute      | DependsOn                      | Valid Values        | Required | columnType  |
+|---|---|---|---|---|
+| Patient        | "Diagnosis"                    |                     |          |             |
+| Diagnosis      |                                | "Healthy, Cancer"   | True     | string      |
+| Cancer         | "Cancer Type, Family History"  |                     |          |             |
+| Cancer Type    |                                | "Brain, Lung, Skin" | True     | string      |
+| Family History |                                | "Brain, Lung, Skin" | True     | string_list |
 
-To demonstrate this, see the above example with the `Patient` and `Cancer` data types. Because we want to also know the `Cancer Type` and `Family History` for cancer patients (but not for healthy patients), `Healthy, Cancer` are valid values for `Diagnosis`. (Note `Cancer` is both a valid value and a data type.) `Cancer` has two required attributes, `Cancer Type`, and `Family History`.
+To demonstrate this, see the above example with the `Patient` and `Cancer` data types:
 
-As a result `Patient` data should include the columns `Diagnosis`, `Cancer Type`, and `Family History`, but the last two columns would only be required if `Diagnosis` is set to `Cancer` for a given patient. (and if the ‘Required’ column is set to true for these two attributes). The conditional logic may define an arbitrary number of branching paths. For instance, in the above example, we could require a `Brain Biopsy Site` attribute if `Cancer Type` is set to `Brain`.
+- `Diagnosis` is an attribute of `Patient`.
+- `Diagnosis` has `Valid Values` of `Healthy` and `Cancer`.
+- `Cancer` is also a data type.
+- `Cancer Type` and `Family History` are attributes of `Cancer` and are both required.
 
-The resulting JSON Schema:
+As a result of the above data model, in the JSON Schema:
+
+- `Cancer Type` and `Family History` become properties of `Patient`.
+- For a given `Patient`, if `Diagnosis` == `Cancer` then `Cancer Type` and `Family History` become required for that `Patient`.
+- The conditional logic is contained in the `allOf` array.
 
 ```JSON
 {
@@ -314,16 +332,23 @@ The resulting JSON Schema:
     "Diagnosis": {
       "description": "TBD",
       "enum": ["Cancer", "Healthy"],
-      "title": "Diagnosis"
+      "title": "Diagnosis",
+      "type": "string"
     },
     "Cancer Type": {
       "description": "TBD",
       "enum": ["Breast","Lung","Skin"],
-      "title": "Cancer Type"
+      "title": "Cancer Type",
+      "type": "string"
     },
     "Family History": {
       "description": "TBD",
-      "title": "Family History"
+      "title": "Family History",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["Breast","Lung","Skin"],
+      }
     }
   },
   "required": ["Diagnosis"],
