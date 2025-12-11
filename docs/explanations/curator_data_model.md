@@ -122,7 +122,7 @@ JSON Schema output:
       "description": "TBD",
       "title": "Gender",
     },
-    "Gender": {
+    "Age": {
       "description": "TBD",
       "title": "Age"
     }
