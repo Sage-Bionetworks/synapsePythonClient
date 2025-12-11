@@ -225,7 +225,7 @@ JSON Schema output:
 
 ### Pattern
 
-The regex pattern this attribute must match. The type of this attribute must be `string` or `string_list`. See [pattern](https://json-schema.org/understanding-json-schema/reference/https://json-schema.org/understanding-json-schema/reference/regular_expressions#regular-expressions) The value of this column will appear as the `pattern` of this attribute in the JSON Schema. Must be a legal regex pattern as determined by the python `re` library.
+The regex pattern this attribute must match. The type of this attribute must be `string` or `string_list`. See [pattern](https://json-schema.org/understanding-json-schema/reference/regular_expressions#regular-expressions) The value of this column will appear as the `pattern` of this attribute in the JSON Schema. Must be a legal regex pattern as determined by the python `re` library.
 
 Data Model:
 
@@ -354,7 +354,7 @@ As a result of the above data model, in the JSON Schema:
     },
     "Cancer Type": {
       "description": "TBD",
-      "enum": ["Breast","Lung","Skin"],
+      "enum": ["Brain","Lung","Skin"],
       "title": "Cancer Type",
       "type": "string"
     },
