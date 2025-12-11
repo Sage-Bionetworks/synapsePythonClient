@@ -317,7 +317,7 @@ If you have an existing data model using any of the following validation rules, 
 
 The `DependsOn` and `Valid Values` columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
 
-In this example we have the `Patient` data type. In this case the `Patient` can dbe diagnosed as healthy or with cancer. For Patients with cancer we also want to collect info about their cancer type, and any cancers in their family history.
+In this example we have the `Patient` data type. In this case the `Patient` can be diagnosed as healthy or with cancer. For Patients with cancer we also want to collect info about their cancer type, and any cancers in their family history.
 
 Data Model:
 
