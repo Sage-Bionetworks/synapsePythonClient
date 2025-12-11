@@ -294,7 +294,7 @@ JSON Schema output:
       "type": "number",
       "minimum": 0.0,
       "maximum": 1.0
-    },
+    }
   }
 }
 ```
