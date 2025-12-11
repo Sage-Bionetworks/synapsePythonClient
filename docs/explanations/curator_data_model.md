@@ -22,7 +22,7 @@ Here is the Patient described above represented as a CSV data model:
 | Gender    |                     |
 | Name      |                     |
 
-The end goal is to create a JSON Schema that can be used in Curator. A JSON Schema consists of only one data type and their attributes. Converting the above data model to JSON Schema results in:
+The end goal is to create a JSON Schema that can be used in Curator. A JSON Schema consists of only one data type and its attributes. Converting the above data model to JSON Schema results in:
 
 ```json
 {
@@ -50,15 +50,15 @@ Note: Individual columns are covered later on this page.
 
 Defining data types:
 
-- Put a unique data type name in the `Attribute` column
-- List its attributes (minimum 1) in the `DependsOn` column (comma-separated)
+- Put a unique data type name in the `Attribute` column.
+- List at least one attribute in the `DependsOn` column (comma-separated).
 - Optionally add a description to the `Description` column.
 
 Defining attributes:
 
-- Put a unique attribute name in the `Attribute` column
-- Leave the `DependsOn` column empty
-- All other columns are optional
+- Put a unique attribute name in the `Attribute` column.
+- Leave the `DependsOn` column empty.
+- All other columns are optional.
 
 ### Attribute
 
@@ -133,7 +133,7 @@ JSON Schema output:
 
 ### columnType
 
-The data type of this of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type).
+The data type of this attribute. See [type](https://json-schema.org/understanding-json-schema/reference/type).
 
 Must be one of:
 
@@ -178,7 +178,7 @@ JSON Schema output:
 
 ### Format
 
-The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will be appear as the `format` of this attribute in the JSON Schema. Must be one of:
+The format of this attribute. See [format](https://json-schema.org/understanding-json-schema/reference/type#format) The type of this attribute must be "string" or "string_list". The value of this column will appear as the `format` of this attribute in the JSON Schema. Must be one of:
 
 - `date-time`
 - `email`
