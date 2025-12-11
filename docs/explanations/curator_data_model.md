@@ -22,7 +22,7 @@ Here is the Patient described above represented as a CSV data model:
 | Gender    |                     |
 | Name      |                     |
 
-The end goal is to create a JSON schema that cna be used in Curator. A JSON Schema consists of only one data type and their attributes. Converting the above data model to JSON Schema results in:
+The end goal is to create a JSON schema that can be used in Curator. A JSON Schema consists of only one data type and their attributes. Converting the above data model to JSON Schema results in:
 
 ```json
 {
