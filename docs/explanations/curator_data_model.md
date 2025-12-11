@@ -364,7 +364,7 @@ As a result of the above data model, in the JSON Schema:
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["Breast","Lung","Skin"],
+        "enum": ["Brain","Lung","Skin"],
       }
     }
   },
