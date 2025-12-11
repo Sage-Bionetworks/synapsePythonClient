@@ -17,10 +17,10 @@ Here is the Patient described above represented as a CSV data model:
 
 | Attribute | DependsOn |
 |---|---|
-| Patient   | "Gender"  |
-| Age       |           |
-| Gender    |           |
-| Name      |           |
+| Patient   | "Age, Gender, Name" |
+| Age       |                     |
+| Gender    |                     |
+| Name      |                     |
 
 The end goal is to create a JSON schema that cna be used in Curator. A JSON Schema consists of only one data type and their attributes. Converting the above data model to JSON Schema results in:
 
