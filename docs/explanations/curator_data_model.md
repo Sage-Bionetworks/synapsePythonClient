@@ -22,7 +22,7 @@ Here is the Patient described above represented as a CSV data model:
 | Gender    |                     |
 | Name      |                     |
 
-The end goal is to create a JSON schema that can be used in Curator. A JSON Schema consists of only one data type and their attributes. Converting the above data model to JSON Schema results in:
+The end goal is to create a JSON Schema that can be used in Curator. A JSON Schema consists of only one data type and their attributes. Converting the above data model to JSON Schema results in:
 
 ```json
 {
@@ -196,11 +196,11 @@ The format of this attribute. See [format](https://json-schema.org/understanding
 
 Data Model:
 
-| Attribute       | DependsOn       | columnType  | Format |
+| Attribute       | DependsOn            | columnType  | Format |
 |---|---|---|---|
-| Patient         | "Gender, Date"  |             |        |
-| Gender          |                 | string      |        |
-| Birth Date      |                 | string      | date   |
+| Patient         | "Gender, Birth Date" |             |        |
+| Gender          |                      | string      |        |
+| Birth Date      |                      | string      | date   |
 
 JSON Schema output:
 
@@ -231,7 +231,7 @@ Data Model:
 
 | Attribute | DependsOn     | columnType  | Pattern |
 |---|---|---|---|
-| Patient    | "Gender, ID"  |             |         |
+| Patient   | "Gender, ID"  |             |         |
 | Gender    |               | string      |         |
 | ID        |               | string      | [a-f]   |
 
@@ -264,7 +264,7 @@ Data Model:
 
 | Attribute    | DependsOn                  | columnType  | Minimum | Maximum |
 |---|---|---|---|---|
-| Patient      | "Age, Weight, Expression"  |             |         |         |
+| Patient      | "Age, Weight, Health Score"  |             |         |         |
 | Age          |                            | integer     | 0       | 120     |
 | Weight       |                            | number      | 0.0     |         |
 | Health Score |                            | number      | 0.0     | 1.0     |
@@ -317,7 +317,7 @@ If you have an existing data model using any of the following validation rules, 
 
 The `DependsOn` and `Valid Values` columns can be used together to flexibly define conditional logic for determining the relevant attributes for a data type.
 
-In this example we have the `Patient` data type. In this case the `Patient` can be diagnosed as healthy or with cancer. For Patients with cancer we also want to collect info about their cancer type, and any cancers in their family history.
+In this example we have the `Patient` data type. The `Patient` can be diagnosed as healthy or with cancer. For Patients with cancer we also want to collect info about their cancer type, and any cancers in their family history.
 
 Data Model:
 
@@ -381,7 +381,7 @@ As a result of the above data model, in the JSON Schema:
         }
       },
       "then": {
-        "required": ["Cancer Type", "FamilyHistory"]
+        "required": ["Cancer Type", "Family History"]
       }
     }
   ]
