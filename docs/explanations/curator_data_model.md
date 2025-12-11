@@ -383,7 +383,7 @@ As a result of the above data model, in the JSON Schema:
       "then": {
         "required": ["Cancer Type", "FamilyHistory"]
       }
-    },
+    }
   ]
 }
 ```
