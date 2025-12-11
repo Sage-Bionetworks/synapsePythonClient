@@ -258,7 +258,7 @@ JSON Schema output:
 
 ### Minimum/Maximum
 
-The range of numeric values this attribute must be in.  The type of this attribute must be "integer", "number", or "integer_list". See [range](https://json-schema.org/understanding-json-schema/reference/numeric#range)  The value of these columns will be appear as the `minimum` and `maximum` of this attribute in the JSON Schema. Both must be numeric values.
+The range that this attribute's numeric values must fall within. The type of this attribute must be "integer", "number", or "integer_list". See [range](https://json-schema.org/understanding-json-schema/reference/numeric#range)  The value of these columns will appear as the `minimum` and `maximum` of this attribute in the JSON Schema. Both must be numeric values.
 
 Data Model:
 
