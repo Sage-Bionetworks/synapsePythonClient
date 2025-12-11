@@ -4,9 +4,52 @@ The Curator-Extension (formerly Schematic) data model is used to create JSON Sch
 
 A link will be provided here to documentation for converting CSV data models to JSON Schema in the near future.
 
-## Data model columns
+## Understanding the Structure
 
-A JSON Schema is made up of one data type(for example a person) and the attributes that describe the data type (for example age and gender). The CSV data model will describe one or more data types. Each row describes either a data type, or an attribute.
+A data model describes real world entities(data types) and attributes that you want to collect data for. For example you might want to describe a Patient. And you want to collect their age, gender and name:
+
+Patient (data type)
+  ├─ Age (attribute)
+  ├─ Gender (attribute)
+  └─ Name (attribute)
+
+The CSV data model described in this tutorial formalizes this structure:
+
+- The CSV data model describes one or more data types.
+- Each row describes either a data type, or an attribute.
+
+Here is the Patient described above represented as a CSV data model:
+
+| Attribute | DependsOn |
+|---|---|
+| Patient   | "Gender"  |
+| Age       |           |
+| Gender    |           |
+| Name      |           |
+
+The end goal is to create a JSON schema that cna be used in Curator. A JSON Schema consists of only one data type and their attributes. Converting the above data model to JSON Schema results in:
+
+```json
+{
+  "description": "TBD",
+  "properties": {
+    "Age": {
+      "description": "TBD",
+      "title": "Age"
+    },
+    "Gender": {
+      "description": "TBD",
+      "title": "Gender"
+    },
+    "Name": {
+      "description": "TBD",
+      "title": "Name"
+    }
+  }
+}
+```
+
+## CSV Data model columns
 
 Note: Individual columns are covered later on this page.
 
@@ -21,27 +64,6 @@ Defining attributes:
 - Put a unique attribute name in the `Attribute` column
 - Leave the `DependsOn` column empty
 - All other columns are optional
-
-Below is a simple data model with one data type (Patient) that has one attribute (Gender)
-
-| Attribute | DependsOn |
-|---|---|
-| Patient    | "Gender"  |
-| Gender    |           |
-
-Converting the above data model to JSON Schema results in:
-
-```json
-{
-  "description": "TBD",
-  "properties": {
-    "Gender": {
-      "description": "TBD",
-      "title": "Gender"
-    }
-  }
-}
-```
 
 ### Attribute
 
@@ -132,9 +154,9 @@ Data Model:
 
 | Attribute | DependsOn         | columnType  |
 |---|---|---|
-| Patient    | "Gender, Assays"  |             |
+| Patient   | "Gender, Hobbies" |             |
 | Gender    |                   | string      |
-| Assays    |                   | string_list |
+| Hobbies   |                   | string_list |
 
 JSON Schema output:
 
@@ -147,9 +169,9 @@ JSON Schema output:
       "title": "Gender",
       "type": "string"
     },
-    "Assays": {
+    "Hobbies": {
       "description": "TBD",
-      "title": "Assays",
+      "title": "Hobbies",
       "type": "array",
       "items": {
         "type": "string"
