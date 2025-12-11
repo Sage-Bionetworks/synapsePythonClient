@@ -6,12 +6,7 @@ A link will be provided here to documentation for converting CSV data models to 
 
 ## Understanding the Structure
 
-A data model describes real world entities(data types) and attributes that you want to collect data for. For example you might want to describe a Patient. And you want to collect their age, gender and name:
-
-Patient (data type)
-  ├─ Age (attribute)
-  ├─ Gender (attribute)
-  └─ Name (attribute)
+A data model describes real world entities(data types) and attributes that you want to collect data for. For example you might want to describe a Patient. And you want to collect their age, gender and name.
 
 The CSV data model described in this tutorial formalizes this structure:
 
