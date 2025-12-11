@@ -54,7 +54,7 @@ A description of the datatype or attribute. This will be appear as a description
 
 ### Valid Values
 
-Set of possible values for the current attribute. This attribute be an enum in the JSON Schema, with the values here as the enum values. See [enum](https://json-schema.org/understanding-json-schema/reference/enum#enumerated-values). This should be a comma-separated list in quotes. Example: "Female, Male, Other"
+Set of possible values for the current attribute. This attribute will be an enum in the JSON Schema, with the values here as the enum values. See [enum](https://json-schema.org/understanding-json-schema/reference/enum#enumerated-values). This should be a comma-separated list in quotes. Example: "Female, Male, Other"
 
 Data Model:
 
@@ -115,13 +115,13 @@ The data type this of this attribute. See [type](https://json-schema.org/underst
 
 Must be one of:
 
-- "string"
-- "number"
-- "integer"
-- "boolean"
-- "string_list"
-- "integer_list"
-- "boolean_list"
+- `string`
+- `number`
+- `integer`
+- `boolean`
+- `string_list`
+- `integer_list`
+- `boolean_list`
 
 Data Model:
 
