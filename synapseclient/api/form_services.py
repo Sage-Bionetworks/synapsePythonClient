@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator
 
 from synapseclient.api.api_client import rest_post_paginated_async
 from synapseclient.core.async_utils import wrap_async_generator_to_sync_generator
@@ -65,7 +65,7 @@ async def create_form_data(
 async def list_form_data(
     synapse_client: "Synapse",
     group_id: str,
-    filter_by_state: Optional[list["StateEnum"]] = None,
+    filter_by_state: list["StateEnum"],
     as_reviewer: bool = False,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """
@@ -81,13 +81,12 @@ async def list_form_data(
     Arguments:
         synapse_client: The Synapse client to use for the request.
         group_id: The ID of the form group. Required.
-        filter_by_state: Optional list of StateEnum values to filter the FormData objects.
+        filter_by_state: list of StateEnum values to filter the FormData objects.
             When as_reviewer=False (default), valid values are:
             - StateEnum.WAITING_FOR_SUBMISSION
             - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
             - StateEnum.ACCEPTED
             - StateEnum.REJECTED
-            Note: filter_by_state cannot be None
 
             When as_reviewer=True, valid values are:
             - StateEnum.SUBMITTED_WAITING_FOR_REVIEW (default if None)
@@ -124,7 +123,7 @@ async def list_form_data(
 def list_form_data_sync(
     synapse_client: "Synapse",
     group_id: str,
-    filter_by_state: Optional[list["StateEnum"]] = None,
+    filter_by_state: list["StateEnum"],
     as_reviewer: bool = False,
 ) -> Generator[dict[str, Any], None, None]:
     """
@@ -142,13 +141,12 @@ def list_form_data_sync(
     Arguments:
         synapse_client: The Synapse client to use for the request.
         group_id: The ID of the form group. Required.
-        filter_by_state: Optional list of StateEnum values to filter the FormData objects.
+        filter_by_state: list of StateEnum values to filter the FormData objects.
             When as_reviewer=False (default), valid values are:
             - StateEnum.WAITING_FOR_SUBMISSION
             - StateEnum.SUBMITTED_WAITING_FOR_REVIEW
             - StateEnum.ACCEPTED
             - StateEnum.REJECTED
-            Note: filter_by_state cannot be None or empty
 
             When as_reviewer=True, valid values are:
             - StateEnum.SUBMITTED_WAITING_FOR_REVIEW (default if None)
