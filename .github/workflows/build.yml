@@ -34,15 +34,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-    - uses: pre-commit/action@v3.0.1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: pre-commit/action@v3.0.1
+
+      # Uncomment this job and comment out the main `test` job below when debugging
+      # to allow dependent jobs to run without waiting for full test suite
+  # test:
+  #   needs: [pre-commit]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Stub test job for debugging
+  #       run: echo "Using stub test job - remember to re-enable full tests before merging"
 
   # run unit (and integration tests if account secrets available) on our build matrix
   test:
@@ -55,7 +63,7 @@ jobs:
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         # Make sure that we are running the integration tests on the first and last versions of the matrix
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
 
     runs-on: ${{ matrix.os }}
 
@@ -308,12 +316,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
       - name: Check coverage-report artifact existence
         id: check_coverage_report
         uses: LIT-Protocol/artifact-exists-action@v0
         with:
-          name: "coverage-report"
+          name: 'coverage-report'
       - name: Download coverage report
         uses: actions/download-artifact@v4
         if: steps.check_coverage_report.outputs.exists == 'true'
@@ -323,7 +331,7 @@ jobs:
         id: check_coverage_xml
         uses: andstor/file-existence-action@v3
         with:
-          files: "coverage.xml"
+          files: 'coverage.xml'
         # This is a workaround described in https://community.sonarsource.com/t/sonar-on-github-actions-with-python-coverage-source-issue/36057
       - name: Override Coverage Source Path for Sonar
         if: steps.check_coverage_xml.outputs.files_exists == 'true'
@@ -337,11 +345,11 @@ jobs:
 
   # on a GitHub release, build the pip package and upload it as a GitHub release asset
   package:
-    needs: [test,pre-commit]
+    needs: [test, pre-commit]
 
     runs-on: ubuntu-22.04
 
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' && !startsWith(github.event.release.tag_name, 'synapsedesktopclient')
 
     outputs:
       sdist-package-name: ${{ steps.build-package.outputs.sdist-package-name }}
@@ -449,6 +457,179 @@ jobs:
       #     asset_path: dist/${{ steps.build-package.outputs.bdist-package-name }}
       #     asset_content_type: application/zip
 
+  # build standalone desktop client artifacts for Windows and macOS on release
+  build-electron-desktop-clients:
+    needs: [test, pre-commit]
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'synapsedesktopclient')
+
+    strategy:
+      matrix:
+        include:
+          # Windows builds
+          - os: windows-2022
+            platform: windows
+            python-version: '3.11'
+            artifact-name: synapse-desktop-client-windows-x64
+
+          # macOS builds
+          - os: macos-14
+            platform: macos
+            python-version: '3.11'
+            artifact-name: synapse-desktop-client-macos
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          activate-environment: true
+          python-version: 3.13
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: synapse-electron/package-lock.json
+
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          uv pip install "pyinstaller>=6.14.0" "pyinstaller-hooks-contrib>=2024.0"
+          uv pip install -e ".[electron]"
+
+          # ensure that numpy c extensions are installed on windows
+          # https://stackoverflow.com/a/59346525
+          if [ "${{startsWith(runner.os, 'Windows')}}" == "true" ]; then
+            uv pip uninstall numpy
+            uv pip uninstall setuptools
+            uv pip install setuptools
+            uv pip install numpy
+          fi
+
+      - name: Install Node.js dependencies
+        shell: bash
+        run: |
+          cd synapse-electron
+          npm install
+
+      # macOS code signing setup - manual import
+      - name: Import Code Signing Certificates (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          # Pass secrets as env vars to prevent special character errors
+          CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          CERT_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
+        run: |
+          # Define paths
+          CERTIFICATE_PATH="${RUNNER_TEMP}/certificate.p12"
+          CLEAN_CERT_PATH="${RUNNER_TEMP}/clean_certificate.p12"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          # 1. Decode the raw certificate
+          echo "$CERT_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+
+          # 2. Re-encode the P12 to ensure compatibility
+          # We strip the encryption (-nodes) and repackage it.
+          # This fixes "MAC verification failed" caused by modern macOS export formats.
+
+          # Extract Private Key (No legacy flag needed for this version of OpenSSL)
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -nocerts -out temp-key.pem -passin env:CERT_PASSWORD
+
+          # Extract Certificate
+          openssl pkcs12 -in "$CERTIFICATE_PATH" -nodes -nokeys -out temp-cert.pem -passin env:CERT_PASSWORD
+
+          # Re-combine into a clean P12
+          openssl pkcs12 -export -in temp-cert.pem -inkey temp-key.pem -out "$CLEAN_CERT_PATH" -passout env:CERT_PASSWORD
+
+          # 3. Create and Unlock Keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # 4. Import the CLEANED certificate
+          # -T /usr/bin/codesign grants permission to the codesign tool
+          # -A allows any application to access (useful for CI)
+          security import "$CLEAN_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign -A
+
+          # 5. Set Search List and Default
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          # 6. Partition List (Grant access to tools to prevent UI prompts)
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # 7. Find and store the signing identity for later use
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | grep -o '"[^"]*"' | tr -d '"')
+          echo "Found signing identity: $SIGNING_IDENTITY"
+          echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
+
+          # 8. Verify the identity is accessible
+          security find-identity -v "$KEYCHAIN_PATH"
+
+          # 9. Clean up sensitive files
+          rm "$CERTIFICATE_PATH" "$CLEAN_CERT_PATH" temp-cert.pem temp-key.pem
+
+      - name: Build Python backend (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          # Set environment variable to skip dependency installation in build script
+          export SKIP_DEPENDENCY_INSTALL=1
+
+          # Use cmd to run the batch file with proper Windows syntax
+          cmd //c "build_electron_app.bat"
+
+      - name: Build using build scripts (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.MACOS_APPLE_TEAM_ID }}
+        run: |
+          # Set environment variable to skip dependency installation in build script
+          export SKIP_DEPENDENCY_INSTALL=1
+
+          # Debug: Print env var status (not values for security)
+          echo "Environment variables status before export:"
+          [ -n "$APPLE_ID" ] && echo "✓ APPLE_ID is set" || echo "✗ APPLE_ID is NOT set"
+          [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && echo "✓ APPLE_APP_SPECIFIC_PASSWORD is set" || echo "✗ APPLE_APP_SPECIFIC_PASSWORD is NOT set"
+          [ -n "$APPLE_TEAM_ID" ] && echo "✓ APPLE_TEAM_ID is set" || echo "✗ APPLE_TEAM_ID is NOT set"
+
+          # Export Apple credentials for notarization (electron-builder requires these exact names)
+          export APPLE_ID="${{ secrets.MACOS_APPLE_ID }}"
+          export APPLE_APP_SPECIFIC_PASSWORD="${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}"
+          export APPLE_TEAM_ID="${{ secrets.MACOS_APPLE_TEAM_ID }}"
+
+          chmod +x build_electron_app.sh
+          ./build_electron_app.sh macos
+
+      - name: List built files
+        shell: bash
+        run: |
+          echo "Built files in synapse-electron/dist:"
+          if [ -d "synapse-electron/dist" ]; then
+            ls -la synapse-electron/dist/
+          else
+            echo "No dist directory found"
+            fi
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            synapse-electron/dist/*.exe
+            synapse-electron/dist/*.dmg
+
   # re-download the built package to the appropriate pypi server.
   # we upload prereleases to test.pypi.org and releases to pypi.org.
   deploy:
@@ -489,7 +670,7 @@ jobs:
         os: [ubuntu-24.04, macos-13, windows-2022]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
 
     runs-on: ${{ matrix.os }}
 

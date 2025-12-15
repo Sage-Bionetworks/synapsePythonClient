@@ -1,0 +1,61 @@
+{
+  "name": "Synapse Desktop Client",
+  "version": "1.0.0",
+  "description": "Development configuration for Synapse Desktop Client",
+  "main": "main.js",
+  "scripts": {
+    "electron": "electron .",
+    "electron-dev": "ELECTRON_IS_DEV=1 electron .",
+    "electron-pack": "electron-builder",
+    "preelectron-pack": "npm run build"
+  },
+  "build": {
+    "appId": "com.sagebase.synapse-desktop-client",
+    "productName": "Synapse Desktop Client",
+    "copyright": "Copyright © 2023 Sage Bionetworks",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!backend/__pycache__",
+      "!backend/*.pyc",
+      "!backend/venv",
+      "!.git",
+      "!README.md"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  }
+}

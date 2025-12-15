@@ -35,3 +35,7 @@ coverage.xml
 *.ipynb
 .env
 test.synapseConfig
+*.spec
+
+synapse-electron/node_modules
+synapse-electron/backend/build

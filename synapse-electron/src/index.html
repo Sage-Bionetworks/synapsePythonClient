@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse Desktop Client</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- JSTree CSS and JS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.15/themes/default/style.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.15/jstree.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="app-header">
+            <div class="header-content">
+                <i class="fas fa-cloud-upload-alt header-icon"></i>
+                <h1>Synapse Desktop Client</h1>
+                <div class="app-version" id="app-version"></div>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <!-- Login Section -->
+            <div id="login-section" class="login-container">
+                <div class="login-card">
+                    <h2>
+                        <i class="fas fa-sign-in-alt"></i>
+                        Login to Synapse
+                    </h2>
+
+                    <div class="login-modes">
+                        <label class="radio-option">
+                            <input type="radio" name="loginMode" value="manual" id="manual-mode" checked>
+                            <span class="radio-custom"></span>
+                            Manual Login (Username + Token)
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="loginMode" value="config" id="config-mode">
+                            <span class="radio-custom"></span>
+                            Config File Login
+                        </label>
+                    </div>
+
+                    <!-- Manual Login Form -->
+                    <div id="manual-login" class="login-form active">
+                        <div class="form-group">
+                            <label for="username">
+                                <i class="fas fa-user"></i>
+                                Username/Email
+                            </label>
+                            <input type="text" id="username" placeholder="Enter your username or email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="token">
+                                <i class="fas fa-key"></i>
+                                Personal Access Token
+                            </label>
+                            <input type="password" id="token" placeholder="Enter your personal access token" required>
+                        </div>
+                    </div>
+
+                    <!-- Config Login Form -->
+                    <div id="config-login" class="login-form">
+                        <div class="form-group">
+                            <label for="profile">
+                                <i class="fas fa-user-cog"></i>
+                                Profile
+                            </label>
+                            <select id="profile">
+                                <option value="">Select a profile...</option>
+                            </select>
+                        </div>
+                        <div id="profile-info" class="profile-info"></div>
+                    </div>
+
+                    <button id="login-btn" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Login
+                    </button>
+
+                    <div id="login-status" class="status-message"></div>
+                </div>
+            </div>
+
+            <!-- Main Application -->
+            <div id="main-section" class="main-app" style="display: none;">
+                <div class="app-content">
+                    <!-- User Info Bar -->
+                    <div class="user-info-bar">
+                    <div class="user-details">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="user-name">User</span>
+                    </div>
+                    <button id="logout-btn" class="btn btn-secondary">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </div>
+
+                <!-- Main Content Tabs -->
+                <div class="tab-container">
+                    <div class="tab-navigation">
+                        <button class="tab-btn active" data-tab="download">
+                            <i class="fas fa-download"></i>
+                            Download File
+                        </button>
+                        <button class="tab-btn" data-tab="upload">
+                            <i class="fas fa-upload"></i>
+                            Upload File
+                        </button>
+                        <button class="tab-btn" data-tab="bulk-download">
+                            <i class="fas fa-cloud-download-alt"></i>
+                            Bulk Download
+                        </button>
+                        <button class="tab-btn" data-tab="bulk-upload">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            Bulk Upload
+                        </button>
+                    </div>
+
+                    <div class="tab-content">
+                        <!-- Download Tab -->
+                        <div id="download-tab" class="tab-panel active">
+                            <div class="form-section">
+                                <h3>
+                                    <i class="fas fa-download"></i>
+                                    Download File from Synapse
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="download-id">Synapse ID</label>
+                                        <input type="text" id="download-id" placeholder="syn1234567" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="download-version">Version (optional)</label>
+                                        <input type="text" id="download-version" placeholder="1">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="download-location">Download Location</label>
+                                    <div class="file-input-group">
+                                        <input type="text" id="download-location" readonly>
+                                        <button type="button" id="browse-download-location" class="btn btn-secondary">
+                                            <i class="fas fa-folder-open"></i>
+                                            Browse
+                                        </button>
+                                    </div>
+                                </div>
+                                <button id="download-btn" class="btn btn-primary">
+                                    <i class="fas fa-download"></i>
+                                    Download File
+                                </button>
+                                <div class="progress-section">
+                                    <div id="download-progress-text" class="progress-text"></div>
+                                    <div class="progress-bar">
+                                        <div id="download-progress" class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upload Tab -->
+                        <div id="upload-tab" class="tab-panel">
+                            <div class="form-section">
+                                <h3>
+                                    <i class="fas fa-upload"></i>
+                                    Upload File to Synapse
+                                </h3>
+                                <div class="form-group">
+                                    <label for="upload-file">File to Upload</label>
+                                    <div class="file-input-group">
+                                        <input type="text" id="upload-file" readonly>
+                                        <button type="button" id="browse-upload-file" class="btn btn-secondary">
+                                            <i class="fas fa-file-upload"></i>
+                                            Browse
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="upload-mode-section">
+                                    <h4>Upload Mode</h4>
+                                    <div class="radio-group">
+                                        <label class="radio-option">
+                                            <input type="radio" name="uploadMode" value="new" id="upload-new" checked>
+                                            <span class="radio-custom"></span>
+                                            Create New File
+                                        </label>
+                                        <label class="radio-option">
+                                            <input type="radio" name="uploadMode" value="update" id="upload-update">
+                                            <span class="radio-custom"></span>
+                                            Update Existing File
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group" id="parent-id-group">
+                                        <label for="parent-id">Parent ID (Project/Folder)</label>
+                                        <input type="text" id="parent-id" placeholder="syn1234567">
+                                    </div>
+                                    <div class="form-group" id="entity-id-group" style="display: none;">
+                                        <label for="entity-id">Entity ID to Update</label>
+                                        <input type="text" id="entity-id" placeholder="syn1234567">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="upload-name">Entity Name (optional)</label>
+                                    <input type="text" id="upload-name" placeholder="Leave empty to use filename">
+                                </div>
+
+                                <button id="upload-btn" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i>
+                                    Upload File
+                                </button>
+                                <div class="progress-section">
+                                    <div id="upload-progress-text" class="progress-text"></div>
+                                    <div class="progress-bar">
+                                        <div id="upload-progress" class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bulk Download Tab -->
+                        <div id="bulk-download-tab" class="tab-panel">
+                            <div class="form-section">
+                                <h3>
+                                    <i class="fas fa-cloud-download-alt"></i>
+                                    Bulk Download from Container
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="container-id">Project/Folder ID</label>
+                                        <input type="text" id="container-id" placeholder="syn1234567">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="recursive" checked>
+                                            <span class="checkbox-custom"></span>
+                                            Recursive (include subfolders)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="bulk-download-location">Download Location</label>
+                                    <div class="file-input-group">
+                                        <input type="text" id="bulk-download-location" readonly>
+                                        <button type="button" id="browse-bulk-download-location" class="btn btn-secondary">
+                                            <i class="fas fa-folder-open"></i>
+                                            Browse
+                                        </button>
+                                    </div>
+                                </div>
+                                <button id="enumerate-btn" class="btn btn-secondary">
+                                    <i class="fas fa-list"></i>
+                                    Enumerate Contents
+                                </button>
+
+                                <div id="container-contents" class="container-contents" style="display: none;">
+                                    <h4>Select Items to Download</h4>
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        Use ▶/▼ to expand/collapse folders, checkboxes to select items.
+                                    </div>
+                                    <div class="selection-controls">
+                                        <button id="select-all-btn" class="btn btn-small">Select All</button>
+                                        <button id="deselect-all-btn" class="btn btn-small">Deselect All</button>
+                                        <button id="expand-all-btn" class="btn btn-small">Expand All</button>
+                                        <button id="collapse-all-btn" class="btn btn-small">Collapse All</button>
+                                    </div>
+                                    <div id="items-tree" class="items-tree"></div>
+                                    <button id="bulk-download-btn" class="btn btn-primary">
+                                        <i class="fas fa-cloud-download-alt"></i>
+                                        Download Selected Items
+                                    </button>
+                                </div>
+
+                                <div class="progress-section">
+                                    <div id="bulk-download-progress-text" class="progress-text"></div>
+                                    <div class="progress-bar">
+                                        <div id="bulk-download-progress" class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bulk Upload Tab -->
+                        <div id="bulk-upload-tab" class="tab-panel">
+                            <div class="form-section">
+                                <h3>
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    Bulk Upload to Container
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="bulk-parent-id">Parent ID (Project/Folder)</label>
+                                        <input type="text" id="bulk-parent-id" placeholder="syn1234567">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="bulk-preserve-structure" checked>
+                                            <span class="checkbox-custom"></span>
+                                            Preserve folder structure
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="bulk-upload-location">Source Directory</label>
+                                    <div class="file-input-group">
+                                        <input type="text" id="bulk-upload-location" readonly>
+                                        <button type="button" id="browse-bulk-upload-location" class="btn btn-secondary">
+                                            <i class="fas fa-folder-open"></i>
+                                            Browse Directory
+                                        </button>
+                                    </div>
+                                </div>
+                                <button id="scan-upload-btn" class="btn btn-secondary">
+                                    <i class="fas fa-search"></i>
+                                    Scan for Files
+                                </button>
+
+                                <div id="bulk-upload-files" class="container-contents" style="display: none;">
+                                    <h4>Select Files to Upload</h4>
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        Use checkboxes to select files for upload. Only files can be uploaded.
+                                    </div>
+                                    <div class="selection-controls">
+                                        <button id="select-all-upload-btn" class="btn btn-small">Select All</button>
+                                        <button id="deselect-all-upload-btn" class="btn btn-small">Deselect All</button>
+                                        <button id="expand-all-upload-btn" class="btn btn-small">Expand All</button>
+                                        <button id="collapse-all-upload-btn" class="btn btn-small">Collapse All</button>
+                                    </div>
+                                    <div id="upload-files-tree" class="items-tree"></div>
+                                    <button id="bulk-upload-btn" class="btn btn-primary">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        Upload Selected Files
+                                    </button>
+                                </div>
+
+                                <div class="progress-section">
+                                    <div id="bulk-upload-progress-text" class="progress-text"></div>
+                                    <div class="progress-bar">
+                                        <div id="bulk-upload-progress" class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Section -->
+                <div class="output-section">
+                    <div class="output-header">
+                        <h3>
+                            <i class="fas fa-terminal"></i>
+                            Output Log
+                        </h3>
+                        <div class="output-controls">
+                            <button id="auto-scroll-toggle" class="btn btn-small auto-scroll-enabled" title="Toggle auto-scroll">
+                                <i class="fas fa-arrows-alt-v"></i>
+                                Auto-scroll
+                            </button>
+                            <button id="scroll-to-bottom-btn" class="btn btn-small" title="Scroll to bottom">
+                                <i class="fas fa-arrow-down"></i>
+                            </button>
+                            <button id="clear-output-btn" class="btn btn-small">
+                                <i class="fas fa-trash"></i>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div id="output-log" class="output-log"></div>
+                    <div class="output-status">
+                        <span id="log-count">0 messages</span>
+                        <span id="auto-scroll-status" class="auto-scroll-enabled">Auto-scroll: ON</span>
+                    </div>
+                </div>
+                </div> <!-- End app-content -->
+
+                <!-- Status Bar -->
+                <div class="status-bar">
+                    <div id="status-message" class="status-message">Ready</div>
+                    <div class="status-right">
+                        <span id="connection-status" class="connection-status">
+                            <i class="fas fa-circle status-connected"></i>
+                            Connected
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
