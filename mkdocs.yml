@@ -105,6 +105,7 @@ nav:
           - Functional Interfaces: reference/experimental/functional_interfaces.md
           - SchemaOrganization: reference/experimental/sync/schema_organization.md
           - JSONSchema: reference/experimental/sync/json_schema.md
+          - FormGroup and Form: reference/experimental/sync/form.md
           - Extensions:
               - Curator: reference/extensions/curator.md
           - Asynchronous:
@@ -128,6 +129,7 @@ nav:
               - Link: reference/experimental/async/link_entity.md
               - SchemaOrganization: reference/experimental/async/schema_organization.md
               - JSONSchema: reference/experimental/async/json_schema.md
+              - FormGroup and Form: reference/experimental/async/form.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md
@@ -135,6 +137,8 @@ nav:
               - FailureStrategy: reference/experimental/mixins/failure_strategy.md
               - BaseJSONSchema: reference/experimental/mixins/base_json_schema.md
               - ContainerEntityJSONSchema: reference/experimental/mixins/container_json_schema.md
+              - FormData: reference/experimental/mixins/form_data.md
+              - FormGroup: reference/experimental/mixins/form_group.md
 
   - Further Reading:
       - Home: explanations/home.md
