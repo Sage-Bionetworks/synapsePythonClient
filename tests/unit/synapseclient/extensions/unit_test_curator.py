@@ -1956,8 +1956,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate JSON schemas
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=None,
+                output=temp_dir,
+                data_types=None,
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -1996,8 +1996,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate JSON schemas from the JSONLD
             schemas, file_paths = generate_jsonschema(
                 data_model_source=jsonld_path,
-                output_directory=temp_dir,
-                data_type=None,
+                output=temp_dir,
+                data_types=None,
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2022,8 +2022,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate JSON schemas for specific components
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=target_components,
+                output=temp_dir,
+                data_types=target_components,
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2047,8 +2047,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas with display_label
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="display_label",
                 synapse_client=self.syn,
             )
@@ -2071,8 +2071,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2098,8 +2098,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2136,8 +2136,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas for MockComponent (has many validation rules)
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["MockComponent"],
+                output=temp_dir,
+                data_types=["MockComponent"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2185,8 +2185,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2232,8 +2232,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas for MockComponent (has list rules)
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["MockComponent"],
+                output=temp_dir,
+                data_types=["MockComponent"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2267,8 +2267,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, file_paths = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
+                output=temp_dir,
+                data_types=["Patient"],
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
@@ -2289,8 +2289,8 @@ class TestGenerateJsonschema(unittest.TestCase):
             # WHEN I generate schemas
             schemas, _ = generate_jsonschema(
                 data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=None,
+                output=temp_dir,
+                data_types=None,
                 data_model_labels="class_label",
                 synapse_client=self.syn,
             )
