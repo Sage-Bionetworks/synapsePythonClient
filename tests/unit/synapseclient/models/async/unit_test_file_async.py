@@ -44,7 +44,7 @@ FILE_HANDLE_EXTERNAL_URL = "file_handle_externalURL_value"
 MODIFIED_DESCRIPTION = "This is a modified description."
 ACTUAL_PARENT_ID = "syn999"
 
-CANNOT_STORE_FILE_ERROR = "The file must have an (ID with a (path or `data_file_handle_id`)), or a (path with a (`parent_id` or parent with an id)), or a (data_file_handle_id with a (`parent_id` or parent with an id)) to store."
+CANNOT_STORE_FILE_ERROR = "The file must have an (ID with a (path, external_url, or `data_file_handle_id`)), or a ((path or external_url) with a (`parent_id` or parent with an id)), or a (data_file_handle_id with a (`parent_id` or parent with an id)) to store."
 
 
 class TestFile:

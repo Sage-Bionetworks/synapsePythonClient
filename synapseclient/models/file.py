@@ -813,7 +813,7 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
 
             File with an external URL and a parent folder with the ID `syn456`:
 
-                file_instance = await File(name="my_file.txt", external_url="s3://bucket/key", parent_id="syn456", synapse_store=False).store_async()
+                file_instance = await File(name="my_file.txt", external_url="https://example.com/link/to/thing", parent_id="syn456", synapse_store=False).store_async()
 
             File with a parent and existing file handle (This allows multiple entities to reference the underlying file):
 
@@ -1337,7 +1337,7 @@ async def _needs_upload(
                         entity_to_upload.file_handle.id, entity_to_upload.path
                     )
                 )
-            )
+            ) and entity_to_upload.path
 
             md5_stored_in_synapse = (
                 entity_to_upload.file_handle.content_md5
