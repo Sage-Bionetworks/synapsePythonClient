@@ -383,14 +383,10 @@ class TestWikiPage:
         "etag": "etag123",
         "title": "Test Wiki Page",
         "parentWikiId": "parent_wiki",
-        "markdown": "# Test markdown text",
-        "attachments": ["test_1.txt", "test_2.txt"],
-        "ownerId": "syn123",
         "createdOn": "2023-01-01T00:00:00.000Z",
         "createdBy": "12345",
         "modifiedOn": "2023-01-02T00:00:00.000Z",
         "modifiedBy": "12345",
-        "wikiVersion": "0",
         "markdownFileHandleId": None,
         "attachmentFileHandleIds": [],
     }
@@ -406,43 +402,51 @@ class TestWikiPage:
         # THEN the WikiPage object should be filled with the example data
         assert results == self.wiki_page
 
-    async def test_to_synapse_request(self) -> None:
+    def test_to_synapse_request_delete_none_keys(self) -> None:
         # WHEN I call `to_synapse_request`
         results = self.wiki_page.to_synapse_request()
         # delete none keys for expected response
         expected_results = copy.deepcopy(self.api_response)
         expected_results.pop("markdownFileHandleId", None)
+        expected_results.pop("ownerId", None)
+        expected_results["attachments"] = self.wiki_page.attachments
+        expected_results["markdown"] = self.wiki_page.markdown
+        expected_results["wikiVersion"] = self.wiki_page.wiki_version
         # THEN the request should contain the correct data
-        assert results == expected_results
-
-    def test_to_synapse_request_with_none_values(self) -> None:
-        # WHEN I call `to_synapse_request`
-        results = self.wiki_page.to_synapse_request()
-        # THEN the request should not contain None values
-        expected_results = copy.deepcopy(self.api_response)
-        expected_results.pop("markdownFileHandleId", None)
         assert results == expected_results
 
     def test_to_gzip_file_with_string_content(self) -> None:
         self.syn.cache.cache_root_dir = "/tmp/cache"
 
         # WHEN I call `_to_gzip_file` with a markdown string
-        with patch("os.path.isfile", return_value=False), patch(
-            "builtins.open", mock_open(read_data=b"test content")
-        ), patch("gzip.open", mock_open()), patch("os.path.exists", return_value=True):
+        with patch("builtins.open") as mock_open_file, patch(
+            "gzip.open"
+        ) as mock_gzip_open, patch("os.path.exists", return_value=True):
             file_path = self.wiki_page._to_gzip_file(self.wiki_page.markdown, self.syn)
 
         # THEN the content should be written to a gzipped file
+        mock_open_file.assert_not_called()
+        mock_gzip_open.assert_called_once_with(
+            "/tmp/cache/wiki_content/wiki_markdown_Test Wiki Page.md.gz",
+            "wt",
+            encoding="utf-8",
+        )
+        mock_gzip_open.return_value.__enter__.return_value.write.assert_called_once_with(
+            self.wiki_page.markdown
+        )
         assert file_path == "/tmp/cache/wiki_content/wiki_markdown_Test Wiki Page.md.gz"
 
     def test_to_gzip_file_with_gzipped_file(self) -> None:
-        with patch("os.path.isfile", return_value=True):
+        with patch("os.path.isfile"), patch("gzip.open") as mock_gzip_open, patch(
+            "builtins.open"
+        ) as mock_open_file:
             self.syn.cache.cache_root_dir = "/tmp/cache"
             markdown_file_path = "wiki_markdown_Test Wiki Page.md.gz"
+
             # WHEN I call `_to_gzip_file` with a gzipped file
             file_path = self.wiki_page._to_gzip_file(markdown_file_path, self.syn)
-
-            # THEN the filepath should be the same as the input
+            mock_open_file.assert_not_called()
+            mock_gzip_open.assert_not_called()
             assert file_path == markdown_file_path
 
     def test_to_gzip_file_with_non_gzipped_file(self) -> None:
@@ -450,11 +454,20 @@ class TestWikiPage:
 
         # WHEN I call `_to_gzip_file` with a file path
         with patch("os.path.isfile", return_value=True), patch(
-            "builtins.open", mock_open(read_data=b"test content")
-        ), patch("gzip.open", mock_open()), patch("os.path.exists", return_value=True):
+            "builtins.open", new=mock_open(read_data=b"test content")
+        ) as mock_open_file, patch("gzip.open") as mock_gzip_open, patch(
+            "os.path.exists", return_value=True
+        ):
             file_path = self.wiki_page._to_gzip_file("/path/to/test.txt", self.syn)
 
             # THEN the file should be processed
+            mock_open_file.assert_called_once_with("/path/to/test.txt", "rb")
+            mock_gzip_open.assert_called_once_with(
+                "/tmp/cache/wiki_content/test.txt.gz", "wb"
+            )
+            gzip_handle = mock_gzip_open.return_value.__enter__.return_value
+            open_handle = mock_open_file.return_value.__enter__.return_value
+            gzip_handle.writelines.assert_called_once_with(open_handle)
             assert file_path == "/tmp/cache/wiki_content/test.txt.gz"
 
     def test_to_gzip_file_with_invalid_content(self) -> None:
@@ -462,6 +475,83 @@ class TestWikiPage:
         # THEN it should raise SyntaxError
         with pytest.raises(SyntaxError, match="Expected a string, got int"):
             self.wiki_page._to_gzip_file(123, self.syn)
+
+    def test_unzip_gzipped_file_with_markdown(self) -> None:
+        gzipped_file_path = "/path/to/test.md.gz"
+        expected_unzipped_file_path = "/path/to/test.md"
+        markdown_content = "# Test Markdown\n\nThis is a test."
+        markdown_content_bytes = markdown_content.encode("utf-8")
+
+        # WHEN I call `_unzip_gzipped_file` with a binary file
+        with patch("gzip.open") as mock_gzip_open, patch(
+            "builtins.open"
+        ) as mock_open_file, patch("pprint.pp") as mock_pprint:
+            mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
+                markdown_content_bytes
+            )
+            unzipped_file_path = self.wiki_page._unzip_gzipped_file(gzipped_file_path)
+
+        # THEN the file should be unzipped correctly
+        mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
+        mock_pprint.assert_called_once_with(markdown_content)
+        mock_open_file.assert_called_once_with(
+            expected_unzipped_file_path, "wt", encoding="utf-8"
+        )
+        mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
+            markdown_content
+        )
+        assert unzipped_file_path == expected_unzipped_file_path
+
+    def test_unzip_gzipped_file_with_binary_file(self) -> None:
+        gzipped_file_path = "/path/to/test.bin.gz"
+        expected_unzipped_file_path = "/path/to/test.bin"
+        binary_content = b"\x00\x01\x02\x03\xff\xfe\xfd"
+
+        # WHEN I call `_unzip_gzipped_file` with a binary file
+        with patch("gzip.open") as mock_gzip_open, patch(
+            "builtins.open"
+        ) as mock_open_file, patch("pprint.pp") as mock_pprint:
+            mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
+                binary_content
+            )
+            unzipped_file_path = self.wiki_page._unzip_gzipped_file(gzipped_file_path)
+
+        # THEN the file should be unzipped correctly
+        mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
+        mock_pprint.assert_not_called()
+        mock_open_file.assert_called_once_with(unzipped_file_path, "wb")
+        mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
+            binary_content
+        )
+        assert unzipped_file_path == expected_unzipped_file_path
+
+    def test_unzip_gzipped_file_with_text_file(self) -> None:
+        gzipped_file_path = "/path/to/test.txt.gz"
+        expected_unzipped_file_path = "/path/to/test.txt"
+        text_content = "This is plain text content."
+        text_content_bytes = text_content.encode("utf-8")
+
+        # WHEN I call `_unzip_gzipped_file` with a text file
+        with patch("gzip.open") as mock_gzip_open, patch(
+            "builtins.open"
+        ) as mock_open_file, patch(
+            "synapseclient.models.wiki.pprint.pp"
+        ) as mock_pprint:
+            mock_gzip_open.return_value.__enter__.return_value.read.return_value = (
+                text_content_bytes
+            )
+            unzipped_file_path = self.wiki_page._unzip_gzipped_file(gzipped_file_path)
+
+        # THEN the file should be unzipped correctly
+        mock_gzip_open.assert_called_once_with(gzipped_file_path, "rb")
+        mock_pprint.assert_not_called()
+        mock_open_file.assert_called_once_with(
+            unzipped_file_path, "wt", encoding="utf-8"
+        )
+        mock_open_file.return_value.__enter__.return_value.write.assert_called_once_with(
+            text_content
+        )
+        assert unzipped_file_path == expected_unzipped_file_path
 
     def test_get_file_size_success(self) -> None:
         # GIVEN a filehandle dictionary
@@ -494,6 +584,25 @@ class TestWikiPage:
         ):
             WikiPage._get_file_size(filehandle_dict, "nonexistent.txt")
 
+    @pytest.mark.parametrize(
+        "file_name,expected",
+        [
+            ("test.txt", "test%2Etxt"),
+            ("test.txt.gz", "test%2Etxt%2Egz"),
+            ("test_1.txt", "test%5F1%2Etxt"),
+        ],
+        ids=[
+            "file_name_with_one_dot",
+            "file_name_with_multiple_dots",
+            "file_name_with_dot_underscore",
+        ],
+    )
+    def test_reformat_attachment_file_name(self, file_name: str, expected: str) -> None:
+        # WHEN I call `_reformat_attachment_file_name` with a file name
+        result = WikiPage._reformat_attachment_file_name(file_name)
+        # THEN the result should be the reformatted file name
+        assert result == expected
+
     async def test_get_markdown_file_handle_success_with_markdown(self) -> WikiPage:
         with patch(
             "synapseclient.models.wiki.WikiPage._to_gzip_file",
@@ -502,8 +611,10 @@ class TestWikiPage:
             "synapseclient.models.wiki.upload_file_handle",
             return_value={"id": "handle1"},
         ) as mock_upload, patch.object(
+            self.syn.logger, "info"
+        ) as mock_logger_info, patch.object(
             self.syn.logger, "debug"
-        ) as mock_logger, patch(
+        ) as mock_logger_debug, patch(
             "os.path.exists", return_value=True
         ), patch(
             "os.remove"
@@ -522,14 +633,12 @@ class TestWikiPage:
                 parent_entity_id=self.wiki_page.owner_id,
                 path="test.txt.gz",
             )
-            assert mock_logger.call_count == 2
-            assert mock_logger.has_calls(
-                [
-                    call("Uploaded file handle handle1 for wiki page markdown."),
-                    call("Deleted temp directory test.txt.gz"),
-                ]
+            mock_logger_info.assert_called_once_with(
+                "Uploaded file handle handle1 for wiki page markdown."
             )
-
+            mock_logger_debug.assert_called_once_with(
+                "Deleted temp directory test.txt.gz"
+            )
             # AND the temp gzipped file should be deleted
             assert mock_remove.call_count == 1
 
@@ -573,8 +682,10 @@ class TestWikiPage:
             "synapseclient.models.wiki.upload_file_handle",
             side_effect=mock_upload_responses,
         ) as mock_upload, patch.object(
+            self.syn.logger, "info"
+        ) as mock_logger_info, patch.object(
             self.syn.logger, "debug"
-        ) as mock_logger, patch(
+        ) as mock_logger_debug, patch(
             "os.path.exists", return_value=True
         ), patch(
             "os.remove"
@@ -604,11 +715,14 @@ class TestWikiPage:
                 parent_entity_id=self.wiki_page.owner_id,
                 path="/tmp/cache1/test_2.txt.gz",
             )
-            assert mock_logger.call_count == 4
-            assert mock_logger.has_calls(
+            mock_logger_info.assert_has_calls(
                 [
                     call("Uploaded file handle handle1 for wiki page attachment."),
                     call("Uploaded file handle handle2 for wiki page attachment."),
+                ]
+            )
+            mock_logger_debug.assert_has_calls(
+                [
                     call("Deleted temp directory /tmp/cache1/test_1.txt.gz"),
                     call("Deleted temp directory /tmp/cache1/test_2.txt.gz"),
                 ]
@@ -664,8 +778,10 @@ class TestWikiPage:
             "synapseclient.models.wiki.upload_file_handle",
             return_value={"id": "handle1"},
         ) as mock_upload, patch.object(
+            self.syn.logger, "info"
+        ) as mock_logger_info, patch.object(
             self.syn.logger, "debug"
-        ) as mock_logger, patch(
+        ) as mock_logger_debug, patch(
             "os.path.exists", return_value=True
         ), patch(
             "os.remove"
@@ -686,12 +802,11 @@ class TestWikiPage:
                 parent_entity_id=wiki_page.owner_id,
                 path="/tmp/cache/test_1.txt.gz",
             )
-            assert mock_logger.call_count == 2
-            assert mock_logger.has_calls(
-                [
-                    call("Uploaded file handle handle1 for wiki page attachment."),
-                    call("Deleted temp directory /tmp/cache/test_1.txt.gz"),
-                ]
+            mock_logger_info.assert_called_once_with(
+                "Uploaded file handle handle1 for wiki page attachment."
+            )
+            mock_logger_debug.assert_called_once_with(
+                "Deleted temp directory /tmp/cache/test_1.txt.gz"
             )
             # AND the temp directory should be cleaned up
             mock_remove.assert_called_once_with("/tmp/cache/test_1.txt.gz")
@@ -722,8 +837,10 @@ class TestWikiPage:
         ), patch(
             "os.path.exists", return_value=False
         ), patch.object(
+            self.syn.logger, "info"
+        ) as mock_logger_info, patch.object(
             self.syn.logger, "debug"
-        ) as mock_logger, patch(
+        ) as mock_logger_debug, patch(
             "os.remove"
         ) as mock_remove:
             # WHEN I call `_get_attachment_file_handles`
@@ -733,11 +850,10 @@ class TestWikiPage:
 
             # THEN the function should complete successfully
             assert results.attachment_file_handle_ids == ["handle1"]
-            assert mock_logger.call_count == 1
-            assert (
-                mock_logger.call_args[0][0]
-                == "Uploaded file handle handle1 for wiki page attachment."
+            mock_logger_info.assert_called_once_with(
+                "Uploaded file handle handle1 for wiki page attachment."
             )
+            mock_logger_debug.assert_not_called()
             # AND cleanup should not be attempted since directory doesn't exist
             mock_remove.assert_not_called()
 
@@ -761,7 +877,7 @@ class TestWikiPage:
             "os.path.exists", return_value=True
         ), patch.object(
             self.syn.logger, "debug"
-        ) as mock_logger, patch(
+        ) as mock_logger_debug, patch(
             "os.remove"
         ) as mock_remove:
             # WHEN I call `_get_attachment_file_handles`
@@ -771,10 +887,8 @@ class TestWikiPage:
 
             # AND cleanup should still be attempted
             mock_remove.assert_called_once_with("/tmp/cache/test_1.txt.gz")
-            assert mock_logger.call_count == 1
-            assert (
-                mock_logger.call_args[0][0]
-                == "Deleted temp directory /tmp/cache/test_1.txt.gz"
+            mock_logger_debug.assert_called_once_with(
+                "Deleted temp directory /tmp/cache/test_1.txt.gz"
             )
 
     async def test_determine_wiki_action_error_no_owner_id(self) -> None:
@@ -1179,7 +1293,11 @@ class TestWikiPage:
             )
 
             # AND the result should be filled with the response
-            expected_wiki = self.wiki_page.fill_from_dict(self.api_response)
+            wiki_page = self.get_fresh_wiki_page()
+            expected_wiki = wiki_page.fill_from_dict(self.api_response)
+            expected_wiki.attachments = wiki.attachments
+            expected_wiki.markdown = wiki.markdown
+            expected_wiki.wiki_version = wiki.wiki_version
             assert results == expected_wiki
 
     async def test_get_async_by_title_success(self) -> None:
@@ -1224,7 +1342,11 @@ class TestWikiPage:
             )
 
             # AND the result should be filled with the response
-            expected_wiki = self.wiki_page.fill_from_dict(self.api_response)
+            wiki_page = self.get_fresh_wiki_page()
+            expected_wiki = wiki_page.fill_from_dict(self.api_response)
+            expected_wiki.attachments = wiki.attachments
+            expected_wiki.markdown = wiki.markdown
+            expected_wiki.wiki_version = wiki.wiki_version
             assert results == expected_wiki
 
     async def test_get_async_by_title_not_found(self) -> None:
@@ -1402,8 +1524,8 @@ class TestWikiPage:
             "synapseclient.models.wiki._pre_signed_url_expiration_time",
             return_value="2030-01-01T00:00:00.000Z",
         ) as mock_expiration_time, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger:
+            self.syn.logger, "info"
+        ) as mock_logger_info:
             # WHEN I call `get_attachment_async` with download_file=True
             result = await self.wiki_page.get_attachment_async(
                 file_name="test.txt",
@@ -1457,12 +1579,9 @@ class TestWikiPage:
                 mock_download_from_url.assert_not_called()
 
                 # AND debug log should be called once (only the general one)
-            assert mock_logger.call_count == 1
-            mock_logger.assert_called_once_with(
-                f"Downloaded file test.txt to /tmp/download"
+            mock_logger_info.assert_called_once_with(
+                f"Downloaded file test.txt to {result}."
             )
-            # AND the result should be None (since download_file=True)
-            assert result is None
 
     async def test_get_attachment_async_no_file_download(self) -> None:
         with patch(
@@ -1584,8 +1703,8 @@ class TestWikiPage:
             "synapseclient.models.wiki._pre_signed_url_expiration_time",
             return_value="2030-01-01T00:00:00.000Z",
         ) as mock_expiration_time, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger:
+            self.syn.logger, "info"
+        ) as mock_logger_info:
             # WHEN I call `get_attachment_async` with download_file=True
             result = await self.wiki_page.get_attachment_preview_async(
                 file_name="test.txt",
@@ -1639,12 +1758,9 @@ class TestWikiPage:
                 mock_download_from_url.assert_not_called()
 
                 # AND debug log should be called once (only the general one)
-            assert mock_logger.call_count == 1
-            mock_logger.assert_called_once_with(
-                f"Downloaded the preview file test.txt to /tmp/download"
+            mock_logger_info.assert_called_once_with(
+                f"Downloaded the preview file test.txt to {result}."
             )
-            # AND the result should be None (since download_file=True)
-            assert result is None
 
     async def test_get_attachment_preview_async_no_file_download(self) -> None:
         with patch(
@@ -1724,28 +1840,27 @@ class TestWikiPage:
         with patch(
             "synapseclient.models.wiki.get_markdown_url"
         ) as mocked_get, pytest.raises(ValueError, match=expected_error):
-            await wiki_page.get_markdown_async(synapse_client=self.syn)
+            await wiki_page.get_markdown_file_async(synapse_client=self.syn)
             # THEN the API should not be called
             mocked_get.assert_not_called()
 
     async def test_get_markdown_async_download_file_success(self) -> None:
         # Mock responses
-        mock_markdown_url = "https://example.com/markdown.md"
+        mock_markdown_url = "https://example.com/markdown.md.gz"
 
         with patch(
             "synapseclient.models.wiki.get_markdown_url",
             return_value=mock_markdown_url,
         ) as mock_get_url, patch(
-            "synapseclient.models.wiki.download_from_url"
+            "synapseclient.models.wiki.download_from_url",
+            return_value="/tmp/download/markdown.md.gz",
         ) as mock_download_from_url, patch(
-            "synapseclient.models.wiki._pre_signed_url_expiration_time",
-            return_value="2030-01-01T00:00:00.000Z",
-        ) as mock_expiration_time, patch.object(
-            self.syn.logger, "debug"
-        ) as mock_logger:
+            "synapseclient.models.wiki.WikiPage._unzip_gzipped_file"
+        ) as mock_unzip_gzipped_file, patch.object(
+            self.syn.logger, "info"
+        ) as mock_logger_info:
             # WHEN I call `get_markdown_async` with download_file=True
-            result = await self.wiki_page.get_markdown_async(
-                download_file_name="test.md",
+            result = await self.wiki_page.get_markdown_file_async(
                 download_file=True,
                 download_location="/tmp/download",
                 synapse_client=self.syn,
@@ -1759,24 +1874,20 @@ class TestWikiPage:
                 synapse_client=self.syn,
             )
 
-            # AND the expiration time should be calculated
-            mock_expiration_time.assert_called_once_with(mock_markdown_url)
-
             # AND the file should be downloaded using single-threaded download
             mock_download_from_url.assert_called_once_with(
                 url=mock_markdown_url,
                 destination="/tmp/download",
                 url_is_presigned=True,
             )
-
-            # AND debug log should be called
-            assert mock_logger.call_count == 1
-            mock_logger.assert_called_once_with(
-                f"Downloaded file test.md to /tmp/download"
+            # AND the file should be unzipped
+            mock_unzip_gzipped_file.assert_called_once_with(
+                "/tmp/download/markdown.md.gz"
             )
-
-            # AND the result should be None (since download_file=True)
-            assert result is None
+            # AND debug log should be called
+            mock_logger_info.assert_called_once_with(
+                f"Downloaded and unzipped the markdown file for wiki page wiki1 to {result}."
+            )
 
     async def test_get_markdown_async_no_file_download(self) -> None:
         with patch(
@@ -1784,7 +1895,7 @@ class TestWikiPage:
             return_value="https://example.com/markdown.md",
         ) as mock_get_url:
             # WHEN I call `get_markdown_async` with download_file=False
-            results = await self.wiki_page.get_markdown_async(
+            results = await self.wiki_page.get_markdown_file_async(
                 download_file=False,
                 synapse_client=self.syn,
             )
@@ -1822,49 +1933,9 @@ class TestWikiPage:
             with pytest.raises(
                 ValueError, match="Must provide download_location to download a file."
             ):
-                await wiki.get_markdown_async(
-                    download_file_name="test.md",
+                await wiki.get_markdown_file_async(
                     download_file=True,
                     download_location=None,
-                    synapse_client=self.syn,
-                )
-
-            # AND the markdown URL should still be retrieved
-            mock_get_url.assert_called_once_with(
-                owner_id="syn123",
-                wiki_id="wiki1",
-                wiki_version="0",
-                synapse_client=self.syn,
-            )
-            # AND the attachment handles should not be retrieved
-            mock_get_handles.assert_not_called()
-
-    async def test_get_markdown_async_download_file_missing_filename(self) -> None:
-        # GIVEN a WikiPage object
-        wiki = WikiPage(
-            id="wiki1",
-            owner_id="syn123",
-            wiki_version="0",
-        )
-
-        # AND a mock markdown URL
-        mock_markdown_url = "https://example.com/markdown.md"
-
-        with patch(
-            "synapseclient.models.wiki.get_markdown_url",
-            return_value=mock_markdown_url,
-        ) as mock_get_url, patch(
-            "synapseclient.models.wiki.get_attachment_handles"
-        ) as mock_get_handles:
-            # WHEN I call `get_markdown_async` with download_file=True but no download_file_name
-            # THEN it should raise ValueError
-            with pytest.raises(
-                ValueError, match="Must provide download_file_name to download a file."
-            ):
-                await wiki.get_markdown_async(
-                    download_file_name=None,
-                    download_file=True,
-                    download_location="/tmp/download",
                     synapse_client=self.syn,
                 )
 
@@ -1891,7 +1962,7 @@ class TestWikiPage:
             return_value="https://example.com/markdown_v2.md",
         ) as mock_get_url:
             # WHEN I call `get_markdown_async`
-            results = await wiki.get_markdown_async(
+            results = await wiki.get_markdown_file_async(
                 download_file=False,
                 synapse_client=self.syn,
             )
@@ -1920,7 +1991,7 @@ class TestWikiPage:
             return_value="https://example.com/markdown_latest.md",
         ) as mock_get_url:
             # WHEN I call `get_markdown_async`
-            results = await wiki.get_markdown_async(
+            results = await wiki.get_markdown_file_async(
                 download_file=False,
                 synapse_client=self.syn,
             )

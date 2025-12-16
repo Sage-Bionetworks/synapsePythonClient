@@ -3,6 +3,7 @@
 import asyncio
 import gzip
 import os
+import pprint
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, Union
 
@@ -355,7 +356,7 @@ class WikiPage(WikiPageSynchronousProtocol):
     """The markdown content of this page."""
 
     attachments: List[Dict[str, Any]] = field(default_factory=list)
-    """A list of file attachments associated with this page."""
+    """A list of file paths sassociated with this page."""
 
     owner_id: Optional[str] = None
     """The Synapse ID of the owning object (e.g., entity, evaluation, etc.)."""
@@ -398,14 +399,13 @@ class WikiPage(WikiPageSynchronousProtocol):
         self.etag = synapse_wiki.get("etag", None)
         self.title = synapse_wiki.get("title", None)
         self.parent_id = synapse_wiki.get("parentWikiId", None)
-        self.markdown = synapse_wiki.get("markdown", None)
-        self.attachments = synapse_wiki.get("attachments", [])
-        self.owner_id = synapse_wiki.get("ownerId", None)
+        self.markdown = self.markdown
+        self.attachments = self.attachments
         self.created_on = synapse_wiki.get("createdOn", None)
         self.created_by = synapse_wiki.get("createdBy", None)
         self.modified_on = synapse_wiki.get("modifiedOn", None)
         self.modified_by = synapse_wiki.get("modifiedBy", None)
-        self.wiki_version = synapse_wiki.get("wikiVersion", None)
+        self.wiki_version = synapse_wiki.get("wikiVersion", self.wiki_version)
         self.markdown_file_handle_id = synapse_wiki.get("markdownFileHandleId", None)
         self.attachment_file_handle_ids = synapse_wiki.get(
             "attachmentFileHandleIds", []
@@ -423,7 +423,6 @@ class WikiPage(WikiPageSynchronousProtocol):
             "parentWikiId": self.parent_id,
             "markdown": self.markdown,
             "attachments": self.attachments,
-            "ownerId": self.owner_id,
             "createdOn": self.created_on,
             "createdBy": self.created_by,
             "modifiedOn": self.modified_on,
@@ -456,7 +455,6 @@ class WikiPage(WikiPageSynchronousProtocol):
         cache_dir = os.path.join(synapse_client.cache.cache_root_dir, "wiki_content")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-
         # Check if markdown looks like a file path and exists
         if os.path.isfile(wiki_content):
             # If it's already a gzipped file, use the file path directly
@@ -480,6 +478,46 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         return file_path
 
+    def _unzip_gzipped_file(self, file_path: str) -> str:
+        """Unzip the gzipped file and return the file path to the unzipped file.
+
+        If the file is a markdown file, the content will be printed.
+        Arguments:
+            file_path: The path to the gzipped file.
+        Returns:
+            The file path to the unzipped file.
+        """
+        # Open in binary mode to handle both text and binary files
+        with gzip.open(file_path, "rb") as f_in:
+            unzipped_content_bytes = f_in.read()
+
+            # Try to decode as UTF-8 to check if it's a text file
+            is_text_file = False
+            unzipped_content_text = None
+            try:
+                unzipped_content_text = unzipped_content_bytes.decode("utf-8")
+                is_text_file = True
+                if file_path.endswith(".md.gz"):
+                    pprint.pp(unzipped_content_text)
+            except UnicodeDecodeError:
+                # It's a binary file, keep as bytes
+                pass
+
+            # unzip the file and return the file path
+            unzipped_file_path = os.path.join(
+                os.path.dirname(file_path),
+                os.path.basename(file_path).replace(".gz", ""),
+            )
+            # Write in text mode for text files, binary mode for binary files
+            if is_text_file:
+                with open(unzipped_file_path, "wt", encoding="utf-8") as f_out:
+                    f_out.write(unzipped_content_text)
+            else:
+                with open(unzipped_file_path, "wb") as f_out:
+                    f_out.write(unzipped_content_bytes)
+
+            return unzipped_file_path
+
     @staticmethod
     def _get_file_size(filehandle_dict: dict, file_name: str) -> str:
         """Get the file name from the response headers.
@@ -497,6 +535,20 @@ class WikiPage(WikiPageSynchronousProtocol):
         raise ValueError(
             f"File {file_name} not found in filehandle_dict. Available files: {available_files}"
         )
+
+    @staticmethod
+    def _reformat_attachment_file_name(attachment_file_name: str) -> str:
+        """Reformat the attachment file name to be a valid attachment path.
+        Arguments:
+            attachment_file_name: The name of the attachment file.
+        Returns:
+            The reformatted attachment file name.
+        """
+        attachment_file_name_reformatted = attachment_file_name.replace(".", "%2E")
+        attachment_file_name_reformatted = attachment_file_name_reformatted.replace(
+            "_", "%5F"
+        )
+        return attachment_file_name_reformatted
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Get the markdown file handle: {self.owner_id}"
@@ -516,16 +568,19 @@ class WikiPage(WikiPageSynchronousProtocol):
             )
             try:
                 # Upload the gzipped file to get a file handle
-                file_handle = await upload_file_handle(
-                    syn=synapse_client,
-                    parent_entity_id=self.owner_id,
-                    path=file_path,
-                )
-                synapse_client.logger.debug(
-                    f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
-                )
-                # Set the markdown file handle ID from the upload response
-                self.markdown_file_handle_id = file_handle.get("id")
+                async with synapse_client._get_parallel_file_transfer_semaphore(
+                    asyncio_event_loop=asyncio.get_running_loop()
+                ):
+                    file_handle = await upload_file_handle(
+                        syn=synapse_client,
+                        parent_entity_id=self.owner_id,
+                        path=file_path,
+                    )
+                    synapse_client.logger.info(
+                        f"Uploaded file handle {file_handle.get('id')} for wiki page markdown."
+                    )
+                    # Set the markdown file handle ID from the upload response
+                    self.markdown_file_handle_id = file_handle.get("id")
             finally:
                 # delete the temp directory saving the gzipped file
                 if os.path.exists(file_path):
@@ -553,15 +608,18 @@ class WikiPage(WikiPageSynchronousProtocol):
                     wiki_content=attachment, synapse_client=synapse_client
                 )
                 try:
-                    file_handle = await upload_file_handle(
-                        syn=synapse_client,
-                        parent_entity_id=self.owner_id,
-                        path=file_path,
-                    )
-                    synapse_client.logger.debug(
-                        f"Uploaded file handle {file_handle.get('id')} for wiki page attachment."
-                    )
-                    return file_handle.get("id")
+                    async with synapse_client._get_parallel_file_transfer_semaphore(
+                        asyncio_event_loop=asyncio.get_running_loop()
+                    ):
+                        file_handle = await upload_file_handle(
+                            syn=synapse_client,
+                            parent_entity_id=self.owner_id,
+                            path=file_path,
+                        )
+                        synapse_client.logger.info(
+                            f"Uploaded file handle {file_handle.get('id')} for wiki page attachment."
+                        )
+                        return file_handle.get("id")
                 finally:
                     if os.path.exists(file_path):
                         os.remove(file_path)
@@ -910,19 +968,20 @@ class WikiPage(WikiPageSynchronousProtocol):
             file_size = int(WikiPage._get_file_size(filehandle_dict, file_name))
             # use single thread download if file size < 8 MiB
             if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
-                download_from_url(
+                downloaded_file_path = download_from_url(
                     url=presigned_url_info.url,
                     destination=download_location,
                     url_is_presigned=True,
                 )
             else:
                 # download the file
-                download_from_url_multi_threaded(
+                downloaded_file_path = download_from_url_multi_threaded(
                     presigned_url=presigned_url_info, destination=download_location
                 )
-            client.logger.debug(
-                f"Downloaded file {presigned_url_info.file_name} to {download_location}"
+            client.logger.info(
+                f"Downloaded file {presigned_url_info.file_name} to {downloaded_file_path}."
             )
+            return downloaded_file_path
         else:
             return attachment_url
 
@@ -987,38 +1046,37 @@ class WikiPage(WikiPageSynchronousProtocol):
             file_size = int(WikiPage._get_file_size(filehandle_dict, file_name))
             # use single thread download if file size < 8 MiB
             if file_size < SINGLE_THREAD_DOWNLOAD_SIZE_LIMIT:
-                download_from_url(
+                downloaded_file_path = download_from_url(
                     url=presigned_url_info.url,
                     destination=download_location,
                     url_is_presigned=True,
                 )
             else:
                 # download the file
-                download_from_url_multi_threaded(
+                downloaded_file_path = download_from_url_multi_threaded(
                     presigned_url=presigned_url_info, destination=download_location
                 )
-            client.logger.debug(
-                f"Downloaded the preview file {presigned_url_info.file_name} to {download_location}"
+            client.logger.info(
+                f"Downloaded the preview file {presigned_url_info.file_name} to {downloaded_file_path}."
             )
+            return downloaded_file_path
         else:
             return attachment_preview_url
 
     @otel_trace_method(
         method_to_trace_name=lambda self, **kwargs: f"Get_Markdown_URL: Owner ID {self.owner_id}, Wiki ID {self.id}, Wiki Version {self.wiki_version}"
     )
-    async def get_markdown_async(
+    async def get_markdown_file_async(
         self,
         *,
-        download_file_name: Optional[str] = None,
         download_file: bool = True,
         download_location: Optional[str] = None,
         synapse_client: Optional["Synapse"] = None,
     ) -> Union[str, None]:
         """
-        Get the markdown URL of this wiki page.
+        Get the markdown URL of this wiki page. --> modify this to print the markdown file
 
         Arguments:
-            download_file_name: The name of the file to download. Required if download_file is True.
             download_file: Whether associated files should be downloaded. Default is True.
             download_location: The directory to download the file to. Required if download_file is True.
             synapse_client: Optionally provide a Synapse client.
@@ -1043,22 +1101,18 @@ class WikiPage(WikiPageSynchronousProtocol):
         if download_file:
             if not download_location:
                 raise ValueError("Must provide download_location to download a file.")
-            if not download_file_name:
-                raise ValueError("Must provide download_file_name to download a file.")
 
             # construct PresignedUrlInfo for downloading
-            presigned_url_info = PresignedUrlInfo(
+            downloaded_file_path = download_from_url(
                 url=markdown_url,
-                file_name=download_file_name,
-                expiration_utc=_pre_signed_url_expiration_time(markdown_url),
-            )
-            download_from_url(
-                url=presigned_url_info.url,
                 destination=download_location,
                 url_is_presigned=True,
             )
-            client.logger.debug(
-                f"Downloaded file {presigned_url_info.file_name} to {download_location}"
+            # unzip the file if it is a gzipped file
+            unzipped_file_path = self._unzip_gzipped_file(downloaded_file_path)
+            client.logger.info(
+                f"Downloaded and unzipped the markdown file for wiki page {self.id} to {unzipped_file_path}."
             )
+            return unzipped_file_path
         else:
             return markdown_url
