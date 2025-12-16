@@ -405,7 +405,7 @@ class WikiPage(WikiPageSynchronousProtocol):
         self.created_by = synapse_wiki.get("createdBy", None)
         self.modified_on = synapse_wiki.get("modifiedOn", None)
         self.modified_by = synapse_wiki.get("modifiedBy", None)
-        self.wiki_version = synapse_wiki.get("wikiVersion", self.wiki_version)
+        self.wiki_version = self.wiki_version
         self.markdown_file_handle_id = synapse_wiki.get("markdownFileHandleId", None)
         self.attachment_file_handle_ids = synapse_wiki.get(
             "attachmentFileHandleIds", []
