@@ -846,6 +846,64 @@ class TestFileStore:
         assert file.file_handle.external_url == BOGUS_URL
         assert file.file_handle.content_md5 == BOGUS_MD5
 
+    async def test_store_external_url_then_update(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file with an external URL
+        file.name = str(uuid.uuid4())
+        file.synapse_store = False
+        file.external_url = BOGUS_URL
+
+        # WHEN I store the file
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored with the external URL
+        assert file.id is not None
+        assert file.external_url == BOGUS_URL
+        assert file.version_number == 1
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.external_url == BOGUS_URL
+        original_file_handle_id = file.file_handle.id
+
+        # WHEN I update the external URL
+        new_external_url = "https://www.example.com/updated"
+        file.external_url = new_external_url
+        file = await file.store_async(synapse_client=self.syn)
+
+        # THEN I expect the file to be updated with the new external URL
+        assert file.external_url == new_external_url
+        assert file.version_number == 2
+        assert file.file_handle.external_url == new_external_url
+        assert file.file_handle.id != original_file_handle_id
+
+    async def test_store_external_url_without_synapse_store_false(
+        self, project_model: Project, file: File
+    ) -> None:
+        # GIVEN a file with an external URL but synapse_store not explicitly set to False
+        file.name = str(uuid.uuid4())
+        file.external_url = BOGUS_URL
+
+        # WHEN I store the file
+        file = await file.store_async(parent=project_model, synapse_client=self.syn)
+        self.schedule_for_cleanup(file.id)
+
+        # THEN I expect the file to be stored with the external URL
+        # and synapse_store should be implicitly set to False
+        assert file.id is not None
+        assert file.external_url == BOGUS_URL
+        assert file.synapse_store is False
+        assert (
+            file.file_handle.concrete_type
+            == "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+        )
+        assert file.file_handle.external_url == BOGUS_URL
+        assert file.file_handle.bucket_name is None
+        assert file.file_handle.key is None
+
     async def test_store_conflict_with_existing_object(
         self, project_model: Project, file: File
     ) -> None:
