@@ -716,15 +716,22 @@ class TestRecordSetGetDetailedValidationResults:
                 row["all_validation_messages"]
             ), f"Row {idx} is marked invalid but has no all_validation_messages"
 
-    def test_get_validation_results_validation_error(self) -> None:
+    def test_get_validation_results_no_file_handle_emits_warning(
+        self, syn_with_logger: Synapse, caplog: pytest.LogCaptureFixture
+    ) -> None:
         # GIVEN a RecordSet without an ID
         record_set = RecordSet()
 
-        # Note: The method doesn't have explicit validation for missing ID,
-        # but it will fail when trying to download without a valid entity
-        # This test documents the expected behavior
-        # The method requires validation_file_handle_id to be set to work properly
-        result = record_set.get_detailed_validation_results(synapse_client=self.syn)
+        # WHEN I try to get detailed validation results
+        result = record_set.get_detailed_validation_results(
+            synapse_client=syn_with_logger
+        )
 
         # THEN it should return None since there's no validation_file_handle_id
         assert result is None
+
+        # AND a warning should be logged
+        assert (
+            "No validation file handle ID found for this RecordSet. Cannot retrieve detailed validation results."
+            in caplog.text
+        )
