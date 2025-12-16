@@ -1220,7 +1220,6 @@
             },
             "sms:columnType": "string",
             "sms:displayName": "Check Regex Single",
-            "sms:pattern": "[a-b]",
             "sms:required": "sms:true",
             "sms:validationRules": []
         },
@@ -1239,7 +1238,6 @@
             },
             "sms:columnType": "string",
             "sms:displayName": "Check Regex Format",
-            "sms:pattern": "^[a-b]",
             "sms:required": "sms:true",
             "sms:validationRules": [
                 "regex match [a-f]"
@@ -2572,7 +2570,7 @@
             },
             "sms:columnType": "integer",
             "sms:displayName": "Maximum Integer",
-            "sms:maximum": 100,
+            "sms:maximum": 100.0,
             "sms:required": "sms:true",
             "sms:validationRules": []
         },
@@ -2591,7 +2589,7 @@
             },
             "sms:columnType": "integer",
             "sms:displayName": "Minimum Integer",
-            "sms:minimum": 10,
+            "sms:minimum": 10.0,
             "sms:required": "sms:true",
             "sms:validationRules": []
         },
@@ -2648,8 +2646,8 @@
             },
             "sms:columnType": "integer",
             "sms:displayName": "Maximum Minimum",
-            "sms:maximum": 100,
-            "sms:minimum": 10,
+            "sms:maximum": 100.0,
+            "sms:minimum": 10.0,
             "sms:required": "sms:true",
             "sms:validationRules": []
         },
@@ -2668,8 +2666,8 @@
             },
             "sms:columnType": "integer_list",
             "sms:displayName": "Maximum Minimum Integer List",
-            "sms:maximum": 100,
-            "sms:minimum": 10,
+            "sms:maximum": 100.0,
+            "sms:minimum": 10.0,
             "sms:required": "sms:true",
             "sms:validationRules": []
         },
@@ -2688,8 +2686,8 @@
             },
             "sms:columnType": "integer",
             "sms:displayName": "Maximum Minimum Validation Rule",
-            "sms:maximum": 200,
-            "sms:minimum": 10,
+            "sms:maximum": 200.0,
+            "sms:minimum": 10.0,
             "sms:required": "sms:true",
             "sms:validationRules": [
                 "inRange 50 100"

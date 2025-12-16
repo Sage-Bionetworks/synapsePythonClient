@@ -13,13 +13,13 @@
     "CheckDate": {
       "description": "TBD",
       "format": "date",
-      "type": "string",
-      "title": "Check Date"
+      "title": "Check Date",
+      "type": "string"
     },
     "CheckFloat": {
       "description": "TBD",
-      "type": "number",
-      "title": "Check Float"
+      "title": "Check Float",
+      "type": "number"
     },
     "CheckInt": {
       "description": "TBD",
@@ -30,8 +30,8 @@
     },
     "CheckList": {
       "description": "TBD",
-      "type": "array",
-      "title": "Check List"
+      "title": "Check List",
+      "type": "array"
     },
     "CheckListEnum": {
       "description": "TBD",
@@ -44,8 +44,8 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "Check List Enum"
+      "title": "Check List Enum",
+      "type": "array"
     },
     "CheckListEnumStrict": {
       "description": "TBD",
@@ -58,13 +58,13 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "Check List Enum Strict"
+      "title": "Check List Enum Strict",
+      "type": "array"
     },
     "CheckListLike": {
       "description": "TBD",
-      "type": "array",
-      "title": "Check List Like"
+      "title": "Check List Like",
+      "type": "array"
     },
     "CheckListLikeEnum": {
       "description": "TBD",
@@ -77,13 +77,13 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "Check List Like Enum"
+      "title": "Check List Like Enum",
+      "type": "array"
     },
     "CheckListStrict": {
       "description": "TBD",
-      "type": "array",
-      "title": "Check List Strict"
+      "title": "Check List Strict",
+      "type": "array"
     },
     "CheckMatchExactly": {
       "description": "TBD",
@@ -156,11 +156,9 @@
     },
     "CheckRegexFormat": {
       "description": "TBD",
-      "not": {
-        "type": "null"
-      },
-      "pattern": "^[a-f]",
-      "title": "Check Regex Format"
+      "pattern": "^[a-b]",
+      "title": "Check Regex Format",
+      "type": "string"
     },
     "CheckRegexInteger": {
       "description": "TBD",
@@ -172,26 +170,27 @@
     },
     "CheckRegexList": {
       "description": "TBD",
-      "type": "array",
-      "title": "Check Regex List"
+      "pattern": "^[a-f]",
+      "title": "Check Regex List",
+      "type": "array"
     },
     "CheckRegexListLike": {
       "description": "TBD",
-      "type": "array",
-      "title": "Check Regex List Like"
+      "pattern": "^[a-f]",
+      "title": "Check Regex List Like",
+      "type": "array"
     },
     "CheckRegexListStrict": {
       "description": "TBD",
-      "type": "array",
-      "title": "Check Regex List Strict"
+      "pattern": "^[a-f]",
+      "title": "Check Regex List Strict",
+      "type": "array"
     },
     "CheckRegexSingle": {
       "description": "TBD",
-      "not": {
-        "type": "null"
-      },
-      "pattern": "[a-f]",
-      "title": "Check Regex Single"
+      "pattern": "[a-b]",
+      "title": "Check Regex Single",
+      "type": "string"
     },
     "CheckString": {
       "description": "TBD",
@@ -203,8 +202,8 @@
     "CheckURL": {
       "description": "TBD",
       "format": "uri",
-      "type": "string",
-      "title": "Check URL"
+      "title": "Check URL",
+      "type": "string"
     },
     "CheckUnique": {
       "description": "TBD",

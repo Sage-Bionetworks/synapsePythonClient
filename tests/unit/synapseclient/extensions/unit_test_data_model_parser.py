@@ -1,6 +1,9 @@
-from typing import Any
+import tempfile
+from time import sleep
+from typing import Any, Union
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from synapseclient.extensions.curator.schema_generation import (
@@ -87,8 +90,92 @@ class TestDataModelCsvParser:
     ) -> None:
         assert csv_dmp.parse_format(attribute_dict) == expected_dict
 
+    @pytest.mark.parametrize(
+        "attribute_dict, expected_dict",
+        [
+            ({}, {}),
+            ({"Pattern": np.nan}, {}),
+            ({"Pattern": "^[a-b]"}, {"Pattern": "^[a-b]"}),
+            ({"Pattern": "  [a-b]  "}, {"Pattern": "[a-b]"}),
+        ],
+    )
+    def test_parse_regex_pattern(
+        self,
+        csv_dmp: DataModelCSVParser,
+        attribute_dict: dict[str, Any],
+        expected_dict: dict[str, str],
+    ) -> None:
+        assert csv_dmp.parse_pattern(attribute_dict) == expected_dict
+
+    @pytest.mark.parametrize(
+        "attribute_dict, relationship, expected_dict",
+        [
+            ({"Minimum": 10.0}, "Minimum", {"Minimum": 10.0}),
+            ({"Minimum": 0.0}, "Minimum", {"Minimum": 0.0}),
+            ({"Maximum": 10.0}, "Maximum", {"Maximum": 10.0}),
+            ({"Minimum": 10.5}, "Minimum", {"Minimum": 10.5}),
+            ({"Maximum": 10.5}, "Maximum", {"Maximum": 10.5}),
+            ({"Minimum": "random_string"}, "Minimum", ValueError),
+            ({"Maximum": "random_string"}, "Maximum", ValueError),
+            ({"Maximum": True}, "Maximum", ValueError),
+            ({"Minimum": False}, "Minimum", ValueError),
+            ({"Maximum": 10, "Minimum": 200}, "Maximum", ValueError),
+            ({"Maximum": 20, "Minimum": 2000}, "Minimum", ValueError),
+        ],
+        ids=[
+            "minimum_integer",
+            "minimum_zero",
+            "maximum_integer",
+            "minimum_float",
+            "maximum_float",
+            "minimum_wrong_type_string",
+            "maximum_wrong_type_string",
+            "maximum_wrong_type_boolean",
+            "minimum_wrong_type_boolean",
+            "maximum_smaller_than_minimum_1",
+            "maximum_smaller_than_minimum_2",
+        ],
+    )
+    def test_parse_minimum_maximum(
+        self,
+        csv_dmp: DataModelCSVParser,
+        attribute_dict: dict[str, Any],
+        relationship: str,
+        expected_dict: Union[dict, type],
+    ) -> None:
+        if expected_dict == ValueError:
+            with pytest.raises(ValueError):
+                csv_dmp.parse_minimum_maximum(attribute_dict, relationship)
+        else:
+            assert (
+                csv_dmp.parse_minimum_maximum(attribute_dict, relationship)
+                == expected_dict
+            )
+
+    def test_malformed_csv(self, helpers, csv_dmp: DataModelCSVParser):
+        """Check that a malformed format value raises the appropriate error."""
+        path_to_data_model = helpers.get_schema_file_path(
+            "data_models/malformed_format.csv"
+        )
+        model_df = load_df(path_to_data_model, data_model=True)
+
+        with pytest.raises(
+            ValueError,
+            match="For entry: 'not_a_format', 'not_a_format' not in allowed values",
+        ):
+            csv_dmp.gather_csv_attributes_relationships(model_df=model_df)
+
 
 class TestDataModelJsonLdParser:
+    def test_gather_jsonld_attributes_relationships(
+        self,
+        csv_dmp: DataModelCSVParser,
+        attribute_dict: dict[str, Any],
+        expected_dict: dict[str, Union[float, int]],
+    ) -> None:
+        assert csv_dmp.parse_minimum_maximum(attribute_dict, "Minimum") == expected_dict
+        assert csv_dmp.parse_minimum_maximum(attribute_dict, "Maximum") == expected_dict
+
     def test_gather_jsonld_attributes_relationships(
         self,
         helpers,
