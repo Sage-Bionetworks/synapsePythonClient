@@ -494,7 +494,7 @@ class Submission(
 
             return entity_info
         except Exception as e:
-            raise ValueError(
+            raise LookupError(
                 f"Unable to fetch entity information for {self.entity_id}: {e}"
             ) from e
 

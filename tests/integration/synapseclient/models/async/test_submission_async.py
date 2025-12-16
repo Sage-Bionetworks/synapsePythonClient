@@ -555,7 +555,7 @@ class TestSubmissionValidationAsync:
 
         # Note: This test would need a real entity ID to work in practice
         # For now, we test the validation logic
-        with pytest.raises(ValueError, match="Unable to fetch entity information"):
+        with pytest.raises(LookupError, match="Unable to fetch entity information"):
             await submission._fetch_latest_entity(synapse_client=self.syn)
 
     async def test_fetch_latest_entity_without_entity_id_async(self):
