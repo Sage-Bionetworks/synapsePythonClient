@@ -55,7 +55,10 @@ jobs:
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         # Make sure that we are running the integration tests on the first and last versions of the matrix
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
+
+        exclude:
+          - python: '3.14.1'
 
     runs-on: ${{ matrix.os }}
 
