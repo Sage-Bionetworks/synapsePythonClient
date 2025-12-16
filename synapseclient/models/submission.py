@@ -496,7 +496,7 @@ class Submission(
         except Exception as e:
             raise ValueError(
                 f"Unable to fetch entity information for {self.entity_id}: {e}"
-            )
+            ) from e
 
     def to_synapse_request(self) -> dict:
         """Creates a request body expected of the Synapse REST API for the Submission model.
