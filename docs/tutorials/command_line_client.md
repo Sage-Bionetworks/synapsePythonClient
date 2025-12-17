@@ -81,8 +81,7 @@ synapse [-h] [--version] [-u SYNAPSEUSER] [-p SYNAPSE_AUTH_TOKEN] [-c CONFIGPATH
 - [test-encoding](#test-encoding): test character encoding to help diagnose problems
 - [get-sts-token](#get-sts-token): Get an STS token for access to AWS S3 storage underlying Synapse
 - [migrate](#migrate): Migrate Synapse entities to a different storage location
-
-
+- [generate-json-schema](#generate-json-schema): Generate JSON Schema(s) from a data model
 
 ### `get`
 
@@ -544,3 +543,18 @@ synapse migrate [-h] [--source_storage_location_ids [SOURCE_STORAGE_LOCATION_IDS
 | `--csv_log_path`                | Named      | Path where to log a csv documenting the changes from the migration.                                                                                                                                                                            |         |
 | `--dryRun`                      | Named      | Dry run, files will be indexed by not migrated.                                                                                                                                                                                                | False   |
 | `--force`                       | Named      | Bypass interactive prompt confirming migration.                                                                                                                                                                                                | False   |
+
+### `generate-json-schema`
+
+Generate JSON Schema(s) from a data model
+
+```bash
+synapse generate-json-schema [-h] --name NAME [--parentid syn123] [--csv foo.csv] data_model_path
+```
+
+| Name                     | Type       | Description                                                         |
+|--------------------------|------------|---------------------------------------------------------------------|
+| `data_model_path`        | Positional | Data model path or URL                                              |
+| `--data-types`           | Named      | Optional list of data types to create JSON Schema for               |
+| `--output`               | Named      | Optional. Either a file path ending in '.json', or a directory path |
+| `--data-model-labels`    | Named      | Either 'class_label', or 'display_label'                            |

@@ -8,17 +8,42 @@ DATA_MODEL_SOURCE = "tests/unit/synapseclient/extensions/schema_files/example.mo
 # Example: ["Patient", "Biospecimen"] or None
 DATA_TYPE = ["Patient"]
 # Directory where JSON Schema files will be saved
-OUTPUT_DIRECTORY = "./"
+OUTPUT_DIRECTORY = "temp"
 
 syn = Synapse()
 syn.login()
 
 schemas, file_paths = generate_jsonschema(
     data_model_source=DATA_MODEL_SOURCE,
-    output_directory=OUTPUT_DIRECTORY,
-    data_type=DATA_TYPE,
-    data_model_labels="class_label",
+    output=OUTPUT_DIRECTORY,
+    data_types=DATA_TYPE,
     synapse_client=syn,
 )
 
 print(schemas[0])
+
+schemas, file_paths = generate_jsonschema(
+    data_model_source=DATA_MODEL_SOURCE,
+    output=OUTPUT_DIRECTORY,
+    data_types=["Patient", "Biospecimen"],
+    synapse_client=syn,
+)
+
+schemas, file_paths = generate_jsonschema(
+    data_model_source=DATA_MODEL_SOURCE,
+    output=OUTPUT_DIRECTORY,
+    synapse_client=syn,
+)
+
+schemas, file_paths = generate_jsonschema(
+    data_model_source=DATA_MODEL_SOURCE,
+    data_types=DATA_TYPE,
+    output="test.json",
+    synapse_client=syn,
+)
+
+schemas, file_paths = generate_jsonschema(
+    data_model_source=DATA_MODEL_SOURCE,
+    data_types=DATA_TYPE,
+    synapse_client=syn,
+)
