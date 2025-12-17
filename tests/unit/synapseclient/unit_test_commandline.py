@@ -2,8 +2,8 @@
 
 """
 
-import base64
 import os
+import shutil
 import tempfile
 from unittest.mock import MagicMock, Mock, call, mock_open, patch
 
@@ -844,3 +844,118 @@ class TestStoreFunction:
         with pytest.raises(ValueError) as ve:
             cmdline.store(args, self.syn)
         assert str(ve.value) == "store missing required FILE argument"
+
+
+class TestGenerateJSONSchemaFunction:
+    @pytest.fixture(scope="function", autouse=True)
+    @patch("synapseclient.client.Synapse")
+    def setup(self, mock_syn):
+        self.syn = mock_syn
+        self.csv_path = "tests/unit/synapseclient/extensions/schema_files/data_models/example.model.csv"
+
+    def test_one_data_type_no_output_path(self):
+        # GIVEN a CSV schema file
+        parser = cmdline.build_parser()
+        args = parser.parse_args(
+            ["generate-json-schema", self.csv_path, "--data-types", "Patient"]
+        )
+        schema_path = "./Patient.json"
+        try:
+            # WHEN I generate a schema with one datatype and no output path
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN a schema file should be created at ./Patient.json
+            assert os.path.isfile(schema_path)
+        finally:
+            if os.path.isfile(schema_path):
+                os.remove(schema_path)
+
+    def test_one_data_type_with_output_dir(self):
+        # GIVEN a CSV schema file
+        parser = cmdline.build_parser()
+        # And a tmp output directory
+        temp_dir = tempfile.mkdtemp()
+        args = parser.parse_args(
+            [
+                "generate-json-schema",
+                self.csv_path,
+                "--data-types",
+                "Patient",
+                "--output",
+                temp_dir,
+            ]
+        )
+        schema_path = os.path.join(temp_dir, "Patient.json")
+        try:
+            # WHEN I generate a schema with one datatype and an output directory
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN a schema file should be created at <temp_dir>/Patient.json
+            assert os.path.isfile(schema_path)
+        finally:
+            if os.path.isfile(schema_path):
+                os.remove(schema_path)
+
+    def test_one_data_type_with_output_path(self):
+        # GIVEN a CSV schema file
+        parser = cmdline.build_parser()
+        schema_path = "test.json"
+        args = parser.parse_args(
+            [
+                "generate-json-schema",
+                self.csv_path,
+                "--data-types",
+                "Patient",
+                "--output",
+                schema_path,
+            ]
+        )
+        try:
+            # WHEN I generate a schema with one datatype and an output path of "test.json"
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN a schema file should be created at "test.json"
+            assert os.path.isfile(schema_path)
+        finally:
+            if os.path.isfile(schema_path):
+                os.remove(schema_path)
+
+    def test_multiple_data_types_with_output_dir(self):
+        # GIVEN a CSV schema file
+        parser = cmdline.build_parser()
+        # And a tmp output directory
+        temp_dir = tempfile.mkdtemp()
+        args = parser.parse_args(
+            [
+                "generate-json-schema",
+                self.csv_path,
+                "--data-types",
+                "Patient",
+                "Biospecimen",
+                "--output",
+                temp_dir,
+            ]
+        )
+        patient_schema_path = os.path.join(temp_dir, "Patient.json")
+        biospecimen_schema_path = os.path.join(temp_dir, "Biospecimen.json")
+        try:
+            # WHEN I generate a schema with multiple datatypes and an output directory
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN schema files should be created at <temp_dir>/Patient.json and <temp_dir>/Biospecimen.json
+            assert os.path.isfile(patient_schema_path)
+            assert os.path.isfile(biospecimen_schema_path)
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_all_data_types_with_output_dir(self):
+        # GIVEN a CSV schema file
+        parser = cmdline.build_parser()
+        # And a tmp output directory
+        temp_dir = tempfile.mkdtemp()
+        args = parser.parse_args(
+            ["generate-json-schema", self.csv_path, "--output", temp_dir]
+        )
+        try:
+            # WHEN I generate a schema with multiple datatypes and an output directory
+            cmdline.generate_json_schema(args, self.syn)
+            # THEN schema files should be created in temp_dir
+            assert len(os.listdir(temp_dir)) > 1
+        finally:
+            shutil.rmtree(temp_dir)

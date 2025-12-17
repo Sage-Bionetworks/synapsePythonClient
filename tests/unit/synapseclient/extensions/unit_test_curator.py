@@ -2314,3 +2314,22 @@ class TestGenerateJsonschema(unittest.TestCase):
                     ), f"Property {prop_name} is not a dict"
         finally:
             shutil.rmtree(temp_dir)
+
+    def test_generate_jsonschema_specify_file(self):
+        """Test that generated schema has provided output path"""
+        # GIVEN a CSV schema file
+        try:
+            # WHEN I generate a schema with specific output file, and a datatype
+            _, paths = generate_jsonschema(
+                data_model_source=self.test_schema_path,
+                output="./test.json",
+                data_types=["Patient"],
+                synapse_client=self.syn,
+            )
+            # THEN there should be only one output file with the specified name
+            assert len(paths) == 1
+            assert paths[0] == "./test.json"
+
+        finally:
+            if os.path.isfile("./test.json"):
+                os.remove("./test.json")

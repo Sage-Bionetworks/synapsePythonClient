@@ -5696,10 +5696,10 @@ def _write_data_model(
 
 def generate_jsonschema(
     data_model_source: str,
-    output: Optional[str],
-    data_types: Optional[list[str]],
-    data_model_labels: DisplayLabelType,
     synapse_client: Synapse,
+    data_types: Optional[list[str]] = None,
+    output: Optional[str] = None,
+    data_model_labels: DisplayLabelType = "class_label",
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """
     Generate JSON Schema files from a data model.
@@ -5710,7 +5710,7 @@ def generate_jsonschema(
         output: One of: None, a directory path, or a file path.
             - If None, schemas will be written to the current working directory, with filenames formatted as `<DataType>.json`.
             - If a directory path, schemas will be written to that directory, with filenames formatted as `<Output>/<DataType>.json`.
-            - If a file path (ending with `.json`) and a single data type is specified, the schema for that data type will be written to that file.
+            - If a file path (must end with `.json`) and a single data type is specified, the schema for that data type will be written to that file.
         data_types: List of specific cdata types to generate schemas for. If None, generates schemas for all data types in the data model.
         data_model_labels: Label format for properties in the generated schema:
             - `"class_label"` (default): Uses standard attribute names as property keys
@@ -5777,10 +5777,6 @@ def generate_jsonschema(
     else:
         dirname = "./"
 
-    for k, v in parsed_data_model.items():
-        if v["Relationships"].get("DependsOn"):
-            print(k, v["Relationships"])
-
     # Gets all data types if none are specified
     if data_types is None or len(data_types) == 0:
         data_types = [
@@ -5792,10 +5788,12 @@ def generate_jsonschema(
             ]
         ]
 
-    if len(data_types) == 1 and output.endswith(".json"):
+    if len(data_types) == 1 and output is not None and output.endswith(".json"):
         schema_paths = [output]
     else:
-        schema_paths = [f"{dirname}/{data_type}.json" for data_type in data_types]
+        schema_paths = [
+            os.path.join(dirname, f"{data_type}.json") for data_type in data_types
+        ]
 
     schemas = [
         create_json_schema(
