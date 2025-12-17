@@ -118,6 +118,41 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
             The updated WikiOrderHint object for the entity.
         Raises:
             ValueError: If owner_id or request is not provided.
+
+        Example: Set the WikiOrderHint for a project
+            This example shows how to set a WikiOrderHint for existing wiki pages in a project.
+            The WikiOrderHint is not set by default, so you need to set it explicitly.
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                Project,
+                WikiOrderHint,
+            )
+            syn = Synapse()
+            syn.login()
+            project = await Project(name="My uniquely named project about Alzheimer's Disease").get_async()
+            wiki_order_hint = await WikiOrderHint(owner_id=project.id).get_async()
+
+            wiki_order_hint.id_list = [
+                root_wiki_page.id,
+                wiki_page_1.id,
+                wiki_page_3.id,
+                wiki_page_2.id,
+                wiki_page_4.id,
+            ]
+            await wiki_order_hint.store_async()
+            print(wiki_order_hint)
+
+        Example: Update the WikiOrderHint for a project
+            This example shows how to update a WikiOrderHint for existing wiki pages in a project.
+            wiki_order_hint.id_list = [
+                root_wiki_page.id,
+                wiki_page_1.id,
+                wiki_page_2.id,
+                wiki_page_3.id,
+                wiki_page_4.id,
+            ]
+            await wiki_order_hint.store_async()
+            print(wiki_order_hint)
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to store wiki order hint.")
@@ -147,6 +182,19 @@ class WikiOrderHint(WikiOrderHintSynchronousProtocol):
             A WikiOrderHint object for the entity.
         Raises:
             ValueError: If owner_id is not provided.
+
+        Example: Get the WikiOrderHint for a project
+            This example shows how to get a WikiOrderHint for existing wiki pages in a project.
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                Project,
+                WikiOrderHint,
+            )
+            syn = Synapse()
+            syn.login()
+            project = await Project(name="My uniquely named project about Alzheimer's Disease").get_async()
+            wiki_order_hint = await WikiOrderHint(owner_id=project.id).get_async()
+            print(wiki_order_hint)
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get wiki order hint.")
@@ -221,6 +269,10 @@ class WikiHistorySnapshot(WikiHistorySnapshotSynchronousProtocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             A list of WikiHistorySnapshot objects for the wiki page.
+
+        Example: Get the history of a wiki page
+            history = await WikiHistorySnapshot.get_async(owner_id=project.id, id=wiki_page.id)
+            print(f"History: {history}")
         """
         if not owner_id:
             raise ValueError("Must provide owner_id to get wiki history.")
@@ -299,6 +351,10 @@ class WikiHeader(WikiHeaderSynchronousProtocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             A list of WikiHeader objects for the entity.
+
+        Example: Get the header tree (hierarchy) of wiki pages for an entity
+            headers = await WikiHeader.get_async(owner_id=project.id)
+            print(f"Headers: {headers}")
         """
         if not owner_id:
             raise ValueError("Must provide owner_id to get wiki header tree.")
@@ -687,6 +743,19 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Raises:
             ValueError: If owner_id is not provided or if required fields are missing.
+
+        Example: Store a wiki page
+            This example shows how to store a wiki page.
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                Project,
+                WikiPage,
+            )
+            syn = Synapse()
+            syn.login()
+            project = await Project(name="My uniquely named project about Alzheimer's Disease").get_async()
+            wiki_page = await WikiPage(owner_id=project.id, title="My wiki page").store_async()
+            print(wiki_page)
         """
         client = Synapse.get_client(synapse_client=synapse_client)
 
@@ -780,6 +849,11 @@ class WikiPage(WikiPageSynchronousProtocol):
 
         Returns:
             The restored wiki page.
+
+        Example: Restore a specific version of a wiki page
+            This example shows how to restore a specific version of a wiki page.
+            wiki_page_restored = await WikiPage(owner_id=project.id, id=wiki_page.id, wiki_version="0").restore_async()
+            print(wiki_page_restored)
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to restore a wiki page.")
@@ -820,6 +894,10 @@ class WikiPage(WikiPageSynchronousProtocol):
         Raises:
             ValueError: If owner_id is not provided.
 
+        Example: Get a wiki page from Synapse
+            This example shows how to get a wiki page from Synapse.
+            wiki_page = await WikiPage(owner_id=project.id, id=wiki_page.id).get_async()
+            print(wiki_page)
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get a wiki page.")
@@ -866,6 +944,11 @@ class WikiPage(WikiPageSynchronousProtocol):
             synapse_client: Optionally provide a Synapse client.
         Raises:
             ValueError: If required fields are missing.
+
+        Example: Delete a wiki page
+            This example shows how to delete a wiki page.
+            wiki_page = await WikiPage(owner_id=project.id, id=wiki_page.id).delete_async()
+            print(f"Wiki page {wiki_page.title} deleted successfully.")
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to delete a wiki page.")
@@ -895,6 +978,11 @@ class WikiPage(WikiPageSynchronousProtocol):
             The list of FileHandles for all file attachments of this WikiPage.
         Raises:
             ValueError: If owner_id or id is not provided.
+
+        Example: Get the file handles of all attachments on a wiki page
+            This example shows how to get the file handles of all attachments on a wiki page.
+            attachment_handles = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_handles_async()
+            print(f"Attachment handles: {attachment_handles['list']}")
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get attachment handles.")
@@ -931,6 +1019,16 @@ class WikiPage(WikiPageSynchronousProtocol):
             If download_file is True, the attachment file will be downloaded to the download_location. Otherwise, the URL will be returned.
         Raises:
             ValueError: If owner_id or id is not provided.
+
+        Example: Get the attachment URL for a wiki page
+            This example shows how to get the attachment file or URL for a wiki page.
+            attachment_file_or_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_async(file_name="attachment.txt", download_file=False)
+            print(f"Attachment URL: {attachment_file_or_url}")
+
+        Example: Download the attachment file for a wiki page
+            This example shows how to download the attachment file for a wiki page.
+            attachment_file_path = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_async(file_name="attachment.txt", download_file=True, download_location="~/temp")
+            print(f"Attachment file path: {attachment_file_path}")
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get attachment URL.")
@@ -1008,6 +1106,18 @@ class WikiPage(WikiPageSynchronousProtocol):
             If download_file is True, the attachment preview file will be downloaded to the download_location. Otherwise, the URL will be returned.
         Raises:
             ValueError: If owner_id or id is not provided.
+
+        Example: Get the attachment preview URL for a wiki page
+            This example shows how to get the attachment preview URL for a wiki page.
+            Instead of using the file_name from the attachmenthandle response when isPreview=True, you should use the original file name in the get_attachment_preview request.
+            The downloaded file will still be named according to the file_name provided in the response when isPreview=True.
+            attachment_preview_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview_async(file_name="attachment.txt.gz", download_file=False)
+            print(f"Attachment preview URL: {attachment_preview_url}")
+
+        Example: Download the attachment preview file for a wiki page
+            This example shows how to download the attachment preview file for a wiki page.
+            attachment_preview_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview(file_name="attachment.txt.gz", download_file=True, download_location="~/temp")
+            print(f"Attachment preview file path: {attachment_preview_file_path}")
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get attachment preview URL.")
@@ -1084,6 +1194,16 @@ class WikiPage(WikiPageSynchronousProtocol):
             If download_file is True, the markdown file will be downloaded to the download_location. Otherwise, the URL will be returned.
         Raises:
             ValueError: If owner_id or id is not provided.
+
+        Example: Get the markdown URL for a wiki page
+            This example shows how to get the markdown URL for a wiki page.
+            markdown_url = await WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file_async(download_file=False)
+            print(f"Markdown URL: {markdown_url}")
+
+        Example: Download the markdown file for a wiki page
+            This example shows how to download the markdown file for a wiki page.
+            markdown_file_path = await WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown_file_async(download_file=True, download_location="~/temp")
+            print(f"Markdown file path: {markdown_file_path}")
         """
         if not self.owner_id:
             raise ValueError("Must provide owner_id to get markdown URL.")

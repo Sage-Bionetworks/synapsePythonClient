@@ -16,7 +16,8 @@ if TYPE_CHECKING:
 
 class WikiOrderHintSynchronousProtocol(Protocol):
     """Protocol for the methods of the WikiOrderHint class that have synchronous counterparts
-    generated at runtime."""
+    generated at runtime.
+    """
 
     def store(
         self,
@@ -24,11 +25,48 @@ class WikiOrderHintSynchronousProtocol(Protocol):
         synapse_client: Optional["Synapse"] = None,
     ) -> "WikiOrderHint":
         """
-        Update the order hint of a wiki page tree.
+        Store the order hint of a wiki page tree.
         Arguments:
             synapse_client: Optionally provide a Synapse client.
         Returns:
             The updated WikiOrderHint object for the entity.
+
+        Example: Set the WikiOrderHint for a project
+            This example shows how to set a WikiOrderHint for existing wiki pages in a project.
+            The WikiOrderHint is not set by default, so you need to set it explicitly.
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                Project,
+                WikiOrderHint,
+            )
+            syn = Synapse()
+            syn.login()
+
+            project = Project(name="My uniquely named project about Alzheimer's Disease").get()
+            # get the WikiOrderHint for the project
+            wiki_order_hint = WikiOrderHint(owner_id=project.id).get()
+
+            wiki_order_hint.id_list = [
+                root_wiki_page.id,
+                wiki_page_1.id,
+                wiki_page_3.id,
+                wiki_page_2.id,
+                wiki_page_4.id,
+            ]
+            wiki_order_hint.store()
+            print(wiki_order_hint)
+
+        Example: Update the WikiOrderHint for a project
+            This example shows how to update a WikiOrderHint for existing wiki pages in a project.
+            wiki_order_hint.id_list = [
+                root_wiki_page.id,
+                wiki_page_1.id,
+                wiki_page_2.id,
+                wiki_page_3.id,
+                wiki_page_4.id,
+            ]
+            wiki_order_hint.store()
+            print(wiki_order_hint)
         """
         return self
 
@@ -43,6 +81,22 @@ class WikiOrderHintSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             A WikiOrderHint object for the entity.
+
+        Example: Get the WikiOrderHint for a project
+            This example shows how to get a WikiOrderHint for existing wiki pages in a project.
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                Project,
+                WikiOrderHint,
+            )
+            syn = Synapse()
+            syn.login()
+
+            project = Project(name="My uniquely named project about Alzheimer's Disease").get()
+            # get the WikiOrderHint for the project
+            wiki_order_hint = WikiOrderHint(owner_id=project.id).get()
+
+            print(wiki_order_hint)
         """
         return self
 
@@ -71,6 +125,10 @@ class WikiHistorySnapshotSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             A list of WikiHistorySnapshot objects for the wiki page.
+
+        Example: Get the history of a wiki page
+            history = WikiHistorySnapshot.get(owner_id=project.id, id=wiki_page.id)
+            print(f"History: {history}")
         """
         return list({})
 
@@ -97,6 +155,10 @@ class WikiHeaderSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             A list of WikiHeader objects for the entity.
+
+        Example: Get the header tree (hierarchy) of wiki pages for an entity
+            headers = WikiHeader.get(owner_id=project.id)
+            print(f"Headers: {headers}")
         """
         return list({})
 
@@ -113,6 +175,20 @@ class WikiPageSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             The created WikiPage object.
+
+        Example: Store a wiki page
+            This example shows how to store a wiki page.
+            from synapseclient import Synapse
+            from synapseclient.models import (
+                Project,
+                WikiPage,
+            )
+            syn = Synapse()
+            syn.login()
+
+            project = Project(name="My uniquely named project about Alzheimer's Disease").get()
+            wiki_page = WikiPage(owner_id=project.id, title="My wiki page").store()
+            print(wiki_page)
         """
         return self
 
@@ -123,6 +199,11 @@ class WikiPageSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             The restored WikiPage object.
+
+        Example: Restore a specific version of a wiki page
+            This example shows how to restore a specific version of a wiki page.
+            wiki_page_restored = WikiPage(owner_id=project.id, id=root_wiki_page.id, wiki_version="0").restore()
+            print(wiki_page_restored)
         """
         return self
 
@@ -133,6 +214,11 @@ class WikiPageSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             The WikiPage object.
+
+        Example: Get a wiki page from Synapse
+            This example shows how to get a wiki page from Synapse.
+            wiki_page = WikiPage(owner_id=project.id, id=wiki_page.id).get()
+            print(wiki_page)
         """
         return self
 
@@ -143,6 +229,11 @@ class WikiPageSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             None
+
+        Example: Delete a wiki page
+            This example shows how to delete a wiki page.
+            wiki_page = WikiPage(owner_id=project.id, id=wiki_page.id).delete()
+            print(f"Wiki page {wiki_page.title} deleted successfully.")
         """
         return None
 
@@ -155,6 +246,11 @@ class WikiPageSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             The list of FileHandles for all file attachments of this WikiPage.
+
+        Example: Get the file handles of all attachments on a wiki page
+            This example shows how to get the file handles of all attachments on a wiki page.
+            attachment_handles = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_handles()
+            print(f"Attachment handles: {attachment_handles['list']}")
         """
         return list({})
 
@@ -177,6 +273,16 @@ class WikiPageSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             If download_file is True, the attachment file will be downloaded to the download_location. Otherwise, the URL will be returned.
+
+        Example: Get the attachment URL for a wiki page
+            This example shows how to get the attachment file or URL for a wiki page.
+            attachment_file_or_url = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment(file_name="attachment.txt", download_file=False)
+            print(f"Attachment URL: {attachment_file_or_url}")
+
+        Example: Download the attachment file for a wiki page
+            This example shows how to download the attachment file for a wiki page.
+            attachment_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment(file_name="attachment.txt", download_file=True, download_location="~/temp")
+            print(f"Attachment file path: {attachment_file_path}")
         """
         return ""
 
@@ -197,6 +303,18 @@ class WikiPageSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             If download_file is True, the attachment preview file will be downloaded to the download_location. Otherwise, the URL will be returned.
+
+        Example: Get the attachment preview URL for a wiki page
+            This example shows how to get the attachment preview URL for a wiki page.
+            Instead of using the file_name from the attachmenthandle response when isPreview=True, you should use the original file name in the get_attachment_preview request.
+            The downloaded file will still be named according to the file_name provided in the response when isPreview=True.
+            attachment_preview_url = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview(file_name="attachment.txt.gz", download_file=False)
+            print(f"Attachment preview URL: {attachment_preview_url}")
+
+        Example: Download the attachment preview file for a wiki page
+            This example shows how to download the attachment preview file for a wiki page.
+            attachment_preview_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_attachment_preview(file_name="attachment.txt.gz", download_file=True, download_location="~/temp")
+            print(f"Attachment preview file path: {attachment_preview_file_path}")
         """
         return ""
 
@@ -213,5 +331,15 @@ class WikiPageSynchronousProtocol(Protocol):
             synapse_client: Optionally provide a Synapse client.
         Returns:
             If download_file is True, the markdown file will be downloaded to the download_location. Otherwise, the URL will be returned.
+
+        Example: Get the markdown URL for a wiki page
+            This example shows how to get the markdown URL for a wiki page.
+            markdown_url = WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown(download_file=False)
+            print(f"Markdown URL: {markdown_url}")
+
+        Example: Download the markdown file for a wiki page
+            This example shows how to download the markdown file for a wiki page.
+            markdown_file_path = WikiPage(owner_id=project.id, id=wiki_page.id).get_markdown(download_file=True, download_location="~/temp")
+            print(f"Markdown file path: {markdown_file_path}")
         """
         return ""
