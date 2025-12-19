@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-13, windows-2022]
+        os: [ubuntu-22.04, macos-latest, windows-2022]
 
         # if changing the below change the run-integration-tests versions and the check-deploy versions
         # Make sure that we are running the integration tests on the first and last versions of the matrix
@@ -486,7 +486,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-13, windows-2022]
+        os: [ubuntu-24.04, macos-latest, windows-2022]
 
         # python versions should be consistent with the strategy matrix and the runs-integration-tests versions
         python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
