@@ -826,7 +826,7 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
                 await file_instance.change_metadata_async(name="my_new_name_file.txt")
 
             Rename a file, and the name of the file as downloaded
-                (Does not update the file on disk). Is is recommended that `name` and
+                (Does not update the file on disk). It is recommended that `name` and
                 `download_as` match to prevent confusion later on:
 
                 file_instance = await File(id="syn123", download_file=False).get_async()
@@ -837,9 +837,10 @@ class File(FileSynchronousProtocol, AccessControllable, BaseJSONSchema):
         self.parent_id = parent.id if parent else self.parent_id
         if self._cannot_store():
             raise ValueError(
-                "The file must have an (ID with a (path, external_url, or `data_file_handle_id`)), or a "
-                "((path or external_url) with a (`parent_id` or parent with an id)), or a "
-                "(data_file_handle_id with a (`parent_id` or parent with an id)) to store."
+                "Cannot store file. The file must have one of:\n"
+                "  1. An ID and (path, external_url, or data_file_handle_id)\n"
+                "  2. A (path or external_url) and parent_id\n"
+                "  3. A data_file_handle_id and parent_id"
             )
         self.name = self.name or (
             guess_file_name(self.path)
