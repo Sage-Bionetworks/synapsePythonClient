@@ -54,6 +54,16 @@ from synapseclient.models.mixins import JSONSchemaBinding
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
 
+@pytest.fixture(name="test_directory", scope="function")
+def fixture_test_directory(tmp_path) -> str:
+    """Returns a directory for creating test files in.
+
+    pytest automatically handles cleanup of the temporary directory.
+    """
+    return str(tmp_path)
+    return str(tmp_path)
+
+
 class TestCreateFileBasedMetadataTask(unittest.TestCase):
     """Test cases for create_file_based_metadata_task function."""
 
@@ -1758,178 +1768,148 @@ class TestGenerateJsonld(unittest.TestCase):
         if os.path.exists(expected_output):
             os.remove(expected_output)
 
-    def test_generate_jsonld_with_custom_output_path(self):
+    def test_generate_jsonld_with_custom_output_path(self, test_directory):
         """Test generate_jsonld with custom output path."""
         # GIVEN a CSV schema file and a custom output path
-        temp_dir = tempfile.mkdtemp()
-        try:
-            custom_output = os.path.join(temp_dir, "custom_output.jsonld")
+        custom_output = os.path.join(test_directory, "custom_output.jsonld")
 
-            # WHEN I generate JSONLD
-            result = generate_jsonld(
-                schema=self.test_schema_path,
-                data_model_labels="class_label",
-                output_jsonld=custom_output,
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSONLD
+        result = generate_jsonld(
+            schema=self.test_schema_path,
+            data_model_labels="class_label",
+            output_jsonld=custom_output,
+            synapse_client=self.syn,
+        )
 
-            # THEN the result should be a dictionary with expected structure
-            assert isinstance(result, dict)
-            assert "@context" in result
-            assert "@graph" in result
+        # THEN the result should be a dictionary with expected structure
+        assert isinstance(result, dict)
+        assert "@context" in result
+        assert "@graph" in result
 
-            # AND the file should exist at the custom path
-            assert os.path.exists(custom_output)
+        # AND the file should exist at the custom path
+        assert os.path.exists(custom_output)
 
-            # AND the file should be valid JSON
-            with open(custom_output, "r", encoding="utf-8") as f:
-                file_content = json.load(f)
-                assert file_content == result
-        finally:
-            shutil.rmtree(temp_dir)
+        # AND the file should be valid JSON
+        with open(custom_output, "r", encoding="utf-8") as f:
+            file_content = json.load(f)
+            assert file_content == result
 
-    def test_generate_jsonld_with_display_label(self):
+    def test_generate_jsonld_with_display_label(self, test_directory):
         """Test generate_jsonld with display_label format."""
         # GIVEN a CSV schema file
-        temp_dir = tempfile.mkdtemp()
-        try:
-            output_path = os.path.join(temp_dir, "display_label.jsonld")
+        output_path = os.path.join(test_directory, "display_label.jsonld")
 
-            # WHEN I generate JSONLD with display_label
-            result = generate_jsonld(
-                schema=self.test_schema_path,
-                data_model_labels="display_label",
-                output_jsonld=output_path,
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSONLD with display_label
+        result = generate_jsonld(
+            schema=self.test_schema_path,
+            data_model_labels="display_label",
+            output_jsonld=output_path,
+            synapse_client=self.syn,
+        )
 
-            # THEN the result should contain the expected structure
-            assert isinstance(result, dict)
-            assert "@graph" in result
+        # THEN the result should contain the expected structure
+        assert isinstance(result, dict)
+        assert "@graph" in result
 
-            # AND display names should be used where appropriate
-            graph = result["@graph"]
-            assert len(graph) > 0
+        # AND display names should be used where appropriate
+        graph = result["@graph"]
+        assert len(graph) > 0
 
-            # Check that some entries exist in the graph
-            labels = [
-                entry.get("rdfs:label") for entry in graph if "rdfs:label" in entry
-            ]
-            assert len(labels) > 0
-        finally:
-            shutil.rmtree(temp_dir)
+        # Check that some entries exist in the graph
+        labels = [entry.get("rdfs:label") for entry in graph if "rdfs:label" in entry]
+        assert len(labels) > 0
 
-    def test_generate_jsonld_validates_data_model(self):
+    def test_generate_jsonld_validates_data_model(self, test_directory):
         """Test that generate_jsonld performs validation checks."""
         # GIVEN a CSV schema file
-        temp_dir = tempfile.mkdtemp()
-        try:
-            output_path = os.path.join(temp_dir, "validated.jsonld")
+        output_path = os.path.join(test_directory, "validated.jsonld")
 
-            # WHEN I generate JSONLD
-            result = generate_jsonld(
-                schema=self.test_schema_path,
-                data_model_labels="class_label",
-                output_jsonld=output_path,
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSONLD
+        result = generate_jsonld(
+            schema=self.test_schema_path,
+            data_model_labels="class_label",
+            output_jsonld=output_path,
+            synapse_client=self.syn,
+        )
 
-            # THEN the function should complete without errors
-            # (validation is performed internally and logs warnings/errors)
-            assert isinstance(result, dict)
-            assert os.path.exists(output_path)
-        finally:
-            shutil.rmtree(temp_dir)
+        # THEN the function should complete without errors
+        # (validation is performed internally and logs warnings/errors)
+        assert isinstance(result, dict)
+        assert os.path.exists(output_path)
 
-    def test_generate_jsonld_contains_expected_components(self):
+    def test_generate_jsonld_contains_expected_components(self, test_directory):
         """Test that generated JSONLD contains expected components from CSV."""
         # GIVEN a CSV schema file with known components
-        temp_dir = tempfile.mkdtemp()
-        try:
-            output_path = os.path.join(temp_dir, "components.jsonld")
+        output_path = os.path.join(test_directory, "components.jsonld")
 
-            # WHEN I generate JSONLD
-            result = generate_jsonld(
-                schema=self.test_schema_path,
-                data_model_labels="class_label",
-                output_jsonld=output_path,
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSONLD
+        result = generate_jsonld(
+            schema=self.test_schema_path,
+            data_model_labels="class_label",
+            output_jsonld=output_path,
+            synapse_client=self.syn,
+        )
 
-            # THEN the result should contain expected components
-            graph = result["@graph"]
-            labels = [
-                entry.get("rdfs:label") for entry in graph if "rdfs:label" in entry
-            ]
+        # THEN the result should contain expected components
+        graph = result["@graph"]
+        labels = [entry.get("rdfs:label") for entry in graph if "rdfs:label" in entry]
 
-            # Check for some known components from example.model.csv
-            expected_components = ["Component", "Patient", "Biospecimen"]
-            for component in expected_components:
-                assert component in labels, f"Expected component {component} not found"
-        finally:
-            shutil.rmtree(temp_dir)
+        # Check for some known components from example.model.csv
+        expected_components = ["Component", "Patient", "Biospecimen"]
+        for component in expected_components:
+            assert component in labels, f"Expected component {component} not found"
 
-    def test_generate_jsonld_preserves_relationships(self):
+    def test_generate_jsonld_preserves_relationships(self, test_directory):
         """Test that JSONLD preserves relationships from the CSV."""
         # GIVEN a CSV schema file with relationships
-        temp_dir = tempfile.mkdtemp()
-        try:
-            output_path = os.path.join(temp_dir, "relationships.jsonld")
+        output_path = os.path.join(test_directory, "relationships.jsonld")
 
-            # WHEN I generate JSONLD
-            result = generate_jsonld(
-                schema=self.test_schema_path,
-                data_model_labels="class_label",
-                output_jsonld=output_path,
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSONLD
+        result = generate_jsonld(
+            schema=self.test_schema_path,
+            data_model_labels="class_label",
+            output_jsonld=output_path,
+            synapse_client=self.syn,
+        )
 
-            # THEN relationships should be preserved
-            graph = result["@graph"]
+        # THEN relationships should be preserved
+        graph = result["@graph"]
 
-            # Find Patient component and check it has dependencies
-            patient_entries = [
-                entry for entry in graph if entry.get("rdfs:label") == "Patient"
-            ]
-            assert len(patient_entries) > 0
+        # Find Patient component and check it has dependencies
+        patient_entries = [
+            entry for entry in graph if entry.get("rdfs:label") == "Patient"
+        ]
+        assert len(patient_entries) > 0
 
-            patient = patient_entries[0]
-            # Patient should have requiresDependency field
-            assert (
-                "sms:requiresDependency" in patient
-            ), "Patient should have dependencies"
-        finally:
-            shutil.rmtree(temp_dir)
+        patient = patient_entries[0]
+        # Patient should have requiresDependency field
+        assert "sms:requiresDependency" in patient, "Patient should have dependencies"
 
-    def test_generate_jsonld_includes_validation_rules(self):
+    def test_generate_jsonld_includes_validation_rules(self, test_directory):
         """Test that JSONLD includes validation rules from CSV."""
         # GIVEN a CSV schema file with validation rules
-        temp_dir = tempfile.mkdtemp()
-        try:
-            output_path = os.path.join(temp_dir, "validation_rules.jsonld")
+        output_path = os.path.join(test_directory, "validation_rules.jsonld")
 
-            # WHEN I generate JSONLD
-            result = generate_jsonld(
-                schema=self.test_schema_path,
-                data_model_labels="class_label",
-                output_jsonld=output_path,
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSONLD
+        result = generate_jsonld(
+            schema=self.test_schema_path,
+            data_model_labels="class_label",
+            output_jsonld=output_path,
+            synapse_client=self.syn,
+        )
 
-            # THEN validation rules should be included
-            graph = result["@graph"]
+        # THEN validation rules should be included
+        graph = result["@graph"]
 
-            # Find entries with validation rules
-            entries_with_rules = [
-                entry
-                for entry in graph
-                if "sms:validationRules" in entry and entry["sms:validationRules"]
-            ]
+        # Find entries with validation rules
+        entries_with_rules = [
+            entry
+            for entry in graph
+            if "sms:validationRules" in entry and entry["sms:validationRules"]
+        ]
 
-            # MockComponent has many validation rules, so it should be present
-            assert len(entries_with_rules) > 0, "Expected validation rules in JSONLD"
-        finally:
-            shutil.rmtree(temp_dir)
+        # MockComponent has many validation rules, so it should be present
+        assert len(entries_with_rules) > 0, "Expected validation rules in JSONLD"
 
 
 class TestGenerateJsonschema(unittest.TestCase):
@@ -1948,369 +1928,339 @@ class TestGenerateJsonschema(unittest.TestCase):
             "data_models/example.model.csv",
         )
 
-    def test_generate_jsonschema_from_csv(self):
+    def test_generate_jsonschema_from_csv(self, test_directory):
         """Test generate_jsonschema from CSV file."""
         # GIVEN a CSV schema file
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate JSON schemas
-            schemas, file_paths = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=None,
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSON schemas
+        schemas, file_paths = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=None,
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN schemas should be generated
-            assert isinstance(schemas, list)
-            assert len(schemas) > 0
-            assert isinstance(file_paths, list)
-            assert len(file_paths) == len(schemas)
+        # THEN schemas should be generated
+        assert isinstance(schemas, list)
+        assert len(schemas) > 0
+        assert isinstance(file_paths, list)
+        assert len(file_paths) == len(schemas)
 
-            # AND files should exist
-            for file_path in file_paths:
-                assert os.path.exists(file_path), f"Expected file at {file_path}"
+        # AND files should exist
+        for file_path in file_paths:
+            assert os.path.exists(file_path), f"Expected file at {file_path}"
 
-            # AND each schema should be valid JSON Schema
-            for schema in schemas:
-                assert isinstance(schema, dict)
-                assert "$schema" in schema
-                assert "properties" in schema
-        finally:
-            shutil.rmtree(temp_dir)
+        # AND each schema should be valid JSON Schema
+        for schema in schemas:
+            assert isinstance(schema, dict)
+            assert "$schema" in schema
+            assert "properties" in schema
 
-    def test_generate_jsonschema_from_jsonld(self):
+    def test_generate_jsonschema_from_jsonld(self, test_directory):
         """Test generate_jsonschema from JSONLD file."""
         # GIVEN a JSONLD file (first generate it from CSV)
-        temp_dir = tempfile.mkdtemp()
-        try:
-            jsonld_path = os.path.join(temp_dir, "test.jsonld")
-            generate_jsonld(
-                schema=self.test_schema_path,
-                data_model_labels="class_label",
-                output_jsonld=jsonld_path,
-                synapse_client=self.syn,
-            )
+        jsonld_path = os.path.join(test_directory, "test.jsonld")
+        generate_jsonld(
+            schema=self.test_schema_path,
+            data_model_labels="class_label",
+            output_jsonld=jsonld_path,
+            synapse_client=self.syn,
+        )
 
-            # WHEN I generate JSON schemas from the JSONLD
-            schemas, file_paths = generate_jsonschema(
-                data_model_source=jsonld_path,
-                output_directory=temp_dir,
-                data_type=None,
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSON schemas from the JSONLD
+        schemas, file_paths = generate_jsonschema(
+            data_model_source=jsonld_path,
+            output_directory=test_directory,
+            data_type=None,
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN schemas should be generated
-            assert len(schemas) > 0
-            assert len(file_paths) > 0
+        # THEN schemas should be generated
+        assert len(schemas) > 0
+        assert len(file_paths) > 0
 
-            # AND files should exist
-            for file_path in file_paths:
-                assert os.path.exists(file_path)
-        finally:
-            shutil.rmtree(temp_dir)
+        # AND files should exist
+        for file_path in file_paths:
+            assert os.path.exists(file_path)
 
-    def test_generate_jsonschema_specific_components(self):
+    def test_generate_jsonschema_specific_components(self, tmp_path):
         """Test generate_jsonschema for specific components only."""
         # GIVEN a CSV schema file and specific components
-        temp_dir = tempfile.mkdtemp()
-        try:
-            target_components = ["Patient", "Biospecimen"]
+        test_directory = str(tmp_path)  # pytest automatically handles cleanup
+        target_components = ["Patient", "Biospecimen"]
 
-            # WHEN I generate JSON schemas for specific components
-            schemas, file_paths = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=target_components,
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate JSON schemas for specific components
+        schemas, file_paths = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=target_components,
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN only the specified components should have schemas
-            assert len(schemas) == len(target_components)
-            assert len(file_paths) == len(target_components)
+        # THEN only the specified components should have schemas
+        assert len(schemas) == len(target_components)
+        assert len(file_paths) == len(target_components)
 
-            # AND the file names should match the components
-            for component in target_components:
-                matching_files = [fp for fp in file_paths if component in fp]
-                assert len(matching_files) > 0, f"Expected file for {component}"
-        finally:
-            shutil.rmtree(temp_dir)
+        # AND the file names should match the components
+        for component in target_components:
+            matching_files = [fp for fp in file_paths if component in fp]
+            assert len(matching_files) > 0, f"Expected file for {component}"
 
-    def test_generate_jsonschema_with_display_label(self):
+        # AND all files should be in the temp directory
+        for file_path in file_paths:
+            assert file_path.startswith(
+                test_directory
+            ), f"File {file_path} was not created in temp directory {test_directory}"
+
+    def test_generate_jsonschema_with_display_label(self, test_directory):
         """Test generate_jsonschema with display_label format."""
         # GIVEN a CSV schema file
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate schemas with display_label
-            schemas, file_paths = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
-                data_model_labels="display_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate schemas with display_label
+        schemas, file_paths = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=["Patient"],
+            data_model_labels="display_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN schemas should be generated
-            assert len(schemas) > 0
-            assert len(file_paths) > 0
+        # THEN schemas should be generated
+        assert len(schemas) > 0
+        assert len(file_paths) > 0
 
-            # AND properties might use display names
-            patient_schema = schemas[0]
-            assert "properties" in patient_schema
-        finally:
-            shutil.rmtree(temp_dir)
+        # AND properties might use display names
+        patient_schema = schemas[0]
+        assert "properties" in patient_schema
 
-    def test_generate_jsonschema_validates_required_fields(self):
+    def test_generate_jsonschema_validates_required_fields(self, test_directory):
         """Test that generated schemas include required field constraints."""
         # GIVEN a CSV schema file
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate schemas
-            schemas, _ = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate schemas
+        schemas, _ = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=["Patient"],
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN the Patient schema should have required fields
-            patient_schema = schemas[0]
-            assert "required" in patient_schema or "properties" in patient_schema
+        # THEN the Patient schema should have required fields
+        patient_schema = schemas[0]
+        assert "required" in patient_schema or "properties" in patient_schema
 
-            # Patient should have required properties based on CSV
-            if "required" in patient_schema:
-                required_fields = patient_schema["required"]
-                assert isinstance(required_fields, list)
-                # Component is required for Patient
-                assert "Component" in required_fields
-        finally:
-            shutil.rmtree(temp_dir)
+        # Patient should have required properties based on CSV
+        if "required" in patient_schema:
+            required_fields = patient_schema["required"]
+            assert isinstance(required_fields, list)
+            # Component is required for Patient
+            assert "Component" in required_fields
 
-    def test_generate_jsonschema_includes_enums(self):
+    def test_generate_jsonschema_includes_enums(self, test_directory):
         """Test that generated schemas include enum constraints."""
         # GIVEN a CSV schema file with enum values
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate schemas
-            schemas, _ = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate schemas
+        schemas, _ = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=["Patient"],
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN enums should be present in the schema
-            patient_schema = schemas[0]
-            properties = patient_schema.get("properties", {})
+        # THEN enums should be present in the schema
+        patient_schema = schemas[0]
+        properties = patient_schema.get("properties", {})
 
-            # Sex field has enum values: Female, Male, Other
-            if "Sex" in properties:
-                sex_property = properties["Sex"]
-                # Check for enum in oneOf structure or directly
-                has_enum = False
-                if "oneOf" in sex_property:
-                    for option in sex_property["oneOf"]:
-                        if "enum" in option:
-                            has_enum = True
-                            enum_values = option["enum"]
-                            assert "Female" in enum_values
-                            assert "Male" in enum_values
-                            break
-                elif "enum" in sex_property:
-                    has_enum = True
+        # Sex field has enum values: Female, Male, Other
+        if "Sex" in properties:
+            sex_property = properties["Sex"]
+            # Check for enum in oneOf structure or directly
+            has_enum = False
+            if "oneOf" in sex_property:
+                for option in sex_property["oneOf"]:
+                    if "enum" in option:
+                        has_enum = True
+                        enum_values = option["enum"]
+                        assert "Female" in enum_values
+                        assert "Male" in enum_values
+                        break
+            elif "enum" in sex_property:
+                has_enum = True
 
-                assert has_enum, "Expected enum constraint for Sex field"
-        finally:
-            shutil.rmtree(temp_dir)
+            assert has_enum, "Expected enum constraint for Sex field"
 
-    def test_generate_jsonschema_includes_validation_rules(self):
+    def test_generate_jsonschema_includes_validation_rules(self, test_directory):
         """Test that schemas include validation rules like inRange, regex, etc."""
         # GIVEN a CSV with validation rules
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate schemas for MockComponent (has many validation rules)
-            schemas, _ = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["MockComponent"],
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate schemas for MockComponent (has many validation rules)
+        schemas, _ = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=["MockComponent"],
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN validation rules should be included
-            assert len(schemas) > 0
-            mock_schema = schemas[0]
-            properties = mock_schema.get("properties", {})
+        # THEN validation rules should be included
+        assert len(schemas) > 0
+        mock_schema = schemas[0]
+        properties = mock_schema.get("properties", {})
 
-            # Check for range validation (inRange rule)
-            if "CheckRange" in properties:
-                check_range = properties["CheckRange"]
-                # Should have minimum and maximum
-                has_range = "minimum" in check_range or "maximum" in check_range
-                assert has_range, "Expected range constraints"
+        # Check for range validation (inRange rule)
+        if "CheckRange" in properties:
+            check_range = properties["CheckRange"]
+            # Should have minimum and maximum
+            has_range = "minimum" in check_range or "maximum" in check_range
+            assert has_range, "Expected range constraints"
 
-            # Check for regex validation
-            if "CheckRegexFormat" in properties:
-                check_regex = properties["CheckRegexFormat"]
-                # Should have pattern
-                assert "pattern" in check_regex or "oneOf" in check_regex
+        # Check for regex validation
+        if "CheckRegexFormat" in properties:
+            check_regex = properties["CheckRegexFormat"]
+            # Should have pattern
+            assert "pattern" in check_regex or "oneOf" in check_regex
 
-            # Check for URL validation
-            if "CheckURL" in properties:
-                check_url = properties["CheckURL"]
-                # Should have format: uri
-                has_uri_format = False
-                if "format" in check_url:
-                    has_uri_format = check_url["format"] == "uri"
-                elif "oneOf" in check_url:
-                    for option in check_url["oneOf"]:
-                        if option.get("format") == "uri":
-                            has_uri_format = True
-                            break
-                assert has_uri_format, "Expected URI format for URL field"
-        finally:
-            shutil.rmtree(temp_dir)
+        # Check for URL validation
+        if "CheckURL" in properties:
+            check_url = properties["CheckURL"]
+            # Should have format: uri
+            has_uri_format = False
+            if "format" in check_url:
+                has_uri_format = check_url["format"] == "uri"
+            elif "oneOf" in check_url:
+                for option in check_url["oneOf"]:
+                    if option.get("format") == "uri":
+                        has_uri_format = True
+                        break
+            assert has_uri_format, "Expected URI format for URL field"
 
-    def test_generate_jsonschema_includes_conditional_dependencies(self):
+    def test_generate_jsonschema_includes_conditional_dependencies(
+        self, test_directory
+    ):
         """Test that schemas include conditional dependencies (if/then)."""
         # GIVEN a CSV with conditional dependencies
         # Patient -> Diagnosis=Cancer -> requires CancerType and FamilyHistory
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate schemas
-            schemas, _ = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate schemas
+        schemas, _ = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=["Patient"],
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN conditional dependencies should be in allOf
-            patient_schema = schemas[0]
+        # THEN conditional dependencies should be in allOf
+        patient_schema = schemas[0]
 
-            # Check for allOf with if/then conditions
-            if "allOf" in patient_schema:
-                all_of = patient_schema["allOf"]
-                assert isinstance(all_of, list)
-                assert len(all_of) > 0
+        # Check for allOf with if/then conditions
+        if "allOf" in patient_schema:
+            all_of = patient_schema["allOf"]
+            assert isinstance(all_of, list)
+            assert len(all_of) > 0
 
-                # Find if/then structure for Cancer diagnosis
-                has_cancer_dependency = False
-                for condition in all_of:
-                    if "if" in condition and "then" in condition:
-                        if_clause = condition["if"]
-                        # Check if it's about Diagnosis=Cancer
-                        if "properties" in if_clause:
-                            diagnosis = if_clause["properties"].get("Diagnosis", {})
-                            if "enum" in diagnosis and "Cancer" in diagnosis["enum"]:
-                                has_cancer_dependency = True
-                                # Check that then clause requires CancerType or FamilyHistory
-                                then_clause = condition["then"]
-                                assert (
-                                    "properties" in then_clause
-                                    or "required" in then_clause
-                                )
-                                break
-
-                assert (
-                    has_cancer_dependency
-                ), "Expected conditional dependency for Cancer"
-        finally:
-            shutil.rmtree(temp_dir)
-
-    def test_generate_jsonschema_handles_array_types(self):
-        """Test that schemas handle array/list types correctly."""
-        # GIVEN a CSV with list validation rules
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate schemas for MockComponent (has list rules)
-            schemas, _ = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["MockComponent"],
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
-
-            # THEN list properties should have array type
-            mock_schema = schemas[0]
-            properties = mock_schema.get("properties", {})
-
-            # CheckList has list validation rule
-            if "CheckList" in properties:
-                check_list = properties["CheckList"]
-                # Should have type array or oneOf with array
-                has_array_type = False
-                if "type" in check_list:
-                    has_array_type = check_list["type"] == "array"
-                elif "oneOf" in check_list:
-                    for option in check_list["oneOf"]:
-                        if option.get("type") == "array":
-                            has_array_type = True
+            # Find if/then structure for Cancer diagnosis
+            has_cancer_dependency = False
+            for condition in all_of:
+                if "if" in condition and "then" in condition:
+                    if_clause = condition["if"]
+                    # Check if it's about Diagnosis=Cancer
+                    if "properties" in if_clause:
+                        diagnosis = if_clause["properties"].get("Diagnosis", {})
+                        if "enum" in diagnosis and "Cancer" in diagnosis["enum"]:
+                            has_cancer_dependency = True
+                            # Check that then clause requires CancerType or FamilyHistory
+                            then_clause = condition["then"]
+                            assert (
+                                "properties" in then_clause or "required" in then_clause
+                            )
                             break
 
-                assert has_array_type, "Expected array type for list field"
-        finally:
-            shutil.rmtree(temp_dir)
+            assert has_cancer_dependency, "Expected conditional dependency for Cancer"
 
-    def test_generate_jsonschema_file_content_matches_schema_dict(self):
+    def test_generate_jsonschema_handles_array_types(self, test_directory):
+        """Test that schemas handle array/list types correctly."""
+        # GIVEN a CSV with list validation rules
+        # WHEN I generate schemas for MockComponent (has list rules)
+        schemas, _ = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=["MockComponent"],
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
+
+        # THEN list properties should have array type
+        mock_schema = schemas[0]
+        properties = mock_schema.get("properties", {})
+
+        # CheckList has list validation rule
+        if "CheckList" in properties:
+            check_list = properties["CheckList"]
+            # Should have type array or oneOf with array
+            has_array_type = False
+            if "type" in check_list:
+                has_array_type = check_list["type"] == "array"
+            elif "oneOf" in check_list:
+                for option in check_list["oneOf"]:
+                    if option.get("type") == "array":
+                        has_array_type = True
+                        break
+
+            assert has_array_type, "Expected array type for list field"
+
+    def test_generate_jsonschema_file_content_matches_schema_dict(self, test_directory):
         """Test that saved files match the returned schema dictionaries."""
         # GIVEN a CSV schema file
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate schemas
-            schemas, file_paths = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=["Patient"],
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # WHEN I generate schemas
+        schemas, file_paths = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=["Patient"],
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-            # THEN file content should match schema dict
-            for schema, file_path in zip(schemas, file_paths):
-                with open(file_path, "r", encoding="utf-8") as f:
-                    file_content = json.load(f)
-                    assert file_content == schema
-        finally:
-            shutil.rmtree(temp_dir)
+        # THEN file content should match schema dict
+        for schema, file_path in zip(schemas, file_paths):
+            with open(file_path, "r", encoding="utf-8") as f:
+                file_content = json.load(f)
+                assert file_content == schema
 
-    def test_generate_jsonschema_creates_valid_json_schema_structure(self):
+    def test_generate_jsonschema_creates_valid_json_schema_structure(self, tmp_path):
         """Test that generated schemas follow JSON Schema specification."""
-        # GIVEN a CSV schema file
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # WHEN I generate schemas
-            schemas, _ = generate_jsonschema(
-                data_model_source=self.test_schema_path,
-                output_directory=temp_dir,
-                data_type=None,
-                data_model_labels="class_label",
-                synapse_client=self.syn,
-            )
+        # GIVEN a CSV schema file and a temporary directory
+        test_directory = str(tmp_path)  # pytest automatically handles cleanup
 
-            # THEN each schema should follow JSON Schema spec
-            for schema in schemas:
-                # Required JSON Schema fields
-                assert "$schema" in schema, "Missing $schema field"
-                assert "properties" in schema, "Missing properties field"
+        # WHEN I generate schemas
+        schemas, file_paths = generate_jsonschema(
+            data_model_source=self.test_schema_path,
+            output_directory=test_directory,
+            data_type=None,
+            data_model_labels="class_label",
+            synapse_client=self.syn,
+        )
 
-                # $schema should point to JSON Schema draft
-                assert "json-schema.org" in schema["$schema"]
+        # THEN each schema should follow JSON Schema spec
+        for schema in schemas:
+            # Required JSON Schema fields
+            assert "$schema" in schema, "Missing $schema field"
+            assert "properties" in schema, "Missing properties field"
 
-                # Properties should be a dictionary
-                assert isinstance(schema["properties"], dict)
+            # $schema should point to JSON Schema draft
+            assert "json-schema.org" in schema["$schema"]
 
-                # Each property should have valid structure
-                for prop_name, prop_value in schema["properties"].items():
-                    assert isinstance(
-                        prop_value, dict
-                    ), f"Property {prop_name} is not a dict"
-        finally:
-            shutil.rmtree(temp_dir)
+            # Properties should be a dictionary
+            assert isinstance(schema["properties"], dict)
+
+            # Each property should have valid structure
+            for prop_name, prop_value in schema["properties"].items():
+                assert isinstance(
+                    prop_value, dict
+                ), f"Property {prop_name} is not a dict"
+
+        # AND all files should be in the temp directory
+        for file_path in file_paths:
+            assert file_path.startswith(
+                test_directory
+            ), f"File {file_path} was not created in temp directory {test_directory}"
