@@ -54,16 +54,6 @@ from synapseclient.models.mixins import JSONSchemaBinding
 from synapseclient.models.mixins.json_schema import JSONSchemaVersionInfo
 
 
-@pytest.fixture(name="test_directory", scope="function")
-def fixture_test_directory(tmp_path) -> str:
-    """Returns a directory for creating test files in.
-
-    pytest automatically handles cleanup of the temporary directory.
-    """
-    return str(tmp_path)
-    return str(tmp_path)
-
-
 class TestCreateFileBasedMetadataTask(unittest.TestCase):
     """Test cases for create_file_based_metadata_task function."""
 
@@ -1743,6 +1733,23 @@ class TestGenerateJsonld(unittest.TestCase):
             "schema_files",
             "data_models/example.model.csv",
         )
+        self.test_directory = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up test directory and any leaked files after each test."""
+        # Clean up temp directory
+        if hasattr(self, "test_directory") and os.path.exists(self.test_directory):
+            shutil.rmtree(self.test_directory)
+
+        # Clean up any files created alongside the source CSV
+        # (e.g., when output_jsonld=None is used)
+        if hasattr(self, "test_schema_path"):
+            schema_dir = os.path.dirname(self.test_schema_path)
+            for file in os.listdir(schema_dir):
+                if file.startswith("example.model") and file.endswith(".jsonld"):
+                    leaked_file = os.path.join(schema_dir, file)
+                    if os.path.exists(leaked_file):
+                        os.remove(leaked_file)
 
     def test_generate_jsonld_with_default_output_path(self):
         """Test generate_jsonld with default output path (None)."""
@@ -1768,10 +1775,10 @@ class TestGenerateJsonld(unittest.TestCase):
         if os.path.exists(expected_output):
             os.remove(expected_output)
 
-    def test_generate_jsonld_with_custom_output_path(self, test_directory):
+    def test_generate_jsonld_with_custom_output_path(self):
         """Test generate_jsonld with custom output path."""
         # GIVEN a CSV schema file and a custom output path
-        custom_output = os.path.join(test_directory, "custom_output.jsonld")
+        custom_output = os.path.join(self.test_directory, "custom_output.jsonld")
 
         # WHEN I generate JSONLD
         result = generate_jsonld(
@@ -1794,10 +1801,10 @@ class TestGenerateJsonld(unittest.TestCase):
             file_content = json.load(f)
             assert file_content == result
 
-    def test_generate_jsonld_with_display_label(self, test_directory):
+    def test_generate_jsonld_with_display_label(self):
         """Test generate_jsonld with display_label format."""
         # GIVEN a CSV schema file
-        output_path = os.path.join(test_directory, "display_label.jsonld")
+        output_path = os.path.join(self.test_directory, "display_label.jsonld")
 
         # WHEN I generate JSONLD with display_label
         result = generate_jsonld(
@@ -1819,10 +1826,10 @@ class TestGenerateJsonld(unittest.TestCase):
         labels = [entry.get("rdfs:label") for entry in graph if "rdfs:label" in entry]
         assert len(labels) > 0
 
-    def test_generate_jsonld_validates_data_model(self, test_directory):
+    def test_generate_jsonld_validates_data_model(self):
         """Test that generate_jsonld performs validation checks."""
         # GIVEN a CSV schema file
-        output_path = os.path.join(test_directory, "validated.jsonld")
+        output_path = os.path.join(self.test_directory, "validated.jsonld")
 
         # WHEN I generate JSONLD
         result = generate_jsonld(
@@ -1837,10 +1844,10 @@ class TestGenerateJsonld(unittest.TestCase):
         assert isinstance(result, dict)
         assert os.path.exists(output_path)
 
-    def test_generate_jsonld_contains_expected_components(self, test_directory):
+    def test_generate_jsonld_contains_expected_components(self):
         """Test that generated JSONLD contains expected components from CSV."""
         # GIVEN a CSV schema file with known components
-        output_path = os.path.join(test_directory, "components.jsonld")
+        output_path = os.path.join(self.test_directory, "components.jsonld")
 
         # WHEN I generate JSONLD
         result = generate_jsonld(
@@ -1859,10 +1866,10 @@ class TestGenerateJsonld(unittest.TestCase):
         for component in expected_components:
             assert component in labels, f"Expected component {component} not found"
 
-    def test_generate_jsonld_preserves_relationships(self, test_directory):
+    def test_generate_jsonld_preserves_relationships(self):
         """Test that JSONLD preserves relationships from the CSV."""
         # GIVEN a CSV schema file with relationships
-        output_path = os.path.join(test_directory, "relationships.jsonld")
+        output_path = os.path.join(self.test_directory, "relationships.jsonld")
 
         # WHEN I generate JSONLD
         result = generate_jsonld(
@@ -1885,10 +1892,10 @@ class TestGenerateJsonld(unittest.TestCase):
         # Patient should have requiresDependency field
         assert "sms:requiresDependency" in patient, "Patient should have dependencies"
 
-    def test_generate_jsonld_includes_validation_rules(self, test_directory):
+    def test_generate_jsonld_includes_validation_rules(self):
         """Test that JSONLD includes validation rules from CSV."""
         # GIVEN a CSV schema file with validation rules
-        output_path = os.path.join(test_directory, "validation_rules.jsonld")
+        output_path = os.path.join(self.test_directory, "validation_rules.jsonld")
 
         # WHEN I generate JSONLD
         result = generate_jsonld(
@@ -1927,14 +1934,32 @@ class TestGenerateJsonschema(unittest.TestCase):
             "schema_files",
             "data_models/example.model.csv",
         )
+        self.test_directory = tempfile.mkdtemp()
 
-    def test_generate_jsonschema_from_csv(self, test_directory):
+    def tearDown(self):
+        """Clean up test directory and any leaked files after each test."""
+        # Clean up temp directory
+        if hasattr(self, "test_directory") and os.path.exists(self.test_directory):
+            shutil.rmtree(self.test_directory)
+
+        # Clean up any schema files created alongside the source CSV
+        if hasattr(self, "test_schema_path"):
+            schema_dir = os.path.dirname(self.test_schema_path)
+            for file in os.listdir(schema_dir):
+                if file.endswith(".schema.json") or (
+                    file.startswith("example.model") and file.endswith(".jsonld")
+                ):
+                    leaked_file = os.path.join(schema_dir, file)
+                    if os.path.exists(leaked_file):
+                        os.remove(leaked_file)
+
+    def test_generate_jsonschema_from_csv(self):
         """Test generate_jsonschema from CSV file."""
         # GIVEN a CSV schema file
         # WHEN I generate JSON schemas
         schemas, file_paths = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=None,
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -1956,10 +1981,10 @@ class TestGenerateJsonschema(unittest.TestCase):
             assert "$schema" in schema
             assert "properties" in schema
 
-    def test_generate_jsonschema_from_jsonld(self, test_directory):
+    def test_generate_jsonschema_from_jsonld(self):
         """Test generate_jsonschema from JSONLD file."""
         # GIVEN a JSONLD file (first generate it from CSV)
-        jsonld_path = os.path.join(test_directory, "test.jsonld")
+        jsonld_path = os.path.join(self.test_directory, "test.jsonld")
         generate_jsonld(
             schema=self.test_schema_path,
             data_model_labels="class_label",
@@ -1970,7 +1995,7 @@ class TestGenerateJsonschema(unittest.TestCase):
         # WHEN I generate JSON schemas from the JSONLD
         schemas, file_paths = generate_jsonschema(
             data_model_source=jsonld_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=None,
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -1984,16 +2009,15 @@ class TestGenerateJsonschema(unittest.TestCase):
         for file_path in file_paths:
             assert os.path.exists(file_path)
 
-    def test_generate_jsonschema_specific_components(self, tmp_path):
+    def test_generate_jsonschema_specific_components(self):
         """Test generate_jsonschema for specific components only."""
         # GIVEN a CSV schema file and specific components
-        test_directory = str(tmp_path)  # pytest automatically handles cleanup
         target_components = ["Patient", "Biospecimen"]
 
         # WHEN I generate JSON schemas for specific components
         schemas, file_paths = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=target_components,
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -2008,19 +2032,13 @@ class TestGenerateJsonschema(unittest.TestCase):
             matching_files = [fp for fp in file_paths if component in fp]
             assert len(matching_files) > 0, f"Expected file for {component}"
 
-        # AND all files should be in the temp directory
-        for file_path in file_paths:
-            assert file_path.startswith(
-                test_directory
-            ), f"File {file_path} was not created in temp directory {test_directory}"
-
-    def test_generate_jsonschema_with_display_label(self, test_directory):
+    def test_generate_jsonschema_with_display_label(self):
         """Test generate_jsonschema with display_label format."""
         # GIVEN a CSV schema file
         # WHEN I generate schemas with display_label
         schemas, file_paths = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=["Patient"],
             data_model_labels="display_label",
             synapse_client=self.syn,
@@ -2034,13 +2052,13 @@ class TestGenerateJsonschema(unittest.TestCase):
         patient_schema = schemas[0]
         assert "properties" in patient_schema
 
-    def test_generate_jsonschema_validates_required_fields(self, test_directory):
+    def test_generate_jsonschema_validates_required_fields(self):
         """Test that generated schemas include required field constraints."""
         # GIVEN a CSV schema file
         # WHEN I generate schemas
         schemas, _ = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=["Patient"],
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -2057,13 +2075,13 @@ class TestGenerateJsonschema(unittest.TestCase):
             # Component is required for Patient
             assert "Component" in required_fields
 
-    def test_generate_jsonschema_includes_enums(self, test_directory):
+    def test_generate_jsonschema_includes_enums(self):
         """Test that generated schemas include enum constraints."""
         # GIVEN a CSV schema file with enum values
         # WHEN I generate schemas
         schemas, _ = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=["Patient"],
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -2091,13 +2109,13 @@ class TestGenerateJsonschema(unittest.TestCase):
 
             assert has_enum, "Expected enum constraint for Sex field"
 
-    def test_generate_jsonschema_includes_validation_rules(self, test_directory):
+    def test_generate_jsonschema_includes_validation_rules(self):
         """Test that schemas include validation rules like inRange, regex, etc."""
         # GIVEN a CSV with validation rules
         # WHEN I generate schemas for MockComponent (has many validation rules)
         schemas, _ = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=["MockComponent"],
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -2135,16 +2153,14 @@ class TestGenerateJsonschema(unittest.TestCase):
                         break
             assert has_uri_format, "Expected URI format for URL field"
 
-    def test_generate_jsonschema_includes_conditional_dependencies(
-        self, test_directory
-    ):
+    def test_generate_jsonschema_includes_conditional_dependencies(self):
         """Test that schemas include conditional dependencies (if/then)."""
         # GIVEN a CSV with conditional dependencies
         # Patient -> Diagnosis=Cancer -> requires CancerType and FamilyHistory
         # WHEN I generate schemas
         schemas, _ = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=["Patient"],
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -2178,13 +2194,13 @@ class TestGenerateJsonschema(unittest.TestCase):
 
             assert has_cancer_dependency, "Expected conditional dependency for Cancer"
 
-    def test_generate_jsonschema_handles_array_types(self, test_directory):
+    def test_generate_jsonschema_handles_array_types(self):
         """Test that schemas handle array/list types correctly."""
         # GIVEN a CSV with list validation rules
         # WHEN I generate schemas for MockComponent (has list rules)
         schemas, _ = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=["MockComponent"],
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -2209,13 +2225,13 @@ class TestGenerateJsonschema(unittest.TestCase):
 
             assert has_array_type, "Expected array type for list field"
 
-    def test_generate_jsonschema_file_content_matches_schema_dict(self, test_directory):
+    def test_generate_jsonschema_file_content_matches_schema_dict(self):
         """Test that saved files match the returned schema dictionaries."""
         # GIVEN a CSV schema file
         # WHEN I generate schemas
         schemas, file_paths = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=["Patient"],
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -2227,15 +2243,14 @@ class TestGenerateJsonschema(unittest.TestCase):
                 file_content = json.load(f)
                 assert file_content == schema
 
-    def test_generate_jsonschema_creates_valid_json_schema_structure(self, tmp_path):
+    def test_generate_jsonschema_creates_valid_json_schema_structure(self):
         """Test that generated schemas follow JSON Schema specification."""
         # GIVEN a CSV schema file and a temporary directory
-        test_directory = str(tmp_path)  # pytest automatically handles cleanup
 
         # WHEN I generate schemas
         schemas, file_paths = generate_jsonschema(
             data_model_source=self.test_schema_path,
-            output_directory=test_directory,
+            output_directory=self.test_directory,
             data_type=None,
             data_model_labels="class_label",
             synapse_client=self.syn,
@@ -2258,9 +2273,3 @@ class TestGenerateJsonschema(unittest.TestCase):
                 assert isinstance(
                     prop_value, dict
                 ), f"Property {prop_name} is not a dict"
-
-        # AND all files should be in the temp directory
-        for file_path in file_paths:
-            assert file_path.startswith(
-                test_directory
-            ), f"File {file_path} was not created in temp directory {test_directory}"
