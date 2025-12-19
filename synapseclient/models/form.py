@@ -23,6 +23,19 @@ from synapseclient.models.protocols.form_protocol import (
 class FormGroup(FormGroupMixin, FormGroupProtocol):
     """Dataclass representing a FormGroup."""
 
+    # Default states for listing FormData
+    DEFAULT_OWNER_STATES = [
+        "waiting_for_submission",
+        "submitted_waiting_for_review",
+        "accepted",
+        "rejected",
+    ]
+    DEFAULT_REVIEWER_STATES = [
+        "submitted_waiting_for_review",
+        "accepted",
+        "rejected",
+    ]
+
     async def create_or_get_async(
         self,
         *,
@@ -208,18 +221,9 @@ class FormGroup(FormGroupMixin, FormGroupProtocol):
 
         if not filter_by_state:
             if as_reviewer:
-                filter_by_state = [
-                    "submitted_waiting_for_review",
-                    "accepted",
-                    "rejected",
-                ]
+                filter_by_state = self.DEFAULT_REVIEWER_STATES
             else:
-                filter_by_state = [
-                    "waiting_for_submission",
-                    "submitted_waiting_for_review",
-                    "accepted",
-                    "rejected",
-                ]
+                filter_by_state = self.DEFAULT_OWNER_STATES
 
         self._validate_filter_by_state(
             filter_by_state=filter_by_state,
