@@ -300,6 +300,7 @@ class Submission(
         entity_id: The ID of the entity being submitted.
         version_number: The version number of the entity at submission.
         evaluation_id: The ID of the Evaluation to which this Submission belongs.
+        evaluation_round_id: The ID of the EvaluationRound to which this was submitted (auto-filled upon creation).
         name: The name of this Submission.
         created_on: The date this Submission was created.
         team_id: The ID of the team that submitted this submission (if it's a team submission).
@@ -351,6 +352,11 @@ class Submission(
     evaluation_id: Optional[str] = None
     """
     The ID of the Evaluation to which this Submission belongs.
+    """
+
+    evaluation_round_id: Optional[str] = field(default=None, compare=False)
+    """
+    The ID of the EvaluationRound to which this was submitted. DO NOT specify a value for this. It will be filled in automatically upon creation of the Submission if the Evaluation is configured with an EvaluationRound.
     """
 
     name: Optional[str] = None
@@ -420,6 +426,7 @@ class Submission(
         self.entity_id = synapse_submission.get("entityId", None)
         self.version_number = synapse_submission.get("versionNumber", None)
         self.evaluation_id = synapse_submission.get("evaluationId", None)
+        self.evaluation_round_id = synapse_submission.get("evaluationRoundId", None)
         self.name = synapse_submission.get("name", None)
         self.created_on = synapse_submission.get("createdOn", None)
         self.team_id = synapse_submission.get("teamId", None)
@@ -524,16 +531,20 @@ class Submission(
         }
 
         # Add optional fields if they are set
-        if self.name is not None:
-            request_body["name"] = self.name
-        if self.team_id is not None:
-            request_body["teamId"] = self.team_id
-        if self.contributors:
-            request_body["contributors"] = self.contributors
-        if self.docker_repository_name is not None:
-            request_body["dockerRepositoryName"] = self.docker_repository_name
-        if self.docker_digest is not None:
-            request_body["dockerDigest"] = self.docker_digest
+        optional_fields = {
+            "name": "name",
+            "team_id": "teamId",
+            "contributors": "contributors",
+            "docker_repository_name": "dockerRepositoryName",
+            "docker_digest": "dockerDigest",
+        }
+
+        for field_name, api_field_name in optional_fields.items():
+            field_value = getattr(self, field_name)
+            if field_value is not None and (
+                field_name != "contributors" or field_value
+            ):
+                request_body[api_field_name] = field_value
 
         return request_body
 
