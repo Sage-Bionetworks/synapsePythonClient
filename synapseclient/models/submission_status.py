@@ -661,7 +661,7 @@ class SubmissionStatus(
             )
             return self
 
-        request_body = self.to_synapse_request()
+        request_body = self.to_synapse_request(synapse_client=synapse_client)
 
         response = await evaluation_services.update_submission_status(
             submission_id=self.id,
@@ -795,7 +795,7 @@ class SubmissionStatus(
         # Convert SubmissionStatus objects to dictionaries
         status_dicts = []
         for status in statuses:
-            status_dict = status.to_synapse_request()
+            status_dict = status.to_synapse_request(synapse_client=synapse_client)
             status_dicts.append(status_dict)
 
         # Prepare the batch request body

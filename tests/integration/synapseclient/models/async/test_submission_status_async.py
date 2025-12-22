@@ -766,7 +766,7 @@ class TestSubmissionStatusCancellation:
         assert updated_status.cancel_requested is False
 
         # WHEN I cancel the submission
-        await test_submission.cancel_async()
+        await test_submission.cancel_async(synapse_client=self.syn)
 
         # THEN I should be able to retrieve the updated status showing cancellation was requested
         final_status = await SubmissionStatus(id=submission_id).get_async(
