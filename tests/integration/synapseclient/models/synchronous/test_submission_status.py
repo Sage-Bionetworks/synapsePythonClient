@@ -2,7 +2,6 @@
 
 import os
 import tempfile
-import test
 import uuid
 from typing import Callable
 
@@ -12,6 +11,19 @@ from synapseclient import Synapse
 from synapseclient.annotations import from_submission_status_annotations
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Evaluation, File, Project, Submission, SubmissionStatus
+
+# Based on API reference: https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html
+POSSIBLE_STATUSES = [
+    "OPEN",
+    "CLOSED",
+    "SCORED",
+    "RECEIVED",
+    "VALIDATED",
+    "INVALID",
+    "REJECTED",
+    "ACCEPTED",
+    "EVALUATION_IN_PROGRESS",
+]
 
 
 class TestSubmissionStatusRetrieval:
@@ -98,10 +110,7 @@ class TestSubmissionStatusRetrieval:
         # THEN the submission status should be retrieved correctly
         assert submission_status.id == test_submission.id
         assert submission_status.entity_id == test_submission.entity_id
-        assert submission_status.evaluation_id == test_evaluation.id
-        assert (
-            submission_status.status is not None
-        )  # Should have some status (e.g., "RECEIVED")
+        assert submission_status.status in POSSIBLE_STATUSES
         assert submission_status.etag is not None
         assert submission_status.status_version is not None
         assert submission_status.modified_on is not None
@@ -552,7 +561,6 @@ class TestSubmissionStatusBulkOperations:
         # AND each status should have proper attributes
         for status in statuses:
             assert status.id is not None
-            assert status.evaluation_id == test_evaluation.id
             assert status.status is not None
             assert status.etag is not None
 
@@ -570,7 +578,6 @@ class TestSubmissionStatusBulkOperations:
         # THEN I should only get statuses with the specified status
         for status in statuses:
             assert status.status == "RECEIVED"
-            assert status.evaluation_id == test_evaluation.id
 
     async def test_get_all_submission_statuses_with_pagination(
         self, test_evaluation: Evaluation, test_submissions: list[Submission]
@@ -734,7 +741,7 @@ class TestSubmissionStatusCancellation:
         assert updated_status.cancel_requested is False
 
         # WHEN I cancel the submission
-        test_submission.cancel()
+        test_submission.cancel(synapse_client=self.syn)
 
         # THEN I should be able to retrieve the updated status showing cancellation was requested
         final_status = SubmissionStatus(id=submission_id).get(synapse_client=self.syn)
@@ -766,17 +773,6 @@ class TestSubmissionStatusValidation:
         with pytest.raises(ValueError, match="missing the 'status_version' attribute"):
             submission_status.to_synapse_request(synapse_client=self.syn)
 
-    async def test_to_synapse_request_with_annotations_missing_evaluation_id(self):
-        """Test that annotations require evaluation_id."""
-        # WHEN I try to create a request with annotations but no evaluation_id
-        submission_status = SubmissionStatus(
-            id="123", etag="some-etag", status_version=1, annotations={"test": "value"}
-        )
-
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
-            submission_status.to_synapse_request(synapse_client=self.syn)
-
     async def test_to_synapse_request_valid_attributes(self):
         """Test that to_synapse_request works with valid attributes."""
         # WHEN I create a request with all required attributes
@@ -785,7 +781,6 @@ class TestSubmissionStatusValidation:
             etag="some-etag",
             status_version=1,
             status="SCORED",
-            evaluation_id="eval123",
             submission_annotations={"score": 85.5},
         )
 

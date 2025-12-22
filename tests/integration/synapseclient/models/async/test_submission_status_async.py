@@ -12,6 +12,19 @@ from synapseclient.annotations import from_submission_status_annotations
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Evaluation, File, Project, Submission, SubmissionStatus
 
+# Based on API reference: https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html
+POSSIBLE_STATUSES = [
+    "OPEN",
+    "CLOSED",
+    "SCORED",
+    "RECEIVED",
+    "VALIDATED",
+    "INVALID",
+    "REJECTED",
+    "ACCEPTED",
+    "EVALUATION_IN_PROGRESS",
+]
+
 
 class TestSubmissionStatusRetrieval:
     """Tests for retrieving SubmissionStatus objects async."""
@@ -98,10 +111,7 @@ class TestSubmissionStatusRetrieval:
         # THEN the submission status should be retrieved correctly
         assert submission_status.id == test_submission.id
         assert submission_status.entity_id == test_submission.entity_id
-        assert submission_status.evaluation_id == test_evaluation.id
-        assert (
-            submission_status.status is not None
-        )  # Should have some status (e.g., "RECEIVED")
+        assert submission_status.status in POSSIBLE_STATUSES
         assert submission_status.etag is not None
         assert submission_status.status_version is not None
         assert submission_status.modified_on is not None
@@ -386,6 +396,10 @@ class TestSubmissionStatusUpdates:
         """Test that storing a submission status without changes shows warning async."""
         # GIVEN a submission status that hasn't been modified
         # (it already has _last_persistent_instance set from get())
+        assert (
+            test_submission_status._last_persistent_instance == test_submission_status
+        )
+        assert not test_submission_status.has_changed
 
         # WHEN I try to store it without making changes
         result = await test_submission_status.store_async(synapse_client=self.syn)
@@ -571,7 +585,6 @@ class TestSubmissionStatusBulkOperations:
         # AND each status should have proper attributes
         for status in statuses:
             assert status.id is not None
-            assert status.evaluation_id == test_evaluation.id
             assert status.status is not None
             assert status.etag is not None
 
@@ -589,7 +602,6 @@ class TestSubmissionStatusBulkOperations:
         # THEN I should only get statuses with the specified status
         for status in statuses:
             assert status.status == "RECEIVED"
-            assert status.evaluation_id == test_evaluation.id
 
     async def test_get_all_submission_statuses_with_pagination(
         self, test_evaluation: Evaluation, test_submissions: list[Submission]
@@ -639,17 +651,13 @@ class TestSubmissionStatusBulkOperations:
             statuses.append(status)
 
         # WHEN I batch update the statuses
-        response = await SubmissionStatus.batch_update_submission_statuses_async(
+        await SubmissionStatus.batch_update_submission_statuses_async(
             evaluation_id=test_evaluation.id,
             statuses=statuses,
             synapse_client=self.syn,
         )
 
-        # THEN the batch update should succeed
-        assert response is not None
-        assert "batchToken" in response or response == {}  # Response format may vary
-
-        # AND I should be able to verify the updates by retrieving the statuses
+        # THEN I should be able to verify the updates by retrieving the statuses
         for original_status in statuses:
             updated_status = await SubmissionStatus(id=original_status.id).get_async(
                 synapse_client=self.syn
@@ -758,7 +766,7 @@ class TestSubmissionStatusCancellation:
         assert updated_status.cancel_requested is False
 
         # WHEN I cancel the submission
-        await test_submission.cancel_async()
+        await test_submission.cancel_async(synapse_client=self.syn)
 
         # THEN I should be able to retrieve the updated status showing cancellation was requested
         final_status = await SubmissionStatus(id=submission_id).get_async(
@@ -792,17 +800,6 @@ class TestSubmissionStatusValidation:
         with pytest.raises(ValueError, match="missing the 'status_version' attribute"):
             submission_status.to_synapse_request(synapse_client=self.syn)
 
-    async def test_to_synapse_request_with_annotations_missing_evaluation_id(self):
-        """Test that annotations require evaluation_id async."""
-        # WHEN I try to create a request with annotations but no evaluation_id
-        submission_status = SubmissionStatus(
-            id="123", etag="some-etag", status_version=1, annotations={"test": "value"}
-        )
-
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
-            submission_status.to_synapse_request(synapse_client=self.syn)
-
     async def test_to_synapse_request_valid_attributes(self):
         """Test that to_synapse_request works with valid attributes async."""
         # WHEN I create a request with all required attributes
@@ -811,7 +808,6 @@ class TestSubmissionStatusValidation:
             etag="some-etag",
             status_version=1,
             status="SCORED",
-            evaluation_id="eval123",
             submission_annotations={"score": 85.5},
         )
 

@@ -1,0 +1,2 @@
+Attribute,Description,Valid Values,DependsOn,Properties,Required,Parent,DependsOn Component,Source,Validation Rules,columnType,Format,Maximum,Minimum,Pattern
+Bad Format,,,,,TRUE,DataProperty,,,,string,not_a_format,,,

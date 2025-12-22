@@ -411,7 +411,6 @@ class TestSubmissionBundleDataIntegrity:
         if test_bundle.submission_status:
             assert test_bundle.submission_status.id == test_submission.id
             assert test_bundle.submission_status.entity_id == test_file.id
-            assert test_bundle.submission_status.evaluation_id == test_evaluation.id
 
     async def test_submission_bundle_status_updates_reflected(
         self, test_evaluation: Evaluation, test_submission: Submission
@@ -459,32 +458,6 @@ class TestSubmissionBundleDataIntegrity:
         submission_status.status = original_status
         submission_status.submission_annotations = {}
         submission_status.store(synapse_client=self.syn)
-
-    async def test_submission_bundle_evaluation_id_propagation(
-        self, test_evaluation: Evaluation, test_submission: Submission
-    ):
-        """Test that evaluation_id is properly propagated from submission to status."""
-        # WHEN I get submission bundles
-        bundles = list(
-            SubmissionBundle.get_evaluation_submission_bundles(
-                evaluation_id=test_evaluation.id,
-                synapse_client=self.syn,
-            )
-        )
-
-        # THEN find our test bundle
-        test_bundle = None
-        for bundle in bundles:
-            if bundle.submission and bundle.submission.id == test_submission.id:
-                test_bundle = bundle
-                break
-
-        assert test_bundle is not None
-
-        # AND both submission and status should have the correct evaluation_id
-        assert test_bundle.submission.evaluation_id == test_evaluation.id
-        if test_bundle.submission_status:
-            assert test_bundle.submission_status.evaluation_id == test_evaluation.id
 
 
 class TestSubmissionBundleEdgeCases:

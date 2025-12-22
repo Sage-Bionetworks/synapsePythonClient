@@ -45,6 +45,7 @@ nav:
           # - Team: tutorials/python/team.md
           - Upload data in bulk: tutorials/python/upload_data_in_bulk.md
           - Download data in bulk: tutorials/python/download_data_in_bulk.md
+          - Creating JSON Schema: tutorials/python/schema_operations.md
           - Working with JSON Schema: tutorials/python/json_schema.md
         # - Move Files and Folders: tutorials/python/move_files_and_folders.md
         # - Migrate data to other storage locations: tutorials/python/migrate_data_to_other_storage_locations.md
@@ -108,6 +109,7 @@ nav:
           - Functional Interfaces: reference/experimental/functional_interfaces.md
           - SchemaOrganization: reference/experimental/sync/schema_organization.md
           - JSONSchema: reference/experimental/sync/json_schema.md
+          - FormGroup and Form: reference/experimental/sync/form.md
           - Extensions:
               - Curator: reference/extensions/curator.md
           - Asynchronous:
@@ -134,6 +136,7 @@ nav:
               - Link: reference/experimental/async/link_entity.md
               - SchemaOrganization: reference/experimental/async/schema_organization.md
               - JSONSchema: reference/experimental/async/json_schema.md
+              - FormGroup and Form: reference/experimental/async/form.md
           - Mixins:
               - AccessControllable: reference/experimental/mixins/access_controllable.md
               - StorableContainer: reference/experimental/mixins/storable_container.md
@@ -141,6 +144,8 @@ nav:
               - FailureStrategy: reference/experimental/mixins/failure_strategy.md
               - BaseJSONSchema: reference/experimental/mixins/base_json_schema.md
               - ContainerEntityJSONSchema: reference/experimental/mixins/container_json_schema.md
+              - FormData: reference/experimental/mixins/form_data.md
+              - FormGroup: reference/experimental/mixins/form_group.md
 
   - Further Reading:
       - Home: explanations/home.md
@@ -150,6 +155,8 @@ nav:
       - Manifest TSV: explanations/manifest_tsv.md
       - Benchmarking: explanations/benchmarking.md
       - Structuring Your Project: explanations/structuring_your_project.md
+      - Asyncio Changes in Python 3.14: explanations/asyncio_in_python_3_14.md
+      - Curator Data model: explanations/curator_data_model.md
   - News:
       - news.md
   - Contact Us: https://sagebionetworks.jira.com/servicedesk/customer/portal/9/group/16/create/206
@@ -198,7 +205,7 @@ plugins:
       default_handler: python
       handlers:
         python:
-          import:
+          inventories:
           - https://docs.python.org/3/objects.inv
           - https://python-markdown.github.io/objects.inv
           options:

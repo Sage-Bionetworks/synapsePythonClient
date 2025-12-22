@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Dict, List, Optional, Protocol, Union
+from typing import Optional, Protocol, Union
 
 from typing_extensions import Self
 
@@ -105,7 +105,7 @@ class SubmissionStatusSynchronousProtocol(Protocol):
         offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> List["SubmissionStatus"]:
+    ) -> list["SubmissionStatus"]:
         """
         Gets a collection of SubmissionStatuses to a specified Evaluation.
 
@@ -148,13 +148,13 @@ class SubmissionStatusSynchronousProtocol(Protocol):
     @staticmethod
     def batch_update_submission_statuses(
         evaluation_id: str,
-        statuses: List["SubmissionStatus"],
+        statuses: list["SubmissionStatus"],
         is_first_batch: bool = True,
         is_last_batch: bool = True,
         batch_token: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Update multiple SubmissionStatuses. The maximum batch size is 500.
 
@@ -231,8 +231,6 @@ class SubmissionStatus(
         private_status_annotations: Indicates whether the annotations (not to be confused with submission annotations) are private (True) or public (False).
             Default is True. This controls the visibility of the 'annotations' field.
         entity_id: The Synapse ID of the Entity in this Submission.
-        evaluation_id: The ID of the Evaluation to which this Submission belongs. This field is automatically
-            populated when retrieving a SubmissionStatus via get() and is required when updating annotations.
         version_number: The version number of the Entity in this Submission.
         status_version: A version of the status, auto-generated and auto-incremented by the system and read-only to the client.
         can_cancel: Can this submission be cancelled? By default, this will be set to False. Users can read this value.
@@ -348,30 +346,30 @@ class SubmissionStatus(
     """
 
     annotations: Optional[
-        Dict[
+        dict[
             str,
             Union[
-                List[str],
-                List[bool],
-                List[float],
-                List[int],
-                List[date],
-                List[datetime],
+                list[str],
+                list[bool],
+                list[float],
+                list[int],
+                list[date],
+                list[datetime],
             ],
         ]
     ] = field(default_factory=dict)
     """Primary container object for Annotations on a Synapse object."""
 
     submission_annotations: Optional[
-        Dict[
+        dict[
             str,
             Union[
-                List[str],
-                List[bool],
-                List[float],
-                List[int],
-                List[date],
-                List[datetime],
+                list[str],
+                list[bool],
+                list[float],
+                list[int],
+                list[date],
+                list[datetime],
             ],
         ]
     ] = field(default_factory=dict)
@@ -383,11 +381,6 @@ class SubmissionStatus(
     entity_id: Optional[str] = None
     """
     The Synapse ID of the Entity in this Submission.
-    """
-
-    evaluation_id: Optional[str] = None
-    """
-    The ID of the Evaluation to which this Submission belongs.
     """
 
     version_number: Optional[int] = field(default=None, compare=False)
@@ -446,7 +439,7 @@ class SubmissionStatus(
 
     def fill_from_dict(
         self,
-        synapse_submission_status: Dict[str, Union[bool, str, int, float, List]],
+        synapse_submission_status: dict[str, Union[bool, str, int, float, list]],
     ) -> "SubmissionStatus":
         """
         Converts a response from the REST API into this dataclass.
@@ -485,7 +478,7 @@ class SubmissionStatus(
 
         return self
 
-    def to_synapse_request(self, synapse_client: Optional[Synapse] = None) -> Dict:
+    def to_synapse_request(self, synapse_client: Optional[Synapse] = None) -> dict:
         """
         Creates a request body expected by the Synapse REST API for the SubmissionStatus model.
 
@@ -520,37 +513,25 @@ class SubmissionStatus(
             "statusVersion": self.status_version,
         }
 
-        # Add optional fields only if they have values
-        if self.status is not None:
-            request_body["status"] = self.status
-        if self.score is not None:
-            request_body["score"] = self.score
-        if self.report is not None:
-            request_body["report"] = self.report
-        if self.entity_id is not None:
-            request_body["entityId"] = self.entity_id
-        if self.version_number is not None:
-            request_body["versionNumber"] = self.version_number
-        if self.can_cancel is not None:
-            request_body["canCancel"] = self.can_cancel
-        if self.cancel_requested is not None:
-            request_body["cancelRequested"] = self.cancel_requested
+        # Add optional fields if they are set
+        optional_fields = {
+            "status": "status",
+            "score": "score",
+            "report": "report",
+            "entity_id": "entityId",
+            "version_number": "versionNumber",
+            "can_cancel": "canCancel",
+            "cancel_requested": "cancelRequested",
+        }
+
+        for field_name, api_field_name in optional_fields.items():
+            field_value = getattr(self, field_name)
+            if field_value is not None:
+                request_body[api_field_name] = field_value
 
         if self.annotations and len(self.annotations) > 0:
-            # evaluation_id is required when annotations are provided for scopeId
-            if self.evaluation_id is None:
-                raise ValueError(
-                    "Your submission status object is missing the 'evaluation_id' attribute. This attribute is required when submissions are updated with annotations. Please retrieve your submission status with .get() to populate this field."
-                )
-
-            # Add required objectId and scopeId to annotations dict as per Synapse API requirements
-            # https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html
-            annotations_with_metadata = self.annotations.copy()
-            annotations_with_metadata["objectId"] = self.id
-            annotations_with_metadata["scopeId"] = self.evaluation_id
-
             request_body["annotations"] = to_submission_status_annotations(
-                annotations_with_metadata, self.private_status_annotations
+                self.annotations, self.private_status_annotations
             )
 
         if self.submission_annotations and len(self.submission_annotations) > 0:
@@ -605,13 +586,6 @@ class SubmissionStatus(
             submission_id=self.id, synapse_client=synapse_client
         )
         self.fill_from_dict(response)
-
-        # Fetch evaluation_id from the associated submission since it's not in the SubmissionStatus response
-        if not self.evaluation_id:
-            submission_response = await evaluation_services.get_submission(
-                submission_id=self.id, synapse_client=synapse_client
-            )
-            self.evaluation_id = submission_response.get("evaluationId", None)
 
         self._set_last_persistent_instance()
         return self
@@ -687,7 +661,7 @@ class SubmissionStatus(
             )
             return self
 
-        request_body = self.to_synapse_request()
+        request_body = self.to_synapse_request(synapse_client=synapse_client)
 
         response = await evaluation_services.update_submission_status(
             submission_id=self.id,
@@ -707,7 +681,7 @@ class SubmissionStatus(
         offset: int = 0,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> List["SubmissionStatus"]:
+    ) -> list["SubmissionStatus"]:
         """
         Gets a collection of SubmissionStatuses to a specified Evaluation.
 
@@ -757,8 +731,6 @@ class SubmissionStatus(
         for status_dict in response.get("results", []):
             submission_status = SubmissionStatus()
             submission_status.fill_from_dict(status_dict)
-            # Manually set evaluation_id since it's not in the SubmissionStatus response
-            submission_status.evaluation_id = evaluation_id
             submission_status._set_last_persistent_instance()
             submission_statuses.append(submission_status)
 
@@ -767,13 +739,13 @@ class SubmissionStatus(
     @staticmethod
     async def batch_update_submission_statuses_async(
         evaluation_id: str,
-        statuses: List["SubmissionStatus"],
+        statuses: list["SubmissionStatus"],
         is_first_batch: bool = True,
         is_last_batch: bool = True,
         batch_token: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Update multiple SubmissionStatuses. The maximum batch size is 500.
 
@@ -823,7 +795,7 @@ class SubmissionStatus(
         # Convert SubmissionStatus objects to dictionaries
         status_dicts = []
         for status in statuses:
-            status_dict = status.to_synapse_request()
+            status_dict = status.to_synapse_request(synapse_client=synapse_client)
             status_dicts.append(status_dict)
 
         # Prepare the batch request body

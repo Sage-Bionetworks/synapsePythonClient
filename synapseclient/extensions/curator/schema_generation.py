@@ -27,6 +27,8 @@ from typing import (
     Union,
 )
 
+from deprecated import deprecated
+
 try:
     from dataclasses_json import config, dataclass_json
 except ImportError:
@@ -86,6 +88,62 @@ TypeDict = dict[str, Union[str, Items]]
 AllOf = dict[str, Any]
 
 
+class ColumnType(Enum):
+    """Names of values allowed in the columnType column in datamodel csvs."""
+
+
+class AtomicColumnType(ColumnType):
+    """Column Types that are not lists"""
+
+    STRING = "string"
+    NUMBER = "number"
+    INTEGER = "integer"
+    BOOLEAN = "boolean"
+
+
+class ListColumnType(ColumnType):
+    """Column Types that are lists"""
+
+    STRING_LIST = "string_list"
+    INTEGER_LIST = "integer_list"
+    BOOLEAN_LIST = "boolean_list"
+
+
+ALL_COLUMN_TYPE_VALUES = [member.value for member in AtomicColumnType] + [
+    member.value for member in ListColumnType
+]
+
+
+# Translates list types to their atomic type
+LIST_TYPE_DICT = {
+    ListColumnType.STRING_LIST: AtomicColumnType.STRING,
+    ListColumnType.INTEGER_LIST: AtomicColumnType.INTEGER,
+    ListColumnType.BOOLEAN_LIST: AtomicColumnType.BOOLEAN,
+}
+
+
+class JSONSchemaFormat(Enum):
+    """
+    Allowed formats by the JSON Schema validator used by Synapse: https://github.com/everit-org/json-schema#format-validators
+    For descriptions see: https://json-schema.org/understanding-json-schema/reference/type#format
+    """
+
+    DATE_TIME = "date-time"
+    EMAIL = "email"
+    HOSTNAME = "hostname"
+    IPV4 = "ipv4"
+    IPV6 = "ipv6"
+    URI = "uri"
+    URI_REFERENCE = "uri-reference"
+    URI_TEMPLATE = "uri-template"
+    JSON_POINTER = "json-pointer"
+    DATE = "date"
+    TIME = "time"
+    REGEX = "regex"
+    RELATIVE_JSON_POINTER = "relative-json-pointer"
+
+
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 class ValidationRuleName(Enum):
     """Names of validation rules that are used to create JSON Schema"""
 
@@ -94,22 +152,9 @@ class ValidationRuleName(Enum):
     URL = "url"
     REGEX = "regex"
     IN_RANGE = "inRange"
-    STR = "str"
-    FLOAT = "float"
-    INT = "int"
-    BOOL = "bool"
-    NUM = "num"
 
 
-class JSONSchemaType(Enum):
-    """This enum is the currently supported JSON Schema types"""
-
-    STRING = "string"
-    NUMBER = "number"
-    INTEGER = "integer"
-    BOOLEAN = "boolean"
-
-
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 class RegexModule(Enum):
     """This enum are allowed modules for the regex validation rule"""
 
@@ -117,6 +162,7 @@ class RegexModule(Enum):
     MATCH = "match"
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 @dataclass
 class ValidationRule:
     """
@@ -124,123 +170,50 @@ class ValidationRule:
 
     Attributes:
         name: The name of the validation rule
-        js_type: The JSON Schema type this rule indicates.
-          For example type rules map over to their equivalent JSON Schema type: str -> string
-          Other rules have an implicit type. For example the regex rule maps to the JSON
-            Schema pattern keyword. The pattern keyword requires the type to be string
         incompatible_rules: Other validation rules this rule can not be paired with
         parameters: Parameters for the validation rule that need to be collected for the JSON Schema
     """
 
     name: ValidationRuleName
-    js_type: Optional[JSONSchemaType]
     incompatible_rules: list[ValidationRuleName]
     parameters: Optional[list[str]] = None
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 _VALIDATION_RULES = {
     "list": ValidationRule(
         name=ValidationRuleName.LIST,
-        js_type=None,
         incompatible_rules=[],
     ),
     "date": ValidationRule(
         name=ValidationRuleName.DATE,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.URL,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
     ),
     "url": ValidationRule(
         name=ValidationRuleName.URL,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
             ValidationRuleName.DATE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
     ),
     "regex": ValidationRule(
         name=ValidationRuleName.REGEX,
-        js_type=JSONSchemaType.STRING,
         incompatible_rules=[
             ValidationRuleName.IN_RANGE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
         ],
         parameters=["module", "pattern"],
     ),
     "inRange": ValidationRule(
         name=ValidationRuleName.IN_RANGE,
-        js_type=JSONSchemaType.NUMBER,
         incompatible_rules=[
             ValidationRuleName.URL,
             ValidationRuleName.DATE,
             ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
         ],
         parameters=["minimum", "maximum"],
-    ),
-    "str": ValidationRule(
-        name=ValidationRuleName.STR,
-        js_type=JSONSchemaType.STRING,
-        incompatible_rules=[
-            ValidationRuleName.IN_RANGE,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-            ValidationRuleName.NUM,
-            ValidationRuleName.BOOL,
-        ],
-    ),
-    "float": ValidationRule(
-        name=ValidationRuleName.FLOAT,
-        js_type=JSONSchemaType.NUMBER,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.INT,
-            ValidationRuleName.NUM,
-        ],
-    ),
-    "int": ValidationRule(
-        name=ValidationRuleName.INT,
-        js_type=JSONSchemaType.INTEGER,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.NUM,
-            ValidationRuleName.FLOAT,
-        ],
-    ),
-    "num": ValidationRule(
-        name=ValidationRuleName.NUM,
-        js_type=JSONSchemaType.NUMBER,
-        incompatible_rules=[
-            ValidationRuleName.URL,
-            ValidationRuleName.DATE,
-            ValidationRuleName.REGEX,
-            ValidationRuleName.STR,
-            ValidationRuleName.BOOL,
-            ValidationRuleName.INT,
-            ValidationRuleName.FLOAT,
-        ],
     ),
 }
 
@@ -259,13 +232,6 @@ class Node:
         if "displayName" not in self.fields:
             raise ValueError(f"Node: {str(self.name)} missing displayName field")
         self.display_name = str(self.fields["displayName"])
-
-
-class JSONSchemaFormat(Enum):
-    """This enum is the currently supported JSON Schema formats"""
-
-    DATE = "date"
-    URI = "uri"
 
 
 def load_json(file_path: str) -> Any:
@@ -681,7 +647,11 @@ class DataModelCSVParser:
 
         # get attributes from Attribute column
         attributes = model_df.to_dict("records")
+
+        # Check for presence of optional columns
         model_includes_column_type = "columnType" in model_df.columns
+        model_includes_format = "Format" in model_df.columns
+        model_includes_pattern = "Pattern" in model_df.columns
 
         # Build attribute/relationship dictionary
         relationship_types = self.required_headers
@@ -704,6 +674,27 @@ class DataModelCSVParser:
                 column_type_dict = self.parse_column_type(attr)
                 attr_rel_dictionary[attribute_name]["Relationships"].update(
                     column_type_dict
+                )
+            if model_includes_format:
+                format_dict = self.parse_format(attr)
+                attr_rel_dictionary[attribute_name]["Relationships"].update(format_dict)
+
+            if "Minimum" in model_df.columns:
+                minimum_dict = self.parse_minimum_maximum(attr, "Minimum")
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    minimum_dict
+                )
+
+            if "Maximum" in model_df.columns:
+                maximum_dict = self.parse_minimum_maximum(attr, "Maximum")
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    maximum_dict
+                )
+
+            if model_includes_pattern:
+                pattern_dict = self.parse_pattern(attr)
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    pattern_dict
                 )
         return attr_rel_dictionary
 
@@ -736,6 +727,95 @@ class DataModelCSVParser:
         )
 
         return {"ColumnType": column_type}
+
+    def parse_minimum_maximum(
+        self, attr: dict, relationship: str
+    ) -> dict[str, Union[float, int]]:
+        """Parse minimum/maximum value for a given attribute.
+
+        Args:
+            attr: single row of a csv model in dict form, where only the required
+              headers are keys. Values are the entries under each header.
+            relationship: either "Minimum" or "Maximum"
+        Returns:
+            dict[str, Union[float, int]]: A dictionary containing the parsed minimum/maximum value
+            if present else an empty dict
+        """
+        from numbers import Number
+
+        from pandas import isna
+
+        value = attr.get(relationship)
+
+        # If maximum and minimum are not specified, we don't want to add any entry to the dictionary
+        if isna(value):
+            return {}
+
+        # Validate that the value is numeric
+        if not isinstance(value, Number) or isinstance(value, bool):
+            raise ValueError(
+                f"The {relationship} value: {attr[relationship]} is not numeric, "
+                "please correct this value in the data model."
+            )
+
+        # if both maximum and minimum are present, check if maximum > minimum
+        if attr.get("Minimum") and attr.get("Maximum"):
+            maximum = attr.get("Maximum")
+            minimum = attr.get("Minimum")
+            if maximum < minimum:
+                raise ValueError(
+                    f"The Maximum value: {maximum} must be greater than the Minimum value: {minimum}"
+                )
+
+        return {relationship: value}
+
+    def parse_format(self, attribute_dict: dict) -> dict[str, str]:
+        """Finds the format value if it exists and returns it as a dictionary.
+
+        Args:
+            attribute_dict: The attribute dictionary.
+
+        Returns:
+            A dictionary containing the format value if it exists
+            else an empty dict
+        """
+        from pandas import isna
+
+        format_value = attribute_dict.get("Format")
+
+        if isna(format_value):
+            return {}
+
+        format_string = str(format_value).strip().lower()
+
+        check_allowed_values(
+            self.dmr,
+            entry_id=attribute_dict["Format"],
+            value=format_string,
+            relationship="format",
+        )
+
+        return {"Format": format_string}
+
+    def parse_pattern(self, attribute_dict: dict) -> dict[str, str]:
+        """Finds the pattern value if it exists and returns it as a dictionary.
+
+        Args:
+            attribute_dict: The attribute dictionary.
+        Returns:
+            A dictionary containing the pattern value if it exists
+            else an empty dict
+        """
+        from pandas import isna
+
+        pattern_value = attribute_dict.get("Pattern")
+
+        if isna(pattern_value):
+            return {}
+
+        pattern_string = str(pattern_value).strip()
+
+        return {"Pattern": pattern_string}
 
     def parse_csv_model(
         self,
@@ -1722,22 +1802,103 @@ class DataModelGraphExplorer:
 
     def get_node_column_type(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
-    ) -> Optional[JSONSchemaType]:
+    ) -> Optional[ColumnType]:
         """Gets the column type of the node
 
         Args:
             node_label: The label of the node to get the type from
             node_display_name: The display name of the node to get the type from
 
+        Raises:
+            ValueError: If the value from the node is not allowed
+
         Returns:
             The column type of the node if it has one, otherwise None
         """
         node_label = self._get_node_label(node_label, node_display_name)
         rel_node_label = self.dmr.get_relationship_value("columnType", "node_label")
-        type_string = self.graph.nodes[node_label][rel_node_label]
-        if type_string is None:
-            return type_string
-        return JSONSchemaType(type_string)
+        column_type_value = self.graph.nodes[node_label][rel_node_label]
+        if column_type_value is None:
+            return column_type_value
+        column_type_string = str(column_type_value).lower()
+        try:
+            column_type = AtomicColumnType(column_type_string)
+        except ValueError:
+            try:
+                column_type = ListColumnType(column_type_string)
+            except ValueError:
+                msg = (
+                    f"Node: '{node_label}' had illegal column type value: '{column_type_string}'. "
+                    f"Allowed values are: [{ALL_COLUMN_TYPE_VALUES}]"
+                )
+                raise ValueError(msg)
+        return column_type
+
+    def get_node_column_pattern(
+        self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
+    ) -> Optional[str]:
+        """Gets the regex pattern of the node
+
+        Args:
+            node_label: The label of the node to get the type from
+            node_display_name: The display name of the node to get the type from
+
+        Raises:
+            ValueError: If the value from the node is not allowed
+
+        Returns:
+            The column pattern of the node if it has one, otherwise None
+        """
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value("pattern", "node_label")
+        pattern = self.graph.nodes[node_label][rel_node_label]
+
+        return pattern
+
+    def get_node_format(
+        self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
+    ) -> Optional[JSONSchemaFormat]:
+        """Gets the format of the node
+
+        Args:
+            node_label: The label of the node to get the format from
+            node_display_name: The display name of the node to get the format from
+
+        Returns:
+            The format of the node if it has one, otherwise None
+        """
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value("format", "node_label")
+        format_value = self.graph.nodes[node_label][rel_node_label]
+        if format_value is None:
+            return format_value
+        format_string = str(format_value).lower()
+        column_type = JSONSchemaFormat(format_string)
+        return column_type
+
+    def get_node_maximum_minimum_value(
+        self,
+        relationship_value: str,
+        node_label: Optional[str] = None,
+        node_display_name: Optional[str] = None,
+    ) -> Union[int, float]:
+        """Gets the maximum and minimum value of the node
+
+        Args:
+            relationship_value: The relationship value (either maximum or minimum) to get the maximum or minimum from
+            node_label: The label of the node to get the format from
+            node_display_name: The display name of the node to get the format from
+
+        Returns:
+            The maximum or minimum value of the node
+        """
+
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value(
+            relationship_value, "node_label"
+        )
+        value = self.graph.nodes[node_label][rel_node_label]
+        return value
 
     def _get_node_label(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
@@ -1810,6 +1971,9 @@ class PropertyTemplate:
     )
     magic_validationRules: list = field(
         default_factory=list, metadata=config(field_name="sms:validationRules")
+    )
+    magic_pattern: list = field(
+        default_factory=list, metadata=config(field_name="sms:pattern")
     )
 
 
@@ -2710,6 +2874,7 @@ class DataModelRelationships:
             allowed_values: A list of values the entry must be  one of
             edge_dir: str, 'in'/'out' is the edge an in or out edge. Define for edge relationships
             jsonld_dir: str, 'in'/out is the direction in or out in the JSONLD.
+            pattern: regex pattern that the entry must match
         """
         map_data_model_relationships = {
             "displayName": {
@@ -2855,7 +3020,44 @@ class DataModelRelationships:
                 "required_header": False,
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
-                "allowed_values": [enum.value for enum in JSONSchemaType],
+                "allowed_values": ALL_COLUMN_TYPE_VALUES,
+            },
+            "format": {
+                "jsonld_key": "sms:format",
+                "csv_header": "Format",
+                "node_label": "format",
+                "type": str,
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+                "allowed_values": [member.value for member in JSONSchemaFormat],
+            },
+            "maximum": {
+                "jsonld_key": "sms:maximum",
+                "csv_header": "Maximum",
+                "node_label": "maximum",
+                "type": Union[float, int],
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+            },
+            "minimum": {
+                "jsonld_key": "sms:minimum",
+                "csv_header": "Minimum",
+                "node_label": "minimum",
+                "type": Union[float, int],
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+            },
+            "pattern": {
+                "jsonld_key": "sms:pattern",
+                "csv_header": "Pattern",
+                "node_label": "pattern",
+                "type": str,
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
             },
         }
 
@@ -3819,9 +4021,11 @@ def export_schema(schema: dict, file_path: str, logger: Logger) -> None:
         filepath, str: path to store the schema
     """
     file_path = os.path.expanduser(file_path)
-    json_schema_dirname = os.path.dirname(file_path)
-    if json_schema_dirname != "":
-        os.makedirs(json_schema_dirname, exist_ok=True)
+    # Don't create directories if the path looks like a URL
+    if not (file_path.startswith("http://") or file_path.startswith("https://")):
+        json_schema_dirname = os.path.dirname(file_path)
+        if json_schema_dirname != "":
+            os.makedirs(json_schema_dirname, exist_ok=True)
     with open(file_path, "w", encoding="utf-8") as json_file:
         json.dump(schema, json_file, sort_keys=True, indent=4, ensure_ascii=False)
 
@@ -3852,6 +4056,67 @@ def parsed_model_as_dataframe(
     ).reset_index(drop=True)
 
     return model_dataframe
+
+
+class MetadataModel(object):
+    """Metadata model wrapper around schema.org specification graph.
+
+    Provides basic utilities to:
+
+    1) manipulate the metadata model
+    2) generate metadata model views:
+        - generate manifest view of the metadata model
+        - generate validation schema view of the metadata model
+    """
+
+    def __init__(
+        self,
+        inputMModelLocation: str,
+        inputMModelLocationType: str,
+        data_model_labels: str,
+        logger: Logger,
+    ) -> None:
+        """Instantiates a MetadataModel object.
+
+        Args:
+            inputMModelLocation: local path, uri, synapse entity id (e.g. gs://, syn123, /User/x/…); present location
+            inputMModelLocationType: specifier to indicate where the metadata model resource can be found (e.g. 'local' if file/JSON-LD is on local machine)
+        """
+        # extract extension of 'inputMModelLocation'
+        # ensure that it is necessarily pointing to a '.jsonld' file
+
+        logger.debug(
+            f"Initializing DataModelGraphExplorer object from {inputMModelLocation} schema."
+        )
+
+        # self.inputMModelLocation remains for backwards compatibility
+        self.inputMModelLocation = inputMModelLocation
+        self.path_to_json_ld = inputMModelLocation
+
+        data_model_parser = DataModelParser(
+            path_to_data_model=self.inputMModelLocation, logger=logger
+        )
+        # Parse Model
+        parsed_data_model = data_model_parser.parse_model()
+
+        # Instantiate DataModelGraph
+        data_model_grapher = DataModelGraph(
+            parsed_data_model, data_model_labels, logger
+        )
+
+        # Generate graph
+        self.graph_data_model = data_model_grapher.graph
+
+        self.dmge = DataModelGraphExplorer(self.graph_data_model, logger)
+
+        # check if the type of MModel file is "local"
+        # currently, the application only supports reading from local JSON-LD files
+        if inputMModelLocationType == "local":
+            self.inputMModelLocationType = inputMModelLocationType
+        else:
+            raise ValueError(
+                f"The type '{inputMModelLocationType}' is currently not supported."
+            )
 
 
 class JsonSchemaGeneratorDirector:
@@ -3998,6 +4263,10 @@ class JsonSchemaGeneratorDirector:
         return generator.component_json_schema, str(generator.output_path)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def filter_unused_inputted_rules(
     inputted_rules: list[str], logger: Logger
 ) -> list[str]:
@@ -4029,6 +4298,10 @@ def filter_unused_inputted_rules(
     ]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def check_for_duplicate_inputted_rules(inputted_rules: list[str]) -> None:
     """Checks that there are no rules with duplicate names
 
@@ -4043,6 +4316,10 @@ def check_for_duplicate_inputted_rules(inputted_rules: list[str]) -> None:
         raise ValueError(f"Validation Rules contains duplicates: {inputted_rules}")
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def check_for_conflicting_inputted_rules(inputted_rules: list[str]) -> None:
     """Checks that each rule has no conflicts with any other rule
 
@@ -4067,6 +4344,10 @@ def check_for_conflicting_inputted_rules(inputted_rules: list[str]) -> None:
             raise ValueError(msg)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_rule_from_inputted_rules(
     rule_name: ValidationRuleName, inputted_rules: list[str]
 ) -> Optional[str]:
@@ -4092,35 +4373,10 @@ def get_rule_from_inputted_rules(
     return inputted_rules[0]
 
 
-def get_js_type_from_inputted_rules(
-    inputted_rules: list[str],
-) -> Optional[JSONSchemaType]:
-    """Gets the JSON Schema type from a list of rules
-
-    Arguments:
-        inputted_rules: A list of inputted validation rules
-
-    Raises:
-        ValueError: If there are multiple type rules in the list
-
-    Returns:
-        The JSON Schema type if a type rule is found, otherwise None
-    """
-    rule_names = get_names_from_inputted_rules(inputted_rules)
-    validation_rules = _get_rules_by_names(rule_names)
-    # A set of js_types of the validation rules
-    json_schema_types = {
-        rule.js_type for rule in validation_rules if rule.js_type is not None
-    }
-    if len(json_schema_types) > 1:
-        raise ValueError(
-            f"Validation rules contain more than one implied JSON Schema type: {inputted_rules}"
-        )
-    if len(json_schema_types) == 0:
-        return None
-    return list(json_schema_types)[0]
-
-
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_in_range_parameters_from_inputted_rule(
     inputted_rule: str,
 ) -> tuple[Optional[float], Optional[float]]:
@@ -4152,6 +4408,10 @@ def get_in_range_parameters_from_inputted_rule(
     return (minimum, maximum)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_regex_parameters_from_inputted_rule(
     inputted_rule: str,
 ) -> Optional[str]:
@@ -4185,6 +4445,10 @@ def get_regex_parameters_from_inputted_rule(
     return pattern
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_validation_rule_names_from_inputted_rules(
     inputted_rules: list[str],
 ) -> list[ValidationRuleName]:
@@ -4201,6 +4465,10 @@ def get_validation_rule_names_from_inputted_rules(
     return [rule.name for rule in rules]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_names_from_inputted_rules(inputted_rules: list[str]) -> list[str]:
     """Gets the names from a list of inputted rules
 
@@ -4213,6 +4481,10 @@ def get_names_from_inputted_rules(inputted_rules: list[str]) -> list[str]:
     return [_get_name_from_inputted_rule(rule) for rule in inputted_rules]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_parameters_from_inputted_rule(inputted_rule: str) -> Optional[dict[str, str]]:
     """Creates a dictionary of parameters and values from an input rule string
 
@@ -4233,6 +4505,10 @@ def _get_parameters_from_inputted_rule(inputted_rule: str) -> Optional[dict[str,
     return None
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_name_from_inputted_rule(inputted_rule: str) -> str:
     """Gets the name from an inputted rule
 
@@ -4245,6 +4521,10 @@ def _get_name_from_inputted_rule(inputted_rule: str) -> str:
     return inputted_rule.split(" ")[0]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
     """Gets a list of ValidationRules by name if they exist
 
@@ -4266,14 +4546,19 @@ def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
     return [rule for rule in rule_dict.values() if rule is not None]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_validation_rule_based_fields(
     validation_rules: list[str],
-    explicit_js_type: Optional[JSONSchemaType],
+    explicit_is_array: Optional[bool],
+    explicit_format: Optional[JSONSchemaFormat],
     name: str,
+    column_type: Optional[ColumnType],
     logger: Logger,
 ) -> tuple[
     bool,
-    Optional[JSONSchemaType],
     Optional[JSONSchemaFormat],
     Optional[float],
     Optional[float],
@@ -4285,15 +4570,19 @@ def _get_validation_rule_based_fields(
     JSON Schema docs:
 
     Array: https://json-schema.org/understanding-json-schema/reference/array
-    Types: https://json-schema.org/understanding-json-schema/reference/type#type-specific-keywords
     Format: https://json-schema.org/understanding-json-schema/reference/type#format
     Pattern: https://json-schema.org/understanding-json-schema/reference/string#regexp
     Min/max: https://json-schema.org/understanding-json-schema/reference/numeric#range
 
     Arguments:
         validation_rules: A list of input validation rules
-        explicit_js_type: A JSONSchemaType if set explicitly in the data model, otherwise None
+        explicit_is_array:
+          True: If the type is set explicitly with a list-type
+          False: If the type is set explicitly with a non list-type
+          None: If the type was not set explicitly
         name: The name of the node the validation rules belong to
+        column_type: The type of this node if set explicitly
+        logger: A logger for handling warnings
 
     Raises:
        ValueError: When an explicit JSON Schema type is given, but the implicit type is different
@@ -4303,18 +4592,20 @@ def _get_validation_rule_based_fields(
     Returns:
         A tuple containing fields for a Node object:
         - js_is_array: Whether or not the Node should be an array in JSON Schema
-        - js_type: The JSON Schema type
         - js_format: The JSON Schema format
         - js_minimum: If the type is numeric the JSON Schema minimum
         - js_maximum: If the type is numeric the JSON Schema maximum
         - js_pattern: If the type is string the JSON Schema pattern
     """
     js_is_array = False
-    js_type = explicit_js_type
-    js_format = None
+    js_format = explicit_format
     js_minimum = None
     js_maximum = None
     js_pattern = None
+
+    # If an array type is explicitly set then is_array can be set to True
+    if explicit_is_array is not None:
+        js_is_array = explicit_is_array
 
     if validation_rules:
         validation_rules = filter_unused_inputted_rules(
@@ -4327,41 +4618,95 @@ def _get_validation_rule_based_fields(
             validation_rules
         )
 
-        js_is_array = ValidationRuleName.LIST in validation_rule_names
+        # list validation rule is been deprecated for use in deciding type
+        # TODO: Sunset both if blocks below: https://sagebionetworks.jira.com/browse/SYNPY-1692
 
-        # The explicit JSON Schema type is the one set in the data model
-        # The implicit JSON Schema type is the one implied by the presence
-        #   of certain validation rules
-        # Schematic will use the implicit type if the explicit type isn't specified for now,
-        #   but this behavior is deprecated and will be removed in the future by SCHEMATIC-326
-        implicit_js_type = get_js_type_from_inputted_rules(validation_rules)
-        # If there is an explicit and implicit type set and the implicit type conflicts with the
-        # explicit type, then an exception is raised
-        if (
-            explicit_js_type
-            and implicit_js_type
-            and explicit_js_type != implicit_js_type
-        ):
-            msg = (
-                f"Property: '{name}', has explicit type: '{explicit_js_type}' "
-                f"that conflicts with the implicit type: '{implicit_js_type}' "
-                f"derived from its validation rules: {validation_rules}"
-            )
-            logger.warning(msg)
-        if not explicit_js_type and implicit_js_type:
-            js_type = implicit_js_type
-            msg = (
-                f"No explicit type set for property: '{name}', "
-                "using validation rules to set the type. "
-                "Using validation rules to set type is deprecated. "
-                "You should set the columnType for this property in your data model."
-            )
-            logger.warning(msg)
+        implicit_is_array = ValidationRuleName.LIST in validation_rule_names
+        if explicit_is_array is None:
+            # If an array type is not explicitly set then is_array can be set by using
+            # whether or not a list validation rule is present.
+            # Since this is deprecated behavior a warning should be given.
+            js_is_array = implicit_is_array
+            if implicit_is_array:
+                msg = (
+                    f"A list validation rule is set for property: {name}, "
+                    f"but columnType is not a list type (current value: {column_type}). "
+                    "To properly define an array property, set columnType to a list type "
+                    "(e.g., 'string_list', 'integer_list', 'boolean_list') "
+                    "instead of using the list validation rule."
+                    "This behavior is deprecated and list validation rules will no longer "
+                    "be used in the future.."
+                )
+                logger.warning(msg)
+            else:
+                msg = (
+                    f"No columnType is set for property: {name}. "
+                    "Please set the columnType."
+                )
+                logger.warning(msg)
+        if explicit_is_array != implicit_is_array:
+            # If an array type is explicitly but it is the opposite of whether or not a
+            # list validation rule is present, then the user should be warned of the mismatch.
+            if explicit_is_array:
+                msg = (
+                    f"For property: {name}, the columnType is a list-type: {column_type} "
+                    "but no list validation rule is present. "
+                    "The columnType will be used to set type."
+                )
+                logger.warning(msg)
+            else:
+                msg = (
+                    f"For property: {name}, the columnType is not a list-type: {column_type} "
+                    "but a list validation rule is present. "
+                    "The columnType will be used to set type."
+                )
+                logger.warning(msg)
 
-        if ValidationRuleName.URL in validation_rule_names:
-            js_format = JSONSchemaFormat.URI
-        elif ValidationRuleName.DATE in validation_rule_names:
-            js_format = JSONSchemaFormat.DATE
+        # url and date rules are deprecated for adding format keyword
+        # TODO: remove the if/else block below
+        # https://sagebionetworks.jira.com/browse/SYNPY-1685
+
+        if explicit_format:
+            if (
+                ValidationRuleName.DATE in validation_rule_names
+                and explicit_format == JSONSchemaFormat.URI
+            ):
+                msg = (
+                    f"For property: {name}, the format is uri, "
+                    "but the validation rule date is present. "
+                    "The format will be set to uri."
+                )
+                logger.warning(msg)
+            elif (
+                ValidationRuleName.URL in validation_rule_names
+                and explicit_format == JSONSchemaFormat.DATE
+            ):
+                msg = (
+                    f"For property: {name}, the format is date, "
+                    "but the validation rule url is present. "
+                    "The format will be set to date."
+                )
+                logger.warning(msg)
+
+        else:
+            if ValidationRuleName.URL in validation_rule_names:
+                js_format = JSONSchemaFormat.URI
+                msg = (
+                    f"A url validation rule is set for property: {name}, but the format is not set. "
+                    "The format will be set to uri, but this behavior is deprecated and validation "
+                    "rules will no longer be used in the future."
+                    "Please explicitly set the format to uri in the data model."
+                )
+                logger.warning(msg)
+            elif ValidationRuleName.DATE in validation_rule_names:
+                js_format = JSONSchemaFormat.DATE
+                msg = (
+                    f"A date validation rule is set for property: {name}, but the format is not set. "
+                    "The format will be set to date, but this behavior is deprecated and validation "
+                    "rules will no longer be used in the future."
+                    "Please explicitly set the format to uri in the data model."
+                )
+                logger.warning(msg)
 
         in_range_rule = get_rule_from_inputted_rules(
             ValidationRuleName.IN_RANGE, validation_rules
@@ -4370,6 +4715,13 @@ def _get_validation_rule_based_fields(
             js_minimum, js_maximum = get_in_range_parameters_from_inputted_rule(
                 in_range_rule
             )
+            msg = (
+                f"An inRange validation rule is set for property: {name}, "
+                "setting minimum and maximum values accordingly. "
+                "This behavior is deprecated and validation rules will no longer "
+                "be used in the future. Please use Minimum and Maximum columns in the data model instead. To use minimum and/or maximum values, you must set columnType to one of: 'integer', 'number', or 'integer_list'."
+            )
+            logger.warning(msg)
 
         regex_rule = get_rule_from_inputted_rules(
             ValidationRuleName.REGEX, validation_rules
@@ -4379,7 +4731,6 @@ def _get_validation_rule_based_fields(
 
     return (
         js_is_array,
-        js_type,
         js_format,
         js_minimum,
         js_maximum,
@@ -4404,7 +4755,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         dependencies: This nodes dependencies
         description: This nodes description, gotten from the comment in the data model
         is_array: Whether or not the property is an array (inferred from validation_rules)
-        type: The type of the property (inferred from validation_rules)
+        type: The type of the property (set by ColumnType in the data model)
         format: The format of the property (inferred from validation_rules)
         minimum: The minimum value of the property (if numeric) (inferred from validation_rules)
         maximum: The maximum value of the property (if numeric) (inferred from validation_rules)
@@ -4422,7 +4773,7 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
     dependencies: list[str] = field(init=False)
     description: str = field(init=False)
     is_array: bool = field(init=False)
-    type: Optional[JSONSchemaType] = field(init=False)
+    type: Optional[ColumnType] = field(init=False)
     format: Optional[JSONSchemaFormat] = field(init=False)
     minimum: Optional[float] = field(init=False)
     maximum: Optional[float] = field(init=False)
@@ -4453,23 +4804,150 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         self.description = self.dmge.get_node_comment(
             node_display_name=self.display_name
         )
-        explicit_js_type = self.dmge.get_node_column_type(
+        column_type = self.dmge.get_node_column_type(
             node_display_name=self.display_name
         )
+        maximum = self.dmge.get_node_maximum_minimum_value(
+            relationship_value="maximum", node_display_name=self.display_name
+        )
+        minimum = self.dmge.get_node_maximum_minimum_value(
+            relationship_value="minimum", node_display_name=self.display_name
+        )
+        pattern = self.dmge.get_node_column_pattern(node_display_name=self.display_name)
+        format = self.dmge.get_node_format(node_display_name=self.display_name)
 
+        self.type, explicit_is_array = self._determine_type_and_array(column_type)
+
+        self._validate_column_type_compatibility(
+            maximum=maximum, minimum=minimum, pattern=pattern, format=format
+        )
+
+        # TODO: refactor to not use _get_validation_rule_based_fields https://sagebionetworks.jira.com/browse/SYNPY-1724
         (
             self.is_array,
-            self.type,
             self.format,
-            self.minimum,
-            self.maximum,
-            self.pattern,
+            implicit_minimum,
+            implicit_maximum,
+            implicit_pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
-            explicit_js_type=explicit_js_type,
+            explicit_is_array=explicit_is_array,
+            explicit_format=format,
             name=self.name,
+            column_type=self.type,
             logger=self.logger,
         )
+
+        # Priority: explicit values from data model take precedence over validation rules
+        # Only use validation rule values if explicit values are not set
+        self.minimum = minimum if minimum is not None else implicit_minimum
+        self.maximum = maximum if maximum is not None else implicit_maximum
+
+        self.pattern = pattern if pattern else implicit_pattern
+
+        if implicit_pattern and not pattern:
+            msg = (
+                f"A regex validation rule is set for property: {self.name}, but the pattern is not set in the data model. "
+                f"The regex pattern will be set to {self.pattern}, but the regex rule is deprecated and validation "
+                "rules will no longer be used in the future. "
+                "Please explicitly set the regex pattern in the 'Pattern' column in the data model."
+            )
+            self.logger.warning(msg)
+
+        if self.pattern:
+            try:
+                re.compile(self.pattern)
+            except re.error as e:
+                raise SyntaxError(
+                    f"The regex pattern '{self.pattern}' for property '{self.name}' is invalid."
+                ) from e
+
+    def _determine_type_and_array(
+        self, column_type: Optional[ColumnType]
+    ) -> tuple[Optional[AtomicColumnType], Optional[bool]]:
+        """Determine the JSON Schema type and array from columnType
+
+        Args:
+            column_type: The columnType from the data model
+
+        Returns:
+            Tuple of (type, explicit_is_array)
+        """
+        if isinstance(column_type, AtomicColumnType):
+            return column_type, False
+        elif isinstance(column_type, ListColumnType):
+            return LIST_TYPE_DICT[column_type], True
+        else:
+            return None, None
+
+    def _validate_column_type_compatibility(
+        self,
+        maximum: Union[int, float, None],
+        minimum: Union[int, float, None],
+        pattern: Optional[str] = None,
+        format: Optional[JSONSchemaFormat] = None,
+    ) -> None:
+        """Validate that columnType is compatible with JSONSchema constraints.
+
+
+        Arguments:
+            maximum: The maximum value constraint from the data model.
+            minimum: The minimum value constraint from the data model.
+            pattern: The regex pattern constraint from the data model.
+            format: The format constraint from the data model.
+
+        Raises:
+            ValueError: If a constraint is set, but the columnType is incompatible with that constraint.
+
+        Returns:
+            None: This method performs validation only and doesn't return a value.
+                It raises ValueError if validation fails.
+        """
+        keyword_types_dict = {
+            "pattern": {
+                "value": pattern,
+                "types": [
+                    AtomicColumnType.STRING.value,
+                    ListColumnType.STRING_LIST.value,
+                ],
+            },
+            "format": {
+                "value": format.value if format else None,
+                "types": [
+                    AtomicColumnType.STRING.value,
+                    ListColumnType.STRING_LIST.value,
+                ],
+            },
+            "minimum": {
+                "value": minimum,
+                "types": [
+                    AtomicColumnType.NUMBER.value,
+                    AtomicColumnType.INTEGER.value,
+                    ListColumnType.INTEGER_LIST.value,
+                ],
+            },
+            "maximum": {
+                "value": maximum,
+                "types": [
+                    AtomicColumnType.NUMBER.value,
+                    AtomicColumnType.INTEGER.value,
+                    ListColumnType.INTEGER_LIST.value,
+                ],
+            },
+        }
+
+        for keyword, keyword_dict in keyword_types_dict.items():
+            if (
+                keyword_dict["value"] is not None
+                and self.type.value not in keyword_dict["types"]
+            ):
+                types = keyword_dict["types"]
+                msg = (
+                    f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
+                    f"but {keyword} constraint (value: {keyword_dict['value']}) "
+                    f"is specified. Please set columnType to one of: {types}."
+                )
+                raise ValueError(msg)
 
 
 @dataclass
@@ -4844,20 +5322,16 @@ def _set_conditional_dependencies(
 
 
 def _create_enum_array_property(
-    node: Node, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_valid_value_display_names: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property array with enum items
 
     Example:
         {
-            "oneOf": [
-                {
-                    "type": "array",
-                    "title": "array",
-                    "items": {"enum": ["enum1"]},
-                }
-            ],
+            "type": "array",
+            "title": "array",
+            "items": {"enum": ["enum1"], "type": "string"},
         },
 
 
@@ -4873,35 +5347,24 @@ def _create_enum_array_property(
         valid_values = node.valid_value_display_names
     else:
         valid_values = node.valid_values
-    items: Items = {"enum": valid_values}
-    types = [
-        {
-            "type": "array",
-            "title": "array",
-            "items": items,
-        }
-    ]
-
-    if not node.is_required:
-        types += [{"type": "null", "title": "null"}]
-
-    enum_array_property: Property = {"oneOf": types}
-    return enum_array_property  # type: ignore
+    items: Items = {"enum": valid_values, "type": "string"}
+    array_property = {
+        "type": "array",
+        "title": "array",
+        "items": items,
+    }
+    return array_property
 
 
-def _create_array_property(node: Node) -> Property:
+def _create_array_property(node: TraversalNode) -> Property:
     """
     Creates a JSON Schema property array
 
     Example:
         {
-            "oneOf": [
-                {
-                    "type": "array",
-                    "title": "array",
-                    "items": {"type": "number", "minimum": 0, "maximum": 1},
-                }
-            ],
+            "type": "array",
+            "title": "array",
+            "items": {"type": "integer", "minimum": 0, "maximum": 1},
         }
 
     Arguments:
@@ -4917,31 +5380,23 @@ def _create_array_property(node: Node) -> Property:
         _set_type_specific_keywords(items, node)
 
     array_type_dict: TypeDict = {"type": "array", "title": "array"}
-    null_type_dict: TypeDict = {"type": "null", "title": "null"}
 
     if items:
         array_type_dict["items"] = items
 
-    types = [array_type_dict]
-    if not node.is_required:
-        types.append(null_type_dict)
-
-    array_property: Property = {"oneOf": types}
-    return array_property
+    return array_type_dict
 
 
 def _create_enum_property(
-    node: Node, use_valid_value_display_names: bool = True
+    node: TraversalNode, use_valid_value_display_names: bool = True
 ) -> Property:
     """
     Creates a JSON Schema property enum
 
     Example:
         {
-            "oneOf": [
-                {"enum": ["enum1"], "title": "enum"},
-                {"type": "null", "title": "null"},
-            ],
+            "enum": ["enum1", "enum2"],
+            "title": "enum"
         }
 
     Arguments:
@@ -4956,24 +5411,20 @@ def _create_enum_property(
         valid_values = node.valid_values
 
     enum_property: Property = {}
-    one_of_list = [{"enum": valid_values, "title": "enum"}]
-    if not node.is_required:
-        one_of_list += [{"type": "null", "title": "null"}]
-    enum_property["oneOf"] = one_of_list
+    enum_property["enum"] = valid_values
+    enum_property["title"] = "enum"
 
     return enum_property
 
 
-def _create_simple_property(node: Node) -> Property:
+def _create_simple_property(node: TraversalNode) -> Property:
     """
     Creates a JSON Schema property
 
     Example:
         {
-            "oneOf": [
-                {"type": "string", "title": "string"},
-                {"type": "null", "title": "null"},
-            ],
+            "title": "String",
+            "type": "string"
         }
 
     Arguments:
@@ -4985,13 +5436,7 @@ def _create_simple_property(node: Node) -> Property:
     prop: Property = {}
 
     if node.type:
-        if node.is_required:
-            prop["type"] = node.type.value
-        else:
-            prop["oneOf"] = [
-                {"type": node.type.value, "title": node.type.value},
-                {"type": "null", "title": "null"},
-            ]
+        prop["type"] = node.type.value
     elif node.is_required:
         prop["not"] = {"type": "null"}
 
@@ -5000,7 +5445,7 @@ def _create_simple_property(node: Node) -> Property:
     return prop
 
 
-def _set_type_specific_keywords(schema: dict[str, Any], node: Node) -> None:
+def _set_type_specific_keywords(schema: dict[str, Any], node: TraversalNode) -> None:
     """Sets JSON Schema keywords that are allowed if type has been set
 
     Arguments:
@@ -5018,7 +5463,7 @@ def _set_type_specific_keywords(schema: dict[str, Any], node: Node) -> None:
 
 def _set_property(
     json_schema: JSONSchema,
-    node: Node,
+    node: TraversalNode,
     use_property_display_names: bool = True,
     use_valid_value_display_names: bool = True,
 ) -> None:
@@ -5050,10 +5495,12 @@ def _set_property(
         else:
             prop = _create_simple_property(node)
 
+    if node.pattern:
+        prop["pattern"] = node.pattern
+
     prop["description"] = node.description
     prop["title"] = node.display_name
     schema_property = {node_name: prop}
-
     json_schema.update_property(schema_property)
 
     if node.is_required:
@@ -5113,6 +5560,14 @@ def get_json_schema_log_file_path(data_model_path: str, source_node: str) -> str
     Returns:
         json_schema_log_file_path: str, file name for the log file
     """
+    # If it's a URL, extract just the filename
+    if data_model_path.startswith("http://") or data_model_path.startswith("https://"):
+        from urllib.parse import urlparse
+
+        parsed_url = urlparse(data_model_path)
+        # Get the last part of the path (filename)
+        data_model_path = os.path.basename(parsed_url.path)
+
     data_model_path_root, _ = os.path.splitext(data_model_path)
     prefix = data_model_path_root
     prefix_root, prefix_ext = os.path.splitext(prefix)
@@ -5133,6 +5588,9 @@ def create_json_schema(  # pylint: disable=too-many-arguments
     datatype: str,
     schema_name: str,
     logger: Logger,
+    write_schema: bool = True,
+    schema_path: Optional[str] = None,
+    jsonld_path: Optional[str] = None,
     use_property_display_names: bool = True,
     use_valid_value_display_names: bool = True,
 ) -> dict[str, Any]:
@@ -5156,8 +5614,11 @@ def create_json_schema(  # pylint: disable=too-many-arguments
         datatype: the datatype to create the schema for.
             Its node is where we can start recursive dependency traversal
             (as mentioned above).
+        write_schema: whether or not to write the schema as a json file
         schema_name: Name assigned to JSON-LD schema (to uniquely identify it via URI
             when it is hosted on the Internet).
+        schema_path: Where to save the JSON Schema file
+        jsonld_path: Used to name the file if the path isn't supplied
         use_property_display_names: If True, the properties in the JSONSchema
           will be written using node display names
         use_valid_value_display_names: If True, the valid_values in the JSONSchema
@@ -5189,7 +5650,65 @@ def create_json_schema(  # pylint: disable=too-many-arguments
 
     json_schema_dict = json_schema.as_json_schema_dict()
 
+    if write_schema:
+        print("schema path", schema_path)
+        print("name", datatype)
+        print("jsonld path", jsonld_path)
+        _write_data_model(
+            json_schema_dict=json_schema_dict,
+            schema_path=schema_path,
+            name=datatype,
+            jsonld_path=jsonld_path,
+            logger=logger,
+        )
+
     return json_schema_dict
+
+
+def _write_data_model(
+    json_schema_dict: dict[str, Any],
+    logger: Logger,
+    schema_path: Optional[str] = None,
+    name: Optional[str] = None,
+    jsonld_path: Optional[str] = None,
+) -> None:
+    """
+    Creates the JSON Schema file
+
+    Arguments:
+        json_schema_dict: The JSON schema in dict form
+        schema_path: Where to save the JSON Schema file
+        jsonld_path:
+          The path to the JSONLD model, used to create the path
+          Used if schema_path is None
+        name:
+          The name of the datatype(source node) the schema is being created for
+          Used if schema_path is None
+    """
+    if schema_path:
+        json_schema_path = schema_path
+    elif name and jsonld_path:
+        json_schema_path = get_json_schema_log_file_path(
+            data_model_path=jsonld_path, source_node=name
+        )
+        json_schema_dirname = os.path.dirname(json_schema_path)
+        # Don't create directories if the path looks like a URL
+        if json_schema_dirname != "" and not (
+            json_schema_path.startswith("http://")
+            or json_schema_path.startswith("https://")
+        ):
+            os.makedirs(json_schema_dirname, exist_ok=True)
+
+        logger.info(
+            "The JSON schema file can be inspected by setting the following "
+            "nested key in the configuration: (model > location)."
+        )
+    else:
+        raise ValueError(
+            "Either schema_path or both name and jsonld_path must be provided."
+        )
+    export_json(json_doc=json_schema_dict, file_path=json_schema_path, indent=2)
+    logger.info("The JSON schema has been saved at %s", json_schema_path)
 
 
 class JsonSchemaComponentGenerator:
@@ -5256,7 +5775,20 @@ class JsonSchemaComponentGenerator:
         """
 
         stripped_component = self.component.replace(" ", "")
-        data_model_basename = Path(self.data_model_source).stem
+
+        # Handle URL by extracting just the filename
+        if self.data_model_source.startswith(
+            "http://"
+        ) or self.data_model_source.startswith("https://"):
+            from urllib.parse import urlparse
+
+            parsed_url = urlparse(self.data_model_source)
+            # Get the last part of the path (filename)
+            filename = os.path.basename(parsed_url.path)
+            data_model_basename = Path(filename).stem
+        else:
+            data_model_basename = Path(self.data_model_source).stem
+
         return Path(
             output_directory,
             data_model_basename,
@@ -5295,7 +5827,12 @@ class JsonSchemaComponentGenerator:
         Raises:
             May raise errors if the component is not found in the data model graph.
         """
-
+        metadata_model = MetadataModel(
+            inputMModelLocation=self.data_model_source,
+            inputMModelLocationType="local",
+            data_model_labels=data_model_labels,
+            logger=self.logger,
+        )
         use_display_names = data_model_labels == "display_label"
 
         json_schema = create_json_schema(
@@ -5303,7 +5840,9 @@ class JsonSchemaComponentGenerator:
             datatype=self.component,
             logger=self.logger,
             schema_name=self.component + "_validation",
+            jsonld_path=metadata_model.inputMModelLocation,
             use_property_display_names=use_display_names,
+            write_schema=False,  # Don't write intermediate files; write_json_schema_to_file() will handle final output
         )
         self.component_json_schema = json_schema
 
@@ -5365,12 +5904,12 @@ def generate_jsonschema(
     in your validation rules. This allows different validation behavior per manifest type.
 
     Arguments:
-        data_model_source: Path to the data model file (CSV or JSONLD) or URL to the raw
-            JSONLD. Can accept:
+        data_model_source: Path or URL to the data model file (CSV or JSONLD). Can accept:
 
-            - A CSV file with your data model specification (will be parsed automatically)
-            - A JSONLD file generated from `generate_jsonld()` or equivalent
-            - A URL pointing to a raw JSONLD data model
+            - A local CSV file with your data model specification (will be parsed automatically)
+            - A local JSONLD file generated from `generate_jsonld()` or equivalent
+            - A URL pointing to a raw CSV data model (e.g., from GitHub)
+            - A URL pointing to a raw JSONLD data model (e.g., from GitHub)
         output_directory: Directory path where JSON Schema files will be saved. Each
             component will generate a separate `<Component>_validation_schema.json` file.
         data_type: List of specific component names (data types) to generate schemas for.
@@ -5420,13 +5959,25 @@ def generate_jsonschema(
         )
         ```
 
-        Generate schema for specific components:
+        Generate schema for specific components from URL:
 
         ```python
         schemas, file_paths = generate_jsonschema(
             data_model_source="https://example.com/model.jsonld",
             output_directory="./validation_schemas",
             data_type=["Patient", "Biospecimen"],
+            data_model_labels="class_label",
+            synapse_client=syn
+        )
+        ```
+
+        Generate schema from CSV URL:
+
+        ```python
+        schemas, file_paths = generate_jsonschema(
+            data_model_source="https://raw.githubusercontent.com/org/repo/main/model.csv",
+            output_directory="./schemas",
+            data_type=None,
             data_model_labels="class_label",
             synapse_client=syn
         )
@@ -5485,8 +6036,9 @@ def generate_jsonld(
     - Verifies the graph structure is a valid directed acyclic graph (DAG)
 
     Arguments:
-        schema: Path to your data model CSV file. This file should contain your complete
-            data model specification with all attributes, validation rules, and relationships.
+        schema: Path or URL to your data model CSV file. Can be a local file path or a URL
+            (e.g., from GitHub). This file should contain your complete data model
+            specification with all attributes, validation rules, and relationships.
         data_model_labels: Label format for the JSON-LD output:
 
             - `"class_label"` (default, recommended): Uses standard attribute names as labels
@@ -5547,6 +6099,16 @@ def generate_jsonld(
             synapse_client=syn
         )
         ```
+
+        Load from URL:
+        ```python
+        jsonld_model = generate_jsonld(
+            schema="https://raw.githubusercontent.com/org/repo/main/model.csv",
+            data_model_labels="class_label",
+            output_jsonld="downloaded_model.jsonld",
+            synapse_client=syn
+        )
+        ```
     """
     syn = Synapse.get_client(synapse_client=synapse_client)
 
@@ -5598,7 +6160,14 @@ def generate_jsonld(
     # output JSON-LD file alongside CSV file by default, get path.
     if output_jsonld is None:
         if ".jsonld" not in schema:
-            csv_no_ext = re.sub("[.]csv$", "", schema)
+            # If schema is a URL, extract just the filename for local output
+            schema_path = schema
+            if schema.startswith("http://") or schema.startswith("https://"):
+                from urllib.parse import urlparse
+
+                parsed_url = urlparse(schema)
+                schema_path = os.path.basename(parsed_url.path)
+            csv_no_ext = re.sub("[.]csv$", "", schema_path)
             output_jsonld = csv_no_ext + ".jsonld"
         else:
             output_jsonld = schema

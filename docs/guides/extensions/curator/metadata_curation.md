@@ -103,7 +103,7 @@ entity_view_id, task_id = create_file_based_metadata_task(
     folder_id="syn987654321",          # Folder containing your data files
     curation_task_name="FileMetadata_Curation", # Must be unique within the project
     instructions="Annotate each file with metadata according to the schema requirements.",
-    attach_wiki=True,                  # Creates a wiki in the folder with the entity view
+    attach_wiki=True,                  # Creates a wiki in the folder with the entity view (Defaults to False)
     entity_view_name="Animal Study Files View",
     schema_uri=schema_uri              # Schema found in Step 2
 )

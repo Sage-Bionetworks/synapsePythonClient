@@ -23,7 +23,9 @@ class TestUser:
         )
 
         # WHEN we get the profile by ID
-        profile = await UserProfile.from_id_async(integration_test_profile.id)
+        profile = await UserProfile.from_id_async(
+            integration_test_profile.id, synapse_client=self.syn
+        )
 
         # THEN we expect the profile to be the same as the one we got from the fixture
         assert profile == integration_test_profile
@@ -36,7 +38,7 @@ class TestUser:
 
         # WHEN we get the profile by username
         profile = await UserProfile.from_username_async(
-            integration_test_profile.username
+            integration_test_profile.username, synapse_client=self.syn
         )
 
         # THEN we expect the profile to be the same as the one we got from the fixture
@@ -52,7 +54,7 @@ class TestUser:
         profile_copy = UserProfile(id=integration_test_profile.id)
 
         # WHEN we check if the profile is certified
-        is_certified = await profile_copy.is_certified_async()
+        is_certified = await profile_copy.is_certified_async(synapse_client=self.syn)
 
         # THEN we expect the profile to not be certified
         assert is_certified is False
@@ -67,7 +69,7 @@ class TestUser:
         profile_copy = UserProfile(username=integration_test_profile.username)
 
         # WHEN we check if the profile is certified
-        is_certified = await profile_copy.is_certified_async()
+        is_certified = await profile_copy.is_certified_async(synapse_client=self.syn)
 
         # THEN we expect the profile to not be certified
         assert is_certified is False

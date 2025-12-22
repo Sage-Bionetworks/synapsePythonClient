@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import AsyncGenerator, Dict, Generator, List, Optional, Protocol, Union
+from typing import AsyncGenerator, Generator, Optional, Protocol, Union
 
 from typing_extensions import Self
 
@@ -248,7 +248,7 @@ class SubmissionSynchronousProtocol(Protocol):
         status: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Gets the number of Submissions for a specified Evaluation queue, optionally filtered by submission status.
 
@@ -300,6 +300,7 @@ class Submission(
         entity_id: The ID of the entity being submitted.
         version_number: The version number of the entity at submission.
         evaluation_id: The ID of the Evaluation to which this Submission belongs.
+        evaluation_round_id: The ID of the EvaluationRound to which this was submitted (auto-filled upon creation).
         name: The name of this Submission.
         created_on: The date this Submission was created.
         team_id: The ID of the team that submitted this submission (if it's a team submission).
@@ -353,6 +354,11 @@ class Submission(
     The ID of the Evaluation to which this Submission belongs.
     """
 
+    evaluation_round_id: Optional[str] = field(default=None, compare=False)
+    """
+    The ID of the EvaluationRound to which this was submitted. DO NOT specify a value for this. It will be filled in automatically upon creation of the Submission if the Evaluation is configured with an EvaluationRound.
+    """
+
     name: Optional[str] = None
     """
     The name of this Submission.
@@ -368,12 +374,12 @@ class Submission(
     The ID of the team that submitted this submission (if it's a team submission).
     """
 
-    contributors: List[str] = field(default_factory=list)
+    contributors: list[str] = field(default_factory=list)
     """
     User IDs of team members who contributed to this submission (if it's a team submission).
     """
 
-    submission_status: Optional[Dict] = None
+    submission_status: Optional[dict] = None
     """
     The status of this Submission.
     """
@@ -403,7 +409,7 @@ class Submission(
     """The current eTag of the Entity being submitted. If not provided, it will be automatically retrieved."""
 
     def fill_from_dict(
-        self, synapse_submission: Dict[str, Union[bool, str, int, List]]
+        self, synapse_submission: dict[str, Union[bool, str, int, list]]
     ) -> "Submission":
         """
         Converts a response from the REST API into this dataclass.
@@ -420,6 +426,7 @@ class Submission(
         self.entity_id = synapse_submission.get("entityId", None)
         self.version_number = synapse_submission.get("versionNumber", None)
         self.evaluation_id = synapse_submission.get("evaluationId", None)
+        self.evaluation_round_id = synapse_submission.get("evaluationRoundId", None)
         self.name = synapse_submission.get("name", None)
         self.created_on = synapse_submission.get("createdOn", None)
         self.team_id = synapse_submission.get("teamId", None)
@@ -435,9 +442,16 @@ class Submission(
 
     async def _fetch_latest_entity(
         self, *, synapse_client: Optional[Synapse] = None
-    ) -> Dict:
+    ) -> dict:
         """
         Fetch the latest entity information from Synapse.
+
+        <https://rest-docs.synapse.org/rest/GET/entity/id.html>
+
+        If the object is a DockerRepository, this will also fetch the DockerCommit object with the latest createdOn value
+        and attach it to the final dictionary:
+
+        <https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/docker/DockerCommit.html>
 
         Arguments:
             synapse_client: If not passed in and caching was not disabled by
@@ -487,11 +501,11 @@ class Submission(
 
             return entity_info
         except Exception as e:
-            raise ValueError(
+            raise LookupError(
                 f"Unable to fetch entity information for {self.entity_id}: {e}"
-            )
+            ) from e
 
-    def to_synapse_request(self) -> Dict:
+    def to_synapse_request(self) -> dict:
         """Creates a request body expected of the Synapse REST API for the Submission model.
 
         Returns:
@@ -517,16 +531,20 @@ class Submission(
         }
 
         # Add optional fields if they are set
-        if self.name is not None:
-            request_body["name"] = self.name
-        if self.team_id is not None:
-            request_body["teamId"] = self.team_id
-        if self.contributors:
-            request_body["contributors"] = self.contributors
-        if self.docker_repository_name is not None:
-            request_body["dockerRepositoryName"] = self.docker_repository_name
-        if self.docker_digest is not None:
-            request_body["dockerDigest"] = self.docker_digest
+        optional_fields = {
+            "name": "name",
+            "team_id": "teamId",
+            "contributors": "contributors",
+            "docker_repository_name": "dockerRepositoryName",
+            "docker_digest": "dockerDigest",
+        }
+
+        for field_name, api_field_name in optional_fields.items():
+            field_value = getattr(self, field_name)
+            if field_value is not None and (
+                field_name != "contributors" or field_value
+            ):
+                request_body[api_field_name] = field_value
 
         return request_body
 
@@ -576,30 +594,30 @@ class Submission(
             ```
         """
 
-        if self.entity_id:
-            entity_info = await self._fetch_latest_entity(synapse_client=synapse_client)
-
-            self.entity_etag = entity_info.get("etag")
-
-            if (
-                entity_info.get("concreteType")
-                == "org.sagebionetworks.repo.model.FileEntity"
-            ):
-                self.version_number = entity_info.get("versionNumber")
-            elif (
-                entity_info.get("concreteType")
-                == "org.sagebionetworks.repo.model.docker.DockerRepository"
-            ):
-                self.docker_repository_name = entity_info.get("repositoryName")
-                self.docker_digest = entity_info.get("digest")
-                self.docker_tag = entity_info.get("tag")
-                # All docker repositories are assigned version number 1, even if they have multiple tags
-                self.version_number = 1
-        else:
+        if not self.entity_id:
             raise ValueError("entity_id is required to create a submission")
+
+        entity_info = await self._fetch_latest_entity(synapse_client=synapse_client)
+
+        self.entity_etag = entity_info.get("etag")
 
         if not self.entity_etag:
             raise ValueError("Unable to fetch etag for entity")
+
+        if (
+            entity_info.get("concreteType")
+            == "org.sagebionetworks.repo.model.FileEntity"
+        ):
+            self.version_number = entity_info.get("versionNumber")
+        elif (
+            entity_info.get("concreteType")
+            == "org.sagebionetworks.repo.model.docker.DockerRepository"
+        ):
+            self.docker_repository_name = entity_info.get("repositoryName")
+            self.docker_digest = entity_info.get("digest")
+            self.docker_tag = entity_info.get("tag")
+            # All docker repositories are assigned version number 1, even if they have multiple tags
+            self.version_number = 1
 
         # Build the request body now that all the necessary dataclass attributes are set
         request_body = self.to_synapse_request()
@@ -608,6 +626,7 @@ class Submission(
             request_body, self.entity_etag, synapse_client=synapse_client
         )
         self.fill_from_dict(response)
+
         return self
 
     @otel_trace_method(
@@ -774,7 +793,7 @@ class Submission(
         status: Optional[str] = None,
         *,
         synapse_client: Optional[Synapse] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Gets the number of Submissions for a specified Evaluation queue, optionally filtered by submission status.
 

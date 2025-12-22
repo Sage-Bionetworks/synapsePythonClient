@@ -373,9 +373,9 @@ class TestSubmission:
             new_callable=AsyncMock,
             side_effect=SynapseHTTPError("Entity not found"),
         ) as mock_rest_get:
-            # THEN it should raise a ValueError with context about the original error
+            # THEN it should raise a LookupError with context about the original error
             with pytest.raises(
-                ValueError, match=f"Unable to fetch entity information for {ENTITY_ID}"
+                LookupError, match=f"Unable to fetch entity information for {ENTITY_ID}"
             ):
                 await submission._fetch_latest_entity(synapse_client=self.syn)
 

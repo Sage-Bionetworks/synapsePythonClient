@@ -124,25 +124,6 @@ class TestSubmissionCreationAsync:
         with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
             await submission.store_async(synapse_client=self.syn)
 
-    # async def test_store_submission_with_docker_repository_async(
-    #     self, test_evaluation: Evaluation
-    # ):
-    #     # GIVEN we would need a Docker repository entity (mocked for this test)
-    #     # This test demonstrates the expected behavior for Docker repository submissions
-
-    #     # WHEN I create a submission for a Docker repository entity using async method
-    #     # TODO: This would require a real Docker repository entity in a full integration test
-    #     submission = Submission(
-    #         entity_id="syn123456789",  # Would be a Docker repository ID
-    #         evaluation_id=test_evaluation.id,
-    #         name=f"Docker Submission {uuid.uuid4()}",
-    #     )
-
-    #     # THEN the submission should handle Docker-specific attributes
-    #     # (This test would need to be expanded with actual Docker repository setup)
-    #     assert submission.entity_id == "syn123456789"
-    #     assert submission.evaluation_id == test_evaluation.id
-
 
 class TestSubmissionRetrievalAsync:
     @pytest.fixture(autouse=True, scope="function")
@@ -491,24 +472,6 @@ class TestSubmissionCancelAsync:
         finally:
             os.unlink(temp_file_path)
 
-    # async def test_cancel_submission_successfully_async(
-    #     self, test_evaluation: Evaluation, test_file: File
-    # ):
-    #     # GIVEN a submission created with async method
-    #     submission = Submission(
-    #         entity_id=test_file.id,
-    #         evaluation_id=test_evaluation.id,
-    #         name=f"Test Submission for Cancellation {uuid.uuid4()}",
-    #     )
-    #     created_submission = await submission.store_async(synapse_client=self.syn)
-    #     self.schedule_for_cleanup(created_submission.id)
-
-    #     # WHEN I cancel the submission using async method
-    #     cancelled_submission = await created_submission.cancel_async(synapse_client=self.syn)
-
-    #     # THEN the submission should be cancelled
-    #     assert cancelled_submission.id == created_submission.id
-
     async def test_cancel_submission_without_id_async(self):
         # WHEN I try to cancel a submission without an ID using async method
         submission = Submission(entity_id="syn123", evaluation_id="456")
@@ -592,7 +555,7 @@ class TestSubmissionValidationAsync:
 
         # Note: This test would need a real entity ID to work in practice
         # For now, we test the validation logic
-        with pytest.raises(ValueError, match="Unable to fetch entity information"):
+        with pytest.raises(LookupError, match="Unable to fetch entity information"):
             await submission._fetch_latest_entity(synapse_client=self.syn)
 
     async def test_fetch_latest_entity_without_entity_id_async(self):

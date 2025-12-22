@@ -240,7 +240,11 @@ async def create_external_file_handle(
 
     # Create the file handle because there is nothing to upload
     file_handle = await post_external_filehandle(
-        external_url=url, mimetype=mimetype, md5=md5, file_size=file_size
+        external_url=url,
+        mimetype=mimetype,
+        md5=md5,
+        file_size=file_size,
+        synapse_client=syn,
     )
 
     span.set_attribute("synapse.file_handle_id", file_handle.get("id"))
@@ -280,7 +284,11 @@ async def upload_external_file_handle_sftp(
     file_md5 = md5 or utils.md5_for_file_hex(filename=file_path)
 
     file_handle = await post_external_filehandle(
-        external_url=uploaded_url, mimetype=mimetype, md5=file_md5, file_size=file_size
+        external_url=uploaded_url,
+        mimetype=mimetype,
+        md5=file_md5,
+        file_size=file_size,
+        synapse_client=syn,
     )
 
     span.set_attribute("synapse.file_handle_id", file_handle["id"])

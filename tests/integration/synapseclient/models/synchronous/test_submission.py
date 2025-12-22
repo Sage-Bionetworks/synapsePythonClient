@@ -127,6 +127,7 @@ class TestSubmissionCreation:
 
         # WHEN I create a submission for a Docker repository entity
         # TODO: This would require a real Docker repository entity in a full integration test
+        # Jira: https://sagebionetworks.jira.com/browse/SYNPY-1720
         submission = Submission(
             entity_id="syn123456789",  # Would be a Docker repository ID
             evaluation_id=test_evaluation.id,
@@ -477,25 +478,6 @@ class TestSubmissionCancel:
             return file
         finally:
             os.unlink(temp_file_path)
-
-    # TODO: Add with SubmissionStatus model tests
-    # async def test_cancel_submission_successfully(
-    #     self, test_evaluation: Evaluation, test_file: File
-    # ):
-    #     # GIVEN a submission
-    #     submission = Submission(
-    #         entity_id=test_file.id,
-    #         evaluation_id=test_evaluation.id,
-    #         name=f"Test Submission for Cancellation {uuid.uuid4()}",
-    #     )
-    #     created_submission = submission.store(synapse_client=self.syn)
-    #     self.schedule_for_cleanup(created_submission.id)
-
-    #     # WHEN I cancel the submission
-    #     cancelled_submission = created_submission.cancel(synapse_client=self.syn)
-
-    #     # THEN the submission should be cancelled
-    #     assert cancelled_submission.id == created_submission.id
 
     async def test_cancel_submission_without_id(self):
         # WHEN I try to cancel a submission without an ID

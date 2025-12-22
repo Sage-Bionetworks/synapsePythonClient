@@ -83,14 +83,12 @@ class TestSubmissionStatus:
             id=SUBMISSION_STATUS_ID,
             status=STATUS,
             entity_id=ENTITY_ID,
-            evaluation_id=EVALUATION_ID,
         )
 
         # THEN the SubmissionStatus should have the expected attributes
         assert submission_status.id == SUBMISSION_STATUS_ID
         assert submission_status.status == STATUS
         assert submission_status.entity_id == ENTITY_ID
-        assert submission_status.evaluation_id == EVALUATION_ID
         assert submission_status.can_cancel is False  # default value
         assert submission_status.cancel_requested is False  # default value
         assert submission_status.private_status_annotations is True  # default value
@@ -155,25 +153,17 @@ class TestSubmissionStatus:
             "synapseclient.api.evaluation_services.get_submission_status",
             new_callable=AsyncMock,
             return_value=self.get_example_submission_status_dict(),
-        ) as mock_get_status, patch(
-            "synapseclient.api.evaluation_services.get_submission",
-            new_callable=AsyncMock,
-            return_value=self.get_example_submission_dict(),
-        ) as mock_get_submission:
+        ) as mock_get_status:
             result = await submission_status.get_async(synapse_client=self.syn)
 
             # THEN the submission status should be retrieved
             mock_get_status.assert_called_once_with(
                 submission_id=SUBMISSION_STATUS_ID, synapse_client=self.syn
             )
-            mock_get_submission.assert_called_once_with(
-                submission_id=SUBMISSION_STATUS_ID, synapse_client=self.syn
-            )
 
             # AND the result should have the expected data
             assert result.id == SUBMISSION_STATUS_ID
             assert result.status == STATUS
-            assert result.evaluation_id == EVALUATION_ID
             assert result._last_persistent_instance is not None
 
     async def test_get_async_without_id(self) -> None:
@@ -196,7 +186,6 @@ class TestSubmissionStatus:
             etag=ETAG,
             status_version=STATUS_VERSION,
             status="SCORED",
-            evaluation_id=EVALUATION_ID,
         )
         submission_status._set_last_persistent_instance()
 
@@ -281,21 +270,6 @@ class TestSubmissionStatus:
         with pytest.raises(ValueError, match="missing the 'status_version' attribute"):
             submission_status.to_synapse_request(synapse_client=self.syn)
 
-    def test_to_synapse_request_missing_evaluation_id_with_annotations(self) -> None:
-        """Test to_synapse_request with annotations but missing evaluation_id."""
-        # GIVEN a SubmissionStatus with annotations but no evaluation_id
-        submission_status = SubmissionStatus(
-            id=SUBMISSION_STATUS_ID,
-            etag=ETAG,
-            status_version=STATUS_VERSION,
-            annotations={"test": "value"},
-        )
-
-        # WHEN I call to_synapse_request
-        # THEN it should raise a ValueError
-        with pytest.raises(ValueError, match="missing the 'evaluation_id' attribute"):
-            submission_status.to_synapse_request(synapse_client=self.syn)
-
     def test_to_synapse_request_valid(self) -> None:
         """Test to_synapse_request with valid attributes."""
         # GIVEN a SubmissionStatus with all required attributes
@@ -304,7 +278,6 @@ class TestSubmissionStatus:
             etag=ETAG,
             status_version=STATUS_VERSION,
             status="SCORED",
-            evaluation_id=EVALUATION_ID,
             submission_annotations={"score": 85.5},
             annotations={"internal_note": "test"},
         )
@@ -429,14 +402,12 @@ class TestSubmissionStatus:
                 etag="etag1",
                 status_version=1,
                 status="VALIDATED",
-                evaluation_id=EVALUATION_ID,
             ),
             SubmissionStatus(
                 id="456",
                 etag="etag2",
                 status_version=1,
                 status="SCORED",
-                evaluation_id=EVALUATION_ID,
             ),
         ]
 
@@ -482,7 +453,6 @@ class TestSubmissionStatus:
                 etag="etag1",
                 status_version=1,
                 status="VALIDATED",
-                evaluation_id=EVALUATION_ID,
             )
         ]
         batch_token = "previous_batch_token"

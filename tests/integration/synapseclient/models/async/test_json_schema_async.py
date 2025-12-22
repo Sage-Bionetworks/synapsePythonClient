@@ -48,18 +48,24 @@ class TestJSONSchema:
         entity_name = str(uuid.uuid4()) + name_suffix
 
         if entity_type == Project:
-            entity = await Project(name=entity_name).store_async()
+            entity = await Project(name=entity_name).store_async(
+                synapse_client=self.syn
+            )
         elif entity_type == Folder:
             folder = Folder(name=entity_name)
-            entity = await folder.store_async(parent=project_model)
+            entity = await folder.store_async(
+                parent=project_model, synapse_client=self.syn
+            )
         elif entity_type == File:
             file_fixture.name = entity_name
-            entity = await file_fixture.store_async(parent=project_model)
+            entity = await file_fixture.store_async(
+                parent=project_model, synapse_client=self.syn
+            )
         elif entity_type == Table:
             table_fixture.name = entity_name
-            entity = await table_fixture.store_async()
+            entity = await table_fixture.store_async(synapse_client=self.syn)
         elif entity_type == EntityView:
-            entity = await entity_view_fixture.store_async()
+            entity = await entity_view_fixture.store_async(synapse_client=self.syn)
         else:
             raise ValueError(f"Unsupported entity type: {entity_type}")
 
@@ -282,7 +288,7 @@ class TestJSONSchema:
                 "productPrice": 100,
             }
 
-            await created_entity.store_async()
+            await created_entity.store_async(synapse_client=self.syn)
 
             response = await created_entity.get_schema_async(synapse_client=self.syn)
             assert response.enable_derived_annotations == True
@@ -333,7 +339,7 @@ class TestJSONSchema:
                 "productDescription": 1000,
                 "productQuantity": "invalid string",
             }
-            await created_entity.store_async()
+            await created_entity.store_async(synapse_client=self.syn)
             # Ensure annotations are stored
             await asyncio.sleep(2)
 
@@ -391,7 +397,7 @@ class TestJSONSchema:
                 "productDescription": "This is a test product.",
                 "productQuantity": 100,
             }
-            await created_entity.store_async()
+            await created_entity.store_async(synapse_client=self.syn)
             # Ensure annotations are stored
             await asyncio.sleep(2)
             response = await created_entity.validate_schema_async(
@@ -463,8 +469,8 @@ class TestJSONSchema:
                 "productQuantity": "invalid string",
             }
 
-            await file_1.store_async(parent=created_entity)
-            await file_2.store_async(parent=created_entity)
+            await file_1.store_async(parent=created_entity, synapse_client=self.syn)
+            await file_2.store_async(parent=created_entity, synapse_client=self.syn)
             # Ensure annotations are stored
             await asyncio.sleep(2)
 
@@ -538,8 +544,8 @@ class TestJSONSchema:
                 "productQuantity": "invalid string",
             }
 
-            await file_1.store_async(parent=created_entity)
-            await file_2.store_async(parent=created_entity)
+            await file_1.store_async(parent=created_entity, synapse_client=self.syn)
+            await file_2.store_async(parent=created_entity, synapse_client=self.syn)
             # Ensure annotations are stored
             await asyncio.sleep(2)
 

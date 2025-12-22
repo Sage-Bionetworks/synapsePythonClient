@@ -1,13 +1,5 @@
 from dataclasses import dataclass
-from typing import (
-    TYPE_CHECKING,
-    AsyncGenerator,
-    Dict,
-    Generator,
-    Optional,
-    Protocol,
-    Union,
-)
+from typing import TYPE_CHECKING, AsyncGenerator, Generator, Optional, Protocol, Union
 
 from synapseclient import Synapse
 from synapseclient.api import evaluation_services
@@ -187,7 +179,7 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
 
     def fill_from_dict(
         self,
-        synapse_submission_bundle: Dict[str, Union[bool, str, int, Dict]],
+        synapse_submission_bundle: dict[str, Union[bool, str, int, dict]],
     ) -> "SubmissionBundle":
         """
         Converts a response from the REST API into this dataclass.
@@ -212,13 +204,6 @@ class SubmissionBundle(SubmissionBundleSynchronousProtocol):
             self.submission_status = SubmissionStatus().fill_from_dict(
                 submission_status_dict
             )
-            # Manually set evaluation_id from the submission data if available
-            if (
-                self.submission_status
-                and self.submission
-                and self.submission.evaluation_id
-            ):
-                self.submission_status.evaluation_id = self.submission.evaluation_id
         else:
             self.submission_status = None
 

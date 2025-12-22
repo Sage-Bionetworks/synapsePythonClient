@@ -139,9 +139,6 @@ class TestSubmissionBundleSync:
         assert bundle.submission_status.id == SUBMISSION_STATUS_ID
         assert bundle.submission_status.status == STATUS
         assert bundle.submission_status.entity_id == ENTITY_ID
-        assert (
-            bundle.submission_status.evaluation_id == EVALUATION_ID
-        )  # set from submission
 
         # Check submission annotations
         assert "score" in bundle.submission_status.submission_annotations
@@ -180,28 +177,6 @@ class TestSubmissionBundleSync:
         assert bundle.submission_status is not None
         assert bundle.submission_status.id == SUBMISSION_STATUS_ID
         assert bundle.submission_status.status == STATUS
-
-    def test_fill_from_dict_evaluation_id_setting(self) -> None:
-        """Test that evaluation_id is properly set from submission to submission_status."""
-        # GIVEN a bundle response where submission_status doesn't have evaluation_id
-        submission_dict = self.get_example_submission_dict()
-        status_dict = self.get_example_submission_status_dict()
-        # Remove evaluation_id from status_dict to simulate API response
-        status_dict.pop("evaluationId", None)
-
-        bundle_data = {
-            "submission": submission_dict,
-            "submissionStatus": status_dict,
-        }
-
-        # WHEN I fill a SubmissionBundle from the response
-        bundle = SubmissionBundle().fill_from_dict(bundle_data)
-
-        # THEN submission_status should get evaluation_id from submission
-        assert bundle.submission is not None
-        assert bundle.submission_status is not None
-        assert bundle.submission.evaluation_id == EVALUATION_ID
-        assert bundle.submission_status.evaluation_id == EVALUATION_ID
 
     def test_get_evaluation_submission_bundles(self) -> None:
         """Test getting submission bundles for an evaluation using sync method."""
@@ -274,9 +249,6 @@ class TestSubmissionBundleSync:
             assert result[0].submission_status is not None
             assert result[0].submission_status.id == "123"
             assert result[0].submission_status.status == "RECEIVED"
-            assert (
-                result[0].submission_status.evaluation_id == EVALUATION_ID
-            )  # set from submission
 
             # Check second bundle
             assert result[1].submission is not None
@@ -377,7 +349,6 @@ class TestSubmissionBundleSync:
             assert result[0].submission_status is not None
             assert result[0].submission_status.id == "789"
             assert result[0].submission_status.status == "VALIDATED"
-            assert result[0].submission_status.evaluation_id == EVALUATION_ID
 
     def test_get_user_submission_bundles_default_params(self) -> None:
         """Test getting user submission bundles with default parameters using sync method."""

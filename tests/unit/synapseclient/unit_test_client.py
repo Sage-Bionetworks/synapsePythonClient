@@ -689,6 +689,9 @@ class TestSubmit:
             self.syn, "getEvaluation", return_value=self.eval
         )
         self.patch_get = patch.object(self.syn, "get", return_value=self.entity)
+        self.patch_get_async = patch.object(
+            self.syn, "get_async", return_value=self.entity
+        )
         self.patch_getTeam = patch.object(self.syn, "getTeam", return_value=self.team)
         self.patch_get_contributors = patch.object(
             self.syn,
@@ -699,6 +702,7 @@ class TestSubmit:
         self.mock_private_submit = self.patch_private_submit.start()
         self.mock_getEvaluation = self.patch_getEvaluation.start()
         self.mock_get = self.patch_get.start()
+        self.mock_get_async = self.patch_get_async.start()
         self.mock_getTeam = self.patch_getTeam.start()
         self.mock_get_contributors = self.patch_get_contributors.start()
 
@@ -706,6 +710,7 @@ class TestSubmit:
         self.patch_private_submit.stop()
         self.patch_getEvaluation.stop()
         self.patch_get.stop()
+        self.patch_get_async.stop()
         self.patch_getTeam.stop()
         self.patch_get_contributors.stop()
 
@@ -737,7 +742,9 @@ class TestSubmit:
         self.mock_private_submit.assert_called_once_with(
             expected_request_body, self.entity["etag"], self.eligibility_hash
         )
-        self.mock_get.assert_called_once_with(self.entity["id"], downloadFile=False)
+        self.mock_get_async.assert_called_once_with(
+            self.entity["id"], downloadFile=False
+        )
         self.mock_getTeam.assert_not_called()
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
 
@@ -831,7 +838,7 @@ class TestSubmit:
             "submitterAlias": self.team["name"],
         }
         with patch.object(
-            self.syn, "get", return_value=docker_entity
+            self.syn, "get_async", return_value=docker_entity
         ) as patch_syn_get, patch.object(
             self.syn, "_get_docker_digest", return_value=docker_digest
         ) as patch_get_digest, patch.object(
@@ -1165,7 +1172,7 @@ class TestCheckEntityRestrictions:
         self.syn.credentials = SynapseAuthTokenCredentials(token="abc", username="def")
 
     def test_check_entity_restrictions_no_unmet_restriction(self) -> None:
-        with patch("logging.Logger.warning") as mocked_warn:
+        with patch.object(self.syn.logger, "warning") as mocked_warn:
             bundle = {
                 "entity": {
                     "id": "syn123",
@@ -1182,7 +1189,7 @@ class TestCheckEntityRestrictions:
     def test_check_entity_restrictions_unmet_restriction_entity_file_with_download_file_is_true(
         self,
     ) -> None:
-        with patch("logging.Logger.warning") as mocked_warn:
+        with patch.object(self.syn.logger, "warning") as mocked_warn:
             bundle = {
                 "entity": {
                     "id": "syn123",
@@ -1206,7 +1213,7 @@ class TestCheckEntityRestrictions:
     def test_check_entity_restrictions_unmet_restriction_entity_project_with_download_file_is_true(
         self,
     ) -> None:
-        with patch("logging.Logger.warning") as mocked_warn:
+        with patch.object(self.syn.logger, "warning") as mocked_warn:
             bundle = {
                 "entity": {
                     "id": "syn123",
@@ -1229,7 +1236,7 @@ class TestCheckEntityRestrictions:
     def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true_and_no_token(
         self,
     ) -> None:
-        with patch("logging.Logger.warning") as mocked_warn:
+        with patch.object(self.syn.logger, "warning") as mocked_warn:
             bundle = {
                 "entity": {
                     "id": "syn123",
@@ -1252,7 +1259,7 @@ class TestCheckEntityRestrictions:
     def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true_and_no_credentials(
         self,
     ) -> None:
-        with patch("logging.Logger.warning") as mocked_warn:
+        with patch.object(self.syn.logger, "warning") as mocked_warn:
             bundle = {
                 "entity": {
                     "id": "syn123",
@@ -1275,7 +1282,7 @@ class TestCheckEntityRestrictions:
     def test_check_entity_restrictions_unmet_restriction_entity_folder_with_download_file_is_true(
         self,
     ) -> None:
-        with patch("logging.Logger.warning") as mocked_warn:
+        with patch.object(self.syn.logger, "warning") as mocked_warn:
             bundle = {
                 "entity": {
                     "id": "syn123",
@@ -1298,7 +1305,7 @@ class TestCheckEntityRestrictions:
     def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False(
         self,
     ) -> None:
-        with patch("logging.Logger.warning") as mocked_warn:
+        with patch.object(self.syn.logger, "warning") as mocked_warn:
             bundle = {
                 "entity": {
                     "id": "syn123",
@@ -1673,14 +1680,16 @@ class TestCreateS3StorageLocation:
     ) -> None:
         with patch.object(self.syn, "restPOST") as mock_post, patch.object(
             self.syn, "setStorageLocation"
-        ) as mock_set_storage_location, patch.object(self.syn, "store") as syn_store:
+        ) as mock_set_storage_location, patch.object(
+            self.syn, "store_async"
+        ) as syn_store:
             mock_post.return_value = {"storageLocationId": 456}
             mock_set_storage_location.return_value = {"id": "foo"}
 
             # either passed a folder or expected to create one
             expected_folder = kwargs.get("folder")
             if not expected_folder:
-                expected_folder = syn_store.return_value = Mock()
+                expected_folder = syn_store.return_value = AsyncMock()
 
             result = self.syn.create_s3_storage_location(*args, **kwargs)
 
@@ -2730,7 +2739,7 @@ def test_store__409_processed_as_update(syn: Synapse) -> None:
     ) as mock_set_annotations, patch.object(
         Entity, "create"
     ), patch.object(
-        syn, "get"
+        syn, "get_async"
     ):
         mock_get_entity_bundle.side_effect = [None, returned_bundle]
         mock_createEntity.side_effect = SynapseHTTPError(
@@ -3041,7 +3050,7 @@ def test_get_submission_with_annotations(syn: Synapse) -> None:
     }
 
     with patch.object(syn, "restGET") as restGET, patch.object(
-        syn, "_getWithEntityBundle"
+        syn, "_getWithEntityBundle_async"
     ) as get_entity:
         restGET.return_value = submission
         response = syn.getSubmission(submission_id)
@@ -3088,7 +3097,7 @@ def run_get_submission_test(
     }
 
     with patch.object(syn, "restGET") as restGET, patch.object(
-        syn, "_getWithEntityBundle"
+        syn, "_getWithEntityBundle_async"
     ) as get_entity:
         restGET.return_value = submission
 
@@ -3166,7 +3175,7 @@ def test_get_submission_and_submission_status_interchangeability(
     ) as get_submission_uri, patch.object(
         SubmissionStatus, "getURI"
     ) as get_status_uri, patch.object(
-        syn, "_getWithEntityBundle"
+        syn, "_getWithEntityBundle_async"
     ):
         get_submission_uri.return_value = (
             f"/evaluation/submission/{expected_submission_id}"

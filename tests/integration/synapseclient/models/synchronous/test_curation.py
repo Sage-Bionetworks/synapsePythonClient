@@ -27,7 +27,7 @@ from synapseclient.models import (
 class TestFileBasedMetadataTaskProperties:
     """Tests for the FileBasedMetadataTaskProperties class."""
 
-    async def test_fill_from_dict_and_to_synapse_request(self) -> None:
+    def test_fill_from_dict_and_to_synapse_request(self) -> None:
         # GIVEN a dictionary representing a FileBasedMetadataTaskProperties response
         response_dict = {
             "concreteType": "org.sagebionetworks.repo.model.curation.metadata.FileBasedMetadataTaskProperties",
@@ -54,7 +54,7 @@ class TestFileBasedMetadataTaskProperties:
         assert request_dict["uploadFolderId"] == "syn123456"
         assert request_dict["fileViewId"] == "syn789012"
 
-    async def test_fill_from_dict_with_none_values(self) -> None:
+    def test_fill_from_dict_with_none_values(self) -> None:
         # GIVEN a dictionary with missing optional fields
         response_dict = {
             "concreteType": "org.sagebionetworks.repo.model.curation.metadata.FileBasedMetadataTaskProperties"
@@ -67,7 +67,7 @@ class TestFileBasedMetadataTaskProperties:
         assert properties.upload_folder_id is None
         assert properties.file_view_id is None
 
-    async def test_to_synapse_request_with_partial_data(self) -> None:
+    def test_to_synapse_request_with_partial_data(self) -> None:
         # GIVEN a FileBasedMetadataTaskProperties with only some fields set
         properties = FileBasedMetadataTaskProperties(upload_folder_id="syn123456")
 
@@ -87,7 +87,7 @@ class TestFileBasedMetadataTaskProperties:
 class TestRecordBasedMetadataTaskProperties:
     """Tests for the RecordBasedMetadataTaskProperties class."""
 
-    async def test_fill_from_dict_and_to_synapse_request(self) -> None:
+    def test_fill_from_dict_and_to_synapse_request(self) -> None:
         # GIVEN a dictionary representing a RecordBasedMetadataTaskProperties response
         response_dict = {
             "concreteType": "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties",
@@ -111,7 +111,7 @@ class TestRecordBasedMetadataTaskProperties:
         assert request_dict["concreteType"] == expected_concrete_type
         assert request_dict["recordSetId"] == "syn123456"
 
-    async def test_fill_from_dict_with_none_values(self) -> None:
+    def test_fill_from_dict_with_none_values(self) -> None:
         # GIVEN a dictionary with missing optional fields
         response_dict = {
             "concreteType": "org.sagebionetworks.repo.model.curation.metadata.RecordBasedMetadataTaskProperties"
@@ -123,7 +123,7 @@ class TestRecordBasedMetadataTaskProperties:
         # THEN the properties should handle None values correctly
         assert properties.record_set_id is None
 
-    async def test_to_synapse_request_with_none_values(self) -> None:
+    def test_to_synapse_request_with_none_values(self) -> None:
         # GIVEN a RecordBasedMetadataTaskProperties with no record set ID
         properties = RecordBasedMetadataTaskProperties()
 
@@ -238,7 +238,7 @@ class TestCurationTaskStore:
                 os.unlink(filename)
             raise
 
-    async def test_store_file_based_curation_task(
+    def test_store_file_based_curation_task(
         self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
         # GIVEN a project, folder, and entity view
@@ -274,7 +274,7 @@ class TestCurationTaskStore:
         assert stored_task.created_on is not None
         assert stored_task.created_by is not None
 
-    async def test_store_record_based_curation_task(
+    def test_store_record_based_curation_task(
         self, project_model: Project, record_set: RecordSet
     ) -> None:
         # GIVEN a project and record set
@@ -308,7 +308,7 @@ class TestCurationTaskStore:
         assert stored_task.created_on is not None
         assert stored_task.created_by is not None
 
-    async def test_store_update_existing_curation_task(
+    def test_store_update_existing_curation_task(
         self, project_model: Project, record_set: RecordSet
     ) -> None:
         # GIVEN an existing curation task
@@ -343,7 +343,7 @@ class TestCurationTaskStore:
         )
         assert stored_updated_task.task_properties.record_set_id == record_set.id
 
-    async def test_store_validation_errors(self) -> None:
+    def test_store_validation_errors(self) -> None:
         # GIVEN a CurationTask without required fields
         curation_task = CurationTask()
 
@@ -403,7 +403,7 @@ class TestCurationTaskGet:
 
         return folder, entity_view
 
-    async def test_get_curation_task(
+    def test_get_curation_task(
         self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
         # GIVEN a project, folder, and entity view
@@ -441,7 +441,7 @@ class TestCurationTaskGet:
         assert retrieved_task.created_on == original_task.created_on
         assert retrieved_task.created_by == original_task.created_by
 
-    async def test_get_validation_error(self) -> None:
+    def test_get_validation_error(self) -> None:
         # GIVEN a CurationTask without a task_id
         curation_task = CurationTask()
 
@@ -452,7 +452,7 @@ class TestCurationTaskGet:
         ):
             curation_task.get(synapse_client=self.syn)
 
-    async def test_get_non_existent_task(self) -> None:
+    def test_get_non_existent_task(self) -> None:
         # GIVEN a non-existent task ID
         curation_task = CurationTask(task_id=999999)
 
@@ -507,7 +507,7 @@ class TestCurationTaskDelete:
 
         return folder, entity_view
 
-    async def test_delete_curation_task(
+    def test_delete_curation_task(
         self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
         # GIVEN a project, folder, and entity view
@@ -536,7 +536,7 @@ class TestCurationTaskDelete:
         with pytest.raises(SynapseHTTPError):
             CurationTask(task_id=task_id).get(synapse_client=self.syn)
 
-    async def test_delete_validation_error(self) -> None:
+    def test_delete_validation_error(self) -> None:
         # GIVEN a CurationTask without a task_id
         curation_task = CurationTask()
 
@@ -593,7 +593,7 @@ class TestCurationTaskList:
 
         return folder, entity_view
 
-    async def test_list_curation_tasks(
+    def test_list_curation_tasks(
         self, project_model: Project, folder_with_view: tuple[Folder, EntityView]
     ) -> None:
         # GIVEN a project, folder, and entity view
@@ -640,7 +640,7 @@ class TestCurationTaskList:
                 assert task.created_on is not None
                 assert task.created_by is not None
 
-    async def test_list_empty_project(self) -> None:
+    def test_list_empty_project(self) -> None:
         # GIVEN a project with no curation tasks
         empty_project = Project(name=str(uuid.uuid4())).store(synapse_client=self.syn)
         self.schedule_for_cleanup(empty_project.id)
