@@ -10,7 +10,7 @@ This tutorial demonstrates how to:
 """
 
 from synapseclient import Synapse
-from synapseclient.models import Submission, SubmissionBundle, SubmissionStatus
+from synapseclient.models import SubmissionBundle, SubmissionStatus
 
 syn = Synapse()
 syn.login()
