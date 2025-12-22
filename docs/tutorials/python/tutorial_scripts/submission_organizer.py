@@ -10,7 +10,7 @@ This tutorial demonstrates how to:
 """
 
 from synapseclient import Synapse
-from synapseclient.models import SubmissionBundle, SubmissionStatus
+from synapseclient.models import Submission, SubmissionBundle, SubmissionStatus
 
 syn = Synapse()
 syn.login()
@@ -156,7 +156,7 @@ for status in cancellation_requests:
 
     # Update to allow cancellation (organizer decision)
     status.can_cancel = True
-    status.status = "CANCELLED"
+    status.status = "CLOSED"
     status.submission_annotations.update(
         {
             "cancellation_reason": ["User requested cancellation"],
