@@ -12,6 +12,8 @@ from synapseclient.annotations import from_submission_status_annotations
 from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.models import Evaluation, File, Project, Submission, SubmissionStatus
 
+# Based on API reference: https://rest-docs.synapse.org/rest/org/sagebionetworks/evaluation/model/SubmissionStatusEnum.html
+POSSIBLE_STATUSES = ["OPEN", "CLOSED", "SCORED", "RECEIVED", "VALIDATED", "INVALID", "REJECTED", "ACCEPTED", "EVALUATION_IN_PROGRESS"]
 
 class TestSubmissionStatusRetrieval:
     """Tests for retrieving SubmissionStatus objects async."""
@@ -99,8 +101,8 @@ class TestSubmissionStatusRetrieval:
         assert submission_status.id == test_submission.id
         assert submission_status.entity_id == test_submission.entity_id
         assert (
-            submission_status.status is not None
-        )  # Should have some status (e.g., "RECEIVED")
+            submission_status.status in POSSIBLE_STATUSES
+        )
         assert submission_status.etag is not None
         assert submission_status.status_version is not None
         assert submission_status.modified_on is not None
