@@ -128,4 +128,7 @@ As an organizer of a Synapse challenge, you will
 ## References
 - [Evaluation][synapseclient.models.Evaluation]
 - [File][synapseclient.models.File]
+- [Submission][synapseclient.models.Submission]
+- [SubmissionStatus][synapseclient.models.SubmissionStatus]
+- [SubmissionBundle][synapseclient.models.SubmissionBundle]
 - [syn.login][synapseclient.Synapse.login]
