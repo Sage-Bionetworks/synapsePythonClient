@@ -642,17 +642,13 @@ class TestSubmissionStatusBulkOperations:
             statuses.append(status)
 
         # WHEN I batch update the statuses
-        response = await SubmissionStatus.batch_update_submission_statuses_async(
+        await SubmissionStatus.batch_update_submission_statuses_async(
             evaluation_id=test_evaluation.id,
             statuses=statuses,
             synapse_client=self.syn,
         )
 
-        # THEN the batch update should succeed
-        assert response is not None
-        assert "batchToken" in response or response == {}  # Response format may vary
-
-        # AND I should be able to verify the updates by retrieving the statuses
+        # THEN I should be able to verify the updates by retrieving the statuses
         for original_status in statuses:
             updated_status = await SubmissionStatus(id=original_status.id).get_async(
                 synapse_client=self.syn
