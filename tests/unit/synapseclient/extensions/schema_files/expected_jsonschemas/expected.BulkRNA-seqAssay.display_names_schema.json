@@ -106,16 +106,11 @@
     },
     "File Format": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "BAM",
-            "CRAM",
-            "CSV/TSV",
-            "FASTQ"
-          ],
-          "title": "enum"
-        }
+      "enum": [
+        "BAM",
+        "CRAM",
+        "CSV/TSV",
+        "FASTQ"
       ],
       "title": "File Format"
     },
@@ -128,20 +123,11 @@
     },
     "Genome Build": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "GRCh37",
-            "GRCh38",
-            "GRCm38",
-            "GRCm39"
-          ],
-          "title": "enum"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
+      "enum": [
+        "GRCh37",
+        "GRCh38",
+        "GRCm38",
+        "GRCm39"
       ],
       "title": "Genome Build"
     },

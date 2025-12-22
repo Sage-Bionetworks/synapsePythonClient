@@ -2,6 +2,13 @@
 
 from synapseclient.models.mixins.access_control import AccessControllable
 from synapseclient.models.mixins.asynchronous_job import AsynchronousCommunicator
+from synapseclient.models.mixins.form import (
+    FormChangeRequest,
+    FormData,
+    FormGroup,
+    FormSubmissionStatus,
+    StateEnum,
+)
 from synapseclient.models.mixins.json_schema import (
     BaseJSONSchema,
     CausingException,
@@ -28,4 +35,9 @@ __all__ = [
     "JSONSchemaValidationStatistics",
     "ValidationException",
     "CausingException",
+    "FormGroup",
+    "FormData",
+    "FormChangeRequest",
+    "FormSubmissionStatus",
+    "StateEnum",
 ]

@@ -143,22 +143,18 @@ class JSONSchemaFormat(Enum):
     RELATIVE_JSON_POINTER = "relative-json-pointer"
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 class ValidationRuleName(Enum):
     """Names of validation rules that are used to create JSON Schema"""
 
-    # list validation rule is been deprecated for use in deciding type
-    # TODO: remove list:
-    # https://sagebionetworks.jira.com/browse/SYNPY-1692
     LIST = "list"
-    # url and date rules are deprecated for adding format keyword
-    # TODO: remove url and date
-    # https://sagebionetworks.jira.com/browse/SYNPY-1685
     DATE = "date"
     URL = "url"
     REGEX = "regex"
     IN_RANGE = "inRange"
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 class RegexModule(Enum):
     """This enum are allowed modules for the regex validation rule"""
 
@@ -166,6 +162,7 @@ class RegexModule(Enum):
     MATCH = "match"
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 @dataclass
 class ValidationRule:
     """
@@ -182,17 +179,12 @@ class ValidationRule:
     parameters: Optional[list[str]] = None
 
 
+# TODO: remove: https://sagebionetworks.jira.com/browse/SYNPY-1724
 _VALIDATION_RULES = {
-    # list validation rule is been deprecated for use in deciding type
-    # TODO: remove list:
-    # https://sagebionetworks.jira.com/browse/SYNPY-1692
     "list": ValidationRule(
         name=ValidationRuleName.LIST,
         incompatible_rules=[],
     ),
-    # url and date rules are deprecated for adding format keyword
-    # TODO: remove url and date
-    # https://sagebionetworks.jira.com/browse/SYNPY-1685
     "date": ValidationRule(
         name=ValidationRuleName.DATE,
         incompatible_rules=[
@@ -659,6 +651,7 @@ class DataModelCSVParser:
         # Check for presence of optional columns
         model_includes_column_type = "columnType" in model_df.columns
         model_includes_format = "Format" in model_df.columns
+        model_includes_pattern = "Pattern" in model_df.columns
 
         # Build attribute/relationship dictionary
         relationship_types = self.required_headers
@@ -685,6 +678,24 @@ class DataModelCSVParser:
             if model_includes_format:
                 format_dict = self.parse_format(attr)
                 attr_rel_dictionary[attribute_name]["Relationships"].update(format_dict)
+
+            if "Minimum" in model_df.columns:
+                minimum_dict = self.parse_minimum_maximum(attr, "Minimum")
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    minimum_dict
+                )
+
+            if "Maximum" in model_df.columns:
+                maximum_dict = self.parse_minimum_maximum(attr, "Maximum")
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    maximum_dict
+                )
+
+            if model_includes_pattern:
+                pattern_dict = self.parse_pattern(attr)
+                attr_rel_dictionary[attribute_name]["Relationships"].update(
+                    pattern_dict
+                )
         return attr_rel_dictionary
 
     def parse_column_type(self, attr: dict) -> dict:
@@ -717,6 +728,47 @@ class DataModelCSVParser:
 
         return {"ColumnType": column_type}
 
+    def parse_minimum_maximum(
+        self, attr: dict, relationship: str
+    ) -> dict[str, Union[float, int]]:
+        """Parse minimum/maximum value for a given attribute.
+
+        Args:
+            attr: single row of a csv model in dict form, where only the required
+              headers are keys. Values are the entries under each header.
+            relationship: either "Minimum" or "Maximum"
+        Returns:
+            dict[str, Union[float, int]]: A dictionary containing the parsed minimum/maximum value
+            if present else an empty dict
+        """
+        from numbers import Number
+
+        from pandas import isna
+
+        value = attr.get(relationship)
+
+        # If maximum and minimum are not specified, we don't want to add any entry to the dictionary
+        if isna(value):
+            return {}
+
+        # Validate that the value is numeric
+        if not isinstance(value, Number) or isinstance(value, bool):
+            raise ValueError(
+                f"The {relationship} value: {attr[relationship]} is not numeric, "
+                "please correct this value in the data model."
+            )
+
+        # if both maximum and minimum are present, check if maximum > minimum
+        if attr.get("Minimum") and attr.get("Maximum"):
+            maximum = attr.get("Maximum")
+            minimum = attr.get("Minimum")
+            if maximum < minimum:
+                raise ValueError(
+                    f"The Maximum value: {maximum} must be greater than the Minimum value: {minimum}"
+                )
+
+        return {relationship: value}
+
     def parse_format(self, attribute_dict: dict) -> dict[str, str]:
         """Finds the format value if it exists and returns it as a dictionary.
 
@@ -744,6 +796,26 @@ class DataModelCSVParser:
         )
 
         return {"Format": format_string}
+
+    def parse_pattern(self, attribute_dict: dict) -> dict[str, str]:
+        """Finds the pattern value if it exists and returns it as a dictionary.
+
+        Args:
+            attribute_dict: The attribute dictionary.
+        Returns:
+            A dictionary containing the pattern value if it exists
+            else an empty dict
+        """
+        from pandas import isna
+
+        pattern_value = attribute_dict.get("Pattern")
+
+        if isna(pattern_value):
+            return {}
+
+        pattern_string = str(pattern_value).strip()
+
+        return {"Pattern": pattern_string}
 
     def parse_csv_model(
         self,
@@ -1762,6 +1834,27 @@ class DataModelGraphExplorer:
                 raise ValueError(msg)
         return column_type
 
+    def get_node_column_pattern(
+        self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
+    ) -> Optional[str]:
+        """Gets the regex pattern of the node
+
+        Args:
+            node_label: The label of the node to get the type from
+            node_display_name: The display name of the node to get the type from
+
+        Raises:
+            ValueError: If the value from the node is not allowed
+
+        Returns:
+            The column pattern of the node if it has one, otherwise None
+        """
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value("pattern", "node_label")
+        pattern = self.graph.nodes[node_label][rel_node_label]
+
+        return pattern
+
     def get_node_format(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
     ) -> Optional[JSONSchemaFormat]:
@@ -1770,9 +1863,6 @@ class DataModelGraphExplorer:
         Args:
             node_label: The label of the node to get the format from
             node_display_name: The display name of the node to get the format from
-
-        Raises:
-            ValueError: If the value from the node is not allowed
 
         Returns:
             The format of the node if it has one, otherwise None
@@ -1783,15 +1873,32 @@ class DataModelGraphExplorer:
         if format_value is None:
             return format_value
         format_string = str(format_value).lower()
-        try:
-            column_type = JSONSchemaFormat(format_string)
-        except ValueError as exc:
-            msg = (
-                f"Node: '{node_label}' had illegal format value: '{format_value}'. "
-                f"Allowed values are: [{[member.value for member in JSONSchemaFormat]}]"
-            )
-            raise ValueError(msg) from exc
+        column_type = JSONSchemaFormat(format_string)
         return column_type
+
+    def get_node_maximum_minimum_value(
+        self,
+        relationship_value: str,
+        node_label: Optional[str] = None,
+        node_display_name: Optional[str] = None,
+    ) -> Union[int, float]:
+        """Gets the maximum and minimum value of the node
+
+        Args:
+            relationship_value: The relationship value (either maximum or minimum) to get the maximum or minimum from
+            node_label: The label of the node to get the format from
+            node_display_name: The display name of the node to get the format from
+
+        Returns:
+            The maximum or minimum value of the node
+        """
+
+        node_label = self._get_node_label(node_label, node_display_name)
+        rel_node_label = self.dmr.get_relationship_value(
+            relationship_value, "node_label"
+        )
+        value = self.graph.nodes[node_label][rel_node_label]
+        return value
 
     def _get_node_label(
         self, node_label: Optional[str] = None, node_display_name: Optional[str] = None
@@ -1864,6 +1971,9 @@ class PropertyTemplate:
     )
     magic_validationRules: list = field(
         default_factory=list, metadata=config(field_name="sms:validationRules")
+    )
+    magic_pattern: list = field(
+        default_factory=list, metadata=config(field_name="sms:pattern")
     )
 
 
@@ -2764,6 +2874,7 @@ class DataModelRelationships:
             allowed_values: A list of values the entry must be  one of
             edge_dir: str, 'in'/'out' is the edge an in or out edge. Define for edge relationships
             jsonld_dir: str, 'in'/out is the direction in or out in the JSONLD.
+            pattern: regex pattern that the entry must match
         """
         map_data_model_relationships = {
             "displayName": {
@@ -2920,6 +3031,33 @@ class DataModelRelationships:
                 "edge_rel": False,
                 "node_attr_dict": {"default": None},
                 "allowed_values": [member.value for member in JSONSchemaFormat],
+            },
+            "maximum": {
+                "jsonld_key": "sms:maximum",
+                "csv_header": "Maximum",
+                "node_label": "maximum",
+                "type": Union[float, int],
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+            },
+            "minimum": {
+                "jsonld_key": "sms:minimum",
+                "csv_header": "Minimum",
+                "node_label": "minimum",
+                "type": Union[float, int],
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
+            },
+            "pattern": {
+                "jsonld_key": "sms:pattern",
+                "csv_header": "Pattern",
+                "node_label": "pattern",
+                "type": str,
+                "required_header": False,
+                "edge_rel": False,
+                "node_attr_dict": {"default": None},
             },
         }
 
@@ -3883,9 +4021,11 @@ def export_schema(schema: dict, file_path: str, logger: Logger) -> None:
         filepath, str: path to store the schema
     """
     file_path = os.path.expanduser(file_path)
-    json_schema_dirname = os.path.dirname(file_path)
-    if json_schema_dirname != "":
-        os.makedirs(json_schema_dirname, exist_ok=True)
+    # Don't create directories if the path looks like a URL
+    if not (file_path.startswith("http://") or file_path.startswith("https://")):
+        json_schema_dirname = os.path.dirname(file_path)
+        if json_schema_dirname != "":
+            os.makedirs(json_schema_dirname, exist_ok=True)
     with open(file_path, "w", encoding="utf-8") as json_file:
         json.dump(schema, json_file, sort_keys=True, indent=4, ensure_ascii=False)
 
@@ -4204,6 +4344,10 @@ def check_for_conflicting_inputted_rules(inputted_rules: list[str]) -> None:
             raise ValueError(msg)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_rule_from_inputted_rules(
     rule_name: ValidationRuleName, inputted_rules: list[str]
 ) -> Optional[str]:
@@ -4229,6 +4373,10 @@ def get_rule_from_inputted_rules(
     return inputted_rules[0]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_in_range_parameters_from_inputted_rule(
     inputted_rule: str,
 ) -> tuple[Optional[float], Optional[float]]:
@@ -4260,6 +4408,10 @@ def get_in_range_parameters_from_inputted_rule(
     return (minimum, maximum)
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def get_regex_parameters_from_inputted_rule(
     inputted_rule: str,
 ) -> Optional[str]:
@@ -4329,6 +4481,10 @@ def get_names_from_inputted_rules(inputted_rules: list[str]) -> list[str]:
     return [_get_name_from_inputted_rule(rule) for rule in inputted_rules]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_parameters_from_inputted_rule(inputted_rule: str) -> Optional[dict[str, str]]:
     """Creates a dictionary of parameters and values from an input rule string
 
@@ -4349,6 +4505,10 @@ def _get_parameters_from_inputted_rule(inputted_rule: str) -> Optional[dict[str,
     return None
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_name_from_inputted_rule(inputted_rule: str) -> str:
     """Gets the name from an inputted rule
 
@@ -4361,6 +4521,10 @@ def _get_name_from_inputted_rule(inputted_rule: str) -> str:
     return inputted_rule.split(" ")[0]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
     """Gets a list of ValidationRules by name if they exist
 
@@ -4382,6 +4546,10 @@ def _get_rules_by_names(names: list[str]) -> list[ValidationRule]:
     return [rule for rule in rule_dict.values() if rule is not None]
 
 
+@deprecated(
+    version="4.11.0",
+    reason="This function is going to be deprecated. Use of validation rules will be removed in the future.",
+)
 def _get_validation_rule_based_fields(
     validation_rules: list[str],
     explicit_is_array: Optional[bool],
@@ -4547,6 +4715,13 @@ def _get_validation_rule_based_fields(
             js_minimum, js_maximum = get_in_range_parameters_from_inputted_rule(
                 in_range_rule
             )
+            msg = (
+                f"An inRange validation rule is set for property: {name}, "
+                "setting minimum and maximum values accordingly. "
+                "This behavior is deprecated and validation rules will no longer "
+                "be used in the future. Please use Minimum and Maximum columns in the data model instead. To use minimum and/or maximum values, you must set columnType to one of: 'integer', 'number', or 'integer_list'."
+            )
+            logger.warning(msg)
 
         regex_rule = get_rule_from_inputted_rules(
             ValidationRuleName.REGEX, validation_rules
@@ -4632,48 +4807,147 @@ class TraversalNode:  # pylint: disable=too-many-instance-attributes
         column_type = self.dmge.get_node_column_type(
             node_display_name=self.display_name
         )
-        # list validation rule is been deprecated for use in deciding type
-        # TODO: set self.is_array here instead of return from _get_validation_rule_based_fields
-        # https://sagebionetworks.jira.com/browse/SYNPY-1692
-        if isinstance(column_type, AtomicColumnType):
-            self.type = column_type
-            explicit_is_array = False
-        elif isinstance(column_type, ListColumnType):
-            self.type = LIST_TYPE_DICT[column_type]
-            explicit_is_array = True
-        else:
-            self.type = None
-            explicit_is_array = None
+        maximum = self.dmge.get_node_maximum_minimum_value(
+            relationship_value="maximum", node_display_name=self.display_name
+        )
+        minimum = self.dmge.get_node_maximum_minimum_value(
+            relationship_value="minimum", node_display_name=self.display_name
+        )
+        pattern = self.dmge.get_node_column_pattern(node_display_name=self.display_name)
+        format = self.dmge.get_node_format(node_display_name=self.display_name)
 
-        # url and date rules are deprecated for adding format keyword
-        # TODO: set self.format here instead of passing it to get_validation_rule_based_fields
-        # https://sagebionetworks.jira.com/browse/SYNPY-1685
-        explicit_format = self.dmge.get_node_format(node_display_name=self.display_name)
-        if explicit_format:
-            if column_type not in (ListColumnType.STRING_LIST, AtomicColumnType.STRING):
-                msg = (
-                    f"A format value (current value: {explicit_format.value}) "
-                    f"is set for property: {self.name}, but columnType is not a string type "
-                    f"(current value: {column_type.value}). "
-                    "To use a format value the columnType must be set to one of: "
-                    "[string, string_list] "
-                )
-                raise ValueError(msg)
+        self.type, explicit_is_array = self._determine_type_and_array(column_type)
 
+        self._validate_column_type_compatibility(
+            maximum=maximum, minimum=minimum, pattern=pattern, format=format
+        )
+
+        # TODO: refactor to not use _get_validation_rule_based_fields https://sagebionetworks.jira.com/browse/SYNPY-1724
         (
             self.is_array,
             self.format,
-            self.minimum,
-            self.maximum,
-            self.pattern,
+            implicit_minimum,
+            implicit_maximum,
+            implicit_pattern,
         ) = _get_validation_rule_based_fields(
             validation_rules=validation_rules,
             explicit_is_array=explicit_is_array,
-            explicit_format=explicit_format,
+            explicit_format=format,
             name=self.name,
             column_type=self.type,
             logger=self.logger,
         )
+
+        # Priority: explicit values from data model take precedence over validation rules
+        # Only use validation rule values if explicit values are not set
+        self.minimum = minimum if minimum is not None else implicit_minimum
+        self.maximum = maximum if maximum is not None else implicit_maximum
+
+        self.pattern = pattern if pattern else implicit_pattern
+
+        if implicit_pattern and not pattern:
+            msg = (
+                f"A regex validation rule is set for property: {self.name}, but the pattern is not set in the data model. "
+                f"The regex pattern will be set to {self.pattern}, but the regex rule is deprecated and validation "
+                "rules will no longer be used in the future. "
+                "Please explicitly set the regex pattern in the 'Pattern' column in the data model."
+            )
+            self.logger.warning(msg)
+
+        if self.pattern:
+            try:
+                re.compile(self.pattern)
+            except re.error as e:
+                raise SyntaxError(
+                    f"The regex pattern '{self.pattern}' for property '{self.name}' is invalid."
+                ) from e
+
+    def _determine_type_and_array(
+        self, column_type: Optional[ColumnType]
+    ) -> tuple[Optional[AtomicColumnType], Optional[bool]]:
+        """Determine the JSON Schema type and array from columnType
+
+        Args:
+            column_type: The columnType from the data model
+
+        Returns:
+            Tuple of (type, explicit_is_array)
+        """
+        if isinstance(column_type, AtomicColumnType):
+            return column_type, False
+        elif isinstance(column_type, ListColumnType):
+            return LIST_TYPE_DICT[column_type], True
+        else:
+            return None, None
+
+    def _validate_column_type_compatibility(
+        self,
+        maximum: Union[int, float, None],
+        minimum: Union[int, float, None],
+        pattern: Optional[str] = None,
+        format: Optional[JSONSchemaFormat] = None,
+    ) -> None:
+        """Validate that columnType is compatible with JSONSchema constraints.
+
+
+        Arguments:
+            maximum: The maximum value constraint from the data model.
+            minimum: The minimum value constraint from the data model.
+            pattern: The regex pattern constraint from the data model.
+            format: The format constraint from the data model.
+
+        Raises:
+            ValueError: If a constraint is set, but the columnType is incompatible with that constraint.
+
+        Returns:
+            None: This method performs validation only and doesn't return a value.
+                It raises ValueError if validation fails.
+        """
+        keyword_types_dict = {
+            "pattern": {
+                "value": pattern,
+                "types": [
+                    AtomicColumnType.STRING.value,
+                    ListColumnType.STRING_LIST.value,
+                ],
+            },
+            "format": {
+                "value": format.value if format else None,
+                "types": [
+                    AtomicColumnType.STRING.value,
+                    ListColumnType.STRING_LIST.value,
+                ],
+            },
+            "minimum": {
+                "value": minimum,
+                "types": [
+                    AtomicColumnType.NUMBER.value,
+                    AtomicColumnType.INTEGER.value,
+                    ListColumnType.INTEGER_LIST.value,
+                ],
+            },
+            "maximum": {
+                "value": maximum,
+                "types": [
+                    AtomicColumnType.NUMBER.value,
+                    AtomicColumnType.INTEGER.value,
+                    ListColumnType.INTEGER_LIST.value,
+                ],
+            },
+        }
+
+        for keyword, keyword_dict in keyword_types_dict.items():
+            if (
+                keyword_dict["value"] is not None
+                and self.type.value not in keyword_dict["types"]
+            ):
+                types = keyword_dict["types"]
+                msg = (
+                    f"For attribute '{self.display_name}': columnType is '{self.type.value}' "
+                    f"but {keyword} constraint (value: {keyword_dict['value']}) "
+                    f"is specified. Please set columnType to one of: {types}."
+                )
+                raise ValueError(msg)
 
 
 @dataclass
@@ -5121,10 +5395,8 @@ def _create_enum_property(
 
     Example:
         {
-            "oneOf": [
-                {"enum": ["enum1"], "title": "enum"},
-                {"type": "null", "title": "null"},
-            ],
+            "enum": ["enum1", "enum2"],
+            "title": "enum"
         }
 
     Arguments:
@@ -5139,10 +5411,8 @@ def _create_enum_property(
         valid_values = node.valid_values
 
     enum_property: Property = {}
-    one_of_list = [{"enum": valid_values, "title": "enum"}]
-    if not node.is_required:
-        one_of_list += [{"type": "null", "title": "null"}]
-    enum_property["oneOf"] = one_of_list
+    enum_property["enum"] = valid_values
+    enum_property["title"] = "enum"
 
     return enum_property
 
@@ -5153,10 +5423,8 @@ def _create_simple_property(node: TraversalNode) -> Property:
 
     Example:
         {
-            "oneOf": [
-                {"type": "string", "title": "string"},
-                {"type": "null", "title": "null"},
-            ],
+            "title": "String",
+            "type": "string"
         }
 
     Arguments:
@@ -5168,13 +5436,7 @@ def _create_simple_property(node: TraversalNode) -> Property:
     prop: Property = {}
 
     if node.type:
-        if node.is_required:
-            prop["type"] = node.type.value
-        else:
-            prop["oneOf"] = [
-                {"type": node.type.value, "title": node.type.value},
-                {"type": "null", "title": "null"},
-            ]
+        prop["type"] = node.type.value
     elif node.is_required:
         prop["not"] = {"type": "null"}
 
@@ -5233,10 +5495,12 @@ def _set_property(
         else:
             prop = _create_simple_property(node)
 
+    if node.pattern:
+        prop["pattern"] = node.pattern
+
     prop["description"] = node.description
     prop["title"] = node.display_name
     schema_property = {node_name: prop}
-
     json_schema.update_property(schema_property)
 
     if node.is_required:
@@ -5296,6 +5560,14 @@ def get_json_schema_log_file_path(data_model_path: str, source_node: str) -> str
     Returns:
         json_schema_log_file_path: str, file name for the log file
     """
+    # If it's a URL, extract just the filename
+    if data_model_path.startswith("http://") or data_model_path.startswith("https://"):
+        from urllib.parse import urlparse
+
+        parsed_url = urlparse(data_model_path)
+        # Get the last part of the path (filename)
+        data_model_path = os.path.basename(parsed_url.path)
+
     data_model_path_root, _ = os.path.splitext(data_model_path)
     prefix = data_model_path_root
     prefix_root, prefix_ext = os.path.splitext(prefix)
@@ -5420,7 +5692,11 @@ def _write_data_model(
             data_model_path=jsonld_path, source_node=name
         )
         json_schema_dirname = os.path.dirname(json_schema_path)
-        if json_schema_dirname != "":
+        # Don't create directories if the path looks like a URL
+        if json_schema_dirname != "" and not (
+            json_schema_path.startswith("http://")
+            or json_schema_path.startswith("https://")
+        ):
             os.makedirs(json_schema_dirname, exist_ok=True)
 
         logger.info(
@@ -5499,7 +5775,20 @@ class JsonSchemaComponentGenerator:
         """
 
         stripped_component = self.component.replace(" ", "")
-        data_model_basename = Path(self.data_model_source).stem
+
+        # Handle URL by extracting just the filename
+        if self.data_model_source.startswith(
+            "http://"
+        ) or self.data_model_source.startswith("https://"):
+            from urllib.parse import urlparse
+
+            parsed_url = urlparse(self.data_model_source)
+            # Get the last part of the path (filename)
+            filename = os.path.basename(parsed_url.path)
+            data_model_basename = Path(filename).stem
+        else:
+            data_model_basename = Path(self.data_model_source).stem
+
         return Path(
             output_directory,
             data_model_basename,
@@ -5553,6 +5842,7 @@ class JsonSchemaComponentGenerator:
             schema_name=self.component + "_validation",
             jsonld_path=metadata_model.inputMModelLocation,
             use_property_display_names=use_display_names,
+            write_schema=False,  # Don't write intermediate files; write_json_schema_to_file() will handle final output
         )
         self.component_json_schema = json_schema
 
@@ -5614,12 +5904,12 @@ def generate_jsonschema(
     in your validation rules. This allows different validation behavior per manifest type.
 
     Arguments:
-        data_model_source: Path to the data model file (CSV or JSONLD) or URL to the raw
-            JSONLD. Can accept:
+        data_model_source: Path or URL to the data model file (CSV or JSONLD). Can accept:
 
-            - A CSV file with your data model specification (will be parsed automatically)
-            - A JSONLD file generated from `generate_jsonld()` or equivalent
-            - A URL pointing to a raw JSONLD data model
+            - A local CSV file with your data model specification (will be parsed automatically)
+            - A local JSONLD file generated from `generate_jsonld()` or equivalent
+            - A URL pointing to a raw CSV data model (e.g., from GitHub)
+            - A URL pointing to a raw JSONLD data model (e.g., from GitHub)
         output_directory: Directory path where JSON Schema files will be saved. Each
             component will generate a separate `<Component>_validation_schema.json` file.
         data_type: List of specific component names (data types) to generate schemas for.
@@ -5669,13 +5959,25 @@ def generate_jsonschema(
         )
         ```
 
-        Generate schema for specific components:
+        Generate schema for specific components from URL:
 
         ```python
         schemas, file_paths = generate_jsonschema(
             data_model_source="https://example.com/model.jsonld",
             output_directory="./validation_schemas",
             data_type=["Patient", "Biospecimen"],
+            data_model_labels="class_label",
+            synapse_client=syn
+        )
+        ```
+
+        Generate schema from CSV URL:
+
+        ```python
+        schemas, file_paths = generate_jsonschema(
+            data_model_source="https://raw.githubusercontent.com/org/repo/main/model.csv",
+            output_directory="./schemas",
+            data_type=None,
             data_model_labels="class_label",
             synapse_client=syn
         )
@@ -5734,8 +6036,9 @@ def generate_jsonld(
     - Verifies the graph structure is a valid directed acyclic graph (DAG)
 
     Arguments:
-        schema: Path to your data model CSV file. This file should contain your complete
-            data model specification with all attributes, validation rules, and relationships.
+        schema: Path or URL to your data model CSV file. Can be a local file path or a URL
+            (e.g., from GitHub). This file should contain your complete data model
+            specification with all attributes, validation rules, and relationships.
         data_model_labels: Label format for the JSON-LD output:
 
             - `"class_label"` (default, recommended): Uses standard attribute names as labels
@@ -5796,6 +6099,16 @@ def generate_jsonld(
             synapse_client=syn
         )
         ```
+
+        Load from URL:
+        ```python
+        jsonld_model = generate_jsonld(
+            schema="https://raw.githubusercontent.com/org/repo/main/model.csv",
+            data_model_labels="class_label",
+            output_jsonld="downloaded_model.jsonld",
+            synapse_client=syn
+        )
+        ```
     """
     syn = Synapse.get_client(synapse_client=synapse_client)
 
@@ -5847,7 +6160,14 @@ def generate_jsonld(
     # output JSON-LD file alongside CSV file by default, get path.
     if output_jsonld is None:
         if ".jsonld" not in schema:
-            csv_no_ext = re.sub("[.]csv$", "", schema)
+            # If schema is a URL, extract just the filename for local output
+            schema_path = schema
+            if schema.startswith("http://") or schema.startswith("https://"):
+                from urllib.parse import urlparse
+
+                parsed_url = urlparse(schema)
+                schema_path = os.path.basename(parsed_url.path)
+            csv_no_ext = re.sub("[.]csv$", "", schema_path)
             output_jsonld = csv_no_ext + ".jsonld"
         else:
             output_jsonld = schema

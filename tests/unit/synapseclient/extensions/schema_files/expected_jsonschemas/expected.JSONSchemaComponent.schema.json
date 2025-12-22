@@ -18,35 +18,21 @@
     },
     "Enum": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "ab",
-            "cd",
-            "ef",
-            "gh"
-          ],
-          "title": "enum"
-        }
+      "enum": [
+        "ab",
+        "cd",
+        "ef",
+        "gh"
       ],
       "title": "Enum"
     },
     "EnumNotRequired": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "enum": [
-            "ab",
-            "cd",
-            "ef",
-            "gh"
-          ],
-          "title": "enum"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
+      "enum": [
+        "ab",
+        "cd",
+        "ef",
+        "gh"
       ],
       "title": "Enum Not Required"
     },
@@ -66,16 +52,16 @@
       "items": {
         "type": "string"
       },
-      "type": "array",
-      "title": "List"
+      "title": "List",
+      "type": "array"
     },
     "ListBoolean": {
       "description": "TBD",
       "items": {
         "type": "boolean"
       },
-      "type": "array",
-      "title": "List Boolean"
+      "title": "List Boolean",
+      "type": "array"
     },
     "ListEnum": {
       "description": "TBD",
@@ -88,8 +74,8 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "List Enum"
+      "title": "List Enum",
+      "type": "array"
     },
     "ListEnumNotRequired": {
       "description": "TBD",
@@ -102,26 +88,26 @@
         ],
         "type": "string"
       },
-      "type": "array",
-      "title": "List Enum Not Required"
+      "title": "List Enum Not Required",
+      "type": "array"
     },
     "ListInRange": {
       "description": "TBD",
       "items": {
-        "maximum": 100,
-        "minimum": 50,
+        "maximum": 100.0,
+        "minimum": 50.0,
         "type": "integer"
       },
-      "type": "array",
-      "title": "List InRange"
+      "title": "List InRange",
+      "type": "array"
     },
     "ListNotRequired": {
       "description": "TBD",
       "items": {
         "type": "string"
       },
-      "type": "array",
-      "title": "List Not Required"
+      "title": "List Not Required",
+      "type": "array"
     },
     "NoRules": {
       "description": "TBD",
@@ -147,17 +133,8 @@
     },
     "StringNotRequired": {
       "description": "TBD",
-      "oneOf": [
-        {
-          "title": "string",
-          "type": "string"
-        },
-        {
-          "title": "null",
-          "type": "null"
-        }
-      ],
-      "title": "String Not Required"
+      "title": "String Not Required",
+      "type": "string"
     },
     "URL": {
       "description": "TBD",

@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from typing import Any, Optional
+from unittest import mock
 from unittest.mock import Mock
 
 import pytest
@@ -16,10 +17,13 @@ from jsonschema.exceptions import ValidationError
 from synapseclient.extensions.curator.schema_generation import (
     AtomicColumnType,
     ColumnType,
+    DataModelGraph,
     DataModelGraphExplorer,
+    DataModelParser,
     GraphTraversalState,
     JSONSchema,
     JSONSchemaFormat,
+    ListColumnType,
     TraversalNode,
     _create_array_property,
     _create_enum_array_property,
@@ -32,11 +36,6 @@ from synapseclient.extensions.curator.schema_generation import (
     _write_data_model,
     create_json_schema,
 )
-
-# pylint: disable=protected-access
-# pylint: disable=too-many-arguments
-# pylint: disable=too-many-positional-arguments
-
 
 # Test data paths
 TEST_DATA_BASE_PATH = "tests/unit/synapseclient/extensions"
@@ -100,6 +99,8 @@ def fixture_test_nodes(
         "EnumNotRequired",
         "InRange",
         "Regex",
+        "CheckRegexSingle",
+        "CheckRegexFormat",
         "Date",
         "URL",
         "List",
@@ -115,6 +116,139 @@ def fixture_test_nodes(
         for node in nodes
     }
     return nodes
+
+
+@pytest.fixture(name="test_range_nodes")
+def fixture_test_range_nodes(
+    dmge: DataModelGraphExplorer,
+) -> dict[str, TraversalNode]:
+    """Yields dict of Nodes"""
+    nodes = [
+        "MaximumInteger",
+        "MinimumInteger",
+        "MaximumFloat",
+        "MinimumFloat",
+        "MaximumMinimum",
+        "MaximumMinimumIntegerList",
+        "MaximumMinimumValidationRule",
+    ]
+    nodes = {
+        node: TraversalNode(node, "RangeComponent", dmge, logger=Mock())
+        for node in nodes
+    }
+    return nodes
+
+
+class TestTraversalNodeColumnTypeCompatibility:
+    """Tests for TraversalNode column type compatibility validation"""
+
+    @pytest.fixture
+    def mock_dmge(self):
+        """Fixture to create a mock DataModelGraphExplorer"""
+        dmge = Mock(spec=DataModelGraphExplorer)
+        dmge.get_nodes_display_names.return_value = ["Test Node"]
+        dmge.get_component_node_validation_rules.return_value = []
+        dmge.get_component_node_required.return_value = False
+        dmge.get_node_dependencies.return_value = []
+        dmge.get_node_comment.return_value = "Test description"
+        dmge.get_node_range.return_value = []
+        dmge.get_node_format.return_value = None
+        dmge.get_node_column_pattern.return_value = None
+        return dmge
+
+    def test_string_type_with_maximum_raises_error(self, mock_dmge):
+        """Test that string columnType with maximum constraint raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.STRING
+        # Mock the get_node_maximum_minimum_value method to return:
+        # - 100 when relationship_value is "maximum"
+        # - None when relationship_value is "minimum" (via .get() default)
+        mock_dmge.get_node_maximum_minimum_value.side_effect = (
+            lambda relationship_value, **kwargs: (
+                {"maximum": 100}.get(relationship_value)
+            )
+        )
+        logger = logging.getLogger(__name__)
+
+        with pytest.raises(
+            ValueError,
+        ) as exc_info:
+            TraversalNode(
+                name="TestNode",
+                source_node="TestComponent",
+                dmge=mock_dmge,
+                logger=logger,
+            )
+        # Then assert on the error message
+        error_message = str(exc_info.value)
+        assert "columnType is 'string'" in error_message
+        assert "maximum constraint" in error_message
+        assert "value: 100" in error_message
+
+    def test_string_type_with_minimum_raises_error(self, mock_dmge):
+        """Test that string columnType with minimum constraint raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.STRING
+        # Mock the get_node_maximum_minimum_value method to return:
+        # - 100 when relationship_value is "minimum"
+        # - None when relationship_value is "minimum" (via .get() default)
+        mock_dmge.get_node_maximum_minimum_value.side_effect = (
+            lambda relationship_value, **kwargs: (
+                {"minimum": 1}.get(relationship_value)
+            )
+        )
+        logger = logging.getLogger(__name__)
+
+        with pytest.raises(
+            ValueError,
+        ) as exc_info:
+            TraversalNode(
+                name="TestNode",
+                source_node="TestComponent",
+                dmge=mock_dmge,
+                logger=logger,
+            )
+        # Then assert on the error message
+        error_message = str(exc_info.value)
+        assert "columnType is 'string'" in error_message
+        assert "minimum constraint" in error_message
+        assert "value: 1" in error_message
+
+    def test_int_type_with_format_constraint_raises_error(self, mock_dmge):
+        """Test that int columnType with format constraint raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.INTEGER
+        mock_dmge.get_node_format.return_value = JSONSchemaFormat.DATE
+
+        logger = logging.getLogger(__name__)
+        with pytest.raises(ValueError) as exc_info:
+            TraversalNode(
+                name="TestNode",
+                source_node="TestComponent",
+                dmge=mock_dmge,
+                logger=logger,
+            )
+        # Then assert on the error message
+        error_message = str(exc_info.value)
+        assert "columnType is 'integer'" in error_message
+        assert "format constraint" in error_message
+        assert "value: date" in error_message
+
+    def test_int_type_with_pattern_constraint_raises_error(self, mock_dmge):
+        """Test that int columnType with pattern constraint raises ValueError"""
+        mock_dmge.get_node_column_type.return_value = AtomicColumnType.INTEGER
+        mock_dmge.get_node_column_pattern.return_value = "[a-z]+"
+
+        logger = logging.getLogger(__name__)
+        with pytest.raises(ValueError) as exc_info:
+            TraversalNode(
+                name="TestNode",
+                source_node="TestComponent",
+                dmge=mock_dmge,
+                logger=logger,
+            )
+        # Then assert on the error message
+        error_message = str(exc_info.value)
+        assert "columnType is 'integer'" in error_message
+        assert "pattern constraint" in error_message
+        assert "value: [a-z]+" in error_message
 
 
 class TestJSONSchema:
@@ -203,6 +337,18 @@ class TestJSONSchema:
         ("InRange", AtomicColumnType.NUMBER, False, 50, 100, None, None),
         # Node with "regex search [a-f]" validation rule and columnType "string" - pattern is set, type is STRING
         ("Regex", AtomicColumnType.STRING, False, None, None, "[a-f]", None),
+        # Node with "[a-f]" pattern column specification and columnType "string" - pattern is set, type is STRING
+        ("CheckRegexSingle", AtomicColumnType.STRING, False, None, None, "[a-b]", None),
+        # Node with "regex search [a-f]" validation rule, "^[a-b]" pattern column specification, and columnType "string" - pattern is set, type is STRING
+        (
+            "CheckRegexFormat",
+            AtomicColumnType.STRING,
+            False,
+            None,
+            None,
+            "^[a-b]",
+            None,
+        ),
         # Node with "date" validation rule and columnType "string" - format is set to DATE, type is STRING
         (
             "Date",
@@ -226,6 +372,8 @@ class TestJSONSchema:
         "List",
         "InRange",
         "Regex",
+        "CheckRegexSingle",
+        "CheckRegexFormat",
         "Date",
         "URI",
         "ListBoolean",
@@ -241,6 +389,7 @@ def test_node_init(
     expected_pattern: Optional[str],
     expected_format: Optional[JSONSchemaFormat],
     test_nodes: dict[str, TraversalNode],
+    caplog,
 ) -> None:
     """
     Tests for TraversalNode class initialization.
@@ -253,6 +402,7 @@ def test_node_init(
     The type property comes from the columnType field, while constraints
     come from parsing validation rules like "str", "inRange", "regex", etc.
     """
+
     node = test_nodes[node_name]
     assert node.type == expected_type
     assert node.format == expected_format
@@ -260,6 +410,137 @@ def test_node_init(
     assert node.minimum == expected_min
     assert node.maximum == expected_max
     assert node.pattern == expected_pattern
+    if node_name == "Regex":
+        warning_message = "A regex validation rule is set for property: Regex, but the pattern is not set in the data model."
+        assert warning_message in test_nodes[node_name].logger.mock_calls[0][1][0]
+
+
+def test_invalid_regex_columntype_traversalnode(
+    helpers,
+) -> None:
+    """
+    Tests for matching pattern and columnType specification.
+
+    Verifies that when TransversalNode objects are initialized with a pattern specified and an incompatible column type, a ValueError is raised.
+    """
+    node = "Check Regex Single"
+
+    path_to_data_model = helpers.get_schema_file_path("data_models/example.model.csv")
+
+    fullpath = helpers.get_schema_file_path(path_to_data_model)
+
+    # Instantiate DataModelParser
+    data_model_parser = DataModelParser(path_to_data_model=fullpath, logger=Mock())
+
+    # Parse Model
+    parsed_data_model = data_model_parser.parse_model()
+
+    # Change column type to imcompatible type
+    parsed_data_model[node]["Relationships"]["ColumnType"] = "integer"
+
+    # Instantiate DataModelGraph
+    data_model_grapher = DataModelGraph(
+        parsed_data_model, data_model_labels="class_label", logger=Mock()
+    )
+
+    # Generate graph
+    graph_data_model = data_model_grapher.graph
+
+    # Instantiate DataModelGraphExplorer
+    dmge = DataModelGraphExplorer(graph_data_model, logger=Mock())
+
+    # A value error should be raised when using pattern specification with non-string column type
+    error_message = "For attribute 'Check Regex Single': columnType is 'integer' but pattern constraint"
+    with pytest.raises(ValueError, match=error_message):
+        node = TraversalNode(
+            node.replace(" ", ""), "JSONSchemaComponent", dmge, logger=Mock()
+        )
+
+
+def test_invalid_regex_traversalnode(
+    helpers,
+) -> None:
+    """
+    Tests for invalid regex pattern specification.
+
+    Verifies that only valid regex patterns are specified.
+    """
+    node = "Check Regex Single"
+
+    path_to_data_model = helpers.get_schema_file_path("data_models/example.model.csv")
+
+    fullpath = helpers.get_schema_file_path(path_to_data_model)
+
+    # Instantiate DataModelParser
+    data_model_parser = DataModelParser(path_to_data_model=fullpath, logger=Mock())
+
+    # Parse Model
+    parsed_data_model = data_model_parser.parse_model()
+
+    # Change column type to imcompatible type
+    parsed_data_model[node]["Relationships"]["Pattern"] = "\\u"
+
+    # Instantiate DataModelGraph
+    data_model_grapher = DataModelGraph(
+        parsed_data_model, data_model_labels="class_label", logger=Mock()
+    )
+
+    # Generate graph
+    graph_data_model = data_model_grapher.graph
+
+    # Instantiate DataModelGraphExplorer
+    dmge = DataModelGraphExplorer(graph_data_model, logger=Mock())
+
+    # A value error should be raised when using pattern specification with non-string column type
+    error_message = "Column type must be set to 'string' to use column pattern specification for regex validation."
+    with pytest.raises(SyntaxError, match="The regex pattern.*is invalid"):
+        node = TraversalNode(
+            node.replace(" ", ""), "JSONSchemaComponent", dmge, logger=Mock()
+        )
+
+
+@pytest.mark.parametrize(
+    "node_name, expected_node_type, expected_max, expected_min",
+    [
+        ("MaximumInteger", AtomicColumnType.INTEGER, 100, None),
+        ("MinimumInteger", AtomicColumnType.INTEGER, None, 10),
+        ("MaximumFloat", AtomicColumnType.NUMBER, 100.5, None),
+        ("MinimumFloat", AtomicColumnType.NUMBER, None, 10.8),
+        ("MaximumMinimum", AtomicColumnType.INTEGER, 100, 10),
+        ("MaximumMinimumIntegerList", AtomicColumnType.INTEGER, 100, 10),
+        ("MaximumMinimumValidationRule", AtomicColumnType.INTEGER, 200, 10),
+    ],
+    ids=[
+        "MaximumInteger",
+        "MinimumInteger",
+        "MaximumFloat",
+        "MinimumFloat",
+        "MaximumMinimum",
+        "MaximumMinimumIntegerList",
+        "MaximumMinimumValidationRule",
+    ],
+)
+def test_node_range_component_init(
+    node_name: str,
+    expected_node_type: Optional[ColumnType],
+    expected_max: Optional[float],
+    expected_min: Optional[float],
+    test_range_nodes: dict[str, TraversalNode],
+) -> None:
+    """
+    Tests for TraversalNode class initialization for RangeComponent nodes.
+
+    Verifies that TraversalNode objects are correctly initialized with:
+    - Maximum and Minimum values extracted from the data model
+    - The expected node type based on columnType
+
+    The maximum and minimum properties come from the Maximum and Minimum fields in the data model if present.
+
+    """
+    node = test_range_nodes[node_name]
+    assert node.maximum == expected_max
+    assert node.minimum == expected_min
+    assert node.type == expected_node_type
 
 
 @pytest.mark.parametrize(
@@ -394,6 +675,50 @@ def test_get_validation_rule_based_fields(
     assert minimum == expected_min
     assert maximum == expected_max
     assert pattern == expected_pattern
+
+
+def test_get_validation_rule_based_fields_inrange_warning(caplog) -> None:
+    """
+    Test that _get_validation_rule_based_fields logs a deprecation warning when inRange rule is used.
+
+    The inRange validation rule is deprecated in favor of using explicit Minimum and Maximum
+    columns in the data model. This test verifies that a warning is logged when inRange is used.
+    """
+    logger = logging.getLogger(__name__)
+    with caplog.at_level(logging.WARNING):
+        _get_validation_rule_based_fields(
+            validation_rules=["inRange 50 100"],
+            explicit_is_array=False,
+            explicit_format=None,
+            name="name",
+            column_type=AtomicColumnType.NUMBER,
+            logger=logger,
+        )
+    assert len(caplog.records) == 1
+    warning_message = caplog.records[0].message
+    assert "An inRange validation rule is set for property: name" in warning_message
+
+
+@pytest.mark.parametrize(
+    "column_type, expected_type, expected_is_array",
+    [
+        (AtomicColumnType.INTEGER, AtomicColumnType.INTEGER, False),
+        (AtomicColumnType.STRING, AtomicColumnType.STRING, False),
+        (AtomicColumnType.BOOLEAN, AtomicColumnType.BOOLEAN, False),
+        (ListColumnType.STRING_LIST, AtomicColumnType.STRING, True),
+        (ListColumnType.INTEGER_LIST, AtomicColumnType.INTEGER, True),
+        (ListColumnType.BOOLEAN_LIST, AtomicColumnType.BOOLEAN, True),
+    ],
+)
+def test_determine_type_and_array(column_type, dmge, expected_type, expected_is_array):
+    """Test for TraversalNode._determine_type_and_array method"""
+    traversal_node = TraversalNode(
+        "ListInteger", "JSONSchemaComponent", dmge, logger=Mock()
+    )
+    assert traversal_node._determine_type_and_array(column_type=column_type) == (
+        expected_type,
+        expected_is_array,
+    )
 
 
 class TestGraphTraversalState:
@@ -966,7 +1291,7 @@ def test_set_conditional_dependencies(
                     "Enum": {
                         "description": "TBD",
                         "title": "Enum",
-                        "oneOf": [{"enum": ["ab", "cd", "ef", "gh"], "title": "enum"}],
+                        "enum": ["ab", "cd", "ef", "gh"],
                     }
                 },
                 required=["Enum"],
@@ -1119,20 +1444,18 @@ def test_create_array_property(
         # If is_required is True, no type is added
         (
             "Enum",
-            {"oneOf": [{"enum": ["ab", "cd", "ef", "gh"], "title": "enum"}]},
+            {"enum": ["ab", "cd", "ef", "gh"], "title": "enum"},
             ["ab"],
             [1, "x", None],
         ),
-        # If is_required is False, "null" is added as a type
+        # SYNPY 1699: If is_required is False, null type is no longer added
         (
             "EnumNotRequired",
             {
-                "oneOf": [
-                    {"enum": ["ab", "cd", "ef", "gh"], "title": "enum"},
-                    {"type": "null", "title": "null"},
-                ],
+                "enum": ["ab", "cd", "ef", "gh"],
+                "title": "enum",
             },
-            ["ab", None],
+            ["ab"],
             [1, "x"],
         ),
     ],
@@ -1168,17 +1491,11 @@ def test_create_enum_property(
             [""],
             [1, None],
         ),
-        # If property_type is given, and is_required is False,
-        # type is set to given property_type and "null"
+        # SYNPY 1699: If is_required is False, null type is no longer added
         (
             "StringNotRequired",
-            {
-                "oneOf": [
-                    {"type": "string", "title": "string"},
-                    {"type": "null", "title": "null"},
-                ],
-            },
-            [None, "x"],
+            {"type": "string"},
+            ["x"],
             [1],
         ),
         # If is_required is True '"not": {"type":"null"}' is added to schema if
